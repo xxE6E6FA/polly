@@ -11,6 +11,7 @@ import {
   Hash,
   Crown,
   Sparkles,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -69,6 +70,7 @@ export default function SettingsLayout({
     if (path === "/settings/api-keys") return "api-keys";
     if (path === "/settings/models") return "models";
     if (path === "/settings/personas") return "personas";
+    if (path === "/settings/about") return "about";
     return "api-keys"; // Default to api-keys since we removed account
   };
 
@@ -145,6 +147,18 @@ export default function SettingsLayout({
                 >
                   <User className="h-4 w-4" />
                   Personas
+                </Link>
+                <Link
+                  href="/settings/about"
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap lg:w-full",
+                    activeTab === "about"
+                      ? "bg-muted text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <Info className="h-4 w-4" />
+                  About
                 </Link>
               </nav>
 
