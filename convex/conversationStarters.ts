@@ -5,7 +5,7 @@ export const generateConversationStarters = action({
   args: {
     selectedText: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       // Fallback to simple conversation starters if no API key

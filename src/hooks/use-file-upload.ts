@@ -11,13 +11,9 @@ import { AIModel } from "@/types";
 
 interface UseFileUploadProps {
   currentModel?: AIModel;
-  conversationId?: string;
 }
 
-export function useFileUpload({
-  currentModel,
-  conversationId,
-}: UseFileUploadProps) {
+export function useFileUpload({ currentModel }: UseFileUploadProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadProgress, setUploadProgress] = useState<
     Map<string, FileUploadProgress>
@@ -161,13 +157,9 @@ export function useFileUpload({
               return newMap;
             });
           } else {
-            const attachment = await uploadFile(
-              file,
-              conversationId,
-              progress => {
-                setUploadProgress(prev => new Map(prev.set(fileKey, progress)));
-              }
-            );
+            const attachment = await uploadFile(file, progress => {
+              setUploadProgress(prev => new Map(prev.set(fileKey, progress)));
+            });
 
             newAttachments.push(attachment);
             setUploadProgress(prev => {
@@ -206,7 +198,7 @@ export function useFileUpload({
         );
       }
     },
-    [notificationDialog, currentModel, uploadFile, conversationId]
+    [notificationDialog, currentModel, uploadFile]
   );
 
   const removeAttachment = useCallback((index: number) => {

@@ -18,7 +18,6 @@ export function useConvexFileUpload() {
   const uploadFile = useCallback(
     async (
       file: File,
-      conversationId?: string,
       onProgress?: (progress: FileUploadProgress) => void
     ): Promise<Attachment> => {
       const fileProgress: FileUploadProgress = {

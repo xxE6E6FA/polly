@@ -121,7 +121,6 @@ export const getMonthlyUsage = query({
     const lastReset = user.lastMonthlyReset || createdAt;
 
     // Calculate next reset date based on user's creation anniversary
-    const createdDate = new Date(createdAt);
     const lastResetDate = new Date(lastReset);
     const currentDate = new Date(now);
 
