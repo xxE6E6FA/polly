@@ -168,10 +168,7 @@ export const ChatInput = React.memo(
       buildMessageContent,
       getBinaryAttachments,
       notificationDialog,
-    } = useFileUpload({
-      currentModel,
-      conversationId: props.conversationId,
-    });
+    } = useFileUpload({ currentModel });
 
     // Memoize placeholder text calculation
     const placeholderText = useMemo(() => {

@@ -48,7 +48,7 @@ const API_KEY_INFO = {
   },
 };
 
-function getProviderCardStyle(provider: string, isConnected: boolean) {
+function getProviderCardStyle(isConnected: boolean) {
   const baseStyle = "p-4 rounded-lg border transition-all duration-200";
 
   if (isConnected) {
@@ -187,7 +187,7 @@ export function ApiKeysTab() {
           return (
             <div
               key={provider}
-              className={`${getProviderCardStyle(provider, isConnected)} flex flex-col h-full justify-between`}
+              className={`${getProviderCardStyle(isConnected)} flex flex-col h-full justify-between`}
             >
               <div className="flex items-start justify-between mb-4 flex-shrink-0">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
