@@ -1,29 +1,47 @@
-"use client";
-
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "convex/react";
-import { api } from "../../../../../../convex/_generated/api";
 import { EmojiClickData } from "emoji-picker-react";
-import { SettingsHeader } from "@/components/settings/settings-header";
 import {
   PersonaForm,
   PersonaFormData,
 } from "@/components/settings/persona-form";
+import { api } from "convex/_generated/api";
+import { useNavigationBlocker } from "@/hooks/use-navigation-blocker";
+import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const createPersona = useMutation(api.personas.create);
 
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasCreated, setHasCreated] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
     name: "",
     description: "",
     prompt: "",
     icon: "🤖",
+  });
+
+  // Check if form has been modified
+  const hasUnsavedChanges = useMemo(() => {
+    if (hasCreated) return false;
+    return (
+      formData.name.trim() !== "" ||
+      formData.description.trim() !== "" ||
+      formData.prompt.trim() !== "" ||
+      formData.icon !== "🤖"
+    );
+  }, [formData, hasCreated]);
+
+  // Block navigation when there are unsaved changes
+  useNavigationBlocker({
+    when: hasUnsavedChanges,
+    message:
+      "You have unsaved changes to your persona. Are you sure you want to leave?",
   });
 
   const handleCreatePersona = async () => {
@@ -40,7 +58,8 @@ export default function NewPersonaPage() {
         icon: formData.icon,
       });
 
-      router.push("/settings/personas");
+      setHasCreated(true);
+      navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (error) {
       console.error("Failed to create persona:", error);
     } finally {
@@ -57,12 +76,16 @@ export default function NewPersonaPage() {
 
   return (
     <div className="space-y-8">
-      <SettingsHeader
-        title="Create New Persona"
-        description="Give your AI assistant a unique personality and style for different types of conversations"
-      />
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Create New Persona
+        </h1>
+        <p className="text-muted-foreground">
+          Give your AI assistant a unique personality and style for different
+          types of conversations
+        </p>
+      </div>
 
-      {/* Form */}
       <PersonaForm
         formData={formData}
         setFormData={setFormData}
@@ -71,12 +94,11 @@ export default function NewPersonaPage() {
         handleEmojiClick={handleEmojiClick}
       />
 
-      {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t">
         <Button
           variant="outline"
           size="default"
-          onClick={() => router.push("/settings/personas")}
+          onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
           disabled={isLoading}
         >
           Cancel
