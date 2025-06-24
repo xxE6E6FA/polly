@@ -1,116 +1,211 @@
 import { convexAuth } from "@convex-dev/auth/server";
 import Google from "@auth/core/providers/google";
+import { Password } from "@convex-dev/auth/providers/Password";
+import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
 import { MutationCtx } from "./_generated/server";
+import { MONTHLY_MESSAGE_LIMIT } from "./constants";
+import { Id } from "./_generated/dataModel";
+import { ConvexError } from "convex/values";
 
-export const { auth, signIn, signOut, store } = convexAuth({
+export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
+    // Google OAuth provider
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      clientId: process.env.AUTH_GOOGLE_ID!,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
     }),
-  ],
-  callbacks: {
-    async createOrUpdateUser(ctx: MutationCtx, args) {
-      console.log(
-        `[Auth] createOrUpdateUser called with existingUserId: ${args.existingUserId}`
-      );
 
-      // If existingUserId is provided, try to update that user
-      if (args.existingUserId) {
-        const existingUser = await ctx.db.get(args.existingUserId);
-        if (existingUser) {
-          // User exists, update with latest auth data
-          console.log(`[Auth] Updating existing user ${args.existingUserId}`);
-          await ctx.db.patch(args.existingUserId, {
-            name:
-              typeof args.profile.name === "string"
-                ? args.profile.name
-                : existingUser.name,
-            email:
-              typeof args.profile.email === "string"
-                ? args.profile.email
-                : existingUser.email,
-            emailVerified: args.profile.emailVerified
-              ? typeof args.profile.emailVerified === "number"
-                ? args.profile.emailVerified
-                : Date.now()
-              : existingUser.emailVerified,
-            image:
-              typeof args.profile.image === "string"
-                ? args.profile.image
-                : existingUser.image,
-            isAnonymous: false, // Always mark as authenticated when updating via OAuth
+    // Password-based authentication (email/password)
+    Password({
+      // Customize password requirements if needed
+      // You can add password strength validation here
+    }),
+
+    // Anonymous authentication for guest users
+    Anonymous(),
+  ],
+
+  // Session configuration
+  session: {
+    // How long can a user session last without reauthentication (30 days)
+    totalDurationMs: 30 * 24 * 60 * 60 * 1000,
+    // How long can a user session last without activity (7 days)
+    inactiveDurationMs: 7 * 24 * 60 * 60 * 1000,
+  },
+
+  // JWT configuration
+  jwt: {
+    // JWT validity duration (1 hour)
+    durationMs: 60 * 60 * 1000,
+  },
+
+  // Sign-in configuration
+  signIn: {
+    // Max failed attempts per hour (rate limiting)
+    maxFailedAttempsPerHour: 10,
+  },
+
+  callbacks: {
+    // Custom user creation/update logic
+    async createOrUpdateUser(ctx: MutationCtx, args) {
+      const { existingUserId, profile, provider, type } = args;
+
+      console.log(`[Auth] createOrUpdateUser called`, {
+        existingUserId,
+        provider: provider.id,
+        type,
+      });
+
+      // Extract profile fields with proper types
+      const profileName =
+        typeof profile.name === "string" ? profile.name : undefined;
+      const profileEmail =
+        typeof profile.email === "string" ? profile.email : undefined;
+      const profileImage =
+        typeof profile.image === "string" ? profile.image : undefined;
+      const profileEmailVerified = profile.emailVerified
+        ? typeof profile.emailVerified === "number"
+          ? profile.emailVerified
+          : Date.now()
+        : undefined;
+
+      // Handle anonymous user graduation
+      const anonymousUserId = (
+        args as { state?: { anonymousUserId?: Id<"users"> } }
+      ).state?.anonymousUserId as Id<"users"> | undefined;
+
+      if (anonymousUserId) {
+        console.log(
+          `[Auth] Anonymous user ID found in state: ${anonymousUserId}`
+        );
+
+        const anonymousUser = await ctx.db.get(anonymousUserId);
+
+        if (anonymousUser?.isAnonymous) {
+          console.log(`[Auth] Graduating anonymous user ${anonymousUserId}`);
+
+          // Graduate the anonymous user by updating their record
+          await ctx.db.patch(anonymousUserId, {
+            name: profileName || anonymousUser.name,
+            email: profileEmail || anonymousUser.email,
+            emailVerified: profileEmailVerified || anonymousUser.emailVerified,
+            image: profileImage || anonymousUser.image,
+            isAnonymous: false,
+            // Preserve message counts for graduated user
+            monthlyMessagesSent: anonymousUser.messagesSent || 0,
+            monthlyLimit: MONTHLY_MESSAGE_LIMIT,
+            lastMonthlyReset: Date.now(),
           });
-          return args.existingUserId;
-        } else {
-          // User document doesn't exist but account does - this is the error scenario
-          console.log(
-            `[Auth] User document ${args.existingUserId} doesn't exist (orphaned account), will create new user`
-          );
+
+          return anonymousUserId;
         }
       }
 
-      // Check if there's an existing anonymous user that should be graduated
-      // Look for anonymous user by email first (in case they were partially set up)
-      if (args.profile.email && typeof args.profile.email === "string") {
-        const existingUserByEmail = await ctx.db
+      // Update existing user
+      if (existingUserId) {
+        const existingUser = await ctx.db.get(existingUserId);
+        if (!existingUser) {
+          console.error(
+            `[Auth] User document ${existingUserId} doesn't exist (orphaned account)`
+          );
+          throw new ConvexError("User account is in an invalid state");
+        }
+
+        console.log(`[Auth] Updating existing user ${existingUserId}`);
+
+        // Update user with latest auth data
+        await ctx.db.patch(existingUserId, {
+          name: profileName || existingUser.name,
+          email: profileEmail || existingUser.email,
+          emailVerified: profileEmailVerified || existingUser.emailVerified,
+          image: profileImage || existingUser.image,
+          isAnonymous: false,
+        });
+
+        return existingUserId;
+      }
+
+      // Create new user
+      console.log(`[Auth] Creating new user`);
+      const now = Date.now();
+
+      // Check if email already exists (for email-based providers)
+      if (profileEmail) {
+        const existingEmailUser = await ctx.db
           .query("users")
-          .withIndex("email", q => q.eq("email", args.profile.email))
+          .withIndex("email", q => q.eq("email", profileEmail))
           .first();
 
-        if (existingUserByEmail) {
+        if (existingEmailUser) {
           console.log(
-            `[Auth] Found existing user by email: ${existingUserByEmail._id}`
+            `[Auth] User with email ${profileEmail} already exists, linking accounts`
           );
-          // Found user by email, update with auth data
-          await ctx.db.patch(existingUserByEmail._id, {
-            name:
-              typeof args.profile.name === "string"
-                ? args.profile.name
-                : existingUserByEmail.name,
-            email: args.profile.email,
-            emailVerified: args.profile.emailVerified
-              ? typeof args.profile.emailVerified === "number"
-                ? args.profile.emailVerified
-                : Date.now()
-              : existingUserByEmail.emailVerified,
-            image:
-              typeof args.profile.image === "string"
-                ? args.profile.image
-                : existingUserByEmail.image,
-            isAnonymous: false,
-          });
-          return existingUserByEmail._id;
+          return existingEmailUser._id;
         }
       }
 
-      // No existing user found, create new authenticated user
-      console.log(`[Auth] Creating new authenticated user`);
-      const now = Date.now();
-      return ctx.db.insert("users", {
-        name:
-          typeof args.profile.name === "string" ? args.profile.name : undefined,
-        email:
-          typeof args.profile.email === "string"
-            ? args.profile.email
-            : undefined,
-        emailVerified: args.profile.emailVerified
-          ? typeof args.profile.emailVerified === "number"
-            ? args.profile.emailVerified
-            : Date.now()
-          : undefined,
-        image:
-          typeof args.profile.image === "string"
-            ? args.profile.image
-            : undefined,
-        isAnonymous: false,
+      // Create new user document
+      const userId = await ctx.db.insert("users", {
+        name: profileName,
+        email: profileEmail,
+        emailVerified: profileEmailVerified,
+        image: profileImage,
+        isAnonymous: provider.id === "anonymous",
         createdAt: now,
         messagesSent: 0,
-        // Initialize monthly limits for new authenticated users
+        // Initialize monthly limits
         monthlyMessagesSent: 0,
-        monthlyLimit: 500,
+        monthlyLimit: MONTHLY_MESSAGE_LIMIT,
         lastMonthlyReset: now,
       });
+
+      return userId;
+    },
+
+    // Additional callback after user is created/updated
+    async afterUserCreatedOrUpdated(ctx: MutationCtx, args) {
+      const { userId, existingUserId, type } = args;
+
+      // Log user sign-in event for analytics
+      console.log(`[Auth] User ${userId} signed in`, {
+        isNewUser: !existingUserId,
+        type,
+        timestamp: Date.now(),
+      });
+
+      // You can add additional logic here like:
+      // - Creating default settings for new users
+      // - Sending welcome emails
+      // - Updating user activity timestamps
+      // - Creating audit logs
+
+      // Example: Create default settings for new users
+      if (!existingUserId && type !== "verification") {
+        const existingSettings = await ctx.db
+          .query("userSettings")
+          .withIndex("by_user", q => q.eq("userId", userId))
+          .first();
+
+        if (!existingSettings) {
+          await ctx.db.insert("userSettings", {
+            userId,
+            personasEnabled: true,
+            openRouterSorting: "default",
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          });
+        }
+      }
     },
   },
 });
+
+// Export typed auth functions for use in other files
+export type { SignInAction, SignOutAction } from "@convex-dev/auth/server";

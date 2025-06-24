@@ -1,4 +1,4 @@
-const config = {
+export default {
   providers: [
     {
       domain: process.env.CONVEX_SITE_URL,
@@ -6,5 +6,3 @@ const config = {
     },
   ],
 };
-
-export default config;

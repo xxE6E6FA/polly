@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUserId } from "./lib/auth";
+import { MONTHLY_MESSAGE_LIMIT, ANONYMOUS_MESSAGE_LIMIT } from "./constants";
 
 export const current = query({
   args: {},
@@ -131,7 +131,7 @@ export const getMonthlyUsage = query({
     // If we've passed the reset date, we need to reset
     const needsReset = currentDate >= nextResetDate;
 
-    const monthlyLimit = user.monthlyLimit || 100;
+    const monthlyLimit = user.monthlyLimit || MONTHLY_MESSAGE_LIMIT;
     let monthlyMessagesSent = user.monthlyMessagesSent || 0;
 
     if (needsReset) {
@@ -168,9 +168,7 @@ export const hasUserApiKeys = query({
   },
 });
 
-// Message limit enforcement - keep in sync with client-side use-user.ts
-const ANONYMOUS_MESSAGE_LIMIT = 10;
-const MONTHLY_MESSAGE_LIMIT = 500;
+// Message limit enforcement - using constants from ./constants.ts
 
 export const incrementMessageCount = mutation({
   args: {
@@ -429,5 +427,98 @@ export const getUserStats = query({
       totalMessages,
       messagesSent: user.messagesSent || 0, // For anonymous users
     };
+  },
+});
+
+export const graduateOrMergeAnonymousUser = mutation({
+  args: {
+    anonymousUserId: v.id("users"),
+    authenticatedUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const anonymousUser = await ctx.db.get(args.anonymousUserId);
+    const authenticatedUser = await ctx.db.get(args.authenticatedUserId);
+
+    if (!anonymousUser || !authenticatedUser) {
+      throw new Error("User not found");
+    }
+
+    if (!anonymousUser.isAnonymous) {
+      throw new Error("User is not anonymous");
+    }
+
+    // Check if authenticated user has any existing conversations
+    const existingConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_user", q => q.eq("userId", args.authenticatedUserId))
+      .collect();
+
+    if (existingConversations.length === 0) {
+      // Case 1: First time sign in - Graduate the anonymous user
+      console.log(
+        `[GraduateUser] Graduating anonymous user ${args.anonymousUserId} to authenticated user ${args.authenticatedUserId}`
+      );
+
+      // Update all conversations from anonymous to authenticated user
+      const anonymousConversations = await ctx.db
+        .query("conversations")
+        .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
+        .collect();
+
+      for (const conversation of anonymousConversations) {
+        await ctx.db.patch(conversation._id, {
+          userId: args.authenticatedUserId,
+        });
+      }
+
+      // Copy over message count and monthly usage data
+      const anonymousMessageCount = anonymousUser.messagesSent || 0;
+      const authenticatedMessageCount = authenticatedUser.messagesSent || 0;
+
+      await ctx.db.patch(args.authenticatedUserId, {
+        messagesSent: authenticatedMessageCount + anonymousMessageCount,
+        // For monthly usage, add the anonymous messages to the current month
+        monthlyMessagesSent:
+          (authenticatedUser.monthlyMessagesSent || 0) + anonymousMessageCount,
+      });
+
+      // Delete the anonymous user
+      await ctx.db.delete(args.anonymousUserId);
+
+      return { action: "graduated" as const };
+    } else {
+      // Case 2: Existing user who created anonymous conversations - Merge
+      console.log(
+        `[MergeUser] Merging anonymous user ${args.anonymousUserId} conversations to authenticated user ${args.authenticatedUserId}`
+      );
+
+      // Transfer all conversations from anonymous to authenticated user
+      const anonymousConversations = await ctx.db
+        .query("conversations")
+        .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
+        .collect();
+
+      for (const conversation of anonymousConversations) {
+        await ctx.db.patch(conversation._id, {
+          userId: args.authenticatedUserId,
+        });
+      }
+
+      // Update message count and monthly usage
+      const anonymousMessageCount = anonymousUser.messagesSent || 0;
+      const authenticatedMessageCount = authenticatedUser.messagesSent || 0;
+
+      await ctx.db.patch(args.authenticatedUserId, {
+        messagesSent: authenticatedMessageCount + anonymousMessageCount,
+        // For monthly usage, add the anonymous messages to the current month
+        monthlyMessagesSent:
+          (authenticatedUser.monthlyMessagesSent || 0) + anonymousMessageCount,
+      });
+
+      // Delete the anonymous user
+      await ctx.db.delete(args.anonymousUserId);
+
+      return { action: "merged" as const };
+    }
   },
 });
