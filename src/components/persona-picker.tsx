@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -15,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, User } from "lucide-react";
+import { Check, User, ChevronDown } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
@@ -36,10 +34,18 @@ export function PersonaPicker({
   onPersonaSelect,
 }: PersonaPickerProps) {
   const userInfo = useUser();
-  const personas = useQuery(api.personas.list, { userId: userInfo.user?._id });
-  const userPersonaSettings = useQuery(api.personas.getUserPersonaSettings, {
-    userId: userInfo.user?._id,
-  });
+  const personas = useQuery(
+    api.personas.list,
+    userInfo.user?._id ? { userId: userInfo.user._id } : "skip"
+  );
+  const userPersonaSettings = useQuery(
+    api.personas.getUserPersonaSettings,
+    userInfo.user?._id
+      ? {
+          userId: userInfo.user._id,
+        }
+      : "skip"
+  );
 
   const [open, setOpen] = useState(false);
 
@@ -79,19 +85,23 @@ export function PersonaPicker({
               variant="ghost"
               size="sm"
               className={cn(
-                "h-auto text-xs font-medium text-muted-foreground/80 hover:text-foreground",
+                "h-7 w-7 p-0 relative group picker-trigger",
+                "hover:bg-accent/50 dark:hover:bg-accent/30",
+                "transition-all duration-200",
+                open && "bg-accent/50 dark:bg-accent/30",
                 className
               )}
+              title={currentPersona ? currentPersona.name : "Default"}
             >
               {currentPersona ? (
-                <span className="text-lg">{currentPersona.icon}</span>
+                <span className="text-base">{currentPersona.icon}</span>
               ) : (
-                <User className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                <User className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4"
+            className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
             side="top"
             sideOffset={4}
             collisionPadding={16}
@@ -121,14 +131,26 @@ export function PersonaPicker({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className={cn("w-full justify-between", className)}
+            className={cn(
+              "w-full justify-between group picker-trigger",
+              "hover:bg-accent/30 dark:hover:bg-accent/20",
+              "hover:border-primary/30 dark:hover:border-primary/30",
+              "transition-all duration-200",
+              open &&
+                "bg-accent/30 dark:bg-accent/20 border-primary/30 dark:border-primary/30",
+              className
+            )}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {currentPersona ? (
                 <>
-                  <span className="text-lg">{currentPersona.icon}</span>
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/50 dark:bg-accent/30">
+                    <span className="text-lg">{currentPersona.icon}</span>
+                  </div>
                   <div className="text-left">
-                    <div className="font-medium">{currentPersona.name}</div>
+                    <div className="font-medium text-sm">
+                      {currentPersona.name}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {currentPersona.description}
                     </div>
@@ -136,11 +158,11 @@ export function PersonaPicker({
                 </>
               ) : (
                 <>
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted/40">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted/50 dark:bg-muted/30 border border-border/50">
                     <User className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="text-left">
-                    <div className="font-medium">Default</div>
+                    <div className="font-medium text-sm">Default</div>
                     <div className="text-xs text-muted-foreground">
                       Standard AI assistant behavior
                     </div>
@@ -148,10 +170,16 @@ export function PersonaPicker({
                 </>
               )}
             </div>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200",
+                open && "rotate-180 text-foreground"
+              )}
+            />
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4"
+          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
           side="top"
           sideOffset={4}
           collisionPadding={16}
@@ -223,7 +251,7 @@ function PersonaList({
           <CommandItem
             value="default"
             onSelect={() => onPersonaSelect(null)}
-            className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0"
+            className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
           >
             <span className="text-lg">🤖</span>
             <div className="flex-1">
@@ -232,14 +260,14 @@ function PersonaList({
                 Standard AI assistant behavior
               </div>
             </div>
-            {!currentPersona && <Check className="h-4 w-4 text-accent-coral" />}
+            {!currentPersona && <Check className="h-4 w-4 text-primary" />}
           </CommandItem>
         </CommandGroup>
 
         {/* Built-in personas */}
         {builtInPersonas.length > 0 && (
           <>
-            <div className="h-px bg-border mx-2 my-1" />
+            <div className="h-px bg-border/50 mx-2 my-1.5" />
             <CommandGroup>
               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                 Built-in
@@ -253,7 +281,7 @@ function PersonaList({
                   key={persona._id}
                   value={persona.name}
                   onSelect={() => onPersonaSelect(persona._id)}
-                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0"
+                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
                 >
                   <span className="text-lg">{persona.icon || "🤖"}</span>
                   <div className="flex-1">
@@ -263,7 +291,7 @@ function PersonaList({
                     </div>
                   </div>
                   {currentPersona?._id === persona._id && (
-                    <Check className="h-4 w-4 text-accent-coral" />
+                    <Check className="h-4 w-4 text-primary" />
                   )}
                 </CommandItem>
               ))}
@@ -274,7 +302,7 @@ function PersonaList({
         {/* Custom personas */}
         {customPersonas.length > 0 && (
           <>
-            <div className="h-px bg-border mx-2 my-1" />
+            <div className="h-px bg-border/50 mx-2 my-1.5" />
             <CommandGroup>
               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                 Custom
@@ -288,7 +316,7 @@ function PersonaList({
                   key={persona._id}
                   value={persona.name}
                   onSelect={() => onPersonaSelect(persona._id)}
-                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0"
+                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
                 >
                   <span className="text-lg">{persona.icon || "🤖"}</span>
                   <div className="flex-1">
@@ -298,7 +326,7 @@ function PersonaList({
                     </div>
                   </div>
                   {currentPersona?._id === persona._id && (
-                    <Check className="h-4 w-4 text-accent-coral" />
+                    <Check className="h-4 w-4 text-primary" />
                   )}
                 </CommandItem>
               ))}

@@ -1,5 +1,3 @@
-"use client";
-
 import { type LLMOutputComponent } from "@llm-ui/react";
 import { CodeBlock } from "@/components/ui/code-block";
 

@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -135,7 +133,7 @@ export const LLMMarkdown: LLMOutputComponent = ({ blockMatch }) => {
   );
 
   return (
-    <div className="prose prose-base max-w-none dark:prose-invert prose-p:leading-7 katex-container">
+    <div className="prose prose-base max-w-none dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 katex-container">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[rehypeKatex]}

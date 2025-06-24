@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -13,15 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Share2,
-  Copy,
-  Check,
-  ExternalLink,
-  RefreshCw,
-  X,
-  AlertTriangle,
-} from "lucide-react";
+import { Share2, Copy, Check, ExternalLink, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ConversationId } from "@/types";
@@ -32,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Alert, AlertDescription, AlertIcon } from "./alert";
 
 interface ShareConversationDialogProps {
   conversationId: ConversationId;
@@ -144,6 +135,12 @@ export function ShareConversationDialog({
 
   const isShared = !!sharedStatus?.shareId;
   const hasNewMessages = sharedStatus?.hasNewMessages ?? false;
+  const newMessagesCount =
+    hasNewMessages &&
+    sharedStatus?.currentMessageCount &&
+    sharedStatus?.sharedMessageCount
+      ? sharedStatus.currentMessageCount - sharedStatus.sharedMessageCount
+      : 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -222,25 +219,14 @@ export function ShareConversationDialog({
               </div>
 
               {/* New messages alert */}
-              {hasNewMessages && (
-                <div className="rounded-lg border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100">
-                      <AlertTriangle className="h-3 w-3 text-amber-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-amber-800 mb-1">
-                        {sharedStatus.currentMessageCount -
-                          sharedStatus.sharedMessageCount}{" "}
-                        new messages since last update
-                      </p>
-                      <p className="text-xs text-amber-700">
-                        Update your share to include the latest messages in the
-                        public link.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              {newMessagesCount > 0 && newMessagesCount < 100 && (
+                <Alert variant="warning" className="mb-4">
+                  <AlertIcon variant="warning" />
+                  <AlertDescription>
+                    {newMessagesCount} new message
+                    {newMessagesCount === 1 ? "" : "s"} since last share
+                  </AlertDescription>
+                </Alert>
               )}
 
               {/* Action buttons */}

@@ -1,14 +1,8 @@
-"use client";
-
 import { User, LogIn } from "lucide-react";
-import { useAuthToken } from "@convex-dev/auth/react";
-import { useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
-import { api } from "../../../convex/_generated/api";
-import Image from "next/image";
-import Link from "next/link";
-import { useSidebar } from "@/hooks/use-sidebar";
-import { cn } from "@/lib/utils";
+import { Link } from "react-router";
+import { useUser } from "../../hooks/use-user";
+import { ROUTES } from "@/lib/routes";
 
 interface UserSectionContentProps {
   user:
@@ -26,26 +20,21 @@ interface UserSectionContentProps {
       }
     | null
     | undefined;
-  token: string | null | undefined;
+  isAuthenticated: boolean;
 }
 
-function UserSectionContent({ user, token }: UserSectionContentProps) {
-  const { isMobile } = useSidebar();
-
-  if (!token || !user) {
+function UserSectionContent({
+  user,
+  isAuthenticated,
+}: UserSectionContentProps) {
+  if (!isAuthenticated) {
     return (
-      <Link
-        href="/auth"
-        className={cn("block w-full", isMobile ? "px-3 py-8" : "px-4 py-6")}
-      >
+      <Link to={ROUTES.AUTH} className="block w-full px-3 py-3">
         <Button
           variant="ghost"
-          className={cn(
-            "w-full flex items-center justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors touch-manipulation",
-            isMobile ? "text-base py-6" : "text-sm"
-          )}
+          className="w-full flex items-center justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-accent/50 text-sm h-10"
         >
-          <LogIn className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
+          <LogIn className="h-4 w-4" />
           Sign In
         </Button>
       </Link>
@@ -53,28 +42,17 @@ function UserSectionContent({ user, token }: UserSectionContentProps) {
   }
 
   return (
-    <Link
-      href="/settings"
-      className={cn("block w-full", isMobile ? "px-3 py-4" : "px-4 py-2")}
-    >
+    <Link to={ROUTES.SETTINGS.ROOT} className="block w-full px-3 py-3">
       <Button
         variant="ghost"
-        className={cn(
-          "w-full justify-start gap-3 touch-manipulation",
-          isMobile ? "py-8 text-base" : "py-6 text-sm"
-        )}
+        className="w-full justify-start gap-3 hover:bg-accent/50 h-10 text-sm"
       >
-        {user.image ? (
-          <Image
+        {user?.image ? (
+          <img
             src={user.image}
             alt={user.name || "User avatar"}
-            width={isMobile ? 32 : 24}
-            height={isMobile ? 32 : 24}
-            className={cn(
-              "rounded-full object-cover",
-              isMobile ? "w-8 h-8" : "w-6 h-6"
-            )}
-            unoptimized
+            className="rounded-full object-cover w-6 h-6"
+            loading="lazy"
             onError={e => {
               const target = e.target as HTMLImageElement;
               target.style.display = "none";
@@ -85,64 +63,36 @@ function UserSectionContent({ user, token }: UserSectionContentProps) {
             }}
           />
         ) : (
-          <div
-            className={cn(
-              "rounded-full bg-gradient-tropical flex items-center justify-center",
-              isMobile ? "w-8 h-8" : "w-6 h-6"
-            )}
-          >
-            <User
-              className={cn("text-white", isMobile ? "h-4 w-4" : "h-3 w-3")}
-            />
+          <div className="rounded-full bg-gradient-to-br from-accent-coral to-accent-purple items-center justify-center w-6 h-6">
+            <User className="text-white h-3 w-3" />
           </div>
         )}
-        {user.image && (
-          <div
-            className={cn(
-              "rounded-full bg-gradient-tropical items-center justify-center hidden",
-              isMobile ? "w-8 h-8" : "w-6 h-6"
-            )}
-          >
-            <User
-              className={cn("text-white", isMobile ? "h-4 w-4" : "h-3 w-3")}
-            />
-          </div>
-        )}
-        <span className="truncate">{user.name || user.email || "User"}</span>
+        <span className="truncate text-foreground">
+          {user?.name || user?.email || "User"}
+        </span>
       </Button>
     </Link>
   );
 }
 
 export function UserSection() {
-  const token = useAuthToken();
-  const user = useQuery(api.users.getCurrentUser);
-  const { isMobile } = useSidebar();
+  const { user, isLoading } = useUser();
 
-  if (token === undefined && user === undefined) {
-    return (
-      <div className={cn("flex-shrink-0", isMobile ? "p-3" : "p-4")}>
-        <div
-          className={cn(
-            "flex items-center gap-3 text-muted-foreground",
-            isMobile ? "text-base" : "text-sm"
-          )}
-        >
-          <div
-            className={cn(
-              "rounded-full bg-gradient-tropical flex items-center justify-center",
-              isMobile ? "w-8 h-8" : "w-6 h-6"
-            )}
-          >
-            <User
-              className={cn("text-white", isMobile ? "h-4 w-4" : "h-3 w-3")}
-            />
-          </div>
-          <span>Loading...</span>
-        </div>
-      </div>
-    );
+  const isAuthenticated = user && !user.isAnonymous;
+
+  // Only show skeleton if we have no user data at all (no cache and loading)
+  // With caching, user will typically have data even while isLoading is true
+  if (isLoading && !user) {
+    return <UserSectionSkeleton />;
   }
 
-  return <UserSectionContent user={user} token={token} />;
+  return <UserSectionContent user={user} isAuthenticated={!!isAuthenticated} />;
+}
+
+function UserSectionSkeleton() {
+  return (
+    <div className="px-3 py-3">
+      <div className="rounded-md bg-muted/40 animate-pulse h-10" />
+    </div>
+  );
 }

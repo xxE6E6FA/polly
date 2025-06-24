@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -37,7 +35,7 @@ export function WebSearchToggle({
             onClick={handleToggle}
             className={cn(
               "h-auto w-auto p-0 hover:bg-transparent",
-              enabled && "text-blue-600",
+              enabled && "text-info",
               className
             )}
           >
@@ -62,15 +60,24 @@ export function WebSearchToggle({
           size="sm"
           onClick={handleToggle}
           className={cn(
-            "h-auto text-xs font-medium text-muted-foreground/80 hover:text-foreground group",
-            enabled && "text-blue-600",
+            "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:text-foreground group relative picker-trigger",
+            "hover:bg-accent/50 dark:hover:bg-accent/30",
+            "transition-all duration-200",
+            enabled && "bg-accent/50 dark:bg-accent/30 text-info",
             className
           )}
         >
-          <Globe className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-          <span className="ml-1.5 text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors hidden sm:inline">
-            Search
-          </span>
+          <div className="flex items-center gap-1.5">
+            <Globe
+              className={cn(
+                "h-3.5 w-3.5 transition-colors",
+                enabled
+                  ? "text-info"
+                  : "text-muted-foreground/60 group-hover:text-foreground"
+              )}
+            />
+            <span className="font-medium hidden sm:inline">Search</span>
+          </div>
         </Button>
       </TooltipTrigger>
       <TooltipContent>

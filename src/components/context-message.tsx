@@ -1,11 +1,9 @@
-"use client";
-
-import React from "react";
-import Link from "next/link";
+import { Link } from "react-router";
 import { ChatMessage } from "@/types";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/routes";
 
 interface ContextMessageProps {
   message: ChatMessage;
@@ -32,7 +30,7 @@ export function ContextMessage({ message, className }: ContextMessageProps) {
             </h4>
             {message.sourceConversationId && (
               <Link
-                href={`/chat/${message.sourceConversationId}`}
+                to={ROUTES.CHAT_CONVERSATION(message.sourceConversationId)}
                 className="inline-flex"
               >
                 <Button

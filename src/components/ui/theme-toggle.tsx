@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import {
@@ -11,17 +9,20 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
 
 interface ThemeToggleProps {
-  size?: "sm" | "default" | "lg";
-  variant?: "ghost" | "default" | "outline" | "secondary";
+  size?: "sm" | "default" | "lg" | "icon-sm";
+  variant?: "ghost" | "default" | "outline" | "secondary" | "action";
   className?: string;
 }
 
 export function ThemeToggle({
-  size = "sm",
+  size = "icon-sm",
   variant = "ghost",
   className,
 }: ThemeToggleProps) {
   const { theme, toggleTheme } = useTheme();
+
+  // Determine icon size based on button className (for mobile responsiveness)
+  const iconSize = className?.includes("h-10") ? "h-5 w-5" : "h-4 w-4";
 
   return (
     <Tooltip>
@@ -30,18 +31,15 @@ export function ThemeToggle({
           variant={variant}
           size={size}
           onClick={toggleTheme}
-          className={cn(
-            "h-8 w-8 p-0 transition-colors duration-150",
-            className
-          )}
+          className={cn("transition-colors duration-150", className)}
           title={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
           }
         >
           {theme === "dark" ? (
-            <Sun className="h-4 w-4" />
+            <Sun className={iconSize} />
           ) : (
-            <Moon className="h-4 w-4" />
+            <Moon className={iconSize} />
           )}
         </Button>
       </TooltipTrigger>

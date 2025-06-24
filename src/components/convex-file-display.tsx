@@ -1,11 +1,7 @@
-"use client";
-
-import React from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Attachment } from "@/types";
-import Image from "next/image";
 import { Paperclip } from "lucide-react";
 
 interface ConvexFileDisplayProps {
@@ -57,15 +53,13 @@ export function ConvexFileDisplay({
       <div
         className={`rounded-xl overflow-hidden border border-border/20 shadow-sm ${className}`}
       >
-        <Image
+        <img
           src={fileUrl}
           alt={attachment.name}
-          width={400}
-          height={300}
           className="w-full h-auto object-cover max-w-sm cursor-pointer"
           style={{ maxHeight: "300px" }}
-          unoptimized
           onClick={onClick}
+          loading="lazy"
         />
       </div>
     );
@@ -132,13 +126,11 @@ export function ConvexImageThumbnail({
         title={attachment.name}
         onClick={onClick}
       >
-        <Image
+        <img
           src={thumbnailUrl}
           alt={attachment.name}
-          width={24}
-          height={24}
           className="w-full h-full object-cover"
-          unoptimized
+          loading="lazy"
         />
       </div>
     );

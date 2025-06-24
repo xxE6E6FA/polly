@@ -1,11 +1,10 @@
-"use client";
-
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
+import { ROUTES } from "@/lib/routes";
 import { useCreateConversation } from "@/hooks/use-conversations";
 import { useUser } from "@/hooks/use-user";
 import { useTextSelection } from "@/hooks/use-text-selection";
@@ -38,7 +37,7 @@ export function ConversationStarterPopover({
   );
   const { user } = useUser();
   const { createNewConversationWithResponse } = useCreateConversation();
-  const router = useRouter();
+  const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
 
   useEffect(() => {
@@ -48,7 +47,9 @@ export function ConversationStarterPopover({
         const generatedPrompts = await generateStarters({ selectedText });
         setPrompts(generatedPrompts);
       } catch (err) {
-        console.error("Failed to generate conversation starters:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to generate conversation starters:", err);
+        }
         // Use fallback prompts on error
         setPrompts([
           "Can you explain this in more detail?",
@@ -77,21 +78,21 @@ export function ConversationStarterPopover({
     if (!user) return;
 
     try {
-      // Create conversation with user message and start assistant response
-      const conversationId = await createNewConversationWithResponse(
-        prompt,
-        undefined,
-        null, // no persona for conversation starters
-        user._id
-      );
+      const conversationId = await createNewConversationWithResponse({
+        firstMessage: prompt,
+        userId: user._id,
+        generateTitle: true,
+      });
 
       if (conversationId) {
         // Navigate to conversation - the Convex action already started the assistant response
-        router.push(`/chat/${conversationId}`);
+        navigate(ROUTES.CHAT_CONVERSATION(conversationId));
         onOpenChange(false);
       }
     } catch (error) {
-      console.error("Failed to start conversation:", error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to start conversation:", error);
+      }
       const { toast } = await import("sonner");
       toast.error("Failed to start conversation", {
         description:
@@ -124,9 +125,9 @@ export function ConversationStarterPopover({
           ) : (
             <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/50">
               <div className="p-4 space-y-2">
-                {prompts.map((prompt, index) => (
+                {prompts.map(prompt => (
                   <button
-                    key={index}
+                    key={prompt}
                     className="w-full text-left p-3 text-sm text-foreground hover:bg-accent/50 rounded-md transition-colors duration-200 cursor-pointer border-0 bg-transparent"
                     onClick={() => handleStartConversation(prompt)}
                   >

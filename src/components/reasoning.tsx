@@ -1,5 +1,3 @@
-"use client";
-
 import { useRef, useEffect, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import Markdown from "react-markdown";

@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -16,15 +14,21 @@ import {
 } from "@/components/ui/popover";
 import { Trash2, Edit, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ROUTES } from "@/lib/routes";
 import { ConversationId, Conversation } from "@/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { conversationErrorHandlers } from "@/hooks/use-conversations";
 import { useSidebar } from "@/hooks/use-sidebar";
+import {
+  updateCachedConversation,
+  removeCachedConversation,
+} from "@/lib/conversation-cache";
 
-import Link from "next/link";
+import { Link } from "react-router";
 import { api } from "../../../convex/_generated/api";
 import { useMutation } from "convex/react";
+import { useNavigate } from "react-router";
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -45,6 +49,7 @@ export function ConversationItem({
   const deleteConversation = useMutation(api.conversations.remove);
   const updateConversationTitle = useMutation(api.conversations.update);
   const { isMobile, setSidebarVisible } = useSidebar();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -77,10 +82,21 @@ export function ConversationItem({
           id,
           title: editingTitle.trim(),
         });
+        updateCachedConversation({
+          ...conversation,
+          title: editingTitle.trim(),
+          updatedAt: Date.now(),
+        });
       }
       handleEditCancel();
     },
-    [editingTitle, originalTitle, updateConversationTitle, handleEditCancel]
+    [
+      editingTitle,
+      originalTitle,
+      updateConversationTitle,
+      handleEditCancel,
+      conversation,
+    ]
   );
 
   const handleKeyDown = useCallback(
@@ -127,14 +143,14 @@ export function ConversationItem({
           const isCurrentConversation =
             currentConversationId === conversation._id;
 
-          if (isCurrentConversation) {
-            window.location.href = "/";
-            return;
-          }
-
           await conversationErrorHandlers.handleDelete(async () => {
             await deleteConversation({ id: conversation._id });
+            removeCachedConversation(conversation._id);
           });
+
+          if (isCurrentConversation) {
+            navigate(ROUTES.HOME);
+          }
         }
       );
     },
@@ -144,6 +160,7 @@ export function ConversationItem({
       conversation._id,
       deleteConversation,
       currentConversationId,
+      navigate,
     ]
   );
 
@@ -157,20 +174,20 @@ export function ConversationItem({
     <>
       <div
         className={cn(
-          "group relative flex items-center rounded-lg transition-all duration-200 font-medium overflow-hidden touch-manipulation",
+          "group relative flex items-center rounded-lg transition-all duration-200",
           currentConversationId === conversation._id
-            ? "active-element-enhanced text-foreground shadow-sm"
-            : "hover:bg-background/60 text-muted-foreground hover:text-foreground hover:shadow-sm hover:border hover:border-border/30",
-          isMobile ? "h-12 mx-2" : "h-8 mx-3"
+            ? "bg-accent text-foreground shadow-sm"
+            : "text-foreground/80 hover:text-foreground hover:bg-accent/50",
+          isMobile ? "mx-1 my-0.5" : "mx-1 my-0.5"
         )}
         onMouseEnter={() => !isMobile && setIsHovered(true)}
         onMouseLeave={() => !isMobile && setIsHovered(false)}
       >
         <Link
-          href={`/chat/${conversation._id}`}
+          to={ROUTES.CHAT_CONVERSATION(conversation._id)}
           className={cn(
-            "flex-1 flex items-center min-w-0 no-underline text-inherit",
-            isMobile ? "px-4 py-2 text-sm" : "px-4 py-1 text-xs"
+            "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg",
+            isMobile ? "px-3 py-2.5" : "px-3 py-2"
           )}
           onClick={handleConversationClick}
         >
@@ -186,8 +203,8 @@ export function ConversationItem({
                   e.stopPropagation();
                 }}
                 className={cn(
-                  "border-0 bg-transparent focus:bg-background focus:border-border rounded-sm",
-                  isMobile ? "h-8 px-2 py-1 text-sm" : "h-6 px-1 py-0 text-sm"
+                  "h-auto border-0 bg-transparent p-0 font-medium shadow-none outline-none ring-0 focus-visible:ring-0",
+                  isMobile ? "text-xs" : "text-xs"
                 )}
                 onClick={e => {
                   e.stopPropagation();
@@ -197,8 +214,8 @@ export function ConversationItem({
             ) : (
               <div
                 className={cn(
-                  "truncate transition-all duration-200 font-medium",
-                  isMobile && "leading-5"
+                  "truncate font-medium",
+                  isMobile ? "text-xs" : "text-xs"
                 )}
               >
                 {conversation.title}
@@ -208,7 +225,7 @@ export function ConversationItem({
 
           {conversation.isStreaming && (!isHovered || isMobile) && (
             <div className="flex items-center mr-1">
-              <Spinner size="sm" className="text-muted-foreground" />
+              <Spinner size="sm" className="text-foreground/60" />
             </div>
           )}
         </Link>
@@ -221,36 +238,36 @@ export function ConversationItem({
                   <PopoverTrigger asChild>
                     <Button
                       variant="ghost"
-                      size="sm"
-                      className="h-9 w-9 p-0 hover:bg-background/80 transition-all duration-200 touch-manipulation"
+                      size="icon-sm"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-foreground/70 hover:text-foreground"
                     >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-40 p-2"
+                    className="w-40 p-1"
                     align="end"
                     onClick={e => e.stopPropagation()}
                   >
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-0.5">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="justify-start h-9 px-3 gap-2 hover:bg-muted/50"
+                        className="justify-start h-8 px-2 gap-2 text-xs"
                         onClick={() =>
                           handleEditStart(conversation._id, conversation.title)
                         }
                       >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3.5 w-3.5" />
                         Edit title
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="justify-start h-9 px-3 gap-2 hover:bg-destructive/10 hover:text-destructive"
+                        className="justify-start h-8 px-2 gap-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                         onClick={() => handleDeleteClick()}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                         Delete
                       </Button>
                     </div>
@@ -264,8 +281,8 @@ export function ConversationItem({
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 hover:bg-background/80 hover:scale-110 transition-all duration-200"
+                        size="icon-sm"
+                        className="h-7 w-7 hover:bg-accent text-foreground/70 hover:text-foreground"
                         onClick={e => {
                           e.preventDefault();
                           handleEditStart(
@@ -287,8 +304,8 @@ export function ConversationItem({
                     <TooltipTrigger asChild>
                       <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 hover:bg-destructive/10 hover:text-destructive hover:scale-110 transition-all duration-200"
+                        size="icon-sm"
+                        className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
                         onClick={handleDeleteClick}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

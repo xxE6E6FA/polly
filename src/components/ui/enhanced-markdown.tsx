@@ -1,5 +1,3 @@
-"use client";
-
 import { memo, useMemo, createContext, useContext } from "react";
 import {
   codeBlockLookBack,
@@ -73,7 +71,12 @@ function EnhancedMarkdownComponent({
       <div className={className}>
         {blockMatches.map((blockMatch, index) => {
           const Component = blockMatch.block.component;
-          return <Component key={index} blockMatch={blockMatch} />;
+          return (
+            <Component
+              key={`${index}-${Component.name || "component"}`}
+              blockMatch={blockMatch}
+            />
+          );
         })}
       </div>
     </MessageContext.Provider>

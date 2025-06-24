@@ -1,5 +1,3 @@
-"use client";
-
 import React, { memo, useState, useCallback } from "react";
 import { ConvexFileDisplay } from "@/components/convex-file-display";
 import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
@@ -29,17 +27,28 @@ interface ActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
   title?: string;
+  className?: string;
 }
 
 const ActionButton = memo(
-  ({ icon, tooltip, onClick, disabled, title }: ActionButtonProps) => (
+  ({
+    icon,
+    tooltip,
+    onClick,
+    disabled,
+    title,
+    className,
+  }: ActionButtonProps) => (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="ghost"
+          variant="action"
           size="sm"
           onClick={onClick}
-          className="h-8 w-8 p-0 transition-all duration-200 hover:scale-110"
+          className={cn(
+            "h-8 w-8 p-0 transition-all duration-200 hover:scale-110",
+            className
+          )}
           disabled={disabled}
           title={title}
         >
@@ -90,9 +99,9 @@ const MessageActions = memo(
     if (isStreaming) return null;
 
     const containerClassName = cn(
-      "flex items-center gap-2 mt-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-1 sm:group-hover:translate-y-0 transition-all duration-300 ease-out",
+      "flex items-center gap-2 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-1 sm:group-hover:translate-y-0 transition-all duration-300 ease-out",
       isUser && isEditing && "opacity-0 pointer-events-none translate-y-2",
-      isUser && "justify-end mt-2",
+      isUser && "justify-end mt-1.5",
       className
     );
 
@@ -144,6 +153,7 @@ const MessageActions = memo(
               onClick={onDeleteMessage}
               disabled={isEditing || isDeleting || isStreaming}
               title="Delete message"
+              className="btn-action-destructive"
             />
           )}
         </div>
@@ -247,7 +257,7 @@ function ChatMessageComponent({
           <div className="mt-2 space-y-2">
             {attachments.map((attachment, index) => (
               <ConvexFileDisplay
-                key={index}
+                key={attachment.name || attachment.url || `attachment-${index}`}
                 attachment={attachment}
                 className="mb-2"
               />
@@ -257,10 +267,10 @@ function ChatMessageComponent({
       }
 
       return (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-wrap gap-2 mt-2">
           {attachments.map((attachment, index) => (
             <div
-              key={index}
+              key={attachment.name || attachment.url || `attachment-${index}`}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-muted"
             >
               <span>{attachment.type === "image" ? "🖼️" : "📄"}</span>
@@ -276,7 +286,7 @@ function ChatMessageComponent({
   return (
     <div
       className={cn(
-        "group w-full px-3 py-3 sm:px-6 sm:py-4 transition-colors",
+        "group w-full px-3 py-2 sm:px-6 sm:py-2.5 transition-colors",
         "bg-transparent"
       )}
       data-message-role={message.role}
@@ -295,8 +305,8 @@ function ChatMessageComponent({
               className={cn(
                 "w-full transition-all duration-300 ease-out transform",
                 isEditing
-                  ? "rounded-xl border border-accent-coral/30 bg-background/95 backdrop-blur-sm p-4 sm:p-5 shadow-lg ring-1 ring-accent-coral/10"
-                  : "inline-block rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 bg-muted/50 border border-border text-foreground shadow-sm hover:shadow-md hover:border-accent-coral/30"
+                  ? "rounded-xl border border-primary/30 bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10"
+                  : "inline-block rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 bg-muted/50 border border-border text-foreground shadow-sm hover:shadow-md hover:border-primary/30"
               )}
             >
               {isEditing ? (
@@ -363,35 +373,18 @@ function ChatMessageComponent({
         <div className="w-full">
           <div className="flex-1 min-w-0">
             {reasoning && (
-              <div className="mb-4">
+              <div className="mb-2.5">
                 <Reasoning reasoning={reasoning} isLoading={isStreaming} />
               </div>
             )}
 
-            <div className="prose prose-sm sm:prose-base max-w-none dark:prose-invert">
-              <EnhancedMarkdown
-                isStreaming={isStreaming}
-                messageId={message.id}
-              >
-                {displayContent}
-              </EnhancedMarkdown>
-            </div>
+            <EnhancedMarkdown isStreaming={isStreaming} messageId={message.id}>
+              {displayContent}
+            </EnhancedMarkdown>
 
             {message.citations && message.citations.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-2.5">
                 <Citations citations={message.citations} compact />
-              </div>
-            )}
-
-            {message.metadata?.stopped && (
-              <div className="mt-3 px-3 py-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800/30 rounded-lg">
-                <div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-200">
-                  <span className="font-medium">
-                    {displayContent.trim()
-                      ? "Generation stopped by user"
-                      : "Generation stopped before any content was generated"}
-                  </span>
-                </div>
               </div>
             )}
 

@@ -1,5 +1,3 @@
-"use client";
-
 import React, {
   forwardRef,
   useCallback,
@@ -15,7 +13,7 @@ import { ConvexFileDisplay } from "@/components/convex-file-display";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AIModel, Attachment } from "@/types";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { AttachmentList } from "@/components/chat-input/attachment-list";
@@ -23,7 +21,9 @@ import { InputControls } from "@/components/chat-input/input-controls";
 import { Id } from "../../convex/_generated/dataModel";
 import { useUser } from "@/hooks/use-user";
 import { useCreateConversation } from "@/hooks/use-conversations";
-import { useRouter } from "next/navigation";
+import { useNavigate, Link } from "react-router";
+import { ROUTES } from "@/lib/routes";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 
 interface ChatInputProps {
   onSendMessage?: (
@@ -32,6 +32,15 @@ interface ChatInputProps {
     useWebSearch?: boolean,
     personaId?: Id<"personas"> | null
   ) => void;
+  onSendMessageToNewConversation?: (
+    content: string,
+    shouldNavigate: boolean,
+    attachments?: Attachment[],
+    contextSummary?: string,
+    sourceConversationId?: string,
+    personaPrompt?: string | null,
+    personaId?: Id<"personas"> | null
+  ) => Promise<void>;
   onInputStart?: () => void;
   isLoading?: boolean;
   isStreaming?: boolean;
@@ -62,12 +71,12 @@ const WarningBanner = React.memo<{
 }>(({ type, onDismiss, children }) => {
   const isWarning = type === "warning";
   const colorClasses = isWarning
-    ? "bg-amber-50 border border-amber-200 dark:bg-amber-900 dark:border-amber-800 text-amber-800 dark:text-amber-200"
-    : "bg-red-50 border border-red-200 dark:bg-red-900 dark:border-red-800 text-red-800 dark:text-red-200";
+    ? "bg-amber-50 dark:bg-amber-950/90 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 backdrop-blur-sm"
+    : "bg-red-50 dark:bg-red-950/90 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 backdrop-blur-sm";
 
   const buttonHoverClasses = isWarning
-    ? "hover:bg-amber-100/50 dark:hover:bg-amber-800/50"
-    : "hover:bg-red-100/50 dark:hover:bg-red-800/50";
+    ? "hover:bg-amber-100 dark:hover:bg-amber-900/50"
+    : "hover:bg-red-100 dark:hover:bg-red-900/50";
 
   return (
     <div className={WARNING_BANNER_CLASSES}>
@@ -92,8 +101,11 @@ WarningBanner.displayName = "WarningBanner";
 export const ChatInput = React.memo(
   forwardRef<ChatInputRef, ChatInputProps>((props, ref) => {
     const hasEnabledModels = useQuery(api.userModels.hasUserModels, {});
-    const selectedModel = useQuery(api.userModels.getUserSelectedModel, {});
+    const selectedModel = useSelectedModel();
     const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
+    const generateConversationSummary = useAction(
+      api.conversationSummary.generateConversationSummary
+    );
 
     const [input, setInput] = useState("");
     const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
@@ -105,7 +117,7 @@ export const ChatInput = React.memo(
 
     const { user } = useUser();
     const { createNewConversationWithResponse } = useCreateConversation();
-    const router = useRouter();
+    const navigate = useNavigate();
 
     const {
       messageCount,
@@ -118,7 +130,6 @@ export const ChatInput = React.memo(
       hasUnlimitedCalls,
     } = useUser();
 
-    // Unified send function that handles both existing conversations and new ones
     const handleSend = useCallback(
       async (
         content: string,
@@ -127,27 +138,28 @@ export const ChatInput = React.memo(
         personaId?: Id<"personas"> | null
       ) => {
         if (props.conversationId && props.onSendMessage) {
-          // Existing conversation - use the provided handler
           props.onSendMessage(content, attachments, useWebSearch, personaId);
+          // Refocus the textarea after sending message in existing conversation
+          setTimeout(() => {
+            textareaRef.current?.focus();
+          }, 0);
         } else {
-          // New conversation - create one
-          const conversationId = await createNewConversationWithResponse(
-            content,
-            undefined,
+          const conversationId = await createNewConversationWithResponse({
+            firstMessage: content,
             personaId,
-            user?._id,
+            userId: user?._id,
             attachments,
-            useWebSearch
-          );
+            useWebSearch,
+            generateTitle: true,
+          });
           if (conversationId) {
-            router.push(`/chat/${conversationId}`);
+            navigate(ROUTES.CHAT_CONVERSATION(conversationId));
           }
         }
       },
-      [props, createNewConversationWithResponse, user?._id, router]
+      [props, createNewConversationWithResponse, user?._id, navigate]
     );
 
-    // Memoize current model to prevent unnecessary re-renders
     const currentModel = useMemo(() => {
       if (!selectedModel) return undefined;
       return {
@@ -224,7 +236,14 @@ export const ChatInput = React.memo(
       const limitWarningMessage = isAnonymous ? (
         <>
           {remainingMessages} message{remainingMessages === 1 ? "" : "s"}{" "}
-          remaining • Sign in for unlimited chats
+          remaining •{" "}
+          <Link
+            to={ROUTES.AUTH}
+            className="underline underline-offset-2 hover:no-underline font-medium"
+          >
+            Sign in
+          </Link>{" "}
+          for unlimited chats
         </>
       ) : hasUnlimitedCalls ? (
         "You have unlimited messages"
@@ -239,7 +258,16 @@ export const ChatInput = React.memo(
       );
 
       const limitReachedMessage = isAnonymous ? (
-        "Message limit reached. Sign in to continue chatting without limits."
+        <>
+          Message limit reached.{" "}
+          <Link
+            to={ROUTES.AUTH}
+            className="underline underline-offset-2 hover:no-underline font-medium"
+          >
+            Sign in
+          </Link>{" "}
+          to continue chatting without limits.
+        </>
       ) : (
         <>
           Monthly Polly model limit reached.
@@ -260,7 +288,63 @@ export const ChatInput = React.memo(
 
     const clearInput = useCallback(() => {
       setInput("");
+      // Ensure textarea maintains focus after clearing
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 0);
     }, []);
+
+    // New callback for sending to a new conversation
+    const handleSendAsNewConversation = useCallback(
+      async (navigate: boolean) => {
+        if (!input.trim() && attachments.length === 0) return;
+
+        if (props.onSendMessageToNewConversation && props.conversationId) {
+          const messageContent = buildMessageContent(input);
+          const binaryAttachments = getBinaryAttachments();
+
+          // Generate a summary of the current conversation for context
+          let contextSummary: string | undefined;
+          try {
+            contextSummary = await generateConversationSummary({
+              conversationId: props.conversationId as Id<"conversations">,
+              maxTokens: 150,
+            });
+          } catch (error) {
+            console.error("Failed to generate conversation summary:", error);
+            // Continue without summary if generation fails
+          }
+
+          await props.onSendMessageToNewConversation(
+            messageContent,
+            navigate,
+            binaryAttachments.length > 0 ? binaryAttachments : undefined,
+            contextSummary,
+            props.conversationId, // sourceConversationId
+            null, // personaPrompt
+            null // personaId - could be passed from state if needed
+          );
+
+          clearInput();
+          clearAttachments();
+
+          // Refocus textarea after clearing
+          setTimeout(() => {
+            textareaRef.current?.focus();
+          }, 0);
+        }
+      },
+      [
+        props,
+        input,
+        attachments,
+        buildMessageContent,
+        getBinaryAttachments,
+        clearInput,
+        clearAttachments,
+        generateConversationSummary,
+      ]
+    );
 
     const addQuote = useCallback((quote: string) => {
       setInput(prev => {
@@ -336,14 +420,25 @@ export const ChatInput = React.memo(
       }
     }, [messageCount]);
 
+    // Refocus textarea when streaming stops
+    useEffect(() => {
+      if (!props.isStreaming && !props.isLoading) {
+        // Small delay to ensure DOM has settled
+        const timeoutId = setTimeout(() => {
+          textareaRef.current?.focus();
+        }, 100);
+        return () => clearTimeout(timeoutId);
+      }
+    }, [props.isStreaming, props.isLoading]);
+
     // Memoize form classes
     const formClasses = useMemo(
       () =>
         cn(
-          "rounded-xl border p-2.5 sm:p-3 shadow-lg transition-all duration-300",
+          "rounded-xl p-3 sm:p-4 transition-all duration-300",
           canSendMessage
-            ? "border-border bg-surface-primary hover:shadow-xl hover:border-muted-foreground/30"
-            : "border-border bg-muted/50"
+            ? "chat-input-container"
+            : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
         ),
       [canSendMessage]
     );
@@ -352,7 +447,7 @@ export const ChatInput = React.memo(
     const textareaClasses = useMemo(
       () =>
         cn(
-          "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0 text-base sm:text-sm leading-relaxed transition-opacity duration-200 min-h-[24px] max-h-[100px] overflow-y-auto",
+          "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0 text-base sm:text-sm leading-relaxed transition-opacity duration-200 min-h-[24px] max-h-[100px] overflow-y-auto py-1",
           canSendMessage
             ? "placeholder:text-muted-foreground/60"
             : "placeholder:text-muted-foreground cursor-not-allowed"
@@ -422,6 +517,7 @@ export const ChatInput = React.memo(
                 clearInput={clearInput}
                 handleFileUpload={handleFileUpload}
                 onSendMessage={handleSend}
+                onSendAsNewConversation={handleSendAsNewConversation}
                 onInputStart={props.onInputStart}
               />
             </div>

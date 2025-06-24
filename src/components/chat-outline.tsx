@@ -1,5 +1,3 @@
-"use client";
-
 import { memo, useCallback, useMemo, useState } from "react";
 import { ChatMessage as ChatMessageType } from "@/types";
 import { User, Bot } from "lucide-react";
@@ -186,7 +184,7 @@ function ChatOutlineComponent({
     >
       {/* Smooth morphing container - pill to rectangle */}
       <div
-        className="relative bg-background/95 backdrop-blur-md border border-border/50 shadow-xl transition-all duration-200 ease-out overflow-hidden"
+        className="relative bg-background border border-border/50 shadow-xl transition-all duration-200 ease-out overflow-hidden"
         style={{
           width: isExpanded ? "360px" : "24px",
           height: isExpanded ? "auto" : `${collapsedHeight}px`,

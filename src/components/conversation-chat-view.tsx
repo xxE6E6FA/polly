@@ -1,11 +1,10 @@
-"use client";
-
-import React, {
+import {
   useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
   useState,
+  useEffect,
 } from "react";
 import { ChatMessage } from "./chat-message";
 import { ChatInput, ChatInputRef } from "./chat-input";
@@ -24,11 +23,10 @@ import { EnhancedQuoteButton } from "./ui/enhanced-quote-button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { ContextMessage } from "./context-message";
-import { Id, Doc } from "../../convex/_generated/dataModel";
+import { Id } from "../../convex/_generated/dataModel";
 
 interface ConversationChatViewProps {
   conversationId: ConversationId;
-  conversation: Doc<"conversations">;
   messages: ChatMessageType[];
   isLoading: boolean;
   isLoadingMessages?: boolean;
@@ -40,6 +38,15 @@ interface ConversationChatViewProps {
     useWebSearch?: boolean,
     personaId?: Id<"personas"> | null
   ) => void;
+  onSendMessageToNewConversation?: (
+    content: string,
+    shouldNavigate: boolean,
+    attachments?: Attachment[],
+    contextSummary?: string,
+    sourceConversationId?: ConversationId,
+    personaPrompt?: string | null,
+    personaId?: Id<"personas"> | null
+  ) => Promise<ConversationId | undefined>;
   onEditMessage?: (messageId: string, content: string) => void;
   onRetryUserMessage?: (messageId: string) => void;
   onRetryAssistantMessage?: (messageId: string) => void;
@@ -55,6 +62,7 @@ export function ConversationChatView({
   isStreaming,
   hasApiKeys,
   onSendMessage,
+  onSendMessageToNewConversation,
   onEditMessage,
   onRetryUserMessage,
   onRetryAssistantMessage,
@@ -167,6 +175,13 @@ export function ConversationChatView({
   const prevLastUserMessageIdRef = useRef<string | null>(null);
   const isInitialLoadRef = useRef(true);
 
+  // Reset initial load state when conversation changes
+  useEffect(() => {
+    isInitialLoadRef.current = true;
+    prevMessagesLengthRef.current = 0;
+    prevLastUserMessageIdRef.current = null;
+  }, [conversationId]);
+
   useLayoutEffect(() => {
     if (messagesContainerRef.current) {
       setScrollRef(messagesContainerRef.current);
@@ -175,6 +190,7 @@ export function ConversationChatView({
 
   useLayoutEffect(() => {
     if (isInitialLoadRef.current && messages.length > 0 && !isLoading) {
+      // Scroll to bottom when messages first load (including when switching conversations)
       messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
       isInitialLoadRef.current = false;
     } else if (messages.length > 0 && !isInitialLoadRef.current) {
@@ -300,7 +316,19 @@ export function ConversationChatView({
                 )}
               >
                 {isLoadingConversation ? (
-                  <div />
+                  <div className="space-y-1 sm:space-y-2 pb-32">
+                    <div
+                      className={cn(
+                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
+                        scrollState.shouldHideHeader && "sm:-translate-y-full"
+                      )}
+                    >
+                      <div className="h-16 flex items-center">
+                        <ChatHeader conversationId={conversationId} />
+                      </div>
+                    </div>
+                    <div className="flex-1" />
+                  </div>
                 ) : isEmpty ? (
                   <ChatZeroState />
                 ) : (
@@ -312,7 +340,7 @@ export function ConversationChatView({
                   >
                     <div
                       className={cn(
-                        "sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
+                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
                         scrollState.shouldHideHeader && "sm:-translate-y-full"
                       )}
                     >
@@ -396,12 +424,39 @@ export function ConversationChatView({
                   <ChatInput
                     ref={chatInputRef}
                     onSendMessage={handleSendMessage}
+                    onSendMessageToNewConversation={
+                      onSendMessageToNewConversation
+                        ? async (
+                            content: string,
+                            shouldNavigate: boolean,
+                            attachments?: Attachment[],
+                            contextSummary?: string,
+                            sourceConversationId?: string,
+                            personaPrompt?: string | null,
+                            personaId?: Id<"personas"> | null
+                          ) => {
+                            await onSendMessageToNewConversation(
+                              content,
+                              shouldNavigate,
+                              attachments,
+                              contextSummary,
+                              sourceConversationId as ConversationId,
+                              personaPrompt,
+                              personaId
+                            );
+                          }
+                        : undefined
+                    }
                     conversationId={conversationId}
                     hasExistingMessages={messages.length > 0}
                     isLoading={isLoading}
                     isStreaming={isStreaming}
                     onStop={onStopGeneration}
-                    placeholder="Ask me anything..."
+                    placeholder={
+                      isLoadingConversation
+                        ? "Loading conversation..."
+                        : "Ask me anything..."
+                    }
                   />
                 </div>
               )}

@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useRef, useState, useEffect, useCallback, memo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Switch } from "@/components/ui/switch";
@@ -80,7 +78,7 @@ const ModelCard = memo(
         className={`relative p-4 rounded-lg border transition-all duration-200 group cursor-pointer h-[150px] ${
           isEnabled
             ? "border-accent-coral/50 bg-accent-coral/5 hover:border-accent-coral/70"
-            : "border-border/40 hover:border-border bg-card hover:bg-muted/30"
+            : "border-border/40 hover:border-border bg-background hover:bg-muted/30"
         }`}
         onClick={handleClick}
       >
@@ -118,13 +116,13 @@ const ModelCard = memo(
           {capabilities.map((capability, index) => {
             const IconComponent = capability.icon;
             return (
-              <Tooltip key={index}>
+              <Tooltip key={capability.label || `capability-${index}`}>
                 <TooltipTrigger>
                   <div
                     className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
                       isEnabled
-                        ? "bg-background/80 hover:bg-background border border-border/40"
-                        : "bg-muted/70 hover:bg-muted"
+                        ? "bg-background hover:bg-muted border border-border/40"
+                        : "bg-muted hover:bg-muted-foreground/10"
                     }`}
                   >
                     <IconComponent
@@ -149,8 +147,8 @@ const ModelCard = memo(
                 <div
                   className={`flex items-center justify-center px-2 h-6 rounded transition-colors text-xs font-medium ${
                     isEnabled
-                      ? "bg-background/80 hover:bg-background border border-border/40"
-                      : "bg-muted/70 hover:bg-muted"
+                      ? "bg-background hover:bg-muted border border-border/40"
+                      : "bg-muted hover:bg-muted-foreground/10"
                   }`}
                 >
                   <span className="text-muted-foreground">

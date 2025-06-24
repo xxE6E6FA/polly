@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo, useState, useCallback, memo } from "react";
 import {
   Command,
@@ -24,13 +22,12 @@ import {
   Search,
   AlertCircle,
   ChevronDown,
-  Sparkles,
   MessageSquare,
   Key,
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router";
 
 import { AIModel } from "@/types";
 import { cn } from "@/lib/utils";
@@ -42,6 +39,9 @@ import { useMutation, useQuery } from "convex/react";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import { ProviderIcon } from "@/components/provider-icons";
+import { useSelectedModel } from "@/hooks/use-selected-model";
+import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
+import { ROUTES } from "@/lib/routes";
 
 // Provider mapping with titles and icons
 const PROVIDER_CONFIG = {
@@ -107,14 +107,14 @@ const ModelItem = memo(
         key={model.modelId}
         value={`${model.name} ${model.provider} ${model.modelId}`}
         onSelect={handleSelect}
-        className="py-3 sm:py-2.5 px-4 sm:px-3 cursor-pointer min-h-[44px] sm:min-h-0"
+        className="py-3 sm:py-2.5 px-4 sm:px-3 cursor-pointer min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
       >
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             {model.free && (
               <Badge
                 variant="secondary"
-                className="text-[10px] px-1.5 py-0 h-5 bg-coral-100 text-coral-700 border-coral-200 dark:bg-coral-950 dark:text-coral-300 dark:border-coral-800 shrink-0"
+                className="text-[10px] px-1.5 py-0 h-5 bg-success-bg text-success border-success-border shrink-0"
               >
                 Free
               </Badge>
@@ -133,7 +133,7 @@ const ModelItem = memo(
                     key={`${model.modelId}-${capability.label}-${index}`}
                   >
                     <TooltipTrigger asChild>
-                      <div className="flex items-center justify-center w-6 h-6 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors cursor-help">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-md bg-muted/50 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50 transition-all duration-200 cursor-help">
                         <IconComponent
                           className={cn(
                             "w-3.5 h-3.5",
@@ -171,20 +171,22 @@ interface ModelPickerProps {
 function ModelPickerComponent({ className }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
   const token = useAuthToken();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const userModelsByProvider = useQuery(api.userModels.getUserModelsByProvider);
-  const selectedModel = useQuery(api.userModels.getUserSelectedModel);
+  const selectedModel = useSelectedModel();
+  const hasEnabledModels = useQuery(api.userModels.hasUserModels);
   const selectModelMutation = useMutation(api.userModels.selectModel);
 
   // Check if user is authenticated
   const isAuthenticated = !!token;
 
-  // Simple display name getter
+  // Display name getter
   const displayName = useMemo(() => {
     if (!isAuthenticated) {
       return "Gemini 2.5 Flash Lite";
     }
+
     return selectedModel?.name || "Select model";
   }, [selectedModel, isAuthenticated]);
 
@@ -197,21 +199,26 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
     [selectModelMutation]
   );
 
-  // Show loading state
-  if (!userModelsByProvider && isAuthenticated) {
+  // Show loading state - only if both selectedModel and hasEnabledModels are still loading
+  if (
+    !selectedModel &&
+    !userModelsByProvider &&
+    hasEnabledModels === undefined &&
+    isAuthenticated
+  ) {
     return (
       <Button
         variant="ghost"
         className={cn(
-          "h-auto text-xs font-medium text-muted-foreground/80 group disabled:opacity-60",
+          "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
           className
         )}
         disabled
       >
-        <span className="text-xs font-medium text-muted-foreground transition-colors">
-          Loading models...
-        </span>
-        <ChevronDown className="ml-1.5 h-3 w-3 text-muted-foreground transition-colors shrink-0" />
+        <div className="flex items-center gap-1.5">
+          <span className="font-medium">Loading models...</span>
+          <ChevronDown className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+        </div>
       </Button>
     );
   }
@@ -232,113 +239,94 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
               role="combobox"
               aria-expanded={open}
               className={cn(
-                "h-auto text-xs font-medium text-muted-foreground/80 hover:text-foreground group",
+                "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:text-foreground group relative picker-trigger",
+                "hover:bg-accent/50 dark:hover:bg-accent/30",
+                "transition-all duration-200",
+                open && "bg-accent/50 dark:bg-accent/30 text-foreground",
                 className
               )}
             >
-              <Sparkles className="h-3.5 w-3.5 text-coral-500 transition-colors" />
-              <span className="ml-1.5 text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">
-                {displayName}
-              </span>
-              <ChevronDown
-                className={cn(
-                  "ml-1.5 h-3 w-3 text-muted-foreground group-hover:text-foreground transition-all duration-200 shrink-0",
-                  open && "rotate-180"
-                )}
-              />
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium truncate max-w-[150px]">
+                  {displayName}
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200 shrink-0",
+                    open && "rotate-180 text-foreground"
+                  )}
+                />
+              </div>
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[min(calc(100vw-2rem),380px)] p-0 overflow-hidden data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4"
+            className="w-[min(calc(100vw-2rem),380px)] p-0 overflow-hidden data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
             side="top"
             sideOffset={4}
             collisionPadding={16}
             avoidCollisions={true}
           >
-            {/* Subtle background overlay */}
-            <div className="absolute inset-0 bg-accent-coral/3 pointer-events-none" />
-
-            <div className="relative p-8 text-center">
-              {/* Sparkle icon with consistent accent color */}
-              <div className="w-16 h-16 rounded-full bg-accent-coral flex items-center justify-center mx-auto mb-5 shadow-lg shadow-accent-coral/25">
-                <Sparkles className="h-8 w-8 text-white" />
-              </div>
-
-              {/* Refined headline */}
-              <h3 className="text-lg font-bold mb-2 text-foreground">
-                Unlock Premium Features
+            <div className="relative p-6">
+              <h3 className="text-base font-semibold mb-2 text-foreground text-center">
+                Sign in for more features!
               </h3>
 
-              {/* Professional description */}
-              <p className="text-sm text-muted-foreground leading-relaxed mb-5 font-medium">
-                Sign in to access increased message limits, bring your own API
-                keys, and unlock advanced features for a better AI experience.
-              </p>
-
-              {/* Feature cards - improved colors */}
-              <div className="space-y-4 mb-8">
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/40 hover:border-accent-coral/40 hover:bg-accent-coral/5 dark:hover:bg-accent-coral/10 transition-colors duration-200">
-                  <div className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shadow-md">
-                    <MessageSquare className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="text-base font-bold text-foreground">
-                      Higher Message Limits
+              <div className="space-y-3 mb-6">
+                <div className="flex items-start gap-3">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <div className="font-medium text-foreground">
+                      Higher message limits
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      More conversations per day
+                    <div className="text-muted-foreground text-xs">
+                      {MONTHLY_MESSAGE_LIMIT} messages/month for free
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/40 hover:border-accent-coral/40 hover:bg-accent-coral/5 dark:hover:bg-accent-coral/10 transition-colors duration-200">
-                  <div className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shadow-md">
-                    <Key className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="text-base font-bold text-foreground">
-                      Bring Your Own API Keys
+                <div className="flex items-start gap-3">
+                  <Key className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <div className="font-medium text-foreground">
+                      Bring your own API keys
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Connect your own OpenAI, Anthropic & Google keys
+                    <div className="text-muted-foreground text-xs">
+                      Use OpenAI, Anthropic, Google and OpenRouter models
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 dark:bg-muted/20 border border-border/40 hover:border-accent-coral/40 hover:bg-accent-coral/5 dark:hover:bg-accent-coral/10 transition-colors duration-200">
-                  <div className="w-10 h-10 rounded-full bg-accent-coral flex items-center justify-center shadow-md">
-                    <Zap className="h-5 w-5 text-white" />
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="text-base font-bold text-foreground">
-                      Advanced Features
+                <div className="flex items-start gap-3">
+                  <Zap className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="text-sm">
+                    <div className="font-medium text-foreground">
+                      Advanced features
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Custom personas, conversation sharing & more
+                    <div className="text-muted-foreground text-xs">
+                      Custom personas, conversation sharing, and more!
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* CTA button with consistent accent color */}
+              {/* CTA button - using standard button styles */}
               <Button
-                size="full-lg"
-                variant="coral"
-                className="text-base font-semibold py-4"
-                onClick={() => router.push("/auth")}
+                size="sm"
+                variant="default"
+                className="w-full"
+                onClick={e => {
+                  // Prevent opening model picker
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(ROUTES.AUTH);
+                }}
               >
                 Sign In
               </Button>
 
-              {/* Incentive text with consistent colors */}
-              <p className="text-xs text-muted-foreground mt-3 font-medium">
-                <span className="text-accent-coral font-semibold">
-                  Free to sign up
-                </span>{" "}
-                •{" "}
-                <span className="text-accent-coral/80 font-semibold">
-                  No credit card required
-                </span>
+              {/* Footer text */}
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Free to use • No credit card required
               </p>
             </div>
           </PopoverContent>
@@ -355,16 +343,16 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
           <Button
             variant="ghost"
             className={cn(
-              "h-auto text-xs font-medium text-muted-foreground/80 group disabled:opacity-60",
+              "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
               className
             )}
             disabled
           >
-            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground transition-colors" />
-            <span className="ml-1.5 text-xs font-medium text-muted-foreground transition-colors">
-              Configure models
-            </span>
-            <ChevronDown className="ml-1.5 h-3 w-3 text-muted-foreground transition-colors shrink-0" />
+            <div className="flex items-center gap-1.5">
+              <AlertCircle className="h-3.5 w-3.5 text-warning/50" />
+              <span className="font-medium">Configure models</span>
+              <ChevronDown className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+            </div>
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -388,31 +376,39 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
             role="combobox"
             aria-expanded={open}
             className={cn(
-              "h-auto text-xs font-medium text-muted-foreground/80 hover:text-foreground group",
+              "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:text-foreground group relative picker-trigger",
+              "hover:bg-accent/50 dark:hover:bg-accent/30",
+              "transition-all duration-200",
+              open && "bg-accent/50 dark:bg-accent/30 text-foreground",
               className
             )}
           >
-            {selectedModel?.free && (
-              <Badge
-                variant="secondary"
-                className="mr-2 text-[10px] px-1.5 py-0 h-5 bg-coral-100 text-coral-700 border-coral-200 hover:bg-coral-100 dark:bg-coral-950 dark:text-coral-300 dark:border-coral-800"
-              >
-                Free
-              </Badge>
-            )}
-            <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors truncate">
-              {displayName}
-            </span>
-            <ChevronDown
-              className={cn(
-                "ml-1.5 h-3 w-3 text-muted-foreground group-hover:text-foreground transition-all duration-200 shrink-0",
-                open && "rotate-180"
+            <div className="flex items-center gap-1.5">
+              {selectedModel?.provider === "polly" && (
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
               )}
-            />
+              {selectedModel?.free && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/20 hover:bg-success/10"
+                >
+                  Free
+                </Badge>
+              )}
+              <span className="font-medium truncate max-w-[150px]">
+                {displayName}
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200 shrink-0",
+                  open && "rotate-180 text-foreground"
+                )}
+              />
+            </div>
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4"
+          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20 backdrop-blur-sm"
           side="top"
           sideOffset={4}
           collisionPadding={16}
@@ -453,7 +449,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
 
                   return (
                     <CommandGroup key={provider.id}>
-                      <div className="flex items-center gap-2 px-2 py-1.5">
+                      <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
                         <EnhancedProviderIcon provider={providerIcon} />
                         <span className="text-xs font-medium text-muted-foreground">
                           {providerTitle}
@@ -467,7 +463,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
                         />
                       ))}
                       {providerIndex < userModelsByProvider.length - 1 && (
-                        <div className="h-px bg-border mx-2 my-1" />
+                        <div className="h-px bg-border/50 mx-2 my-1.5" />
                       )}
                     </CommandGroup>
                   );
