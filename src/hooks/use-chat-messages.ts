@@ -1,11 +1,10 @@
-"use client";
-
 import { useCallback, useMemo } from "react";
 import { ChatMessage, ConversationId } from "@/types";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useUser } from "./use-user";
+import { removeCachedConversation } from "@/lib/conversation-cache";
 
 interface UseChatMessagesOptions {
   conversationId?: ConversationId;
@@ -90,6 +89,8 @@ export function useChatMessages({
         const remainingMessages = messages.filter(m => m.id !== messageId);
         if (remainingMessages.length === 0) {
           await deleteConversation({ id: conversationId });
+          // Remove from cache immediately to prevent flash on refresh
+          removeCachedConversation(conversationId);
           window.location.href = "/";
         }
       } catch (error) {

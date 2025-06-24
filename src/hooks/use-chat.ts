@@ -1,5 +1,3 @@
-"use client";
-
 import { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import { ChatMessage, Attachment, ConversationId } from "@/types";
 import { useCreateConversation } from "./use-conversations";
@@ -9,9 +7,10 @@ import { toast } from "sonner";
 
 import { useChatMessages } from "./use-chat-messages";
 
-import { useMutation, useAction, useQuery } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { useSelectedModel } from "./use-selected-model";
 
 interface UseChatOptions {
   conversationId?: ConversationId;
@@ -46,7 +45,7 @@ export function useChat({
   const resumeConversationAction = useAction(
     api.conversations.resumeConversation
   );
-  const selectedModel = useQuery(api.userModels.getUserSelectedModel);
+  const selectedModel = useSelectedModel();
   const addMessage = useMutation(api.messages.create);
 
   // State management
@@ -156,15 +155,15 @@ export function useChat({
 
         // Create new conversation if needed
         if (!conversationId) {
-          const newConversationId = await createNewConversationWithResponse(
-            content,
-            undefined,
+          const newConversationId = await createNewConversationWithResponse({
+            firstMessage: content,
+            sourceConversationId: undefined,
             personaId,
-            user?._id,
+            userId: user?._id,
             attachments,
             useWebSearch,
-            personaPrompt
-          );
+            personaPrompt,
+          });
           if (!newConversationId) {
             throw new Error("Failed to create conversation");
           }
@@ -226,8 +225,8 @@ export function useChat({
   const sendMessageToNewConversation = useCallback(
     async (
       content: string,
-      attachments?: Attachment[],
       shouldNavigate: boolean = true,
+      attachments?: Attachment[],
       contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaPrompt?: string | null,
@@ -248,7 +247,7 @@ export function useChat({
       if (!user && userLoading) {
         setTimeout(
           () =>
-            sendMessageToNewConversation(content, attachments, shouldNavigate),
+            sendMessageToNewConversation(content, shouldNavigate, attachments),
           200
         );
         return;
@@ -256,25 +255,25 @@ export function useChat({
 
       try {
         // Use the new function that starts the assistant response immediately
-        const newConversationId = await createNewConversationWithResponse(
-          content,
+        const newConversationId = await createNewConversationWithResponse({
+          firstMessage: content,
           sourceConversationId,
           personaId,
-          user?._id,
+          userId: user?._id,
           attachments,
-          false, // don't use web search for new conversations by default
-          personaPrompt
-        );
+          useWebSearch: false, // don't use web search for new conversations by default
+          personaPrompt,
+        });
         if (!newConversationId) {
           throw new Error("Failed to create conversation");
         }
 
-        // Add context message if provided
-        if (contextSummary && sourceConversationId) {
+        // Add context message if provided or if branching from another conversation
+        if (sourceConversationId) {
           await addMessage({
             conversationId: newConversationId,
             role: "context",
-            content: contextSummary,
+            content: contextSummary || "Branched from previous conversation",
             sourceConversationId,
             isMainBranch: true,
           });

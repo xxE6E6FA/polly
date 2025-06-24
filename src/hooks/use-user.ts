@@ -1,16 +1,20 @@
-"use client";
-
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { useQuery, useAction, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { User, UserId } from "@/types";
-import {
-  getAnonymousUserIdFromCookie,
-  setAnonymousUserIdCookie,
-} from "@/lib/cookies";
+import { User, UserId } from "../../src/types";
 import { usePreloadedQuery, Preloaded } from "convex/react";
+import {
+  getCachedUserData,
+  setCachedUser,
+  clearUserCache,
+} from "../lib/user-cache";
+import { MONTHLY_MESSAGE_LIMIT } from "../lib/constants";
+import {
+  getStoredAnonymousUserId,
+  storeAnonymousUserId as storeUserId,
+  onAnonymousUserCreated,
+} from "../lib/auth-utils";
 
-const ANONYMOUS_USER_ID_KEY = "anonymous-user-id";
 // Keep in sync with server-side ANONYMOUS_MESSAGE_LIMIT in convex/users.ts
 const ANONYMOUS_MESSAGE_LIMIT = 10;
 
@@ -32,6 +36,7 @@ interface UseUserReturn {
   };
   hasUserApiKeys?: boolean;
   hasUnlimitedCalls?: boolean;
+  isHydrated?: boolean;
 }
 
 // Helper function to compute user properties consistently
@@ -75,7 +80,7 @@ function computeUserProperties(
   } else {
     // Authenticated users: use monthly limits
     const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
-    const monthlyLimit = monthlyUsage?.monthlyLimit ?? 100;
+    const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
     const monthlyRemaining = Math.max(0, monthlyLimit - monthlyMessagesSent);
 
     // Can send message if has unlimited calls OR under monthly limit OR has BYOK models available
@@ -99,37 +104,32 @@ function computeUserProperties(
   }
 }
 
-// Get stored anonymous user ID from cookies first, then migrate from localStorage
-function getStoredAnonymousUserId(): UserId | null {
-  if (typeof window === "undefined") return null;
-
-  // First try cookies (new approach)
-  let userId = getAnonymousUserIdFromCookie();
-
-  // If not in cookies, try localStorage (old approach) and migrate
-  if (!userId) {
-    userId = localStorage.getItem(ANONYMOUS_USER_ID_KEY) as UserId | null;
-    if (userId) {
-      // Migrate to cookie
-      setAnonymousUserIdCookie(userId);
-      localStorage.removeItem(ANONYMOUS_USER_ID_KEY);
-    }
-  }
-
-  return userId;
-}
-
 // Main unified user hook - works for both authenticated and anonymous users
-export function useUser(): UseUserReturn {
+export function useUserData(): UseUserReturn {
+  // Initialize with cached data for instant rendering
+  const [cachedData] = useState(() => {
+    return getCachedUserData();
+  });
+
   // First try to get authenticated user via Convex Auth
   const authenticatedUser = useQuery(api.users.getCurrentUser);
 
   // Get anonymous user ID from storage for fallback
   const [storedAnonymousUserId, setStoredAnonymousUserId] =
     useState<UserId | null>(() => {
-      if (typeof window === "undefined") return null;
       return getStoredAnonymousUserId();
     });
+
+  // Listen for anonymous user creation event
+  useEffect(() => {
+    return onAnonymousUserCreated(userId => {
+      console.log(
+        "[UseUser] Anonymous user created, updating stored ID:",
+        userId
+      );
+      setStoredAnonymousUserId(userId);
+    });
+  }, []);
 
   // Listen for graduation completion event and clear anonymous user state
   useEffect(() => {
@@ -138,15 +138,20 @@ export function useUser(): UseUserReturn {
         "[UseUser] Graduation completed, clearing anonymous user state"
       );
       setStoredAnonymousUserId(null);
+      clearUserCache();
     };
 
-    if (typeof window !== "undefined") {
-      window.addEventListener("user-graduated", handleGraduationComplete);
-      return () => {
-        window.removeEventListener("user-graduated", handleGraduationComplete);
-      };
-    }
+    window.addEventListener("user-graduated", handleGraduationComplete);
+    return () => {
+      window.removeEventListener("user-graduated", handleGraduationComplete);
+    };
   }, []);
+
+  // Migration helpers
+  const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
+  const initializeMonthlyLimits = useMutation(
+    api.users.initializeMonthlyLimits
+  );
 
   // Query anonymous user data if no authenticated user and we have a stored ID
   const anonymousUser = useQuery(
@@ -177,12 +182,6 @@ export function useUser(): UseUserReturn {
     authenticatedUser && !authenticatedUser.isAnonymous ? {} : "skip"
   );
 
-  // Migration helpers
-  const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
-  const initializeMonthlyLimits = useMutation(
-    api.users.initializeMonthlyLimits
-  );
-
   // Determine which user to use (authenticated takes priority)
   const currentUser: User | null = useMemo(() => {
     if (authenticatedUser) {
@@ -199,18 +198,49 @@ export function useUser(): UseUserReturn {
     if (currentUser && currentUser.messagesSent === undefined) {
       initializeMessagesSent({ userId: currentUser._id });
     }
-  }, [currentUser, initializeMessagesSent]);
+  }, [currentUser]);
 
   // Initialize monthly limits for existing authenticated users
   useEffect(() => {
     if (currentUser && !currentUser.isAnonymous) {
       initializeMonthlyLimits({ userId: currentUser._id });
     }
-  }, [currentUser, initializeMonthlyLimits]);
+  }, [currentUser]);
 
-  // Determine loading state - we're loading if:
-  // 1. We have no authenticated user yet and the query is still pending (undefined)
-  // 2. We have an anonymous user ID but no anonymous user data yet
+  // Update cache when user data changes
+  useEffect(() => {
+    if (currentUser) {
+      // Extract only the fields we need for caching
+      const cacheableMonthlyUsage = monthlyUsage
+        ? {
+            monthlyMessagesSent: monthlyUsage.monthlyMessagesSent,
+            monthlyLimit: monthlyUsage.monthlyLimit,
+            remainingMessages: monthlyUsage.remainingMessages,
+            resetDate: monthlyUsage.resetDate,
+            needsReset: monthlyUsage.needsReset,
+          }
+        : undefined;
+
+      setCachedUser(
+        currentUser,
+        messageCount,
+        cacheableMonthlyUsage,
+        hasUserApiKeys
+      );
+    } else if (authenticatedUser === null && !storedAnonymousUserId) {
+      // Clear cache when logged out
+      clearUserCache();
+    }
+  }, [
+    currentUser,
+    messageCount,
+    monthlyUsage,
+    hasUserApiKeys,
+    authenticatedUser,
+    storedAnonymousUserId,
+  ]);
+
+  // Determine loading state
   const isLoading = useMemo(() => {
     // If authenticated user query is still pending
     if (authenticatedUser === undefined) {
@@ -219,26 +249,38 @@ export function useUser(): UseUserReturn {
 
     // If we have no authenticated user but have a stored anonymous ID and that query is still pending
     if (
-      !authenticatedUser &&
+      authenticatedUser === null &&
       storedAnonymousUserId &&
       anonymousUser === undefined
     ) {
       return true;
     }
 
+    // If we have no authenticated user and no stored anonymous user ID, we're not loading
+    // (we'll wait for user to start a conversation to create anonymous user)
+    if (authenticatedUser === null && !storedAnonymousUserId) {
+      return false;
+    }
+
     return false;
   }, [authenticatedUser, anonymousUser, storedAnonymousUserId]);
 
+  // Use cached data while loading
+  const effectiveUser = currentUser || cachedData?.user || null;
+  const effectiveMessageCount = messageCount ?? cachedData?.messageCount;
+  const effectiveMonthlyUsage = monthlyUsage ?? cachedData?.monthlyUsage;
+  const effectiveHasUserApiKeys = hasUserApiKeys ?? cachedData?.hasUserApiKeys;
+
   const userProperties = computeUserProperties(
-    currentUser,
-    messageCount,
-    monthlyUsage,
-    hasUserApiKeys,
+    effectiveUser,
+    effectiveMessageCount,
+    effectiveMonthlyUsage,
+    effectiveHasUserApiKeys,
     isLoading
   );
 
   return {
-    user: currentUser,
+    user: effectiveUser,
     ...userProperties,
   };
 }
@@ -262,7 +304,7 @@ export function usePreloadedUser(
     if (user && user.messagesSent === undefined) {
       initializeMessagesSent({ userId: user._id });
     }
-  }, [user, initializeMessagesSent]);
+  }, [user]);
 
   const userProperties = computeUserProperties(
     user,
@@ -278,18 +320,14 @@ export function usePreloadedUser(
   };
 }
 
-// Helper function to store anonymous user ID
-export function storeAnonymousUserId(userId: UserId) {
-  if (typeof window !== "undefined") {
-    setAnonymousUserIdCookie(userId);
-  }
-}
+// Export the centralized storeAnonymousUserId function
+export const storeAnonymousUserId = storeUserId;
 
 // Hook for ensuring a user exists (creates anonymous user if needed and not authenticated)
 export function useEnsureUser() {
   const getOrCreateUser = useAction(api.conversations.getOrCreateUser);
   const [isEnsuring, setIsEnsuring] = useState(false);
-  const { user } = useUser();
+  const { user } = useUserData();
 
   const ensureUser = useCallback(
     async (existingUserId?: UserId) => {
@@ -319,3 +357,7 @@ export function useEnsureUser() {
 
   return { ensureUser, isEnsuring };
 }
+
+// Re-export useUser from provider to make migration easier
+// This avoids having to update all imports across the codebase
+export { useUser } from "../providers/user-provider";

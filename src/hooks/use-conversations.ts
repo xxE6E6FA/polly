@@ -1,11 +1,22 @@
-"use client";
-
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { ConversationId, UserId, Attachment } from "@/types";
+import { ConversationId, UserId, Attachment } from "../types";
 import { Id } from "../../convex/_generated/dataModel";
 import { storeAnonymousUserId } from "./use-user";
 import { useQueryClient } from "@tanstack/react-query";
+import { clearConversationCache } from "../lib/conversation-cache";
+
+// Interface for createConversation parameters
+export interface CreateConversationParams {
+  firstMessage: string;
+  sourceConversationId?: ConversationId;
+  personaId?: Id<"personas"> | null;
+  userId?: UserId;
+  attachments?: Attachment[];
+  useWebSearch?: boolean;
+  personaPrompt?: string | null;
+  generateTitle?: boolean;
+}
 
 // Simplified hook using the single new conversation action
 export function useCreateConversation() {
@@ -14,16 +25,16 @@ export function useCreateConversation() {
   );
   const queryClient = useQueryClient();
 
-  const createConversation = async (
-    firstMessage: string,
-    sourceConversationId?: ConversationId,
-    personaId?: Id<"personas"> | null,
-    userId?: UserId,
-    attachments?: Attachment[],
-    useWebSearch?: boolean,
-    personaPrompt?: string | null,
-    generateTitle: boolean = true
-  ) => {
+  const createConversation = async ({
+    firstMessage,
+    sourceConversationId,
+    personaId,
+    userId,
+    attachments,
+    useWebSearch,
+    personaPrompt,
+    generateTitle = true,
+  }: CreateConversationParams) => {
     try {
       const result = await createNewConversation({
         userId,
@@ -47,6 +58,9 @@ export function useCreateConversation() {
         result.userId
       );
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+      // Clear our localStorage cache to force reload from server
+      clearConversationCache();
 
       return result.conversationId;
     } catch (error) {
