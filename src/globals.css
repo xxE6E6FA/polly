@@ -16,7 +16,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 0 71.8% 50.6%;
+    --primary: 16 85% 58%;
     --primary-foreground: 210 40% 98%;
     --secondary: 217.2 91.2% 59.8%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -46,7 +46,7 @@
     --accent-emerald: 160.1 84.1% 39.4%;
 
     /* Semantic Color Tokens */
-    --color-primary: var(--accent-coral);
+    --color-primary: 16 85% 58%;
     --color-primary-foreground: 210 40% 98%;
     --color-primary-hover: 16 88% 52%;
     --color-primary-active: 16 90% 48%;
@@ -105,11 +105,11 @@
     --popover: 0 0% 5%;
     --popover-foreground: 210 20% 98%;
 
-    --primary: 210 20% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 16 85% 58%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 217.2 91.2% 59.8%;
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 8%;
     --muted-foreground: 0 0% 64%;
@@ -136,7 +136,7 @@
     --accent-emerald: 160.1 84.1% 39.4%;
 
     /* Semantic Color Tokens - Dark Mode */
-    --color-primary: var(--accent-coral);
+    --color-primary: 16 85% 58%;
     --color-primary-foreground: 0 0% 100%;
     --color-primary-hover: 16 88% 63%;
     --color-primary-active: 16 90% 68%;
@@ -622,31 +622,48 @@ pre {
 
 .dark .chat-input-container {
   position: relative;
-  background: hsl(var(--color-surface-variant));
-  border: 1px solid hsl(var(--border));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  background: hsl(0 0% 15%);
+  border: 1px solid hsl(0 0% 25%);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.4),
+    0 0 40px hsl(var(--accent-coral) / 0.2),
+    inset 0 1px 0 hsl(0 0% 20%);
   transition: all 0.2s ease;
 }
 
 .dark .chat-input-container:hover {
-  border-color: hsl(var(--accent-blue) / 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border-color: hsl(var(--accent-coral) / 0.4);
+  background: hsl(0 0% 16%);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 50px hsl(var(--accent-coral) / 0.25),
+    inset 0 1px 0 hsl(0 0% 22%);
 }
 
 .dark .chat-input-container:focus-within {
-  border-color: hsl(var(--accent-blue) / 0.3);
+  border-color: hsl(var(--accent-coral) / 0.6);
+  background: hsl(0 0% 17%);
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    0 0 0 1px hsl(var(--accent-blue) / 0.2);
+    0 4px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 1px hsl(var(--accent-coral) / 0.3),
+    0 0 60px hsl(var(--accent-coral) / 0.3),
+    inset 0 1px 0 hsl(0 0% 25%);
 }
 
-/* Remove outline from chat input textarea */
+/* Remove outline from chat input textarea and ensure visibility */
 .dark .chat-input-container textarea {
   outline: none !important;
+  background: transparent;
+  color: hsl(0 0% 90%);
 }
 
 .dark .chat-input-container textarea:focus {
   outline: none !important;
+  color: hsl(0 0% 95%);
+}
+
+.dark .chat-input-container textarea::placeholder {
+  color: hsl(0 0% 50%);
 }
 
 /* Picker trigger styles */
