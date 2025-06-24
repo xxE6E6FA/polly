@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, useCallback, useRef } from "react";
 
 interface SelectionInfo {
@@ -92,7 +90,6 @@ export function useTextSelection(): UseTextSelectionReturn {
 
   const lockSelection = useCallback(() => {
     setIsLocked(true);
-    console.log("Selection locked");
   }, []);
 
   const unlockSelection = useCallback(() => {
@@ -129,18 +126,6 @@ export function useTextSelection(): UseTextSelectionReturn {
   // Clear selection when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      console.log("Click outside handler triggered", {
-        hasSelection: !!selection,
-        isLocked,
-        target: event.target,
-        isInAssistant: !!(event.target as Element)?.closest(
-          '[data-message-role="assistant"]'
-        ),
-        isInConversationStarter: !!(event.target as Element)?.closest(
-          "[data-conversation-starter]"
-        ),
-      });
-
       if (
         selection &&
         !isLocked &&
@@ -149,7 +134,6 @@ export function useTextSelection(): UseTextSelectionReturn {
         ) &&
         !(event.target as Element)?.closest("[data-conversation-starter]")
       ) {
-        console.log("Clearing selection due to click outside");
         clearSelection();
       }
     };
