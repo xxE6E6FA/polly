@@ -1,5 +1,3 @@
-"use client";
-
 import { useMemo } from "react";
 import { ConversationItem } from "./conversation-item";
 import { ConversationGroup } from "./conversation-group";
@@ -13,7 +11,6 @@ interface ConversationListContentProps {
   searchQuery: string;
   currentConversationId?: ConversationId;
   isLoading?: boolean;
-  loadingMessage?: string;
 }
 
 export function ConversationListContent({
@@ -21,7 +18,6 @@ export function ConversationListContent({
   searchQuery,
   currentConversationId,
   isLoading = false,
-  loadingMessage = "Loading conversations...",
 }: ConversationListContentProps) {
   const filteredConversations = useConversationSearch(
     conversations || [],
@@ -92,16 +88,9 @@ export function ConversationListContent({
     return groups;
   }, [conversations, filteredConversations]);
 
-  // Show loading spinner when loading
-  if (isLoading && (conversations?.length ?? 0) === 0) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <div className="text-center space-y-3">
-          <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm text-muted-foreground">{loadingMessage}</p>
-        </div>
-      </div>
-    );
+  // Show skeleton when loading
+  if (isLoading) {
+    return <ConversationListSkeleton />;
   }
 
   // If no conversations and there's a search, show no results found
@@ -122,7 +111,7 @@ export function ConversationListContent({
   }
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-4 pb-4">
       {groupedConversations.today.length > 0 && (
         <ConversationGroup title="Today">
           {groupedConversations.today.map(conversation => (
@@ -183,5 +172,32 @@ export function ConversationListContent({
         </ConversationGroup>
       )}
     </div>
+  );
+}
+
+function ConversationListSkeleton() {
+  return (
+    <div className="space-y-4 pb-4">
+      {/* Today section */}
+      <div className="space-y-1">
+        <div className="h-4 w-12 bg-muted/60 rounded animate-pulse mx-3 mb-1" />
+        <ConversationItemSkeleton />
+        <ConversationItemSkeleton />
+      </div>
+
+      {/* Yesterday section */}
+      <div className="space-y-1">
+        <div className="h-4 w-20 bg-muted/60 rounded animate-pulse mx-3 mb-1" />
+        <ConversationItemSkeleton />
+        <ConversationItemSkeleton />
+        <ConversationItemSkeleton />
+      </div>
+    </div>
+  );
+}
+
+function ConversationItemSkeleton() {
+  return (
+    <div className="mx-1 rounded-lg bg-muted/40 px-3 py-2 h-8 animate-pulse" />
   );
 }

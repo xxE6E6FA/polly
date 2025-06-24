@@ -1,5 +1,3 @@
-import * as React from "react";
-
 interface ProviderIconProps {
   provider: string;
 }

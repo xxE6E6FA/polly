@@ -10,26 +10,38 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
           "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover",
         ghost: "hover:bg-accent hover:text-accent-foreground",
+        action: "btn-action",
         link: "text-primary underline-offset-4 hover:underline",
         tropical:
           "bg-gradient-tropical text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300",
+        // Semantic variants
+        primary:
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover",
+        success:
+          "bg-success text-success-foreground shadow-md hover:bg-success-hover hover:shadow-lg transition-all duration-200",
+        warning:
+          "bg-warning text-warning-foreground shadow-md hover:bg-warning-hover hover:shadow-lg transition-all duration-200",
+        info: "bg-info text-info-foreground shadow-md hover:bg-info-hover hover:shadow-lg transition-all duration-200",
+        danger:
+          "bg-danger text-danger-foreground shadow-md hover:bg-danger-hover hover:shadow-lg transition-all duration-200",
+        // Legacy accent color variants (for backward compatibility)
         coral:
-          "bg-accent-coral text-white dark:text-white shadow-md hover:bg-accent-coral/90 hover:shadow-lg transition-all duration-200",
+          "bg-primary text-primary-foreground shadow-md hover:bg-primary-hover hover:shadow-lg transition-all duration-200",
         emerald:
-          "bg-accent-emerald text-white dark:text-white shadow-md hover:bg-accent-emerald/90 hover:shadow-lg hover:scale-105 transition-all duration-300",
+          "bg-success text-success-foreground shadow-md hover:bg-success-hover hover:shadow-lg hover:scale-105 transition-all duration-300",
         yellow:
-          "bg-accent-yellow text-slate-800 dark:text-slate-800 shadow-md hover:bg-accent-yellow/90 hover:shadow-lg transition-all duration-200",
+          "bg-warning text-warning-foreground shadow-md hover:bg-warning-hover hover:shadow-lg transition-all duration-200",
         purple:
           "bg-accent-purple text-white dark:text-white shadow-md hover:bg-accent-purple/90 hover:shadow-lg transition-all duration-200",
-        blue: "bg-accent-blue text-white shadow-md hover:bg-accent-blue/90 hover:shadow-lg hover:scale-105 transition-all duration-300",
+        blue: "bg-secondary text-secondary-foreground shadow-md hover:bg-secondary-hover hover:shadow-lg hover:scale-105 transition-all duration-300",
       },
       size: {
         default: "h-9 px-4 py-2",

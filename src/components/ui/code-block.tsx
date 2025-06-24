@@ -1,5 +1,3 @@
-"use client";
-
 import { memo, useState, useRef } from "react";
 import { Highlight } from "prism-react-renderer";
 import { Copy, Check, WrapText, Download } from "lucide-react";
@@ -117,38 +115,44 @@ function CodeBlockComponent({
       className={cn("group relative mt-2 flex w-full flex-col pt-9", className)}
     >
       {/* Header with language and actions */}
-      <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t bg-muted/50 border border-b-0 px-4 py-2 text-sm">
+      <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t bg-black/[0.03] dark:bg-white/[0.06] border border-b-0 px-4 py-2 text-sm">
         <span className="text-muted-foreground font-medium font-mono">
           {processedLanguage || "text"}
         </span>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownload}
-            className="h-7 w-7 p-0 hover:bg-muted-foreground/10"
-            title="Download code"
-          >
-            <Download className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setWordWrap(!wordWrap)}
-            className={cn(
-              "h-7 w-7 p-0 mr-6 hover:bg-muted-foreground/10",
-              wordWrap && "bg-accent"
-            )}
-            title={wordWrap ? "Disable word wrap" : "Enable word wrap"}
-          >
-            <WrapText className="h-3 w-3" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Sticky copy button container - aligned with header */}
-      <div className="sticky left-auto z-[1] ml-auto h-1.5 w-8 transition-[top] top-[36px]">
-        <div className="absolute -top-[calc(2.25rem+2px)] right-2 flex gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownload}
+                className="h-7 w-7 p-0 hover:bg-muted-foreground/10"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Download code</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setWordWrap(!wordWrap)}
+                className={cn(
+                  "h-7 w-7 p-0 hover:bg-muted-foreground/10",
+                  wordWrap && "bg-accent"
+                )}
+              >
+                <WrapText className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{wordWrap ? "Disable word wrap" : "Enable word wrap"}</p>
+            </TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -173,12 +177,9 @@ function CodeBlockComponent({
         </div>
       </div>
 
-      {/* Spacer */}
-      <div className="-mb-1.5"></div>
-
       {/* Code content */}
       <div
-        className="relative bg-muted/50 border rounded-b-lg"
+        className="relative bg-black/[0.02] dark:bg-white/[0.04] border rounded-b-lg"
         ref={codeContainerRef}
       >
         <Highlight

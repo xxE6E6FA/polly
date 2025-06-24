@@ -1,6 +1,3 @@
-"use client";
-
-import * as React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,21 +20,25 @@ interface NotificationDialogProps {
 }
 
 const typeConfig = {
-  success: {
-    icon: CheckCircle,
-    className: "text-coral-500",
-  },
   error: {
     icon: XCircle,
-    className: "text-red-500",
+    color: "text-danger",
+    title: "Error",
   },
   warning: {
     icon: AlertTriangle,
-    className: "text-yellow-500",
+    color: "text-warning",
+    title: "Warning",
+  },
+  success: {
+    icon: CheckCircle,
+    color: "text-success",
+    title: "Success",
   },
   info: {
     icon: Info,
-    className: "text-blue-500",
+    color: "text-info",
+    title: "Information",
   },
 };
 
@@ -62,9 +63,7 @@ export function NotificationDialog({
       <AlertDialogContent className="sm:max-w-md">
         <AlertDialogHeader>
           <div className="flex items-center gap-3">
-            <IconComponent
-              className={`h-5 w-5 ${typeConfig[type].className}`}
-            />
+            <IconComponent className={`h-5 w-5 ${typeConfig[type].color}`} />
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="ml-8">

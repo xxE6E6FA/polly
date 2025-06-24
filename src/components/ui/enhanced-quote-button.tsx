@@ -1,5 +1,3 @@
-"use client";
-
 import { createPortal } from "react-dom";
 import { Quote, MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +38,6 @@ export function EnhancedQuoteButton({
   };
 
   const handleShowConversationStarters = (e?: React.MouseEvent) => {
-    console.log("handleShowConversationStarters called", e?.type);
     e?.preventDefault();
     e?.stopPropagation();
     onLockSelection?.();

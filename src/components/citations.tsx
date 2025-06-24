@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ExternalLink, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -89,7 +87,7 @@ export function Citations({
           <div className="py-3 space-y-3">
             {citations.map((citation, index) => (
               <button
-                key={index}
+                key={citation.url || citation.title || `citation-${index}`}
                 onClick={() => handleCitationClick(citation.url)}
                 className="flex items-start gap-3 w-full p-3 text-left text-sm hover:bg-muted/30 rounded-lg transition-all duration-200 group border border-border/30 hover:border-accent-cyan/30 hover:shadow-sm"
               >
@@ -128,7 +126,7 @@ export function Citations({
         <div className="py-2 space-y-3">
           {citations.map((citation, index) => (
             <button
-              key={index}
+              key={citation.url || citation.title || `citation-${index}`}
               onClick={() => handleCitationClick(citation.url)}
               className="flex items-start gap-3 w-full p-3 text-left text-sm hover:bg-muted/30 rounded-lg transition-all duration-200 group border border-border/30 hover:border-accent-cyan/30 hover:shadow-sm"
             >

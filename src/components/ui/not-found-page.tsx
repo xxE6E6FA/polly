@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router";
 
 interface NotFoundPageProps {
   title?: string;
@@ -16,12 +15,11 @@ export function NotFoundPage({
       <div className="max-w-md mx-auto text-center space-y-6 p-6">
         <div className="space-y-4">
           <div className="mx-auto w-32 h-32 flex items-center justify-center">
-            <Image
+            <img
               src="/polly-404.png"
               alt="Polly not found"
-              width={128}
-              height={128}
-              className="object-contain"
+              className="object-contain w-32 h-32"
+              loading="lazy"
             />
           </div>
 
@@ -32,7 +30,7 @@ export function NotFoundPage({
         </div>
 
         <Button asChild>
-          <Link href="/">New Chat</Link>
+          <Link to="/">New Chat</Link>
         </Button>
       </div>
     </div>

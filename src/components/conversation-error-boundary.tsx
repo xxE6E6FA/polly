@@ -1,7 +1,4 @@
-"use client";
-
 import React from "react";
-import { notFound } from "next/navigation";
 
 interface ConversationErrorBoundaryState {
   hasError: boolean;
@@ -34,7 +31,7 @@ export class ConversationErrorBoundary extends React.Component<
       error.message.includes("v.id(")
     ) {
       // Redirect to not found page
-      notFound();
+      window.location.href = "/404";
     }
   }
 

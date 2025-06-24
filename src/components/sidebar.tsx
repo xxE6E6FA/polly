@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { SidebarSearch } from "@/components/sidebar/search";
 import { ConversationList } from "@/components/sidebar/conversation-list";
@@ -16,18 +14,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Link, useParams } from "react-router";
 import { useUser } from "@/hooks/use-user";
 import { useSidebar } from "@/hooks/use-sidebar";
+import { ROUTES } from "@/lib/routes";
 
 export function Sidebar() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { isSidebarVisible, toggleSidebar, isMobile, setSidebarVisible } =
-    useSidebar();
+  const {
+    isSidebarVisible,
+    toggleSidebar,
+    isMobile,
+    setSidebarVisible,
+    mounted,
+  } = useSidebar();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUser();
+  const [hasInitialized, setHasInitialized] = useState(false);
+
+  useEffect(() => {
+    // Mark as initialized after first render to prevent animations on route changes
+    if (mounted && !hasInitialized) {
+      setHasInitialized(true);
+    }
+  }, [mounted, hasInitialized]);
 
   useEffect(() => {
     if (currentConversationId && isMobile) {
@@ -56,14 +67,16 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "h-screen flex transition-width duration-300 ease-out",
-        isMobile ? "fixed inset-0 w-0 z-30" : "relative",
+        "h-screen flex",
+        mounted && hasInitialized && "transition-width duration-300 ease-out",
+        isMobile ? "fixed inset-0 z-30" : "relative",
+        isMobile && (isSidebarVisible ? "w-full" : "w-0"),
         !isMobile && (isSidebarVisible ? "w-80" : "w-0")
       )}
     >
       {isMobile && isSidebarVisible && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
           onClick={handleBackdropClick}
         />
       )}
@@ -71,44 +84,59 @@ export function Sidebar() {
       <div
         className={cn("fixed left-4 top-4 z-50", isMobile && "left-3 top-3")}
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSidebar}
-              className={cn(
-                "transition-colors duration-150 bg-background/80 backdrop-blur-sm border border-border/40",
-                isMobile ? "h-10 w-10 p-0 touch-manipulation" : "h-8 w-8 p-0"
-              )}
-              title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <PanelLeft className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
-          </TooltipContent>
-        </Tooltip>
+        {isMobile ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={toggleSidebar}
+            className={cn(
+              "hover:bg-accent text-foreground/70 hover:text-foreground",
+              "h-10 w-10"
+            )}
+            title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            <PanelLeft className="h-5 w-5" />
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={toggleSidebar}
+                className="hover:bg-accent text-foreground/70 hover:text-foreground"
+                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+              >
+                <PanelLeft className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       <div
         className={cn(
-          "sidebar-tinted flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40",
+          "bg-background flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40",
+          "shadow-xl dark:shadow-none dark:border-r dark:border-border/50",
           isSidebarVisible ? "w-80 opacity-100" : "w-0 opacity-0"
         )}
         style={{
           transition:
-            "width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)",
+            mounted && hasInitialized
+              ? "width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)"
+              : "none",
         }}
         suppressHydrationWarning
       >
         <div className="flex flex-col h-full w-80">
-          <div className="flex-shrink-0 sidebar-header-gradient">
+          <div className="flex-shrink-0 pb-2">
             <div
               className={cn(
                 "grid grid-cols-3 items-center",
-                isMobile ? "h-20 px-3" : "h-16 px-4"
+                isMobile ? "h-20 px-4" : "h-16 px-4"
               )}
             >
               <div className="flex justify-start">
@@ -116,8 +144,8 @@ export function Sidebar() {
               </div>
 
               <div className="flex justify-center">
-                <div className="polly-container cursor-pointer">
-                  <div className="flex items-center gap-2">
+                <Link to={ROUTES.HOME} className="group">
+                  <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
                     <div
                       className={cn(
                         "polly-logo-gradient-unified",
@@ -136,32 +164,28 @@ export function Sidebar() {
                     />
                     <h1
                       className={cn(
-                        "leading-none font-bold polly-logo-text-unified",
+                        "leading-none font-semibold polly-logo-text-unified",
                         isMobile ? "text-2xl" : "text-xl"
                       )}
                     >
                       Polly
                     </h1>
                   </div>
-                </div>
+                </Link>
               </div>
 
-              <div className="flex justify-end items-center gap-0.5">
+              <div className="flex justify-end items-center gap-1">
                 {user && !user.isAnonymous && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Link href="/settings">
+                      <Link to={ROUTES.SETTINGS.ROOT}>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          className={cn(
-                            "transition-colors duration-150 touch-manipulation",
-                            isMobile ? "h-10 w-10 p-0" : "h-8 w-8 p-0"
-                          )}
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          title="Settings"
                         >
-                          <Settings
-                            className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")}
-                          />
+                          <Settings className="h-5 w-5" />
                         </Button>
                       </Link>
                     </TooltipTrigger>
@@ -171,27 +195,32 @@ export function Sidebar() {
                   </Tooltip>
                 )}
 
-                <ThemeToggle />
+                <ThemeToggle
+                  variant="ghost"
+                  size="icon-sm"
+                  className={cn(
+                    "hover:bg-accent text-foreground/70 hover:text-foreground",
+                    isMobile && "h-10 w-10"
+                  )}
+                />
               </div>
             </div>
 
             <div
-              className={cn("space-y-6", isMobile ? "px-3 pb-8" : "px-4 pb-6")}
+              className={cn("space-y-4", isMobile ? "px-4 pb-4" : "px-4 pb-4")}
             >
-              <div className="space-y-3">
-                <div>
-                  <Link href="/" className="block w-full">
-                    <Button
-                      variant="emerald"
-                      className={cn(
-                        "w-full justify-center gap-2 text-sm transition-all duration-200 hover:scale-[1.02] hover:shadow-lg touch-manipulation border border-accent-emerald/20",
-                        isMobile ? "h-12 text-base font-medium" : "h-9"
-                      )}
-                    >
-                      New Chat
-                    </Button>
-                  </Link>
-                </div>
+              <div>
+                <Link to={ROUTES.HOME} className="block w-full">
+                  <Button
+                    variant="primary"
+                    className={cn(
+                      "w-full justify-center gap-2 text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200",
+                      isMobile && "h-11 text-base"
+                    )}
+                  >
+                    New Chat
+                  </Button>
+                </Link>
               </div>
 
               <SidebarSearch
@@ -204,7 +233,7 @@ export function Sidebar() {
           <div
             className={cn(
               "flex-1 overflow-y-auto min-h-0 scrollbar-thin",
-              isMobile ? "px-3" : "px-4"
+              isMobile ? "px-2" : "px-2"
             )}
           >
             <ConversationList
