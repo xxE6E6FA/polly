@@ -1,6 +1,4 @@
-"use client";
-
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -17,7 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
-import { Trash2, User, Edit3, FileText } from "lucide-react";
+import { Trash2, User, Edit3, FileText, Plus } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
@@ -29,15 +27,24 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { Id } from "../../../convex/_generated/dataModel";
 import { SettingsHeader } from "./settings-header";
-import Link from "next/link";
+import { Link } from "react-router";
+import { ROUTES } from "@/lib/routes";
 
 export function PersonasTab() {
   const userInfo = useUser();
-  const personas = useQuery(api.personas.list, { userId: userInfo.user?._id });
+  const personas = useQuery(
+    api.personas.list,
+    userInfo.user?._id ? { userId: userInfo.user._id } : "skip"
+  );
   const allBuiltInPersonas = useQuery(api.personas.listAllBuiltIn);
-  const userPersonaSettings = useQuery(api.personas.getUserPersonaSettings, {
-    userId: userInfo.user?._id,
-  });
+  const userPersonaSettings = useQuery(
+    api.personas.getUserPersonaSettings,
+    userInfo.user?._id
+      ? {
+          userId: userInfo.user._id,
+        }
+      : "skip"
+  );
   const userSettings = useUserSettings(userInfo.user?._id);
   const removePersona = useMutation(api.personas.remove);
   const toggleBuiltInPersona = useMutation(api.personas.toggleBuiltInPersona);
@@ -100,8 +107,11 @@ export function PersonasTab() {
             description="Manage custom system prompts for different conversation styles"
           />
           <div className="flex gap-2 shrink-0">
-            <Link href="/settings/personas/new">
-              <Button variant="coral">Create Persona</Button>
+            <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+              <Button variant="default" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Persona
+              </Button>
             </Link>
           </div>
         </div>
@@ -237,7 +247,9 @@ export function PersonasTab() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={`/settings/personas/${persona._id}/edit`}
+                                  to={ROUTES.SETTINGS.PERSONAS_EDIT(
+                                    persona._id
+                                  )}
                                 >
                                   <Button variant="ghost" size="sm">
                                     <Edit3 className="h-3 w-3" />

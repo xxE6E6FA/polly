@@ -1,4 +1,4 @@
-export const SIDEBAR_STORAGE_KEY = "sidebar-visible";
+const SIDEBAR_STORAGE_KEY = "sidebar-visible";
 
 export function setSidebarStorage(isVisible: boolean) {
   if (typeof window === "undefined") return;
@@ -7,7 +7,7 @@ export function setSidebarStorage(isVisible: boolean) {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(isVisible));
     window.dispatchEvent(new CustomEvent("sidebar-visibility-changed"));
   } catch (error) {
-    console.warn("Failed to save sidebar visibility to localStorage:", error);
+    console.error("Failed to save sidebar preference:", error);
   }
 }
 
@@ -16,16 +16,19 @@ export function getSidebarFromStorage(): boolean | null {
 
   try {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    return stored !== null ? JSON.parse(stored) : null;
+    if (stored === null) return null;
+    return JSON.parse(stored);
   } catch (error) {
-    console.warn("Failed to load sidebar visibility from localStorage:", error);
+    console.error("Failed to load sidebar preference:", error);
     return null;
   }
 }
 
 export function getDefaultSidebarState(): boolean {
-  if (typeof window === "undefined") return false;
+  if (typeof window === "undefined") return true;
 
-  const isMobile = window.innerWidth < 1024;
-  return !isMobile; // Desktop default: true, Mobile default: false
+  // Desktop: show sidebar by default
+  // Mobile: hide sidebar by default
+  const isMobile = window.innerWidth < 768;
+  return !isMobile;
 }

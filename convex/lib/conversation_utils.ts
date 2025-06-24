@@ -6,7 +6,13 @@ import { Id } from "../_generated/dataModel";
  * This is the DRY solution for handling potentially invalid conversation IDs from the frontend.
  */
 export async function getSafeConversation(
-  ctx: { db: { get: (id: Id<any>) => Promise<any> } },
+  ctx: {
+    db: {
+      get: (
+        id: Id<"conversations">
+      ) => Promise<{ _id: Id<"conversations"> } | null>;
+    };
+  },
   conversationIdString: string
 ) {
   try {

@@ -1,7 +1,3 @@
-"use client";
-
-import React from "react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,67 +53,113 @@ export function SendButtonGroup({
     !isStreaming;
 
   return (
-    <div className="flex items-center">
+    <div className="flex items-stretch">
       {/* Send as new conversation dropdown */}
       {showDropdown && (
         <DropdownMenu>
-          <Tooltip>
+          <Tooltip delayDuration={500}>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
-                <Button
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
                   disabled={isLoading || isSummarizing}
-                  className="min-h-11 w-11 p-0 rounded-l-lg rounded-r-none border border-accent-coral bg-gradient-to-br from-accent-coral/10 to-accent-coral/5 hover:from-accent-coral/20 hover:to-accent-coral/10 dark:from-accent-coral/20 dark:to-accent-coral/10 dark:hover:from-accent-coral/30 dark:hover:to-accent-coral/20 text-accent-coral transition-all duration-200"
+                  className={cn(
+                    "inline-flex items-center justify-center font-medium text-sm",
+                    "h-9 w-8 p-0 rounded-l-full",
+                    canSend
+                      ? "bg-primary hover:bg-primary/90 text-primary-foreground border border-r-0 border-primary shadow-md"
+                      : "bg-muted/30 text-muted-foreground border border-r-0 border-border/50",
+                    "transition-all duration-200",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  )}
                 >
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
+                  <ChevronDown
+                    className={cn(
+                      "h-3 w-3",
+                      canSend ? "text-primary-foreground" : "text-current"
+                    )}
+                  />
+                </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>
-              <p>Send options</p>
+            <TooltipContent side="left" sideOffset={8}>
+              <p className="text-xs">More send options</p>
             </TooltipContent>
           </Tooltip>
-          <DropdownMenuContent align="end" className="w-64">
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className={cn(
+              "w-64 p-1",
+              "animate-in fade-in-0 zoom-in-95 duration-200"
+            )}
+          >
             <DropdownMenuItem
               onClick={() => onSendAsNewConversation?.(true)}
               disabled={isLoading || isSummarizing}
-              className="flex items-center gap-2 cursor-pointer"
+              className={cn(
+                "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
+                "hover:bg-primary/10 dark:hover:bg-primary/20",
+                "focus:bg-primary/10 dark:focus:bg-primary/20",
+                "transition-colors duration-200"
+              )}
             >
-              <MessageSquarePlus className="w-4 h-4" />
-              <span className="text-sm font-medium">
-                Send & open new conversation
-              </span>
+              <div className="flex-shrink-0 mt-0.5">
+                <MessageSquarePlus className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  Send & open new chat
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Create a new conversation with this message and switch to it
+                </p>
+              </div>
             </DropdownMenuItem>
+
             <DropdownMenuItem
               onClick={() => onSendAsNewConversation?.(false)}
               disabled={isLoading || isSummarizing}
-              className="flex items-center gap-2 cursor-pointer"
+              className={cn(
+                "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
+                "hover:bg-primary/10 dark:hover:bg-primary/20",
+                "focus:bg-primary/10 dark:focus:bg-primary/20",
+                "transition-colors duration-200"
+              )}
             >
-              <GitBranch className="w-4 h-4" />
-              <span className="text-sm font-medium">
-                Send to new conversation
-              </span>
+              <div className="flex-shrink-0 mt-0.5">
+                <GitBranch className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-medium leading-none">
+                  Branch conversation
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Create a new conversation but stay in the current one
+                </p>
+              </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}
 
       {/* Send/Stop button */}
-      <Button
+      <button
         type={isStreaming ? "button" : "submit"}
         onClick={isStreaming ? onStop : onSend}
         disabled={isStreaming ? !onStop : !canSend}
-        size="sm"
         className={cn(
-          "min-h-11 w-11 p-0 transition-all duration-200 shadow-sm",
-          showDropdown ? "rounded-l-none rounded-r-lg" : "rounded-lg",
+          "inline-flex items-center justify-center font-medium text-sm",
+          "h-9 w-9 p-0 rounded-full transition-all duration-200",
+          showDropdown ? "rounded-l-none" : "",
           isStreaming
-            ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 dark:from-red-600 dark:to-red-700 dark:hover:from-red-700 dark:hover:to-red-800 text-white shadow-lg hover:shadow-xl dark:shadow-red-900/40 dark:hover:shadow-red-900/60 border-0"
+            ? "bg-danger hover:bg-danger/90 text-white border border-danger shadow-md hover:shadow-lg"
             : canSend
-              ? "bg-gradient-to-br from-accent-coral to-accent-coral/90 hover:from-accent-coral/90 hover:to-accent-coral dark:from-accent-coral dark:to-accent-coral/90 dark:hover:from-accent-coral/90 dark:hover:to-accent-coral text-white shadow-lg hover:shadow-xl dark:shadow-coral-900/40 dark:hover:shadow-coral-900/60 border-0"
-              : "bg-muted/50 text-muted-foreground/50 cursor-not-allowed dark:bg-muted/30 dark:text-muted-foreground/40"
+              ? "bg-primary hover:bg-primary/90 text-primary-foreground border border-primary shadow-md hover:shadow-lg"
+              : "bg-muted/30 text-muted-foreground cursor-not-allowed border border-border/50",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         )}
         title={
           isStreaming
@@ -126,7 +168,9 @@ export function SendButtonGroup({
               ? "Configure API keys to start chatting"
               : hasEnabledModels === false
                 ? "Enable models in settings to start chatting"
-                : undefined
+                : canSend
+                  ? "Send message"
+                  : undefined
         }
       >
         {isStreaming ? (
@@ -136,7 +180,7 @@ export function SendButtonGroup({
         ) : (
           <Send className="h-4 w-4" />
         )}
-      </Button>
+      </button>
     </div>
   );
 }

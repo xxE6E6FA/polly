@@ -1,10 +1,8 @@
-"use client";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, LogOut } from "lucide-react";
-import Link from "next/link";
-import { useAuthActions } from "@convex-dev/auth/react";
+import { Link } from "react-router";
+import { useAuthWithCache } from "@/hooks/use-auth-with-cache";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface SettingsHeaderProps {
@@ -26,13 +24,13 @@ function NavigationHeader({
   backLink: string;
   backText: string;
 }) {
-  const authActions = useAuthActions();
+  const authActions = useAuthWithCache();
 
   return (
     <div className="border-b border-border/40 flex-shrink-0">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-4">
-          <Link href={backLink}>
+          <Link to={backLink}>
             <Button variant="ghost" size="sm" className="px-2">
               <ArrowLeft className="h-4 w-4 mr-2" />
               {backText}

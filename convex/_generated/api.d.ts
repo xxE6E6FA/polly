@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as constants from "../constants.js";
 import type * as conversationStarters from "../conversationStarters.js";
 import type * as conversationSummary from "../conversationSummary.js";
 import type * as conversations from "../conversations.js";
@@ -45,6 +46,7 @@ import type * as users from "../users.js";
 declare const fullApi: ApiFromModules<{
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  constants: typeof constants;
   conversationStarters: typeof conversationStarters;
   conversationSummary: typeof conversationSummary;
   conversations: typeof conversations;

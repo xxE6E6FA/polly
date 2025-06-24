@@ -1,5 +1,3 @@
-"use client";
-
 import React, {
   useState,
   useRef,
@@ -52,6 +50,7 @@ interface InputControlsProps {
     useWebSearch?: boolean,
     personaId?: Id<"personas"> | null
   ) => void;
+  onSendAsNewConversation?: (navigate: boolean) => void;
   onInputStart?: () => void;
 }
 
@@ -80,6 +79,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       clearInput,
       handleFileUpload,
       onSendMessage,
+      onSendAsNewConversation,
       onInputStart,
     },
     ref
@@ -159,7 +159,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
     return (
       <>
         {/* Controls row */}
-        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/20 gap-2">
+        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-border/20 gap-2">
           {/* Left side controls - single line layout */}
           <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
             {/* Persona selector */}
@@ -168,19 +168,11 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                 compact
                 selectedPersonaId={selectedPersonaId}
                 onPersonaSelect={setSelectedPersonaId}
-                className={cn(
-                  "flex items-center gap-1 px-2 sm:px-3 py-2 sm:py-1.5 rounded-full border-2 border-dashed transition-all duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent-coral/20 focus-visible:ring-offset-1 text-xs flex-shrink-0 min-h-11 sm:h-auto min-w-11 sm:min-w-auto",
-                  selectedPersonaId
-                    ? "bg-accent-coral/10 border-accent-coral/30 hover:bg-accent-coral/15 active:bg-accent-coral/20 hover:border-accent-coral/40 active:border-accent-coral/50 dark:bg-accent-coral/20 dark:border-accent-coral/50"
-                    : "bg-muted/30 border-muted-foreground/20 hover:bg-muted/50 active:bg-muted/70 hover:border-muted-foreground/30 active:border-muted-foreground/40 dark:bg-muted/20 dark:hover:bg-muted/40"
-                )}
               />
             )}
 
             {/* Model selector - most prominent */}
-            {canChat && (
-              <ModelPicker className="flex items-center gap-1 px-2 sm:px-3 py-2 sm:py-1.5 bg-background hover:bg-accent/50 active:bg-accent/80 rounded-lg border border-border hover:border-muted-foreground/30 active:border-muted-foreground/50 transition-all duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent-coral/20 focus-visible:ring-offset-1 text-xs min-w-0 max-w-36 sm:max-w-none min-h-11 sm:h-auto font-medium" />
-            )}
+            {canChat && <ModelPicker />}
 
             {/* Web search toggle */}
             {canChat &&
@@ -190,12 +182,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                 <WebSearchToggle
                   enabled={webSearchEnabled}
                   onToggle={setWebSearchEnabled}
-                  className={cn(
-                    "flex items-center gap-1 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg border transition-all duration-200 hover:shadow-md focus-visible:ring-2 focus-visible:ring-accent-coral/20 focus-visible:ring-offset-1 text-xs flex-shrink-0 min-h-11 sm:h-auto min-w-11 sm:min-w-auto",
-                    webSearchEnabled
-                      ? "bg-accent-coral/10 border-accent-coral/30 hover:bg-accent-coral/15 active:bg-accent-coral/20 hover:border-accent-coral/40 active:border-accent-coral/50 dark:bg-accent-coral/20 dark:border-accent-coral/50"
-                      : "bg-muted/30 border-border hover:bg-muted/50 active:bg-muted/70 hover:border-muted-foreground/20 active:border-muted-foreground/30 dark:bg-muted/20 dark:hover:bg-muted/40"
-                  )}
                 />
               )}
           </div>
@@ -211,7 +197,15 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                     size="sm"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isLoading}
-                    className="flex items-center gap-1 px-2 sm:px-3 py-2 sm:py-1.5 bg-muted/30 hover:bg-muted/50 active:bg-muted/70 border border-border hover:border-muted-foreground/20 active:border-muted-foreground/30 rounded-full transition-all duration-200 hover:shadow-md dark:bg-muted/20 dark:hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-accent-coral/20 focus-visible:ring-offset-1 min-h-11 sm:h-auto disabled:opacity-50 disabled:cursor-not-allowed group flex-shrink-0 min-w-11 sm:min-w-auto"
+                    className={cn(
+                      "h-9 px-3 rounded-full",
+                      "bg-accent/30 hover:bg-accent/50 dark:bg-accent/20 dark:hover:bg-accent/40",
+                      "border border-border/50 hover:border-primary/30",
+                      "transition-all duration-200",
+                      "group flex items-center gap-1.5",
+                      "hover:shadow-md dark:hover:shadow-lg",
+                      "disabled:opacity-50 disabled:cursor-not-allowed"
+                    )}
                   >
                     <Paperclip className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <span className="hidden sm:inline text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
@@ -252,6 +246,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
               conversationId={conversationId}
               onSend={handleSubmit}
               onStop={onStop}
+              onSendAsNewConversation={onSendAsNewConversation}
               hasApiKeys={hasApiKeys}
               hasEnabledModels={hasEnabledModels}
             />

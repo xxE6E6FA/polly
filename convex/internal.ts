@@ -134,3 +134,59 @@ export const cleanupOrphanedAccounts = mutation({
     };
   },
 });
+
+// Clear auth-related tables (with correct table names)
+export const clearAuthAccounts = mutation({
+  args: {},
+  handler: async ctx => {
+    const documents = await ctx.db.query("authAccounts").collect();
+    for (const doc of documents) {
+      await ctx.db.delete(doc._id);
+    }
+    return documents.length;
+  },
+});
+
+export const clearAuthSessions = mutation({
+  args: {},
+  handler: async ctx => {
+    const documents = await ctx.db.query("authSessions").collect();
+    for (const doc of documents) {
+      await ctx.db.delete(doc._id);
+    }
+    return documents.length;
+  },
+});
+
+export const clearAuthVerificationCodes = mutation({
+  args: {},
+  handler: async ctx => {
+    const documents = await ctx.db.query("authVerificationCodes").collect();
+    for (const doc of documents) {
+      await ctx.db.delete(doc._id);
+    }
+    return documents.length;
+  },
+});
+
+export const clearAuthRefreshTokens = mutation({
+  args: {},
+  handler: async ctx => {
+    const documents = await ctx.db.query("authRefreshTokens").collect();
+    for (const doc of documents) {
+      await ctx.db.delete(doc._id);
+    }
+    return documents.length;
+  },
+});
+
+export const clearAuthRateLimits = mutation({
+  args: {},
+  handler: async ctx => {
+    const documents = await ctx.db.query("authRateLimits").collect();
+    for (const doc of documents) {
+      await ctx.db.delete(doc._id);
+    }
+    return documents.length;
+  },
+});

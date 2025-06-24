@@ -5,9 +5,9 @@ import * as dotenv from "dotenv";
 // Load environment variables
 dotenv.config({ path: ".env.local" });
 
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+const convexUrl = process.env.VITE_CONVEX_URL;
 if (!convexUrl) {
-  console.error("❌ NEXT_PUBLIC_CONVEX_URL environment variable not found!");
+  console.error("❌ VITE_CONVEX_URL environment variable not found!");
   process.exit(1);
 }
 
@@ -19,7 +19,6 @@ async function clearTable(
 ): Promise<{ name: string; count: number; error?: string }> {
   try {
     console.log(`🗑️  Starting to clear ${name}...`);
-    // @ts-expect-error - Dynamic access to API functions
     const deletedCount = await client.mutation(api.internal[mutationName], {});
     console.log(`✅ Cleared ${name} (${deletedCount} documents)`);
     return { name, count: deletedCount };
@@ -33,8 +32,11 @@ async function clearTable(
 async function clearDatabase() {
   const CLEAR_OPERATIONS = [
     { name: "users", mutation: "clearUsers" },
-    { name: "accounts", mutation: "clearAccounts" },
-    { name: "sessions", mutation: "clearSessions" },
+    { name: "authAccounts", mutation: "clearAuthAccounts" },
+    { name: "authSessions", mutation: "clearAuthSessions" },
+    { name: "authVerificationCodes", mutation: "clearAuthVerificationCodes" },
+    { name: "authRefreshTokens", mutation: "clearAuthRefreshTokens" },
+    { name: "authRateLimits", mutation: "clearAuthRateLimits" },
     { name: "conversations", mutation: "clearConversations" },
     { name: "sharedConversations", mutation: "clearSharedConversations" },
     { name: "messages", mutation: "clearMessages" },
@@ -87,6 +89,5 @@ async function clearDatabase() {
   console.log("✨ Personas table was preserved as requested");
 }
 
-if (require.main === module) {
-  clearDatabase().catch(console.error);
-}
+// Run if this script is executed directly
+clearDatabase().catch(console.error);

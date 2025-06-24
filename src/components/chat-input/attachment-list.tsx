@@ -1,6 +1,3 @@
-"use client";
-
-import React from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { Attachment } from "@/types";
@@ -34,7 +31,7 @@ export function AttachmentList({
         {Array.from(uploadProgress.values()).map((progress, index) => (
           <div
             key={`upload-${index}`}
-            className="flex items-center gap-2 rounded-lg bg-muted/60 backdrop-blur-sm px-2.5 py-1.5 text-xs group border border-border/20 shadow-sm"
+            className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs group border border-border/20 shadow-sm"
           >
             <div className="w-6 h-6 rounded flex-shrink-0 bg-muted/30 flex items-center justify-center">
               <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60" />
@@ -56,8 +53,8 @@ export function AttachmentList({
         {/* Show uploaded attachments */}
         {attachments.map((attachment, index) => (
           <div
-            key={index}
-            className="flex items-center gap-2 rounded-lg bg-muted/60 backdrop-blur-sm px-2.5 py-1.5 text-xs group border border-border/20 shadow-sm hover:bg-muted/80 transition-all duration-200"
+            key={attachment.name || attachment.url || `attachment-${index}`}
+            className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-xs group border border-border/20 shadow-sm hover:bg-muted-foreground/10 transition-all duration-200"
           >
             <button
               type="button"
