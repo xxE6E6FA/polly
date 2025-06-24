@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ExternalLink, Github, Globe } from "lucide-react";
+import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
 
 export default function AboutPage() {
   const links = [
@@ -40,7 +39,7 @@ export default function AboutPage() {
             </p>
             <p className="text-sm text-muted-foreground mb-4">
               It also allows you to use Google&apos;s Gemini 2.5 Flash Lite
-              model for free, up to 500 messages per month.
+              model for free, up to {MONTHLY_MESSAGE_LIMIT} messages per month.
             </p>
             <h3 className="font-semibold text-sm mb-2">Competition Entry</h3>
             <p className="text-sm text-muted-foreground mb-2">
@@ -88,7 +87,7 @@ export default function AboutPage() {
           <div>
             <h3 className="font-semibold text-sm mb-2">Built With</h3>
             <p className="text-sm text-muted-foreground">
-              Next.js, Convex, Vercel AI SDK, and Tailwind CSS
+              React, Vite, React Router, Convex, Vercel AI SDK, and Tailwind CSS
             </p>
           </div>
         </CardContent>
