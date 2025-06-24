@@ -2,21 +2,21 @@ import type { PrismTheme } from "prism-react-renderer";
 
 export const lightSyntaxTheme: PrismTheme = {
   plain: {
-    color: "hsl(0 0% 3.9%)", // --foreground in light mode
+    color: "hsl(0 0% 9%)", // Darker for better contrast
     backgroundColor: "transparent",
   },
   styles: [
     {
       types: ["comment", "prolog", "cdata"],
       style: {
-        color: "hsl(0 0% 45.1%)", // --muted-foreground
+        color: "hsl(0 0% 40%)", // Darker comment color
         fontStyle: "italic",
       },
     },
     {
       types: ["doctype", "punctuation", "entity"],
       style: {
-        color: "hsl(0 0% 45.1%)", // --muted-foreground
+        color: "hsl(0 0% 35%)", // Darker punctuation
       },
     },
     {
@@ -29,14 +29,14 @@ export const lightSyntaxTheme: PrismTheme = {
         "atrule",
       ],
       style: {
-        color: "hsl(280 70% 50%)", // --accent-purple
+        color: "hsl(280 70% 45%)", // Darker purple
         fontWeight: "500",
       },
     },
     {
       types: ["keyword", "property", "tag", "symbol", "deleted", "important"],
       style: {
-        color: "hsl(158 65% 40%)", // --primary
+        color: "hsl(158 65% 35%)", // Darker green
         fontWeight: "600",
       },
     },
@@ -51,45 +51,45 @@ export const lightSyntaxTheme: PrismTheme = {
         "attr-value",
       ],
       style: {
-        color: "hsl(200 85% 55%)", // --accent-blue
+        color: "hsl(200 85% 45%)", // Darker blue
       },
     },
     {
       types: ["variable", "operator", "function"],
       style: {
-        color: "hsl(35 90% 55%)", // --accent-orange
+        color: "hsl(35 90% 45%)", // Darker orange
       },
     },
     {
       types: ["url"],
       style: {
-        color: "hsl(10 75% 60%)", // --accent-coral
+        color: "hsl(10 75% 50%)", // Darker coral
         textDecorationLine: "underline",
       },
     },
     {
       types: ["namespace"],
       style: {
-        color: "hsl(55 85% 60%)", // --accent-yellow
+        color: "hsl(55 85% 45%)", // Darker yellow
       },
     },
     {
       types: ["bracket", "delimiter"],
       style: {
-        color: "hsl(0 0% 3.9%)", // --foreground
+        color: "hsl(0 0% 9%)", // Darker for better contrast
       },
     },
     {
       types: ["title"],
       style: {
-        color: "hsl(158 65% 40%)", // --primary
+        color: "hsl(158 65% 35%)", // Darker green
         fontWeight: "bold",
       },
     },
     {
       types: ["generic"],
       style: {
-        color: "hsl(0 0% 45.1%)", // --muted-foreground
+        color: "hsl(0 0% 40%)", // Darker muted color
       },
     },
   ],
@@ -97,21 +97,21 @@ export const lightSyntaxTheme: PrismTheme = {
 
 export const darkSyntaxTheme: PrismTheme = {
   plain: {
-    color: "hsl(210 40% 98%)", // --foreground in dark mode
+    color: "hsl(210 40% 96%)", // Slightly dimmer for less harsh contrast
     backgroundColor: "transparent",
   },
   styles: [
     {
       types: ["comment", "prolog", "cdata"],
       style: {
-        color: "hsl(217.9 10.6% 64.9%)", // --muted-foreground
+        color: "hsl(217.9 10.6% 60%)", // Slightly dimmer
         fontStyle: "italic",
       },
     },
     {
       types: ["doctype", "punctuation", "entity"],
       style: {
-        color: "hsl(217.9 10.6% 64.9%)", // --muted-foreground
+        color: "hsl(217.9 10.6% 65%)", // Brighter for better visibility
       },
     },
     {
@@ -124,14 +124,14 @@ export const darkSyntaxTheme: PrismTheme = {
         "atrule",
       ],
       style: {
-        color: "hsl(280 85% 65%)", // --accent-purple dark mode
+        color: "hsl(280 75% 70%)", // Brighter purple
         fontWeight: "500",
       },
     },
     {
       types: ["keyword", "property", "tag", "symbol", "deleted", "important"],
       style: {
-        color: "hsl(158 80% 45%)", // --primary dark mode
+        color: "hsl(158 70% 55%)", // Brighter green
         fontWeight: "600",
       },
     },
@@ -146,45 +146,45 @@ export const darkSyntaxTheme: PrismTheme = {
         "attr-value",
       ],
       style: {
-        color: "hsl(200 95% 65%)", // --accent-blue dark mode
+        color: "hsl(200 90% 70%)", // Brighter blue
       },
     },
     {
       types: ["variable", "operator", "function"],
       style: {
-        color: "hsl(35 100% 60%)", // --accent-orange dark mode
+        color: "hsl(35 95% 65%)", // Brighter orange
       },
     },
     {
       types: ["url"],
       style: {
-        color: "hsl(10 85% 70%)", // --accent-coral dark mode
+        color: "hsl(10 80% 75%)", // Brighter coral
         textDecorationLine: "underline",
       },
     },
     {
       types: ["namespace"],
       style: {
-        color: "hsl(55 95% 70%)", // --accent-yellow dark mode
+        color: "hsl(55 90% 75%)", // Brighter yellow
       },
     },
     {
       types: ["bracket", "delimiter"],
       style: {
-        color: "hsl(210 40% 98%)", // --foreground
+        color: "hsl(210 40% 96%)", // Slightly dimmer
       },
     },
     {
       types: ["title"],
       style: {
-        color: "hsl(158 80% 45%)", // --primary dark mode
+        color: "hsl(158 70% 55%)", // Brighter green
         fontWeight: "bold",
       },
     },
     {
       types: ["generic"],
       style: {
-        color: "hsl(217.9 10.6% 64.9%)", // --muted-foreground
+        color: "hsl(217.9 10.6% 60%)", // Slightly dimmer
       },
     },
   ],

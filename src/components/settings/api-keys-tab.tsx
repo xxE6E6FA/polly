@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SettingsHeader } from "./settings-header";
+import { Badge } from "../ui/badge";
+import { CheckCircle2 } from "lucide-react";
 
 type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
 
@@ -52,10 +52,10 @@ function getProviderCardStyle(isConnected: boolean) {
   const baseStyle = "p-4 rounded-lg border transition-all duration-200";
 
   if (isConnected) {
-    return `${baseStyle} border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 hover:bg-green-100 dark:hover:bg-green-950/50`;
+    return `${baseStyle} border-success-border bg-success-bg hover:bg-success/10`;
   }
 
-  return `${baseStyle} border-border bg-card hover:bg-muted/50`;
+  return `${baseStyle} border-border bg-background hover:bg-muted/50`;
 }
 
 export function ApiKeysTab() {
@@ -157,7 +157,7 @@ export function ApiKeysTab() {
           ).map(([provider]) => (
             <div
               key={provider}
-              className="p-4 rounded-lg border border-muted/40 bg-card animate-pulse"
+              className="p-4 rounded-lg border border-muted/40 bg-background animate-pulse"
             >
               <div className="h-20 bg-muted/20 rounded mb-4"></div>
               <div className="h-10 bg-muted/20 rounded"></div>
@@ -203,9 +203,10 @@ export function ApiKeysTab() {
                         {info.name}
                       </Label>
                       {isConnected && (
-                        <span className="text-xs text-green-700 dark:text-green-300 font-medium bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800/50">
+                        <Badge variant="success" size="sm">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
                           Connected
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   </div>
@@ -283,7 +284,7 @@ export function ApiKeysTab() {
 
       {/* OpenRouter Provider Settings */}
       {hasOpenRouterKey && (
-        <div className="border border-border rounded-lg p-4 bg-card">
+        <div className="border border-border rounded-lg p-4 bg-background">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-6 h-6 flex justify-center shrink-0">
               <ProviderIcon provider="openrouter" />
@@ -310,12 +311,11 @@ export function ApiKeysTab() {
                 Sorting Strategy
               </Label>
               <Select
-                value={userSettings?.openRouterSorting ?? "default"}
+                value={userSettings?.openRouterSorting || "default"}
                 onValueChange={handleOpenRouterSortingChange}
-                disabled={!userSettings}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
+                <SelectTrigger id="openrouter-sorting" className="w-full">
+                  <SelectValue placeholder="Select a sorting strategy" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">

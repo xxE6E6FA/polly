@@ -17,7 +17,7 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
     // Monthly message limit tracking for signed-in users
     monthlyMessagesSent: v.optional(v.number()), // Messages sent in current month
-    monthlyLimit: v.optional(v.number()), // Monthly limit (default 500)
+    monthlyLimit: v.optional(v.number()), // Monthly limit (default from MONTHLY_MESSAGE_LIMIT constant)
     lastMonthlyReset: v.optional(v.number()), // Last reset timestamp
     hasUnlimitedCalls: v.optional(v.boolean()), // Flag for unlimited calls
   }).index("email", ["email"]),

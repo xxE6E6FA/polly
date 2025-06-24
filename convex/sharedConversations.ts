@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getCurrentUserId, requireAuth } from "./lib/auth";
+import { requireAuth } from "./lib/auth";
 import { ConvexError } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -18,7 +18,8 @@ export const shareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    // Require authentication
+    const userId = await requireAuth(ctx);
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -26,15 +27,9 @@ export const shareConversation = mutation({
       throw new ConvexError("Conversation not found");
     }
 
-    // For now, allow sharing for anonymous users or when user IDs don't match
-    // TODO: Implement proper auth when moving to production
-    if (userId && conversation.userId !== userId) {
-      // Only enforce strict auth if we have a valid userId
-      // This allows anonymous users to share conversations
-      console.log("User ID mismatch - allowing for anonymous/dev usage", {
-        currentUserId: userId,
-        conversationUserId: conversation.userId,
-      });
+    // Ensure the user owns the conversation
+    if (conversation.userId !== userId) {
+      throw new ConvexError("You can only share your own conversations");
     }
 
     // Check if already shared
@@ -64,7 +59,7 @@ export const shareConversation = mutation({
     await ctx.db.insert("sharedConversations", {
       shareId,
       originalConversationId: args.conversationId,
-      userId: userId || conversation.userId, // Fallback to conversation owner
+      userId: userId,
       title: conversation.title,
       sharedAt: now,
       lastUpdated: now,
@@ -81,7 +76,8 @@ export const updateSharedConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    // Require authentication
+    const userId = await requireAuth(ctx);
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -89,10 +85,10 @@ export const updateSharedConversation = mutation({
       throw new ConvexError("Conversation not found");
     }
 
-    // Allow updating for anonymous users or when user IDs don't match (for dev)
-    if (userId && conversation.userId !== userId) {
-      console.log(
-        "User ID mismatch - allowing for anonymous/dev usage in update"
+    // Ensure the user owns the conversation
+    if (conversation.userId !== userId) {
+      throw new ConvexError(
+        "You can only update your own shared conversations"
       );
     }
 
@@ -134,7 +130,8 @@ export const unshareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    // Require authentication
+    const userId = await requireAuth(ctx);
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -142,11 +139,9 @@ export const unshareConversation = mutation({
       throw new ConvexError("Conversation not found");
     }
 
-    // Allow unsharing for anonymous users or when user IDs don't match (for dev)
-    if (userId && conversation.userId !== userId) {
-      console.log(
-        "User ID mismatch - allowing for anonymous/dev usage in unshare"
-      );
+    // Ensure the user owns the conversation
+    if (conversation.userId !== userId) {
+      throw new ConvexError("You can only unshare your own conversations");
     }
 
     // Find and delete the shared conversation record

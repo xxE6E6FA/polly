@@ -23,11 +23,6 @@ export function formatDate(date: Date | number): string {
   }
 }
 
-export function getConversationTitle(content: string): string {
-  const clean = content.replace(/[#*`]/g, "").trim();
-  return clean || "New conversation";
-}
-
 export function resizeGoogleImageUrl(url: string, size: number): string {
   if (!url || typeof url !== "string") {
     return url;

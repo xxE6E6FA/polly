@@ -1,5 +1,3 @@
-"use client";
-
 import React, {
   useCallback,
   useMemo,
@@ -25,6 +23,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { VirtualizedModelList } from "../virtualized-model-list";
 import { SettingsHeader } from "./settings-header";
 import { useUser } from "@/hooks/use-user";
+import { Alert, AlertDescription, AlertIcon } from "../ui/alert";
 
 const PROVIDER_NAMES = {
   openai: "OpenAI",
@@ -135,7 +134,7 @@ const ProviderSummaryCard = React.memo(
       className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-sm ${
         isSelected
           ? "border-primary bg-primary/5 hover:bg-primary/10"
-          : "border-border bg-card hover:bg-muted/50"
+          : "border-border bg-background hover:bg-muted/50"
       }`}
       onClick={() => onToggle(provider)}
     >
@@ -168,7 +167,7 @@ const ProviderSummaryCard = React.memo(
 ProviderSummaryCard.displayName = "ProviderSummaryCard";
 
 const ProviderSummaryCardSkeleton = React.memo(() => (
-  <div className="p-4 rounded-lg border bg-card">
+  <div className="p-4 rounded-lg border bg-background">
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-8 h-8 rounded bg-muted animate-pulse shrink-0" />
@@ -490,18 +489,12 @@ export function ModelsTab() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-lg border border-red-200 bg-red-50 text-red-700">
-          <p className="font-medium">Error loading models</p>
-          <p className="text-sm">{error.message}</p>
-          <Button
-            onClick={handleRefresh}
-            size="sm"
-            variant="outline"
-            className="mt-2"
-          >
-            Try again
-          </Button>
-        </div>
+        <Alert variant="danger" className="mb-6">
+          <AlertIcon variant="danger" />
+          <AlertDescription>
+            Failed to load models. Please refresh the page or try again later.
+          </AlertDescription>
+        </Alert>
       )}
 
       {isLoading && availableProviders.length > 0 ? (
@@ -559,7 +552,7 @@ export function ModelsTab() {
             >
               Selected
               {filterState.showOnlySelected && enabledModels && (
-                <span className="text-xs bg-background/80 text-foreground px-1.5 py-0.5 rounded-full">
+                <span className="text-xs bg-muted text-foreground px-1.5 py-0.5 rounded-full">
                   {enabledModels.length}
                 </span>
               )}

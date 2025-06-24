@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +22,8 @@ import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
+import { useAction } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 export interface PersonaFormData {
   name: string;
@@ -49,6 +49,8 @@ export function PersonaForm({
 }: PersonaFormProps) {
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
+
+  const improvePromptAction = useAction(api.personas.improvePrompt);
 
   // Use word-based undo/redo functionality
   const {
@@ -82,28 +84,13 @@ export function PersonaForm({
 
     setIsImprovingPrompt(true);
     try {
-      const response = await fetch("/api/personas/improve-prompt", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ prompt: promptValue }),
-      });
+      const result = await improvePromptAction({ prompt: promptValue });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage =
-          errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-        throw new Error(errorMessage);
-      }
-
-      const { improvedPrompt } = await response.json();
-
-      if (!improvedPrompt) {
+      if (!result.improvedPrompt) {
         throw new Error("No improvement was generated for your prompt");
       }
 
-      setPromptValue(improvedPrompt);
+      setPromptValue(result.improvedPrompt);
       toast.success("Prompt improved successfully!", {
         description: "Your prompt has been enhanced with AI suggestions.",
       });
@@ -129,6 +116,12 @@ export function PersonaForm({
         toast.error("Rate limit exceeded", {
           description:
             "Please wait a moment before trying to improve your prompt again.",
+          duration: 5000,
+        });
+      } else if (errorMessage.includes("not configured")) {
+        toast.error("OpenAI API key required", {
+          description:
+            "Please configure your OpenAI API key in settings to use this feature.",
           duration: 5000,
         });
       } else {
@@ -264,12 +257,12 @@ export function PersonaForm({
             />
 
             {isImprovingPrompt && (
-              <div className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
+              <div className="absolute inset-0 bg-background rounded-lg flex items-center justify-center z-10">
                 <div className="w-full h-full relative overflow-hidden">
                   <SkeletonText className="absolute inset-0 opacity-80" />
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-background/50 to-transparent animate-pulse" />
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/90 backdrop-blur-sm rounded-full border border-border/50 shadow-lg">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
                       <Loader2 className="h-4 w-4 animate-spin text-accent-coral" />
                       <span className="text-sm font-medium bg-gradient-to-r from-accent-coral via-accent-orange to-accent-purple bg-clip-text text-transparent">
                         AI magic in progress...
@@ -457,7 +450,7 @@ export function PersonaForm({
             />
 
             {isImprovingPrompt && (
-              <div className="absolute inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center">
+              <div className="absolute inset-0 bg-background rounded-lg flex items-center justify-center z-10">
                 <div className="w-full h-full relative overflow-hidden px-8">
                   <div
                     className="absolute top-1/2 transform -translate-y-1/2 opacity-80 h-64"
@@ -476,7 +469,7 @@ export function PersonaForm({
                     }}
                   />
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background/90 backdrop-blur-sm rounded-full border border-border/50 shadow-lg">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
                       <Loader2 className="h-4 w-4 animate-spin text-accent-coral" />
                       <span className="text-sm font-medium bg-gradient-to-r from-accent-coral via-accent-orange to-accent-purple bg-clip-text text-transparent">
                         AI magic in progress...

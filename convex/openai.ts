@@ -7,6 +7,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { humanizeString } from "humanize-ai-lib";
 
 // Helper types
 type StreamMessage = {
@@ -497,6 +498,7 @@ export const streamResponse = action({
         }) => {
           // Extract reasoning if embedded in content
           let extractedReasoning = reasoning || "";
+          let finalContent = text;
 
           if (!extractedReasoning) {
             const reasoningPatterns = [
@@ -511,13 +513,58 @@ export const streamResponse = action({
               if (match) {
                 extractedReasoning = match[1].trim();
                 // If reasoning was embedded in content, we need to clean it from the final message
-                const cleanedContent = text.replace(pattern, "").trim();
-                await ctx.runMutation(internal.messages.internalUpdate, {
-                  id: args.messageId,
-                  content: cleanedContent,
-                });
+                finalContent = text.replace(pattern, "").trim();
                 break;
               }
+            }
+          }
+
+          // Apply humanization to improve the LLM output
+          // Get the current message content since it's been streamed incrementally
+          const currentMessage = await ctx.runMutation(
+            internal.messages.internalGetById,
+            {
+              id: args.messageId,
+            }
+          );
+
+          const contentToHumanize =
+            finalContent !== text
+              ? finalContent
+              : currentMessage?.content || text;
+
+          const humanizedResult = humanizeString(contentToHumanize, {
+            transformHidden: true,
+            transformTrailingWhitespace: true,
+            transformNbs: true,
+            transformDashes: true,
+            transformQuotes: true,
+            transformOther: true,
+            keyboardOnly: false,
+          });
+
+          // Update the message with humanized content if it changed
+          if (humanizedResult.count > 0) {
+            await ctx.runMutation(internal.messages.internalUpdate, {
+              id: args.messageId,
+              content: humanizedResult.text,
+            });
+          }
+
+          // Also humanize reasoning if it exists
+          let humanizedReasoning = extractedReasoning;
+          if (extractedReasoning) {
+            const reasoningResult = humanizeString(extractedReasoning, {
+              transformHidden: true,
+              transformTrailingWhitespace: true,
+              transformNbs: true,
+              transformDashes: true,
+              transformQuotes: true,
+              transformOther: true,
+              keyboardOnly: false,
+            });
+            if (reasoningResult.count > 0) {
+              humanizedReasoning = reasoningResult.text;
             }
           }
 
@@ -574,7 +621,7 @@ export const streamResponse = action({
           // Update only metadata (reasoning, citations, finish reason)
           // Content is already being streamed incrementally, so don't update it here
           await updateMessage(ctx, args.messageId, {
-            reasoning: extractedReasoning || undefined,
+            reasoning: humanizedReasoning || undefined,
             finishReason: finishReason || "stop",
             citations,
           });

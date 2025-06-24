@@ -20,7 +20,6 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "var(--font-inter)",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
@@ -143,14 +142,6 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
@@ -162,12 +153,13 @@ const config: Config = {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          coral: "hsl(var(--accent-coral))",
+          orange: "hsl(var(--accent-orange))",
           purple: "hsl(var(--accent-purple))",
           blue: "hsl(var(--accent-blue))",
-          emerald: "hsl(var(--accent-emerald))",
-          orange: "hsl(var(--accent-orange))",
-          coral: "hsl(var(--accent-coral))",
           yellow: "hsl(var(--accent-yellow))",
+          cyan: "hsl(var(--accent-cyan))",
+          emerald: "hsl(var(--accent-emerald))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -194,6 +186,57 @@ const config: Config = {
           800: "hsl(10 75% 38%)",
           900: "hsl(10 75% 32%)",
           950: "hsl(10 75% 20%)",
+        },
+        // Semantic color mappings
+        primary: {
+          DEFAULT: "hsl(var(--color-primary))",
+          foreground: "hsl(var(--color-primary-foreground))",
+          hover: "hsl(var(--color-primary-hover))",
+          active: "hsl(var(--color-primary-active))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--color-secondary))",
+          foreground: "hsl(var(--color-secondary-foreground))",
+          hover: "hsl(var(--color-secondary-hover))",
+          active: "hsl(var(--color-secondary-active))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--color-success))",
+          foreground: "hsl(var(--color-success-foreground))",
+          hover: "hsl(var(--color-success-hover))",
+          active: "hsl(var(--color-success-active))",
+          bg: "hsl(var(--color-success-bg))",
+          border: "hsl(var(--color-success-border))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--color-warning))",
+          foreground: "hsl(var(--color-warning-foreground))",
+          hover: "hsl(var(--color-warning-hover))",
+          active: "hsl(var(--color-warning-active))",
+          bg: "hsl(var(--color-warning-bg))",
+          border: "hsl(var(--color-warning-border))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--color-info))",
+          foreground: "hsl(var(--color-info-foreground))",
+          hover: "hsl(var(--color-info-hover))",
+          active: "hsl(var(--color-info-active))",
+          bg: "hsl(var(--color-info-bg))",
+          border: "hsl(var(--color-info-border))",
+        },
+        danger: {
+          DEFAULT: "hsl(var(--color-danger))",
+          foreground: "hsl(var(--color-danger-foreground))",
+          hover: "hsl(var(--color-danger-hover))",
+          active: "hsl(var(--color-danger-active))",
+          bg: "hsl(var(--color-danger-bg))",
+          border: "hsl(var(--color-danger-border))",
+        },
+        surface: {
+          DEFAULT: "hsl(var(--color-surface))",
+          variant: "hsl(var(--color-surface-variant))",
+          hover: "hsl(var(--color-surface-hover))",
+          active: "hsl(var(--color-surface-active))",
         },
       },
       borderRadius: {
