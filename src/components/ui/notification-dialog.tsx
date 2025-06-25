@@ -7,7 +7,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { AlertTriangle, CheckCircle, Info, XCircle } from "lucide-react";
+import {
+  WarningIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 
 interface NotificationDialogProps {
   open: boolean;
@@ -21,22 +26,22 @@ interface NotificationDialogProps {
 
 const typeConfig = {
   error: {
-    icon: XCircle,
+    icon: XCircleIcon,
     color: "text-danger",
     title: "Error",
   },
   warning: {
-    icon: AlertTriangle,
+    icon: WarningIcon,
     color: "text-warning",
     title: "Warning",
   },
   success: {
-    icon: CheckCircle,
+    icon: CheckCircleIcon,
     color: "text-success",
     title: "Success",
   },
   info: {
-    icon: Info,
+    icon: InfoIcon,
     color: "text-info",
     title: "Information",
   },
