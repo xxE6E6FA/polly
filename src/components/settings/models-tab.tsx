@@ -263,6 +263,18 @@ export function ModelsTab() {
   );
 
   const fetchAllModels = useAction(api.models.fetchAllModels);
+  const [unfilteredModels, setUnfilteredModels] = React.useState<
+    Array<{
+      modelId: string;
+      name: string;
+      provider: string;
+      contextWindow: number;
+      supportsReasoning: boolean;
+      supportsTools: boolean;
+      supportsImages: boolean;
+      supportsFiles: boolean;
+    }>
+  >([]);
   const [allModels, setAllModels] = React.useState<
     Array<{
       modelId: string;
@@ -276,6 +288,7 @@ export function ModelsTab() {
     }>
   >([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
   const [error, setError] = React.useState<Error | null>(null);
 
   React.useEffect(() => {
@@ -286,6 +299,9 @@ export function ModelsTab() {
         setIsLoading(true);
         setError(null);
         const models = await fetchAllModels();
+
+        // Store unfiltered models
+        setUnfilteredModels(models);
 
         let filteredModels = models;
 
@@ -325,6 +341,11 @@ export function ModelsTab() {
         }
 
         setAllModels(filteredModels);
+
+        // Mark initial load as complete after first successful fetch
+        if (isInitialLoad) {
+          setIsInitialLoad(false);
+        }
       } catch (error) {
         console.error("Failed to fetch models:", error);
         setError(error as Error);
@@ -334,7 +355,7 @@ export function ModelsTab() {
     };
 
     fetchModels();
-  }, [fetchAllModels, availableProviders, debouncedFilters]);
+  }, [fetchAllModels, availableProviders, debouncedFilters, isInitialLoad]);
 
   const models = useMemo(() => {
     if (!debouncedFilters.showOnlySelected) {
@@ -344,12 +365,12 @@ export function ModelsTab() {
   }, [allModels, debouncedFilters.showOnlySelected, enabledModelIds]);
 
   const stats = useMemo(() => {
-    if (!allModels.length) return null;
+    if (!unfilteredModels.length) return null;
 
     const providerCounts: Record<string, number> = {};
     const capabilityCounts: Record<string, number> = {};
 
-    allModels.forEach(model => {
+    unfilteredModels.forEach(model => {
       providerCounts[model.provider] =
         (providerCounts[model.provider] || 0) + 1;
 
@@ -368,7 +389,7 @@ export function ModelsTab() {
     });
 
     return { providerCounts, capabilityCounts };
-  }, [allModels]);
+  }, [unfilteredModels]);
 
   const handleSearchChange = useCallback((value: string) => {
     dispatch({ type: "SET_SEARCH", payload: value });
@@ -439,6 +460,7 @@ export function ModelsTab() {
       setIsLoading(true);
       setError(null);
       const models = await fetchAllModels();
+      setUnfilteredModels(models);
       setAllModels(models);
     } catch (error) {
       console.error("Failed to refresh models:", error);
@@ -510,8 +532,8 @@ export function ModelsTab() {
         </Alert>
       )}
 
-      {isLoading && availableProviders.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+      {isInitialLoad && isLoading && availableProviders.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {availableProviders.map(provider => (
             <ProviderSummaryCardSkeleton key={provider} />
           ))}
@@ -519,7 +541,7 @@ export function ModelsTab() {
       ) : (
         stats?.providerCounts &&
         Object.keys(stats.providerCounts).length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {Object.entries(stats.providerCounts)
               .sort(([a], [b]) => {
                 const providerOrder = Object.keys(PROVIDER_NAMES);
