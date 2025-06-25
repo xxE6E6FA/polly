@@ -1,8 +1,9 @@
-import { User, LogIn } from "lucide-react";
+import { UserIcon, SignInIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
 import { useUser } from "../../hooks/use-user";
 import { ROUTES } from "@/lib/routes";
+import { preloadSettings } from "@/routes";
 
 interface UserSectionContentProps {
   user:
@@ -34,7 +35,7 @@ function UserSectionContent({
           variant="ghost"
           className="w-full flex items-center justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-accent/50 text-sm h-10"
         >
-          <LogIn className="h-4 w-4" />
+          <SignInIcon className="h-4 w-4" />
           Sign In
         </Button>
       </Link>
@@ -42,7 +43,11 @@ function UserSectionContent({
   }
 
   return (
-    <Link to={ROUTES.SETTINGS.ROOT} className="block w-full px-3 py-3">
+    <Link
+      to={ROUTES.SETTINGS.ROOT}
+      className="block w-full px-3 py-3"
+      onMouseEnter={preloadSettings}
+    >
       <Button
         variant="ghost"
         className="w-full justify-start gap-3 hover:bg-accent/50 h-10 text-sm"
@@ -64,7 +69,7 @@ function UserSectionContent({
           />
         ) : (
           <div className="rounded-full bg-gradient-to-br from-accent-coral to-accent-purple items-center justify-center w-6 h-6">
-            <User className="text-white h-3 w-3" />
+            <UserIcon className="text-white h-3 w-3" />
           </div>
         )}
         <span className="truncate text-foreground">

@@ -3,7 +3,8 @@ import { SidebarSearch } from "@/components/sidebar/search";
 import { ConversationList } from "@/components/sidebar/conversation-list";
 import { UserSection } from "@/components/sidebar/user-section";
 import { ConversationId } from "@/types";
-import { Settings, PanelLeft } from "lucide-react";
+import { GearIcon, SidebarIcon } from "@phosphor-icons/react";
+import { Backdrop } from "@/components/ui/backdrop";
 
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useCallback } from "react";
@@ -74,9 +75,14 @@ export function Sidebar() {
         !isMobile && (isSidebarVisible ? "w-80" : "w-0")
       )}
     >
-      {isMobile && isSidebarVisible && (
-        <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-30 lg:hidden"
+      {isMobile && (
+        <Backdrop
+          variant="default"
+          blur="sm"
+          className={cn(
+            "z-30 lg:hidden",
+            isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+          )}
           onClick={handleBackdropClick}
         />
       )}
@@ -95,7 +101,7 @@ export function Sidebar() {
             )}
             title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
           >
-            <PanelLeft className="h-5 w-5" />
+            <SidebarIcon className="h-6 w-6" />
           </Button>
         ) : (
           <Tooltip>
@@ -107,7 +113,7 @@ export function Sidebar() {
                 className="hover:bg-accent text-foreground/70 hover:text-foreground"
                 title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
               >
-                <PanelLeft className="h-4 w-4" />
+                <SidebarIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -120,7 +126,7 @@ export function Sidebar() {
       <div
         className={cn(
           "bg-background flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40",
-          "shadow-xl dark:shadow-none dark:border-r dark:border-border/50",
+          "shadow-xl dark:shadow-2xl",
           isSidebarVisible ? "w-80 opacity-100" : "w-0 opacity-0"
         )}
         style={{
@@ -133,59 +139,58 @@ export function Sidebar() {
       >
         <div className="flex flex-col h-full w-80">
           <div className="flex-shrink-0 pb-2">
-            <div
-              className={cn(
-                "grid grid-cols-3 items-center",
-                isMobile ? "h-20 px-4" : "h-16 px-4"
-              )}
-            >
-              <div className="flex justify-start">
-                {/* Left spacer - intentionally empty for balance */}
-              </div>
+            <div className="relative flex items-center justify-center h-16 px-4">
+              <Link to={ROUTES.HOME} className="group">
+                <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
+                  <div
+                    className={cn(
+                      "polly-logo-gradient-unified flex-shrink-0",
+                      "w-6 h-6"
+                    )}
+                    style={{
+                      maskImage: "url('/favicon.svg')",
+                      maskSize: "contain",
+                      maskRepeat: "no-repeat",
+                      maskPosition: "center",
+                      WebkitMaskImage: "url('/favicon.svg')",
+                      WebkitMaskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                    }}
+                  />
+                  <h1
+                    className={cn(
+                      "leading-none font-bold polly-logo-text-unified",
+                      "text-xl"
+                    )}
+                  >
+                    Polly
+                  </h1>
+                </div>
+              </Link>
 
-              <div className="flex justify-center">
-                <Link to={ROUTES.HOME} className="group">
-                  <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
-                    <div
-                      className={cn(
-                        "polly-logo-gradient-unified",
-                        isMobile ? "w-7 h-7" : "w-6 h-6"
-                      )}
-                      style={{
-                        maskImage: "url('/favicon.svg')",
-                        maskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        WebkitMaskImage: "url('/favicon.svg')",
-                        WebkitMaskSize: "contain",
-                        WebkitMaskRepeat: "no-repeat",
-                        WebkitMaskPosition: "center",
-                      }}
-                    />
-                    <h1
-                      className={cn(
-                        "leading-none font-semibold polly-logo-text-unified",
-                        isMobile ? "text-2xl" : "text-xl"
-                      )}
-                    >
-                      Polly
-                    </h1>
-                  </div>
-                </Link>
-              </div>
-
-              <div className="flex justify-end items-center gap-1">
+              <div
+                className={cn(
+                  "absolute flex items-center",
+                  isMobile ? "right-2 gap-2" : "right-4 gap-1"
+                )}
+              >
                 {user && !user.isAnonymous && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Link to={ROUTES.SETTINGS.ROOT}>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-foreground transition-colors"
+                          size="icon-sm"
+                          className={cn(
+                            "text-muted-foreground hover:text-foreground transition-colors",
+                            isMobile && "h-10 w-10"
+                          )}
                           title="Settings"
                         >
-                          <Settings className="h-5 w-5" />
+                          <GearIcon
+                            className={cn(isMobile ? "h-6 w-6" : "h-4 w-4")}
+                          />
                         </Button>
                       </Link>
                     </TooltipTrigger>
@@ -207,22 +212,8 @@ export function Sidebar() {
             </div>
 
             <div
-              className={cn("space-y-4", isMobile ? "px-4 pb-4" : "px-4 pb-4")}
+              className={cn("space-y-4", isMobile ? "px-3 pb-4" : "px-4 pb-4")}
             >
-              <div>
-                <Link to={ROUTES.HOME} className="block w-full">
-                  <Button
-                    variant="primary"
-                    className={cn(
-                      "w-full justify-center gap-2 text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200",
-                      isMobile && "h-11 text-base"
-                    )}
-                  >
-                    New Chat
-                  </Button>
-                </Link>
-              </div>
-
               <SidebarSearch
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
