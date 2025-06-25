@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useChatMessages } from "./use-chat-messages";
 
-import { useMutation, useAction } from "convex/react";
+import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useSelectedModel } from "./use-selected-model";
@@ -34,6 +34,12 @@ export function useChat({
     conversationId,
     onError,
   });
+
+  // Query conversation to get isStreaming state
+  const conversation = useQuery(
+    api.conversations.get,
+    conversationId ? { id: conversationId } : "skip"
+  );
 
   // Centralized Convex actions
   const sendFollowUpMessageAction = useAction(
@@ -368,6 +374,10 @@ export function useChat({
   ]);
 
   const stopGeneration = useCallback(async () => {
+    // Immediately update UI state
+    setIsGenerating(false);
+    setIsThinking(false);
+
     if (currentConversationId) {
       try {
         await stopGenerationAction({
@@ -381,10 +391,11 @@ export function useChat({
               ? error.message
               : "Unable to stop message generation",
         });
+        // Reset state on error
+        setIsGenerating(true);
+        setIsThinking(true);
       }
     }
-    setIsGenerating(false);
-    setIsThinking(false);
   }, [
     currentConversationId,
     stopGenerationAction,
@@ -556,7 +567,10 @@ export function useChat({
   const isStreamingInCurrentConversation = useMemo(() => {
     if (!currentConversationId) return false;
 
-    // Check if there's any assistant message without a finish reason (still streaming)
+    // Check conversation's isStreaming field first for immediate feedback
+    if (conversation?.isStreaming) return true;
+
+    // Also check if there's any assistant message without a finish reason (still streaming)
     const streamingMessage = chatMessages.convexMessages?.find(
       msg =>
         msg.conversationId === currentConversationId &&
@@ -565,7 +579,11 @@ export function useChat({
     );
 
     return !!streamingMessage;
-  }, [currentConversationId, chatMessages.convexMessages]);
+  }, [
+    currentConversationId,
+    chatMessages.convexMessages,
+    conversation?.isStreaming,
+  ]);
 
   return {
     messages: chatMessages.messages,
