@@ -42,7 +42,6 @@ Create 5 diverse, self-contained prompts that:
 - Are specific and actionable rather than vague or generic  
 - Feel like natural opening questions someone genuinely interested in the topic would ask
 - Lead to valuable, detailed responses that go beyond surface-level information
-- Are conversational but professional in tone
 
 Each prompt should be a complete, standalone request that doesn't reference "this" or assume prior knowledge.
 
@@ -52,7 +51,7 @@ Return exactly 5 prompts, one per line, with no numbers, bullets, or formatting.
               },
             ],
             generationConfig: {
-              maxOutputTokens: 100,
+              maxOutputTokens: 1000,
               temperature: 0.7,
             },
           }),
