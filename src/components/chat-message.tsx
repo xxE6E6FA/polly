@@ -388,6 +388,15 @@ function ChatMessageComponent({
               {displayContent}
             </StreamingMarkdown>
 
+            {/* Show interrupted indicator */}
+            {message.metadata?.stopped && !isStreaming && (
+              <div className="flex items-center gap-2 mt-3">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20">
+                  <span className="text-xs font-medium">Stopped by user</span>
+                </div>
+              </div>
+            )}
+
             {message.citations && message.citations.length > 0 && (
               <div className="mt-2.5">
                 <Citations citations={message.citations} compact />
