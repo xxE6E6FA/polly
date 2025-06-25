@@ -27,6 +27,48 @@ type StreamMessage = {
       }>;
 };
 
+type Citation = {
+  type: "url_citation";
+  url: string;
+  title: string;
+  cited_text?: string;
+  snippet?: string;
+};
+
+type ProviderType = "openai" | "anthropic" | "google" | "openrouter";
+
+// Constants
+const STREAM_CONFIG = {
+  BATCH_SIZE: 50,
+  BATCH_TIMEOUT: 100,
+  CHECK_STOP_EVERY_N_CHUNKS: 3,
+} as const;
+
+const AES_CONFIG = {
+  name: "AES-GCM",
+  length: 256,
+} as const;
+
+const MIME_TYPES = {
+  pdf: "application/pdf",
+  text: "text/plain",
+  default: "application/octet-stream",
+} as const;
+
+// Helper to humanize text
+const humanizeText = (text: string): string => {
+  const result = humanizeString(text, {
+    transformHidden: true,
+    transformTrailingWhitespace: true,
+    transformNbs: true,
+    transformDashes: true,
+    transformQuotes: true,
+    transformOther: true,
+    keyboardOnly: false,
+  });
+  return result.count > 0 ? result.text : text;
+};
+
 // Helper functions
 const updateMessage = async (
   ctx: ActionCtx,
@@ -35,22 +77,27 @@ const updateMessage = async (
     content?: string;
     reasoning?: string;
     finishReason?: string;
-    citations?: Array<{
-      type: "url_citation";
-      url: string;
-      title: string;
-      cited_text?: string;
-      snippet?: string;
-    }>;
+    citations?: Citation[];
   }
 ) => {
+  // Get current message to preserve existing metadata
+  const currentMessage = await ctx.runQuery(api.messages.getById, {
+    id: messageId,
+  });
+
+  // Merge metadata to preserve existing fields like stopped
+  const metadata = updates.finishReason
+    ? {
+        ...(currentMessage?.metadata || {}),
+        finishReason: updates.finishReason,
+      }
+    : currentMessage?.metadata;
+
   await ctx.runMutation(internal.messages.internalUpdate, {
     id: messageId,
     content: updates.content,
     reasoning: updates.reasoning || undefined,
-    metadata: updates.finishReason
-      ? { finishReason: updates.finishReason }
-      : undefined,
+    metadata: metadata,
     citations: updates.citations?.length ? updates.citations : undefined,
   });
 };
@@ -71,6 +118,29 @@ const clearConversationStreaming = async (
   }
 };
 
+// Generic storage to data converter
+const convertStorageToData = async (
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+  errorContext: string
+): Promise<{ blob: Blob; arrayBuffer: ArrayBuffer; base64: string }> => {
+  const blob = await ctx.storage.get(storageId);
+  if (!blob) {
+    console.error(`${errorContext}: File not found in storage:`, storageId);
+    throw new Error("File not found in storage");
+  }
+
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  let binaryString = "";
+  for (let i = 0; i < uint8Array.length; i++) {
+    binaryString += String.fromCharCode(uint8Array[i]);
+  }
+  const base64 = btoa(binaryString);
+
+  return { blob, arrayBuffer, base64 };
+};
+
 // Helper to convert Convex storage attachments to data URLs
 const convertConvexImageToDataUrl = async (
   ctx: ActionCtx,
@@ -78,24 +148,14 @@ const convertConvexImageToDataUrl = async (
 ): Promise<string> => {
   try {
     console.log("Converting Convex image to data URL:", attachment);
-
-    const blob = await ctx.storage.get(attachment.storageId);
-    if (!blob) {
-      console.error("File not found in storage:", attachment.storageId);
-      throw new Error("File not found in storage");
-    }
-
-    const arrayBuffer = await blob.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binaryString = "";
-    for (let i = 0; i < uint8Array.length; i++) {
-      binaryString += String.fromCharCode(uint8Array[i]);
-    }
-    const base64Data = btoa(binaryString);
+    const { blob, base64 } = await convertStorageToData(
+      ctx,
+      attachment.storageId,
+      "Converting image"
+    );
     const mimeType = blob.type || "image/jpeg";
-
     console.log("Successfully converted image, MIME type:", mimeType);
-    return `data:${mimeType};base64,${base64Data}`;
+    return `data:${mimeType};base64,${base64}`;
   } catch (error) {
     console.error("Error converting Convex image to data URL:", error);
     throw error;
@@ -109,16 +169,15 @@ const convertConvexFileToAISDKFormat = async (
 ): Promise<{ data: ArrayBuffer; mimeType: string }> => {
   try {
     console.log("Converting Convex file to AI SDK format:", attachment);
-
-    const blob = await ctx.storage.get(attachment.storageId);
-    if (!blob) {
-      console.error("File not found in storage:", attachment.storageId);
-      throw new Error("File not found in storage");
-    }
-
-    const arrayBuffer = await blob.arrayBuffer();
-    const mimeType = blob.type || getMimeTypeFromFileType(attachment.type);
-
+    const { blob, arrayBuffer } = await convertStorageToData(
+      ctx,
+      attachment.storageId,
+      "Converting file"
+    );
+    const mimeType =
+      blob.type ||
+      MIME_TYPES[attachment.type as keyof typeof MIME_TYPES] ||
+      MIME_TYPES.default;
     console.log("Successfully converted file, MIME type:", mimeType);
     return { data: arrayBuffer, mimeType };
   } catch (error) {
@@ -127,16 +186,70 @@ const convertConvexFileToAISDKFormat = async (
   }
 };
 
-// Helper to get MIME type from file type
-const getMimeTypeFromFileType = (fileType: string): string => {
-  switch (fileType) {
-    case "pdf":
-      return "application/pdf";
-    case "text":
-      return "text/plain";
-    default:
-      return "application/octet-stream";
+// Convert message part to AI SDK format
+const convertMessagePart = async (
+  ctx: ActionCtx,
+  part: any,
+  provider: string
+) => {
+  if (part.type === "text") {
+    return { type: "text" as const, text: part.text || "" };
   }
+
+  if (part.type === "image_url" && part.image_url) {
+    // Handle Convex storage attachments for all providers
+    if (part.attachment?.storageId) {
+      try {
+        console.log(
+          `Converting Convex storage attachment to base64 for ${provider}:`,
+          part.attachment
+        );
+        const dataUrl = await convertConvexImageToDataUrl(ctx, part.attachment);
+        return { type: "image" as const, image: dataUrl };
+      } catch (error) {
+        console.error(
+          "Failed to convert Convex attachment, falling back to URL:",
+          error
+        );
+        return { type: "image" as const, image: part.image_url.url };
+      }
+    }
+    console.log(`Using image URL directly for provider ${provider}`);
+    return { type: "image" as const, image: part.image_url.url };
+  }
+
+  if (part.type === "file" && part.file) {
+    // Check if this is a Convex storage attachment for PDF and provider supports it
+    if (
+      part.attachment?.storageId &&
+      part.attachment.type === "pdf" &&
+      (provider === "anthropic" || provider === "google")
+    ) {
+      try {
+        console.log(
+          `Converting Convex PDF to AI SDK format for ${provider}:`,
+          part.attachment
+        );
+        const { data, mimeType } = await convertConvexFileToAISDKFormat(
+          ctx,
+          part.attachment
+        );
+        return { type: "file" as const, data, mimeType };
+      } catch (error) {
+        console.error(
+          "Failed to convert Convex PDF, falling back to text:",
+          error
+        );
+      }
+    }
+    // Fallback to text format
+    return {
+      type: "text" as const,
+      text: `File: ${part.file.filename}\n${part.file.file_data}`,
+    };
+  }
+
+  return { type: "text" as const, text: "" };
 };
 
 // Convert our message format to AI SDK format
@@ -156,78 +269,7 @@ const convertMessages = async (
 
       // Handle multi-modal content
       const parts = await Promise.all(
-        msg.content.map(async part => {
-          if (part.type === "text") {
-            return { type: "text" as const, text: part.text || "" };
-          }
-
-          if (part.type === "image_url" && part.image_url) {
-            // Handle Convex storage attachments for all providers
-            if (part.attachment?.storageId) {
-              try {
-                console.log(
-                  `Converting Convex storage attachment to base64 for ${provider}:`,
-                  part.attachment
-                );
-                const dataUrl = await convertConvexImageToDataUrl(
-                  ctx,
-                  part.attachment
-                );
-                return { type: "image" as const, image: dataUrl };
-              } catch (error) {
-                console.error(
-                  "Failed to convert Convex attachment, falling back to URL:",
-                  error
-                );
-                // Fall back to using the URL if data URL conversion fails
-                return { type: "image" as const, image: part.image_url.url };
-              }
-            }
-
-            // For regular URLs (non-Convex storage), use URL directly
-            console.log(`Using image URL directly for provider ${provider}`);
-            return { type: "image" as const, image: part.image_url.url };
-          }
-
-          if (part.type === "file" && part.file) {
-            // Check if this is a Convex storage attachment for PDF and provider supports it
-            if (
-              part.attachment?.storageId &&
-              part.attachment.type === "pdf" &&
-              (provider === "anthropic" || provider === "google")
-            ) {
-              try {
-                console.log(
-                  `Converting Convex PDF to AI SDK format for ${provider}:`,
-                  part.attachment
-                );
-                const { data, mimeType } = await convertConvexFileToAISDKFormat(
-                  ctx,
-                  part.attachment
-                );
-                return { type: "file" as const, data, mimeType };
-              } catch (error) {
-                console.error(
-                  "Failed to convert Convex PDF, falling back to text:",
-                  error
-                );
-                // Fall back to text format
-                return {
-                  type: "text" as const,
-                  text: `File: ${part.file.filename}\n${part.file.file_data}`,
-                };
-              }
-            }
-
-            // For other files or fallback, use text format
-            return {
-              type: "text" as const,
-              text: `File: ${part.file.filename}\n${part.file.file_data}`,
-            };
-          }
-
-          return { type: "text" as const, text: "" };
-        })
+        msg.content.map(part => convertMessagePart(ctx, part, provider))
       );
 
       return {
@@ -243,7 +285,6 @@ const serverDecryptApiKey = async (
   encryptedKey: number[],
   initializationVector: number[]
 ): Promise<string> => {
-  const ALGORITHM = { name: "AES-GCM", length: 256 };
   const encryptionSecret = process.env.API_KEY_ENCRYPTION_SECRET;
   if (!encryptionSecret) {
     throw new Error(
@@ -254,7 +295,7 @@ const serverDecryptApiKey = async (
   const encoder = new TextEncoder();
   const keyMaterial = encoder.encode(encryptionSecret);
   const hash = await crypto.subtle.digest("SHA-256", keyMaterial);
-  const key = await crypto.subtle.importKey("raw", hash, ALGORITHM, false, [
+  const key = await crypto.subtle.importKey("raw", hash, AES_CONFIG, false, [
     "encrypt",
     "decrypt",
   ]);
@@ -270,17 +311,51 @@ const serverDecryptApiKey = async (
 
 // Get environment API key
 const getEnvironmentApiKey = (provider: string): string | null => {
-  switch (provider) {
-    case "openai":
-      return process.env.OPENAI_API_KEY || null;
-    case "anthropic":
-      return process.env.ANTHROPIC_API_KEY || null;
-    case "google":
-      return process.env.GEMINI_API_KEY || null;
-    case "openrouter":
-      return process.env.OPENROUTER_API_KEY || null;
-    default:
-      return null;
+  const keyMap: Record<string, string | undefined> = {
+    openai: process.env.OPENAI_API_KEY,
+    anthropic: process.env.ANTHROPIC_API_KEY,
+    google: process.env.GEMINI_API_KEY,
+    openrouter: process.env.OPENROUTER_API_KEY,
+  };
+  return keyMap[provider] || null;
+};
+
+// Get API key for user or environment
+const getApiKey = async (
+  ctx: ActionCtx,
+  provider: ProviderType,
+  userId?: Id<"users">
+): Promise<string> => {
+  if (userId) {
+    // Authenticated user - get their API key directly
+    const apiKeyRecord = await ctx.runQuery(
+      internal.apiKeys.getEncryptedApiKeyData,
+      { userId, provider }
+    );
+
+    if (apiKeyRecord?.encryptedKey && apiKeyRecord?.initializationVector) {
+      return serverDecryptApiKey(
+        apiKeyRecord.encryptedKey,
+        apiKeyRecord.initializationVector
+      );
+    }
+  }
+
+  // Fall back to environment variable
+  const envKey = getEnvironmentApiKey(provider);
+  if (envKey) {
+    return envKey;
+  }
+
+  // Throw appropriate error
+  if (userId) {
+    throw new Error(
+      `No API key found for ${provider}. Please add an API key in Settings.`
+    );
+  } else {
+    throw new Error(
+      `Authentication required. Please sign in to use ${provider} models.`
+    );
   }
 };
 
@@ -297,15 +372,234 @@ const applyOpenRouterSorting = (
   const cleanModelId = modelId.replace(/:nitro$|:floor$/g, "");
 
   // Apply new shortcut
-  switch (sorting) {
-    case "price":
-      return `${cleanModelId}:floor`;
-    case "throughput":
-      return `${cleanModelId}:nitro`;
-    default:
-      return cleanModelId;
-  }
+  const sortingMap = {
+    price: ":floor",
+    throughput: ":nitro",
+    latency: "",
+  };
+
+  return `${cleanModelId}${sortingMap[sorting] || ""}`;
 };
+
+// Create language model based on provider
+const createLanguageModel = async (
+  ctx: ActionCtx,
+  provider: ProviderType,
+  model: string,
+  apiKey: string,
+  userId?: Id<"users">,
+  enableWebSearch?: boolean
+): Promise<LanguageModel> => {
+  const providerFactories = {
+    openai: () => createOpenAI({ apiKey })(model),
+    anthropic: () => createAnthropic({ apiKey })(model),
+    google: () => createGoogleGenerativeAI({ apiKey })(model),
+    openrouter: async () => {
+      const openrouter = createOpenRouter({ apiKey });
+
+      // Get user's OpenRouter sorting preference
+      let sorting: "default" | "price" | "throughput" | "latency" = "default";
+      if (userId) {
+        try {
+          const userSettings = await ctx.runQuery(
+            api.userSettings.getUserSettings,
+            {
+              userId,
+            }
+          );
+          sorting = userSettings?.openRouterSorting ?? "default";
+        } catch (error) {
+          console.warn(
+            "Failed to get user settings for OpenRouter sorting:",
+            error
+          );
+        }
+      }
+
+      // Apply OpenRouter sorting shortcuts
+      let modifiedModel = applyOpenRouterSorting(model, sorting);
+
+      // Add web search if enabled
+      if (enableWebSearch) {
+        modifiedModel = `${modifiedModel}:online`;
+      }
+
+      return openrouter.chat(modifiedModel);
+    },
+  };
+
+  const factory = providerFactories[provider];
+  if (!factory) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  return factory();
+};
+
+// Check if model supports reasoning
+const isReasoningModel = (provider: string, model: string): boolean => {
+  return (
+    (provider === "google" && model.includes("gemini-2.5")) ||
+    (provider === "anthropic" &&
+      (model.includes("claude-opus-4") ||
+        model.includes("claude-sonnet-4") ||
+        model.includes("claude-3-7-sonnet")))
+  );
+};
+
+// Extract reasoning from text
+const extractReasoning = (text: string): string => {
+  const reasoningPatterns = [
+    /<thinking>([\s\S]*?)<\/thinking>/,
+    /<reasoning>([\s\S]*?)<\/reasoning>/,
+    /^Thinking:\s*([\s\S]*?)(?:\n\n|$)/,
+    /\[Reasoning\]([\s\S]*?)\[\/Reasoning\]/i,
+  ];
+
+  for (const pattern of reasoningPatterns) {
+    const match = text.match(pattern);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+
+  return "";
+};
+
+// Extract citations from provider metadata
+const extractCitations = (providerMetadata: any): Citation[] | undefined => {
+  // Handle OpenRouter citations
+  const openrouterCitations = providerMetadata?.openrouter?.citations;
+  if (openrouterCitations) {
+    return openrouterCitations.map((c: any) => ({
+      type: "url_citation" as const,
+      url: c.url,
+      title: c.title || "Web Source",
+      cited_text: c.text,
+      snippet: c.snippet,
+    }));
+  }
+
+  // Handle Google search grounding citations
+  const googleChunks = providerMetadata?.google?.groundingChunks;
+  if (googleChunks) {
+    return googleChunks.map((chunk: any) => ({
+      type: "url_citation" as const,
+      url: chunk.web?.uri || "",
+      title: chunk.web?.title || "Web Source",
+      snippet: chunk.content,
+    }));
+  }
+
+  return undefined;
+};
+
+// Stream content handler
+class StreamHandler {
+  private contentBuffer = "";
+  private lastUpdate = Date.now();
+  private chunkCounter = 0;
+  private wasStopped = false;
+  private abortController?: AbortController;
+
+  constructor(
+    private ctx: ActionCtx,
+    private messageId: Id<"messages">
+  ) {}
+
+  setAbortController(abortController: AbortController) {
+    this.abortController = abortController;
+  }
+
+  async checkIfStopped(): Promise<boolean> {
+    this.chunkCounter++;
+    if (this.chunkCounter % STREAM_CONFIG.CHECK_STOP_EVERY_N_CHUNKS === 0) {
+      const message = await this.ctx.runQuery(api.messages.getById, {
+        id: this.messageId,
+      });
+      if (message?.metadata?.stopped) {
+        this.wasStopped = true;
+        this.abortController?.abort();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  async flushContentBuffer(): Promise<void> {
+    if (this.contentBuffer.length > 0) {
+      const humanizedContent = humanizeText(this.contentBuffer);
+      await this.ctx.runMutation(internal.messages.internalAppendContent, {
+        id: this.messageId,
+        contentChunk: humanizedContent,
+      });
+      this.contentBuffer = "";
+      this.lastUpdate = Date.now();
+    }
+  }
+
+  async appendToBuffer(text: string): Promise<void> {
+    this.contentBuffer += text;
+
+    const timeSinceLastUpdate = Date.now() - this.lastUpdate;
+    if (
+      this.contentBuffer.length >= STREAM_CONFIG.BATCH_SIZE ||
+      timeSinceLastUpdate >= STREAM_CONFIG.BATCH_TIMEOUT
+    ) {
+      await this.flushContentBuffer();
+    }
+  }
+
+  async initializeStreaming(): Promise<void> {
+    await this.ctx.runMutation(internal.messages.internalUpdate, {
+      id: this.messageId,
+      content: "",
+    });
+  }
+
+  async handleFinish(
+    text: string,
+    finishReason: string | null | undefined,
+    reasoning: string | null | undefined,
+    providerMetadata: any
+  ): Promise<void> {
+    if (this.wasStopped) {
+      return;
+    }
+
+    // Extract reasoning if embedded in content
+    let extractedReasoning = reasoning || extractReasoning(text);
+
+    // Humanize reasoning if it exists
+    const humanizedReasoning = extractedReasoning
+      ? humanizeText(extractedReasoning)
+      : undefined;
+
+    // Extract citations
+    const citations = extractCitations(providerMetadata);
+
+    // Update only metadata (reasoning, citations, finish reason)
+    await updateMessage(this.ctx, this.messageId, {
+      reasoning: humanizedReasoning,
+      finishReason: finishReason || "stop",
+      citations,
+    });
+
+    await clearConversationStreaming(this.ctx, this.messageId);
+  }
+
+  async handleStop(): Promise<void> {
+    await this.flushContentBuffer();
+    await this.ctx.runMutation(internal.messages.internalUpdate, {
+      id: this.messageId,
+      metadata: {
+        finishReason: "stop",
+        stopped: true,
+      },
+    });
+    await clearConversationStreaming(this.ctx, this.messageId);
+  }
+}
 
 // Main streaming action
 export const streamResponse = action({
@@ -357,117 +651,33 @@ export const streamResponse = action({
   },
   handler: async (ctx, args) => {
     let abortController: AbortController | undefined;
+    const streamHandler = new StreamHandler(ctx, args.messageId);
+    let hasStartedStreaming = false;
 
     try {
       // Get API key
-      let apiKey: string;
-
-      if (args.userId) {
-        // Authenticated user - get their API key directly
-        const apiKeyRecord = await ctx.runQuery(
-          internal.apiKeys.getEncryptedApiKeyData,
-          {
-            userId: args.userId,
-            provider: args.provider as
-              | "openai"
-              | "anthropic"
-              | "google"
-              | "openrouter",
-          }
-        );
-
-        if (apiKeyRecord?.encryptedKey && apiKeyRecord?.initializationVector) {
-          apiKey = await serverDecryptApiKey(
-            apiKeyRecord.encryptedKey,
-            apiKeyRecord.initializationVector
-          );
-        } else {
-          const envKey = getEnvironmentApiKey(args.provider);
-          if (envKey) {
-            apiKey = envKey;
-          } else {
-            throw new Error(
-              `No API key found for ${args.provider}. Please add an API key in Settings.`
-            );
-          }
-        }
-      } else {
-        // Anonymous user - only allow environment variables
-        const envKey = getEnvironmentApiKey(args.provider);
-        if (envKey) {
-          apiKey = envKey;
-        } else {
-          throw new Error(
-            `Authentication required. Please sign in to use ${args.provider} models.`
-          );
-        }
-      }
+      const apiKey = await getApiKey(
+        ctx,
+        args.provider as ProviderType,
+        args.userId
+      );
 
       // Convert messages to AI SDK format
       const messages = await convertMessages(ctx, args.messages, args.provider);
 
-      // Create provider instance based on provider type
-      let model: LanguageModel;
-
-      switch (args.provider) {
-        case "openai": {
-          const openai = createOpenAI({ apiKey });
-          model = openai(args.model);
-          break;
-        }
-
-        case "anthropic": {
-          const anthropic = createAnthropic({ apiKey });
-          model = anthropic(args.model);
-          break;
-        }
-
-        case "google": {
-          const google = createGoogleGenerativeAI({ apiKey });
-          model = google(args.model);
-          break;
-        }
-
-        case "openrouter": {
-          const openrouter = createOpenRouter({ apiKey });
-
-          // Get user's OpenRouter sorting preference
-          let sorting: "default" | "price" | "throughput" | "latency" =
-            "default";
-
-          if (args.userId) {
-            try {
-              const userSettings = await ctx.runQuery(
-                api.userSettings.getUserSettings,
-                { userId: args.userId }
-              );
-              sorting = userSettings?.openRouterSorting ?? "default";
-            } catch (error) {
-              console.warn(
-                "Failed to get user settings for OpenRouter sorting:",
-                error
-              );
-            }
-          }
-
-          // Apply OpenRouter sorting shortcuts
-          let modifiedModel = applyOpenRouterSorting(args.model, sorting);
-
-          // Add web search if enabled
-          if (args.enableWebSearch) {
-            modifiedModel = `${modifiedModel}:online`;
-          }
-
-          model = openrouter.chat(modifiedModel);
-          break;
-        }
-
-        default:
-          throw new Error(`Unsupported provider: ${args.provider}`);
-      }
+      // Create language model
+      const model = await createLanguageModel(
+        ctx,
+        args.provider as ProviderType,
+        args.model,
+        apiKey,
+        args.userId,
+        args.enableWebSearch
+      );
 
       // Create abort controller for stopping
       abortController = new AbortController();
+      streamHandler.setAbortController(abortController);
 
       // Stream the response
       const result = streamText({
@@ -496,290 +706,71 @@ export const streamResponse = action({
           reasoning,
           providerMetadata,
         }) => {
-          // Extract reasoning if embedded in content
-          let extractedReasoning = reasoning || "";
-
-          if (!extractedReasoning) {
-            const reasoningPatterns = [
-              /<thinking>([\s\S]*?)<\/thinking>/,
-              /<reasoning>([\s\S]*?)<\/reasoning>/,
-              /^Thinking:\s*([\s\S]*?)(?:\n\n|$)/,
-              /\[Reasoning\]([\s\S]*?)\[\/Reasoning\]/i,
-            ];
-
-            for (const pattern of reasoningPatterns) {
-              const match = text.match(pattern);
-              if (match) {
-                extractedReasoning = match[1].trim();
-                break;
-              }
-            }
-          }
-
-          // Humanize reasoning if it exists
-          let humanizedReasoning = extractedReasoning;
-          if (extractedReasoning) {
-            const reasoningResult = humanizeString(extractedReasoning, {
-              transformHidden: true,
-              transformTrailingWhitespace: true,
-              transformNbs: true,
-              transformDashes: true,
-              transformQuotes: true,
-              transformOther: true,
-              keyboardOnly: false,
-            });
-            if (reasoningResult.count > 0) {
-              humanizedReasoning = reasoningResult.text;
-            }
-          }
-
-          // Handle citations from provider metadata
-          let citations:
-            | Array<{
-                type: "url_citation";
-                url: string;
-                title: string;
-                cited_text?: string;
-                snippet?: string;
-              }>
-            | undefined;
-
-          // Handle OpenRouter citations
-          const openrouterMetadata = providerMetadata as {
-            openrouter?: {
-              citations?: Array<{
-                url: string;
-                title?: string;
-                text?: string;
-                snippet?: string;
-              }>;
-            };
-          };
-          if (openrouterMetadata?.openrouter?.citations) {
-            citations = openrouterMetadata.openrouter.citations.map(c => ({
-              type: "url_citation" as const,
-              url: c.url,
-              title: c.title || "Web Source",
-              cited_text: c.text,
-              snippet: c.snippet,
-            }));
-          }
-
-          // Handle Google search grounding citations
-          const googleMetadata = providerMetadata as {
-            google?: {
-              groundingChunks?: Array<{
-                web?: { uri?: string; title?: string };
-                content?: string;
-              }>;
-            };
-          };
-          if (googleMetadata?.google?.groundingChunks) {
-            citations = googleMetadata.google.groundingChunks.map(chunk => ({
-              type: "url_citation" as const,
-              url: chunk.web?.uri || "",
-              title: chunk.web?.title || "Web Source",
-              snippet: chunk.content,
-            }));
-          }
-
-          // Update only metadata (reasoning, citations, finish reason)
-          // Content has already been streamed incrementally, so we don't update it here
-          // This prevents race conditions where we might overwrite with incomplete content
-          await updateMessage(ctx, args.messageId, {
-            reasoning: humanizedReasoning || undefined,
-            finishReason: finishReason || "stop",
-            citations,
-          });
-
-          await clearConversationStreaming(ctx, args.messageId);
+          await streamHandler.handleFinish(
+            text,
+            finishReason,
+            reasoning,
+            providerMetadata
+          );
         },
       });
 
-      // Handle streaming with batching to reduce write conflicts
-      let hasStartedStreaming = false;
-      let contentBuffer = "";
-      let lastUpdate = Date.now();
-      const BATCH_SIZE = 50; // Characters to batch before updating
-      const BATCH_TIMEOUT = 100; // Max ms between updates
+      // Handle streaming
+      const supportsReasoning = isReasoningModel(args.provider, args.model);
 
-      const flushContentBuffer = async () => {
-        if (contentBuffer.length > 0) {
-          // Apply humanization to the content chunk before appending
-          const humanizedResult = humanizeString(contentBuffer, {
-            transformHidden: true,
-            transformTrailingWhitespace: true,
-            transformNbs: true,
-            transformDashes: true,
-            transformQuotes: true,
-            transformOther: true,
-            keyboardOnly: false,
-          });
+      const processStream = async (
+        stream: AsyncIterable<any>,
+        isFullStream = false
+      ) => {
+        for await (const part of stream) {
+          if (await streamHandler.checkIfStopped()) {
+            throw new Error("StoppedByUser");
+          }
 
-          const chunkToAppend =
-            humanizedResult.count > 0 ? humanizedResult.text : contentBuffer;
+          if (!hasStartedStreaming) {
+            hasStartedStreaming = true;
+            await streamHandler.initializeStreaming();
+          }
 
-          await ctx.runMutation(internal.messages.internalAppendContent, {
-            id: args.messageId,
-            contentChunk: chunkToAppend,
-          });
-          contentBuffer = "";
-          lastUpdate = Date.now();
-        }
-      };
-
-      // Check if this is a reasoning-capable model that supports parallel streaming
-      const isReasoningModel =
-        (args.provider === "google" && args.model.includes("gemini-2.5")) ||
-        (args.provider === "anthropic" &&
-          (args.model.includes("claude-opus-4") ||
-            args.model.includes("claude-sonnet-4") ||
-            args.model.includes("claude-3-7-sonnet")));
-
-      // Handle streaming with parallel text and reasoning for reasoning-capable models
-      if (isReasoningModel) {
-        try {
-          const fullStream = result.fullStream;
-
-          for await (const part of fullStream) {
-            // Check if stopped less frequently to reduce read conflicts
-            if (Date.now() - lastUpdate > 500) {
-              const message = await ctx.runMutation(
-                internal.messages.internalGetById,
-                {
-                  id: args.messageId,
-                }
-              );
-              if (message?.metadata?.stopped) {
-                abortController?.abort();
-                throw new Error("StoppedByUser");
-              }
-            }
-
-            if (!hasStartedStreaming) {
-              hasStartedStreaming = true;
-              // Initialize with empty content to show streaming has started
-              await ctx.runMutation(internal.messages.internalUpdate, {
-                id: args.messageId,
-                content: "",
-              });
-            }
-
+          if (isFullStream) {
             if (part.type === "text-delta") {
-              // Handle text streaming
-              contentBuffer += part.textDelta || "";
-
-              // Flush buffer if it's large enough or enough time has passed
-              const timeSinceLastUpdate = Date.now() - lastUpdate;
-              if (
-                contentBuffer.length >= BATCH_SIZE ||
-                timeSinceLastUpdate >= BATCH_TIMEOUT
-              ) {
-                await flushContentBuffer();
-              }
+              await streamHandler.appendToBuffer(part.textDelta || "");
             } else if (part.type === "reasoning") {
-              // Handle reasoning streaming in parallel
               await ctx.runMutation(internal.messages.internalAppendReasoning, {
                 id: args.messageId,
                 reasoningChunk: part.textDelta || "",
               });
             }
+          } else {
+            await streamHandler.appendToBuffer(part);
           }
+        }
 
-          // Flush any remaining content
-          await flushContentBuffer();
+        await streamHandler.flushContentBuffer();
+      };
+
+      // Try full stream for reasoning models, fall back to text stream
+      if (supportsReasoning) {
+        try {
+          await processStream(result.fullStream, true);
         } catch (error) {
-          // If fullStream fails, fall back to text-only streaming
+          if (error instanceof Error && error.message === "StoppedByUser") {
+            throw error;
+          }
           console.log(
             "Full stream not available, falling back to text stream:",
             error
           );
-
-          for await (const textPart of result.textStream) {
-            // Check if stopped less frequently to reduce read conflicts
-            if (Date.now() - lastUpdate > 500) {
-              const message = await ctx.runMutation(
-                internal.messages.internalGetById,
-                {
-                  id: args.messageId,
-                }
-              );
-              if (message?.metadata?.stopped) {
-                abortController?.abort();
-                throw new Error("StoppedByUser");
-              }
-            }
-
-            if (!hasStartedStreaming) {
-              hasStartedStreaming = true;
-              // Initialize with empty content to show streaming has started
-              await ctx.runMutation(internal.messages.internalUpdate, {
-                id: args.messageId,
-                content: "",
-              });
-            }
-
-            // Add to buffer
-            contentBuffer += textPart;
-
-            // Flush buffer if it's large enough or enough time has passed
-            const timeSinceLastUpdate = Date.now() - lastUpdate;
-            if (
-              contentBuffer.length >= BATCH_SIZE ||
-              timeSinceLastUpdate >= BATCH_TIMEOUT
-            ) {
-              await flushContentBuffer();
-            }
-          }
-
-          // Flush any remaining content
-          await flushContentBuffer();
+          await processStream(result.textStream, false);
         }
       } else {
-        // Handle text-only streaming for non-reasoning models
-        for await (const textPart of result.textStream) {
-          // Check if stopped less frequently to reduce read conflicts
-          if (Date.now() - lastUpdate > 500) {
-            // Check every 500ms instead of every chunk
-            const message = await ctx.runMutation(
-              internal.messages.internalGetById,
-              {
-                id: args.messageId,
-              }
-            );
-            if (message?.metadata?.stopped) {
-              abortController?.abort();
-              throw new Error("StoppedByUser");
-            }
-          }
-
-          if (!hasStartedStreaming) {
-            hasStartedStreaming = true;
-            // Initialize with empty content to show streaming has started
-            await ctx.runMutation(internal.messages.internalUpdate, {
-              id: args.messageId,
-              content: "",
-            });
-          }
-
-          // Add to buffer
-          contentBuffer += textPart;
-
-          // Flush buffer if it's large enough or enough time has passed
-          const timeSinceLastUpdate = Date.now() - lastUpdate;
-          if (
-            contentBuffer.length >= BATCH_SIZE ||
-            timeSinceLastUpdate >= BATCH_TIMEOUT
-          ) {
-            await flushContentBuffer();
-          }
-        }
-
-        // Flush any remaining content
-        await flushContentBuffer();
+        await processStream(result.textStream, false);
       }
     } catch (error) {
-      if (error instanceof Error && error.message === "StoppedByUser") return;
+      if (error instanceof Error && error.message === "StoppedByUser") {
+        await streamHandler.handleStop();
+        return;
+      }
 
       await updateMessage(ctx, args.messageId, {
         content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
