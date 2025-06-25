@@ -1,6 +1,5 @@
 import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 
 // Type for enriched citation data
