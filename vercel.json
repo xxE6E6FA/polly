@@ -11,7 +11,7 @@
     }
   ],
   "env": {
-    "VITE_CONVEX_URL": "@vite_convex_url"
+    "VITE_CONVEX_URL": "@VITE_CONVEX_URL"
   },
   "headers": [
     {
