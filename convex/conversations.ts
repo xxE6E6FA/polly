@@ -548,6 +548,9 @@ export const sendFollowUpMessage = action({
       );
     }
 
+    let assistantMessageId: Id<"messages"> | undefined;
+    let userMessageId: Id<"messages"> | undefined;
+
     try {
       // Set conversation streaming state
       await ctx.runMutation(api.conversations.setStreamingState, {
@@ -556,7 +559,7 @@ export const sendFollowUpMessage = action({
       });
 
       // Add user message
-      const userMessageId = await ctx.runMutation(api.messages.create, {
+      userMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "user",
         content: args.content,
@@ -683,7 +686,7 @@ export const sendFollowUpMessage = action({
       }
 
       // Create assistant message for streaming
-      const assistantMessageId = await ctx.runMutation(api.messages.create, {
+      assistantMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "assistant",
         content: "",
@@ -714,6 +717,15 @@ export const sendFollowUpMessage = action({
         id: args.conversationId,
         isStreaming: false,
       });
+
+      // If stopped by user, this is not an error - just return the message ID
+      if (error instanceof Error && error.message === "StoppedByUser") {
+        return {
+          userMessageId: userMessageId || ("" as Id<"messages">),
+          assistantMessageId: assistantMessageId || ("" as Id<"messages">),
+        };
+      }
+
       throw error;
     }
   },
@@ -760,6 +772,8 @@ export const retryFromMessage = action({
         `No API key found for ${args.provider}. Please add an API key in Settings.`
       );
     }
+
+    let assistantMessageId: Id<"messages"> | undefined;
 
     try {
       // Set conversation streaming state
@@ -912,7 +926,7 @@ export const retryFromMessage = action({
       }
 
       // Create assistant message for streaming
-      const assistantMessageId = await ctx.runMutation(api.messages.create, {
+      assistantMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "assistant",
         content: "",
@@ -942,6 +956,14 @@ export const retryFromMessage = action({
         id: args.conversationId,
         isStreaming: false,
       });
+
+      // If stopped by user, this is not an error - just return the message ID
+      if (error instanceof Error && error.message === "StoppedByUser") {
+        return {
+          assistantMessageId: assistantMessageId || ("" as Id<"messages">),
+        };
+      }
+
       throw error;
     }
   },
@@ -988,6 +1010,8 @@ export const editMessage = action({
         `No API key found for ${args.provider}. Please add an API key in Settings.`
       );
     }
+
+    let assistantMessageId: Id<"messages"> | undefined;
 
     try {
       // Set conversation streaming state
@@ -1144,7 +1168,7 @@ export const editMessage = action({
       }
 
       // Create assistant message for streaming
-      const assistantMessageId = await ctx.runMutation(api.messages.create, {
+      assistantMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "assistant",
         content: "",

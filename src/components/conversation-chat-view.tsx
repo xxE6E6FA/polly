@@ -457,7 +457,8 @@ export function ConversationChatView({
                               isStreaming &&
                               index === filteredMessages.length - 1 &&
                               message.role === "assistant" &&
-                              !message.metadata?.finishReason;
+                              !message.metadata?.finishReason &&
+                              !message.metadata?.stopped;
 
                             return (
                               <div key={message.id} id={message.id}>
