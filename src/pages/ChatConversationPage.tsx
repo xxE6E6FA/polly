@@ -5,8 +5,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ConversationId } from "@/types";
 import { useUser } from "@/hooks/use-user";
-import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ROUTES } from "@/lib/routes";
+import { NotFoundPage } from "@/components/ui/not-found-page";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();

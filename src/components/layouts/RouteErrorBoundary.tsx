@@ -44,7 +44,7 @@ export function RouteErrorBoundary() {
 
   return (
     <div className="h-full w-full flex items-center justify-center">
-      <div className="text-center max-w-md">
+      <div className="flex flex-col items-center text-center max-w-md">
         <WarningIcon className="w-16 h-16 text-destructive mb-4" />
         <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
         <p className="text-muted-foreground mb-8">

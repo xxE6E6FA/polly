@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import { Spinner } from "@/components/spinner";
-import Markdown from "react-markdown";
+import Markdown from "markdown-to-jsx";
 
 interface ReasoningProps {
   reasoning: string;

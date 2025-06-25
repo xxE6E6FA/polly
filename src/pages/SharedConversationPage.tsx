@@ -1,9 +1,7 @@
 import { useParams } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Spinner } from "@/components/spinner";
 import { NotFoundPage } from "@/components/ui/not-found-page";
-
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
