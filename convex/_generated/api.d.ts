@@ -24,6 +24,7 @@ import type * as http from "../http.js";
 import type * as internal_ from "../internal.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
+import type * as lib_model_capabilities_config from "../lib/model_capabilities_config.js";
 import type * as messages from "../messages.js";
 import type * as models from "../models.js";
 import type * as openai from "../openai.js";
@@ -55,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   internal: typeof internal_;
   "lib/auth": typeof lib_auth;
   "lib/conversation_utils": typeof lib_conversation_utils;
+  "lib/model_capabilities_config": typeof lib_model_capabilities_config;
   messages: typeof messages;
   models: typeof models;
   openai: typeof openai;
