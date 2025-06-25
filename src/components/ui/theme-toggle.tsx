@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Moon, Sun } from "lucide-react";
+import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import {
   Tooltip,
   TooltipContent,
@@ -37,9 +37,9 @@ export function ThemeToggle({
           }
         >
           {theme === "dark" ? (
-            <Sun className={iconSize} />
+            <SunIcon className={iconSize} />
           ) : (
-            <Moon className={iconSize} />
+            <MoonIcon className={iconSize} />
           )}
         </Button>
       </TooltipTrigger>

@@ -1,6 +1,12 @@
 import React from "react";
 import { Button } from "./button";
-import { RefreshCw, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
+import {
+  ArrowCounterClockwiseIcon,
+  CaretDownIcon,
+  CaretUpIcon,
+  CopyIcon,
+  CheckIcon,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface ErrorBoundaryState {
@@ -118,7 +124,7 @@ export class ErrorBoundary extends React.Component<
                 size="lg"
                 className="gap-2"
               >
-                <RefreshCw className="h-4 w-4" />
+                <ArrowCounterClockwiseIcon className="h-4 w-4" />
                 Reload page
               </Button>
 
@@ -135,9 +141,9 @@ export class ErrorBoundary extends React.Component<
                   >
                     <span>Error details</span>
                     {this.state.showDetails ? (
-                      <ChevronUp className="h-4 w-4" />
+                      <CaretUpIcon className="h-4 w-4" />
                     ) : (
-                      <ChevronDown className="h-4 w-4" />
+                      <CaretDownIcon className="h-4 w-4" />
                     )}
                   </button>
 
@@ -152,12 +158,12 @@ export class ErrorBoundary extends React.Component<
                         >
                           {this.state.copied ? (
                             <>
-                              <Check className="h-4 w-4 mr-2" />
+                              <CheckIcon className="h-4 w-4 mr-2" />
                               Copied
                             </>
                           ) : (
                             <>
-                              <Copy className="h-4 w-4 mr-2" />
+                              <CopyIcon className="h-4 w-4 mr-2" />
                               Copy
                             </>
                           )}

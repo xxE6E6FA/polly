@@ -11,7 +11,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Share2, Copy, Check, ExternalLink, RefreshCw, X } from "lucide-react";
+import {
+  ShareNetworkIcon,
+  CopyIcon,
+  CheckIcon,
+  ArrowSquareOutIcon,
+  ArrowCounterClockwiseIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { ConversationId } from "@/types";
@@ -179,14 +186,14 @@ export function ShareConversationDialog({
                             onClick={handleCopyUrl}
                             className={cn(
                               "h-8 w-8 p-0 transition-colors",
-                              isCopied && "text-coral-600"
+                              isCopied && "text-[hsl(220_95%_55%)]"
                             )}
                             disabled={isCopied}
                           >
                             {isCopied ? (
-                              <Check className="h-4 w-4" />
+                              <CheckIcon className="h-4 w-4" />
                             ) : (
-                              <Copy className="h-4 w-4" />
+                              <CopyIcon className="h-4 w-4" />
                             )}
                           </Button>
                         </TooltipTrigger>
@@ -206,7 +213,7 @@ export function ShareConversationDialog({
                             onClick={handleOpenInNewTab}
                             className="h-8 w-8 p-0"
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ArrowSquareOutIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="px-2 py-1">
@@ -238,9 +245,9 @@ export function ShareConversationDialog({
                   className="flex-1 h-10"
                 >
                   {isUpdating ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2" />
                   )}
                   Update share
                 </Button>
@@ -251,9 +258,9 @@ export function ShareConversationDialog({
                   className="flex-1 h-10"
                 >
                   {isUnsharing ? (
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <X className="h-4 w-4 mr-2" />
+                    <XIcon className="h-4 w-4 mr-2" />
                   )}
                   Stop sharing
                 </Button>
@@ -264,16 +271,16 @@ export function ShareConversationDialog({
               <Button
                 onClick={handleShare}
                 disabled={isSharing}
-                className="w-full h-11 bg-gradient-to-r from-coral-600 to-orange-600 hover:from-coral-700 hover:to-orange-700"
+                className="w-full h-11 bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
               >
                 {isSharing ? (
                   <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
                     Creating share link...
                   </>
                 ) : (
                   <>
-                    <Share2 className="h-4 w-4 mr-2" />
+                    <ShareNetworkIcon className="h-4 w-4 mr-2" />
                     Create share link
                   </>
                 )}

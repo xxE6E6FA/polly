@@ -1,5 +1,5 @@
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/spinner";
 import { useState, useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -118,7 +118,7 @@ export function ConversationStarterPopover({
           {isLoading ? (
             <div className="flex items-center justify-center py-6 px-4">
               <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner size="sm" />
                 <span className="text-sm">Generating ideas...</span>
               </div>
             </div>

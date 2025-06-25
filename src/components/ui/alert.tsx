@@ -1,6 +1,11 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { AlertCircle, CheckCircle2, Info, XCircle } from "lucide-react";
+import {
+  WarningIcon,
+  CheckCircleIcon,
+  InfoIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
 
 import { cn } from "@/lib/utils";
 
@@ -72,16 +77,16 @@ const AlertIcon = ({
 }) => {
   switch (variant) {
     case "success":
-      return <CheckCircle2 className="h-4 w-4" />;
+      return <CheckCircleIcon className="h-4 w-4" />;
     case "warning":
-      return <AlertCircle className="h-4 w-4" />;
+      return <WarningIcon className="h-4 w-4" />;
     case "info":
-      return <Info className="h-4 w-4" />;
+      return <InfoIcon className="h-4 w-4" />;
     case "danger":
     case "destructive":
-      return <XCircle className="h-4 w-4" />;
+      return <XCircleIcon className="h-4 w-4" />;
     default:
-      return <Info className="h-4 w-4" />;
+      return <InfoIcon className="h-4 w-4" />;
   }
 };
 
