@@ -345,7 +345,18 @@ export function ConversationChatView({
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
-      const isLastMessage = messages.length === 1;
+      // Filter messages the same way as the UI does
+      const visibleMessages = messages.filter(message => {
+        if (message.role === "system") {
+          return false;
+        }
+        if (message.role === "assistant") {
+          return message.content || message.reasoning;
+        }
+        return true;
+      });
+
+      const isLastMessage = visibleMessages.length === 1;
 
       confirmationDialog.confirm(
         {
