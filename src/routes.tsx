@@ -29,26 +29,24 @@ const SettingsEditPersonaPage = lazy(
   () => import("./pages/settings/EditPersonaPage")
 );
 
-// Route loading component
-const RouteLoader = () => (
-  <div className="flex items-center justify-center min-h-[200px]">
-    <Spinner />
-  </div>
-);
+// Unified page loader component
+const PageLoader = ({
+  size = "full",
+}: {
+  size?: "full" | "partial" | "compact";
+}) => {
+  const sizeClasses = {
+    full: "min-h-screen",
+    partial: "min-h-[400px]",
+    compact: "min-h-[200px]",
+  };
 
-// Settings-specific loader that matches the ProtectedRoute loading state
-const SettingsLoader = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <Spinner />
-  </div>
-);
-
-// Settings page loader for sub-pages (shows within the settings layout)
-const SettingsPageLoader = () => (
-  <div className="flex items-center justify-center min-h-[400px]">
-    <Spinner />
-  </div>
-);
+  return (
+    <div className={`flex items-center justify-center ${sizeClasses[size]}`}>
+      <Spinner />
+    </div>
+  );
+};
 
 // Preload settings module when hovering over settings links
 export const preloadSettings = () => {
@@ -77,7 +75,7 @@ export const routes: RouteObject[] = [
       {
         path: "chat",
         element: (
-          <Suspense fallback={<RouteLoader />}>
+          <Suspense fallback={<PageLoader size="compact" />}>
             <ChatLayout />
           </Suspense>
         ),
@@ -93,7 +91,7 @@ export const routes: RouteObject[] = [
       {
         path: "share/:shareId",
         element: (
-          <Suspense fallback={<RouteLoader />}>
+          <Suspense fallback={<PageLoader size="full" />}>
             <SharePage />
           </Suspense>
         ),
@@ -102,7 +100,7 @@ export const routes: RouteObject[] = [
       {
         path: "settings",
         element: (
-          <ProtectedSuspense fallback={<SettingsLoader />}>
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
             <SettingsLayout />
           </ProtectedSuspense>
         ),
@@ -111,7 +109,7 @@ export const routes: RouteObject[] = [
           {
             index: true,
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsIndexPage />
               </Suspense>
             ),
@@ -120,7 +118,7 @@ export const routes: RouteObject[] = [
           {
             path: "api-keys",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsApiKeysPage />
               </Suspense>
             ),
@@ -129,7 +127,7 @@ export const routes: RouteObject[] = [
           {
             path: "models",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsModelsPage />
               </Suspense>
             ),
@@ -138,7 +136,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsPersonasPage />
               </Suspense>
             ),
@@ -147,7 +145,7 @@ export const routes: RouteObject[] = [
           {
             path: "about",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsAboutPage />
               </Suspense>
             ),
@@ -156,7 +154,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas/new",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsNewPersonaPage />
               </Suspense>
             ),
@@ -165,7 +163,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas/:id/edit",
             element: (
-              <Suspense fallback={<SettingsPageLoader />}>
+              <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsEditPersonaPage />
               </Suspense>
             ),

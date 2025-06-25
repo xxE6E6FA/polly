@@ -22,11 +22,7 @@ export default function SharedConversationRoute() {
 
   // Loading state
   if (sharedData === undefined) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner />
-      </div>
-    );
+    return null; // Let the route-level Suspense handle the loading state
   }
 
   // Not found state
