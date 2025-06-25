@@ -5,14 +5,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { resizeGoogleImageUrl } from "@/lib/utils";
 import {
-  Crown,
-  Hash,
-  CalendarDays,
-  MessagesSquare,
-  MessageSquare,
-  TrendingUp,
-  Sparkles,
-} from "lucide-react";
+  CrownIcon,
+  HashIcon,
+  CalendarBlankIcon,
+  ChatCircleTextIcon,
+  ChatCircleIcon,
+  TrendUpIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react";
 
 function getInitials(name?: string | null) {
   if (!name) return "U";
@@ -57,19 +57,13 @@ export function UserIdCard() {
             {/* Header with crown icon - hidden on mobile */}
             <div className="hidden lg:flex items-center justify-between mb-4">
               <div className="flex items-center space-x-1.5">
-                <Crown
-                  className="h-4 w-4"
-                  style={{ color: "hsl(var(--accent-yellow))" }}
-                />
-                <span
-                  className="font-bold text-xs tracking-wider"
-                  style={{ color: "hsl(var(--accent-yellow))" }}
-                >
+                <CrownIcon className="h-4 w-4 text-primary" />
+                <span className="font-bold text-xs tracking-wider text-primary">
                   POLLY MEMBER
                 </span>
               </div>
               <div className="flex items-center space-x-1">
-                <Hash className="h-3 w-3 text-muted-foreground" />
+                <HashIcon className="h-3 w-3 text-muted-foreground" />
                 <span className="text-muted-foreground text-xs font-mono">
                   {userStats?.userId?.slice(-6).toUpperCase() || "LOAD"}
                 </span>
@@ -100,7 +94,7 @@ export function UserIdCard() {
                 {user.email}
               </p>
               <div className="flex items-center justify-center space-x-1 text-muted-foreground">
-                <CalendarDays className="h-3 w-3" />
+                <CalendarBlankIcon className="h-3 w-3" />
                 <span className="text-xs">
                   {userStats?.joinedAt
                     ? new Date(userStats.joinedAt).toLocaleDateString("en-US", {
@@ -116,9 +110,9 @@ export function UserIdCard() {
             <div className="hidden lg:block space-y-2 mb-4">
               <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
                 <div className="flex items-center space-x-2">
-                  <MessagesSquare
+                  <ChatCircleTextIcon
                     className="h-3.5 w-3.5"
-                    style={{ color: "hsl(var(--accent-blue))" }}
+                    style={{ color: "hsl(220 95% 55%)" }}
                   />
                   <span className="text-foreground text-xs">Conversations</span>
                 </div>
@@ -129,9 +123,9 @@ export function UserIdCard() {
 
               <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
                 <div className="flex items-center space-x-2">
-                  <MessageSquare
+                  <ChatCircleIcon
                     className="h-3.5 w-3.5"
-                    style={{ color: "hsl(var(--accent-coral))" }}
+                    style={{ color: "hsl(260 85% 60%)" }}
                   />
                   <span className="text-foreground text-xs">
                     Total Messages
@@ -144,9 +138,9 @@ export function UserIdCard() {
 
               <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
                 <div className="flex items-center space-x-2">
-                  <TrendingUp
+                  <TrendUpIcon
                     className="h-3.5 w-3.5"
-                    style={{ color: "hsl(var(--accent-purple))" }}
+                    style={{ color: "hsl(280 75% 65%)" }}
                   />
                   <span className="text-foreground text-xs">This Month</span>
                 </div>
@@ -161,10 +155,7 @@ export function UserIdCard() {
               <div className="bg-muted rounded-lg p-3 border border-border/50">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center space-x-1.5">
-                    <Sparkles
-                      className="h-3.5 w-3.5"
-                      style={{ color: "hsl(var(--accent-yellow))" }}
-                    />
+                    <SparkleIcon className="h-3.5 w-3.5 text-primary" />
                     <span className="text-foreground text-xs">
                       Monthly Usage
                     </span>
@@ -229,11 +220,11 @@ export function UserIdCard() {
             className="absolute bottom-0 left-0 right-0 h-0.5"
             style={{
               background: `linear-gradient(90deg, 
-                hsl(var(--accent-coral)), 
-                hsl(var(--accent-blue)), 
-                hsl(var(--accent-yellow)), 
-                hsl(var(--accent-purple)), 
-                hsl(var(--accent-coral))
+                hsl(220 95% 55%), 
+                hsl(260 85% 60%), 
+                hsl(280 75% 65%), 
+                hsl(var(--primary)), 
+                hsl(220 95% 55%)
               )`,
             }}
           />
@@ -246,10 +237,7 @@ export function UserIdCard() {
           <div className="bg-muted rounded-lg p-3 border border-border/60 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-1.5">
-                <Sparkles
-                  className="h-3.5 w-3.5"
-                  style={{ color: "hsl(var(--accent-yellow))" }}
-                />
+                <SparkleIcon className="h-3.5 w-3.5 text-primary" />
                 <span className="text-foreground text-xs">Monthly Usage</span>
               </div>
               <span className="text-foreground font-mono text-xs">

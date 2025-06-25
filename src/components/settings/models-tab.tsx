@@ -7,8 +7,14 @@ import React, {
 } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Loader2, RefreshCw, Filter, ChevronDown } from "lucide-react";
+import {
+  MagnifyingGlassIcon,
+  ArrowCounterClockwiseIcon,
+  FunnelIcon,
+  CaretDownIcon,
+} from "@phosphor-icons/react";
 import { ProviderIcon } from "@/components/provider-icons";
+import { Spinner } from "@/components/spinner";
 import { useQuery, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import {
@@ -24,6 +30,8 @@ import { VirtualizedModelList } from "../virtualized-model-list";
 import { SettingsHeader } from "./settings-header";
 import { useUser } from "@/hooks/use-user";
 import { Alert, AlertDescription, AlertIcon } from "../ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const PROVIDER_NAMES = {
   openai: "OpenAI",
@@ -133,7 +141,7 @@ const ProviderSummaryCard = React.memo(
     <div
       className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-sm ${
         isSelected
-          ? "border-primary bg-primary/5 hover:bg-primary/10"
+          ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
           : "border-border bg-background hover:bg-muted/50"
       }`}
       onClick={() => onToggle(provider)}
@@ -149,7 +157,7 @@ const ProviderSummaryCard = React.memo(
                 {PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}
               </h3>
               {isSelected && (
-                <span className="text-xs text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
+                <span className="text-xs text-blue-600 dark:text-blue-200 font-medium bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 px-2 py-0.5 rounded-full shrink-0">
                   Filtered
                 </span>
               )}
@@ -195,7 +203,11 @@ const FilterTag = React.memo(
     onClick?: () => void;
   }) => (
     <button
-      className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all hover:opacity-80 hover:scale-95 cursor-pointer hover:shadow-sm ${className}`}
+      className={cn(
+        "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all cursor-pointer",
+        "hover:bg-destructive/10 dark:hover:bg-destructive/20 hover:text-destructive hover:shadow-sm",
+        className
+      )}
       onClick={onClick}
       type="button"
       title="Click to remove filter"
@@ -213,7 +225,7 @@ function LoadingState({ message }: { message: string }) {
   return (
     <div className="flex items-center justify-center py-20">
       <div className="text-center space-y-4">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+        <Spinner className="mx-auto text-blue-500" size="lg" />
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>
@@ -482,9 +494,10 @@ export function ModelsTab() {
           size="sm"
           variant="outline"
           className="gap-2 shrink-0"
+          aria-label="Refresh models"
         >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
+          <ArrowCounterClockwiseIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
 
@@ -498,7 +511,7 @@ export function ModelsTab() {
       )}
 
       {isLoading && availableProviders.length > 0 ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {availableProviders.map(provider => (
             <ProviderSummaryCardSkeleton key={provider} />
           ))}
@@ -506,7 +519,7 @@ export function ModelsTab() {
       ) : (
         stats?.providerCounts &&
         Object.keys(stats.providerCounts).length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {Object.entries(stats.providerCounts)
               .sort(([a], [b]) => {
                 const providerOrder = Object.keys(PROVIDER_NAMES);
@@ -533,7 +546,7 @@ export function ModelsTab() {
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search models by name, ID, or provider..."
               value={filterState.searchQuery}
@@ -544,15 +557,19 @@ export function ModelsTab() {
 
           <div className="flex gap-2 shrink-0">
             <Button
-              variant={filterState.showOnlySelected ? "default" : "outline"}
+              variant={filterState.showOnlySelected ? "secondary" : "outline"}
               onClick={handleShowSelectedToggle}
               size="sm"
-              className="gap-2"
+              className={cn(
+                "gap-2",
+                filterState.showOnlySelected &&
+                  "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
+              )}
               disabled={isPending}
             >
               Selected
               {filterState.showOnlySelected && enabledModels && (
-                <span className="text-xs bg-muted text-foreground px-1.5 py-0.5 rounded-full">
+                <span className="text-xs bg-white/90 dark:bg-white/20 text-blue-600 dark:text-white px-1.5 py-0.5 rounded-full">
                   {enabledModels.length}
                 </span>
               )}
@@ -572,11 +589,11 @@ export function ModelsTab() {
                   <span className="hidden sm:inline">Providers</span>
                   <span className="sm:hidden">Prov</span>
                   {filterState.selectedProviders.length > 0 && (
-                    <span className="ml-auto text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                    <Badge variant="secondary" className="h-5 px-1.5 ml-0.5">
                       {filterState.selectedProviders.length}
-                    </span>
+                    </Badge>
                   )}
-                  <ChevronDown className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
+                  <CaretDownIcon className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -626,21 +643,15 @@ export function ModelsTab() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 min-w-[120px] justify-start"
-                  disabled={isPending}
-                >
-                  <Filter className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline">Capabilities</span>
-                  <span className="sm:hidden">Caps</span>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <FunnelIcon className="h-4 w-4 shrink-0" />
+                  <span className="hidden sm:inline text-xs">Capabilities</span>
                   {filterState.selectedCapabilities.length > 0 && (
-                    <span className="ml-auto text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
+                    <Badge variant="secondary" className="h-5 px-1.5 ml-0.5">
                       {filterState.selectedCapabilities.length}
-                    </span>
+                    </Badge>
                   )}
-                  <ChevronDown className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
+                  <CaretDownIcon className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -699,7 +710,7 @@ export function ModelsTab() {
             <div className="flex flex-wrap items-center gap-2">
               {filterState.searchQuery && (
                 <FilterTag
-                  className="bg-secondary text-secondary-foreground"
+                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
                   onClick={handleRemoveSearchFilter}
                 >
                   Search: &ldquo;{filterState.searchQuery}&rdquo;
@@ -707,7 +718,7 @@ export function ModelsTab() {
               )}
               {filterState.showOnlySelected && (
                 <FilterTag
-                  className="bg-secondary text-secondary-foreground"
+                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
                   onClick={handleRemoveSelectedFilter}
                 >
                   Selected only
@@ -716,7 +727,7 @@ export function ModelsTab() {
               {filterState.selectedProviders.map(provider => (
                 <FilterTag
                   key={provider}
-                  className="bg-secondary text-secondary-foreground"
+                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
                   onClick={() => handleRemoveProviderFilter(provider)}
                 >
                   <div className="w-3 h-3 flex items-center justify-center">
@@ -734,7 +745,7 @@ export function ModelsTab() {
                 return (
                   <FilterTag
                     key={capability}
-                    className="bg-secondary text-secondary-foreground"
+                    className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
                     onClick={() => handleRemoveCapabilityFilter(capability)}
                   >
                     <span className="truncate max-w-[120px]">
@@ -765,14 +776,16 @@ export function ModelsTab() {
           </p>
           {isPending && !isLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Spinner size="sm" />
               Updating filters...
             </div>
           )}
         </div>
 
         {isLoading ? (
-          <LoadingState message="Loading models..." />
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Spinner className="text-blue-500" size="lg" />
+          </div>
         ) : models.length > 0 ? (
           <VirtualizedModelList models={models} />
         ) : (

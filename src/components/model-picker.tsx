@@ -19,18 +19,19 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import {
-  Search,
-  AlertCircle,
-  ChevronDown,
-  MessageSquare,
-  Key,
-  Zap,
-} from "lucide-react";
+  MagnifyingGlassIcon,
+  WarningIcon,
+  CaretDownIcon,
+  ChatCircleIcon,
+  KeyIcon,
+  LightningIcon,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router";
 
 import { AIModel } from "@/types";
 import { cn } from "@/lib/utils";
+import { Backdrop } from "@/components/ui/backdrop";
 import {
   getModelCapabilities,
   getCapabilityColor,
@@ -217,7 +218,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
       >
         <div className="flex items-center gap-1.5">
           <span className="font-medium">Loading models...</span>
-          <ChevronDown className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+          <CaretDownIcon className="h-3 w-3 text-muted-foreground/40 shrink-0" />
         </div>
       </Button>
     );
@@ -229,7 +230,11 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
       <>
         {/* Backdrop blur overlay */}
         {open && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" />
+          <Backdrop
+            variant="default"
+            blur="sm"
+            className="z-40 animate-in fade-in-0 duration-200"
+          />
         )}
 
         <Popover open={open} onOpenChange={setOpen}>
@@ -250,7 +255,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
                 <span className="font-medium truncate max-w-[150px]">
                   {displayName}
                 </span>
-                <ChevronDown
+                <CaretDownIcon
                   className={cn(
                     "h-3 w-3 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200 shrink-0",
                     open && "rotate-180 text-foreground"
@@ -273,7 +278,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
 
               <div className="space-y-3 mb-6">
                 <div className="flex items-start gap-3">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <ChatCircleIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Higher message limits
@@ -285,7 +290,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Key className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <KeyIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Bring your own API keys
@@ -297,7 +302,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Zap className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <LightningIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Advanced features
@@ -349,9 +354,9 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
             disabled
           >
             <div className="flex items-center gap-1.5">
-              <AlertCircle className="h-3.5 w-3.5 text-warning/50" />
+              <WarningIcon className="h-3.5 w-3.5 text-warning/50" />
               <span className="font-medium">Configure models</span>
-              <ChevronDown className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <CaretDownIcon className="h-3 w-3 text-muted-foreground/40 shrink-0" />
             </div>
           </Button>
         </TooltipTrigger>
@@ -366,7 +371,11 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
     <>
       {/* Backdrop blur overlay */}
       {open && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" />
+        <Backdrop
+          variant="default"
+          blur="sm"
+          className="z-40 animate-in fade-in-0 duration-200"
+        />
       )}
 
       <Popover open={open} onOpenChange={setOpen}>
@@ -398,7 +407,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
               <span className="font-medium truncate max-w-[150px]">
                 {displayName}
               </span>
-              <ChevronDown
+              <CaretDownIcon
                 className={cn(
                   "h-3 w-3 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200 shrink-0",
                   open && "rotate-180 text-foreground"
@@ -419,7 +428,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
             <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
               <CommandEmpty>
                 <div className="p-4 text-center">
-                  <Search className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
+                  <MagnifyingGlassIcon className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground mb-1">
                     No models found
                   </p>
