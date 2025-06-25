@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Paperclip } from "lucide-react";
+import { PaperclipIcon } from "@phosphor-icons/react";
 import { ModelPicker } from "@/components/model-picker";
 import { PersonaPicker } from "@/components/persona-picker";
 import { WebSearchToggle } from "@/components/web-search-toggle";
@@ -168,6 +168,15 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                 compact
                 selectedPersonaId={selectedPersonaId}
                 onPersonaSelect={setSelectedPersonaId}
+                tooltip={
+                  <div className="text-xs">
+                    <div className="font-medium mb-1">AI Personas</div>
+                    <p>
+                      Choose a specialized AI assistant with a unique
+                      personality and expertise
+                    </p>
+                  </div>
+                }
               />
             )}
 
@@ -207,7 +216,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
                   >
-                    <Paperclip className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <PaperclipIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <span className="hidden sm:inline text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                       Attach
                     </span>

@@ -2,7 +2,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { Attachment } from "@/types";
-import { Paperclip } from "lucide-react";
+import { PaperclipIcon } from "@phosphor-icons/react";
 
 interface ConvexFileDisplayProps {
   attachment: Attachment;
@@ -141,7 +141,7 @@ export function ConvexImageThumbnail({
       className={`w-6 h-6 rounded flex-shrink-0 bg-muted/30 flex items-center justify-center ${className}`}
       title={attachment.name}
     >
-      <Paperclip className="h-3 w-3" />
+      <PaperclipIcon className="h-3 w-3" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState } from "react";
 import { ChatMessage as ChatMessageType } from "@/types";
-import { User, Bot } from "lucide-react";
+import { UserIcon, RobotIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/hooks/use-sidebar";
 
@@ -269,14 +269,14 @@ function ChatOutlineComponent({
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       {item.type === "user-message" ? (
                         <>
-                          <User className="w-4 h-4 text-primary flex-shrink-0" />
+                          <UserIcon className="w-4 h-4 text-primary flex-shrink-0" />
                           <div className="text-xs font-medium text-foreground line-clamp-2 leading-relaxed min-w-0">
                             {item.text}
                           </div>
                         </>
                       ) : (
                         <>
-                          <Bot className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
+                          <RobotIcon className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
                           <div className="truncate text-muted-foreground/80 group-hover/item:text-muted-foreground text-xs">
                             {item.text}
                           </div>

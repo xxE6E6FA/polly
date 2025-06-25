@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, Globe } from "lucide-react";
+import { ArrowSquareOutIcon, GlobeIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { WebSearchCitation } from "@/types";
 
@@ -47,7 +47,7 @@ export function Citations({
                     d="M5 15l7-7 7 7"
                   />
                 </svg>
-                <Globe className="w-4 h-4 text-accent-cyan transition-transform duration-200 group-hover:scale-110" />
+                <GlobeIcon className="w-4 h-4 text-accent-cyan transition-transform duration-200 group-hover:scale-110" />
                 {citations.length} source{citations.length !== 1 ? "s" : ""}
               </>
             ) : (
@@ -65,7 +65,7 @@ export function Citations({
                     d="M19 9l-7 7-7-7"
                   />
                 </svg>
-                <Globe className="w-4 h-4 text-accent-cyan transition-transform duration-200 group-hover:scale-110" />
+                <GlobeIcon className="w-4 h-4 text-accent-cyan transition-transform duration-200 group-hover:scale-110" />
                 {citations.length} source{citations.length !== 1 ? "s" : ""}
               </>
             )}
@@ -91,7 +91,7 @@ export function Citations({
                 onClick={() => handleCitationClick(citation.url)}
                 className="flex items-start gap-3 w-full p-3 text-left text-sm hover:bg-muted/30 rounded-lg transition-all duration-200 group border border-border/30 hover:border-accent-cyan/30 hover:shadow-sm"
               >
-                <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-accent-cyan shrink-0 mt-0.5 transition-colors duration-200" />
+                <ArrowSquareOutIcon className="h-4 w-4 text-muted-foreground group-hover:text-accent-cyan shrink-0 mt-0.5 transition-colors duration-200" />
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-foreground group-hover:text-accent-cyan line-clamp-2 transition-colors duration-200">
                     {citation.title}
@@ -116,7 +116,7 @@ export function Citations({
   return (
     <div className={cn("mt-4 w-full", className)}>
       <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground mb-4">
-        <Globe className="w-4 h-4 text-accent-cyan" />
+        <GlobeIcon className="w-4 h-4 text-accent-cyan" />
         <span>
           {citations.length} source{citations.length !== 1 ? "s" : ""}
         </span>
@@ -130,7 +130,7 @@ export function Citations({
               onClick={() => handleCitationClick(citation.url)}
               className="flex items-start gap-3 w-full p-3 text-left text-sm hover:bg-muted/30 rounded-lg transition-all duration-200 group border border-border/30 hover:border-accent-cyan/30 hover:shadow-sm"
             >
-              <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-accent-cyan shrink-0 mt-0.5 transition-colors duration-200" />
+              <ArrowSquareOutIcon className="h-4 w-4 text-muted-foreground group-hover:text-accent-cyan shrink-0 mt-0.5 transition-colors duration-200" />
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-foreground group-hover:text-accent-cyan line-clamp-2 transition-colors duration-200">
                   {citation.title}

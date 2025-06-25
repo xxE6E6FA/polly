@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { XIcon } from "@phosphor-icons/react";
 import { ConvexFileDisplay } from "@/components/convex-file-display";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -88,7 +88,7 @@ const WarningBanner = React.memo<{
             className={cn(WARNING_BUTTON_CLASSES, buttonHoverClasses)}
             aria-label="Dismiss"
           >
-            <X className="h-3.5 w-3.5 hover:opacity-80" />
+            <XIcon className="h-3.5 w-3.5 hover:opacity-80" />
           </button>
         )}
       </div>

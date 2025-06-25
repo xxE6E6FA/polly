@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { ChatMessage } from "@/types";
-import { ExternalLink } from "lucide-react";
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
@@ -38,7 +38,7 @@ export function ContextMessage({ message, className }: ContextMessageProps) {
                   size="sm"
                   className="h-6 px-2 text-xs text-accent-coral/80 hover:text-accent-coral hover:bg-accent-coral/10"
                 >
-                  <ExternalLink className="w-3 h-3 mr-1" />
+                  <ArrowSquareOutIcon className="w-3 h-3 mr-1" />
                   View original
                 </Button>
               </Link>

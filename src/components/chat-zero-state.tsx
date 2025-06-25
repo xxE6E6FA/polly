@@ -1,4 +1,9 @@
-import { CheckCircle2, X, Key, Zap } from "lucide-react";
+import {
+  CheckCircleIcon,
+  XIcon,
+  KeyIcon,
+  LightningIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
 import { PromptsTickerWrapper } from "./prompts-ticker";
@@ -43,7 +48,7 @@ function SetupChecklist({
           onClick={handleDismiss}
           className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-muted/50"
         >
-          <X className="w-3 h-3" />
+          <XIcon className="w-3 h-3" />
         </Button>
         <div className="pr-6">
           <h3 className="text-xs font-medium mb-4 flex items-center gap-1.5">
@@ -52,7 +57,7 @@ function SetupChecklist({
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-xs">
               {hasApiKeys ? (
-                <CheckCircle2 className="w-3 h-3 text-success shrink-0" />
+                <CheckCircleIcon className="w-3 h-3 text-success shrink-0" />
               ) : (
                 <div className="w-3 h-3 rounded-full border border-muted-foreground/30 shrink-0" />
               )}
@@ -72,7 +77,7 @@ function SetupChecklist({
                     size="sm"
                     className="text-xs gap-1 bg-background/50"
                   >
-                    <Key className="h-3 w-3" />
+                    <KeyIcon className="h-3 w-3" />
                     Go to API Keys
                   </Button>
                 </Link>
@@ -80,7 +85,7 @@ function SetupChecklist({
             </div>
             <div className="flex items-center gap-2 text-xs">
               {hasEnabledModels ? (
-                <CheckCircle2 className="w-3 h-3 text-success shrink-0" />
+                <CheckCircleIcon className="w-3 h-3 text-success shrink-0" />
               ) : (
                 <div className="w-3 h-3 rounded-full border border-muted-foreground/30 shrink-0" />
               )}
@@ -100,7 +105,7 @@ function SetupChecklist({
                     size="sm"
                     className="text-xs gap-1 bg-background/50"
                   >
-                    <Zap className="h-3 w-3" />
+                    <LightningIcon className="h-3 w-3" />
                     View Models
                   </Button>
                 </Link>
