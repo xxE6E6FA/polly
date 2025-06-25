@@ -60,9 +60,7 @@ export function SidebarProvider({
   const [clientSidebarVisible, setClientSidebarVisible] =
     useState(serverSidebarVisible);
   const [isMobile, setIsMobile] = useState(false);
-  const [lastDesktopSidebarState, setLastDesktopSidebarState] = useState(true);
 
-  // Initial setup
   useEffect(() => {
     withDisabledAnimations(() => {
       setMounted(true);
@@ -80,12 +78,10 @@ export function SidebarProvider({
             ? storedVisibility
             : getDefaultSidebarState();
         setClientSidebarVisible(finalVisibility);
-        setLastDesktopSidebarState(finalVisibility);
       }
     });
   }, []);
 
-  // Handle window resize
   useEffect(() => {
     const handleResize = () => {
       const newMobile = window.innerWidth < 1024;
@@ -93,19 +89,11 @@ export function SidebarProvider({
       setIsMobile(prevMobile => {
         if (newMobile !== prevMobile) {
           if (newMobile) {
-            // Desktop to mobile transition
-            setClientSidebarVisible(prev => {
-              setLastDesktopSidebarState(prev);
-              return false;
-            });
+            setClientSidebarVisible(false);
             setSidebarStorage(false);
           } else {
-            // Mobile to desktop transition
-            setLastDesktopSidebarState(desktopState => {
-              setClientSidebarVisible(desktopState);
-              setSidebarStorage(desktopState);
-              return desktopState;
-            });
+            setClientSidebarVisible(true);
+            setSidebarStorage(true);
           }
         }
         return newMobile;
@@ -120,10 +108,8 @@ export function SidebarProvider({
     (isVisible: boolean) => {
       setClientSidebarVisible(isVisible);
 
-      // Only save to localStorage on desktop
       if (!isMobile) {
         setSidebarStorage(isVisible);
-        setLastDesktopSidebarState(isVisible);
       }
     },
     [isMobile]

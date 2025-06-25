@@ -22,8 +22,10 @@ export function useWordBasedUndo({
   const [localValue, setLocalValue] = useState(initialValue);
 
   // Undo/redo state for history management
-  const [undoState, { set: setUndoValue, undo, redo, canUndo, canRedo }] =
-    useUndo(initialValue);
+  const [
+    undoState,
+    { set: setUndoValue, reset, undo, redo, canUndo, canRedo },
+  ] = useUndo(initialValue);
 
   // Refs to track word boundaries and debouncing
   const lastWordCount = useRef(countWords(initialValue));
@@ -138,6 +140,25 @@ export function useWordBasedUndo({
     };
   }, []);
 
+  // Reset function wrapper that also updates local state
+  const resetValue = useCallback(
+    (newInitialValue: string) => {
+      // Clear any pending debounce
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+
+      // Update local state
+      setLocalValue(newInitialValue);
+      lastWordCount.current = countWords(newInitialValue);
+
+      // Use the built-in reset function from use-undo
+      // This clears past and future arrays and sets the new value as present
+      reset(newInitialValue);
+    },
+    [reset]
+  );
+
   return {
     value: localValue,
     updateValue,
@@ -145,5 +166,6 @@ export function useWordBasedUndo({
     redo: handleRedo,
     canUndo,
     canRedo,
+    reset: resetValue,
   };
 }

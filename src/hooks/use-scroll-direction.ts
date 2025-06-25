@@ -23,6 +23,8 @@ export function useScrollDirection({
   const lastScrollY = useRef(0);
   const scrollElement = useRef<HTMLElement | null>(null);
   const ticking = useRef(false);
+  const isInitialLoad = useRef(true);
+  const initialLoadTimer = useRef<NodeJS.Timeout | null>(null);
 
   const updateScrollState = useCallback(() => {
     if (!scrollElement.current) return;
@@ -41,7 +43,10 @@ export function useScrollDirection({
 
     let shouldHideHeader = false;
 
-    if (isAtTop || isScrollingUp) {
+    // Don't hide header during initial load
+    if (isInitialLoad.current) {
+      shouldHideHeader = false;
+    } else if (isAtTop || isScrollingUp) {
       shouldHideHeader = false;
     } else if (isScrollingDown && currentScrollY > hideThreshold) {
       shouldHideHeader = true;
@@ -69,9 +74,17 @@ export function useScrollDirection({
         scrollElement.current.removeEventListener("scroll", handleScroll);
       }
 
+      // Clear any existing timer
+      if (initialLoadTimer.current) {
+        clearTimeout(initialLoadTimer.current);
+      }
+
       scrollElement.current = element;
 
       if (element) {
+        // Reset initial load state
+        isInitialLoad.current = true;
+
         element.addEventListener("scroll", handleScroll, { passive: true });
 
         const initialScrollY = element.scrollTop;
@@ -80,6 +93,11 @@ export function useScrollDirection({
           isAtTop: initialScrollY <= 10,
         });
         lastScrollY.current = initialScrollY;
+
+        // Allow header hiding after a delay to let initial scroll complete
+        initialLoadTimer.current = setTimeout(() => {
+          isInitialLoad.current = false;
+        }, 1000);
       }
     },
     [handleScroll]
@@ -89,6 +107,9 @@ export function useScrollDirection({
     return () => {
       if (scrollElement.current) {
         scrollElement.current.removeEventListener("scroll", handleScroll);
+      }
+      if (initialLoadTimer.current) {
+        clearTimeout(initialLoadTimer.current);
       }
     };
   }, [handleScroll]);

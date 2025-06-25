@@ -1,12 +1,13 @@
 import { AIModel } from "@/types";
-import { Brain, Eye, Wrench, Zap, Code2, Sparkles } from "lucide-react";
+import {
+  BrainIcon,
+  EyeIcon,
+  WrenchIcon,
+  LightningIcon,
+  CodeIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react";
 
-/**
- * Centralized model capabilities and utility functions
- * Consolidated from model-utils.ts to avoid duplication and inconsistencies
- */
-
-// Model display name mapping for common models
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "gpt-4o": "GPT-4o",
   "gpt-4o-mini": "GPT-4o mini",
@@ -462,7 +463,7 @@ export const getModelCapabilities = (
 
   if (hasReasoningCapabilities(model)) {
     capabilities.push({
-      icon: Brain,
+      icon: BrainIcon,
       label: "Advanced Reasoning",
       description: "Chain-of-thought and complex reasoning",
     });
@@ -470,7 +471,7 @@ export const getModelCapabilities = (
 
   if (hasImageUploadCapabilities(model)) {
     capabilities.push({
-      icon: Eye,
+      icon: EyeIcon,
       label: "Vision",
       description: "Can analyze images and visual content",
     });
@@ -478,7 +479,7 @@ export const getModelCapabilities = (
 
   if (hasToolsCapabilities(model)) {
     capabilities.push({
-      icon: Wrench,
+      icon: WrenchIcon,
       label: "Tools",
       description: "Can call functions and use external tools",
     });
@@ -486,25 +487,25 @@ export const getModelCapabilities = (
 
   if (isFastModel(model)) {
     capabilities.push({
-      icon: Zap,
-      label: "Fast",
-      description: "Quick responses, lower latency",
+      icon: LightningIcon,
+      label: "Fast Responses",
+      description: "Optimized for speed and quick interactions",
     });
   }
 
   if (isCodingModel(model)) {
     capabilities.push({
-      icon: Code2,
-      label: "Coding",
-      description: "Excellent for programming tasks",
+      icon: CodeIcon,
+      label: "Code Generation",
+      description: "Specialized in generating and explaining code",
     });
   }
 
   if (isLatestModel(model)) {
     capabilities.push({
-      icon: Sparkles,
-      label: "Latest",
-      description: "Newest model version",
+      icon: SparkleIcon,
+      label: "Creative Writing",
+      description: "Strong creative and storytelling abilities",
     });
   }
 
