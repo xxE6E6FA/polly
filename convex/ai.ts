@@ -33,26 +33,52 @@ type Citation = {
   title: string;
   cited_text?: string;
   snippet?: string;
+  description?: string;
+  image?: string;
+  favicon?: string;
+  siteName?: string;
+  publishedDate?: string;
+  author?: string;
 };
 
 type ProviderType = "openai" | "anthropic" | "google" | "openrouter";
 
+type StorageData = {
+  blob: Blob;
+  arrayBuffer: ArrayBuffer;
+  base64: string;
+  mimeType: string;
+};
+
 // Constants
-const STREAM_CONFIG = {
-  BATCH_SIZE: 50,
-  BATCH_TIMEOUT: 100,
-  CHECK_STOP_EVERY_N_CHUNKS: 3,
-} as const;
-
-const AES_CONFIG = {
-  name: "AES-GCM",
-  length: 256,
-} as const;
-
-const MIME_TYPES = {
-  pdf: "application/pdf",
-  text: "text/plain",
-  default: "application/octet-stream",
+const CONFIG = {
+  STREAM: {
+    BATCH_SIZE: 50,
+    BATCH_TIMEOUT: 100,
+    CHECK_STOP_EVERY_N_CHUNKS: 3,
+  },
+  AES: {
+    name: "AES-GCM",
+    length: 256,
+  },
+  MIME_TYPES: {
+    pdf: "application/pdf",
+    text: "text/plain",
+    image: "image/jpeg",
+    default: "application/octet-stream",
+  },
+  PROVIDER_ENV_KEYS: {
+    openai: "OPENAI_API_KEY",
+    anthropic: "ANTHROPIC_API_KEY",
+    google: "GEMINI_API_KEY",
+    openrouter: "OPENROUTER_API_KEY",
+  },
+  REASONING_PATTERNS: [
+    /<thinking>([\s\S]*?)<\/thinking>/,
+    /<reasoning>([\s\S]*?)<\/reasoning>/,
+    /^Thinking:\s*([\s\S]*?)(?:\n\n|$)/,
+    /\[Reasoning\]([\s\S]*?)\[\/Reasoning\]/i,
+  ],
 } as const;
 
 // Helper to humanize text
@@ -118,15 +144,14 @@ const clearConversationStreaming = async (
   }
 };
 
-// Generic storage to data converter
+// Unified storage converter
 const convertStorageToData = async (
   ctx: ActionCtx,
   storageId: Id<"_storage">,
-  errorContext: string
-): Promise<{ blob: Blob; arrayBuffer: ArrayBuffer; base64: string }> => {
+  fileType?: string
+): Promise<StorageData> => {
   const blob = await ctx.storage.get(storageId);
   if (!blob) {
-    console.error(`${errorContext}: File not found in storage:`, storageId);
     throw new Error("File not found in storage");
   }
 
@@ -138,50 +163,34 @@ const convertStorageToData = async (
   }
   const base64 = btoa(binaryString);
 
-  return { blob, arrayBuffer, base64 };
+  const mimeType =
+    blob.type ||
+    CONFIG.MIME_TYPES[fileType as keyof typeof CONFIG.MIME_TYPES] ||
+    CONFIG.MIME_TYPES.default;
+
+  return { blob, arrayBuffer, base64, mimeType };
 };
 
-// Helper to convert Convex storage attachments to data URLs
-const convertConvexImageToDataUrl = async (
+// Unified attachment converter
+const convertAttachment = async (
   ctx: ActionCtx,
-  attachment: { storageId: Id<"_storage">; type: string }
-): Promise<string> => {
+  attachment: { storageId: Id<"_storage">; type: string; name?: string },
+  format: "dataUrl" | "aiSdk"
+): Promise<string | { data: ArrayBuffer; mimeType: string }> => {
   try {
-    console.log("Converting Convex image to data URL:", attachment);
-    const { blob, base64 } = await convertStorageToData(
+    const storageData = await convertStorageToData(
       ctx,
       attachment.storageId,
-      "Converting image"
+      attachment.type
     );
-    const mimeType = blob.type || "image/jpeg";
-    console.log("Successfully converted image, MIME type:", mimeType);
-    return `data:${mimeType};base64,${base64}`;
-  } catch (error) {
-    console.error("Error converting Convex image to data URL:", error);
-    throw error;
-  }
-};
 
-// Helper to convert Convex storage files to AI SDK file format
-const convertConvexFileToAISDKFormat = async (
-  ctx: ActionCtx,
-  attachment: { storageId: Id<"_storage">; type: string; name: string }
-): Promise<{ data: ArrayBuffer; mimeType: string }> => {
-  try {
-    console.log("Converting Convex file to AI SDK format:", attachment);
-    const { blob, arrayBuffer } = await convertStorageToData(
-      ctx,
-      attachment.storageId,
-      "Converting file"
-    );
-    const mimeType =
-      blob.type ||
-      MIME_TYPES[attachment.type as keyof typeof MIME_TYPES] ||
-      MIME_TYPES.default;
-    console.log("Successfully converted file, MIME type:", mimeType);
-    return { data: arrayBuffer, mimeType };
+    if (format === "dataUrl") {
+      return `data:${storageData.mimeType};base64,${storageData.base64}`;
+    } else {
+      return { data: storageData.arrayBuffer, mimeType: storageData.mimeType };
+    }
   } catch (error) {
-    console.error("Error converting Convex file to AI SDK format:", error);
+    console.error(`Error converting attachment to ${format}:`, error);
     throw error;
   }
 };
@@ -192,64 +201,59 @@ const convertMessagePart = async (
   part: any,
   provider: string
 ) => {
-  if (part.type === "text") {
-    return { type: "text" as const, text: part.text || "" };
-  }
+  const converters = {
+    text: () => ({ type: "text" as const, text: part.text || "" }),
 
-  if (part.type === "image_url" && part.image_url) {
-    // Handle Convex storage attachments for all providers
-    if (part.attachment?.storageId) {
-      try {
-        console.log(
-          `Converting Convex storage attachment to base64 for ${provider}:`,
-          part.attachment
-        );
-        const dataUrl = await convertConvexImageToDataUrl(ctx, part.attachment);
-        return { type: "image" as const, image: dataUrl };
-      } catch (error) {
-        console.error(
-          "Failed to convert Convex attachment, falling back to URL:",
-          error
-        );
-        return { type: "image" as const, image: part.image_url.url };
+    image_url: async () => {
+      if (part.attachment?.storageId) {
+        try {
+          const dataUrl = (await convertAttachment(
+            ctx,
+            part.attachment,
+            "dataUrl"
+          )) as string;
+          return { type: "image" as const, image: dataUrl };
+        } catch (error) {
+          console.error(
+            "Failed to convert Convex attachment, falling back to URL:",
+            error
+          );
+        }
       }
-    }
-    console.log(`Using image URL directly for provider ${provider}`);
-    return { type: "image" as const, image: part.image_url.url };
-  }
+      return { type: "image" as const, image: part.image_url?.url || "" };
+    },
 
-  if (part.type === "file" && part.file) {
-    // Check if this is a Convex storage attachment for PDF and provider supports it
-    if (
-      part.attachment?.storageId &&
-      part.attachment.type === "pdf" &&
-      (provider === "anthropic" || provider === "google")
-    ) {
-      try {
-        console.log(
-          `Converting Convex PDF to AI SDK format for ${provider}:`,
-          part.attachment
-        );
-        const { data, mimeType } = await convertConvexFileToAISDKFormat(
-          ctx,
-          part.attachment
-        );
-        return { type: "file" as const, data, mimeType };
-      } catch (error) {
-        console.error(
-          "Failed to convert Convex PDF, falling back to text:",
-          error
-        );
+    file: async () => {
+      // Check if this is a Convex storage attachment for PDF and provider supports it
+      if (
+        part.attachment?.storageId &&
+        part.attachment.type === "pdf" &&
+        (provider === "anthropic" || provider === "google")
+      ) {
+        try {
+          const { data, mimeType } = (await convertAttachment(
+            ctx,
+            part.attachment,
+            "aiSdk"
+          )) as { data: ArrayBuffer; mimeType: string };
+          return { type: "file" as const, data, mimeType };
+        } catch (error) {
+          console.error(
+            "Failed to convert Convex PDF, falling back to text:",
+            error
+          );
+        }
       }
-    }
-    // Fallback to text format
-    return {
-      type: "text" as const,
-      text: `File: ${part.file.filename}\n${part.file.file_data}`,
-    };
-  }
+      // Fallback to text format
+      return {
+        type: "text" as const,
+        text: `File: ${part.file?.filename || "Unknown"}\n${part.file?.file_data || ""}`,
+      };
+    },
+  };
 
-  return { type: "text" as const, text: "" };
+  const converter = converters[part.type as keyof typeof converters];
+  return converter ? await converter() : { type: "text" as const, text: "" };
 };
 
 // Convert our message format to AI SDK format
@@ -295,7 +299,7 @@ const serverDecryptApiKey = async (
   const encoder = new TextEncoder();
   const keyMaterial = encoder.encode(encryptionSecret);
   const hash = await crypto.subtle.digest("SHA-256", keyMaterial);
-  const key = await crypto.subtle.importKey("raw", hash, AES_CONFIG, false, [
+  const key = await crypto.subtle.importKey("raw", hash, CONFIG.AES, false, [
     "encrypt",
     "decrypt",
   ]);
@@ -307,17 +311,6 @@ const serverDecryptApiKey = async (
   );
 
   return new TextDecoder().decode(decrypted);
-};
-
-// Get environment API key
-const getEnvironmentApiKey = (provider: string): string | null => {
-  const keyMap: Record<string, string | undefined> = {
-    openai: process.env.OPENAI_API_KEY,
-    anthropic: process.env.ANTHROPIC_API_KEY,
-    google: process.env.GEMINI_API_KEY,
-    openrouter: process.env.OPENROUTER_API_KEY,
-  };
-  return keyMap[provider] || null;
 };
 
 // Get API key for user or environment
@@ -342,21 +335,17 @@ const getApiKey = async (
   }
 
   // Fall back to environment variable
-  const envKey = getEnvironmentApiKey(provider);
+  const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider]];
   if (envKey) {
     return envKey;
   }
 
   // Throw appropriate error
-  if (userId) {
-    throw new Error(
-      `No API key found for ${provider}. Please add an API key in Settings.`
-    );
-  } else {
-    throw new Error(
-      `Authentication required. Please sign in to use ${provider} models.`
-    );
-  }
+  const errorMessage = userId
+    ? `No API key found for ${provider}. Please add an API key in Settings.`
+    : `Authentication required. Please sign in to use ${provider} models.`;
+
+  throw new Error(errorMessage);
 };
 
 // Apply OpenRouter sorting shortcuts
@@ -381,6 +370,51 @@ const applyOpenRouterSorting = (
   return `${cleanModelId}${sortingMap[sorting] || ""}`;
 };
 
+// Provider factory map
+const createProviderModel = {
+  openai: (apiKey: string, model: string) => createOpenAI({ apiKey })(model),
+  anthropic: (apiKey: string, model: string) =>
+    createAnthropic({ apiKey })(model),
+  google: (apiKey: string, model: string, enableWebSearch?: boolean) =>
+    createGoogleGenerativeAI({ apiKey })(model, {
+      ...(enableWebSearch && { useSearchGrounding: true }),
+    }),
+  openrouter: async (
+    apiKey: string,
+    model: string,
+    ctx: ActionCtx,
+    userId?: Id<"users">,
+    enableWebSearch?: boolean
+  ) => {
+    const openrouter = createOpenRouter({ apiKey });
+
+    // Get user's OpenRouter sorting preference
+    let sorting: "default" | "price" | "throughput" | "latency" = "default";
+    if (userId) {
+      try {
+        const userSettings = await ctx.runQuery(
+          api.userSettings.getUserSettings,
+          { userId }
+        );
+        sorting = userSettings?.openRouterSorting ?? "default";
+      } catch (error) {
+        console.warn(
+          "Failed to get user settings for OpenRouter sorting:",
+          error
+        );
+      }
+    }
+
+    // Apply OpenRouter sorting shortcuts and web search
+    let modifiedModel = applyOpenRouterSorting(model, sorting);
+    if (enableWebSearch) {
+      modifiedModel = `${modifiedModel}:online`;
+    }
+
+    return openrouter.chat(modifiedModel);
+  },
+};
+
 // Create language model based on provider
 const createLanguageModel = async (
   ctx: ActionCtx,
@@ -390,108 +424,172 @@ const createLanguageModel = async (
   userId?: Id<"users">,
   enableWebSearch?: boolean
 ): Promise<LanguageModel> => {
-  const providerFactories = {
-    openai: () => createOpenAI({ apiKey })(model),
-    anthropic: () => createAnthropic({ apiKey })(model),
-    google: () => createGoogleGenerativeAI({ apiKey })(model),
-    openrouter: async () => {
-      const openrouter = createOpenRouter({ apiKey });
+  if (provider === "openrouter") {
+    return createProviderModel.openrouter(
+      apiKey,
+      model,
+      ctx,
+      userId,
+      enableWebSearch
+    );
+  }
 
-      // Get user's OpenRouter sorting preference
-      let sorting: "default" | "price" | "throughput" | "latency" = "default";
-      if (userId) {
-        try {
-          const userSettings = await ctx.runQuery(
-            api.userSettings.getUserSettings,
-            {
-              userId,
-            }
-          );
-          sorting = userSettings?.openRouterSorting ?? "default";
-        } catch (error) {
-          console.warn(
-            "Failed to get user settings for OpenRouter sorting:",
-            error
-          );
-        }
-      }
+  if (provider === "google") {
+    return createProviderModel.google(apiKey, model, enableWebSearch);
+  }
 
-      // Apply OpenRouter sorting shortcuts
-      let modifiedModel = applyOpenRouterSorting(model, sorting);
-
-      // Add web search if enabled
-      if (enableWebSearch) {
-        modifiedModel = `${modifiedModel}:online`;
-      }
-
-      return openrouter.chat(modifiedModel);
-    },
-  };
-
-  const factory = providerFactories[provider];
+  const factory = createProviderModel[provider];
   if (!factory) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
 
-  return factory();
+  return factory(apiKey, model);
 };
 
 // Check if model supports reasoning
 const isReasoningModel = (provider: string, model: string): boolean => {
-  return (
-    (provider === "google" && model.includes("gemini-2.5")) ||
-    (provider === "anthropic" &&
-      (model.includes("claude-opus-4") ||
-        model.includes("claude-sonnet-4") ||
-        model.includes("claude-3-7-sonnet")))
-  );
+  const reasoningModels = {
+    google: ["gemini-2.5"],
+    anthropic: ["claude-opus-4", "claude-sonnet-4", "claude-3-7-sonnet"],
+  };
+
+  const providerModels =
+    reasoningModels[provider as keyof typeof reasoningModels];
+  return providerModels?.some(m => model.includes(m)) || false;
 };
 
 // Extract reasoning from text
 const extractReasoning = (text: string): string => {
-  const reasoningPatterns = [
-    /<thinking>([\s\S]*?)<\/thinking>/,
-    /<reasoning>([\s\S]*?)<\/reasoning>/,
-    /^Thinking:\s*([\s\S]*?)(?:\n\n|$)/,
-    /\[Reasoning\]([\s\S]*?)\[\/Reasoning\]/i,
-  ];
-
-  for (const pattern of reasoningPatterns) {
+  for (const pattern of CONFIG.REASONING_PATTERNS) {
     const match = text.match(pattern);
     if (match) {
       return match[1].trim();
     }
   }
-
   return "";
 };
 
-// Extract citations from provider metadata
-const extractCitations = (providerMetadata: any): Citation[] | undefined => {
-  // Handle OpenRouter citations
-  const openrouterCitations = providerMetadata?.openrouter?.citations;
-  if (openrouterCitations) {
-    return openrouterCitations.map((c: any) => ({
+// Citation extractor factory
+const citationExtractors = {
+  sources: (sources: any[]): Citation[] => {
+    return sources
+      .filter((source: any) => source.url && source.title)
+      .map((source: any) => ({
+        type: "url_citation" as const,
+        url: source.url,
+        title: source.title,
+        snippet: source.snippet || source.description || "",
+      }));
+  },
+
+  openrouter: (citations: any[]): Citation[] => {
+    return citations.map((c: any) => ({
       type: "url_citation" as const,
       url: c.url,
       title: c.title || "Web Source",
       cited_text: c.text,
       snippet: c.snippet,
     }));
-  }
+  },
 
-  // Handle Google search grounding citations
-  const googleChunks = providerMetadata?.google?.groundingChunks;
-  if (googleChunks) {
-    return googleChunks.map((chunk: any) => ({
+  openrouterAnnotations: (annotations: any[]): Citation[] => {
+    // Handle OpenRouter's web search annotations format
+    return annotations
+      .filter(
+        (annotation: any) =>
+          annotation.type === "url_citation" && annotation.url_citation
+      )
+      .map((annotation: any) => {
+        const citation = annotation.url_citation;
+        return {
+          type: "url_citation" as const,
+          url: citation.url,
+          title: citation.title || "Web Source",
+          snippet: citation.content || "",
+          // The cited_text can be extracted from the message content using start/end indices
+          cited_text: citation.content,
+        };
+      });
+  },
+
+  google: (chunks: any[]): Citation[] => {
+    return chunks.map((chunk: any) => ({
       type: "url_citation" as const,
       url: chunk.web?.uri || "",
       title: chunk.web?.title || "Web Source",
       snippet: chunk.content,
     }));
+  },
+};
+
+// Extract citations from provider metadata and/or sources
+const extractCitations = (
+  providerMetadata?: any,
+  sources?: any[]
+): Citation[] | undefined => {
+  const citations: Citation[] = [];
+
+  // Extract from different sources
+  if (sources && Array.isArray(sources)) {
+    citations.push(...citationExtractors.sources(sources));
   }
 
-  return undefined;
+  if (providerMetadata?.openrouter?.citations) {
+    citations.push(
+      ...citationExtractors.openrouter(providerMetadata.openrouter.citations)
+    );
+  }
+
+  // Check for OpenRouter annotations in provider metadata
+  if (providerMetadata?.openrouter?.annotations) {
+    citations.push(
+      ...citationExtractors.openrouterAnnotations(
+        providerMetadata.openrouter.annotations
+      )
+    );
+  }
+
+  if (providerMetadata?.google?.groundingChunks) {
+    citations.push(
+      ...citationExtractors.google(providerMetadata.google.groundingChunks)
+    );
+  }
+
+  return citations.length > 0 ? citations : undefined;
+};
+
+// Extract citations from markdown links in text
+const extractMarkdownCitations = (text: string): Citation[] => {
+  const citations: Citation[] = [];
+  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+  let match;
+  while ((match = markdownLinkRegex.exec(text)) !== null) {
+    const [_, linkText, url] = match;
+
+    // Skip if it's not a valid URL
+    try {
+      new URL(url);
+    } catch {
+      continue;
+    }
+
+    // Extract domain name for the title if the link text is a domain
+    const domain = linkText
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0];
+
+    citations.push({
+      type: "url_citation" as const,
+      url: url,
+      title: linkText || domain || "Web Source",
+      // We don't have snippet data from markdown links
+      snippet: "",
+    });
+  }
+
+  return citations;
 };
 
 // Stream content handler
@@ -513,7 +611,7 @@ class StreamHandler {
 
   async checkIfStopped(): Promise<boolean> {
     this.chunkCounter++;
-    if (this.chunkCounter % STREAM_CONFIG.CHECK_STOP_EVERY_N_CHUNKS === 0) {
+    if (this.chunkCounter % CONFIG.STREAM.CHECK_STOP_EVERY_N_CHUNKS === 0) {
       const message = await this.ctx.runQuery(api.messages.getById, {
         id: this.messageId,
       });
@@ -543,8 +641,8 @@ class StreamHandler {
 
     const timeSinceLastUpdate = Date.now() - this.lastUpdate;
     if (
-      this.contentBuffer.length >= STREAM_CONFIG.BATCH_SIZE ||
-      timeSinceLastUpdate >= STREAM_CONFIG.BATCH_TIMEOUT
+      this.contentBuffer.length >= CONFIG.STREAM.BATCH_SIZE ||
+      timeSinceLastUpdate >= CONFIG.STREAM.BATCH_TIMEOUT
     ) {
       await this.flushContentBuffer();
     }
@@ -575,8 +673,17 @@ class StreamHandler {
       ? humanizeText(extractedReasoning)
       : undefined;
 
-    // Extract citations
-    const citations = extractCitations(providerMetadata);
+    // Extract citations from provider metadata
+    let citations = extractCitations(providerMetadata);
+
+    // If using OpenRouter with web search and no citations found in metadata,
+    // try extracting from markdown links in the response text
+    if (!citations || citations.length === 0) {
+      const markdownCitations = extractMarkdownCitations(text);
+      if (markdownCitations.length > 0) {
+        citations = markdownCitations;
+      }
+    }
 
     // Update only metadata (reasoning, citations, finish reason)
     await updateMessage(this.ctx, this.messageId, {
@@ -584,6 +691,18 @@ class StreamHandler {
       finishReason: finishReason || "stop",
       citations,
     });
+
+    // Enrich citations with metadata if we have any
+    if (citations && citations.length > 0) {
+      await this.ctx.scheduler.runAfter(
+        0,
+        internal.citationEnrichment.enrichMessageCitations,
+        {
+          messageId: this.messageId,
+          citations,
+        }
+      );
+    }
 
     await clearConversationStreaming(this.ctx, this.messageId);
   }
@@ -598,6 +717,40 @@ class StreamHandler {
       },
     });
     await clearConversationStreaming(this.ctx, this.messageId);
+  }
+
+  async processStream(
+    stream: AsyncIterable<any>,
+    isFullStream = false
+  ): Promise<void> {
+    for await (const part of stream) {
+      if (await this.checkIfStopped()) {
+        throw new Error("StoppedByUser");
+      }
+
+      if (!this.ctx.runMutation) {
+        await this.initializeStreaming();
+      }
+
+      if (isFullStream) {
+        await this.handleFullStreamPart(part);
+      } else {
+        await this.appendToBuffer(part);
+      }
+    }
+
+    await this.flushContentBuffer();
+  }
+
+  private async handleFullStreamPart(part: any): Promise<void> {
+    if (part.type === "text-delta") {
+      await this.appendToBuffer(part.textDelta || "");
+    } else if (part.type === "reasoning") {
+      await this.ctx.runMutation(internal.messages.internalAppendReasoning, {
+        id: this.messageId,
+        reasoningChunk: part.textDelta || "",
+      });
+    }
   }
 }
 
@@ -652,7 +805,6 @@ export const streamResponse = action({
   handler: async (ctx, args) => {
     let abortController: AbortController | undefined;
     const streamHandler = new StreamHandler(ctx, args.messageId);
-    let hasStartedStreaming = false;
 
     try {
       // Get API key
@@ -718,53 +870,23 @@ export const streamResponse = action({
       // Handle streaming
       const supportsReasoning = isReasoningModel(args.provider, args.model);
 
-      const processStream = async (
-        stream: AsyncIterable<any>,
-        isFullStream = false
-      ) => {
-        for await (const part of stream) {
-          if (await streamHandler.checkIfStopped()) {
-            throw new Error("StoppedByUser");
-          }
-
-          if (!hasStartedStreaming) {
-            hasStartedStreaming = true;
-            await streamHandler.initializeStreaming();
-          }
-
-          if (isFullStream) {
-            if (part.type === "text-delta") {
-              await streamHandler.appendToBuffer(part.textDelta || "");
-            } else if (part.type === "reasoning") {
-              await ctx.runMutation(internal.messages.internalAppendReasoning, {
-                id: args.messageId,
-                reasoningChunk: part.textDelta || "",
-              });
-            }
-          } else {
-            await streamHandler.appendToBuffer(part);
-          }
-        }
-
-        await streamHandler.flushContentBuffer();
-      };
-
       // Try full stream for reasoning models, fall back to text stream
       if (supportsReasoning) {
         try {
-          await processStream(result.fullStream, true);
+          await streamHandler.processStream(result.fullStream, true);
         } catch (error) {
           if (error instanceof Error && error.message === "StoppedByUser") {
             throw error;
           }
-          console.log(
-            "Full stream not available, falling back to text stream:",
-            error
-          );
-          await processStream(result.textStream, false);
+          await streamHandler.processStream(result.textStream, false);
         }
       } else {
-        await processStream(result.textStream, false);
+        await streamHandler.processStream(result.textStream, false);
+      }
+
+      // Handle Google search sources
+      if (args.provider === "google" && args.enableWebSearch) {
+        await handleGoogleSearchSources(ctx, result, args.messageId);
       }
     } catch (error) {
       if (error instanceof Error && error.message === "StoppedByUser") {
@@ -784,6 +906,57 @@ export const streamResponse = action({
     }
   },
 });
+
+// Handle Google search sources
+async function handleGoogleSearchSources(
+  ctx: ActionCtx,
+  result: any,
+  messageId: Id<"messages">
+): Promise<void> {
+  try {
+    // Wait for sources to be available
+    const sources = await result.sources;
+    if (sources && sources.length > 0) {
+      // Get existing message to check for existing citations
+      const message = await ctx.runQuery(api.messages.getById, {
+        id: messageId,
+      });
+
+      // Merge sources with existing citations from providerMetadata
+      const existingCitations = message?.citations || [];
+      const sourceCitations = extractCitations(undefined, sources) || [];
+
+      // Combine and deduplicate citations based on URL
+      const citationMap = new Map<string, Citation>();
+      [...existingCitations, ...sourceCitations].forEach(citation => {
+        if (!citationMap.has(citation.url)) {
+          citationMap.set(citation.url, citation);
+        }
+      });
+
+      const mergedCitations = Array.from(citationMap.values());
+
+      if (mergedCitations.length > 0) {
+        await ctx.runMutation(internal.messages.internalUpdate, {
+          id: messageId,
+          citations: mergedCitations,
+        });
+
+        // Enrich citations with metadata
+        await ctx.scheduler.runAfter(
+          0,
+          internal.citationEnrichment.enrichMessageCitations,
+          {
+            messageId,
+            citations: mergedCitations,
+          }
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to retrieve sources:", error);
+  }
+}
 
 export const stopStreaming = action({
   args: { messageId: v.id("messages") },
