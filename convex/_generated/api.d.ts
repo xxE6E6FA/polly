@@ -13,8 +13,10 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai from "../ai.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as citationEnrichment from "../citationEnrichment.js";
 import type * as constants from "../constants.js";
 import type * as conversationStarters from "../conversationStarters.js";
 import type * as conversationSummary from "../conversationSummary.js";
@@ -27,7 +29,6 @@ import type * as lib_conversation_utils from "../lib/conversation_utils.js";
 import type * as lib_model_capabilities_config from "../lib/model_capabilities_config.js";
 import type * as messages from "../messages.js";
 import type * as models from "../models.js";
-import type * as openai from "../openai.js";
 import type * as personas from "../personas.js";
 import type * as sessions from "../sessions.js";
 import type * as sharedConversations from "../sharedConversations.js";
@@ -45,8 +46,10 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  ai: typeof ai;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  citationEnrichment: typeof citationEnrichment;
   constants: typeof constants;
   conversationStarters: typeof conversationStarters;
   conversationSummary: typeof conversationSummary;
@@ -59,7 +62,6 @@ declare const fullApi: ApiFromModules<{
   "lib/model_capabilities_config": typeof lib_model_capabilities_config;
   messages: typeof messages;
   models: typeof models;
-  openai: typeof openai;
   personas: typeof personas;
   sessions: typeof sessions;
   sharedConversations: typeof sharedConversations;

@@ -101,6 +101,12 @@ export interface WebSearchCitation {
   title: string;
   cited_text?: string;
   snippet?: string;
+  description?: string; // OpenGraph description or meta description
+  image?: string; // OpenGraph image or thumbnail URL
+  favicon?: string; // Website favicon URL
+  siteName?: string; // Website name (e.g., "GitHub", "Stack Overflow")
+  publishedDate?: string; // Article publish date if available
+  author?: string; // Author information if available
 }
 
 export interface WebSearchResult {

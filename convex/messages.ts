@@ -146,6 +146,12 @@ export const internalUpdate = internalMutation({
           title: v.string(),
           cited_text: v.optional(v.string()),
           snippet: v.optional(v.string()),
+          description: v.optional(v.string()),
+          image: v.optional(v.string()),
+          favicon: v.optional(v.string()),
+          siteName: v.optional(v.string()),
+          publishedDate: v.optional(v.string()),
+          author: v.optional(v.string()),
         })
       )
     ),
