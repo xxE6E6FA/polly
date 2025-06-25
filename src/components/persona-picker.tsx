@@ -13,11 +13,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, User, ChevronDown } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CheckIcon, UserIcon, CaretDownIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
 import { cn } from "@/lib/utils";
+import { Backdrop } from "@/components/ui/backdrop";
 import { Id } from "../../convex/_generated/dataModel";
 
 interface PersonaPickerProps {
@@ -25,6 +31,7 @@ interface PersonaPickerProps {
   className?: string;
   selectedPersonaId?: Id<"personas"> | null;
   onPersonaSelect?: (personaId: Id<"personas"> | null) => void;
+  tooltip?: string | React.ReactNode;
 }
 
 export function PersonaPicker({
@@ -32,6 +39,7 @@ export function PersonaPicker({
   className,
   selectedPersonaId = null,
   onPersonaSelect,
+  tooltip,
 }: PersonaPickerProps) {
   const userInfo = useUser();
   const personas = useQuery(
@@ -72,34 +80,50 @@ export function PersonaPicker({
     : null;
 
   if (compact) {
+    const TriggerButton = (
+      <Button
+        variant="ghost"
+        size="sm"
+        className={cn(
+          "h-7 w-7 p-0 relative group picker-trigger",
+          "hover:bg-accent/50 dark:hover:bg-accent/30",
+          "transition-all duration-200",
+          open && "bg-accent/50 dark:bg-accent/30",
+          className
+        )}
+      >
+        {currentPersona ? (
+          <span className="text-base">{currentPersona.icon}</span>
+        ) : (
+          <UserIcon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+        )}
+      </Button>
+    );
+
     return (
       <>
         {/* Backdrop blur overlay */}
         {open && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" />
+          <Backdrop
+            variant="default"
+            blur="sm"
+            className="z-40 animate-in fade-in-0 duration-200"
+          />
         )}
 
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-7 w-7 p-0 relative group picker-trigger",
-                "hover:bg-accent/50 dark:hover:bg-accent/30",
-                "transition-all duration-200",
-                open && "bg-accent/50 dark:bg-accent/30",
-                className
-              )}
-              title={currentPersona ? currentPersona.name : "Default"}
-            >
-              {currentPersona ? (
-                <span className="text-base">{currentPersona.icon}</span>
-              ) : (
-                <User className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-              )}
-            </Button>
-          </PopoverTrigger>
+          {tooltip && !open ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                {typeof tooltip === "string" ? <p>{tooltip}</p> : tooltip}
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+          )}
           <PopoverContent
             className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
             side="top"
@@ -118,66 +142,81 @@ export function PersonaPicker({
     );
   }
 
+  const TriggerButton = (
+    <Button
+      variant="outline"
+      role="combobox"
+      aria-expanded={open}
+      className={cn(
+        "w-full justify-between group picker-trigger",
+        "hover:bg-accent/30 dark:hover:bg-accent/20",
+        "hover:border-primary/30 dark:hover:border-primary/30",
+        "transition-all duration-200",
+        open &&
+          "bg-accent/30 dark:bg-accent/20 border-primary/30 dark:border-primary/30",
+        className
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {currentPersona ? (
+          <>
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/50 dark:bg-accent/30">
+              <span className="text-lg">{currentPersona.icon}</span>
+            </div>
+            <div className="text-left">
+              <div className="font-medium text-sm">{currentPersona.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {currentPersona.description}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted/50 dark:bg-muted/30 border border-border/50">
+              <UserIcon className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="text-left">
+              <div className="font-medium text-sm">Default</div>
+              <div className="text-xs text-muted-foreground">
+                Standard AI assistant behavior
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+      <CaretDownIcon
+        className={cn(
+          "h-4 w-4 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200",
+          open && "rotate-180 text-foreground"
+        )}
+      />
+    </Button>
+  );
+
   return (
     <>
       {/* Backdrop blur overlay */}
       {open && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" />
+        <Backdrop
+          variant="default"
+          blur="sm"
+          className="z-40 animate-in fade-in-0 duration-200"
+        />
       )}
 
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className={cn(
-              "w-full justify-between group picker-trigger",
-              "hover:bg-accent/30 dark:hover:bg-accent/20",
-              "hover:border-primary/30 dark:hover:border-primary/30",
-              "transition-all duration-200",
-              open &&
-                "bg-accent/30 dark:bg-accent/20 border-primary/30 dark:border-primary/30",
-              className
-            )}
-          >
-            <div className="flex items-center gap-3">
-              {currentPersona ? (
-                <>
-                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/50 dark:bg-accent/30">
-                    <span className="text-lg">{currentPersona.icon}</span>
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-sm">
-                      {currentPersona.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {currentPersona.description}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted/50 dark:bg-muted/30 border border-border/50">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-sm">Default</div>
-                    <div className="text-xs text-muted-foreground">
-                      Standard AI assistant behavior
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200",
-                open && "rotate-180 text-foreground"
-              )}
-            />
-          </Button>
-        </PopoverTrigger>
+        {tooltip && !open ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              {typeof tooltip === "string" ? <p>{tooltip}</p> : tooltip}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+        )}
         <PopoverContent
           className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
           side="top"
@@ -233,7 +272,7 @@ function PersonaList({
       <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
           <div className="flex flex-col items-center gap-2 py-4">
-            <User className="h-8 w-8 text-muted-foreground" />
+            <UserIcon className="h-8 w-8 text-muted-foreground" />
             <div className="text-center">
               <p className="text-sm font-medium">No personas found</p>
               <p className="text-xs text-muted-foreground">
@@ -260,7 +299,7 @@ function PersonaList({
                 Standard AI assistant behavior
               </div>
             </div>
-            {!currentPersona && <Check className="h-4 w-4 text-primary" />}
+            {!currentPersona && <CheckIcon className="h-4 w-4 text-primary" />}
           </CommandItem>
         </CommandGroup>
 
@@ -291,7 +330,7 @@ function PersonaList({
                     </div>
                   </div>
                   {currentPersona?._id === persona._id && (
-                    <Check className="h-4 w-4 text-primary" />
+                    <CheckIcon className="h-4 w-4 text-primary" />
                   )}
                 </CommandItem>
               ))}
@@ -326,7 +365,7 @@ function PersonaList({
                     </div>
                   </div>
                   {currentPersona?._id === persona._id && (
-                    <Check className="h-4 w-4 text-primary" />
+                    <CheckIcon className="h-4 w-4 text-primary" />
                   )}
                 </CommandItem>
               ))}

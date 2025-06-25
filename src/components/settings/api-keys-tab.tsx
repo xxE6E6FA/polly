@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ExternalLink } from "lucide-react";
 import { ProviderIcon } from "@/components/provider-icons";
 import { toast } from "sonner";
 import { useMutation, useQuery } from "convex/react";
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { SettingsHeader } from "./settings-header";
 import { Badge } from "../ui/badge";
-import { CheckCircle2 } from "lucide-react";
+import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 
 type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
 
@@ -52,7 +51,7 @@ function getProviderCardStyle(isConnected: boolean) {
   const baseStyle = "p-4 rounded-lg border transition-all duration-200";
 
   if (isConnected) {
-    return `${baseStyle} border-success-border bg-success-bg hover:bg-success/10`;
+    return `${baseStyle} border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20`;
   }
 
   return `${baseStyle} border-border bg-background hover:bg-muted/50`;
@@ -149,7 +148,7 @@ export function ApiKeysTab() {
           description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {(
             Object.entries(API_KEY_INFO) as Array<
               [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
@@ -175,7 +174,7 @@ export function ApiKeysTab() {
         description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {(
           Object.entries(API_KEY_INFO) as Array<
             [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
@@ -203,8 +202,12 @@ export function ApiKeysTab() {
                         {info.name}
                       </Label>
                       {isConnected && (
-                        <Badge variant="success" size="sm">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                        <Badge
+                          variant="secondary"
+                          size="sm"
+                          className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                        >
+                          <CheckCircleIcon className="h-3 w-3 mr-1" />
                           Connected
                         </Badge>
                       )}
@@ -222,10 +225,10 @@ export function ApiKeysTab() {
                       href={info.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5"
+                      className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
                     >
-                      Get key
-                      <ExternalLink className="h-3 w-3" />
+                      Get API key
+                      <ArrowSquareOutIcon className="h-3 w-3" />
                     </a>
                   </Button>
                 )}
@@ -239,7 +242,7 @@ export function ApiKeysTab() {
                         id={provider}
                         type="text"
                         placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
-                        className="font-mono text-sm"
+                        className="font-mono text-sm bg-blue-500/5 dark:bg-blue-500/10 border-blue-500/20"
                         disabled
                       />
                     </div>
@@ -271,7 +274,7 @@ export function ApiKeysTab() {
                         required
                       />
                     </div>
-                    <Button type="submit" size="sm" variant="emerald">
+                    <Button type="submit" size="sm" variant="default">
                       Save
                     </Button>
                   </form>
@@ -299,10 +302,10 @@ export function ApiKeysTab() {
                 href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:underline inline-flex items-center gap-1"
+                className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-1"
               >
-                Learn more
-                <ExternalLink className="h-3 w-3" />
+                View documentation
+                <ArrowSquareOutIcon className="h-3 w-3" />
               </a>
             </p>
 

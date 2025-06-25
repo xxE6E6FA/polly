@@ -9,14 +9,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Smile,
-  Undo2,
-  Redo2,
-  Sparkles,
-  Loader2,
-  Maximize2,
-  X,
-} from "lucide-react";
+  SmileyIcon,
+  ArrowCounterClockwiseIcon,
+  ArrowClockwiseIcon,
+  SparkleIcon,
+  ArrowsOutIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { Spinner } from "@/components/spinner";
 import { countTokens } from "@/lib/utils";
 import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
 import { SkeletonText } from "@/components/ui/skeleton-text";
@@ -60,6 +60,7 @@ export function PersonaForm({
     redo,
     canUndo,
     canRedo,
+    reset: resetPromptValue,
   } = useWordBasedUndo({
     initialValue: formData.prompt,
     debounceMs: 1000,
@@ -69,6 +70,15 @@ export function PersonaForm({
   React.useEffect(() => {
     setFormData(prev => ({ ...prev, prompt: promptValue }));
   }, [promptValue, setFormData]);
+
+  // Sync the prompt value when formData.prompt changes (e.g., when loading existing persona)
+  React.useEffect(() => {
+    // Only update if the promptValue is empty and formData.prompt has content
+    // This prevents overwriting user edits when the form data changes
+    if (!promptValue && formData.prompt) {
+      resetPromptValue(formData.prompt);
+    }
+  }, [formData.prompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tokenCount = useMemo(() => countTokens(promptValue), [promptValue]);
 
@@ -116,12 +126,6 @@ export function PersonaForm({
         toast.error("Rate limit exceeded", {
           description:
             "Please wait a moment before trying to improve your prompt again.",
-          duration: 5000,
-        });
-      } else if (errorMessage.includes("not configured")) {
-        toast.error("OpenAI API key required", {
-          description:
-            "Please configure your OpenAI API key in settings to use this feature.",
           duration: 5000,
         });
       } else {
@@ -211,7 +215,7 @@ export function PersonaForm({
               >
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="default">
-                    <Smile className="h-4 w-4 mr-2" />
+                    <SmileyIcon className="h-4 w-4 mr-2" />
                     Choose Emoji
                   </Button>
                 </PopoverTrigger>
@@ -241,7 +245,7 @@ export function PersonaForm({
             onClick={() => setIsFullScreenEditor(true)}
             className="gap-2"
           >
-            <Maximize2 className="h-4 w-4" />
+            <ArrowsOutIcon className="h-4 w-4" />
             Fullscreen Editor
           </Button>
         </div>
@@ -263,8 +267,8 @@ export function PersonaForm({
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-background/50 to-transparent animate-pulse" />
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
-                      <Loader2 className="h-4 w-4 animate-spin text-accent-coral" />
-                      <span className="text-sm font-medium bg-gradient-to-r from-accent-coral via-accent-orange to-accent-purple bg-clip-text text-transparent">
+                      <Spinner size="sm" />
+                      <span className="text-sm font-medium gradient-text">
                         AI magic in progress...
                       </span>
                     </div>
@@ -285,7 +289,7 @@ export function PersonaForm({
                     disabled={!canUndo || isImprovingPrompt}
                     className="h-7 w-7 p-0"
                   >
-                    <Undo2 className="h-3.5 w-3.5" />
+                    <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     type="button"
@@ -295,7 +299,7 @@ export function PersonaForm({
                     disabled={!canRedo || isImprovingPrompt}
                     className="h-7 w-7 p-0"
                   >
-                    <Redo2 className="h-3.5 w-3.5" />
+                    <ArrowClockwiseIcon className="h-3.5 w-3.5" />
                   </Button>
                 </div>
                 <span className="text-xs text-muted-foreground">
@@ -312,12 +316,12 @@ export function PersonaForm({
               >
                 {isImprovingPrompt ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Spinner size="sm" />
                     Improving...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <SparkleIcon className="h-3.5 w-3.5" />
                     Improve prompt
                   </>
                 )}
@@ -334,7 +338,7 @@ export function PersonaForm({
               size="sm"
               onClick={improvePrompt}
               disabled={!promptValue.trim() || isImprovingPrompt}
-              className="p-0 h-auto text-xs text-accent-coral hover:text-accent-coral/80 underline"
+              className="p-0 h-auto text-xs text-blue-500 hover:text-blue-600 underline"
             >
               improve prompt
             </Button>{" "}
@@ -344,7 +348,7 @@ export function PersonaForm({
               href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/system-prompts"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-accent-coral hover:text-accent-coral/80 transition-colors underline"
+              className="text-blue-500 hover:text-blue-600 transition-colors underline"
             >
               Check out this system prompts guide
             </a>{" "}
@@ -371,7 +375,7 @@ export function PersonaForm({
                 onClick={() => setIsFullScreenEditor(false)}
                 className="h-8 w-8 p-0 flex-shrink-0 sm:hidden"
               >
-                <X className="h-4 w-4" />
+                <XIcon className="h-4 w-4" />
               </Button>
             </div>
 
@@ -386,7 +390,7 @@ export function PersonaForm({
                     disabled={!canUndo || isImprovingPrompt}
                     className="h-8 w-8 p-0"
                   >
-                    <Undo2 className="h-4 w-4" />
+                    <ArrowCounterClockwiseIcon className="h-4 w-4" />
                   </Button>
                   <Button
                     type="button"
@@ -396,7 +400,7 @@ export function PersonaForm({
                     disabled={!canRedo || isImprovingPrompt}
                     className="h-8 w-8 p-0"
                   >
-                    <Redo2 className="h-4 w-4" />
+                    <ArrowClockwiseIcon className="h-4 w-4" />
                   </Button>
                 </div>
                 <span className="text-xs sm:text-sm text-muted-foreground">
@@ -415,13 +419,13 @@ export function PersonaForm({
                 >
                   {isImprovingPrompt ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                      <Spinner size="sm" />
                       <span className="hidden xs:inline">Improving...</span>
                       <span className="xs:hidden">...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <SparkleIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       <span className="hidden xs:inline">Improve prompt</span>
                       <span className="xs:hidden">Improve</span>
                     </>
@@ -434,7 +438,7 @@ export function PersonaForm({
                   onClick={() => setIsFullScreenEditor(false)}
                   className="h-8 w-8 p-0 flex-shrink-0 hidden sm:flex"
                 >
-                  <X className="h-4 w-4" />
+                  <XIcon className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -470,8 +474,8 @@ export function PersonaForm({
                   />
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
                     <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
-                      <Loader2 className="h-4 w-4 animate-spin text-accent-coral" />
-                      <span className="text-sm font-medium bg-gradient-to-r from-accent-coral via-accent-orange to-accent-purple bg-clip-text text-transparent">
+                      <Spinner size="sm" />
+                      <span className="text-sm font-medium gradient-text">
                         AI magic in progress...
                       </span>
                     </div>

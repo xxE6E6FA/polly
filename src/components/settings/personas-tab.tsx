@@ -14,8 +14,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
-import { Trash2, User, Edit3, FileText, Plus } from "lucide-react";
+import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
+import {
+  TrashIcon,
+  UserIcon,
+  PencilSimpleLineIcon,
+  FileTextIcon,
+  PlusIcon,
+} from "@phosphor-icons/react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
@@ -109,7 +115,7 @@ export function PersonasTab() {
           <div className="flex gap-2 shrink-0">
             <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
               <Button variant="default" size="sm">
-                <Plus className="h-4 w-4 mr-2" />
+                <PlusIcon className="h-4 w-4 mr-2" />
                 Create Persona
               </Button>
             </Link>
@@ -142,7 +148,7 @@ export function PersonasTab() {
                 <div>
                   <h3 className="text-lg font-semibold">Built-in Personas</h3>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {allBuiltInPersonas.map(persona => {
                     const disabled = isPersonaDisabled(persona._id);
                     return (
@@ -190,13 +196,13 @@ export function PersonasTab() {
                     Your custom system prompts for different conversation styles
                   </p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {personas
                     .filter(persona => !persona.isBuiltIn)
                     .map(persona => (
                       <div
                         key={persona._id}
-                        className="border rounded-lg p-4 space-y-3"
+                        className="border rounded-lg p-3 sm:p-4 space-y-3"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -220,7 +226,7 @@ export function PersonasTab() {
                                 <TooltipTrigger asChild>
                                   <DialogTrigger asChild>
                                     <Button variant="ghost" size="sm">
-                                      <FileText className="h-3 w-3" />
+                                      <FileTextIcon className="h-3 w-3" />
                                     </Button>
                                   </DialogTrigger>
                                 </TooltipTrigger>
@@ -238,9 +244,9 @@ export function PersonasTab() {
                                   </DialogTitle>
                                 </DialogHeader>
                                 <div className="flex-1 overflow-auto p-4 bg-muted/20 rounded-lg">
-                                  <EnhancedMarkdown>
+                                  <StreamingMarkdown>
                                     {persona.prompt}
-                                  </EnhancedMarkdown>
+                                  </StreamingMarkdown>
                                 </div>
                               </DialogContent>
                             </Dialog>
@@ -252,7 +258,7 @@ export function PersonasTab() {
                                   )}
                                 >
                                   <Button variant="ghost" size="sm">
-                                    <Edit3 className="h-3 w-3" />
+                                    <PencilSimpleLineIcon className="h-3 w-3" />
                                   </Button>
                                 </Link>
                               </TooltipTrigger>
@@ -263,11 +269,12 @@ export function PersonasTab() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors"
                                   onClick={() =>
                                     setDeletingPersona(persona._id)
                                   }
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <TrashIcon className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>Delete persona</TooltipContent>
@@ -283,7 +290,7 @@ export function PersonasTab() {
             {/* Empty State for Custom Personas */}
             {personas && personas.filter(p => !p.isBuiltIn).length === 0 && (
               <div className="text-center py-8 border rounded-lg border-dashed">
-                <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <UserIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">
                   No Custom Personas
                 </h3>

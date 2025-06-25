@@ -4,52 +4,23 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Globe } from "lucide-react";
+import { GlobeIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface WebSearchToggleProps {
   enabled?: boolean;
   onToggle: (enabled: boolean) => void;
   className?: string;
-  noPill?: boolean;
 }
 
 export function WebSearchToggle({
   enabled = false,
   onToggle,
   className,
-  noPill = false,
 }: WebSearchToggleProps) {
   const handleToggle = () => {
     onToggle(!enabled);
   };
-
-  if (noPill) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleToggle}
-            className={cn(
-              "h-auto w-auto p-0 hover:bg-transparent",
-              enabled && "text-info",
-              className
-            )}
-          >
-            <Globe className="h-3.5 w-3.5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="text-sm font-medium">
-            {enabled ? "Disable" : "Enable"} Search Grounding
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
 
   return (
     <Tooltip>
@@ -68,7 +39,7 @@ export function WebSearchToggle({
           )}
         >
           <div className="flex items-center gap-1.5">
-            <Globe
+            <GlobeIcon
               className={cn(
                 "h-3.5 w-3.5 transition-colors",
                 enabled
@@ -81,7 +52,7 @@ export function WebSearchToggle({
         </Button>
       </TooltipTrigger>
       <TooltipContent>
-        <div className="text-sm font-medium">
+        <div className="text-xs font-medium">
           {enabled ? "Disable" : "Enable"} Search Grounding
         </div>
       </TooltipContent>
