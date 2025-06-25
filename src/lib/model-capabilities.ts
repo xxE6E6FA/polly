@@ -7,6 +7,13 @@ import {
   CodeIcon,
   SparkleIcon,
 } from "@phosphor-icons/react";
+import {
+  CAPABILITY_PATTERNS,
+  checkModelPatterns,
+  getCapabilityFromPatterns,
+  SUPPORTED_IMAGE_TYPES,
+  SUPPORTED_TEXT_TYPES,
+} from "convex/lib/model_capabilities_config";
 
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "gpt-4o": "GPT-4o",
@@ -23,9 +30,6 @@ export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "x-ai/grok-3-mini": "Grok 3 Mini",
 };
 
-/**
- * Get display name for a model, with fallback support
- */
 export function getModelDisplayName(modelId: string, model?: AIModel): string {
   if (model?.name) {
     return model.name;
@@ -33,12 +37,7 @@ export function getModelDisplayName(modelId: string, model?: AIModel): string {
   return MODEL_DISPLAY_NAMES[modelId] || "Select model";
 }
 
-/**
- * Determine the provider for a model ID using pattern matching
- * This is used as a fallback when the model isn't found in the enhanced lookup
- */
 export function inferProviderFromModelId(modelId: string): string {
-  // Known OpenRouter model IDs
   const openRouterModelIds = [
     "google/gemini-2.5-flash-preview-05-20",
     "google/gemini-2.5-pro-preview-05-06",
@@ -47,12 +46,10 @@ export function inferProviderFromModelId(modelId: string): string {
     "deepseek/deepseek-r1-0528",
   ];
 
-  // Check if it's a known OpenRouter model
   if (openRouterModelIds.includes(modelId)) {
     return "openrouter";
   }
 
-  // Check for OpenRouter patterns
   if (
     modelId.includes("/") ||
     modelId.includes("deepseek") ||
@@ -62,7 +59,6 @@ export function inferProviderFromModelId(modelId: string): string {
     return "openrouter";
   }
 
-  // Provider patterns
   const providerPatterns: Record<string, string> = {
     gpt: "openai",
     o1: "openai",
@@ -75,291 +71,126 @@ export function inferProviderFromModelId(modelId: string): string {
     bison: "google",
   };
 
-  // Check provider patterns
   for (const [pattern, provider] of Object.entries(providerPatterns)) {
     if (modelId.toLowerCase().includes(pattern.toLowerCase())) {
       return provider;
     }
   }
 
-  // If model has dashes or slashes but no other pattern matches, assume OpenRouter
   if (modelId.includes("-") || modelId.includes("/")) {
     return "openrouter";
   }
 
-  // Default fallback
   return "openai";
 }
 
-/**
- * Provider-aware capability detection functions
- * These are the single source of truth for determining model capabilities
- */
-
-/**
- * Check if a model supports reasoning capabilities
- * Uses provider-specific logic for accurate detection
- */
 export function hasReasoningCapabilities(
   model?: ModelForCapabilities
 ): boolean {
   if (!model) return false;
 
-  // Use explicit model property first
   if (model.supportsReasoning !== undefined) {
     return model.supportsReasoning;
   }
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return model.modelId.includes("gemini-2.5");
-    case "openrouter":
-      // Note: For real-time reasoning detection, the streaming logic in convex/openai.ts
-      // fetches capabilities directly from the OpenRouter API. This fallback uses pattern matching.
-      return (
-        // OpenAI reasoning models
-        model.modelId.includes("o1-") ||
-        model.modelId.includes("o3-") ||
-        // DeepSeek reasoning models
-        model.modelId.includes("deepseek-r1") ||
-        model.modelId.includes("deepseek/deepseek-r1") ||
-        // Anthropic reasoning models
-        model.modelId.includes("claude-opus-4") ||
-        model.modelId.includes("claude-sonnet-4") ||
-        model.modelId.includes("claude-3-7-sonnet") ||
-        // Gemini reasoning models via OpenRouter
-        model.modelId.includes("gemini-2.5") ||
-        // General reasoning indicator
-        model.modelId.includes("reasoning") ||
-        model.modelId.includes("thinking")
-      );
-    case "openai":
-      return (
-        model.modelId.startsWith("o1-") ||
-        model.modelId.startsWith("o3-") ||
-        model.modelId.startsWith("o4-")
-      );
-    case "anthropic":
-      return (
-        model.modelId.includes("claude-opus-4") ||
-        model.modelId.includes("claude-sonnet-4") ||
-        model.modelId.includes("claude-3-7-sonnet")
-      );
-    default:
-      return false;
-  }
+  const patterns =
+    CAPABILITY_PATTERNS.supportsReasoning[
+      model.provider as keyof typeof CAPABILITY_PATTERNS.supportsReasoning
+    ];
+  if (!patterns) return false;
+
+  return checkModelPatterns(model.modelId, patterns);
 }
 
-/**
- * Check if a model supports image uploads/vision
- */
 export function hasImageUploadCapabilities(
   model?: ModelForCapabilities
 ): boolean {
   if (!model) return false;
 
-  // Use explicit model property first
   if (model.supportsImages !== undefined) {
+    console.log("🖼️ Image capability check (explicit):", {
+      modelId: model.modelId,
+      provider: model.provider,
+      supportsImages: model.supportsImages,
+      model,
+    });
     return model.supportsImages;
   }
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return (
-        model.modelId.includes("vision") ||
-        model.modelId.includes("pro") ||
-        model.modelId.includes("gemini-1.5") ||
-        model.modelId.includes("gemini-2.")
-      );
-    case "openrouter":
-      return (
-        model.modelId.includes("vision") ||
-        model.modelId.includes("gpt-4") ||
-        model.modelId.includes("claude-3") ||
-        model.modelId.includes("gemini") ||
-        model.modelId.includes("qwen-vl")
-      );
-    case "openai":
-      return (
-        model.modelId.includes("vision") || model.modelId.startsWith("gpt-4")
-      );
-    case "anthropic":
-      return model.modelId.includes("claude-3");
-    default:
-      return false;
+  const patterns =
+    CAPABILITY_PATTERNS.supportsImages[
+      model.provider as keyof typeof CAPABILITY_PATTERNS.supportsImages
+    ];
+  if (!patterns) {
+    console.log("🖼️ Image capability check (no patterns):", {
+      modelId: model.modelId,
+      provider: model.provider,
+    });
+    return false;
   }
+
+  const result = checkModelPatterns(model.modelId, patterns);
+  console.log("🖼️ Image capability check (pattern matching):", {
+    modelId: model.modelId,
+    provider: model.provider,
+    patterns,
+    result,
+  });
+  return result;
 }
 
-/**
- * Check if a model supports tools/function calling
- */
 export function hasToolsCapabilities(model?: ModelForCapabilities): boolean {
   if (!model) return false;
 
-  // Use explicit model property first
   if (model.supportsTools !== undefined) {
     return model.supportsTools;
   }
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return (
-        model.modelId.includes("gemini-1.5") ||
-        model.modelId.includes("gemini-2.") ||
-        model.modelId.includes("pro")
-      );
-    case "openrouter":
-      return !model.modelId.includes("o1-"); // Most models except o1 support tools
-    case "openai":
-      return (
-        !model.modelId.startsWith("o1-") && model.modelId.startsWith("gpt-")
-      );
-    case "anthropic":
-      return true; // All Claude models support tools
-    default:
-      return false;
-  }
+  const patterns =
+    CAPABILITY_PATTERNS.supportsTools[
+      model.provider as keyof typeof CAPABILITY_PATTERNS.supportsTools
+    ];
+  if (!patterns) return false;
+
+  return checkModelPatterns(model.modelId, patterns);
 }
 
-/**
- * Check if a model supports file uploads
- */
 export function hasFileUploadCapabilities(model?: AIModel): boolean {
   if (!model) return false;
 
-  // Use explicit model property first (if we had one)
-  // Note: supportsFiles is not currently a model property
+  const result = getCapabilityFromPatterns(
+    "supportsFiles",
+    model.provider,
+    model.modelId,
+    model.contextLength
+  );
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return Boolean(model.contextLength && model.contextLength >= 100000);
-    case "openrouter":
-      return true; // OpenRouter generally supports file uploads
-    case "openai":
-      return model.modelId.startsWith("gpt-");
-    case "anthropic":
-      return true; // All Claude models support file uploads
-    default:
-      return false;
-  }
+  return result;
 }
 
-/**
- * Check if a model is optimized for speed
- */
 export function isFastModel(model?: ModelForCapabilities): boolean {
   if (!model) return false;
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return model.modelId.includes("flash");
-    case "openrouter":
-      return (
-        model.modelId.includes("mini") ||
-        model.modelId.includes("flash") ||
-        model.modelId.includes("haiku") ||
-        Boolean(model.contextLength && model.contextLength < 50000)
-      );
-    case "openai":
-      return model.modelId.includes("mini") || model.modelId.includes("turbo");
-    case "anthropic":
-      return model.modelId.includes("haiku");
-    default:
-      return (
-        model.modelId.includes("mini") ||
-        model.modelId.includes("flash") ||
-        model.modelId.includes("haiku") ||
-        Boolean(model.contextLength && model.contextLength < 50000)
-      );
-  }
+  return getCapabilityFromPatterns(
+    "isFast",
+    model.provider,
+    model.modelId,
+    model.contextLength
+  );
 }
 
-/**
- * Check if a model is good for coding tasks
- */
 export function isCodingModel(model?: ModelForCapabilities): boolean {
   if (!model) return false;
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return (
-        model.modelId.includes("pro") ||
-        model.modelId.includes("gemini-1.5") ||
-        model.modelId.includes("gemini-2.")
-      );
-    case "openrouter":
-      return (
-        model.modelId.includes("code") ||
-        model.modelId.includes("deepseek") ||
-        model.modelId.includes("claude")
-      );
-    case "openai":
-      return (
-        model.modelId.startsWith("gpt-4") || model.modelId.includes("code")
-      );
-    case "anthropic":
-      return true; // All Claude models are good for coding
-    default:
-      return (
-        model.modelId.includes("code") ||
-        model.modelId.includes("deepseek") ||
-        model.modelId.includes("claude")
-      );
-  }
+  return getCapabilityFromPatterns("isCoding", model.provider, model.modelId);
 }
 
-/**
- * Check if a model is a latest/newest version
- */
 export function isLatestModel(model?: ModelForCapabilities): boolean {
   if (!model) return false;
 
-  // Provider-specific detection
-  switch (model.provider) {
-    case "google":
-      return (
-        model.modelId.includes("gemini-2.") ||
-        model.modelId.includes("2024") ||
-        model.modelId.includes("2025")
-      );
-    case "openrouter":
-      return (
-        model.modelId.includes("2.5") ||
-        model.modelId.includes("4o") ||
-        model.modelId.includes("2024") ||
-        model.modelId.includes("2025")
-      );
-    case "openai":
-      return (
-        model.modelId.includes("4o") ||
-        model.modelId.includes("2024") ||
-        model.modelId.includes("2025")
-      );
-    case "anthropic":
-      return (
-        model.modelId.includes("claude-3.5") ||
-        model.modelId.includes("2024") ||
-        model.modelId.includes("2025")
-      );
-    default:
-      return (
-        model.modelId.includes("2.5") ||
-        model.modelId.includes("4o") ||
-        model.modelId.includes("2024") ||
-        model.modelId.includes("2025")
-      );
-  }
+  return getCapabilityFromPatterns("isLatest", model.provider, model.modelId);
 }
 
-/**
- * Generic capability checker that maps capability keys to the appropriate functions
- */
 export function hasCapability(model?: AIModel, capability?: string): boolean {
   if (!model || !capability) return false;
 
@@ -383,9 +214,6 @@ export function hasCapability(model?: AIModel, capability?: string): boolean {
   }
 }
 
-/**
- * Enhanced model resolution that combines enhanced lookup with pattern matching fallback
- */
 export function resolveModelProvider(
   modelId: string,
   getModelById?: (id: string) => AIModel | undefined
@@ -394,7 +222,6 @@ export function resolveModelProvider(
   model?: AIModel;
   source: "enhanced" | "fallback";
 } {
-  // Try enhanced lookup first
   if (getModelById) {
     const model = getModelById(modelId);
     if (model?.provider) {
@@ -406,7 +233,6 @@ export function resolveModelProvider(
     }
   }
 
-  // Fall back to pattern matching
   const provider = inferProviderFromModelId(modelId);
   return {
     provider,
@@ -420,7 +246,6 @@ export interface ModelCapability {
   description: string;
 }
 
-// Capability color mapping - consistent colors for each capability type
 export const getCapabilityColor = (capabilityLabel: string) => {
   switch (capabilityLabel) {
     case "Advanced Reasoning":
@@ -440,7 +265,6 @@ export const getCapabilityColor = (capabilityLabel: string) => {
   }
 };
 
-// Define a flexible model type for capability detection
 type ModelForCapabilities = {
   modelId: string;
   name: string;
@@ -455,7 +279,6 @@ type ModelForCapabilities = {
   inputModalities?: string[];
 };
 
-// Enhanced capability detection using the provider-aware functions
 export const getModelCapabilities = (
   model: ModelForCapabilities
 ): ModelCapability[] => {
@@ -512,135 +335,72 @@ export const getModelCapabilities = (
   return capabilities;
 };
 
-/**
- * Check if a model supports PDF uploads
- * For OpenRouter models, check input_modalities for "file" support
- * Otherwise, use heuristics based on provider and context length
- */
 export function hasPdfUploadCapabilities(model?: AIModel): boolean {
   if (!model) return false;
 
-  // For OpenRouter models, check if they support "file" modality
   if (model.provider === "openrouter" && model.inputModalities) {
     return model.inputModalities.includes("file");
   }
 
-  // OpenRouter models without inputModalities data - assume they support PDFs
-  if (model.provider === "openrouter") {
-    return true;
-  }
-
-  // Models with large context windows are more likely to support PDFs
-  if (model.contextLength && model.contextLength >= 100000) {
-    return true;
-  }
-
-  // Some specific models known to support PDFs
-  const pdfSupportedModels = [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "claude-3-5-sonnet",
-    "claude-3-5-haiku",
-    "gemini-2.5-flash-lite-preview-06-17",
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-  ];
-
-  return pdfSupportedModels.some(supportedModel =>
-    model.modelId.includes(supportedModel)
+  return getCapabilityFromPatterns(
+    "supportsPdf",
+    model.provider,
+    model.modelId,
+    model.contextLength
   );
 }
 
-/**
- * All models support text file uploads (we process them as text content)
- */
 export function hasTextFileCapabilities(): boolean {
-  return true; // All models can handle text content
+  return true;
 }
 
-/**
- * Get supported image file types for a model
- */
 export function getSupportedImageTypes(model?: AIModel): string[] {
-  if (!hasImageUploadCapabilities(model)) {
+  const hasImageCapability = hasImageUploadCapabilities(model);
+  console.log("🎨 Getting supported image types:", {
+    modelId: model?.modelId,
+    hasImageCapability,
+    willReturnTypes: hasImageCapability ? SUPPORTED_IMAGE_TYPES : [],
+  });
+
+  if (!hasImageCapability) {
     return [];
   }
 
-  // Standard image types supported by most vision models
-  return [
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/gif",
-    "image/webp",
-    "image/heic",
-    "image/heif",
-  ];
+  return [...SUPPORTED_IMAGE_TYPES];
 }
 
-/**
- * Get supported text file types
- */
 export function getSupportedTextTypes(): string[] {
-  return [
-    "text/plain",
-    "text/markdown",
-    "text/csv",
-    "text/html",
-    "text/css",
-    "text/javascript",
-    "text/typescript",
-    "application/json",
-    "application/xml",
-    "text/xml",
-    "application/yaml",
-    "text/x-python",
-    "text/x-java",
-    "text/x-c",
-    "text/x-cpp",
-    "text/x-csharp",
-    "text/x-go",
-    "text/x-rust",
-    "text/x-php",
-    "text/x-ruby",
-    "text/x-swift",
-    "text/x-kotlin",
-    "text/x-scala",
-    "text/x-shell",
-    "text/x-sql",
-    "text/x-dockerfile",
-    "text/x-makefile",
-    "text/x-properties",
-    "text/x-log",
-  ];
+  return [...SUPPORTED_TEXT_TYPES];
 }
 
-/**
- * Check if a file type is supported by a model
- */
 export function isFileTypeSupported(
   fileType: string,
   model?: AIModel
 ): { supported: boolean; category: "image" | "pdf" | "text" | "unsupported" } {
-  // Check for image support
+  console.log("🔍 Checking file type support:", {
+    fileType,
+    hasModel: !!model,
+    modelId: model?.modelId,
+    provider: model?.provider,
+  });
+
   const supportedImageTypes = getSupportedImageTypes(model);
   if (supportedImageTypes.includes(fileType)) {
+    console.log("✅ File is supported as IMAGE");
     return { supported: true, category: "image" };
   }
 
-  // Check for PDF support
   if (fileType === "application/pdf" && hasPdfUploadCapabilities(model)) {
+    console.log("✅ File is supported as PDF");
     return { supported: true, category: "pdf" };
   }
 
-  // Check for text file support
   const supportedTextTypes = getSupportedTextTypes();
   if (supportedTextTypes.includes(fileType)) {
+    console.log("✅ File is supported as TEXT");
     return { supported: true, category: "text" };
   }
 
-  // This is a heuristic check - we can't always detect text files by MIME type
-  // but we can make educated guesses
   if (
     fileType.startsWith("text/") ||
     fileType === "application/json" ||
@@ -649,8 +409,10 @@ export function isFileTypeSupported(
     fileType === "" || // Sometimes text files have no MIME type
     fileType === "application/octet-stream" // Generic binary that might be text
   ) {
+    console.log("✅ File is supported as TEXT (heuristic)");
     return { supported: true, category: "text" };
   }
 
+  console.log("❌ File type not supported");
   return { supported: false, category: "unsupported" };
 }

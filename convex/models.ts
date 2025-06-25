@@ -1,6 +1,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { getCapabilityFromPatterns } from "./lib/model_capabilities_config";
 
 // OpenAI API Types - Public API structure
 interface OpenAIModel {
@@ -73,39 +74,27 @@ async function fetchOpenAIModels(apiKey: string) {
         const groups = model.groups || [];
         const hasEnhancedData = features.length > 0 || groups.length > 0;
 
-        // Capability detection: use enhanced data if available, otherwise use model ID patterns
+        // Capability detection: use enhanced data if available, otherwise use pattern matching
         const supportsReasoning = hasEnhancedData
           ? groups.includes("reasoning") ||
             features.includes("reasoning_effort") ||
             features.includes("detailed_reasoning_summary")
-          : modelId.startsWith("o1-") ||
-            modelId.startsWith("o3-") ||
-            modelId.startsWith("o4-");
+          : getCapabilityFromPatterns("supportsReasoning", "openai", modelId);
 
         const supportsTools = hasEnhancedData
           ? features.includes("function_calling") ||
             features.includes("parallel_tool_calls")
-          : !modelId.includes("o1-") && // o1 models don't support tools currently
-            !modelId.includes("turbo-instruct") &&
-            !modelId.includes("gpt-3.5-turbo-16k-0613"); // Exclude some older models
+          : getCapabilityFromPatterns("supportsTools", "openai", modelId);
 
         const supportsImages = hasEnhancedData
           ? features.includes("image_content")
-          : modelId.includes("vision") ||
-            (modelId.startsWith("gpt-4") &&
-              !modelId.includes("turbo-instruct") &&
-              !modelId.includes("32k") &&
-              !modelId.includes("0314") &&
-              !modelId.includes("0613"));
+          : getCapabilityFromPatterns("supportsImages", "openai", modelId);
 
         const supportsFiles = hasEnhancedData
           ? features.includes("file_content") ||
             features.includes("file_search") ||
             supportsImages
-          : supportsImages || // Models with image support typically support files
-            modelId.includes("gpt-4") || // Most GPT-4 models support files
-            modelId.includes("gpt-3.5-turbo-1106") ||
-            modelId.includes("gpt-3.5-turbo-0125");
+          : getCapabilityFromPatterns("supportsFiles", "openai", modelId);
 
         // Use max_tokens from enhanced API, with fallbacks for public API
         const contextWindow =
@@ -177,24 +166,27 @@ async function fetchAnthropicModels(apiKey: string) {
         const modelId = model.id;
         const displayName = model.display_name || model.id;
 
-        // More accurate capability detection based on model series
-        const supportsImages =
-          modelId.includes("claude-3") ||
-          modelId.includes("claude-3.5") ||
-          modelId.includes("claude-3.7") ||
-          modelId.includes("claude-4");
-
-        const supportsTools =
-          modelId.includes("claude-3") ||
-          modelId.includes("claude-3.5") ||
-          modelId.includes("claude-3.7") ||
-          modelId.includes("claude-4") ||
-          !modelId.includes("claude-2"); // Most models except Claude 2 support tools
-
-        const supportsFiles = supportsImages; // File uploads generally align with image support
-
-        // Claude models don't currently support reasoning/thinking like o1 models
-        const supportsReasoning = false;
+        // Use pattern matching for capability detection
+        const supportsImages = getCapabilityFromPatterns(
+          "supportsImages",
+          "anthropic",
+          modelId
+        );
+        const supportsTools = getCapabilityFromPatterns(
+          "supportsTools",
+          "anthropic",
+          modelId
+        );
+        const supportsFiles = getCapabilityFromPatterns(
+          "supportsFiles",
+          "anthropic",
+          modelId
+        );
+        const supportsReasoning = getCapabilityFromPatterns(
+          "supportsReasoning",
+          "anthropic",
+          modelId
+        );
 
         return {
           modelId,
@@ -234,18 +226,6 @@ interface GoogleApiResponse {
   models: GoogleApiModel[];
 }
 
-// Helper function to determine if a model ID represents a specific Google model series
-function isGoogleModelSeries(modelName: string, series: string): boolean {
-  const normalizedName = modelName.toLowerCase();
-  const normalizedSeries = series.toLowerCase();
-
-  // Handle both "models/gemini-x.x-xxx" and "gemini-x.x-xxx" formats
-  return (
-    normalizedName.includes(normalizedSeries) ||
-    normalizedName.includes(`models/${normalizedSeries}`)
-  );
-}
-
 // Google Models
 async function fetchGoogleModels(apiKey: string) {
   try {
@@ -268,36 +248,27 @@ async function fetchGoogleModels(apiKey: string) {
         const modelId = model.name.split("/").pop() || model.name;
         const displayName = model.displayName || modelId;
 
-        // Accurate capability detection based on Google's official model specifications
-
-        // Reasoning: Only Gemini 2.5 series models support advanced reasoning/thinking
-        const supportsReasoning = isGoogleModelSeries(model.name, "gemini-2.5");
-
-        // Tools: Most modern Gemini models support function calling
-        const supportsTools =
-          isGoogleModelSeries(model.name, "gemini-1.5") ||
-          isGoogleModelSeries(model.name, "gemini-2.") ||
-          model.name.includes("pro") ||
-          (model.supportedGenerationMethods?.includes("generateContent") ??
-            false);
-
-        // Images: All modern Gemini models support vision except text-only variants
-        const supportsImages =
-          !model.name.toLowerCase().includes("text") && // Exclude text-only models
-          (isGoogleModelSeries(model.name, "gemini-1.5") ||
-            isGoogleModelSeries(model.name, "gemini-2.") ||
-            model.name.includes("pro") ||
-            model.name.toLowerCase().includes("vision") ||
-            (model.displayName?.toLowerCase().includes("vision") ?? false) ||
-            (model.description?.toLowerCase().includes("vision") ?? false) ||
-            (model.description?.toLowerCase().includes("image") ?? false));
-
-        // Files: Models with large context windows and modern Gemini series support file uploads
-        const supportsFiles =
-          (model.inputTokenLimit && model.inputTokenLimit >= 32000) ||
-          isGoogleModelSeries(model.name, "gemini-1.5") ||
-          isGoogleModelSeries(model.name, "gemini-2.") ||
-          model.name.includes("pro");
+        const supportsReasoning = getCapabilityFromPatterns(
+          "supportsReasoning",
+          "google",
+          modelId
+        );
+        const supportsTools = getCapabilityFromPatterns(
+          "supportsTools",
+          "google",
+          modelId
+        );
+        const supportsImages = getCapabilityFromPatterns(
+          "supportsImages",
+          "google",
+          modelId
+        );
+        const supportsFiles = getCapabilityFromPatterns(
+          "supportsFiles",
+          "google",
+          modelId,
+          model.inputTokenLimit
+        );
 
         return {
           modelId,
