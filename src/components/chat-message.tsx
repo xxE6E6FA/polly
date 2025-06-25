@@ -1,4 +1,4 @@
-import React, { memo, useState, useCallback } from "react";
+import React, { memo, useState, useCallback, useEffect } from "react";
 import { ConvexFileDisplay } from "@/components/convex-file-display";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";

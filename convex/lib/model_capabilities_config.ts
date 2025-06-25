@@ -70,8 +70,9 @@ export const CAPABILITY_PATTERNS = {
       excludes: [],
     },
     anthropic: {
-      // Anthropic models don't currently support reasoning
-      forceValue: false,
+      // Some Anthropic models support reasoning
+      includes: ["claude-opus-4", "claude-sonnet-4", "claude-3-7-sonnet"],
+      excludes: [],
     },
   },
   supportsTools: {
