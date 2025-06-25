@@ -4,8 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { type LLMOutputComponent } from "@llm-ui/react";
-import { CodeBlock } from "@/components/ui/code-block";
-import { useMessageId } from "./enhanced-markdown";
+import { useMessageId } from "./streaming-markdown";
 
 // Helper function to generate heading ID (same logic as in outline)
 const generateHeadingId = (messageId: string, headingText: string): string => {
@@ -61,13 +60,14 @@ const headingComponents = {
   h6: createHeadingComponent(6),
 };
 
-// Memoized code component
+// Memoized inline code component
 const InlineCode = React.memo(
   ({
     children,
     className,
     ...rest
   }: React.HTMLAttributes<HTMLElement> & { className?: string }) => {
+    // Only handle true inline code (no language class)
     const isInline = !className;
 
     if (isInline) {
@@ -81,42 +81,29 @@ const InlineCode = React.memo(
       );
     }
 
-    // Block code should be handled by llm-ui code blocks
+    // Block code is handled by llm-ui's code block detection
+    // Just render plain for fallback (shouldn't happen in practice)
     return <code {...rest}>{children}</code>;
   }
 );
 InlineCode.displayName = "InlineCode";
 
-// Memoized pre component
+// Simplified pre component - no code block handling needed
+// Code blocks are caught by llm-ui before they reach markdown
 const PreComponent = React.memo(
   ({ children, ...rest }: React.HTMLAttributes<HTMLPreElement>) => {
-    // Check if children is a React element with code
-    if (React.isValidElement(children) && children.props) {
-      const codeProps = children.props as {
-        children?: string;
-        className?: string;
-      };
-      if (typeof codeProps.children === "string") {
-        const language =
-          codeProps.className?.replace("language-", "") || "text";
-        return (
-          <CodeBlock
-            code={codeProps.children}
-            language={language}
-            className="my-4"
-          />
-        );
-      }
-    }
-
-    // Fallback to regular pre if we can't extract code
-    return <pre {...rest}>{children}</pre>;
+    // This should rarely be called as code blocks are extracted by llm-ui
+    return (
+      <pre className="overflow-x-auto p-4 rounded bg-muted" {...rest}>
+        {children}
+      </pre>
+    );
   }
 );
 PreComponent.displayName = "PreComponent";
 
 // Markdown component for llm-ui
-export const LLMMarkdown: LLMOutputComponent = ({ blockMatch }) => {
+export const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => {
   const markdown = blockMatch.output;
 
   // Memoize the components object
@@ -124,9 +111,9 @@ export const LLMMarkdown: LLMOutputComponent = ({ blockMatch }) => {
     () => ({
       // Custom heading components with proper IDs
       ...headingComponents,
-      // Customize inline code
+      // Customize inline code only
       code: InlineCode,
-      // Replace pre tags with our CodeBlock component
+      // Simple pre fallback (code blocks handled by llm-ui)
       pre: PreComponent,
     }),
     []

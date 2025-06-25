@@ -6,36 +6,36 @@ import {
 } from "@llm-ui/code";
 import { markdownLookBack } from "@llm-ui/markdown";
 import { useLLMOutput, throttleBasic } from "@llm-ui/react";
-import { LLMMarkdown } from "./llm-markdown";
-import { LLMCodeBlock } from "./llm-code-block";
+import { MarkdownBlock } from "./markdown-block";
+import { CodeBlockWrapper } from "./code-block-wrapper";
 
-// Context for passing messageId to LLM components
+// Context for passing messageId to child components
 const MessageContext = createContext<string | undefined>(undefined);
 export const useMessageId = () => useContext(MessageContext);
 
-interface EnhancedMarkdownProps {
+interface StreamingMarkdownProps {
   children: string;
   className?: string;
   isStreaming?: boolean;
   messageId?: string;
 }
 
-function EnhancedMarkdownComponent({
+function StreamingMarkdownComponent({
   children,
   className,
   isStreaming = false,
   messageId,
-}: EnhancedMarkdownProps) {
+}: StreamingMarkdownProps) {
   // Memoize block configuration to prevent recreation
   const blockConfig = useMemo(
     () => ({
       fallbackBlock: {
-        component: LLMMarkdown,
+        component: MarkdownBlock,
         lookBack: markdownLookBack(),
       },
       blocks: [
         {
-          component: LLMCodeBlock,
+          component: CodeBlockWrapper,
           findCompleteMatch: findCompleteCodeBlock(),
           findPartialMatch: findPartialCodeBlock(),
           lookBack: codeBlockLookBack(),
@@ -83,8 +83,8 @@ function EnhancedMarkdownComponent({
   );
 }
 
-export const EnhancedMarkdown = memo(
-  EnhancedMarkdownComponent,
+export const StreamingMarkdown = memo(
+  StreamingMarkdownComponent,
   (prevProps, nextProps) => {
     // Custom comparison for better memoization during streaming
     if (
