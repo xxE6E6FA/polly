@@ -10,12 +10,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Send,
-  Square,
-  ChevronDown,
-  MessageSquarePlus,
-  GitBranch,
-} from "lucide-react";
+  PaperPlaneTiltIcon,
+  SquareIcon,
+  CaretDownIcon,
+  ChatCircleIcon,
+  GitBranchIcon,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface SendButtonGroupProps {
@@ -74,7 +74,7 @@ export function SendButtonGroup({
                     "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   )}
                 >
-                  <ChevronDown
+                  <CaretDownIcon
                     className={cn(
                       "h-3 w-3",
                       canSend ? "text-primary-foreground" : "text-current"
@@ -106,7 +106,7 @@ export function SendButtonGroup({
               )}
             >
               <div className="flex-shrink-0 mt-0.5">
-                <MessageSquarePlus className="w-4 h-4 text-primary" />
+                <ChatCircleIcon className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none">
@@ -129,7 +129,7 @@ export function SendButtonGroup({
               )}
             >
               <div className="flex-shrink-0 mt-0.5">
-                <GitBranch className="w-4 h-4 text-primary" />
+                <GitBranchIcon className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none">
@@ -174,11 +174,11 @@ export function SendButtonGroup({
         }
       >
         {isStreaming ? (
-          <Square className="h-3.5 w-3.5 fill-current" />
+          <SquareIcon className="h-3.5 w-3.5 fill-current" />
         ) : isLoading || isSummarizing ? (
           <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
         ) : (
-          <Send className="h-4 w-4" />
+          <PaperPlaneTiltIcon className="h-4 w-4" />
         )}
       </button>
     </div>

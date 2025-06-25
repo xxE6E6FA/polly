@@ -1,9 +1,15 @@
 import React, { memo, useState, useCallback } from "react";
 import { ConvexFileDisplay } from "@/components/convex-file-display";
-import { EnhancedMarkdown } from "@/components/ui/enhanced-markdown";
+import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
 import { ChatMessage as ChatMessageType } from "@/types";
-import { Copy, Edit2, Check, RotateCcw, Trash2 } from "lucide-react";
+import {
+  CopyIcon,
+  CheckIcon,
+  NotePencilIcon,
+  ArrowCounterClockwiseIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Reasoning } from "@/components/reasoning";
 import { Citations } from "@/components/citations";
@@ -111,9 +117,9 @@ const MessageActions = memo(
           <ActionButton
             icon={
               isCopied ? (
-                <Check className="h-3.5 w-3.5" />
+                <CheckIcon className="h-3.5 w-3.5" />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <CopyIcon className="h-3.5 w-3.5" />
               )
             }
             tooltip="Copy message"
@@ -123,7 +129,7 @@ const MessageActions = memo(
 
           {onEditMessage && (
             <ActionButton
-              icon={<Edit2 className="h-3.5 w-3.5" />}
+              icon={<NotePencilIcon className="h-3.5 w-3.5" />}
               tooltip="Edit message"
               onClick={onEditMessage}
               disabled={isEditing}
@@ -133,7 +139,7 @@ const MessageActions = memo(
           {onRetryMessage && (
             <ActionButton
               icon={
-                <RotateCcw
+                <ArrowCounterClockwiseIcon
                   className={`h-3.5 w-3.5 ${isRetrying ? "animate-spin-reverse" : ""}`}
                 />
               }
@@ -148,7 +154,7 @@ const MessageActions = memo(
 
           {onDeleteMessage && (
             <ActionButton
-              icon={<Trash2 className="h-3.5 w-3.5" />}
+              icon={<TrashIcon className="h-3.5 w-3.5" />}
               tooltip="Delete message"
               onClick={onDeleteMessage}
               disabled={isEditing || isDeleting || isStreaming}
@@ -378,9 +384,9 @@ function ChatMessageComponent({
               </div>
             )}
 
-            <EnhancedMarkdown isStreaming={isStreaming} messageId={message.id}>
+            <StreamingMarkdown isStreaming={isStreaming} messageId={message.id}>
               {displayContent}
-            </EnhancedMarkdown>
+            </StreamingMarkdown>
 
             {message.citations && message.citations.length > 0 && (
               <div className="mt-2.5">

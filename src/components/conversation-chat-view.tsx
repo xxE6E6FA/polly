@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ChatZeroState } from "./chat-zero-state";
 import { useTextSelection } from "@/hooks/use-text-selection";
-import { EnhancedQuoteButton } from "./ui/enhanced-quote-button";
+import { QuoteButton } from "./ui/quote-button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { ContextMessage } from "./context-message";
@@ -83,6 +83,73 @@ export function ConversationChatView({
 
   const [isScrolling, setIsScrolling] = useState(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Mouse-based header reveal state
+  const [isMouseInHeaderArea, setIsMouseInHeaderArea] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const mouseLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle mouse movement for header reveal
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!headerRef.current || !scrollState.shouldHideHeader) {
+        // Only apply mouse logic when header is hidden
+        return;
+      }
+
+      const headerHeight = 64; // 16 * 4 = h-16 in pixels
+      const triggerZone = headerHeight + 20; // Extra 20px buffer zone
+
+      if (e.clientY <= triggerZone) {
+        // Clear any pending hide timeout
+        if (mouseLeaveTimeoutRef.current) {
+          clearTimeout(mouseLeaveTimeoutRef.current);
+          mouseLeaveTimeoutRef.current = null;
+        }
+        setIsMouseInHeaderArea(true);
+      } else if (isMouseInHeaderArea) {
+        // Add a small delay before hiding to prevent flickering
+        if (!mouseLeaveTimeoutRef.current) {
+          mouseLeaveTimeoutRef.current = setTimeout(() => {
+            setIsMouseInHeaderArea(false);
+            mouseLeaveTimeoutRef.current = null;
+          }, 300);
+        }
+      }
+    },
+    [scrollState.shouldHideHeader, isMouseInHeaderArea]
+  );
+
+  // Handle mouse leave from the viewport
+  const handleMouseLeave = useCallback(() => {
+    if (mouseLeaveTimeoutRef.current) {
+      clearTimeout(mouseLeaveTimeoutRef.current);
+      mouseLeaveTimeoutRef.current = null;
+    }
+    setIsMouseInHeaderArea(false);
+  }, []);
+
+  // Set up mouse event listeners
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Use the container for mouse events instead of document
+    const handleContainerMouseMove = (e: MouseEvent) => handleMouseMove(e);
+    const handleContainerMouseLeave = () => handleMouseLeave();
+
+    container.addEventListener("mousemove", handleContainerMouseMove);
+    container.addEventListener("mouseleave", handleContainerMouseLeave);
+
+    return () => {
+      container.removeEventListener("mousemove", handleContainerMouseMove);
+      container.removeEventListener("mouseleave", handleContainerMouseLeave);
+
+      if (mouseLeaveTimeoutRef.current) {
+        clearTimeout(mouseLeaveTimeoutRef.current);
+      }
+    };
+  }, [handleMouseMove, handleMouseLeave]);
 
   const smoothScrollToMessage = useCallback(
     (
@@ -180,7 +247,12 @@ export function ConversationChatView({
     isInitialLoadRef.current = true;
     prevMessagesLengthRef.current = 0;
     prevLastUserMessageIdRef.current = null;
-  }, [conversationId]);
+
+    // Force reset the scroll ref to trigger initial load state in scroll hook
+    if (messagesContainerRef.current) {
+      setScrollRef(messagesContainerRef.current);
+    }
+  }, [conversationId, setScrollRef]);
 
   useLayoutEffect(() => {
     if (messagesContainerRef.current) {
@@ -217,6 +289,9 @@ export function ConversationChatView({
     return () => {
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
+      }
+      if (mouseLeaveTimeoutRef.current) {
+        clearTimeout(mouseLeaveTimeoutRef.current);
       }
     };
   }, []);
@@ -318,9 +393,12 @@ export function ConversationChatView({
                 {isLoadingConversation ? (
                   <div className="space-y-1 sm:space-y-2 pb-32">
                     <div
+                      ref={headerRef}
                       className={cn(
                         "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
-                        scrollState.shouldHideHeader && "sm:-translate-y-full"
+                        scrollState.shouldHideHeader &&
+                          !isMouseInHeaderArea &&
+                          "sm:-translate-y-full"
                       )}
                     >
                       <div className="h-16 flex items-center">
@@ -339,9 +417,12 @@ export function ConversationChatView({
                     )}
                   >
                     <div
+                      ref={headerRef}
                       className={cn(
                         "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
-                        scrollState.shouldHideHeader && "sm:-translate-y-full"
+                        scrollState.shouldHideHeader &&
+                          !isMouseInHeaderArea &&
+                          "sm:-translate-y-full"
                       )}
                     >
                       <div className="h-16 flex items-center">
@@ -470,7 +551,7 @@ export function ConversationChatView({
       )}
 
       {selection && (
-        <EnhancedQuoteButton
+        <QuoteButton
           selectedText={selection.text}
           onQuote={handleQuoteSelection}
           rect={selection.rect}

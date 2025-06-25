@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { XIcon } from "@phosphor-icons/react";
 import { Attachment } from "@/types";
 import { cn } from "@/lib/utils";
 import { ConvexImageThumbnail } from "@/components/convex-file-display";
@@ -82,10 +82,10 @@ export function AttachmentList({
               variant="ghost"
               size="sm"
               onClick={() => onRemoveAttachment(index)}
-              className="h-4 w-4 p-0 opacity-60 group-hover:opacity-100 hover:text-destructive transition-all duration-200"
+              className="h-4 w-4 p-0 opacity-60 hover:opacity-100 hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-all duration-200 rounded"
               disabled={!canChat}
             >
-              <X className="h-2.5 w-2.5" />
+              <XIcon className="h-2.5 w-2.5" />
             </Button>
           </div>
         ))}

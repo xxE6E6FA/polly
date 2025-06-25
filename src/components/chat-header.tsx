@@ -10,7 +10,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, FileJson, Share2, MoreHorizontal } from "lucide-react";
+import {
+  FileTextIcon,
+  FileCodeIcon,
+  ShareNetworkIcon,
+  DotsThreeVerticalIcon,
+  StackPlusIcon,
+} from "@phosphor-icons/react";
 import { ShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import {
   exportAsJSON,
@@ -21,6 +27,13 @@ import {
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-user";
 import { Skeleton } from "./ui/skeleton";
+import { Link } from "react-router";
+import { ROUTES } from "@/lib/routes";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface ChatHeaderProps {
   conversationId?: ConversationId;
@@ -84,71 +97,99 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
 
   // For chat pages, show full header with conversation title
   return (
-    <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between w-full gap-2 sm:gap-4 min-h-[2.5rem]">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {conversation === undefined ? (
           // Loading state for title
-          <Skeleton className="h-5 w-[200px]" />
+          <Skeleton className="h-5 w-[120px] sm:w-[200px]" />
         ) : conversation?.title ? (
-          <h1 className="text-sm font-medium text-foreground">
+          <h1 className="text-sm font-medium text-foreground truncate">
             {conversation.title}
           </h1>
         ) : (
           <div className="h-5" />
         )}
         {persona && (
-          <Badge
-            variant="info-subtle"
-            size="default"
-            className="gap-1.5 pl-1.5 pr-2.5 py-1 font-medium shadow-sm backdrop-blur-sm transition-all duration-200 hover:shadow-md hover:scale-105"
-          >
-            <span className="text-base leading-none">
-              {persona.icon || "🤖"}
-            </span>
-            <span className="text-xs">{persona.name}</span>
-          </Badge>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge
+                variant="info"
+                className="gap-1 sm:gap-2 flex-shrink-0 cursor-default"
+              >
+                <span className="text-xs sm:text-sm">
+                  {persona.icon || "🤖"}
+                </span>
+                <span className="text-xxs hidden sm:inline">
+                  {persona.name}
+                </span>
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="sm:hidden">
+              <p>{persona.name}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
 
       {/* Only show actions for authenticated users */}
       {conversationId && isAuthenticated && (
-        <div className="flex items-center gap-2">
-          {/* Share button - always visible, disabled when loading */}
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="action"
+                size="icon-sm"
+                className="sm:w-auto sm:px-3 sm:gap-2"
+                asChild
+              >
+                <Link to={ROUTES.HOME}>
+                  <StackPlusIcon className="h-4 w-4" />
+                  <span className="hidden sm:inline text-xs">New</span>
+                  <span className="sr-only sm:hidden">New chat</span>
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="sm:hidden">
+              <p>New chat</p>
+            </TooltipContent>
+          </Tooltip>
           <ShareConversationDialog conversationId={conversationId}>
             <Button
               variant="action"
-              size="sm"
-              className="gap-2"
+              size="icon-sm"
+              className="sm:w-auto sm:px-3 sm:gap-2"
               disabled={!conversation}
+              title={conversation ? "Share conversation" : "Loading..."}
             >
-              <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Share</span>
-              <span className="sr-only">Share conversation</span>
+              <ShareNetworkIcon className="h-4 w-4" />
+              <span className="hidden sm:inline text-xs">Share</span>
+              <span className="sr-only sm:hidden">Share conversation</span>
             </Button>
           </ShareConversationDialog>
 
-          {/* Export dropdown - always visible */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="action" size="icon-sm">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="action" size="icon-sm" title="More options">
+                <DotsThreeVerticalIcon weight="bold" className="h-4 w-4" />
                 <span className="sr-only">More options</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem
                 onClick={() => handleExport("md")}
                 disabled={!exportData}
+                className="cursor-pointer"
               >
-                <FileText className="mr-2 h-4 w-4" />
-                Export as Markdown
+                <FileTextIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span>Export as Markdown</span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => handleExport("json")}
                 disabled={!exportData}
+                className="cursor-pointer"
               >
-                <FileJson className="mr-2 h-4 w-4" />
-                Export as JSON
+                <FileCodeIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                <span>Export as JSON</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
