@@ -10,9 +10,6 @@
       "destination": "/index.html"
     }
   ],
-  "env": {
-    "VITE_CONVEX_URL": "@VITE_CONVEX_URL"
-  },
   "headers": [
     {
       "source": "/assets/(.*)",
