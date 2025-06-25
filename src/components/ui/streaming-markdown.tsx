@@ -1,4 +1,12 @@
-import { memo, useMemo, createContext, useContext } from "react";
+import {
+  memo,
+  useMemo,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   codeBlockLookBack,
   findCompleteCodeBlock,
@@ -13,6 +21,14 @@ import { CodeBlockWrapperLLM } from "./code-block-wrapper";
 const MessageContext = createContext<string | undefined>(undefined);
 export const useMessageId = () => useContext(MessageContext);
 
+const throttle = throttleBasic({
+  readAheadChars: 10,
+  targetBufferChars: 9,
+  adjustPercentage: 0.2,
+  frameLookBackMs: 10000,
+  windowLookBackMs: 2000,
+});
+
 interface StreamingMarkdownProps {
   children: string;
   className?: string;
@@ -20,13 +36,12 @@ interface StreamingMarkdownProps {
   messageId?: string;
 }
 
-function StreamingMarkdownComponent({
+function StreamingMarkdownInner({
   children,
   className,
   isStreaming = false,
   messageId,
 }: StreamingMarkdownProps) {
-  // Memoize block configuration to prevent recreation
   const blockConfig = useMemo(
     () => ({
       fallbackBlock: {
@@ -42,19 +57,6 @@ function StreamingMarkdownComponent({
         },
       ],
     }),
-    []
-  );
-
-  // Configure throttling for smoother streaming experience
-  const throttle = useMemo(
-    () =>
-      throttleBasic({
-        readAheadChars: 10,
-        targetBufferChars: 9,
-        adjustPercentage: 0.2,
-        frameLookBackMs: 10000,
-        windowLookBackMs: 2000,
-      }),
     []
   );
 
@@ -83,14 +85,45 @@ function StreamingMarkdownComponent({
   );
 }
 
+function StreamingMarkdownComponent({
+  children,
+  className,
+  isStreaming = false,
+  messageId,
+}: StreamingMarkdownProps) {
+  const [frozenContent, setFrozenContent] = useState<string | null>(null);
+  const [streamKey, setStreamKey] = useState(0);
+  const wasStreamingRef = useRef(isStreaming);
+
+  useEffect(() => {
+    if (wasStreamingRef.current && !isStreaming) {
+      setFrozenContent(children);
+      setStreamKey(prev => prev + 1);
+    } else if (!wasStreamingRef.current && isStreaming) {
+      setFrozenContent(null);
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming, children]);
+
+  // Use frozen content when available (after stop), otherwise use live content
+  const contentToRender = frozenContent !== null ? frozenContent : children;
+
+  return (
+    <StreamingMarkdownInner
+      key={`${messageId}-${streamKey}`}
+      children={contentToRender}
+      className={className}
+      isStreaming={isStreaming && frozenContent === null}
+      messageId={messageId}
+    />
+  );
+}
+
 export const StreamingMarkdown = memo(
   StreamingMarkdownComponent,
   (prevProps, nextProps) => {
-    // Custom comparison for better memoization during streaming
-    if (
-      prevProps.isStreaming !== nextProps.isStreaming ||
-      prevProps.className !== nextProps.className
-    ) {
+    // Always re-render when streaming state changes to ensure proper freezing
+    if (prevProps.isStreaming !== nextProps.isStreaming) {
       return false;
     }
 
@@ -99,11 +132,14 @@ export const StreamingMarkdown = memo(
       const sizeDiff = Math.abs(
         nextProps.children.length - prevProps.children.length
       );
-      // Only re-render if content difference is significant (more than 50 characters)
+      // Only re-render if content difference is significant
       return sizeDiff < 10;
     }
 
     // Not streaming, compare normally
-    return prevProps.children === nextProps.children;
+    return (
+      prevProps.children === nextProps.children &&
+      prevProps.className === nextProps.className
+    );
   }
 );
