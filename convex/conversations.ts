@@ -432,7 +432,7 @@ export const createNewConversation = action({
     }
 
     // Schedule AI response
-    await ctx.scheduler.runAfter(0, api.openai.streamResponse, {
+    await ctx.scheduler.runAfter(0, api.ai.streamResponse, {
       messages: contextMessages,
       messageId: result.assistantMessageId,
       model: selectedModel.modelId,
@@ -696,7 +696,7 @@ export const sendFollowUpMessage = action({
       });
 
       // Start streaming response
-      await ctx.runAction(api.openai.streamResponse, {
+      await ctx.runAction(api.ai.streamResponse, {
         messages: contextMessages,
         messageId: assistantMessageId,
         model: args.model,
@@ -936,7 +936,7 @@ export const retryFromMessage = action({
       });
 
       // Start streaming response
-      await ctx.runAction(api.openai.streamResponse, {
+      await ctx.runAction(api.ai.streamResponse, {
         messages: contextMessages,
         messageId: assistantMessageId,
         model: args.model,
@@ -1178,7 +1178,7 @@ export const editMessage = action({
       });
 
       // Start streaming response
-      await ctx.runAction(api.openai.streamResponse, {
+      await ctx.runAction(api.ai.streamResponse, {
         messages: contextMessages,
         messageId: assistantMessageId,
         model: args.model,
@@ -1223,7 +1223,7 @@ export const stopGeneration = action({
 
       if (streamingMessage) {
         // Stop the streaming for this specific message
-        await ctx.runAction(api.openai.stopStreaming, {
+        await ctx.runAction(api.ai.stopStreaming, {
           messageId: streamingMessage._id,
         });
       }
@@ -1353,7 +1353,7 @@ export const resumeConversation = action({
     });
 
     // Start streaming response
-    await ctx.runAction(api.openai.streamResponse, {
+    await ctx.runAction(api.ai.streamResponse, {
       messages: finalContextMessages,
       messageId: assistantMessageId,
       model: userModel.modelId,
