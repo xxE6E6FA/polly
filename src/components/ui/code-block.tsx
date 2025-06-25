@@ -1,6 +1,11 @@
 import { memo, useState, useRef } from "react";
 import { Highlight } from "prism-react-renderer";
-import { Copy, Check, WrapText, Download } from "lucide-react";
+import {
+  CopyIcon,
+  CheckIcon,
+  TextAlignJustifyIcon,
+  DownloadIcon,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -15,39 +20,20 @@ interface CodeBlockProps {
   code: string;
   language?: string;
   className?: string;
-  // If true, treats code as markdown code block and extracts language/content
-  isMarkdownBlock?: boolean;
 }
 
 function CodeBlockComponent({
   code,
   language = "text",
   className,
-  isMarkdownBlock = false,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
-  const [wordWrap, setWordWrap] = useState(false);
+  const [wordWrap, setWordWrap] = useState(true);
   const { theme } = useTheme();
   const codeContainerRef = useRef<HTMLDivElement>(null);
 
-  // Process markdown code blocks if needed
-  const { processedCode, processedLanguage } = (() => {
-    if (!isMarkdownBlock) {
-      return { processedCode: code, processedLanguage: language };
-    }
-
-    const lines = code.split("\n");
-    const firstLine = lines[0];
-    const extractedLanguage = firstLine.startsWith("```")
-      ? firstLine.slice(3).trim()
-      : language;
-    const extractedCode = lines.slice(1, -1).join("\n");
-
-    return {
-      processedCode: extractedCode,
-      processedLanguage: extractedLanguage || "text",
-    };
-  })();
+  const processedCode = code;
+  const processedLanguage = language;
 
   const handleCopy = async () => {
     try {
@@ -128,7 +114,7 @@ function CodeBlockComponent({
                 onClick={handleDownload}
                 className="h-7 w-7 p-0 hover:bg-muted-foreground/10"
               >
-                <Download className="h-3 w-3" />
+                <DownloadIcon className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -146,7 +132,7 @@ function CodeBlockComponent({
                   wordWrap && "bg-accent"
                 )}
               >
-                <WrapText className="h-3 w-3" />
+                <TextAlignJustifyIcon className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -163,9 +149,9 @@ function CodeBlockComponent({
               >
                 <div className="relative h-4 w-4">
                   {copied ? (
-                    <Check className="h-3 w-3 text-accent-coral absolute inset-0 transition-all duration-200" />
+                    <CheckIcon className="h-3 w-3 text-[hsl(220_95%_55%)] absolute inset-0 transition-all duration-200" />
                   ) : (
-                    <Copy className="h-3 w-3 absolute inset-0 transition-all duration-200" />
+                    <CopyIcon className="h-3 w-3 absolute inset-0 transition-all duration-200" />
                   )}
                 </div>
               </Button>
