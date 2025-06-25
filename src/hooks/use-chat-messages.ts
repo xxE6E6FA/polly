@@ -87,10 +87,27 @@ export function useChatMessages({
       if (!user?._id || !conversationId) return;
 
       try {
-        const remainingMessages = messages.filter(m => m.id !== messageId);
-        const isLastMessage = remainingMessages.length === 0;
+        // Filter messages the same way as the UI does
+        const visibleMessages = messages.filter(message => {
+          // Skip system messages
+          if (message.role === "system") {
+            return false;
+          }
+          // Skip assistant messages without content or reasoning
+          if (message.role === "assistant") {
+            return message.content || message.reasoning;
+          }
+          // Include all other messages
+          return true;
+        });
 
-        if (isLastMessage) {
+        // Check if this is the last visible message
+        const remainingVisibleMessages = visibleMessages.filter(
+          m => m.id !== messageId
+        );
+        const isLastVisibleMessage = remainingVisibleMessages.length === 0;
+
+        if (isLastVisibleMessage) {
           // Navigate away first to prevent error flash
           navigate(ROUTES.HOME);
 
