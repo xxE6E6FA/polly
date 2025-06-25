@@ -22,11 +22,11 @@ const MessageContext = createContext<string | undefined>(undefined);
 export const useMessageId = () => useContext(MessageContext);
 
 const throttle = throttleBasic({
-  readAheadChars: 10,
-  targetBufferChars: 9,
-  adjustPercentage: 0.2,
-  frameLookBackMs: 10000,
-  windowLookBackMs: 2000,
+  readAheadChars: 1,
+  targetBufferChars: 0,
+  adjustPercentage: 0.1,
+  frameLookBackMs: 1000,
+  windowLookBackMs: 500,
 });
 
 interface StreamingMarkdownProps {
@@ -127,13 +127,10 @@ export const StreamingMarkdown = memo(
       return false;
     }
 
-    // During streaming, only re-render if content has meaningful changes
+    // During streaming, always re-render if content changes at all
     if (nextProps.isStreaming) {
-      const sizeDiff = Math.abs(
-        nextProps.children.length - prevProps.children.length
-      );
-      // Only re-render if content difference is significant
-      return sizeDiff < 10;
+      // If content has changed, re-render (return false means "props are not equal, re-render")
+      return prevProps.children === nextProps.children;
     }
 
     // Not streaming, compare normally

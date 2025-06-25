@@ -13,6 +13,15 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai_citations from "../ai/citations.js";
+import type * as ai_config from "../ai/config.js";
+import type * as ai_encryption from "../ai/encryption.js";
+import type * as ai_errors from "../ai/errors.js";
+import type * as ai_messages from "../ai/messages.js";
+import type * as ai_providers from "../ai/providers.js";
+import type * as ai_streaming from "../ai/streaming.js";
+import type * as ai_types from "../ai/types.js";
+import type * as ai_utils from "../ai/utils.js";
 import type * as ai from "../ai.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
@@ -46,6 +55,15 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "ai/citations": typeof ai_citations;
+  "ai/config": typeof ai_config;
+  "ai/encryption": typeof ai_encryption;
+  "ai/errors": typeof ai_errors;
+  "ai/messages": typeof ai_messages;
+  "ai/providers": typeof ai_providers;
+  "ai/streaming": typeof ai_streaming;
+  "ai/types": typeof ai_types;
+  "ai/utils": typeof ai_utils;
   ai: typeof ai;
   apiKeys: typeof apiKeys;
   auth: typeof auth;

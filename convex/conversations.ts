@@ -202,14 +202,33 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {
-    // Delete all messages in the conversation
+    // First, ensure streaming is stopped for this conversation
+    try {
+      await ctx.db.patch(args.id, {
+        isStreaming: false,
+      });
+    } catch (error) {
+      console.warn(
+        `Failed to clear streaming state for conversation ${args.id}:`,
+        error
+      );
+    }
+
+    // Get all messages in the conversation
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", q => q.eq("conversationId", args.id))
       .collect();
 
-    for (const message of messages) {
-      await ctx.db.delete(message._id);
+    // Use the messages.removeMultiple mutation which handles attachments and streaming
+    if (messages.length > 0) {
+      const messageIds = messages.map(m => m._id);
+      // We'll delete messages in batches to avoid potential timeouts
+      const batchSize = 50;
+      for (let i = 0; i < messageIds.length; i += batchSize) {
+        const batch = messageIds.slice(i, i + batchSize);
+        await ctx.runMutation(api.messages.removeMultiple, { ids: batch });
+      }
     }
 
     // Delete the conversation

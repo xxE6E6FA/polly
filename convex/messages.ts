@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 export const create = mutation({
   args: {
@@ -223,11 +224,31 @@ export const setBranch = mutation({
 export const remove = mutation({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
-    // Get the message to check for attachments
+    // Get the message to check for attachments and conversation
     const message = await ctx.db.get(args.id);
 
+    if (!message) {
+      // Message already deleted
+      return;
+    }
+
+    // If message has a conversation, clear streaming state
+    if (message.conversationId) {
+      try {
+        // Clear streaming state for the conversation
+        await ctx.db.patch(message.conversationId, {
+          isStreaming: false,
+        });
+      } catch (error) {
+        console.warn(
+          `Failed to clear streaming state for conversation ${message.conversationId}:`,
+          error
+        );
+      }
+    }
+
     // Clean up any attached files from storage
-    if (message?.attachments) {
+    if (message.attachments) {
       for (const attachment of message.attachments) {
         if (attachment.storageId) {
           try {
@@ -249,28 +270,55 @@ export const remove = mutation({
 export const removeMultiple = mutation({
   args: { ids: v.array(v.id("messages")) },
   handler: async (ctx, args) => {
-    // Get all messages to check for attachments
+    // Get all messages to check for attachments and conversations
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
+
+    // Collect unique conversation IDs
+    const conversationIds = new Set<Id<"conversations">>();
 
     // Clean up any attached files from storage
     for (const message of messages) {
-      if (message?.attachments) {
-        for (const attachment of message.attachments) {
-          if (attachment.storageId) {
-            try {
-              await ctx.storage.delete(attachment.storageId);
-            } catch (error) {
-              console.warn(
-                `Failed to delete file ${attachment.storageId}:`,
-                error
-              );
+      if (message) {
+        if (message.conversationId) {
+          conversationIds.add(message.conversationId);
+        }
+
+        if (message.attachments) {
+          for (const attachment of message.attachments) {
+            if (attachment.storageId) {
+              try {
+                await ctx.storage.delete(attachment.storageId);
+              } catch (error) {
+                console.warn(
+                  `Failed to delete file ${attachment.storageId}:`,
+                  error
+                );
+              }
             }
           }
         }
       }
     }
 
-    const deletionPromises = args.ids.map(id => ctx.db.delete(id));
+    // Clear streaming state for affected conversations
+    for (const conversationId of conversationIds) {
+      try {
+        await ctx.db.patch(conversationId, {
+          isStreaming: false,
+        });
+      } catch (error) {
+        console.warn(
+          `Failed to clear streaming state for conversation ${conversationId}:`,
+          error
+        );
+      }
+    }
+
+    const deletionPromises = args.ids.map(id =>
+      ctx.db.delete(id).catch(error => {
+        console.warn(`Failed to delete message ${id}:`, error);
+      })
+    );
     await Promise.all(deletionPromises);
   },
 });
@@ -358,22 +406,55 @@ export const internalAtomicUpdate = internalMutation({
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;
 
-    // Get current message if we need to append
-    if (appendContent || appendReasoning) {
-      const message = await ctx.db.get(id);
-      if (!message) {
-        throw new Error(`Message with id ${id} not found`);
-      }
+    // Use a retry loop with exponential backoff for write conflicts
+    let retries = 0;
+    const maxRetries = 5; // More retries for atomic updates during streaming
 
-      if (appendContent) {
-        updates.content = (message.content || "") + appendContent;
-      }
-      if (appendReasoning) {
-        updates.reasoning = (message.reasoning || "") + appendReasoning;
+    while (retries <= maxRetries) {
+      try {
+        // For append operations, we need to be extra careful about concurrent modifications
+        if (appendContent || appendReasoning) {
+          // Use a transaction-like approach: read and update in one go
+          const message = await ctx.db.get(id);
+          if (!message) {
+            throw new Error(`Message with id ${id} not found`);
+          }
+
+          const updatesWithAppend = { ...updates };
+          if (appendContent) {
+            updatesWithAppend.content = (message.content || "") + appendContent;
+          }
+          if (appendReasoning) {
+            updatesWithAppend.reasoning =
+              (message.reasoning || "") + appendReasoning;
+          }
+
+          return await ctx.db.patch(id, updatesWithAppend);
+        } else {
+          // For non-append operations, just do a simple patch
+          return await ctx.db.patch(id, updates);
+        }
+      } catch (error) {
+        // Check if this is a write conflict and we should retry
+        if (
+          retries < maxRetries &&
+          error instanceof Error &&
+          (error.message.includes(
+            "changed while this mutation was being run"
+          ) ||
+            error.message.includes("write conflict") ||
+            error.message.includes("conflict"))
+        ) {
+          retries++;
+          // Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms
+          await new Promise(resolve =>
+            setTimeout(resolve, 10 * Math.pow(2, retries - 1))
+          );
+          continue;
+        }
+        throw error;
       }
     }
-
-    return await ctx.db.patch(id, updates);
   },
 });
 
