@@ -2,15 +2,30 @@ import { lazy, Suspense } from "react";
 import { type RouteObject } from "react-router";
 import RootLayout from "./components/layouts/RootLayout";
 import HomePage from "./pages/HomePage";
-import AuthPage from "./pages/AuthPage";
 import ChatConversationPage from "./pages/ChatConversationPage";
 import ChatLayout from "./components/layouts/ChatLayout";
-import AuthCallbackPage from "./pages/AuthCallbackPage";
-import { NotFoundPage } from "./components/ui/not-found-page";
-import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
 import { Spinner } from "./components/spinner";
-import { RouteErrorBoundary } from "./components/layouts/RouteErrorBoundary";
 
+// Lazy load everything except HomePage, ChatConversationPage, and ChatLayout
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
+const NotFoundPage = lazy(() =>
+  import("./components/ui/not-found-page").then(m => ({
+    default: m.NotFoundPage,
+  }))
+);
+const ProtectedSuspense = lazy(() =>
+  import("./components/auth/ProtectedRoute").then(m => ({
+    default: m.ProtectedSuspense,
+  }))
+);
+const RouteErrorBoundary = lazy(() =>
+  import("./components/layouts/RouteErrorBoundary").then(m => ({
+    default: m.RouteErrorBoundary,
+  }))
+);
+
+// Lazy load all settings pages
 const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
   () => import("./components/layouts/SettingsMainLayout")
@@ -54,11 +69,20 @@ export const preloadSettings = () => {
   import("./pages/settings/AboutPage"); // Preload default settings page too
 };
 
+// Preload auth pages when needed
+export const preloadAuth = () => {
+  import("./pages/AuthPage");
+};
+
 export const routes: RouteObject[] = [
   {
     path: "/",
     element: <RootLayout />,
-    errorElement: <RouteErrorBoundary />,
+    errorElement: (
+      <Suspense fallback={<PageLoader size="full" />}>
+        <RouteErrorBoundary />
+      </Suspense>
+    ),
     children: [
       {
         index: true,
@@ -66,25 +90,37 @@ export const routes: RouteObject[] = [
       },
       {
         path: "auth",
-        element: <AuthPage />,
+        element: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <AuthPage />
+          </Suspense>
+        ),
       },
       {
         path: "auth/callback",
-        element: <AuthCallbackPage />,
+        element: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <AuthCallbackPage />
+          </Suspense>
+        ),
       },
       {
         path: "chat",
-        element: (
-          <Suspense fallback={<PageLoader size="compact" />}>
-            <ChatLayout />
+        element: <ChatLayout />,
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
           </Suspense>
         ),
-        errorElement: <RouteErrorBoundary />,
         children: [
           {
             path: ":conversationId",
             element: <ChatConversationPage />,
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
         ],
       },
@@ -95,16 +131,26 @@ export const routes: RouteObject[] = [
             <SharePage />
           </Suspense>
         ),
-        errorElement: <RouteErrorBoundary />,
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
       },
       {
         path: "settings",
         element: (
-          <ProtectedSuspense fallback={<PageLoader size="full" />}>
-            <SettingsLayout />
-          </ProtectedSuspense>
+          <Suspense fallback={<PageLoader size="full" />}>
+            <ProtectedSuspense fallback={<PageLoader size="full" />}>
+              <SettingsLayout />
+            </ProtectedSuspense>
+          </Suspense>
         ),
-        errorElement: <RouteErrorBoundary />,
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
         children: [
           {
             index: true,
@@ -113,7 +159,11 @@ export const routes: RouteObject[] = [
                 <SettingsIndexPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "api-keys",
@@ -122,7 +172,11 @@ export const routes: RouteObject[] = [
                 <SettingsApiKeysPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "models",
@@ -131,7 +185,11 @@ export const routes: RouteObject[] = [
                 <SettingsModelsPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "personas",
@@ -140,7 +198,11 @@ export const routes: RouteObject[] = [
                 <SettingsPersonasPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "about",
@@ -149,7 +211,11 @@ export const routes: RouteObject[] = [
                 <SettingsAboutPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "personas/new",
@@ -158,7 +224,11 @@ export const routes: RouteObject[] = [
                 <SettingsNewPersonaPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
           {
             path: "personas/:id/edit",
@@ -167,13 +237,21 @@ export const routes: RouteObject[] = [
                 <SettingsEditPersonaPage />
               </Suspense>
             ),
-            errorElement: <RouteErrorBoundary />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
           },
         ],
       },
       {
         path: "*",
-        element: <NotFoundPage />,
+        element: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <NotFoundPage />
+          </Suspense>
+        ),
       },
     ],
   },

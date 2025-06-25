@@ -1,6 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { countTokens as gptCountTokens } from "gpt-tokenizer";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -46,16 +45,20 @@ export function resizeGoogleImageUrl(url: string, size: number): string {
   }
 }
 
-// Token counting utility
-export function countTokens(text: string): number {
+// Token counting utility using word-based estimation
+export async function countTokens(text: string): Promise<number> {
   if (!text || text.trim().length === 0) return 0;
 
-  try {
-    // Use the gpt-tokenizer library for accurate token counting
-    return gptCountTokens(text);
-  } catch {
-    // Fallback to simple word-based estimation if tokenizer fails
-    // Roughly 0.75 tokens per word is a common approximation
-    return Math.ceil(text.split(/\s+/).length * 0.75);
-  }
+  // Simple word-based estimation
+  // Roughly 0.75 tokens per word is a common approximation
+  return Math.ceil(text.split(/\s+/).length * 0.75);
+}
+
+// Synchronous version
+export function countTokensSync(text: string): number {
+  if (!text || text.trim().length === 0) return 0;
+
+  // Simple word-based estimation
+  // Roughly 0.75 tokens per word is a common approximation
+  return Math.ceil(text.split(/\s+/).length * 0.75);
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { Spinner } from "@/components/spinner";
-import { countTokens } from "@/lib/utils";
+import { countTokens, countTokensSync } from "@/lib/utils";
 import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
@@ -67,12 +67,12 @@ export function PersonaForm({
   });
 
   // Sync prompt changes with form data
-  React.useEffect(() => {
+  useEffect(() => {
     setFormData(prev => ({ ...prev, prompt: promptValue }));
   }, [promptValue, setFormData]);
 
   // Sync the prompt value when formData.prompt changes (e.g., when loading existing persona)
-  React.useEffect(() => {
+  useEffect(() => {
     // Only update if the promptValue is empty and formData.prompt has content
     // This prevents overwriting user edits when the form data changes
     if (!promptValue && formData.prompt) {
@@ -80,9 +80,31 @@ export function PersonaForm({
     }
   }, [formData.prompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const tokenCount = useMemo(() => countTokens(promptValue), [promptValue]);
+  // Use synchronous estimation initially, then update with accurate count
+  const [tokenCount, setTokenCount] = useState(() =>
+    countTokensSync(promptValue)
+  );
 
-  const handlePromptChange = React.useCallback(
+  // Update token count asynchronously for accuracy
+  useEffect(() => {
+    let cancelled = false;
+
+    // Update with synchronous estimate immediately
+    setTokenCount(countTokensSync(promptValue));
+
+    // Then get accurate count asynchronously
+    countTokens(promptValue).then(count => {
+      if (!cancelled) {
+        setTokenCount(count);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [promptValue]);
+
+  const handlePromptChange = useCallback(
     (newValue: string) => {
       setPromptValue(newValue);
     },

@@ -7,7 +7,7 @@ import {
 import { markdownLookBack } from "@llm-ui/markdown";
 import { useLLMOutput, throttleBasic } from "@llm-ui/react";
 import { MarkdownBlock } from "./markdown-block";
-import { CodeBlockWrapper } from "./code-block-wrapper";
+import { CodeBlockWrapperLLM } from "./code-block-wrapper";
 
 // Context for passing messageId to child components
 const MessageContext = createContext<string | undefined>(undefined);
@@ -35,7 +35,7 @@ function StreamingMarkdownComponent({
       },
       blocks: [
         {
-          component: CodeBlockWrapper,
+          component: CodeBlockWrapperLLM,
           findCompleteMatch: findCompleteCodeBlock(),
           findPartialMatch: findPartialCodeBlock(),
           lookBack: codeBlockLookBack(),
