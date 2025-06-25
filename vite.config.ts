@@ -26,8 +26,13 @@ export default defineConfig(({ mode }) => {
           manualChunks: id => {
             // Core vendor libraries - absolutely essential
             if (id.includes("node_modules")) {
-              // React core
-              if (id.includes("react/") || id.includes("react-dom/")) {
+              // React core - MUST include scheduler to avoid unstable_now errors
+              if (
+                id.includes("react/") ||
+                id.includes("react-dom/") ||
+                id.includes("scheduler/") ||
+                id.includes("react-is")
+              ) {
                 return "react-core";
               }
 
@@ -202,7 +207,15 @@ export default defineConfig(({ mode }) => {
       assetsInlineLimit: 4096,
     },
     optimizeDeps: {
-      include: ["react", "react-dom", "react-router", "react-router-dom"],
+      include: [
+        "react",
+        "react-dom",
+        "react-router",
+        "react-router-dom",
+        "scheduler", // Add scheduler to ensure it's pre-bundled with React
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+      ],
       exclude: ["@convex-dev/auth"],
       // Force optimization of specific heavy dependencies
       force: true,
