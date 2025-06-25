@@ -193,19 +193,17 @@ export function useUserData(): UseUserReturn {
     return null;
   }, [authenticatedUser, anonymousUser, storedAnonymousUserId]);
 
-  // Initialize messagesSent field for existing users who don't have it
   useEffect(() => {
     if (currentUser && currentUser.messagesSent === undefined) {
       initializeMessagesSent({ userId: currentUser._id });
     }
-  }, [currentUser]);
+  }, [currentUser, initializeMessagesSent]);
 
-  // Initialize monthly limits for existing authenticated users
   useEffect(() => {
     if (currentUser && !currentUser.isAnonymous) {
       initializeMonthlyLimits({ userId: currentUser._id });
     }
-  }, [currentUser]);
+  }, [currentUser, initializeMonthlyLimits]);
 
   // Update cache when user data changes
   useEffect(() => {
@@ -296,15 +294,13 @@ export function usePreloadedUser(
   const monthlyUsage = usePreloadedQuery(preloadedMonthlyUsage);
   const hasUserApiKeys = usePreloadedQuery(preloadedHasUserApiKeys);
 
-  // Migration helper for existing users
   const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
 
-  // Initialize messagesSent field for existing users who don't have it
   useEffect(() => {
     if (user && user.messagesSent === undefined) {
       initializeMessagesSent({ userId: user._id });
     }
-  }, [user]);
+  }, [user, initializeMessagesSent]);
 
   const userProperties = computeUserProperties(
     user,

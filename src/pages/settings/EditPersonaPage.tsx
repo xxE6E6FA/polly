@@ -33,9 +33,6 @@ export default function EditPersonaPage() {
     icon: "🤖",
   });
 
-  const [initialFormData, setInitialFormData] =
-    useState<PersonaFormData | null>(null);
-
   useEffect(() => {
     if (persona) {
       const data = {
@@ -45,7 +42,6 @@ export default function EditPersonaPage() {
         icon: persona.icon || "🤖",
       };
       setFormData(data);
-      setInitialFormData(data);
     }
   }, [persona]);
 
