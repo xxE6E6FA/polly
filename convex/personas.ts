@@ -213,7 +213,13 @@ export const improvePrompt = action({
     prompt: v.string(),
   },
   handler: async (_, args): Promise<{ improvedPrompt: string }> => {
-    const systemPrompt = `You are a system prompt improvement assistant. Take the user's initial prompt and transform it into a more detailed, structured system prompt for an AI assistant.
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Gemini API key not configured");
+    }
+
+    const promptText = `You are a system prompt improvement assistant. Take the user's initial prompt and transform it into a more detailed, structured system prompt for an AI assistant.
 
 Follow these guidelines:
 1. Maintain the core intent and personality of the original prompt
@@ -223,49 +229,46 @@ Follow these guidelines:
 5. Keep it concise but comprehensive (aim for 200-400 words)
 6. Use second person ("You are...", "You should...")
 
-Return ONLY the improved prompt text, no explanations or metadata.`;
+Return ONLY the improved prompt text, no explanations or metadata.
 
-    const userPrompt = `Improve this system prompt for an AI assistant persona:\n\n${args.prompt}`;
+User's initial prompt:
+${args.prompt}`;
 
     try {
-      const openAIKey = process.env.OPENAI_API_KEY;
-
-      if (!openAIKey) {
-        throw new Error("OpenAI API key not configured");
-      }
-
       const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${openAIKey}`,
           },
           body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
+            contents: [
+              {
+                parts: [
+                  {
+                    text: promptText,
+                  },
+                ],
+              },
             ],
-            temperature: 0.7,
-            max_tokens: 1000,
+            generationConfig: {
+              maxOutputTokens: 1000,
+              temperature: 0.7,
+            },
           }),
         }
       );
 
       if (!response.ok) {
-        const error = (await response.json()) as {
-          error?: { message?: string };
-        };
-        console.error("OpenAI API error:", error);
-        throw new Error(error.error?.message || "Failed to improve prompt");
+        const error = await response.json();
+        console.error("Gemini API error:", error);
+        throw new Error(`Gemini API error: ${response.status}`);
       }
 
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const improvedPrompt = data.choices?.[0]?.message?.content?.trim();
+      const data = await response.json();
+      const improvedPrompt =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
 
       if (!improvedPrompt) {
         throw new Error("No improvement generated");
@@ -273,7 +276,7 @@ Return ONLY the improved prompt text, no explanations or metadata.`;
 
       return { improvedPrompt };
     } catch (error) {
-      console.error("Error improving prompt:", error);
+      console.error("Error improving prompt with Gemini:", error);
       throw error;
     }
   },
