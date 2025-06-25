@@ -107,6 +107,12 @@ export default defineSchema({
           title: v.string(),
           cited_text: v.optional(v.string()),
           snippet: v.optional(v.string()),
+          description: v.optional(v.string()), // OpenGraph description
+          image: v.optional(v.string()), // OpenGraph image URL
+          favicon: v.optional(v.string()), // Website favicon URL
+          siteName: v.optional(v.string()), // Website name
+          publishedDate: v.optional(v.string()), // Article publish date
+          author: v.optional(v.string()), // Author information
         })
       )
     ),
