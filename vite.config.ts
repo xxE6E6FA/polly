@@ -33,7 +33,6 @@ export default defineConfig(({ mode }) => {
               "@llm-ui/react",
               "@llm-ui/markdown",
               "@llm-ui/code",
-              "shiki",
               "prism-react-renderer",
             ],
           },

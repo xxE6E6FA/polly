@@ -50,8 +50,8 @@ function StreamingMarkdownComponent({
     () =>
       throttleBasic({
         readAheadChars: 10,
-        targetBufferChars: 7,
-        adjustPercentage: 0.35,
+        targetBufferChars: 9,
+        adjustPercentage: 0.2,
         frameLookBackMs: 10000,
         windowLookBackMs: 2000,
       }),
