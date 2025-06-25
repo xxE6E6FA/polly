@@ -1,4 +1,3 @@
-import React from "react";
 import { useParams, useNavigate } from "react-router";
 import { ConversationChatView } from "@/components/conversation-chat-view";
 import { useChat } from "@/hooks/use-chat";
@@ -52,7 +51,6 @@ export default function ConversationRoute() {
     return <NotFoundPage />;
   }
 
-  // Always render the chat view with appropriate loading states
   return (
     <ConversationChatView
       conversationId={conversationId as ConversationId}

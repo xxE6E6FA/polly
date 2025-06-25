@@ -3,15 +3,14 @@ import { type RouteObject } from "react-router";
 import RootLayout from "./components/layouts/RootLayout";
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
+import ChatConversationPage from "./pages/ChatConversationPage";
+import ChatLayout from "./components/layouts/ChatLayout";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 import { NotFoundPage } from "./components/ui/not-found-page";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
 import { Spinner } from "./components/spinner";
 import { RouteErrorBoundary } from "./components/layouts/RouteErrorBoundary";
 
-// Lazy load heavier routes
-const ChatLayout = lazy(() => import("./components/layouts/ChatLayout"));
-const ChatConversationPage = lazy(() => import("./pages/ChatConversationPage"));
 const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
   () => import("./components/layouts/SettingsMainLayout")
@@ -36,6 +35,26 @@ const RouteLoader = () => (
     <Spinner />
   </div>
 );
+
+// Settings-specific loader that matches the ProtectedRoute loading state
+const SettingsLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <Spinner />
+  </div>
+);
+
+// Settings page loader for sub-pages (shows within the settings layout)
+const SettingsPageLoader = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <Spinner />
+  </div>
+);
+
+// Preload settings module when hovering over settings links
+export const preloadSettings = () => {
+  import("./components/layouts/SettingsMainLayout");
+  import("./pages/settings/AboutPage"); // Preload default settings page too
+};
 
 export const routes: RouteObject[] = [
   {
@@ -66,11 +85,7 @@ export const routes: RouteObject[] = [
         children: [
           {
             path: ":conversationId",
-            element: (
-              <Suspense fallback={<RouteLoader />}>
-                <ChatConversationPage />
-              </Suspense>
-            ),
+            element: <ChatConversationPage />,
             errorElement: <RouteErrorBoundary />,
           },
         ],
@@ -87,18 +102,16 @@ export const routes: RouteObject[] = [
       {
         path: "settings",
         element: (
-          <ProtectedRoute>
-            <Suspense fallback={<RouteLoader />}>
-              <SettingsLayout />
-            </Suspense>
-          </ProtectedRoute>
+          <ProtectedSuspense fallback={<SettingsLoader />}>
+            <SettingsLayout />
+          </ProtectedSuspense>
         ),
         errorElement: <RouteErrorBoundary />,
         children: [
           {
             index: true,
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsIndexPage />
               </Suspense>
             ),
@@ -107,7 +120,7 @@ export const routes: RouteObject[] = [
           {
             path: "api-keys",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsApiKeysPage />
               </Suspense>
             ),
@@ -116,7 +129,7 @@ export const routes: RouteObject[] = [
           {
             path: "models",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsModelsPage />
               </Suspense>
             ),
@@ -125,7 +138,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsPersonasPage />
               </Suspense>
             ),
@@ -134,7 +147,7 @@ export const routes: RouteObject[] = [
           {
             path: "about",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsAboutPage />
               </Suspense>
             ),
@@ -143,7 +156,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas/new",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsNewPersonaPage />
               </Suspense>
             ),
@@ -152,7 +165,7 @@ export const routes: RouteObject[] = [
           {
             path: "personas/:id/edit",
             element: (
-              <Suspense fallback={<RouteLoader />}>
+              <Suspense fallback={<SettingsPageLoader />}>
                 <SettingsEditPersonaPage />
               </Suspense>
             ),

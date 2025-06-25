@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { useAuthToken } from "@convex-dev/auth/react";
 import {
@@ -25,7 +25,6 @@ interface AuthError {
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const authToken = useAuthToken();
   const authenticatedUser = useQuery(api.users.getCurrentUser);
   const graduateOrMergeUser = useMutation(
