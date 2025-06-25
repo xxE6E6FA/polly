@@ -50,6 +50,65 @@ type StorageData = {
   mimeType: string;
 };
 
+// New types to replace any
+type MessagePart = {
+  type: "text" | "image_url" | "file";
+  text?: string;
+  image_url?: { url: string };
+  file?: { filename: string; file_data: string };
+  attachment?: {
+    storageId: Id<"_storage">;
+    type: string;
+    name: string;
+  };
+};
+
+type WebSource = {
+  url: string;
+  title?: string;
+  snippet?: string;
+  description?: string;
+};
+
+type OpenRouterCitation = {
+  url: string;
+  title?: string;
+  text?: string;
+  snippet?: string;
+};
+
+type OpenRouterAnnotation = {
+  type: string;
+  url_citation?: {
+    url: string;
+    title?: string;
+    content?: string;
+  };
+};
+
+type GoogleGroundingChunk = {
+  content: string;
+  web?: {
+    uri: string;
+    title?: string;
+  };
+};
+
+type ProviderMetadata = {
+  openrouter?: {
+    citations?: OpenRouterCitation[];
+    annotations?: OpenRouterAnnotation[];
+  };
+  google?: {
+    groundingChunks?: GoogleGroundingChunk[];
+  };
+};
+
+type StreamPart = {
+  type: "text-delta" | "reasoning" | string;
+  textDelta?: string;
+};
+
 // Constants
 const CONFIG = {
   STREAM: {
@@ -119,7 +178,7 @@ const updateMessage = async (
       }
     : currentMessage?.metadata;
 
-  await ctx.runMutation(internal.messages.internalUpdate, {
+  await ctx.runMutation(internal.messages.internalAtomicUpdate, {
     id: messageId,
     content: updates.content,
     reasoning: updates.reasoning || undefined,
@@ -198,7 +257,7 @@ const convertAttachment = async (
 // Convert message part to AI SDK format
 const convertMessagePart = async (
   ctx: ActionCtx,
-  part: any,
+  part: MessagePart,
   provider: string
 ) => {
   const converters = {
@@ -469,21 +528,60 @@ const extractReasoning = (text: string): string => {
   return "";
 };
 
+// Generate user-friendly error messages
+const getUserFriendlyErrorMessage = (error: unknown): string => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+
+  // Common error patterns and their user-friendly messages
+  if (errorMessage.includes("Documents read from or written to")) {
+    return "I encountered a temporary issue while processing your message. Please try again.";
+  }
+
+  if (
+    errorMessage.includes("API key") ||
+    errorMessage.includes("Authentication")
+  ) {
+    return errorMessage; // These are already user-friendly
+  }
+
+  if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+    return "The AI service is currently busy. Please wait a moment and try again.";
+  }
+
+  if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+    return "The response took too long. Please try again with a shorter message.";
+  }
+
+  if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+    return "I'm having trouble connecting to the AI service. Please check your connection and try again.";
+  }
+
+  if (
+    errorMessage.includes("context length") ||
+    errorMessage.includes("token")
+  ) {
+    return "Your conversation has become too long. Please start a new conversation.";
+  }
+
+  // Generic fallback
+  return "I encountered an unexpected error. Please try again or contact support if the issue persists.";
+};
+
 // Citation extractor factory
 const citationExtractors = {
-  sources: (sources: any[]): Citation[] => {
+  sources: (sources: WebSource[]): Citation[] => {
     return sources
-      .filter((source: any) => source.url && source.title)
-      .map((source: any) => ({
+      .filter(source => source.url)
+      .map(source => ({
         type: "url_citation" as const,
         url: source.url,
-        title: source.title,
+        title: source.title || "Web Source",
         snippet: source.snippet || source.description || "",
       }));
   },
 
-  openrouter: (citations: any[]): Citation[] => {
-    return citations.map((c: any) => ({
+  openrouter: (citations: OpenRouterCitation[]): Citation[] => {
+    return citations.map(c => ({
       type: "url_citation" as const,
       url: c.url,
       title: c.title || "Web Source",
@@ -492,15 +590,15 @@ const citationExtractors = {
     }));
   },
 
-  openrouterAnnotations: (annotations: any[]): Citation[] => {
+  openrouterAnnotations: (annotations: OpenRouterAnnotation[]): Citation[] => {
     // Handle OpenRouter's web search annotations format
     return annotations
       .filter(
-        (annotation: any) =>
+        annotation =>
           annotation.type === "url_citation" && annotation.url_citation
       )
-      .map((annotation: any) => {
-        const citation = annotation.url_citation;
+      .map(annotation => {
+        const citation = annotation.url_citation!;
         return {
           type: "url_citation" as const,
           url: citation.url,
@@ -512,8 +610,8 @@ const citationExtractors = {
       });
   },
 
-  google: (chunks: any[]): Citation[] => {
-    return chunks.map((chunk: any) => ({
+  google: (chunks: GoogleGroundingChunk[]): Citation[] => {
+    return chunks.map(chunk => ({
       type: "url_citation" as const,
       url: chunk.web?.uri || "",
       title: chunk.web?.title || "Web Source",
@@ -524,8 +622,8 @@ const citationExtractors = {
 
 // Extract citations from provider metadata and/or sources
 const extractCitations = (
-  providerMetadata?: any,
-  sources?: any[]
+  providerMetadata?: ProviderMetadata,
+  sources?: WebSource[]
 ): Citation[] | undefined => {
   const citations: Citation[] = [];
 
@@ -599,6 +697,7 @@ class StreamHandler {
   private chunkCounter = 0;
   private wasStopped = false;
   private abortController?: AbortController;
+  private updateQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private ctx: ActionCtx,
@@ -624,15 +723,33 @@ class StreamHandler {
     return false;
   }
 
+  private async queueUpdate<T>(operation: () => Promise<T>): Promise<T> {
+    // Chain operations to ensure they run sequentially
+    const result = this.updateQueue.then(operation).catch(error => {
+      // Log but don't fail the queue for individual errors
+      console.error("Update operation failed:", error);
+      throw error;
+    });
+
+    // Update the queue to wait for this operation
+    this.updateQueue = result.then(() => {}).catch(() => {});
+
+    return result;
+  }
+
   async flushContentBuffer(): Promise<void> {
     if (this.contentBuffer.length > 0) {
       const humanizedContent = humanizeText(this.contentBuffer);
-      await this.ctx.runMutation(internal.messages.internalAppendContent, {
-        id: this.messageId,
-        contentChunk: humanizedContent,
-      });
+      const contentToAppend = humanizedContent;
       this.contentBuffer = "";
       this.lastUpdate = Date.now();
+
+      await this.queueUpdate(async () => {
+        await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+          id: this.messageId,
+          appendContent: contentToAppend,
+        });
+      });
     }
   }
 
@@ -649,9 +766,11 @@ class StreamHandler {
   }
 
   async initializeStreaming(): Promise<void> {
-    await this.ctx.runMutation(internal.messages.internalUpdate, {
-      id: this.messageId,
-      content: "",
+    await this.queueUpdate(async () => {
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        content: "",
+      });
     });
   }
 
@@ -659,11 +778,14 @@ class StreamHandler {
     text: string,
     finishReason: string | null | undefined,
     reasoning: string | null | undefined,
-    providerMetadata: any
+    providerMetadata: ProviderMetadata | undefined
   ): Promise<void> {
     if (this.wasStopped) {
       return;
     }
+
+    // Ensure any pending content is flushed first
+    await this.flushContentBuffer();
 
     // Extract reasoning if embedded in content
     let extractedReasoning = reasoning || extractReasoning(text);
@@ -685,11 +807,25 @@ class StreamHandler {
       }
     }
 
-    // Update only metadata (reasoning, citations, finish reason)
-    await updateMessage(this.ctx, this.messageId, {
-      reasoning: humanizedReasoning,
-      finishReason: finishReason || "stop",
-      citations,
+    // Queue the metadata update
+    await this.queueUpdate(async () => {
+      // Get current message to preserve existing metadata
+      const currentMessage = await this.ctx.runQuery(api.messages.getById, {
+        id: this.messageId,
+      });
+
+      // Merge metadata to preserve existing fields like stopped
+      const metadata = {
+        ...(currentMessage?.metadata || {}),
+        finishReason: finishReason || "stop",
+      };
+
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        reasoning: humanizedReasoning,
+        metadata,
+        citations,
+      });
     });
 
     // Enrich citations with metadata if we have any
@@ -709,18 +845,22 @@ class StreamHandler {
 
   async handleStop(): Promise<void> {
     await this.flushContentBuffer();
-    await this.ctx.runMutation(internal.messages.internalUpdate, {
-      id: this.messageId,
-      metadata: {
-        finishReason: "stop",
-        stopped: true,
-      },
+
+    await this.queueUpdate(async () => {
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        metadata: {
+          finishReason: "stop",
+          stopped: true,
+        },
+      });
     });
+
     await clearConversationStreaming(this.ctx, this.messageId);
   }
 
   async processStream(
-    stream: AsyncIterable<any>,
+    stream: AsyncIterable<string | StreamPart>,
     isFullStream = false
   ): Promise<void> {
     for await (const part of stream) {
@@ -733,22 +873,24 @@ class StreamHandler {
       }
 
       if (isFullStream) {
-        await this.handleFullStreamPart(part);
+        await this.handleFullStreamPart(part as StreamPart);
       } else {
-        await this.appendToBuffer(part);
+        await this.appendToBuffer(part as string);
       }
     }
 
     await this.flushContentBuffer();
   }
 
-  private async handleFullStreamPart(part: any): Promise<void> {
+  private async handleFullStreamPart(part: StreamPart): Promise<void> {
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
     } else if (part.type === "reasoning") {
-      await this.ctx.runMutation(internal.messages.internalAppendReasoning, {
-        id: this.messageId,
-        reasoningChunk: part.textDelta || "",
+      await this.queueUpdate(async () => {
+        await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+          id: this.messageId,
+          appendReasoning: part.textDelta || "",
+        });
       });
     }
   }
@@ -895,7 +1037,7 @@ export const streamResponse = action({
       }
 
       await updateMessage(ctx, args.messageId, {
-        content: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+        content: getUserFriendlyErrorMessage(error),
         finishReason: "error",
       });
       await clearConversationStreaming(ctx, args.messageId);
@@ -910,7 +1052,16 @@ export const streamResponse = action({
 // Handle Google search sources
 async function handleGoogleSearchSources(
   ctx: ActionCtx,
-  result: any,
+  result: {
+    sources?: Promise<
+      Array<{
+        url: string;
+        title?: string;
+        snippet?: string;
+        description?: string;
+      }>
+    >;
+  },
   messageId: Id<"messages">
 ): Promise<void> {
   try {
@@ -937,7 +1088,7 @@ async function handleGoogleSearchSources(
       const mergedCitations = Array.from(citationMap.values());
 
       if (mergedCitations.length > 0) {
-        await ctx.runMutation(internal.messages.internalUpdate, {
+        await ctx.runMutation(internal.messages.internalAtomicUpdate, {
           id: messageId,
           citations: mergedCitations,
         });
@@ -961,7 +1112,7 @@ async function handleGoogleSearchSources(
 export const stopStreaming = action({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
-    await ctx.runMutation(internal.messages.internalUpdate, {
+    await ctx.runMutation(internal.messages.internalAtomicUpdate, {
       id: args.messageId,
       metadata: { finishReason: "stop", stopped: true },
     });
