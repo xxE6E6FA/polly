@@ -5,6 +5,8 @@ import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useUser } from "./use-user";
 import { removeCachedConversation } from "@/lib/conversation-cache";
+import { useNavigate } from "react-router";
+import { ROUTES } from "@/lib/routes";
 
 interface UseChatMessagesOptions {
   conversationId?: ConversationId;
@@ -16,6 +18,7 @@ export function useChatMessages({
   onError,
 }: UseChatMessagesOptions) {
   const { user } = useUser();
+  const navigate = useNavigate();
 
   const convexMessages = useQuery(
     api.messages.list,
@@ -84,14 +87,22 @@ export function useChatMessages({
       if (!user?._id || !conversationId) return;
 
       try {
-        await deleteMessagesByIds({ ids: [messageId as Id<"messages">] });
-
         const remainingMessages = messages.filter(m => m.id !== messageId);
-        if (remainingMessages.length === 0) {
+        const isLastMessage = remainingMessages.length === 0;
+
+        if (isLastMessage) {
+          // Navigate away first to prevent error flash
+          navigate(ROUTES.HOME);
+
+          // Small delay to ensure navigation has started
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          // Then delete the conversation
           await deleteConversation({ id: conversationId });
-          // Remove from cache immediately to prevent flash on refresh
           removeCachedConversation(conversationId);
-          window.location.href = "/";
+        } else {
+          // Just delete the message
+          await deleteMessagesByIds({ ids: [messageId as Id<"messages">] });
         }
       } catch (error) {
         onError?.(error as Error);
@@ -103,6 +114,7 @@ export function useChatMessages({
       deleteMessagesByIds,
       deleteConversation,
       messages,
+      navigate,
       onError,
     ]
   );

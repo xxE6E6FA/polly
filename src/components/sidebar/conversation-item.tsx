@@ -147,14 +147,18 @@ export function ConversationItem({
           const isCurrentConversation =
             currentConversationId === conversation._id;
 
+          if (isCurrentConversation) {
+            navigate(ROUTES.HOME);
+          }
+
+          if (isCurrentConversation) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
           await conversationErrorHandlers.handleDelete(async () => {
             await deleteConversation({ id: conversation._id });
             removeCachedConversation(conversation._id);
           });
-
-          if (isCurrentConversation) {
-            navigate(ROUTES.HOME);
-          }
         }
       );
     },
