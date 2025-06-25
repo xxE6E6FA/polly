@@ -386,7 +386,7 @@ export function ConversationChatView({
               <div
                 ref={messagesContainerRef}
                 className={cn(
-                  "flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out",
+                  "flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out scrollbar-gutter-stable",
                   isScrolling && "scroll-smooth"
                 )}
               >
@@ -431,7 +431,10 @@ export function ConversationChatView({
                     </div>
 
                     <div className="p-4 sm:p-8 space-y-2 sm:space-y-3">
-                      <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3">
+                      <div
+                        className="w-full max-w-3xl mx-auto space-y-2 sm:space-y-3"
+                        style={{ maxWidth: "48rem" }}
+                      >
                         {messages
                           .filter(message => {
                             if (message.role === "system") {

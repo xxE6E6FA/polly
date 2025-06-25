@@ -304,7 +304,7 @@ function ChatMessageComponent({
               "min-w-0 transition-all duration-300 ease-out",
               isEditing
                 ? "w-[600px]"
-                : "max-w-[95%] sm:max-w-[90%] lg:max-w-[85%]"
+                : "max-w-[32rem] sm:max-w-[36rem] lg:max-w-[40rem]"
             )}
           >
             <div

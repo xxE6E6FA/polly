@@ -215,6 +215,18 @@ pre {
 
 /* Custom scrollbar */
 @layer utilities {
+  /* Stable scrollbar gutter to prevent layout shifts */
+  .scrollbar-gutter-stable {
+    scrollbar-gutter: stable;
+  }
+
+  /* Fallback for browsers that don't support scrollbar-gutter */
+  @supports not (scrollbar-gutter: stable) {
+    .scrollbar-gutter-stable {
+      overflow-y: scroll;
+    }
+  }
+
   ::-webkit-scrollbar {
     @apply w-2;
   }
