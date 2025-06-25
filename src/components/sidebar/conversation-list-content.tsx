@@ -3,7 +3,7 @@ import { ConversationItem } from "./conversation-item";
 import { ConversationGroup } from "./conversation-group";
 import { useConversationSearch } from "@/hooks/use-conversation-search";
 import { ConversationId } from "@/types";
-import { MessageCircle } from "lucide-react";
+import { ChatCircleIcon } from "@phosphor-icons/react";
 import { Doc } from "../../../convex/_generated/dataModel";
 
 interface ConversationListContentProps {
@@ -98,7 +98,7 @@ export function ConversationListContent({
     return (
       <div className="flex items-center justify-center h-32">
         <div className="text-center space-y-1">
-          <MessageCircle className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+          <ChatCircleIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">No results found</p>
         </div>
       </div>

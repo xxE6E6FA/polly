@@ -12,7 +12,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Trash2, Edit, MoreVertical } from "lucide-react";
+import {
+  TrashIcon,
+  PencilSimpleIcon,
+  DotsThreeVerticalIcon,
+} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { ROUTES } from "@/lib/routes";
 import { ConversationId, Conversation } from "@/types";
@@ -241,7 +245,10 @@ export function ConversationItem({
                       size="icon-sm"
                       className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-foreground/70 hover:text-foreground"
                     >
-                      <MoreVertical className="h-4 w-4" />
+                      <DotsThreeVerticalIcon
+                        weight="bold"
+                        className="h-4 w-4"
+                      />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
@@ -258,16 +265,16 @@ export function ConversationItem({
                           handleEditStart(conversation._id, conversation.title)
                         }
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <PencilSimpleIcon className="h-3.5 w-3.5" />
                         Edit title
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="justify-start h-8 px-2 gap-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                        className="justify-start h-8 px-2 gap-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
                         onClick={() => handleDeleteClick()}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <TrashIcon className="h-3.5 w-3.5" />
                         Delete
                       </Button>
                     </div>
@@ -292,7 +299,7 @@ export function ConversationItem({
                           );
                         }}
                       >
-                        <Edit className="h-3.5 w-3.5" />
+                        <PencilSimpleIcon className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -305,10 +312,10 @@ export function ConversationItem({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="h-7 w-7 hover:bg-destructive/10 hover:text-destructive"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors"
                         onClick={handleDeleteClick}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <TrashIcon className="h-3.5 w-3.5" />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
