@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "convex/react";
@@ -9,7 +9,6 @@ import {
   PersonaForm,
   PersonaFormData,
 } from "@/components/settings/persona-form";
-import { useNavigationBlocker } from "@/hooks/use-navigation-blocker";
 import { ROUTES } from "@/lib/routes";
 
 export default function EditPersonaPage() {
@@ -26,7 +25,6 @@ export default function EditPersonaPage() {
 
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasUpdated, setHasUpdated] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
     name: "",
@@ -51,24 +49,6 @@ export default function EditPersonaPage() {
     }
   }, [persona]);
 
-  // Check if form has been modified
-  const hasUnsavedChanges = useMemo(() => {
-    if (hasUpdated || !initialFormData) return false;
-    return (
-      formData.name !== initialFormData.name ||
-      formData.description !== initialFormData.description ||
-      formData.prompt !== initialFormData.prompt ||
-      formData.icon !== initialFormData.icon
-    );
-  }, [formData, initialFormData, hasUpdated]);
-
-  // Block navigation when there are unsaved changes
-  useNavigationBlocker({
-    when: hasUnsavedChanges,
-    message:
-      "You have unsaved changes to your persona. Are you sure you want to leave?",
-  });
-
   const handleUpdatePersona = async () => {
     if (!formData.name.trim() || !formData.prompt.trim() || !personaId) {
       return;
@@ -84,7 +64,6 @@ export default function EditPersonaPage() {
         icon: formData.icon,
       });
 
-      setHasUpdated(true);
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (error) {
       console.error("Failed to update persona:", error);
@@ -107,7 +86,6 @@ export default function EditPersonaPage() {
     setIsLoading(true);
     try {
       await deletePersona({ id: personaId as Id<"personas"> });
-      setHasUpdated(true);
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (error) {
       console.error("Failed to delete persona:", error);
@@ -177,7 +155,7 @@ export default function EditPersonaPage() {
             variant="default"
             size="default"
             onClick={handleUpdatePersona}
-            disabled={!isFormValid || isLoading || !hasUnsavedChanges}
+            disabled={!isFormValid || isLoading}
           >
             {isLoading ? "Saving..." : "Save Changes"}
           </Button>

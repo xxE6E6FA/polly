@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useMutation } from "convex/react";
@@ -8,7 +8,6 @@ import {
   PersonaFormData,
 } from "@/components/settings/persona-form";
 import { api } from "convex/_generated/api";
-import { useNavigationBlocker } from "@/hooks/use-navigation-blocker";
 import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
@@ -17,31 +16,12 @@ export default function NewPersonaPage() {
 
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasCreated, setHasCreated] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
     name: "",
     description: "",
     prompt: "",
     icon: "🤖",
-  });
-
-  // Check if form has been modified
-  const hasUnsavedChanges = useMemo(() => {
-    if (hasCreated) return false;
-    return (
-      formData.name.trim() !== "" ||
-      formData.description.trim() !== "" ||
-      formData.prompt.trim() !== "" ||
-      formData.icon !== "🤖"
-    );
-  }, [formData, hasCreated]);
-
-  // Block navigation when there are unsaved changes
-  useNavigationBlocker({
-    when: hasUnsavedChanges,
-    message:
-      "You have unsaved changes to your persona. Are you sure you want to leave?",
   });
 
   const handleCreatePersona = async () => {
@@ -58,7 +38,6 @@ export default function NewPersonaPage() {
         icon: formData.icon,
       });
 
-      setHasCreated(true);
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (error) {
       console.error("Failed to create persona:", error);
