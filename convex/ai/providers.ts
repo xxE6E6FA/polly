@@ -10,6 +10,7 @@ import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { getCapabilityFromPatterns } from "../lib/model_capabilities_config";
+import { isReasoningModelEnhanced } from "./reasoning_detection";
 
 // Provider factory map
 const createProviderModel = {
@@ -88,7 +89,56 @@ export const createLanguageModel = async (
   return factory(apiKey, model);
 };
 
-// Check if model supports reasoning
+export const getProviderStreamOptions = async (
+  provider: ProviderType,
+  model: string
+): Promise<Record<string, unknown>> => {
+  // Check reasoning support with enhanced detection
+  const supportsReasoning = await isReasoningModelEnhanced(provider, model);
+
+  if (!supportsReasoning) {
+    return {};
+  }
+
+  // OpenAI reasoning configuration
+  if (provider === "openai") {
+    return {
+      providerOptions: {
+        openai: {
+          reasoning: true,
+        },
+      },
+    };
+  }
+
+  // Google thinking configuration for reasoning models
+  if (provider === "google") {
+    return {
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            includeThoughts: true,
+          },
+        },
+      },
+    };
+  }
+
+  // OpenRouter reasoning configuration
+  if (provider === "openrouter") {
+    return {
+      extraBody: {
+        reasoning: {
+          effort: "medium", // Can be "low", "medium", or "high"
+        },
+      },
+    };
+  }
+
+  // Other providers don't need special options yet
+  return {};
+};
+
 export const isReasoningModel = (provider: string, model: string): boolean => {
   return getCapabilityFromPatterns("supportsReasoning", provider, model);
 };

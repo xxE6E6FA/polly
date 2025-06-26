@@ -51,6 +51,8 @@ export const CAPABILITY_PATTERNS = {
       excludes: [],
     },
     openrouter: {
+      // Note: OpenRouter reasoning support is checked dynamically via API
+      // This fallback pattern is used when API is unavailable
       includes: [
         "o1-",
         "o3-",
@@ -60,6 +62,8 @@ export const CAPABILITY_PATTERNS = {
         "claude-sonnet-4",
         "claude-3-7-sonnet",
         "gemini-2.5",
+        "qwen3-235b",
+        "qwen/qwen3-235b",
         "reasoning",
         "thinking",
       ],
