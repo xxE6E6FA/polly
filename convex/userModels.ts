@@ -1,7 +1,8 @@
-import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAuth, getOptionalUserId } from "./lib/auth";
-import { Id } from "./_generated/dataModel";
+
+import { type Id } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
+import { getOptionalUserId, requireAuth } from "./lib/auth";
 
 export const getUserModels = query({
   args: {
@@ -144,7 +145,7 @@ export const hasUserModels = query({
 
     if (!userId) {
       // For anonymous users, return true if we have Gemini API key
-      return !!process.env.GEMINI_API_KEY;
+      return Boolean(process.env.GEMINI_API_KEY);
     }
 
     const count = await ctx.db
@@ -158,7 +159,7 @@ export const hasUserModels = query({
     }
 
     // If no configured models but we have Gemini API key, return true (default model available)
-    return !!process.env.GEMINI_API_KEY;
+    return Boolean(process.env.GEMINI_API_KEY);
   },
 });
 
@@ -232,19 +233,17 @@ export const selectModel = mutation({
         .withIndex("by_user", q => q.eq("userId", userId))
         .unique();
 
-      if (userSettings) {
-        await ctx.db.patch(userSettings._id, {
-          defaultModelSelected: true,
-          updatedAt: Date.now(),
-        });
-      } else {
-        await ctx.db.insert("userSettings", {
-          userId,
-          defaultModelSelected: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      }
+      await (userSettings
+        ? ctx.db.patch(userSettings._id, {
+            defaultModelSelected: true,
+            updatedAt: Date.now(),
+          })
+        : ctx.db.insert("userSettings", {
+            userId,
+            defaultModelSelected: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          }));
       return;
     }
 
@@ -283,6 +282,7 @@ export const selectModel = mutation({
 });
 
 // Helper function to get default anonymous model
+
 function getAnonymousDefaultModel() {
   // Only provide default model if we have the Gemini API key
   if (!process.env.GEMINI_API_KEY) {

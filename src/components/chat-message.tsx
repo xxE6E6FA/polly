@@ -1,40 +1,42 @@
-import React, { memo, useState, useCallback, useEffect } from "react";
-import { ConvexFileDisplay } from "@/components/convex-file-display";
-import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import { cn } from "@/lib/utils";
-import { ChatMessage as ChatMessageType } from "@/types";
+import React, { memo, useCallback, useState } from "react";
+
 import {
-  CopyIcon,
-  CheckIcon,
-  NotePencilIcon,
   ArrowCounterClockwiseIcon,
+  CheckIcon,
+  CopyIcon,
+  NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { Reasoning } from "@/components/reasoning";
+
 import { Citations } from "@/components/citations";
+import { ConvexFileDisplay } from "@/components/convex-file-display";
+import { Reasoning } from "@/components/reasoning";
+import { Button } from "@/components/ui/button";
+import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { type ChatMessage as ChatMessageType } from "@/types";
 
-interface ChatMessageProps {
+type ChatMessageProps = {
   message: ChatMessageType;
   isStreaming?: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryMessage?: (messageId: string) => void;
   onDeleteMessage?: (messageId: string) => void;
-}
+};
 
-interface ActionButtonProps {
+type ActionButtonProps = {
   icon: React.ReactNode;
   tooltip: string;
   onClick: () => void;
   disabled?: boolean;
   title?: string;
   className?: string;
-}
+};
 
 const ActionButton = memo(
   ({
@@ -48,15 +50,15 @@ const ActionButton = memo(
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="action"
+          disabled={disabled}
           size="sm"
-          onClick={onClick}
+          title={title}
+          variant="action"
           className={cn(
             "h-8 w-8 p-0 transition-all duration-200 hover:scale-110",
             className
           )}
-          disabled={disabled}
-          title={title}
+          onClick={onClick}
         >
           {icon}
         </Button>
@@ -70,7 +72,7 @@ const ActionButton = memo(
 
 ActionButton.displayName = "ActionButton";
 
-interface MessageActionsProps {
+type MessageActionsProps = {
   isUser: boolean;
   isStreaming: boolean;
   isEditing?: boolean;
@@ -84,7 +86,7 @@ interface MessageActionsProps {
   model?: string;
   provider?: string;
   className?: string;
-}
+};
 
 const MessageActions = memo(
   ({
@@ -102,7 +104,9 @@ const MessageActions = memo(
     provider,
     className,
   }: MessageActionsProps) => {
-    if (isStreaming) return null;
+    if (isStreaming) {
+      return null;
+    }
 
     const containerClassName = cn(
       "flex items-center gap-2 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 translate-y-0 sm:translate-y-1 sm:group-hover:translate-y-0 transition-all duration-300 ease-out",
@@ -115,6 +119,8 @@ const MessageActions = memo(
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
           <ActionButton
+            disabled={isEditing}
+            tooltip="Copy message"
             icon={
               isCopied ? (
                 <CheckIcon className="h-3.5 w-3.5" />
@@ -122,22 +128,22 @@ const MessageActions = memo(
                 <CopyIcon className="h-3.5 w-3.5" />
               )
             }
-            tooltip="Copy message"
             onClick={copyToClipboard}
-            disabled={isEditing}
           />
 
           {onEditMessage && (
             <ActionButton
+              disabled={isEditing}
               icon={<NotePencilIcon className="h-3.5 w-3.5" />}
               tooltip="Edit message"
               onClick={onEditMessage}
-              disabled={isEditing}
             />
           )}
 
           {onRetryMessage && (
             <ActionButton
+              disabled={isEditing || isRetrying || isStreaming}
+              title={isUser ? "Retry from this message" : "Retry this response"}
               icon={
                 <ArrowCounterClockwiseIcon
                   className={`h-3.5 w-3.5 ${isRetrying ? "animate-spin-reverse" : ""}`}
@@ -147,19 +153,17 @@ const MessageActions = memo(
                 isUser ? "Retry from this message" : "Retry this response"
               }
               onClick={onRetryMessage}
-              disabled={isEditing || isRetrying || isStreaming}
-              title={isUser ? "Retry from this message" : "Retry this response"}
             />
           )}
 
           {onDeleteMessage && (
             <ActionButton
+              className="btn-action-destructive"
+              disabled={isEditing || isDeleting || isStreaming}
               icon={<TrashIcon className="h-3.5 w-3.5" />}
+              title="Delete message"
               tooltip="Delete message"
               onClick={onDeleteMessage}
-              disabled={isEditing || isDeleting || isStreaming}
-              title="Delete message"
-              className="btn-action-destructive"
             />
           )}
         </div>
@@ -168,10 +172,10 @@ const MessageActions = memo(
           <>
             {model && provider === "openrouter" ? (
               <a
+                className="text-xs text-muted-foreground/70 underline underline-offset-2 transition-colors hover:text-foreground"
                 href={`https://openrouter.ai/${model}`}
-                target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors underline underline-offset-2"
+                target="_blank"
               >
                 {model}
               </a>
@@ -189,13 +193,13 @@ const MessageActions = memo(
 
 MessageActions.displayName = "MessageActions";
 
-function ChatMessageComponent({
+const ChatMessageComponent = ({
   message,
   isStreaming = false,
   onEditMessage,
   onRetryMessage,
   onDeleteMessage,
-}: ChatMessageProps) {
+}: ChatMessageProps) => {
   const isUser = message.role === "user";
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(message.content);
@@ -256,7 +260,9 @@ function ChatMessageComponent({
       attachments: typeof message.attachments,
       variant: "user" | "assistant" = "user"
     ) => {
-      if (!attachments?.length) return null;
+      if (!attachments?.length) {
+        return null;
+      }
 
       if (variant === "user") {
         return (
@@ -273,11 +279,11 @@ function ChatMessageComponent({
       }
 
       return (
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {attachments.map((attachment, index) => (
             <div
               key={attachment.name || attachment.url || `attachment-${index}`}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm bg-muted"
+              className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm"
             >
               <span>{attachment.type === "image" ? "🖼️" : "📄"}</span>
               <span>{attachment.name}</span>
@@ -291,11 +297,11 @@ function ChatMessageComponent({
 
   return (
     <div
+      data-message-role={message.role}
       className={cn(
         "group w-full px-3 py-2 sm:px-6 sm:py-2.5 transition-colors",
         "bg-transparent"
       )}
-      data-message-role={message.role}
     >
       {isUser ? (
         <div className="flex justify-end">
@@ -318,43 +324,43 @@ function ChatMessageComponent({
               {isEditing ? (
                 <div className="space-y-4">
                   <textarea
-                    value={editContent}
-                    onChange={e => setEditContent(e.target.value)}
-                    className="w-full resize-none bg-transparent text-foreground border-0 outline-none ring-0 focus:ring-0 text-sm sm:text-base leading-relaxed placeholder:text-muted-foreground/60 transition-opacity duration-200"
-                    placeholder="Edit your message..."
                     autoFocus
+                    className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base"
+                    placeholder="Edit your message..."
+                    value={editContent}
                     style={{
                       fontFamily: "inherit",
                       height: "auto",
                       minHeight: "3rem",
                     }}
+                    onChange={e => setEditContent(e.target.value)}
                     onInput={e => {
                       const target = e.target as HTMLTextAreaElement;
                       target.style.height = "auto";
-                      target.style.height = target.scrollHeight + "px";
+                      target.style.height = `${target.scrollHeight}px`;
                     }}
                   />
-                  <div className="flex justify-end gap-3 transform transition-all duration-200 translate-y-0 opacity-100">
+                  <div className="flex translate-y-0 transform justify-end gap-3 opacity-100 transition-all duration-200">
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleEditCancel}
                       className="px-5 py-2 hover:scale-105"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleEditCancel}
                     >
                       Cancel
                     </Button>
                     <Button
+                      className="px-5 py-2 hover:scale-105"
                       size="sm"
                       variant="emerald"
                       onClick={handleEditSave}
-                      className="px-5 py-2 hover:scale-105"
                     >
                       Save
                     </Button>
                   </div>
                 </div>
               ) : (
-                <div className="transition-all duration-300 ease-out whitespace-pre-wrap break-words text-sm sm:text-base">
+                <div className="whitespace-pre-wrap break-words text-sm transition-all duration-300 ease-out sm:text-base">
                   {displayContent}
                   {renderAttachments(message.attachments, "user")}
                 </div>
@@ -362,25 +368,25 @@ function ChatMessageComponent({
             </div>
 
             <MessageActions
-              isUser={true}
-              isStreaming={isStreaming}
-              isEditing={isEditing}
-              isCopied={isCopied}
-              isRetrying={isRetrying}
-              isDeleting={isDeleting}
+              isUser
               copyToClipboard={copyToClipboard}
+              isCopied={isCopied}
+              isDeleting={isDeleting}
+              isEditing={isEditing}
+              isRetrying={isRetrying}
+              isStreaming={isStreaming}
+              onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
               onEditMessage={onEditMessage ? handleEditStart : undefined}
               onRetryMessage={onRetryMessage ? handleRetry : undefined}
-              onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
             />
           </div>
         </div>
       ) : (
         <div className="w-full">
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             {reasoning && (
               <div className="mb-2.5">
-                <Reasoning reasoning={reasoning} isLoading={isStreaming} />
+                <Reasoning isLoading={isStreaming} reasoning={reasoning} />
               </div>
             )}
 
@@ -390,8 +396,8 @@ function ChatMessageComponent({
 
             {/* Show interrupted indicator */}
             {message.metadata?.stopped && !isStreaming && (
-              <div className="flex items-center gap-2 mt-3">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 border border-amber-500/20">
+              <div className="mt-3 flex items-center gap-2">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-1 text-amber-600 dark:text-amber-500">
                   <span className="text-xs font-medium">Stopped by user</span>
                 </div>
               </div>
@@ -399,29 +405,29 @@ function ChatMessageComponent({
 
             {message.citations && message.citations.length > 0 && (
               <div className="mt-2.5">
-                <Citations citations={message.citations} compact />
+                <Citations compact citations={message.citations} />
               </div>
             )}
 
             {renderAttachments(message.attachments, "assistant")}
 
             <MessageActions
-              isUser={false}
-              isStreaming={isStreaming}
-              isCopied={isCopied}
-              isRetrying={isRetrying}
-              isDeleting={isDeleting}
               copyToClipboard={copyToClipboard}
-              onRetryMessage={onRetryMessage ? handleRetry : undefined}
-              onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
+              isCopied={isCopied}
+              isDeleting={isDeleting}
+              isRetrying={isRetrying}
+              isStreaming={isStreaming}
+              isUser={false}
               model={message.model}
               provider={message.provider}
+              onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
+              onRetryMessage={onRetryMessage ? handleRetry : undefined}
             />
           </div>
         </div>
       )}
     </div>
   );
-}
+};
 
 export const ChatMessage = memo(ChatMessageComponent);

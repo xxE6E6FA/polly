@@ -1,16 +1,11 @@
+import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
+
+import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ProviderIcon } from "@/components/provider-icons";
-import { toast } from "sonner";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { validateApiKey } from "@/lib/validation";
-import { useUser } from "@/hooks/use-user";
-import {
-  useUserSettings,
-  useUserSettingsMutations,
-} from "@/hooks/use-user-settings";
 import {
   Select,
   SelectContent,
@@ -18,9 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useUser } from "@/hooks/use-user";
+import {
+  useUserSettings,
+  useUserSettingsMutations,
+} from "@/hooks/use-user-settings";
+import { validateApiKey } from "@/lib/validation";
+
 import { SettingsHeader } from "./settings-header";
+import { api } from "../../../convex/_generated/api";
 import { Badge } from "../ui/badge";
-import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 
 type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
 
@@ -57,7 +59,7 @@ function getProviderCardStyle(isConnected: boolean) {
   return `${baseStyle} border-border bg-background hover:bg-muted/50`;
 }
 
-export function ApiKeysTab() {
+export const ApiKeysTab = () => {
   const { user } = useUser();
   const userSettings = useUserSettings(user?._id);
   const { updateUserSettings } = useUserSettingsMutations();
@@ -144,11 +146,11 @@ export function ApiKeysTab() {
     return (
       <div className="space-y-6">
         <SettingsHeader
-          title="API Keys"
           description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
+          title="API Keys"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           {(
             Object.entries(API_KEY_INFO) as Array<
               [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
@@ -156,10 +158,10 @@ export function ApiKeysTab() {
           ).map(([provider]) => (
             <div
               key={provider}
-              className="p-4 rounded-lg border border-muted/40 bg-background animate-pulse"
+              className="animate-pulse rounded-lg border border-muted/40 bg-background p-4"
             >
-              <div className="h-20 bg-muted/20 rounded mb-4"></div>
-              <div className="h-10 bg-muted/20 rounded"></div>
+              <div className="mb-4 h-20 rounded bg-muted/20" />
+              <div className="h-10 rounded bg-muted/20" />
             </div>
           ))}
         </div>
@@ -170,11 +172,11 @@ export function ApiKeysTab() {
   return (
     <div className="space-y-6">
       <SettingsHeader
-        title="API Keys"
         description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
+        title="API Keys"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
         {(
           Object.entries(API_KEY_INFO) as Array<
             [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
@@ -186,28 +188,28 @@ export function ApiKeysTab() {
           return (
             <div
               key={provider}
-              className={`${getProviderCardStyle(isConnected)} flex flex-col h-full justify-between`}
+              className={`${getProviderCardStyle(isConnected)} flex h-full flex-col justify-between`}
             >
-              <div className="flex items-start justify-between mb-4 flex-shrink-0">
-                <div className="flex items-start gap-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 flex justify-center shrink-0">
+              <div className="mb-4 flex flex-shrink-0 items-start justify-between">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 justify-center">
                     <ProviderIcon provider={provider} />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Label
-                        htmlFor={provider}
                         className="text-base font-medium"
+                        htmlFor={provider}
                       >
                         {info.name}
                       </Label>
                       {isConnected && (
                         <Badge
-                          variant="secondary"
+                          className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                           size="sm"
-                          className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                          variant="secondary"
                         >
-                          <CheckCircleIcon className="h-3 w-3 mr-1" />
+                          <CheckCircleIcon className="mr-1 h-3 w-3" />
                           Connected
                         </Badge>
                       )}
@@ -216,16 +218,16 @@ export function ApiKeysTab() {
                 </div>
                 {!isConnected && (
                   <Button
-                    variant="ghost"
-                    size="sm"
                     asChild
-                    className="h-8 px-3 text-xs shrink-0 ml-3"
+                    className="ml-3 h-8 shrink-0 px-3 text-xs"
+                    size="sm"
+                    variant="ghost"
                   >
                     <a
+                      className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                       href={info.url}
-                      target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
+                      target="_blank"
                     >
                       Get API key
                       <ArrowSquareOutIcon className="h-3 w-3" />
@@ -236,45 +238,45 @@ export function ApiKeysTab() {
 
               <div className="mt-auto">
                 {isConnected ? (
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex flex-shrink-0 gap-2">
                     <div className="flex-1">
                       <Input
-                        id={provider}
-                        type="text"
-                        placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
-                        className="font-mono text-sm bg-blue-500/5 dark:bg-blue-500/10 border-blue-500/20"
                         disabled
+                        className="border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
+                        id={provider}
+                        placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
+                        type="text"
                       />
                     </div>
                     <Button
+                      className="px-4"
+                      size="sm"
+                      variant="destructive"
                       onClick={() =>
                         handleApiKeyRemove(provider as ApiProvider)
                       }
-                      size="sm"
-                      className="px-4"
-                      variant="destructive"
                     >
                       Remove
                     </Button>
                   </div>
                 ) : (
                   <form
+                    className="flex flex-shrink-0 gap-2"
                     action={formData =>
                       handleApiKeySubmit(provider as ApiProvider, formData)
                     }
-                    className="flex gap-2 flex-shrink-0"
                   >
                     <div className="flex-1">
                       <Input
+                        required
+                        className="font-mono text-sm"
                         id={provider}
                         name={`${provider}-key`}
-                        type="password"
                         placeholder={info.placeholder}
-                        className="font-mono text-sm"
-                        required
+                        type="password"
                       />
                     </div>
-                    <Button type="submit" size="sm" variant="default">
+                    <Button size="sm" type="submit" variant="default">
                       Save
                     </Button>
                   </form>
@@ -287,9 +289,9 @@ export function ApiKeysTab() {
 
       {/* OpenRouter Provider Settings */}
       {hasOpenRouterKey && (
-        <div className="border border-border rounded-lg p-4 bg-background">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-6 h-6 flex justify-center shrink-0">
+        <div className="rounded-lg border border-border bg-background p-4">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-6 w-6 shrink-0 justify-center">
               <ProviderIcon provider="openrouter" />
             </div>
             <h3 className="text-sm font-medium">OpenRouter Provider Sorting</h3>
@@ -299,10 +301,10 @@ export function ApiKeysTab() {
             <p className="text-sm text-muted-foreground">
               Choose how OpenRouter routes your requests across providers.{" "}
               <a
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                 href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
-                target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-500 hover:text-blue-600 inline-flex items-center gap-1"
+                target="_blank"
               >
                 View documentation
                 <ArrowSquareOutIcon className="h-3 w-3" />
@@ -310,14 +312,14 @@ export function ApiKeysTab() {
             </p>
 
             <div className="space-y-2">
-              <Label htmlFor="openrouter-sorting" className="text-sm">
+              <Label className="text-sm" htmlFor="openrouter-sorting">
                 Sorting Strategy
               </Label>
               <Select
                 value={userSettings?.openRouterSorting || "default"}
                 onValueChange={handleOpenRouterSortingChange}
               >
-                <SelectTrigger id="openrouter-sorting" className="w-full">
+                <SelectTrigger className="w-full" id="openrouter-sorting">
                   <SelectValue placeholder="Select a sorting strategy" />
                 </SelectTrigger>
                 <SelectContent>
@@ -335,4 +337,4 @@ export function ApiKeysTab() {
       )}
     </div>
   );
-}
+};

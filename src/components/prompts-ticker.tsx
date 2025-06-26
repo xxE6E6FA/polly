@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+
 import { cn } from "@/lib/utils";
 
 const allPrompts = [
@@ -24,19 +25,19 @@ const allPrompts = [
   "Why do cats purr and dogs don't?",
 ];
 
-interface PromptsProps {
+type PromptsProps = {
   onQuickPrompt: (prompt: string) => void;
   hasReachedLimit?: boolean;
   className?: string;
   hasWarning?: boolean;
-}
+};
 
-export function SimplePrompts({
+export const SimplePrompts = ({
   onQuickPrompt,
   hasReachedLimit = false,
   className,
   hasWarning = false,
-}: PromptsProps) {
+}: PromptsProps) => {
   // Select 4 random prompts, but keep them stable during the component lifecycle
   const selectedPrompts = useMemo(() => {
     const shuffled = [...allPrompts].sort(() => 0.5 - Math.random());
@@ -58,6 +59,7 @@ export function SimplePrompts({
             {selectedPrompts.map((prompt, index) => (
               <button
                 key={prompt}
+                disabled={hasReachedLimit}
                 type="button"
                 className={cn(
                   "group relative text-left px-3 py-2 rounded-lg text-xs transition-all duration-200",
@@ -72,9 +74,8 @@ export function SimplePrompts({
                   animationFillMode: "backwards",
                 }}
                 onClick={() => !hasReachedLimit && onQuickPrompt(prompt)}
-                disabled={hasReachedLimit}
               >
-                <span className="text-foreground/60 group-hover:text-foreground/80 line-clamp-2 leading-snug">
+                <span className="line-clamp-2 leading-snug text-foreground/60 group-hover:text-foreground/80">
                   {prompt}
                 </span>
               </button>
@@ -90,12 +91,13 @@ export function SimplePrompts({
           className
         )}
       >
-        <div className="max-w-3xl mx-auto">
+        <div className="mx-auto max-w-3xl">
           <div className="px-3 sm:px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {selectedPrompts.map((prompt, index) => (
                 <button
                   key={prompt}
+                  disabled={hasReachedLimit}
                   type="button"
                   className={cn(
                     "group relative text-left px-3 py-2 rounded-lg text-xs transition-all duration-200",
@@ -110,9 +112,8 @@ export function SimplePrompts({
                     animationFillMode: "backwards",
                   }}
                   onClick={() => !hasReachedLimit && onQuickPrompt(prompt)}
-                  disabled={hasReachedLimit}
                 >
-                  <span className="text-foreground/60 group-hover:text-foreground/80 line-clamp-2 leading-snug">
+                  <span className="line-clamp-2 leading-snug text-foreground/60 group-hover:text-foreground/80">
                     {prompt}
                   </span>
                 </button>
@@ -123,9 +124,9 @@ export function SimplePrompts({
       </div>
     </>
   );
-}
+};
 
-export function PromptsTickerWrapper({
+export const PromptsTickerWrapper = ({
   onQuickPrompt,
   hasReachedLimit = false,
   isAnonymous,
@@ -140,7 +141,7 @@ export function PromptsTickerWrapper({
   userLoading: boolean;
   className?: string;
   hasWarning?: boolean;
-}) {
+}) => {
   // Don't render anything until we know the user state
   if (userLoading) {
     return null;
@@ -153,10 +154,10 @@ export function PromptsTickerWrapper({
 
   return (
     <SimplePrompts
-      onQuickPrompt={onQuickPrompt}
-      hasReachedLimit={hasReachedLimit}
       className={className}
+      hasReachedLimit={hasReachedLimit}
       hasWarning={hasWarning}
+      onQuickPrompt={onQuickPrompt}
     />
   );
-}
+};

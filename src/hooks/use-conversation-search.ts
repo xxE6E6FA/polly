@@ -1,12 +1,15 @@
 import { useMemo } from "react";
-import { Conversation } from "@/types";
+
+import { type Conversation } from "@/types";
 
 export function useConversationSearch(
   conversations: Conversation[],
   searchQuery: string
 ) {
   const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) return conversations;
+    if (!searchQuery.trim()) {
+      return conversations;
+    }
 
     const query = searchQuery.toLowerCase().trim();
     return conversations.filter(conversation => {

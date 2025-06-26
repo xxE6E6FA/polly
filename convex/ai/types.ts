@@ -1,6 +1,7 @@
-import { Id } from "../_generated/dataModel";
+import { type Id } from "../_generated/dataModel";
 
 // Message types
+
 export type StreamMessage = {
   role: "user" | "assistant" | "system";
   content:
@@ -31,6 +32,7 @@ export type MessagePart = {
 };
 
 // Citation types
+
 export type Citation = {
   type: "url_citation";
   url: string;
@@ -77,6 +79,7 @@ export type GoogleGroundingChunk = {
 };
 
 // Provider types
+
 export type ProviderType = "openai" | "anthropic" | "google" | "openrouter";
 
 export type ProviderMetadata = {
@@ -90,6 +93,7 @@ export type ProviderMetadata = {
 };
 
 // Storage types
+
 export type StorageData = {
   blob: Blob;
   arrayBuffer: ArrayBuffer;
@@ -98,6 +102,7 @@ export type StorageData = {
 };
 
 // Stream types
+
 export type StreamPart = {
   type: "text-delta" | "reasoning" | string;
   textDelta?: string;

@@ -1,11 +1,15 @@
-import { ActionCtx } from "../_generated/server";
-import { api, internal } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
-import { StreamPart, FinishData, ProviderMetadata } from "./types";
-import { CONFIG } from "./config";
-import { humanizeText, extractReasoning } from "./utils";
 import { extractCitations, extractMarkdownCitations } from "./citations";
+import { CONFIG } from "./config";
 import { clearConversationStreaming } from "./messages";
+import {
+  type FinishData,
+  type ProviderMetadata,
+  type StreamPart,
+} from "./types";
+import { extractReasoning, humanizeText } from "./utils";
+import { api, internal } from "../_generated/api";
+import { type Id } from "../_generated/dataModel";
+import { type ActionCtx } from "../_generated/server";
 
 export class StreamHandler {
   private contentBuffer = "";
@@ -38,7 +42,7 @@ export class StreamHandler {
         return false;
       }
       return true;
-    } catch (error) {
+    } catch {
       // If we can't query the message, assume it's deleted
       this.messageDeleted = true;
       this.abortController?.abort();
@@ -71,7 +75,7 @@ export class StreamHandler {
     return false;
   }
 
-  private async queueUpdate<T>(operation: () => Promise<T>): Promise<T> {
+  private queueUpdate<T>(operation: () => Promise<T>): Promise<T> {
     // Chain operations to ensure they run sequentially
     const result = this.updateQueue.then(operation).catch(error => {
       console.error("Update operation failed:", error);
@@ -146,7 +150,9 @@ export class StreamHandler {
   }
 
   async initializeStreaming(): Promise<void> {
-    if (this.isInitialized || this.messageDeleted) return;
+    if (this.isInitialized || this.messageDeleted) {
+      return;
+    }
 
     // Check if message exists before initializing
     const exists = await this.checkMessageExists();
@@ -203,7 +209,7 @@ export class StreamHandler {
     }
 
     // Extract reasoning if embedded in content
-    let extractedReasoning = reasoning || extractReasoning(text);
+    const extractedReasoning = reasoning || extractReasoning(text);
     const humanizedReasoning = extractedReasoning
       ? humanizeText(extractedReasoning)
       : undefined;
@@ -212,7 +218,7 @@ export class StreamHandler {
     let citations = extractCitations(providerMetadata);
 
     // If using OpenRouter with web search and no citations found in metadata,
-    // try extracting from markdown links in the response text
+    // Try extracting from markdown links in the response text
     if (!citations || citations.length === 0) {
       const markdownCitations = extractMarkdownCitations(text);
       if (markdownCitations.length > 0) {
@@ -338,25 +344,23 @@ export class StreamHandler {
       for await (const part of stream) {
         // For full stream (reasoning), stop checks happen inside handleFullStreamPart
         // For text stream, we need to check here before appending
-        if (!isFullStream) {
-          // Check if we should stop processing
-          if (await this.checkIfStopped()) {
-            if (this.messageDeleted) {
-              throw new Error("MessageDeleted");
-            }
-            throw new Error("StoppedByUser");
+        if (
+          !isFullStream && // Check if we should stop processing
+          (await this.checkIfStopped())
+        ) {
+          if (this.messageDeleted) {
+            throw new Error("MessageDeleted");
           }
+          throw new Error("StoppedByUser");
         }
 
         if (this.hasFinishData()) {
           break;
         }
 
-        if (isFullStream) {
-          await this.handleFullStreamPart(part as StreamPart);
-        } else {
-          await this.appendToBuffer(part as string);
-        }
+        await (isFullStream
+          ? this.handleFullStreamPart(part as StreamPart)
+          : this.appendToBuffer(part as string));
       }
     } catch (error) {
       if (

@@ -1,12 +1,15 @@
-import { useParams, useNavigate } from "react-router";
-import { ConversationChatView } from "@/components/conversation-chat-view";
-import { useChat } from "@/hooks/use-chat";
+import { useNavigate, useParams } from "react-router";
+
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { ConversationId } from "@/types";
+
+import { ConversationChatView } from "@/components/conversation-chat-view";
+import { NotFoundPage } from "@/components/ui/not-found-page";
+import { useChat } from "@/hooks/use-chat";
 import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
-import { NotFoundPage } from "@/components/ui/not-found-page";
+import { type ConversationId } from "@/types";
+
+import { api } from "../../convex/_generated/api";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
@@ -46,7 +49,7 @@ export default function ConversationRoute() {
   });
 
   // If user is loaded and the query has completed and conversation is null,
-  // it means either the conversation doesn't exist or user doesn't have access
+  // It means either the conversation doesn't exist or user doesn't have access
   if (!userLoading && conversation === null) {
     return <NotFoundPage />;
   }
@@ -54,17 +57,17 @@ export default function ConversationRoute() {
   return (
     <ConversationChatView
       conversationId={conversationId as ConversationId}
-      messages={chatMessages || []}
+      hasApiKeys={hasApiKeys ?? false}
       isLoading={isGenerating}
       isLoadingMessages={isLoadingMessages || userLoading}
       isStreaming={isStreaming}
-      hasApiKeys={hasApiKeys ?? false}
+      messages={chatMessages || []}
+      onDeleteMessage={deleteMessage}
+      onEditMessage={editMessage}
+      onRetryAssistantMessage={retryAssistantMessage}
+      onRetryUserMessage={retryUserMessage}
       onSendMessage={sendMessage}
       onSendMessageToNewConversation={sendMessageToNewConversation}
-      onEditMessage={editMessage}
-      onRetryUserMessage={retryUserMessage}
-      onRetryAssistantMessage={retryAssistantMessage}
-      onDeleteMessage={deleteMessage}
       onStopGeneration={stopGeneration}
     />
   );

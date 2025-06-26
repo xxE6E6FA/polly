@@ -1,12 +1,12 @@
-import { AIModel } from "@/types";
 import {
   BrainIcon,
-  EyeIcon,
-  WrenchIcon,
-  LightningIcon,
   CodeIcon,
+  EyeIcon,
+  LightningIcon,
   SparkleIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react";
+
 import {
   CAPABILITY_PATTERNS,
   checkModelPatterns,
@@ -14,6 +14,8 @@ import {
   SUPPORTED_IMAGE_TYPES,
   SUPPORTED_TEXT_TYPES,
 } from "convex/lib/model_capabilities_config";
+
+import { type AIModel } from "@/types";
 
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "gpt-4o": "GPT-4o",
@@ -87,7 +89,9 @@ export function inferProviderFromModelId(modelId: string): string {
 export function hasReasoningCapabilities(
   model?: ModelForCapabilities
 ): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   if (model.supportsReasoning !== undefined) {
     return model.supportsReasoning;
@@ -97,7 +101,9 @@ export function hasReasoningCapabilities(
     CAPABILITY_PATTERNS.supportsReasoning[
       model.provider as keyof typeof CAPABILITY_PATTERNS.supportsReasoning
     ];
-  if (!patterns) return false;
+  if (!patterns) {
+    return false;
+  }
 
   return checkModelPatterns(model.modelId, patterns);
 }
@@ -105,15 +111,11 @@ export function hasReasoningCapabilities(
 export function hasImageUploadCapabilities(
   model?: ModelForCapabilities
 ): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   if (model.supportsImages !== undefined) {
-    console.log("🖼️ Image capability check (explicit):", {
-      modelId: model.modelId,
-      provider: model.provider,
-      supportsImages: model.supportsImages,
-      model,
-    });
     return model.supportsImages;
   }
 
@@ -122,25 +124,17 @@ export function hasImageUploadCapabilities(
       model.provider as keyof typeof CAPABILITY_PATTERNS.supportsImages
     ];
   if (!patterns) {
-    console.log("🖼️ Image capability check (no patterns):", {
-      modelId: model.modelId,
-      provider: model.provider,
-    });
     return false;
   }
 
   const result = checkModelPatterns(model.modelId, patterns);
-  console.log("🖼️ Image capability check (pattern matching):", {
-    modelId: model.modelId,
-    provider: model.provider,
-    patterns,
-    result,
-  });
   return result;
 }
 
 export function hasToolsCapabilities(model?: ModelForCapabilities): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   if (model.supportsTools !== undefined) {
     return model.supportsTools;
@@ -150,13 +144,17 @@ export function hasToolsCapabilities(model?: ModelForCapabilities): boolean {
     CAPABILITY_PATTERNS.supportsTools[
       model.provider as keyof typeof CAPABILITY_PATTERNS.supportsTools
     ];
-  if (!patterns) return false;
+  if (!patterns) {
+    return false;
+  }
 
   return checkModelPatterns(model.modelId, patterns);
 }
 
 export function hasFileUploadCapabilities(model?: AIModel): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   const result = getCapabilityFromPatterns(
     "supportsFiles",
@@ -169,7 +167,9 @@ export function hasFileUploadCapabilities(model?: AIModel): boolean {
 }
 
 export function isFastModel(model?: ModelForCapabilities): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   return getCapabilityFromPatterns(
     "isFast",
@@ -180,19 +180,25 @@ export function isFastModel(model?: ModelForCapabilities): boolean {
 }
 
 export function isCodingModel(model?: ModelForCapabilities): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   return getCapabilityFromPatterns("isCoding", model.provider, model.modelId);
 }
 
 export function isLatestModel(model?: ModelForCapabilities): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   return getCapabilityFromPatterns("isLatest", model.provider, model.modelId);
 }
 
 export function hasCapability(model?: AIModel, capability?: string): boolean {
-  if (!model || !capability) return false;
+  if (!model || !capability) {
+    return false;
+  }
 
   switch (capability) {
     case "supportsReasoning":
@@ -240,11 +246,11 @@ export function resolveModelProvider(
   };
 }
 
-export interface ModelCapability {
+export type ModelCapability = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   description: string;
-}
+};
 
 export const getCapabilityColor = (capabilityLabel: string) => {
   switch (capabilityLabel) {
@@ -336,7 +342,9 @@ export const getModelCapabilities = (
 };
 
 export function hasPdfUploadCapabilities(model?: AIModel): boolean {
-  if (!model) return false;
+  if (!model) {
+    return false;
+  }
 
   if (model.provider === "openrouter" && model.inputModalities) {
     return model.inputModalities.includes("file");
@@ -356,11 +364,6 @@ export function hasTextFileCapabilities(): boolean {
 
 export function getSupportedImageTypes(model?: AIModel): string[] {
   const hasImageCapability = hasImageUploadCapabilities(model);
-  console.log("🎨 Getting supported image types:", {
-    modelId: model?.modelId,
-    hasImageCapability,
-    willReturnTypes: hasImageCapability ? SUPPORTED_IMAGE_TYPES : [],
-  });
 
   if (!hasImageCapability) {
     return [];
@@ -377,27 +380,17 @@ export function isFileTypeSupported(
   fileType: string,
   model?: AIModel
 ): { supported: boolean; category: "image" | "pdf" | "text" | "unsupported" } {
-  console.log("🔍 Checking file type support:", {
-    fileType,
-    hasModel: !!model,
-    modelId: model?.modelId,
-    provider: model?.provider,
-  });
-
   const supportedImageTypes = getSupportedImageTypes(model);
   if (supportedImageTypes.includes(fileType)) {
-    console.log("✅ File is supported as IMAGE");
     return { supported: true, category: "image" };
   }
 
   if (fileType === "application/pdf" && hasPdfUploadCapabilities(model)) {
-    console.log("✅ File is supported as PDF");
     return { supported: true, category: "pdf" };
   }
 
   const supportedTextTypes = getSupportedTextTypes();
   if (supportedTextTypes.includes(fileType)) {
-    console.log("✅ File is supported as TEXT");
     return { supported: true, category: "text" };
   }
 
@@ -409,10 +402,8 @@ export function isFileTypeSupported(
     fileType === "" || // Sometimes text files have no MIME type
     fileType === "application/octet-stream" // Generic binary that might be text
   ) {
-    console.log("✅ File is supported as TEXT (heuristic)");
     return { supported: true, category: "text" };
   }
 
-  console.log("❌ File type not supported");
   return { supported: false, category: "unsupported" };
 }

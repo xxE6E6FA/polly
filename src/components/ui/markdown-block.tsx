@@ -1,23 +1,25 @@
 import React, { useMemo } from "react";
+
 import { type LLMOutputComponent } from "@llm-ui/react";
 import Markdown from "markdown-to-jsx";
 
 // Common numeric HTML entities that might appear during streaming
 const NUMERIC_ENTITIES = {
-  "#32": " ", // space
-  "#x20": " ", // space (hex)
-  "#39": "'", // apostrophe
-  "#x27": "'", // apostrophe (hex)
-  "#160": " ", // non-breaking space
-  "#xa0": " ", // non-breaking space (hex)
+  "#32": " ", // Space
+  "#x20": " ", // Space (hex)
+  "#39": "'", // Apostrophe
+  "#x27": "'", // Apostrophe (hex)
+  "#160": " ", // Non-breaking space
+  "#xa0": " ", // Non-breaking space (hex)
 };
 
 // Function to buffer incomplete HTML entities to prevent flashing during streaming
+
 function bufferIncompleteEntities(text: string): string {
   // Check if text ends with a potentially incomplete HTML entity
   // Pattern: & followed by alphanumeric/# characters (but not ending with ;)
   // This catches patterns like: &, &#, &#x, &#x2, &#x20, &amp, etc.
-  const incompletePattern = /&(?:#?x?[0-9a-fA-F]{0,6}|[a-zA-Z]{0,10})?$/;
+  const incompletePattern = /&(?:#?x?[\dA-Fa-f]{0,6}|[A-Za-z]{0,10})?$/;
   const match = text.match(incompletePattern);
 
   if (match && match[0].length > 1 && !match[0].endsWith(";")) {

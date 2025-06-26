@@ -3,29 +3,34 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { cn } from "@/lib/utils";
+
+import { Link, useNavigate } from "react-router";
+
 import { XIcon } from "@phosphor-icons/react";
-import { ConvexFileDisplay } from "@/components/convex-file-display";
-import { NotificationDialog } from "@/components/ui/notification-dialog";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { AIModel, Attachment } from "@/types";
-import { useQuery, useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useFileUpload } from "@/hooks/use-file-upload";
+import { useAction, useQuery } from "convex/react";
+
 import { AttachmentList } from "@/components/chat-input/attachment-list";
 import { InputControls } from "@/components/chat-input/input-controls";
-import { Id } from "../../convex/_generated/dataModel";
-import { useUser } from "@/hooks/use-user";
+import { ConvexFileDisplay } from "@/components/convex-file-display";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { NotificationDialog } from "@/components/ui/notification-dialog";
 import { useCreateConversation } from "@/hooks/use-conversations";
-import { useNavigate, Link } from "react-router";
-import { ROUTES } from "@/lib/routes";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { useUser } from "@/hooks/use-user";
+import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { type AIModel, type Attachment } from "@/types";
 
-interface ChatInputProps {
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
+
+type ChatInputProps = {
   onSendMessage?: (
     content: string,
     attachments?: Attachment[],
@@ -48,13 +53,13 @@ interface ChatInputProps {
   placeholder?: string;
   conversationId?: string;
   hasExistingMessages?: boolean;
-}
+};
 
-export interface ChatInputRef {
+export type ChatInputRef = {
   focus: () => void;
   addQuote: (quote: string) => void;
   setInput: (text: string) => void;
-}
+};
 
 // Constants for shared styles
 const WARNING_BANNER_CLASSES =
@@ -84,9 +89,9 @@ const WarningBanner = React.memo<{
         <div>{children}</div>
         {onDismiss && (
           <button
-            onClick={onDismiss}
-            className={cn(WARNING_BUTTON_CLASSES, buttonHoverClasses)}
             aria-label="Dismiss"
+            className={cn(WARNING_BUTTON_CLASSES, buttonHoverClasses)}
+            onClick={onDismiss}
           >
             <XIcon className="h-3.5 w-3.5 hover:opacity-80" />
           </button>
@@ -109,8 +114,9 @@ export const ChatInput = React.memo(
 
     const [input, setInput] = useState("");
     const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
-    const [isLimitWarningDismissed, setIsLimitWarningDismissed] =
-      useState(false);
+    const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
+      new Set()
+    );
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const inputControlsRef = useRef<{ handleSubmit: () => void } | null>(null);
@@ -161,7 +167,9 @@ export const ChatInput = React.memo(
     );
 
     const currentModel = useMemo(() => {
-      if (!selectedModel) return undefined;
+      if (!selectedModel) {
+        return;
+      }
       return {
         ...selectedModel,
         contextLength: selectedModel.contextLength,
@@ -184,7 +192,9 @@ export const ChatInput = React.memo(
 
     // Memoize placeholder text calculation
     const placeholderText = useMemo(() => {
-      if (props.placeholder) return props.placeholder;
+      if (props.placeholder) {
+        return props.placeholder;
+      }
 
       if (!canSendMessage && hasMessageLimit) {
         if (isAnonymous) {
@@ -210,6 +220,9 @@ export const ChatInput = React.memo(
       hasEnabledModels,
     ]);
 
+    // Create a key based on messageCount for warning dismissal
+    const warningDismissalKey = `warning-${messageCount}`;
+
     // Memoize warning states
     const warningStates = useMemo(
       () => ({
@@ -217,7 +230,7 @@ export const ChatInput = React.memo(
           hasMessageLimit &&
           messageCount > 0 &&
           canSendMessage &&
-          !isLimitWarningDismissed &&
+          !dismissedWarnings.has(warningDismissalKey) &&
           !hasUnlimitedCalls,
         showLimitReached:
           hasMessageLimit && !canSendMessage && !hasUnlimitedCalls,
@@ -226,7 +239,8 @@ export const ChatInput = React.memo(
         hasMessageLimit,
         messageCount,
         canSendMessage,
-        isLimitWarningDismissed,
+        dismissedWarnings,
+        warningDismissalKey,
         hasUnlimitedCalls,
       ]
     );
@@ -238,8 +252,8 @@ export const ChatInput = React.memo(
           {remainingMessages} message{remainingMessages === 1 ? "" : "s"}{" "}
           remaining •{" "}
           <Link
+            className="font-medium underline underline-offset-2 hover:no-underline"
             to={ROUTES.AUTH}
-            className="underline underline-offset-2 hover:no-underline font-medium"
           >
             Sign in
           </Link>{" "}
@@ -261,8 +275,8 @@ export const ChatInput = React.memo(
         <>
           Message limit reached.{" "}
           <Link
+            className="font-medium underline underline-offset-2 hover:no-underline"
             to={ROUTES.AUTH}
-            className="underline underline-offset-2 hover:no-underline font-medium"
           >
             Sign in
           </Link>{" "}
@@ -297,7 +311,9 @@ export const ChatInput = React.memo(
     // New callback for sending to a new conversation
     const handleSendAsNewConversation = useCallback(
       async (navigate: boolean) => {
-        if (!input.trim() && attachments.length === 0) return;
+        if (!input.trim() && attachments.length === 0) {
+          return;
+        }
 
         if (props.onSendMessageToNewConversation && props.conversationId) {
           const messageContent = buildMessageContent(input);
@@ -320,9 +336,9 @@ export const ChatInput = React.memo(
             navigate,
             binaryAttachments.length > 0 ? binaryAttachments : undefined,
             contextSummary,
-            props.conversationId, // sourceConversationId
-            null, // personaPrompt
-            null // personaId - could be passed from state if needed
+            props.conversationId, // SourceConversationId
+            null, // PersonaPrompt
+            null // PersonaId - could be passed from state if needed
           );
 
           clearInput();
@@ -388,11 +404,13 @@ export const ChatInput = React.memo(
     );
 
     const handleDismissWarning = useCallback(() => {
-      setIsLimitWarningDismissed(true);
-    }, []);
+      setDismissedWarnings(prev => new Set([...prev, warningDismissalKey]));
+    }, [warningDismissalKey]);
 
     const handlePreviewFileClose = useCallback((open: boolean) => {
-      if (!open) setPreviewFile(null);
+      if (!open) {
+        setPreviewFile(null);
+      }
     }, []);
 
     useImperativeHandle(
@@ -405,20 +423,12 @@ export const ChatInput = React.memo(
       [addQuote]
     );
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
         textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`;
       }
     }, [input]);
-
-    const prevMessageCountRef = useRef(messageCount);
-    useEffect(() => {
-      if (messageCount !== prevMessageCountRef.current) {
-        setIsLimitWarningDismissed(false);
-        prevMessageCountRef.current = messageCount;
-      }
-    }, [messageCount]);
 
     // Refocus textarea when streaming stops
     useEffect(() => {
@@ -456,8 +466,8 @@ export const ChatInput = React.memo(
     );
 
     return (
-      <div className="px-3 sm:px-6 pb-3 sm:pb-6 pt-2 relative">
-        <div className="max-w-3xl mx-auto w-full">
+      <div className="relative px-3 pb-3 pt-2 sm:px-6 sm:pb-6">
+        <div className="mx-auto w-full max-w-3xl">
           {warningStates.showLimitWarning &&
             !warningStates.showLimitReached && (
               <WarningBanner type="warning" onDismiss={handleDismissWarning}>
@@ -475,67 +485,70 @@ export const ChatInput = React.memo(
             <div className={formClasses}>
               <AttachmentList
                 attachments={attachments}
-                uploadProgress={uploadProgress}
-                onRemoveAttachment={removeAttachment}
-                onPreviewFile={setPreviewFile}
                 canChat={canSendMessage}
+                uploadProgress={uploadProgress}
+                onPreviewFile={setPreviewFile}
+                onRemoveAttachment={removeAttachment}
               />
 
               <div className="flex items-end gap-3">
-                <div className="flex-1 relative group">
+                <div className="group relative flex-1">
                   <textarea
                     ref={textareaRef}
+                    className={textareaClasses}
+                    disabled={props.isLoading || !canSendMessage}
+                    placeholder={placeholderText}
+                    rows={1}
+                    style={{ fontFamily: "inherit" }}
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={placeholderText}
-                    disabled={props.isLoading || !canSendMessage}
-                    rows={1}
-                    className={textareaClasses}
-                    style={{ fontFamily: "inherit" }}
                   />
                 </div>
               </div>
 
               <InputControls
                 ref={inputControlsRef}
+                attachments={attachments}
+                buildMessageContent={buildMessageContent}
                 canChat={canSendMessage}
+                clearAttachments={clearAttachments}
+                clearInput={clearInput}
+                conversationId={props.conversationId}
+                currentModel={currentModel}
+                getBinaryAttachments={getBinaryAttachments}
+                handleFileUpload={handleFileUpload}
+                hasApiKeys={hasApiKeys ?? false}
+                hasEnabledModels={hasEnabledModels ?? false}
+                hasExistingMessages={props.hasExistingMessages ?? false}
+                input={input}
                 isLoading={props.isLoading ?? false}
                 isStreaming={props.isStreaming ?? false}
                 selectedModel={selectedModel as AIModel | undefined}
-                currentModel={currentModel}
-                hasExistingMessages={props.hasExistingMessages ?? false}
-                conversationId={props.conversationId}
-                onStop={props.onStop}
-                hasApiKeys={hasApiKeys ?? false}
-                hasEnabledModels={hasEnabledModels ?? false}
-                input={input}
-                attachments={attachments}
-                buildMessageContent={buildMessageContent}
-                getBinaryAttachments={getBinaryAttachments}
-                clearAttachments={clearAttachments}
-                clearInput={clearInput}
-                handleFileUpload={handleFileUpload}
-                onSendMessage={handleSend}
-                onSendAsNewConversation={handleSendAsNewConversation}
                 onInputStart={props.onInputStart}
+                onSendAsNewConversation={handleSendAsNewConversation}
+                onSendMessage={handleSend}
+                onStop={props.onStop}
               />
             </div>
           </form>
         </div>
 
         <NotificationDialog
-          open={notificationDialog.isOpen}
-          onOpenChange={notificationDialog.handleOpenChange}
-          title={notificationDialog.options.title}
-          description={notificationDialog.options.description}
-          type={notificationDialog.options.type}
           actionText={notificationDialog.options.actionText}
+          description={notificationDialog.options.description}
+          open={notificationDialog.isOpen}
+          title={notificationDialog.options.title}
+          type={notificationDialog.options.type}
           onAction={notificationDialog.handleAction}
+          onOpenChange={notificationDialog.handleOpenChange}
         />
 
-        <Dialog open={!!previewFile} onOpenChange={handlePreviewFileClose}>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0">
+        <Dialog
+          open={Boolean(previewFile)}
+          onOpenChange={handlePreviewFileClose}
+        >
+          <DialogContent className="max-h-[90vh] p-0 sm:max-w-4xl">
             <div className="p-6">
               {previewFile && (
                 <ConvexFileDisplay

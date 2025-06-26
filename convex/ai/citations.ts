@@ -1,10 +1,10 @@
 import {
-  Citation,
-  WebSource,
-  OpenRouterCitation,
-  OpenRouterAnnotation,
-  GoogleGroundingChunk,
-  ProviderMetadata,
+  type Citation,
+  type GoogleGroundingChunk,
+  type OpenRouterAnnotation,
+  type OpenRouterCitation,
+  type ProviderMetadata,
+  type WebSource,
 } from "./types";
 
 // Citation extractor factory
@@ -99,7 +99,7 @@ export const extractCitations = (
 // Extract citations from markdown links in text
 export const extractMarkdownCitations = (text: string): Citation[] => {
   const citations: Citation[] = [];
-  const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const markdownLinkRegex = /\[([^\]]+)]\(([^)]+)\)/g;
 
   let match;
   while ((match = markdownLinkRegex.exec(text)) !== null) {
@@ -120,7 +120,7 @@ export const extractMarkdownCitations = (text: string): Citation[] => {
 
     citations.push({
       type: "url_citation" as const,
-      url: url,
+      url,
       title: linkText || domain || "Web Source",
       // We don't have snippet data from markdown links
       snippet: "",

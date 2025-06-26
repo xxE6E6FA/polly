@@ -1,10 +1,13 @@
 import { useParams } from "react-router";
+
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { NotFoundPage } from "@/components/ui/not-found-page";
+
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
+import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+
+import { api } from "../../convex/_generated/api";
 
 export default function SharedConversationRoute() {
   const { shareId } = useParams();
@@ -48,11 +51,11 @@ export default function SharedConversationRoute() {
 
   // Render the shared conversation view with minimal UI
   return (
-    <div className="h-screen w-full bg-background flex flex-col">
+    <div className="flex h-screen w-full flex-col bg-background">
       {/* Minimal header for shared conversations */}
       <div className="border-b bg-muted/30">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8">
-          <div className="flex items-center justify-between h-14">
+        <div className="mx-auto max-w-3xl px-4 sm:px-8">
+          <div className="flex h-14 items-center justify-between">
             <div className="flex flex-col gap-0.5">
               <h1 className="text-sm font-medium text-foreground">
                 {conversation.title || "Shared Conversation"}
@@ -68,8 +71,8 @@ export default function SharedConversationRoute() {
 
       {/* Messages container */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 sm:p-8 pb-32">
-          <div className="max-w-3xl mx-auto space-y-2 sm:space-y-3">
+        <div className="p-4 pb-32 sm:p-8">
+          <div className="mx-auto max-w-3xl space-y-2 sm:space-y-3">
             {chatMessages
               .filter(message => {
                 if (message.role === "system") {
@@ -81,8 +84,12 @@ export default function SharedConversationRoute() {
                 return true;
               })
               .sort((a, b) => {
-                if (a.role === "context" && b.role !== "context") return -1;
-                if (b.role === "context" && a.role !== "context") return 1;
+                if (a.role === "context" && b.role !== "context") {
+                  return -1;
+                }
+                if (b.role === "context" && a.role !== "context") {
+                  return 1;
+                }
                 return 0;
               })
               .map(message => (
@@ -92,11 +99,11 @@ export default function SharedConversationRoute() {
                   ) : (
                     <ChatMessage
                       message={message}
+                      onDeleteMessage={undefined}
+                      onRetryMessage={undefined}
                       isStreaming={false}
                       // Pass undefined for all actions to hide buttons
                       onEditMessage={undefined}
-                      onRetryMessage={undefined}
-                      onDeleteMessage={undefined}
                     />
                   )}
                 </div>
@@ -107,7 +114,7 @@ export default function SharedConversationRoute() {
 
       {/* Footer notice */}
       <div className="border-t bg-muted/30 p-4">
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground">
           This is a read-only view of a shared conversation
         </p>
       </div>

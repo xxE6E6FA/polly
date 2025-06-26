@@ -1,14 +1,15 @@
-import { ActionCtx } from "../_generated/server";
-import { api } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
-import { LanguageModel } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { getCapabilityFromPatterns } from "../lib/model_capabilities_config";
-import { ProviderType } from "./types";
+import { type LanguageModel } from "ai";
+
+import { type ProviderType } from "./types";
 import { applyOpenRouterSorting } from "./utils";
+import { api } from "../_generated/api";
+import { type Id } from "../_generated/dataModel";
+import { type ActionCtx } from "../_generated/server";
+import { getCapabilityFromPatterns } from "../lib/model_capabilities_config";
 
 // Provider factory map
 const createProviderModel = {
@@ -19,6 +20,7 @@ const createProviderModel = {
     createGoogleGenerativeAI({ apiKey })(model, {
       ...(enableWebSearch && { useSearchGrounding: true }),
     }),
+
   openrouter: async (
     apiKey: string,
     model: string,

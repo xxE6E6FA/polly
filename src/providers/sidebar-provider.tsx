@@ -1,23 +1,24 @@
 import * as React from "react";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
-  setSidebarStorage,
-  getSidebarFromStorage,
   getDefaultSidebarState,
+  getSidebarFromStorage,
+  setSidebarStorage,
 } from "@/lib/sidebar-utils";
 
-interface SidebarContextValue {
+type SidebarContextValue = {
   isSidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
   isMobile: boolean;
   mounted: boolean;
-}
+};
 
-interface SidebarProviderProps {
+type SidebarProviderProps = {
   children: React.ReactNode;
   serverSidebarVisible?: boolean;
-}
+};
 
 const SidebarContext = React.createContext<SidebarContextValue>({
   isSidebarVisible: false,
@@ -36,13 +37,16 @@ export function useSidebar() {
 }
 
 // For backward compatibility
+
 export function useServerSidebar() {
   const { isSidebarVisible } = useSidebar();
   return isSidebarVisible;
 }
 
 function withDisabledAnimations(fn: () => void) {
-  if (typeof document === "undefined") return fn();
+  if (typeof document === "undefined") {
+    return fn();
+  }
 
   document.documentElement.classList.add("disable-animations");
   fn();
@@ -52,10 +56,10 @@ function withDisabledAnimations(fn: () => void) {
   }, 100);
 }
 
-export function SidebarProvider({
+export const SidebarProvider = ({
   children,
   serverSidebarVisible = false,
-}: SidebarProviderProps) {
+}: SidebarProviderProps) => {
   const [mounted, setMounted] = useState(false);
   const [clientSidebarVisible, setClientSidebarVisible] =
     useState(serverSidebarVisible);
@@ -123,15 +127,18 @@ export function SidebarProvider({
     ? clientSidebarVisible
     : serverSidebarVisible;
 
-  const value: SidebarContextValue = {
-    isSidebarVisible,
-    setSidebarVisible,
-    toggleSidebar,
-    isMobile,
-    mounted,
-  };
+  const value: SidebarContextValue = useMemo(
+    () => ({
+      isSidebarVisible,
+      setSidebarVisible,
+      toggleSidebar,
+      isMobile,
+      mounted,
+    }),
+    [isSidebarVisible, setSidebarVisible, toggleSidebar, isMobile, mounted]
+  );
 
   return (
     <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>
   );
-}
+};

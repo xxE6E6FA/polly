@@ -1,8 +1,10 @@
-import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+
 import { internal } from "./_generated/api";
+import { action, internalAction } from "./_generated/server";
 
 // Type for enriched citation data
+
 type EnrichedCitationData = {
   description?: string;
   image?: string;
@@ -13,6 +15,7 @@ type EnrichedCitationData = {
 };
 
 // Extract metadata from HTML
+
 function extractMetadata(html: string, url: string): EnrichedCitationData {
   const metadata: EnrichedCitationData = {};
 
@@ -25,7 +28,9 @@ function extractMetadata(html: string, url: string): EnrichedCitationData {
         "i"
       )
     );
-    if (propertyMatch) return propertyMatch[1];
+    if (propertyMatch) {
+      return propertyMatch[1];
+    }
 
     // Try name attribute
     const nameMatch = html.match(
@@ -34,7 +39,9 @@ function extractMetadata(html: string, url: string): EnrichedCitationData {
         "i"
       )
     );
-    if (nameMatch) return nameMatch[1];
+    if (nameMatch) {
+      return nameMatch[1];
+    }
 
     // Try content first (for cases where content comes before property/name)
     const contentFirstMatch = html.match(
@@ -43,7 +50,9 @@ function extractMetadata(html: string, url: string): EnrichedCitationData {
         "i"
       )
     );
-    if (contentFirstMatch) return contentFirstMatch[1];
+    if (contentFirstMatch) {
+      return contentFirstMatch[1];
+    }
 
     return undefined;
   };
@@ -82,7 +91,7 @@ function extractMetadata(html: string, url: string): EnrichedCitationData {
     if (faviconUrl.startsWith("http")) {
       metadata.favicon = faviconUrl;
     } else if (faviconUrl.startsWith("//")) {
-      metadata.favicon = "https:" + faviconUrl;
+      metadata.favicon = `https:${faviconUrl}`;
     } else {
       const urlObj = new URL(url);
       metadata.favicon =
@@ -91,26 +100,24 @@ function extractMetadata(html: string, url: string): EnrichedCitationData {
   } else {
     // Default favicon path
     const urlObj = new URL(url);
-    metadata.favicon = urlObj.origin + "/favicon.ico";
+    metadata.favicon = `${urlObj.origin}/favicon.ico`;
   }
 
   // Clean up image URL if relative
   if (metadata.image && !metadata.image.startsWith("http")) {
     const urlObj = new URL(url);
-    if (metadata.image.startsWith("//")) {
-      metadata.image = "https:" + metadata.image;
-    } else {
-      metadata.image =
-        urlObj.origin +
+    metadata.image = metadata.image.startsWith("//")
+      ? `https:${metadata.image}`
+      : urlObj.origin +
         (metadata.image.startsWith("/") ? "" : "/") +
         metadata.image;
-    }
   }
 
   return metadata;
 }
 
 // Fetch metadata from a URL
+
 async function fetchUrlMetadata(url: string): Promise<EnrichedCitationData> {
   try {
     // Add a timeout to prevent hanging
@@ -141,7 +148,9 @@ async function fetchUrlMetadata(url: string): Promise<EnrichedCitationData> {
 
     // Read only the first 50KB to avoid processing huge pages
     const reader = response.body?.getReader();
-    if (!reader) return {};
+    if (!reader) {
+      return {};
+    }
 
     let html = "";
     let totalBytes = 0;
@@ -149,7 +158,9 @@ async function fetchUrlMetadata(url: string): Promise<EnrichedCitationData> {
 
     while (totalBytes < maxBytes) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       const chunk = new TextDecoder().decode(value);
       html += chunk;

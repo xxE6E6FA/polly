@@ -1,48 +1,50 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { Spinner } from "@/components/spinner";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Link, useNavigate } from "react-router";
+
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DotsThreeVerticalIcon,
+  PencilSimpleIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
+
+import { Spinner } from "@/components/spinner";
+import { Button } from "@/components/ui/button";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  TrashIcon,
-  PencilSimpleIcon,
-  DotsThreeVerticalIcon,
-} from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/routes";
-import { ConversationId, Conversation } from "@/types";
-import { useState, useEffect, useRef, useCallback } from "react";
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { conversationErrorHandlers } from "@/hooks/use-conversations";
 import { useSidebar } from "@/hooks/use-sidebar";
 import {
-  updateCachedConversation,
   removeCachedConversation,
+  updateCachedConversation,
 } from "@/lib/conversation-cache";
+import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { type Conversation, type ConversationId } from "@/types";
 
-import { Link } from "react-router";
 import { api } from "../../../convex/_generated/api";
-import { useMutation } from "convex/react";
-import { useNavigate } from "react-router";
 
-interface ConversationItemProps {
+type ConversationItemProps = {
   conversation: Conversation;
   currentConversationId?: ConversationId;
-}
+};
 
-export function ConversationItem({
+export const ConversationItem = ({
   conversation,
   currentConversationId,
-}: ConversationItemProps) {
+}: ConversationItemProps) => {
   const [editingId, setEditingId] = useState<ConversationId | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [originalTitle, setOriginalTitle] = useState("");
@@ -64,7 +66,9 @@ export function ConversationItem({
 
   const handleEditStart = useCallback(
     (id: ConversationId, currentTitle: string, e?: React.MouseEvent) => {
-      if (e) e.stopPropagation();
+      if (e) {
+        e.stopPropagation();
+      }
       setEditingId(id);
       setEditingTitle(currentTitle);
       setOriginalTitle(currentTitle);
@@ -204,19 +208,19 @@ export function ConversationItem({
               <Input
                 ref={editInputRef}
                 value={editingTitle}
-                onChange={e => setEditingTitle(e.target.value)}
-                onKeyDown={e => handleKeyDown(e, conversation._id)}
-                onBlur={handleBlur}
-                onMouseDown={e => {
-                  e.stopPropagation();
-                }}
                 className={cn(
                   "h-auto border-0 bg-transparent p-0 font-medium shadow-none outline-none ring-0 focus-visible:ring-0",
                   isMobile ? "text-xs" : "text-xs"
                 )}
+                onBlur={handleBlur}
+                onChange={e => setEditingTitle(e.target.value)}
+                onKeyDown={e => handleKeyDown(e, conversation._id)}
                 onClick={e => {
                   e.stopPropagation();
                   e.preventDefault();
+                }}
+                onMouseDown={e => {
+                  e.stopPropagation();
                 }}
               />
             ) : (
@@ -232,8 +236,8 @@ export function ConversationItem({
           </div>
 
           {conversation.isStreaming && (!isHovered || isMobile) && (
-            <div className="flex items-center mr-1">
-              <Spinner size="sm" className="text-foreground/60" />
+            <div className="mr-1 flex items-center">
+              <Spinner className="text-foreground/60" size="sm" />
             </div>
           )}
         </Link>
@@ -245,26 +249,26 @@ export function ConversationItem({
                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
-                      variant="ghost"
+                      className="h-8 w-8 text-foreground/70 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
                       size="icon-sm"
-                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-foreground/70 hover:text-foreground"
+                      variant="ghost"
                     >
                       <DotsThreeVerticalIcon
-                        weight="bold"
                         className="h-4 w-4"
+                        weight="bold"
                       />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent
-                    className="w-40 p-1"
                     align="end"
+                    className="w-40 p-1"
                     onClick={e => e.stopPropagation()}
                   >
                     <div className="flex flex-col gap-0.5">
                       <Button
-                        variant="ghost"
+                        className="h-8 justify-start gap-2 px-2 text-xs"
                         size="sm"
-                        className="justify-start h-8 px-2 gap-2 text-xs"
+                        variant="ghost"
                         onClick={() =>
                           handleEditStart(conversation._id, conversation.title)
                         }
@@ -273,9 +277,9 @@ export function ConversationItem({
                         Edit title
                       </Button>
                       <Button
-                        variant="ghost"
+                        className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                         size="sm"
-                        className="justify-start h-8 px-2 gap-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                        variant="ghost"
                         onClick={() => handleDeleteClick()}
                       >
                         <TrashIcon className="h-3.5 w-3.5" />
@@ -287,13 +291,13 @@ export function ConversationItem({
               </div>
             ) : (
               isHovered && (
-                <div className="flex items-center gap-0.5 flex-shrink-0 pr-2">
+                <div className="flex flex-shrink-0 items-center gap-0.5 pr-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="ghost"
+                        className="h-7 w-7 text-foreground/70 hover:bg-accent hover:text-foreground"
                         size="icon-sm"
-                        className="h-7 w-7 hover:bg-accent text-foreground/70 hover:text-foreground"
+                        variant="ghost"
                         onClick={e => {
                           e.preventDefault();
                           handleEditStart(
@@ -314,9 +318,9 @@ export function ConversationItem({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="ghost"
+                        className="h-7 w-7 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                         size="icon-sm"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors"
+                        variant="ghost"
                         onClick={handleDeleteClick}
                       >
                         <TrashIcon className="h-3.5 w-3.5" />
@@ -333,16 +337,16 @@ export function ConversationItem({
         )}
       </div>
       <ConfirmationDialog
-        open={confirmationDialog.isOpen}
-        onOpenChange={confirmationDialog.handleOpenChange}
-        title={confirmationDialog.options.title}
-        description={confirmationDialog.options.description}
-        confirmText={confirmationDialog.options.confirmText}
         cancelText={confirmationDialog.options.cancelText}
+        confirmText={confirmationDialog.options.confirmText}
+        description={confirmationDialog.options.description}
+        open={confirmationDialog.isOpen}
+        title={confirmationDialog.options.title}
         variant={confirmationDialog.options.variant}
-        onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
+        onConfirm={confirmationDialog.handleConfirm}
+        onOpenChange={confirmationDialog.handleOpenChange}
       />
     </>
   );
-}
+};

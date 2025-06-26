@@ -1,17 +1,21 @@
 import { useCallback, useMemo } from "react";
-import { ChatMessage, ConversationId } from "@/types";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { useUser } from "./use-user";
-import { removeCachedConversation } from "@/lib/conversation-cache";
-import { useNavigate } from "react-router";
-import { ROUTES } from "@/lib/routes";
 
-interface UseChatMessagesOptions {
+import { useNavigate } from "react-router";
+
+import { useMutation, useQuery } from "convex/react";
+
+import { removeCachedConversation } from "@/lib/conversation-cache";
+import { ROUTES } from "@/lib/routes";
+import { type ChatMessage, type ConversationId } from "@/types";
+
+import { useUser } from "./use-user";
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
+
+type UseChatMessagesOptions = {
   conversationId?: ConversationId;
   onError?: (error: Error) => void;
-}
+};
 
 export function useChatMessages({
   conversationId,
@@ -68,7 +72,9 @@ export function useChatMessages({
 
   const editMessage = useCallback(
     async (messageId: string, newContent: string) => {
-      if (!user?._id || !conversationId) return;
+      if (!user?._id || !conversationId) {
+        return;
+      }
 
       try {
         await updateMessageContent({
@@ -84,7 +90,9 @@ export function useChatMessages({
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
-      if (!user?._id || !conversationId) return;
+      if (!user?._id || !conversationId) {
+        return;
+      }
 
       try {
         // Filter messages the same way as the UI does

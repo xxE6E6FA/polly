@@ -1,11 +1,13 @@
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon, SignOutIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
-import { useAuthWithCache } from "@/hooks/use-auth-with-cache";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 
-interface SettingsHeaderProps {
+import { ArrowLeftIcon, SignOutIcon } from "@phosphor-icons/react";
+
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useAuthWithCache } from "@/hooks/use-auth-with-cache";
+import { cn } from "@/lib/utils";
+
+type SettingsHeaderProps = {
   // For page headers (new usage)
   title?: string;
   description?: string;
@@ -14,25 +16,26 @@ interface SettingsHeaderProps {
   // For navigation headers (existing usage)
   backLink?: string;
   backText?: string;
-}
+};
 
 // Client component for navigation header with auth actions
-function NavigationHeader({
+
+const NavigationHeader = ({
   backLink,
   backText,
 }: {
   backLink: string;
   backText: string;
-}) {
+}) => {
   const authActions = useAuthWithCache();
 
   return (
-    <div className="border-b border-border/40 flex-shrink-0">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+    <div className="flex-shrink-0 border-b border-border/40">
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           <Link to={backLink}>
-            <Button variant="ghost" size="sm" className="px-2 h-8 sm:h-9">
-              <ArrowLeftIcon className="h-4 w-4 mr-1 sm:mr-2" />
+            <Button className="h-8 px-2 sm:h-9" size="sm" variant="ghost">
+              <ArrowLeftIcon className="mr-1 h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">{backText}</span>
               <span className="sm:hidden">Back</span>
             </Button>
@@ -41,9 +44,9 @@ function NavigationHeader({
           <div className="flex items-center gap-1 sm:gap-2">
             <ThemeToggle />
             <Button
-              variant="ghost"
-              size="sm"
               className="h-8 px-2 sm:h-8 sm:px-2"
+              size="sm"
+              variant="ghost"
               onClick={authActions.signOut}
             >
               <SignOutIcon className="h-4 w-4 sm:mr-2" />
@@ -54,15 +57,15 @@ function NavigationHeader({
       </div>
     </div>
   );
-}
+};
 
-export function SettingsHeader({
+export const SettingsHeader = ({
   title,
   description,
   className,
   backLink,
   backText = "Back to Chat",
-}: SettingsHeaderProps) {
+}: SettingsHeaderProps) => {
   // Navigation header (existing usage)
   if (backLink) {
     return <NavigationHeader backLink={backLink} backText={backText} />;
@@ -80,4 +83,4 @@ export function SettingsHeader({
 
   // Fallback for invalid usage
   return null;
-}
+};

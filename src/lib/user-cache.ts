@@ -1,12 +1,12 @@
-import { User } from "../types";
-import { Doc } from "../../convex/_generated/dataModel";
+import { type Doc } from "../../convex/_generated/dataModel";
+import { type User } from "../types";
 
 const USER_CACHE_KEY = "polly_user_cache";
 const SELECTED_MODEL_CACHE_KEY = "polly_selected_model_cache";
 const CACHE_VERSION = 1;
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
-interface CachedUserData {
+type CachedUserData = {
   version: number;
   timestamp: number;
   user: User | null;
@@ -19,20 +19,24 @@ interface CachedUserData {
     needsReset: boolean;
   };
   hasUserApiKeys?: boolean;
-}
+};
 
-interface CachedModelData {
+type CachedModelData = {
   version: number;
   timestamp: number;
   model: Doc<"userModels"> | null;
-}
+};
 
 export function getCachedUser(): CachedUserData["user"] | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   try {
     const cached = localStorage.getItem(USER_CACHE_KEY);
-    if (!cached) return null;
+    if (!cached) {
+      return null;
+    }
 
     const data: CachedUserData = JSON.parse(cached);
 
@@ -59,11 +63,15 @@ export function getCachedUserData(): Omit<
   CachedUserData,
   "version" | "timestamp"
 > | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   try {
     const cached = localStorage.getItem(USER_CACHE_KEY);
-    if (!cached) return null;
+    if (!cached) {
+      return null;
+    }
 
     const data: CachedUserData = JSON.parse(cached);
 
@@ -97,7 +105,9 @@ export function setCachedUser(
   monthlyUsage?: CachedUserData["monthlyUsage"],
   hasUserApiKeys?: boolean
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     const cacheData: CachedUserData = {
@@ -116,11 +126,15 @@ export function setCachedUser(
 }
 
 export function getCachedSelectedModel(): Doc<"userModels"> | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   try {
     const cached = localStorage.getItem(SELECTED_MODEL_CACHE_KEY);
-    if (!cached) return null;
+    if (!cached) {
+      return null;
+    }
 
     const data: CachedModelData = JSON.parse(cached);
 
@@ -144,7 +158,9 @@ export function getCachedSelectedModel(): Doc<"userModels"> | null {
 }
 
 export function setCachedSelectedModel(model: Doc<"userModels"> | null) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     const cacheData: CachedModelData = {
@@ -160,7 +176,9 @@ export function setCachedSelectedModel(model: Doc<"userModels"> | null) {
 }
 
 export function clearUserCache() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     localStorage.removeItem(USER_CACHE_KEY);

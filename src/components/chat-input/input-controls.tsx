@@ -1,30 +1,31 @@
 import React, {
-  useState,
-  useRef,
-  useCallback,
   forwardRef,
+  useCallback,
   useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
+
+import { PaperclipIcon } from "@phosphor-icons/react";
+
+import { ModelPicker } from "@/components/model-picker";
+import { PersonaPicker } from "@/components/persona-picker";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PaperclipIcon } from "@phosphor-icons/react";
-import { ModelPicker } from "@/components/model-picker";
-import { PersonaPicker } from "@/components/persona-picker";
 import { WebSearchToggle } from "@/components/web-search-toggle";
-import { SendButtonGroup } from "./send-button-group";
-import { AIModel } from "@/types";
-import { Attachment } from "@/types";
-
-import { Id } from "../../../convex/_generated/dataModel";
 import { useUser } from "@/hooks/use-user";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn } from "@/lib/utils";
+import { type AIModel, type Attachment } from "@/types";
 
-interface InputControlsProps {
+import { SendButtonGroup } from "./send-button-group";
+import { type Id } from "../../../convex/_generated/dataModel";
+
+type InputControlsProps = {
   canChat: boolean;
   isLoading: boolean;
   isStreaming: boolean;
@@ -52,11 +53,11 @@ interface InputControlsProps {
   ) => void;
   onSendAsNewConversation?: (navigate: boolean) => void;
   onInputStart?: () => void;
-}
+};
 
-export interface InputControlsRef {
+export type InputControlsRef = {
   handleSubmit: () => void;
-}
+};
 
 export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
   (
@@ -106,8 +107,12 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
 
     // Handle submit
     const handleSubmit = useCallback(() => {
-      if (!input.trim() && attachments.length === 0) return;
-      if (isLoading || !canChat) return;
+      if (!input.trim() && attachments.length === 0) {
+        return;
+      }
+      if (isLoading || !canChat) {
+        return;
+      }
 
       const messageContent = buildMessageContent(input);
       const binaryAttachments = getBinaryAttachments();
@@ -150,33 +155,31 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       [handleSubmit]
     );
 
-    const canSend = !!(
-      (input.trim() || attachments.length > 0) &&
-      !isLoading &&
-      canChat
+    const canSend = Boolean(
+      (input.trim() || attachments.length > 0) && !isLoading && canChat
     );
 
     return (
       <>
         {/* Controls row */}
-        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-border/20 gap-2">
+        <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/20 pt-2.5">
           {/* Left side controls - single line layout */}
-          <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
             {/* Persona selector */}
             {canChat && personasEnabled && !conversationId && (
               <PersonaPicker
                 compact
                 selectedPersonaId={selectedPersonaId}
-                onPersonaSelect={setSelectedPersonaId}
                 tooltip={
                   <div className="text-xs">
-                    <div className="font-medium mb-1">AI Personas</div>
+                    <div className="mb-1 font-medium">AI Personas</div>
                     <p>
                       Choose a specialized AI assistant with a unique
                       personality and expertise
                     </p>
                   </div>
                 }
+                onPersonaSelect={setSelectedPersonaId}
               />
             )}
 
@@ -196,16 +199,15 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-shrink-0 items-center gap-2">
             {canChat && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    disabled={isLoading}
+                    size="sm"
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isLoading}
                     className={cn(
                       "h-9 px-3 rounded-full",
                       "bg-accent/30 hover:bg-accent/50 dark:bg-accent/20 dark:hover:bg-accent/40",
@@ -215,16 +217,17 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                       "hover:shadow-md dark:hover:shadow-lg",
                       "disabled:opacity-50 disabled:cursor-not-allowed"
                     )}
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    <PaperclipIcon className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                    <span className="hidden sm:inline text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                    <PaperclipIcon className="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+                    <span className="hidden text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground sm:inline">
                       Attach
                     </span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="text-xs">
-                    <div className="font-medium mb-1">
+                    <div className="mb-1 font-medium">
                       Supported file types:
                     </div>
                     <div>• Text files</div>
@@ -237,7 +240,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                       <div>• PDF documents</div>
                     )}
                     {!currentModel && (
-                      <div className="text-muted-foreground italic">
+                      <div className="italic text-muted-foreground">
                         Select a model to see specific capabilities
                       </div>
                     )}
@@ -248,16 +251,16 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
 
             <SendButtonGroup
               canSend={canSend}
-              isStreaming={isStreaming}
-              isLoading={isLoading}
-              isSummarizing={false}
-              hasExistingMessages={hasExistingMessages}
               conversationId={conversationId}
-              onSend={handleSubmit}
-              onStop={onStop}
-              onSendAsNewConversation={onSendAsNewConversation}
               hasApiKeys={hasApiKeys}
               hasEnabledModels={hasEnabledModels}
+              hasExistingMessages={hasExistingMessages}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              isSummarizing={false}
+              onSend={handleSubmit}
+              onSendAsNewConversation={onSendAsNewConversation}
+              onStop={onStop}
             />
           </div>
         </div>
@@ -265,11 +268,11 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
         {/* Hidden file input */}
         <input
           ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf,.txt,.md,.csv,.json,.xml,.yaml,.yml,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.sql,.html,.css,.scss,.sass,.less,.vue,.svelte"
           multiple
-          onChange={handleFileInputChange}
+          accept="image/*,.pdf,.txt,.md,.csv,.json,.xml,.yaml,.yml,.js,.ts,.jsx,.tsx,.py,.java,.c,.cpp,.cs,.go,.rs,.php,.rb,.swift,.kt,.scala,.sh,.sql,.html,.css,.scss,.sass,.less,.vue,.svelte"
           className="hidden"
+          type="file"
+          onChange={handleFileInputChange}
         />
       </>
     );

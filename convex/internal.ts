@@ -122,7 +122,7 @@ export const cleanupOrphanedAccounts = mutation({
         // User doesn't exist, delete the orphaned account
         await ctx.db.delete(account._id);
         deletedCount++;
-        console.log(
+        console.warn(
           `Deleted orphaned account ${account._id} for non-existent user ${account.userId}`
         );
       }

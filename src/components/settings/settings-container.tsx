@@ -1,8 +1,7 @@
-import { Link, useLocation } from "react-router";
-import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/routes";
-import { KeyIcon, RobotIcon, UsersIcon, InfoIcon } from "@phosphor-icons/react";
-import { UserIdCard } from "./user-id-card";
+import { Link, useLocation, useNavigate } from "react-router";
+
+import { InfoIcon, KeyIcon, RobotIcon, UsersIcon } from "@phosphor-icons/react";
+
 import {
   Select,
   SelectContent,
@@ -10,12 +9,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useNavigate } from "react-router";
+import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
-interface SettingsContainerProps {
+import { UserIdCard } from "./user-id-card";
+
+type SettingsContainerProps = {
   children: React.ReactNode;
   className?: string;
-}
+};
 
 const settingsNavItems = [
   {
@@ -40,10 +42,10 @@ const settingsNavItems = [
   },
 ];
 
-export function SettingsContainer({
+export const SettingsContainer = ({
   children,
   className = "",
-}: SettingsContainerProps) {
+}: SettingsContainerProps) => {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -52,9 +54,9 @@ export function SettingsContainer({
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8 w-full flex-1">
+    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-8">
       {/* Mobile Navigation */}
-      <div className="lg:hidden mb-6">
+      <div className="mb-6 lg:hidden">
         <Select value={location.pathname} onValueChange={navigate}>
           <SelectTrigger className="w-full">
             <SelectValue>
@@ -89,7 +91,7 @@ export function SettingsContainer({
 
       <div className="flex gap-6 lg:gap-8">
         {/* Desktop Navigation */}
-        <div className="hidden lg:block w-64 flex-shrink-0 space-y-6">
+        <div className="hidden w-64 flex-shrink-0 space-y-6 lg:block">
           <nav>
             <div className="space-y-1">
               {settingsNavItems.map(item => {
@@ -124,4 +126,4 @@ export function SettingsContainer({
       </div>
     </div>
   );
-}
+};

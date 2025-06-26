@@ -1,4 +1,12 @@
 import {
+  CaretDownIcon,
+  ChatCircleIcon,
+  GitBranchIcon,
+  PaperPlaneTiltIcon,
+  SquareIcon,
+} from "@phosphor-icons/react";
+
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -9,16 +17,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  PaperPlaneTiltIcon,
-  SquareIcon,
-  CaretDownIcon,
-  ChatCircleIcon,
-  GitBranchIcon,
-} from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
-interface SendButtonGroupProps {
+type SendButtonGroupProps = {
   canSend: boolean;
   isStreaming: boolean;
   isLoading: boolean;
@@ -30,9 +31,9 @@ interface SendButtonGroupProps {
   onSendAsNewConversation?: (navigate: boolean) => void;
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
-}
+};
 
-export function SendButtonGroup({
+export const SendButtonGroup = ({
   canSend,
   isStreaming,
   isLoading,
@@ -44,7 +45,7 @@ export function SendButtonGroup({
   onSendAsNewConversation,
   hasApiKeys,
   hasEnabledModels,
-}: SendButtonGroupProps) {
+}: SendButtonGroupProps) => {
   const showDropdown =
     hasExistingMessages &&
     conversationId &&
@@ -61,8 +62,8 @@ export function SendButtonGroup({
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
                 <button
-                  type="button"
                   disabled={isLoading || isSummarizing}
+                  type="button"
                   className={cn(
                     "inline-flex items-center justify-center font-medium text-sm",
                     "h-9 w-8 p-0 rounded-l-full",
@@ -96,7 +97,6 @@ export function SendButtonGroup({
             )}
           >
             <DropdownMenuItem
-              onClick={() => onSendAsNewConversation?.(true)}
               disabled={isLoading || isSummarizing}
               className={cn(
                 "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
@@ -104,22 +104,22 @@ export function SendButtonGroup({
                 "focus:bg-primary/10 dark:focus:bg-primary/20",
                 "transition-colors duration-200"
               )}
+              onClick={() => onSendAsNewConversation?.(true)}
             >
-              <div className="flex-shrink-0 mt-0.5">
-                <ChatCircleIcon className="w-4 h-4 text-primary" />
+              <div className="mt-0.5 flex-shrink-0">
+                <ChatCircleIcon className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none">
                   Send & open new chat
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Create a new conversation with this message and switch to it
                 </p>
               </div>
             </DropdownMenuItem>
 
             <DropdownMenuItem
-              onClick={() => onSendAsNewConversation?.(false)}
               disabled={isLoading || isSummarizing}
               className={cn(
                 "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
@@ -127,15 +127,16 @@ export function SendButtonGroup({
                 "focus:bg-primary/10 dark:focus:bg-primary/20",
                 "transition-colors duration-200"
               )}
+              onClick={() => onSendAsNewConversation?.(false)}
             >
-              <div className="flex-shrink-0 mt-0.5">
-                <GitBranchIcon className="w-4 h-4 text-primary" />
+              <div className="mt-0.5 flex-shrink-0">
+                <GitBranchIcon className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-sm font-medium leading-none">
                   Branch conversation
                 </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Create a new conversation but stay in the current one
                 </p>
               </div>
@@ -146,9 +147,8 @@ export function SendButtonGroup({
 
       {/* Send/Stop button */}
       <button
-        type={isStreaming ? "button" : "submit"}
-        onClick={isStreaming ? onStop : onSend}
         disabled={isStreaming ? !onStop : !canSend}
+        type={isStreaming ? "button" : "submit"}
         className={cn(
           "inline-flex items-center justify-center font-medium text-sm",
           "h-9 w-9 p-0 rounded-full transition-all duration-200",
@@ -172,15 +172,16 @@ export function SendButtonGroup({
                   ? "Send message"
                   : undefined
         }
+        onClick={isStreaming ? onStop : onSend}
       >
         {isStreaming ? (
           <SquareIcon className="h-3.5 w-3.5 fill-current" />
         ) : isLoading || isSummarizing ? (
-          <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
         ) : (
           <PaperPlaneTiltIcon className="h-4 w-4" />
         )}
       </button>
     </div>
   );
-}
+};

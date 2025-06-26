@@ -1,34 +1,38 @@
-import { cn } from "@/lib/utils";
-import { Spinner } from "@/components/spinner";
-import { useState, useEffect } from "react";
-import { useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { useEffect, useState } from "react";
+
 import { useNavigate } from "react-router";
-import { ROUTES } from "@/lib/routes";
-import { useCreateConversation } from "@/hooks/use-conversations";
-import { useUser } from "@/hooks/use-user";
-import { useTextSelection } from "@/hooks/use-text-selection";
+
+import { useAction } from "convex/react";
+
+import { Spinner } from "@/components/spinner";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useCreateConversation } from "@/hooks/use-conversations";
+import { useTextSelection } from "@/hooks/use-text-selection";
+import { useUser } from "@/hooks/use-user";
+import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
-interface ConversationStarterPopoverProps {
+import { api } from "../../../convex/_generated/api";
+
+type ConversationStarterPopoverProps = {
   selectedText: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   children: React.ReactNode;
   className?: string;
-}
+};
 
-export function ConversationStarterPopover({
+export const ConversationStarterPopover = ({
   selectedText,
   open,
   onOpenChange,
   children,
   className,
-}: ConversationStarterPopoverProps) {
+}: ConversationStarterPopoverProps) => {
   const [prompts, setPrompts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,9 +50,9 @@ export function ConversationStarterPopover({
         setIsLoading(true);
         const generatedPrompts = await generateStarters({ selectedText });
         setPrompts(generatedPrompts);
-      } catch (err) {
+      } catch (error) {
         if (process.env.NODE_ENV === "development") {
-          console.error("Failed to generate conversation starters:", err);
+          console.error("Failed to generate conversation starters:", error);
         }
         // Use fallback prompts on error
         setPrompts([
@@ -75,7 +79,9 @@ export function ConversationStarterPopover({
   }, [open, lockSelection, unlockSelection]);
 
   const handleStartConversation = async (prompt: string) => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
 
     try {
       const conversationId = await createNewConversationWithResponse({
@@ -107,28 +113,28 @@ export function ConversationStarterPopover({
         {children}
       </PopoverTrigger>
       <PopoverContent
-        className={cn("w-[380px] p-0 max-h-[300px]", className)}
-        side="bottom"
         align="center"
-        sideOffset={8}
+        className={cn("w-[380px] p-0 max-h-[300px]", className)}
         collisionPadding={10}
         data-conversation-starter="true"
+        side="bottom"
+        sideOffset={8}
       >
-        <div className="bg-background border-0 rounded-xl overflow-hidden">
+        <div className="overflow-hidden rounded-xl border-0 bg-background">
           {isLoading ? (
-            <div className="flex items-center justify-center py-6 px-4">
+            <div className="flex items-center justify-center px-4 py-6">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Spinner size="sm" />
                 <span className="text-sm">Generating ideas...</span>
               </div>
             </div>
           ) : (
-            <div className="max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/50">
-              <div className="p-4 space-y-2">
+            <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border/50 max-h-[300px] overflow-y-auto">
+              <div className="space-y-2 p-4">
                 {prompts.map(prompt => (
                   <button
                     key={prompt}
-                    className="w-full text-left p-3 text-sm text-foreground hover:bg-accent/50 rounded-md transition-colors duration-200 cursor-pointer border-0 bg-transparent"
+                    className="w-full cursor-pointer rounded-md border-0 bg-transparent p-3 text-left text-sm text-foreground transition-colors duration-200 hover:bg-accent/50"
                     onClick={() => handleStartConversation(prompt)}
                   >
                     {prompt}
@@ -141,4 +147,4 @@ export function ConversationStarterPopover({
       </PopoverContent>
     </Popover>
   );
-}
+};

@@ -1,5 +1,6 @@
-import { query } from "./_generated/server";
 import { v } from "convex/values";
+
+import { query } from "./_generated/server";
 
 // Query to get session by session token for server-side auth
 export const getBySessionToken = query({

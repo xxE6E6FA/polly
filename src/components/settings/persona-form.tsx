@@ -1,58 +1,66 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useState } from "react";
+
+import {
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
+  ArrowsOutIcon,
+  SmileyIcon,
+  SparkleIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { useAction } from "convex/react";
+import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { toast } from "sonner";
+
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  SmileyIcon,
-  ArrowCounterClockwiseIcon,
-  ArrowClockwiseIcon,
-  SparkleIcon,
-  ArrowsOutIcon,
-  XIcon,
-} from "@phosphor-icons/react";
-import { Spinner } from "@/components/spinner";
-import { countTokens, countTokensSync } from "@/lib/utils";
-import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
 import { SkeletonText } from "@/components/ui/skeleton-text";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
-import { toast } from "sonner";
-import { useAction } from "convex/react";
+import { Textarea } from "@/components/ui/textarea";
+import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
+
 import { api } from "../../../convex/_generated/api";
 
-export interface PersonaFormData {
+export type PersonaFormData = {
   name: string;
   description: string;
   prompt: string;
   icon: string;
-}
+};
 
-interface PersonaFormProps {
+type PersonaFormProps = {
   formData: PersonaFormData;
-  setFormData: React.Dispatch<React.SetStateAction<PersonaFormData>>;
+  setFormData: React.Dispatch<React.SetStateAction<PersonaFormData | null>>;
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleEmojiClick: (emojiData: EmojiClickData) => void;
-}
+};
 
-export function PersonaForm({
+export const PersonaForm = ({
   formData,
   setFormData,
   isEmojiPickerOpen,
   setIsEmojiPickerOpen,
   handleEmojiClick,
-}: PersonaFormProps) {
+}: PersonaFormProps) => {
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
 
   const improvePromptAction = useAction(api.personas.improvePrompt);
 
-  // Use word-based undo/redo functionality
+  const updateFormField = useCallback(
+    (field: keyof PersonaFormData, value: string) => {
+      setFormData(prev => (prev ? { ...prev, [field]: value } : null));
+    },
+    [setFormData]
+  );
+
   const {
     value: promptValue,
     updateValue: setPromptValue,
@@ -60,59 +68,23 @@ export function PersonaForm({
     redo,
     canUndo,
     canRedo,
-    reset: resetPromptValue,
   } = useWordBasedUndo({
     initialValue: formData.prompt,
     debounceMs: 1000,
   });
 
-  // Sync prompt changes with form data
-  useEffect(() => {
-    setFormData(prev => ({ ...prev, prompt: promptValue }));
-  }, [promptValue, setFormData]);
-
-  // Sync the prompt value when formData.prompt changes (e.g., when loading existing persona)
-  useEffect(() => {
-    // Only update if the promptValue is empty and formData.prompt has content
-    // This prevents overwriting user edits when the form data changes
-    if (!promptValue && formData.prompt) {
-      resetPromptValue(formData.prompt);
-    }
-  }, [formData.prompt]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Use synchronous estimation initially, then update with accurate count
-  const [tokenCount, setTokenCount] = useState(() =>
-    countTokensSync(promptValue)
-  );
-
-  // Update token count asynchronously for accuracy
-  useEffect(() => {
-    let cancelled = false;
-
-    // Update with synchronous estimate immediately
-    setTokenCount(countTokensSync(promptValue));
-
-    // Then get accurate count asynchronously
-    countTokens(promptValue).then(count => {
-      if (!cancelled) {
-        setTokenCount(count);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [promptValue]);
-
   const handlePromptChange = useCallback(
     (newValue: string) => {
       setPromptValue(newValue);
+      updateFormField("prompt", newValue);
     },
-    [setPromptValue]
+    [setPromptValue, updateFormField]
   );
 
   const improvePrompt = async () => {
-    if (!promptValue.trim() || isImprovingPrompt) return;
+    if (!promptValue.trim() || isImprovingPrompt) {
+      return;
+    }
 
     setIsImprovingPrompt(true);
     try {
@@ -123,6 +95,7 @@ export function PersonaForm({
       }
 
       setPromptValue(result.improvedPrompt);
+      updateFormField("prompt", result.improvedPrompt);
       toast.success("Prompt improved successfully!", {
         description: "Your prompt has been enhanced with AI suggestions.",
       });
@@ -164,45 +137,38 @@ export function PersonaForm({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
       {/* Left Column - Basic Information */}
       <div className="space-y-6">
         <div>
-          <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
+          <h2 className="mb-4 text-xl font-semibold">Basic Information</h2>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-sm font-medium">
+              <Label className="text-sm font-medium" htmlFor="name">
                 Name
               </Label>
               <Input
-                id="name"
-                value={formData.name}
-                onChange={e =>
-                  setFormData(prev => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g., Creative Writer"
                 className="h-10"
+                id="name"
+                placeholder="e.g., Creative Writer"
+                value={formData.name}
+                onChange={e => updateFormField("name", e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description" className="text-sm font-medium">
+              <Label className="text-sm font-medium" htmlFor="description">
                 Description{" "}
-                <span className="text-xs text-muted-foreground font-normal">
+                <span className="text-xs font-normal text-muted-foreground">
                   (optional)
                 </span>
               </Label>
               <Input
-                id="description"
-                value={formData.description}
-                onChange={e =>
-                  setFormData(prev => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="e.g., Imaginative storyteller and creative writing assistant"
                 className="h-10"
+                id="description"
+                placeholder="e.g., Imaginative storyteller and creative writing assistant"
+                value={formData.description}
+                onChange={e => updateFormField("description", e.target.value)}
               />
             </div>
           </div>
@@ -211,10 +177,10 @@ export function PersonaForm({
         {/* Icon Selection Section */}
         <div className="space-y-3">
           <h3 className="text-lg font-medium">Icon</h3>
-          <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
-            <div className="relative w-16 h-16 border-2 rounded-xl bg-background shadow-sm overflow-hidden">
+          <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
+            <div className="relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-background shadow-sm">
               <span
-                className="absolute text-3xl select-none"
+                className="absolute select-none text-3xl"
                 style={{
                   top: "50%",
                   left: "50%",
@@ -228,7 +194,7 @@ export function PersonaForm({
               </span>
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground mb-3">
+              <p className="mb-3 text-sm text-muted-foreground">
                 Choose an emoji to represent your persona
               </p>
               <Popover
@@ -236,18 +202,18 @@ export function PersonaForm({
                 onOpenChange={setIsEmojiPickerOpen}
               >
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="default">
-                    <SmileyIcon className="h-4 w-4 mr-2" />
+                  <Button size="default" variant="outline">
+                    <SmileyIcon className="mr-2 h-4 w-4" />
                     Choose Emoji
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent align="start" className="w-auto p-0">
                   <EmojiPicker
-                    onEmojiClick={handleEmojiClick}
-                    searchDisabled={false}
-                    skinTonesDisabled={true}
-                    width={350}
+                    skinTonesDisabled
                     height={400}
+                    searchDisabled={false}
+                    width={350}
+                    onEmojiClick={handleEmojiClick}
                   />
                 </PopoverContent>
               </Popover>
@@ -261,36 +227,36 @@ export function PersonaForm({
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Personality & Instructions</h2>
           <Button
+            className="gap-2"
+            size="sm"
             type="button"
             variant="outline"
-            size="sm"
             onClick={() => setIsFullScreenEditor(true)}
-            className="gap-2"
           >
             <ArrowsOutIcon className="h-4 w-4" />
             Fullscreen Editor
           </Button>
         </div>
         <div className="space-y-3">
-          <div className="group border border-input rounded-lg bg-background transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring relative">
+          <div className="group relative rounded-lg border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
             <Textarea
+              className="min-h-[300px] resize-none rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-base"
               id="prompt"
-              value={promptValue}
-              onChange={e => handlePromptChange(e.target.value)}
               placeholder="Describe how you want your AI assistant to behave and respond. For example: 'You are a creative writing assistant who helps users brainstorm ideas, develop characters, and craft compelling stories. Be encouraging, imaginative, and offer specific suggestions.'"
               rows={12}
-              className="resize-none min-h-[300px] border-0 rounded-none bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-4 text-sm sm:text-base leading-relaxed font-mono"
+              value={promptValue}
+              onChange={e => handlePromptChange(e.target.value)}
             />
 
             {isImprovingPrompt && (
-              <div className="absolute inset-0 bg-background rounded-lg flex items-center justify-center z-10">
-                <div className="w-full h-full relative overflow-hidden">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background">
+                <div className="relative h-full w-full overflow-hidden">
                   <SkeletonText className="absolute inset-0 opacity-80" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-background/50 to-transparent animate-pulse" />
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
+                  <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-transparent via-background/50 to-transparent" />
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background px-4 py-2 shadow-lg">
                       <Spinner size="sm" />
-                      <span className="text-sm font-medium gradient-text">
+                      <span className="gradient-text text-sm font-medium">
                         AI magic in progress...
                       </span>
                     </div>
@@ -300,41 +266,38 @@ export function PersonaForm({
             )}
 
             {/* Prompt Controls */}
-            <div className="flex items-center justify-between gap-2 p-2 border-t border-border bg-muted/30">
+            <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/30 p-2">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Button
+                    className="h-7 w-7 p-0"
+                    disabled={!canUndo || isImprovingPrompt}
+                    size="sm"
                     type="button"
                     variant="ghost"
-                    size="sm"
                     onClick={undo}
-                    disabled={!canUndo || isImprovingPrompt}
-                    className="h-7 w-7 p-0"
                   >
                     <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
                   </Button>
                   <Button
+                    className="h-7 w-7 p-0"
+                    disabled={!canRedo || isImprovingPrompt}
+                    size="sm"
                     type="button"
                     variant="ghost"
-                    size="sm"
                     onClick={redo}
-                    disabled={!canRedo || isImprovingPrompt}
-                    className="h-7 w-7 p-0"
                   >
                     <ArrowClockwiseIcon className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {tokenCount} tokens
-                </span>
               </div>
               <Button
+                className="gap-2 text-xs"
+                disabled={!promptValue.trim() || isImprovingPrompt}
+                size="sm"
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={improvePrompt}
-                disabled={!promptValue.trim() || isImprovingPrompt}
-                className="gap-2 text-xs"
               >
                 {isImprovingPrompt ? (
                   <>
@@ -351,26 +314,26 @@ export function PersonaForm({
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground leading-relaxed">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Define your assistant&apos;s personality, tone, and expertise. This
             guides how it will respond in conversations. Use the{" "}
             <Button
+              className="h-auto p-0 text-xs text-blue-500 underline hover:text-blue-600"
+              disabled={!promptValue.trim() || isImprovingPrompt}
+              size="sm"
               type="button"
               variant="link"
-              size="sm"
               onClick={improvePrompt}
-              disabled={!promptValue.trim() || isImprovingPrompt}
-              className="p-0 h-auto text-xs text-blue-500 hover:text-blue-600 underline"
             >
               improve prompt
             </Button>{" "}
             feature to transform simple ideas into structured prompts. Need more
             help?{" "}
             <a
+              className="text-blue-500 underline transition-colors hover:text-blue-600"
               href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/system-prompts"
-              target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 hover:text-blue-600 transition-colors underline"
+              target="_blank"
             >
               Check out this system prompts guide
             </a>{" "}
@@ -380,85 +343,82 @@ export function PersonaForm({
       </div>
 
       {isFullScreenEditor && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b flex-shrink-0 gap-3 sm:gap-4">
-            <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 min-w-0">
-              <h2 className="text-lg font-semibold truncate">
+          <div className="flex flex-shrink-0 flex-col justify-between gap-3 border-b p-4 sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-start sm:gap-4">
+              <h2 className="truncate text-lg font-semibold">
                 <span className="hidden sm:inline">
                   Personality & Instructions
                 </span>
                 <span className="sm:hidden">Edit Prompt</span>
               </h2>
               <Button
+                className="h-8 w-8 flex-shrink-0 p-0 sm:hidden"
+                size="sm"
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={() => setIsFullScreenEditor(false)}
-                className="h-8 w-8 p-0 flex-shrink-0 sm:hidden"
               >
                 <XIcon className="h-4 w-4" />
               </Button>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-4">
+            <div className="flex items-center justify-between gap-2 sm:justify-end sm:gap-4">
               <div className="flex items-center gap-2">
-                <div className="hidden sm:flex items-center gap-1">
+                <div className="hidden items-center gap-1 sm:flex">
                   <Button
+                    className="h-8 w-8 p-0"
+                    disabled={!canUndo || isImprovingPrompt}
+                    size="sm"
                     type="button"
                     variant="ghost"
-                    size="sm"
                     onClick={undo}
-                    disabled={!canUndo || isImprovingPrompt}
-                    className="h-8 w-8 p-0"
                   >
                     <ArrowCounterClockwiseIcon className="h-4 w-4" />
                   </Button>
                   <Button
+                    className="h-8 w-8 p-0"
+                    disabled={!canRedo || isImprovingPrompt}
+                    size="sm"
                     type="button"
                     variant="ghost"
-                    size="sm"
                     onClick={redo}
-                    disabled={!canRedo || isImprovingPrompt}
-                    className="h-8 w-8 p-0"
                   >
                     <ArrowClockwiseIcon className="h-4 w-4" />
                   </Button>
                 </div>
-                <span className="text-xs sm:text-sm text-muted-foreground">
-                  {tokenCount} tokens
-                </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button
+                  className="gap-1 sm:gap-2"
+                  disabled={!promptValue.trim() || isImprovingPrompt}
+                  size="sm"
                   type="button"
                   variant="outline"
-                  size="sm"
                   onClick={improvePrompt}
-                  disabled={!promptValue.trim() || isImprovingPrompt}
-                  className="gap-1 sm:gap-2"
                 >
                   {isImprovingPrompt ? (
                     <>
                       <Spinner size="sm" />
-                      <span className="hidden xs:inline">Improving...</span>
+                      <span className="xs:inline hidden">Improving...</span>
                       <span className="xs:hidden">...</span>
                     </>
                   ) : (
                     <>
                       <SparkleIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span className="hidden xs:inline">Improve prompt</span>
+                      <span className="xs:inline hidden">Improve prompt</span>
                       <span className="xs:hidden">Improve</span>
                     </>
                   )}
                 </Button>
                 <Button
+                  className="hidden h-8 w-8 flex-shrink-0 p-0 sm:flex"
+                  size="sm"
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => setIsFullScreenEditor(false)}
-                  className="h-8 w-8 p-0 flex-shrink-0 hidden sm:flex"
                 >
                   <XIcon className="h-4 w-4" />
                 </Button>
@@ -467,19 +427,20 @@ export function PersonaForm({
           </div>
 
           {/* Content */}
-          <div className="flex-1 relative min-h-0">
+          <div className="relative min-h-0 flex-1">
             <Textarea
-              value={promptValue}
-              onChange={e => handlePromptChange(e.target.value)}
+              className="h-full w-full resize-none overflow-y-auto border-0 bg-transparent p-4 pl-[max(1rem,calc(50%-40ch))] pr-[max(1rem,calc(50%-40ch))] font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0 sm:p-6 sm:pl-[max(1.5rem,calc(50%-40ch))] sm:pr-[max(1.5rem,calc(50%-40ch))] sm:text-base lg:p-8 lg:pl-[max(2rem,calc(50%-40ch))] lg:pr-[max(2rem,calc(50%-40ch))]"
               placeholder="Describe how you want your AI assistant to behave and respond..."
-              className="w-full h-full resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm sm:text-base leading-relaxed overflow-y-auto font-mono p-4 sm:p-6 lg:p-8 pl-[max(1rem,calc(50%-40ch))] pr-[max(1rem,calc(50%-40ch))] sm:pl-[max(1.5rem,calc(50%-40ch))] sm:pr-[max(1.5rem,calc(50%-40ch))] lg:pl-[max(2rem,calc(50%-40ch))] lg:pr-[max(2rem,calc(50%-40ch))]"
-            />
+              onChange={e => handlePromptChange(e.target.value)}
+            >
+              {promptValue}
+            </Textarea>
 
             {isImprovingPrompt && (
-              <div className="absolute inset-0 bg-background rounded-lg flex items-center justify-center z-10">
-                <div className="w-full h-full relative overflow-hidden px-8">
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background">
+                <div className="relative h-full w-full overflow-hidden px-8">
                   <div
-                    className="absolute top-1/2 transform -translate-y-1/2 opacity-80 h-64"
+                    className="absolute top-1/2 h-64 -translate-y-1/2 transform opacity-80"
                     style={{
                       left: "max(2rem, calc(50% - 40ch))",
                       right: "max(2rem, calc(50% - 40ch))",
@@ -488,16 +449,16 @@ export function PersonaForm({
                     <SkeletonText className="h-full" />
                   </div>
                   <div
-                    className="absolute top-1/2 transform -translate-y-1/2 bg-gradient-to-br from-transparent via-background/50 to-transparent animate-pulse h-64"
+                    className="absolute top-1/2 h-64 -translate-y-1/2 transform animate-pulse bg-gradient-to-br from-transparent via-background/50 to-transparent"
                     style={{
                       left: "max(2rem, calc(50% - 40ch))",
                       right: "max(2rem, calc(50% - 40ch))",
                     }}
                   />
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-background rounded-full border border-border/50 shadow-lg">
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background px-4 py-2 shadow-lg">
                       <Spinner size="sm" />
-                      <span className="text-sm font-medium gradient-text">
+                      <span className="gradient-text text-sm font-medium">
                         AI magic in progress...
                       </span>
                     </div>
@@ -510,4 +471,4 @@ export function PersonaForm({
       )}
     </div>
   );
-}
+};

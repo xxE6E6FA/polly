@@ -1,10 +1,11 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+
+import { type Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
-import { ConvexError } from "convex/values";
-import { Id } from "./_generated/dataModel";
 
 // Generate a random share ID
+
 function generateShareId(): string {
   return (
     Math.random().toString(36).substring(2, 15) +
@@ -59,7 +60,7 @@ export const shareConversation = mutation({
     await ctx.db.insert("sharedConversations", {
       shareId,
       originalConversationId: args.conversationId,
-      userId: userId,
+      userId,
       title: conversation.title,
       sharedAt: now,
       lastUpdated: now,

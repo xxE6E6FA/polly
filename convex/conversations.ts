@@ -1,9 +1,10 @@
 import { v } from "convex/values";
-import { mutation, query, action, internalMutation } from "./_generated/server";
-import { getOptionalUserId } from "./lib/auth";
+
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
-import { ActionCtx } from "./_generated/server";
+import { type Id } from "./_generated/dataModel";
+import { action, internalMutation, mutation, query } from "./_generated/server";
+import { type ActionCtx } from "./_generated/server";
+import { getOptionalUserId } from "./lib/auth";
 
 export const create = mutation({
   args: {
@@ -317,14 +318,10 @@ export const createNewConversation = action({
     userId: Id<"users">;
     isNewUser: boolean;
   }> => {
-    let actualUserId: Id<"users">;
-
     // Create user if needed
-    if (!args.userId) {
-      actualUserId = await ctx.runMutation(api.users.createAnonymous);
-    } else {
-      actualUserId = args.userId;
-    }
+    const actualUserId: Id<"users"> = !args.userId
+      ? await ctx.runMutation(api.users.createAnonymous)
+      : args.userId;
 
     // Enforce message limit for users
     await ctx.runMutation(api.users.enforceMessageLimit, {
@@ -653,10 +650,8 @@ export const sendFollowUpMessage = action({
                           }
                         : undefined,
                     };
-                  } else if (
-                    attachment.type === "pdf" ||
-                    attachment.type === "text"
-                  ) {
+                  }
+                  if (attachment.type === "pdf" || attachment.type === "text") {
                     return {
                       type: "file" as const,
                       file: {
@@ -689,7 +684,7 @@ export const sendFollowUpMessage = action({
             };
           }
 
-          return undefined;
+          return;
         })
         .filter(msg => msg !== undefined);
 
@@ -884,10 +879,8 @@ export const retryFromMessage = action({
                           }
                         : undefined,
                     };
-                  } else if (
-                    attachment.type === "pdf" ||
-                    attachment.type === "text"
-                  ) {
+                  }
+                  if (attachment.type === "pdf" || attachment.type === "text") {
                     return {
                       type: "file" as const,
                       file: {
@@ -920,7 +913,7 @@ export const retryFromMessage = action({
             };
           }
 
-          return undefined;
+          return;
         })
         .filter(msg => msg !== undefined);
 
@@ -1126,10 +1119,8 @@ export const editMessage = action({
                           }
                         : undefined,
                     };
-                  } else if (
-                    attachment.type === "pdf" ||
-                    attachment.type === "text"
-                  ) {
+                  }
+                  if (attachment.type === "pdf" || attachment.type === "text") {
                     return {
                       type: "file" as const,
                       file: {
@@ -1162,7 +1153,7 @@ export const editMessage = action({
             };
           }
 
-          return undefined;
+          return;
         })
         .filter(msg => msg !== undefined);
 
@@ -1284,7 +1275,7 @@ export const resumeConversation = action({
       conversationId: args.conversationId,
     });
 
-    if (!messages.length) {
+    if (messages.length === 0) {
       return { resumed: false };
     }
 
@@ -1377,7 +1368,7 @@ export const resumeConversation = action({
       messageId: assistantMessageId,
       model: userModel.modelId,
       provider: userModel.provider,
-      userId: userId,
+      userId,
       temperature: 0.7,
       enableWebSearch: lastMessage.useWebSearch || false,
       webSearchMaxResults: 3,

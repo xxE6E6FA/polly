@@ -1,10 +1,12 @@
 import { lazy, Suspense } from "react";
+
 import { type RouteObject } from "react-router";
-import RootLayout from "./components/layouts/RootLayout";
-import HomePage from "./pages/HomePage";
-import ChatConversationPage from "./pages/ChatConversationPage";
+
 import ChatLayout from "./components/layouts/ChatLayout";
+import RootLayout from "./components/layouts/RootLayout";
 import { Spinner } from "./components/spinner";
+import ChatConversationPage from "./pages/ChatConversationPage";
+import HomePage from "./pages/HomePage";
 
 // Lazy load everything except HomePage, ChatConversationPage, and ChatLayout
 const AuthPage = lazy(() => import("./pages/AuthPage"));

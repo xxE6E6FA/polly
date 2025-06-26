@@ -1,17 +1,16 @@
-import { useState, useCallback } from "react";
-import { Attachment } from "@/types";
-import { isFileTypeSupported } from "@/lib/model-capabilities";
+import { useCallback, useState } from "react";
+
 import {
+  type FileUploadProgress,
   useConvexFileUpload,
-  FileUploadProgress,
 } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-notification-dialog";
+import { isFileTypeSupported } from "@/lib/model-capabilities";
+import { type AIModel, type Attachment } from "@/types";
 
-import { AIModel } from "@/types";
-
-interface UseFileUploadProps {
+type UseFileUploadProps = {
   currentModel?: AIModel;
-}
+};
 
 export function useFileUpload({ currentModel }: UseFileUploadProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
@@ -23,7 +22,9 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
   const notificationDialog = useNotificationDialog();
 
   const processTextFiles = useCallback((textFiles: Attachment[]) => {
-    if (textFiles.length === 0) return "";
+    if (textFiles.length === 0) {
+      return "";
+    }
 
     const textFileContents = textFiles
       .map(file => {
@@ -89,11 +90,13 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
 
   const handleFileUpload = useCallback(
     async (files: FileList | null) => {
-      if (!files) return;
+      if (!files) {
+        return;
+      }
 
       const newAttachments: Attachment[] = [];
 
-      for (const file of Array.from(files)) {
+      for (const file of [...files]) {
         const maxSize = 20 * 1024 * 1024; // 20MB limit
 
         if (file.size > maxSize) {

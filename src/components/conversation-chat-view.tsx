@@ -1,31 +1,33 @@
 import {
-  useLayoutEffect,
-  useRef,
   useCallback,
-  useMemo,
-  useState,
   useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
-import { ChatMessage } from "./chat-message";
-import { ChatInput, ChatInputRef } from "./chat-input";
-import { ChatOutline } from "./chat-outline";
-import { ChatHeader } from "./chat-header";
-import { useScrollDirection } from "@/hooks/use-scroll-direction";
-import {
-  ConversationId,
-  Attachment,
-  ChatMessage as ChatMessageType,
-} from "@/types";
-import { cn } from "@/lib/utils";
-import { ChatZeroState } from "./chat-zero-state";
-import { useTextSelection } from "@/hooks/use-text-selection";
-import { QuoteButton } from "./ui/quote-button";
-import { ConfirmationDialog } from "./ui/confirmation-dialog";
-import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
-import { ContextMessage } from "./context-message";
-import { Id } from "../../convex/_generated/dataModel";
 
-interface ConversationChatViewProps {
+import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
+import { useScrollDirection } from "@/hooks/use-scroll-direction";
+import { useTextSelection } from "@/hooks/use-text-selection";
+import { cn } from "@/lib/utils";
+import {
+  type Attachment,
+  type ChatMessage as ChatMessageType,
+  type ConversationId,
+} from "@/types";
+
+import { ChatHeader } from "./chat-header";
+import { ChatInput, type ChatInputRef } from "./chat-input";
+import { ChatMessage } from "./chat-message";
+import { ChatOutline } from "./chat-outline";
+import { ChatZeroState } from "./chat-zero-state";
+import { ContextMessage } from "./context-message";
+import { ConfirmationDialog } from "./ui/confirmation-dialog";
+import { QuoteButton } from "./ui/quote-button";
+import { type Id } from "../../convex/_generated/dataModel";
+
+type ConversationChatViewProps = {
   conversationId: ConversationId;
   messages: ChatMessageType[];
   isLoading: boolean;
@@ -52,9 +54,9 @@ interface ConversationChatViewProps {
   onRetryAssistantMessage?: (messageId: string) => void;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onStopGeneration: () => void;
-}
+};
 
-export function ConversationChatView({
+export const ConversationChatView = ({
   conversationId,
   messages,
   isLoading,
@@ -68,7 +70,7 @@ export function ConversationChatView({
   onRetryAssistantMessage,
   onDeleteMessage,
   onStopGeneration,
-}: ConversationChatViewProps) {
+}: ConversationChatViewProps) => {
   // UI state and refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -107,14 +109,14 @@ export function ConversationChatView({
           mouseLeaveTimeoutRef.current = null;
         }
         setIsMouseInHeaderArea(true);
-      } else if (isMouseInHeaderArea) {
-        // Add a small delay before hiding to prevent flickering
-        if (!mouseLeaveTimeoutRef.current) {
-          mouseLeaveTimeoutRef.current = setTimeout(() => {
-            setIsMouseInHeaderArea(false);
-            mouseLeaveTimeoutRef.current = null;
-          }, 300);
-        }
+      } else if (
+        isMouseInHeaderArea && // Add a small delay before hiding to prevent flickering
+        !mouseLeaveTimeoutRef.current
+      ) {
+        mouseLeaveTimeoutRef.current = setTimeout(() => {
+          setIsMouseInHeaderArea(false);
+          mouseLeaveTimeoutRef.current = null;
+        }, 300);
       }
     },
     [scrollState.shouldHideHeader, isMouseInHeaderArea]
@@ -132,7 +134,9 @@ export function ConversationChatView({
   // Set up mouse event listeners
   useEffect(() => {
     const container = messagesContainerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     // Use the container for mouse events instead of document
     const handleContainerMouseMove = (e: MouseEvent) => handleMouseMove(e);
@@ -216,7 +220,7 @@ export function ConversationChatView({
             if (container) {
               container.scrollTo({
                 top: container.scrollHeight,
-                behavior: behavior,
+                behavior,
               });
               scrollTimeoutRef.current = setTimeout(() => {
                 setIsScrolling(false);
@@ -230,7 +234,9 @@ export function ConversationChatView({
   );
 
   const dynamicBottomSpacing = useMemo(() => {
-    if (typeof window === "undefined") return "pb-32";
+    if (typeof window === "undefined") {
+      return "pb-32";
+    }
 
     const viewportHeight = window.innerHeight;
     const bufferSpace = Math.min(viewportHeight * 0.3, 200);
@@ -390,10 +396,10 @@ export function ConversationChatView({
 
   return (
     <div className="flex h-full">
-      <div className="flex-1 flex flex-col relative h-full overflow-hidden">
+      <div className="relative flex h-full flex-1 flex-col overflow-hidden">
         <div className="flex-1 overflow-hidden">
-          <div className="h-full flex flex-col relative overflow-hidden">
-            <div className="relative z-10 flex flex-col h-full">
+          <div className="relative flex h-full flex-col overflow-hidden">
+            <div className="relative z-10 flex h-full flex-col">
               <div
                 ref={messagesContainerRef}
                 className={cn(
@@ -402,7 +408,7 @@ export function ConversationChatView({
                 )}
               >
                 {isLoadingConversation ? (
-                  <div className="space-y-1 sm:space-y-2 pb-32">
+                  <div className="space-y-1 pb-32 sm:space-y-2">
                     <div
                       ref={headerRef}
                       className={cn(
@@ -412,7 +418,7 @@ export function ConversationChatView({
                           "sm:-translate-y-full"
                       )}
                     >
-                      <div className="h-16 flex items-center">
+                      <div className="flex h-16 items-center">
                         <ChatHeader conversationId={conversationId} />
                       </div>
                     </div>
@@ -436,14 +442,14 @@ export function ConversationChatView({
                           "sm:-translate-y-full"
                       )}
                     >
-                      <div className="h-16 flex items-center">
+                      <div className="flex h-16 items-center">
                         <ChatHeader conversationId={conversationId} />
                       </div>
                     </div>
 
-                    <div className="p-4 sm:p-8 space-y-2 sm:space-y-3">
+                    <div className="space-y-2 p-4 sm:space-y-3 sm:p-8">
                       <div
-                        className="w-full max-w-3xl mx-auto space-y-2 sm:space-y-3"
+                        className="mx-auto w-full max-w-3xl space-y-2 sm:space-y-3"
                         style={{ maxWidth: "48rem" }}
                       >
                         {messages
@@ -457,10 +463,12 @@ export function ConversationChatView({
                             return true;
                           })
                           .sort((a, b) => {
-                            if (a.role === "context" && b.role !== "context")
+                            if (a.role === "context" && b.role !== "context") {
                               return -1;
-                            if (b.role === "context" && a.role !== "context")
+                            }
+                            if (b.role === "context" && a.role !== "context") {
                               return 1;
+                            }
                             return 0;
                           })
                           .map((message, index, filteredMessages) => {
@@ -477,8 +485,9 @@ export function ConversationChatView({
                                   <ContextMessage message={message} />
                                 ) : (
                                   <ChatMessage
-                                    message={message}
                                     isStreaming={isMessageStreaming}
+                                    message={message}
+                                    onDeleteMessage={handleDeleteMessage}
                                     onEditMessage={
                                       message.role === "user" && onEditMessage
                                         ? onEditMessage
@@ -489,7 +498,6 @@ export function ConversationChatView({
                                         ? onRetryUserMessage
                                         : onRetryAssistantMessage
                                     }
-                                    onDeleteMessage={handleDeleteMessage}
                                   />
                                 )}
                               </div>
@@ -499,8 +507,8 @@ export function ConversationChatView({
                         {shouldShowLoadingSpinner && (
                           <div className="flex justify-start px-4 py-2">
                             <div className="flex items-center space-x-3">
-                              <div className="animate-spin rounded-full h-5 w-5 border-2 border-transparent bg-gradient-tropical p-0.5">
-                                <div className="rounded-full h-full w-full bg-background"></div>
+                              <div className="h-5 w-5 animate-spin rounded-full border-2 border-transparent bg-gradient-tropical p-0.5">
+                                <div className="h-full w-full rounded-full bg-background" />
                               </div>
                               <span className="text-sm text-muted-foreground">
                                 Thinking...
@@ -516,10 +524,20 @@ export function ConversationChatView({
               </div>
 
               {hasApiKeys && (
-                <div className="flex-shrink-0 relative">
+                <div className="relative flex-shrink-0">
                   <ChatInput
                     ref={chatInputRef}
+                    conversationId={conversationId}
+                    hasExistingMessages={messages.length > 0}
+                    isLoading={isLoading}
+                    isStreaming={isStreaming}
+                    placeholder={
+                      isLoadingConversation
+                        ? "Loading conversation..."
+                        : "Ask me anything..."
+                    }
                     onSendMessage={handleSendMessage}
+                    onStop={onStopGeneration}
                     onSendMessageToNewConversation={
                       onSendMessageToNewConversation
                         ? async (
@@ -543,16 +561,6 @@ export function ConversationChatView({
                           }
                         : undefined
                     }
-                    conversationId={conversationId}
-                    hasExistingMessages={messages.length > 0}
-                    isLoading={isLoading}
-                    isStreaming={isStreaming}
-                    onStop={onStopGeneration}
-                    placeholder={
-                      isLoadingConversation
-                        ? "Loading conversation..."
-                        : "Ask me anything..."
-                    }
                   />
                 </div>
               )}
@@ -567,25 +575,25 @@ export function ConversationChatView({
 
       {selection && (
         <QuoteButton
-          selectedText={selection.text}
-          onQuote={handleQuoteSelection}
           rect={selection.rect}
+          selectedText={selection.text}
           onLockSelection={lockSelection}
+          onQuote={handleQuoteSelection}
           onUnlockSelection={unlockSelection}
         />
       )}
 
       <ConfirmationDialog
-        open={confirmationDialog.isOpen}
-        onOpenChange={confirmationDialog.handleOpenChange}
-        title={confirmationDialog.options.title}
-        description={confirmationDialog.options.description}
-        confirmText={confirmationDialog.options.confirmText}
         cancelText={confirmationDialog.options.cancelText}
+        confirmText={confirmationDialog.options.confirmText}
+        description={confirmationDialog.options.description}
+        open={confirmationDialog.isOpen}
+        title={confirmationDialog.options.title}
         variant={confirmationDialog.options.variant}
-        onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
+        onConfirm={confirmationDialog.handleConfirm}
+        onOpenChange={confirmationDialog.handleOpenChange}
       />
     </div>
   );
-}
+};

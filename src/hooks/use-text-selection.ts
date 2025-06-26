@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-interface SelectionInfo {
+type SelectionInfo = {
   text: string;
   wordCount: number;
   rect: DOMRect;
   isInAssistantMessage: boolean;
-}
+};
 
-interface UseTextSelectionReturn {
+type UseTextSelectionReturn = {
   selection: SelectionInfo | null;
   addQuoteToInput: (onAddQuote: (quote: string) => void) => void;
   clearSelection: () => void;
   lockSelection: () => void;
   unlockSelection: () => void;
-}
+};
 
 export function useTextSelection(): UseTextSelectionReturn {
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
@@ -83,7 +83,9 @@ export function useTextSelection(): UseTextSelectionReturn {
   }, []);
 
   const clearSelection = useCallback(() => {
-    if (isLocked) return; // Don't clear if locked
+    if (isLocked) {
+      return;
+    } // Don't clear if locked
     setSelection(null);
     window.getSelection()?.removeAllRanges();
   }, [isLocked]);
@@ -98,7 +100,9 @@ export function useTextSelection(): UseTextSelectionReturn {
 
   const addQuoteToInput = useCallback(
     (onAddQuote: (quote: string) => void) => {
-      if (!selection) return;
+      if (!selection) {
+        return;
+      }
 
       // Format as markdown quote
       const quote = selection.text

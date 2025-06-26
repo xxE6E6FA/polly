@@ -1,11 +1,12 @@
-import { convexAuth } from "@convex-dev/auth/server";
 import Google from "@auth/core/providers/google";
-import { Password } from "@convex-dev/auth/providers/Password";
 import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
-import { MutationCtx } from "./_generated/server";
-import { MONTHLY_MESSAGE_LIMIT } from "./constants";
-import { Id } from "./_generated/dataModel";
+import { Password } from "@convex-dev/auth/providers/Password";
+import { convexAuth } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
+
+import { type Id } from "./_generated/dataModel";
+import { type MutationCtx } from "./_generated/server";
+import { MONTHLY_MESSAGE_LIMIT } from "./constants";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
@@ -55,13 +56,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   callbacks: {
     // Custom user creation/update logic
     async createOrUpdateUser(ctx: MutationCtx, args) {
-      const { existingUserId, profile, provider, type } = args;
+      const { existingUserId, profile, provider } = args;
 
-      console.log(`[Auth] createOrUpdateUser called`, {
-        existingUserId,
-        provider: provider.id,
-        type,
-      });
+      // Process user creation/update
 
       // Extract profile fields with proper types
       const profileName =
@@ -82,14 +79,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       ).state?.anonymousUserId as Id<"users"> | undefined;
 
       if (anonymousUserId) {
-        console.log(
-          `[Auth] Anonymous user ID found in state: ${anonymousUserId}`
-        );
+        // Anonymous user ID found in state
 
         const anonymousUser = await ctx.db.get(anonymousUserId);
 
         if (anonymousUser?.isAnonymous) {
-          console.log(`[Auth] Graduating anonymous user ${anonymousUserId}`);
+          // Graduating anonymous user
 
           // Graduate the anonymous user by updating their record
           await ctx.db.patch(anonymousUserId, {
@@ -118,7 +113,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           throw new ConvexError("User account is in an invalid state");
         }
 
-        console.log(`[Auth] Updating existing user ${existingUserId}`);
+        // Updating existing user
 
         // Update user with latest auth data
         await ctx.db.patch(existingUserId, {
@@ -133,7 +128,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       }
 
       // Create new user
-      console.log(`[Auth] Creating new user`);
       const now = Date.now();
 
       // Check if email already exists (for email-based providers)
@@ -144,9 +138,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           .first();
 
         if (existingEmailUser) {
-          console.log(
-            `[Auth] User with email ${profileEmail} already exists, linking accounts`
-          );
+          // User with email already exists, linking accounts
           return existingEmailUser._id;
         }
       }
@@ -173,12 +165,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     async afterUserCreatedOrUpdated(ctx: MutationCtx, args) {
       const { userId, existingUserId, type } = args;
 
-      // Log user sign-in event for analytics
-      console.log(`[Auth] User ${userId} signed in`, {
-        isNewUser: !existingUserId,
-        type,
-        timestamp: Date.now(),
-      });
+      // User sign-in event
 
       // You can add additional logic here like:
       // - Creating default settings for new users

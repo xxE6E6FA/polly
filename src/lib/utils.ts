@@ -13,13 +13,14 @@ export function formatDate(date: Date | number): string {
 
   if (days === 0) {
     return "Today";
-  } else if (days === 1) {
-    return "Yesterday";
-  } else if (days < 7) {
-    return `${days} days ago`;
-  } else {
-    return d.toLocaleDateString();
   }
+  if (days === 1) {
+    return "Yesterday";
+  }
+  if (days < 7) {
+    return `${days} days ago`;
+  }
+  return d.toLocaleDateString();
 }
 
 export function resizeGoogleImageUrl(url: string, size: number): string {
@@ -36,29 +37,11 @@ export function resizeGoogleImageUrl(url: string, size: number): string {
   if (url.includes("=s")) {
     // Replace existing size parameter (e.g., =s300-c or =s96-c)
     return url.replace(/=s\d+(-c)?$/, `=s${size}-c`);
-  } else if (url.includes("=")) {
+  }
+  if (url.includes("=")) {
     // If there's an equals sign but no size parameter, replace everything after the last =
     return url.replace(/=[^=]*$/, `=s${size}-c`);
-  } else {
-    // If no equals sign, append the size parameter
-    return `${url}=s${size}-c`;
   }
-}
-
-// Token counting utility using word-based estimation
-export async function countTokens(text: string): Promise<number> {
-  if (!text || text.trim().length === 0) return 0;
-
-  // Simple word-based estimation
-  // Roughly 0.75 tokens per word is a common approximation
-  return Math.ceil(text.split(/\s+/).length * 0.75);
-}
-
-// Synchronous version
-export function countTokensSync(text: string): number {
-  if (!text || text.trim().length === 0) return 0;
-
-  // Simple word-based estimation
-  // Roughly 0.75 tokens per word is a common approximation
-  return Math.ceil(text.split(/\s+/).length * 0.75);
+  // If no equals sign, append the size parameter
+  return `${url}=s${size}-c`;
 }

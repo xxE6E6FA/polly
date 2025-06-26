@@ -1,22 +1,26 @@
-import { Doc } from "../../convex/_generated/dataModel";
+import { type Doc } from "../../convex/_generated/dataModel";
 
 const CACHE_KEY = "polly_conversations_cache";
 const CACHE_VERSION = 1;
 const MAX_CACHED_CONVERSATIONS = 50;
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
-interface CachedData {
+type CachedData = {
   version: number;
   timestamp: number;
   conversations: Doc<"conversations">[];
-}
+};
 
 export function getCachedConversations(): Doc<"conversations">[] | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   try {
     const cached = localStorage.getItem(CACHE_KEY);
-    if (!cached) return null;
+    if (!cached) {
+      return null;
+    }
 
     const data: CachedData = JSON.parse(cached);
 
@@ -40,7 +44,9 @@ export function getCachedConversations(): Doc<"conversations">[] | null {
 }
 
 export function setCachedConversations(conversations: Doc<"conversations">[]) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     const sortedConversations = [...conversations]
@@ -62,11 +68,15 @@ export function setCachedConversations(conversations: Doc<"conversations">[]) {
 export function updateCachedConversation(
   updatedConversation: Doc<"conversations">
 ) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     const cached = getCachedConversations();
-    if (!cached) return;
+    if (!cached) {
+      return;
+    }
 
     const updatedConversations = cached.map(conv =>
       conv._id === updatedConversation._id ? updatedConversation : conv
@@ -97,11 +107,15 @@ export function updateCachedConversation(
 }
 
 export function removeCachedConversation(conversationId: string) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     const cached = getCachedConversations();
-    if (!cached) return;
+    if (!cached) {
+      return;
+    }
 
     // Filter out the deleted conversation
     const filteredConversations = cached.filter(
@@ -109,7 +123,9 @@ export function removeCachedConversation(conversationId: string) {
     );
 
     // If nothing changed, return early
-    if (filteredConversations.length === cached.length) return;
+    if (filteredConversations.length === cached.length) {
+      return;
+    }
 
     const cacheData: CachedData = {
       version: CACHE_VERSION,
@@ -124,7 +140,9 @@ export function removeCachedConversation(conversationId: string) {
 }
 
 export function clearConversationCache() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   try {
     localStorage.removeItem(CACHE_KEY);

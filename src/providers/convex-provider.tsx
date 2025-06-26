@@ -1,10 +1,11 @@
 import React from "react";
+
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 
-interface ConvexProviderProps {
+type ConvexProviderProps = {
   children: React.ReactNode;
-}
+};
 
 // Create a singleton client instance that persists across renders
 let clientInstance: ConvexReactClient | null = null;
@@ -23,8 +24,8 @@ function getOrCreateClient(): ConvexReactClient {
   return clientInstance;
 }
 
-export function ConvexProvider({ children }: ConvexProviderProps) {
+export const ConvexProvider = ({ children }: ConvexProviderProps) => {
   const client = getOrCreateClient();
 
   return <ConvexAuthProvider client={client}>{children}</ConvexAuthProvider>;
-}
+};

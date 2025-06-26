@@ -1,7 +1,16 @@
-import { useQuery } from "convex/react";
+import { Link } from "react-router";
+
 import { useAuthToken } from "@convex-dev/auth/react";
-import { api } from "../../convex/_generated/api";
-import { ConversationId } from "@/types";
+import {
+  DotsThreeVerticalIcon,
+  FileCodeIcon,
+  FileTextIcon,
+  ShareNetworkIcon,
+  StackPlusIcon,
+} from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
+import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,41 +19,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  FileTextIcon,
-  FileCodeIcon,
-  ShareNetworkIcon,
-  DotsThreeVerticalIcon,
-  StackPlusIcon,
-} from "@phosphor-icons/react";
 import { ShareConversationDialog } from "@/components/ui/share-conversation-dialog";
-import {
-  exportAsJSON,
-  exportAsMarkdown,
-  downloadFile,
-  generateFilename,
-} from "@/lib/export";
-import { toast } from "sonner";
-import { useUser } from "@/hooks/use-user";
-import { Skeleton } from "./ui/skeleton";
-import { Link } from "react-router";
-import { ROUTES } from "@/lib/routes";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useUser } from "@/hooks/use-user";
+import {
+  downloadFile,
+  exportAsJSON,
+  exportAsMarkdown,
+  generateFilename,
+} from "@/lib/export";
+import { ROUTES } from "@/lib/routes";
+import { type ConversationId } from "@/types";
 
-interface ChatHeaderProps {
+import { Skeleton } from "./ui/skeleton";
+import { api } from "../../convex/_generated/api";
+
+type ChatHeaderProps = {
   conversationId?: ConversationId;
-}
+};
 
-export function ChatHeader({ conversationId }: ChatHeaderProps) {
+export const ChatHeader = ({ conversationId }: ChatHeaderProps) => {
   const { user } = useUser();
   const token = useAuthToken();
 
   // Check if user is authenticated (not anonymous)
-  const isAuthenticated = !!token && !!user && !user.isAnonymous;
+  const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
 
   const conversation = useQuery(
     api.conversations.getAuthorized,
@@ -61,7 +64,7 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
     conversation?.personaId ? { id: conversation.personaId } : "skip"
   );
 
-  const handleExport = async (format: "json" | "md") => {
+  const handleExport = (format: "json" | "md") => {
     if (!exportData || !conversation) {
       toast.error("Export failed", {
         description: "Unable to load conversation data",
@@ -97,13 +100,13 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
 
   // For chat pages, show full header with conversation title
   return (
-    <div className="flex items-center justify-between w-full gap-2 sm:gap-4 min-h-[2.5rem]">
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+    <div className="flex min-h-[2.5rem] w-full items-center justify-between gap-2 sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         {conversation === undefined ? (
           // Loading state for title
           <Skeleton className="h-5 w-[120px] sm:w-[200px]" />
         ) : conversation?.title ? (
-          <h1 className="text-sm font-medium text-foreground truncate">
+          <h1 className="truncate text-sm font-medium text-foreground">
             {conversation.title}
           </h1>
         ) : (
@@ -113,8 +116,8 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge
+                className="flex-shrink-0 cursor-default gap-1 sm:gap-2"
                 variant="info"
-                className="gap-1 sm:gap-2 flex-shrink-0 cursor-default"
               >
                 <span className="text-xs sm:text-sm">
                   {persona.icon || "🤖"}
@@ -133,18 +136,18 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
 
       {/* Only show actions for authenticated users */}
       {conversationId && isAuthenticated && (
-        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="action"
-                size="icon-sm"
-                className="sm:w-auto sm:px-3 sm:gap-2"
                 asChild
+                className="sm:w-auto sm:gap-2 sm:px-3"
+                size="icon-sm"
+                variant="action"
               >
                 <Link to={ROUTES.HOME}>
                   <StackPlusIcon className="h-4 w-4" />
-                  <span className="hidden sm:inline text-xs">New</span>
+                  <span className="hidden text-xs sm:inline">New</span>
                   <span className="sr-only sm:hidden">New chat</span>
                 </Link>
               </Button>
@@ -155,38 +158,38 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
           </Tooltip>
           <ShareConversationDialog conversationId={conversationId}>
             <Button
-              variant="action"
-              size="icon-sm"
-              className="sm:w-auto sm:px-3 sm:gap-2"
+              className="sm:w-auto sm:gap-2 sm:px-3"
               disabled={!conversation}
+              size="icon-sm"
               title={conversation ? "Share conversation" : "Loading..."}
+              variant="action"
             >
               <ShareNetworkIcon className="h-4 w-4" />
-              <span className="hidden sm:inline text-xs">Share</span>
+              <span className="hidden text-xs sm:inline">Share</span>
               <span className="sr-only sm:hidden">Share conversation</span>
             </Button>
           </ShareConversationDialog>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="action" size="icon-sm" title="More options">
-                <DotsThreeVerticalIcon weight="bold" className="h-4 w-4" />
+              <Button size="icon-sm" title="More options" variant="action">
+                <DotsThreeVerticalIcon className="h-4 w-4" weight="bold" />
                 <span className="sr-only">More options</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem
-                onClick={() => handleExport("md")}
-                disabled={!exportData}
                 className="cursor-pointer"
+                disabled={!exportData}
+                onClick={() => handleExport("md")}
               >
                 <FileTextIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                 <span>Export as Markdown</span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => handleExport("json")}
-                disabled={!exportData}
                 className="cursor-pointer"
+                disabled={!exportData}
+                onClick={() => handleExport("json")}
               >
                 <FileCodeIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                 <span>Export as JSON</span>
@@ -197,4 +200,4 @@ export function ChatHeader({ conversationId }: ChatHeaderProps) {
       )}
     </div>
   );
-}
+};

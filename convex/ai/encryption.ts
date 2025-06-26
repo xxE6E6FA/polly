@@ -1,8 +1,8 @@
-import { ActionCtx } from "../_generated/server";
-import { internal } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
-import { ProviderType } from "./types";
 import { CONFIG } from "./config";
+import { type ProviderType } from "./types";
+import { internal } from "../_generated/api";
+import { type Id } from "../_generated/dataModel";
+import { type ActionCtx } from "../_generated/server";
 
 export const serverDecryptApiKey = async (
   encryptedKey: number[],

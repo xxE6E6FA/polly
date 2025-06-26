@@ -1,32 +1,34 @@
-import { memo, useState, useRef } from "react";
-import { Highlight } from "prism-react-renderer";
+import { memo, useRef, useState } from "react";
+
 import {
-  CopyIcon,
   CheckIcon,
-  TextAlignJustifyIcon,
+  CopyIcon,
   DownloadIcon,
+  TextAlignJustifyIcon,
 } from "@phosphor-icons/react";
+import { Highlight } from "prism-react-renderer";
+
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
-import { lightSyntaxTheme, darkSyntaxTheme } from "@/lib/syntax-themes";
+import { darkSyntaxTheme, lightSyntaxTheme } from "@/lib/syntax-themes";
+import { cn } from "@/lib/utils";
 
-interface CodeBlockProps {
+type CodeBlockProps = {
   code: string;
   language?: string;
   className?: string;
-}
+};
 
-function CodeBlockComponent({
+const CodeBlockComponent = ({
   code,
   language = "text",
   className,
-}: CodeBlockProps) {
+}: CodeBlockProps) => {
   const [copied, setCopied] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const { theme } = useTheme();
@@ -40,8 +42,8 @@ function CodeBlockComponent({
       await navigator.clipboard.writeText(processedCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy:", err);
+    } catch (error) {
+      console.error("Failed to copy:", error);
       const { toast } = await import("sonner");
       toast.error("Failed to copy code", {
         description: "Unable to copy code to clipboard. Please try again.",
@@ -101,18 +103,18 @@ function CodeBlockComponent({
       className={cn("group relative mt-2 flex w-full flex-col pt-9", className)}
     >
       {/* Header with language and actions */}
-      <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t bg-black/[0.03] dark:bg-white/[0.06] border border-b-0 px-4 py-2 text-sm">
-        <span className="text-muted-foreground font-medium font-mono">
+      <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-black/[0.03] px-4 py-2 text-sm dark:bg-white/[0.06]">
+        <span className="font-mono font-medium text-muted-foreground">
           {processedLanguage || "text"}
         </span>
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleDownload}
                 className="h-7 w-7 p-0 hover:bg-muted-foreground/10"
+                size="sm"
+                variant="ghost"
+                onClick={handleDownload}
               >
                 <DownloadIcon className="h-3 w-3" />
               </Button>
@@ -124,13 +126,13 @@ function CodeBlockComponent({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
                 size="sm"
-                onClick={() => setWordWrap(!wordWrap)}
+                variant="ghost"
                 className={cn(
                   "h-7 w-7 p-0 hover:bg-muted-foreground/10",
                   wordWrap && "bg-accent"
                 )}
+                onClick={() => setWordWrap(!wordWrap)}
               >
                 <TextAlignJustifyIcon className="h-3 w-3" />
               </Button>
@@ -142,16 +144,16 @@ function CodeBlockComponent({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                className="h-7 w-7 p-0 transition-colors hover:bg-muted-foreground/10"
                 size="sm"
+                variant="ghost"
                 onClick={handleCopy}
-                className="h-7 w-7 p-0 hover:bg-muted-foreground/10 transition-colors"
               >
                 <div className="relative h-4 w-4">
                   {copied ? (
-                    <CheckIcon className="h-3 w-3 text-[hsl(220_95%_55%)] absolute inset-0 transition-all duration-200" />
+                    <CheckIcon className="absolute inset-0 h-3 w-3 text-[hsl(220_95%_55%)] transition-all duration-200" />
                   ) : (
-                    <CopyIcon className="h-3 w-3 absolute inset-0 transition-all duration-200" />
+                    <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
                   )}
                 </div>
               </Button>
@@ -165,13 +167,13 @@ function CodeBlockComponent({
 
       {/* Code content */}
       <div
-        className="relative bg-black/[0.02] dark:bg-white/[0.04] border rounded-b-lg"
         ref={codeContainerRef}
+        className="relative rounded-b-lg border bg-black/[0.02] dark:bg-white/[0.04]"
       >
         <Highlight
-          theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
           code={processedCode.trim()}
           language={processedLanguage}
+          theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
         >
           {({
             className: highlightClassName,
@@ -206,6 +208,6 @@ function CodeBlockComponent({
       </div>
     </div>
   );
-}
+};
 
 export const CodeBlock = memo(CodeBlockComponent);

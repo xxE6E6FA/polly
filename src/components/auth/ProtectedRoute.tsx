@@ -1,22 +1,26 @@
-import { ReactNode, useEffect, Suspense } from "react";
-import { useAuthToken } from "@convex-dev/auth/react";
-import { useUser } from "../../hooks/use-user";
-import { useNavigate } from "react-router";
-import { ROUTES } from "@/lib/routes";
-import { Spinner } from "@/components/spinner";
+import { type ReactNode, Suspense, useEffect } from "react";
 
-export function ProtectedSuspense({
+import { useNavigate } from "react-router";
+
+import { useAuthToken } from "@convex-dev/auth/react";
+
+import { Spinner } from "@/components/spinner";
+import { ROUTES } from "@/lib/routes";
+
+import { useUser } from "../../hooks/use-user";
+
+export const ProtectedSuspense = ({
   children,
   fallback,
 }: {
   children: ReactNode;
   fallback?: ReactNode;
-}) {
+}) => {
   const token = useAuthToken();
   const navigate = useNavigate();
   const { user, isLoading } = useUser();
 
-  const isAuthenticated = !!token && !!user && !user.isAnonymous;
+  const isAuthenticated = Boolean(token) && Boolean(user) && !user.isAnonymous;
 
   // Handle redirection
   useEffect(() => {
@@ -35,16 +39,16 @@ export function ProtectedSuspense({
       {children}
     </Suspense>
   );
-}
+};
 
-function ProtectedRouteSkeleton({
+const ProtectedRouteSkeleton = ({
   isLoading = false,
 }: {
   isLoading?: boolean;
-}) {
+}) => {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center space-y-3">
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="space-y-3 text-center">
         {isLoading ? (
           <Spinner size="md" />
         ) : (
@@ -58,4 +62,4 @@ function ProtectedRouteSkeleton({
       </div>
     </div>
   );
-}
+};

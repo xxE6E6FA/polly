@@ -1,16 +1,19 @@
 import { useCallback } from "react";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { Attachment } from "@/types";
 
-export interface FileUploadProgress {
+import { useMutation } from "convex/react";
+
+import { type Attachment } from "@/types";
+
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
+
+export type FileUploadProgress = {
   file: File;
   progress: number;
   status: "pending" | "uploading" | "processing" | "complete" | "error";
   error?: string;
   attachment?: Attachment;
-}
+};
 
 export function useConvexFileUpload() {
   const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl);
@@ -116,6 +119,7 @@ export function useConvexFileUpload() {
 }
 
 // Utility function to generate thumbnail from image file
+
 function generateThumbnail(file: File, maxSize = 80): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
@@ -155,6 +159,7 @@ function generateThumbnail(file: File, maxSize = 80): Promise<string> {
 }
 
 // Utility function to read text file content
+
 function readTextFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

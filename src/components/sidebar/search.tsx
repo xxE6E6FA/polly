@@ -1,14 +1,16 @@
-import { useEffect, useRef, useCallback } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useCallback, useEffect, useRef } from "react";
+
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 
-interface SearchProps {
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+type SearchProps = {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-}
+};
 
-export function SidebarSearch({ searchQuery, onSearchChange }: SearchProps) {
+export const SidebarSearch = ({ searchQuery, onSearchChange }: SearchProps) => {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const clearSearch = useCallback(() => {
@@ -39,25 +41,25 @@ export function SidebarSearch({ searchQuery, onSearchChange }: SearchProps) {
   return (
     <div className="space-y-2">
       <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground/60 h-4 w-4" />
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground/60" />
         <Input
           ref={searchInputRef}
+          className="h-9 border-0 bg-muted/50 pl-9 pr-9 text-sm transition-all duration-200 placeholder:text-muted-foreground/60 hover:bg-muted/70 focus:bg-muted focus:outline-none focus:ring-0"
           placeholder="Search conversations..."
           value={searchQuery}
           onChange={e => onSearchChange(e.target.value)}
-          className="bg-muted/50 border-0 placeholder:text-muted-foreground/60 transition-all duration-200 focus:bg-muted focus:ring-0 focus:outline-none hover:bg-muted/70 pl-9 pr-9 h-9 text-sm"
         />
         {searchQuery && (
           <Button
-            variant="ghost"
+            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 transform hover:bg-transparent"
             size="icon-sm"
+            variant="ghost"
             onClick={clearSearch}
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 hover:bg-transparent h-7 w-7"
           >
-            <XIcon className="text-muted-foreground h-3.5 w-3.5" />
+            <XIcon className="h-3.5 w-3.5 text-muted-foreground" />
           </Button>
         )}
       </div>
     </div>
   );
-}
+};

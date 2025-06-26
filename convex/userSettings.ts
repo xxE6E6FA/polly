@@ -1,12 +1,15 @@
 import { v } from "convex/values";
+
 import { mutation, query } from "./_generated/server";
-import { getOptionalUserId, getCurrentUserId } from "./lib/auth";
+import { getCurrentUserId, getOptionalUserId } from "./lib/auth";
 
 export const getUserSettings = query({
   args: { userId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
     const userId = args.userId || (await getOptionalUserId(ctx));
-    if (!userId) return null;
+    if (!userId) {
+      return null;
+    }
 
     const settings = await ctx.db
       .query("userSettings")
@@ -96,19 +99,17 @@ export const togglePersonasEnabled = mutation({
 
     const now = Date.now();
 
-    if (existingSettings) {
-      await ctx.db.patch(existingSettings._id, {
-        personasEnabled: args.enabled,
-        updatedAt: now,
-      });
-    } else {
-      await ctx.db.insert("userSettings", {
-        userId,
-        personasEnabled: args.enabled,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
+    await (existingSettings
+      ? ctx.db.patch(existingSettings._id, {
+          personasEnabled: args.enabled,
+          updatedAt: now,
+        })
+      : ctx.db.insert("userSettings", {
+          userId,
+          personasEnabled: args.enabled,
+          createdAt: now,
+          updatedAt: now,
+        }));
 
     return { success: true };
   },

@@ -1,6 +1,6 @@
 // Shared model capability configuration
 // This file is used by both convex/models.ts and src/lib/model-capabilities.ts
-// to ensure consistent capability detection across backend and frontend
+// To ensure consistent capability detection across backend and frontend
 
 export type PatternConfig = {
   includes?: readonly string[];
@@ -242,6 +242,7 @@ export const SUPPORTED_TEXT_TYPES = [
 ] as const;
 
 // Helper function to check model patterns
+
 export function checkModelPatterns(
   modelId: string,
   patterns: PatternConfig,
@@ -262,10 +263,12 @@ export function checkModelPatterns(
   }
 
   // Check context threshold (for models like fast/file support)
-  if (patterns.contextThreshold && contextLength) {
-    if (contextLength >= patterns.contextThreshold) {
-      return true;
-    }
+  if (
+    patterns.contextThreshold &&
+    contextLength &&
+    contextLength >= patterns.contextThreshold
+  ) {
+    return true;
   }
 
   // Check includes
@@ -282,6 +285,7 @@ export function checkModelPatterns(
 }
 
 // Type-safe capability checker
+
 export function getCapabilityFromPatterns<
   T extends keyof typeof CAPABILITY_PATTERNS,
 >(

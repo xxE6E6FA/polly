@@ -1,4 +1,4 @@
-import { Doc } from "../../convex/_generated/dataModel";
+import { type Doc } from "../../convex/_generated/dataModel";
 
 export type ExportData = {
   conversation: Doc<"conversations">;
@@ -40,7 +40,9 @@ export function exportAsMarkdown(data: ExportData): string {
   markdown += `---\n\n`;
 
   for (const message of messages) {
-    if (message.role === "system" || message.role === "context") continue;
+    if (message.role === "system" || message.role === "context") {
+      continue;
+    }
 
     const timestamp = new Date(message.createdAt).toLocaleString();
     const roleEmoji = message.role === "user" ? "👤" : "🤖";
@@ -110,7 +112,7 @@ export function downloadFile(
 
 export function generateFilename(title: string, format: "json" | "md"): string {
   const sanitized = title
-    .replace(/[^a-zA-Z0-9\s-]/g, "")
+    .replace(/[^\d\sA-Za-z-]/g, "")
     .replace(/\s+/g, "-")
     .toLowerCase();
 

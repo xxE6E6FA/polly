@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 
-interface NotificationOptions {
+type NotificationOptions = {
   title: string;
   description: string;
   type?: "success" | "error" | "warning" | "info";
   actionText?: string;
-}
+};
 
 export function useNotificationDialog() {
   const [isOpen, setIsOpen] = useState(false);

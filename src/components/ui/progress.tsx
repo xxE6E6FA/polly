@@ -2,9 +2,9 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+type ProgressProps = {
   value?: number;
-}
+} & React.HTMLAttributes<HTMLDivElement>;
 
 const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
   ({ className, value = 0, ...props }, ref) => (
@@ -17,7 +17,7 @@ const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
       {...props}
     >
       <div
-        className="h-full transition-all duration-300 ease-in-out rounded-full"
+        className="h-full rounded-full transition-all duration-300 ease-in-out"
         style={{
           width: `${Math.min(100, Math.max(0, value))}%`,
           background: `linear-gradient(90deg, 

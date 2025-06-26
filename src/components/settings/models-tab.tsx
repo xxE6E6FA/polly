@@ -1,37 +1,43 @@
-import React, {
+import {
+  useDeferredValue,
+  useEffect,
   useCallback,
+  memo,
+  useState,
   useMemo,
   useReducer,
-  useDeferredValue,
   useTransition,
 } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+
 import {
-  MagnifyingGlassIcon,
   ArrowCounterClockwiseIcon,
-  FunnelIcon,
   CaretDownIcon,
+  FunnelIcon,
+  MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
+import { useAction, useQuery } from "convex/react";
+
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
-import { useQuery, useAction } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useUser } from "@/hooks/use-user";
+import { cn } from "@/lib/utils";
+
+import { api } from "../../../convex/_generated/api";
 import { VirtualizedModelList } from "../virtualized-model-list";
 import { SettingsHeader } from "./settings-header";
-import { useUser } from "@/hooks/use-user";
 import { Alert, AlertDescription, AlertIcon } from "../ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 
 const PROVIDER_NAMES = {
   openai: "OpenAI",
@@ -70,12 +76,12 @@ const CAPABILITY_FILTERS = [
   { key: "latest", label: "Latest", description: "Newest model version" },
 ] as const;
 
-interface FilterState {
+type FilterState = {
   searchQuery: string;
   selectedProviders: string[];
   selectedCapabilities: string[];
   showOnlySelected: boolean;
-}
+};
 
 type FilterAction =
   | { type: "SET_SEARCH"; payload: string }
@@ -126,7 +132,7 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
   }
 }
 
-const ProviderSummaryCard = React.memo(
+const ProviderSummaryCard = memo(
   ({
     provider,
     count,
@@ -139,7 +145,7 @@ const ProviderSummaryCard = React.memo(
     onToggle: (provider: string) => void;
   }) => (
     <div
-      className={`p-4 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-sm ${
+      className={`cursor-pointer rounded-lg border p-4 transition-all duration-200 hover:shadow-sm ${
         isSelected
           ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
           : "border-border bg-background hover:bg-muted/50"
@@ -147,22 +153,22 @@ const ProviderSummaryCard = React.memo(
       onClick={() => onToggle(provider)}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="w-8 h-8 flex items-center justify-center shrink-0">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center">
             <ProviderIcon provider={provider} />
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-base font-medium truncate">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1 flex items-center gap-2">
+              <h3 className="truncate text-base font-medium">
                 {PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}
               </h3>
               {isSelected && (
-                <span className="text-xs text-blue-600 dark:text-blue-200 font-medium bg-gradient-to-r from-blue-500/10 to-purple-500/10 dark:from-blue-500/20 dark:to-purple-500/20 px-2 py-0.5 rounded-full shrink-0">
+                <span className="shrink-0 rounded-full bg-gradient-to-r from-blue-500/10 to-purple-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-200">
                   Filtered
                 </span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground m-0">
+            <p className="m-0 text-sm text-muted-foreground">
               {count} model{count !== 1 ? "s" : ""} available
             </p>
           </div>
@@ -174,16 +180,16 @@ const ProviderSummaryCard = React.memo(
 
 ProviderSummaryCard.displayName = "ProviderSummaryCard";
 
-const ProviderSummaryCardSkeleton = React.memo(() => (
-  <div className="p-4 rounded-lg border bg-background">
+const ProviderSummaryCardSkeleton = memo(() => (
+  <div className="rounded-lg border bg-background p-4">
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-8 h-8 rounded bg-muted animate-pulse shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="h-6 bg-muted rounded animate-pulse w-20 mb-2" />
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="h-8 w-8 shrink-0 animate-pulse rounded bg-muted" />
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-2">
+            <div className="mb-2 h-6 w-20 animate-pulse rounded bg-muted" />
           </div>
-          <div className="h-3 bg-muted rounded animate-pulse w-24" />
+          <div className="h-3 w-24 animate-pulse rounded bg-muted" />
         </div>
       </div>
     </div>
@@ -192,7 +198,7 @@ const ProviderSummaryCardSkeleton = React.memo(() => (
 
 ProviderSummaryCardSkeleton.displayName = "ProviderSummaryCardSkeleton";
 
-const FilterTag = React.memo(
+const FilterTag = memo(
   ({
     children,
     className,
@@ -203,36 +209,35 @@ const FilterTag = React.memo(
     onClick?: () => void;
   }) => (
     <button
+      title="Click to remove filter"
+      type="button"
       className={cn(
         "inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-all cursor-pointer",
         "hover:bg-destructive/10 dark:hover:bg-destructive/20 hover:text-destructive hover:shadow-sm",
         className
       )}
       onClick={onClick}
-      type="button"
-      title="Click to remove filter"
     >
       {children}
-      <span className="ml-1 opacity-60 hover:opacity-100 text-xs">×</span>
+      <span className="ml-1 text-xs opacity-60 hover:opacity-100">×</span>
     </button>
   )
 );
 
 FilterTag.displayName = "FilterTag";
 
-// Single simple loading state
-function LoadingState({ message }: { message: string }) {
+const LoadingState = ({ message }: { message: string }) => {
   return (
     <div className="flex items-center justify-center py-20">
-      <div className="text-center space-y-4">
+      <div className="space-y-4 text-center">
         <Spinner className="mx-auto text-blue-500" size="lg" />
         <p className="text-sm text-muted-foreground">{message}</p>
       </div>
     </div>
   );
-}
+};
 
-export function ModelsTab() {
+export const ModelsTab = () => {
   const [filterState, dispatch] = useReducer(filterReducer, initialFilterState);
   const [isPending, startTransition] = useTransition();
 
@@ -263,7 +268,7 @@ export function ModelsTab() {
   );
 
   const fetchAllModels = useAction(api.models.fetchAllModels);
-  const [unfilteredModels, setUnfilteredModels] = React.useState<
+  const [unfilteredModels, setUnfilteredModels] = useState<
     Array<{
       modelId: string;
       name: string;
@@ -275,77 +280,22 @@ export function ModelsTab() {
       supportsFiles: boolean;
     }>
   >([]);
-  const [allModels, setAllModels] = React.useState<
-    Array<{
-      modelId: string;
-      name: string;
-      provider: string;
-      contextWindow: number;
-      supportsReasoning: boolean;
-      supportsTools: boolean;
-      supportsImages: boolean;
-      supportsFiles: boolean;
-    }>
-  >([]);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
-  const [error, setError] = React.useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchModels = async () => {
-      if (availableProviders.length === 0) return;
+      if (availableProviders.length === 0) {
+        return;
+      }
 
       try {
         setIsLoading(true);
         setError(null);
         const models = await fetchAllModels();
-
-        // Store unfiltered models
         setUnfilteredModels(models);
-
-        let filteredModels = models;
-
-        if (debouncedFilters.searchQuery) {
-          const searchLower = debouncedFilters.searchQuery.toLowerCase();
-          filteredModels = filteredModels.filter(
-            model =>
-              model.modelId.toLowerCase().includes(searchLower) ||
-              model.name.toLowerCase().includes(searchLower) ||
-              model.provider.toLowerCase().includes(searchLower)
-          );
-        }
-
-        if (debouncedFilters.selectedProviders.length > 0) {
-          filteredModels = filteredModels.filter(model =>
-            debouncedFilters.selectedProviders.includes(model.provider)
-          );
-        }
-
-        if (debouncedFilters.selectedCapabilities.length > 0) {
-          filteredModels = filteredModels.filter(model =>
-            debouncedFilters.selectedCapabilities.every(capability => {
-              switch (capability) {
-                case "supportsReasoning":
-                  return model.supportsReasoning;
-                case "supportsImages":
-                  return model.supportsImages;
-                case "supportsTools":
-                  return model.supportsTools;
-                case "supportsFiles":
-                  return model.supportsFiles;
-                default:
-                  return false;
-              }
-            })
-          );
-        }
-
-        setAllModels(filteredModels);
-
-        // Mark initial load as complete after first successful fetch
-        if (isInitialLoad) {
-          setIsInitialLoad(false);
-        }
+        setIsInitialLoad(false);
       } catch (error) {
         console.error("Failed to fetch models:", error);
         setError(error as Error);
@@ -355,7 +305,48 @@ export function ModelsTab() {
     };
 
     fetchModels();
-  }, [fetchAllModels, availableProviders, debouncedFilters, isInitialLoad]);
+  }, [fetchAllModels, availableProviders]);
+
+  const allModels = useMemo(() => {
+    let filteredModels = unfilteredModels;
+
+    if (debouncedFilters.searchQuery) {
+      const searchLower = debouncedFilters.searchQuery.toLowerCase();
+      filteredModels = filteredModels.filter(
+        model =>
+          model.modelId.toLowerCase().includes(searchLower) ||
+          model.name.toLowerCase().includes(searchLower) ||
+          model.provider.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (debouncedFilters.selectedProviders.length > 0) {
+      filteredModels = filteredModels.filter(model =>
+        debouncedFilters.selectedProviders.includes(model.provider)
+      );
+    }
+
+    if (debouncedFilters.selectedCapabilities.length > 0) {
+      filteredModels = filteredModels.filter(model =>
+        debouncedFilters.selectedCapabilities.every(capability => {
+          switch (capability) {
+            case "supportsReasoning":
+              return model.supportsReasoning;
+            case "supportsImages":
+              return model.supportsImages;
+            case "supportsTools":
+              return model.supportsTools;
+            case "supportsFiles":
+              return model.supportsFiles;
+            default:
+              return false;
+          }
+        })
+      );
+    }
+
+    return filteredModels;
+  }, [unfilteredModels, debouncedFilters]);
 
   const models = useMemo(() => {
     if (!debouncedFilters.showOnlySelected) {
@@ -365,28 +356,34 @@ export function ModelsTab() {
   }, [allModels, debouncedFilters.showOnlySelected, enabledModelIds]);
 
   const stats = useMemo(() => {
-    if (!unfilteredModels.length) return null;
+    if (unfilteredModels.length === 0) {
+      return null;
+    }
 
     const providerCounts: Record<string, number> = {};
     const capabilityCounts: Record<string, number> = {};
 
-    unfilteredModels.forEach(model => {
+    for (const model of unfilteredModels) {
       providerCounts[model.provider] =
         (providerCounts[model.provider] || 0) + 1;
 
-      if (model.supportsReasoning)
+      if (model.supportsReasoning) {
         capabilityCounts.supportsReasoning =
           (capabilityCounts.supportsReasoning || 0) + 1;
-      if (model.supportsImages)
+      }
+      if (model.supportsImages) {
         capabilityCounts.supportsImages =
           (capabilityCounts.supportsImages || 0) + 1;
-      if (model.supportsTools)
+      }
+      if (model.supportsTools) {
         capabilityCounts.supportsTools =
           (capabilityCounts.supportsTools || 0) + 1;
-      if (model.supportsFiles)
+      }
+      if (model.supportsFiles) {
         capabilityCounts.supportsFiles =
           (capabilityCounts.supportsFiles || 0) + 1;
-    });
+      }
+    }
 
     return { providerCounts, capabilityCounts };
   }, [unfilteredModels]);
@@ -454,14 +451,15 @@ export function ModelsTab() {
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    if (availableProviders.length === 0) return;
+    if (availableProviders.length === 0) {
+      return;
+    }
 
     try {
       setIsLoading(true);
       setError(null);
       const models = await fetchAllModels();
       setUnfilteredModels(models);
-      setAllModels(models);
     } catch (error) {
       console.error("Failed to refresh models:", error);
       setError(error as Error);
@@ -487,12 +485,12 @@ export function ModelsTab() {
     return (
       <div className="space-y-6">
         <SettingsHeader
-          title="Models"
           description="Configure your API keys to use different AI providers. Once you add API keys, models will be automatically fetched and displayed here."
+          title="Models"
         />
 
-        <div className="flex items-center justify-center h-64 border border-dashed border-muted rounded-lg">
-          <div className="text-center space-y-3">
+        <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-muted">
+          <div className="space-y-3 text-center">
             <div className="text-4xl text-muted-foreground/50">🧠</div>
             <p className="text-sm text-muted-foreground">
               No API keys configured. Add your API keys to see available models.
@@ -507,16 +505,16 @@ export function ModelsTab() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <SettingsHeader
-          title="Models"
           description="Browse and explore AI models from your configured providers. Enable models to use them in conversations."
+          title="Models"
         />
         <Button
-          onClick={handleRefresh}
+          aria-label="Refresh models"
+          className="shrink-0 gap-2"
           disabled={isLoading}
           size="sm"
           variant="outline"
-          className="gap-2 shrink-0"
-          aria-label="Refresh models"
+          onClick={handleRefresh}
         >
           <ArrowCounterClockwiseIcon className="h-4 w-4" />
           <span className="hidden sm:inline">Refresh</span>
@@ -524,7 +522,7 @@ export function ModelsTab() {
       </div>
 
       {error && (
-        <Alert variant="danger" className="mb-6">
+        <Alert className="mb-6" variant="danger">
           <AlertIcon variant="danger" />
           <AlertDescription>
             Failed to load models. Please refresh the page or try again later.
@@ -533,7 +531,7 @@ export function ModelsTab() {
       )}
 
       {isInitialLoad && isLoading && availableProviders.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
           {availableProviders.map(provider => (
             <ProviderSummaryCardSkeleton key={provider} />
           ))}
@@ -541,23 +539,29 @@ export function ModelsTab() {
       ) : (
         stats?.providerCounts &&
         Object.keys(stats.providerCounts).length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {Object.entries(stats.providerCounts)
               .sort(([a], [b]) => {
                 const providerOrder = Object.keys(PROVIDER_NAMES);
                 const aIndex = providerOrder.indexOf(a);
                 const bIndex = providerOrder.indexOf(b);
-                if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-                if (aIndex === -1) return 1;
-                if (bIndex === -1) return -1;
+                if (aIndex === -1 && bIndex === -1) {
+                  return a.localeCompare(b);
+                }
+                if (aIndex === -1) {
+                  return 1;
+                }
+                if (bIndex === -1) {
+                  return -1;
+                }
                 return aIndex - bIndex;
               })
               .map(([provider, count]) => (
                 <ProviderSummaryCard
                   key={provider}
-                  provider={provider}
                   count={count}
                   isSelected={filterState.selectedProviders.includes(provider)}
+                  provider={provider}
                   onToggle={handleProviderToggle}
                 />
               ))}
@@ -566,32 +570,32 @@ export function ModelsTab() {
       )}
 
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 min-w-0">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="relative min-w-0 flex-1">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
             <Input
+              className="pl-10"
               placeholder="Search models by name, ID, or provider..."
               value={filterState.searchQuery}
               onChange={e => handleSearchChange(e.target.value)}
-              className="pl-10"
             />
           </div>
 
-          <div className="flex gap-2 shrink-0">
+          <div className="flex shrink-0 gap-2">
             <Button
-              variant={filterState.showOnlySelected ? "secondary" : "outline"}
-              onClick={handleShowSelectedToggle}
+              disabled={isPending}
               size="sm"
+              variant={filterState.showOnlySelected ? "secondary" : "outline"}
               className={cn(
                 "gap-2",
                 filterState.showOnlySelected &&
                   "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
               )}
-              disabled={isPending}
+              onClick={handleShowSelectedToggle}
             >
               Selected
               {filterState.showOnlySelected && enabledModels && (
-                <span className="text-xs bg-white/90 dark:bg-white/20 text-blue-600 dark:text-white px-1.5 py-0.5 rounded-full">
+                <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-xs text-blue-600 dark:bg-white/20 dark:text-white">
                   {enabledModels.length}
                 </span>
               )}
@@ -600,22 +604,22 @@ export function ModelsTab() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 min-w-[120px] justify-start"
+                  className="min-w-[120px] justify-start gap-2"
                   disabled={isPending}
+                  size="sm"
+                  variant="outline"
                 >
-                  <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                  <div className="flex h-4 w-4 shrink-0 items-center justify-center">
                     <ProviderIcon provider="openai" />
                   </div>
                   <span className="hidden sm:inline">Providers</span>
                   <span className="sm:hidden">Prov</span>
                   {filterState.selectedProviders.length > 0 && (
-                    <Badge variant="secondary" className="h-5 px-1.5 ml-0.5">
+                    <Badge className="ml-0.5 h-5 px-1.5" variant="secondary">
                       {filterState.selectedProviders.length}
                     </Badge>
                   )}
-                  <CaretDownIcon className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
+                  <CaretDownIcon className="ml-auto h-4 w-4 opacity-50 sm:ml-1" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -625,14 +629,14 @@ export function ModelsTab() {
                   <DropdownMenuCheckboxItem
                     key={provider}
                     checked={filterState.selectedProviders.includes(provider)}
-                    onCheckedChange={() => handleProviderToggle(provider)}
                     className="flex items-center gap-3"
+                    onCheckedChange={() => handleProviderToggle(provider)}
                   >
-                    <div className="w-4 h-4 flex items-center justify-center shrink-0">
+                    <div className="flex h-4 w-4 shrink-0 items-center justify-center">
                       <ProviderIcon provider={provider} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">
                         {
                           PROVIDER_NAMES[
                             provider as keyof typeof PROVIDER_NAMES
@@ -650,10 +654,10 @@ export function ModelsTab() {
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1">
                       <Button
-                        variant="ghost"
+                        className="h-7 w-full text-xs"
                         size="sm"
+                        variant="ghost"
                         onClick={clearProviders}
-                        className="w-full text-xs h-7"
                       >
                         Clear providers
                       </Button>
@@ -665,15 +669,15 @@ export function ModelsTab() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
+                <Button className="gap-1.5" size="sm" variant="outline">
                   <FunnelIcon className="h-4 w-4 shrink-0" />
-                  <span className="hidden sm:inline text-xs">Capabilities</span>
+                  <span className="hidden text-xs sm:inline">Capabilities</span>
                   {filterState.selectedCapabilities.length > 0 && (
-                    <Badge variant="secondary" className="h-5 px-1.5 ml-0.5">
+                    <Badge className="ml-0.5 h-5 px-1.5" variant="secondary">
                       {filterState.selectedCapabilities.length}
                     </Badge>
                   )}
-                  <CaretDownIcon className="h-4 w-4 opacity-50 ml-auto sm:ml-1" />
+                  <CaretDownIcon className="ml-auto h-4 w-4 opacity-50 sm:ml-1" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64">
@@ -683,20 +687,20 @@ export function ModelsTab() {
                   {CAPABILITY_FILTERS.map(capability => (
                     <DropdownMenuCheckboxItem
                       key={capability.key}
+                      className="flex items-start gap-3 py-2"
                       checked={filterState.selectedCapabilities.includes(
                         capability.key
                       )}
                       onCheckedChange={() =>
                         handleCapabilityToggle(capability.key)
                       }
-                      className="flex items-start gap-3 py-2"
                     >
-                      <div className="flex-1 min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="font-medium">{capability.label}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">
+                        <div className="line-clamp-2 text-xs text-muted-foreground">
                           {capability.description}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1">
+                        <div className="mt-1 text-xs text-muted-foreground">
                           {stats?.capabilityCounts?.[capability.key] || 0}{" "}
                           models
                         </div>
@@ -709,10 +713,10 @@ export function ModelsTab() {
                     <DropdownMenuSeparator />
                     <div className="px-2 py-1">
                       <Button
-                        variant="ghost"
+                        className="h-7 w-full text-xs"
                         size="sm"
+                        variant="ghost"
                         onClick={clearCapabilities}
-                        className="w-full text-xs h-7"
                       >
                         Clear capabilities
                       </Button>
@@ -725,14 +729,14 @@ export function ModelsTab() {
         </div>
 
         {hasActiveFilters && (
-          <div className="flex items-start gap-2 flex-wrap">
-            <span className="text-sm text-muted-foreground shrink-0 mt-1">
+          <div className="flex flex-wrap items-start gap-2">
+            <span className="mt-1 shrink-0 text-sm text-muted-foreground">
               Filters:
             </span>
             <div className="flex flex-wrap items-center gap-2">
               {filterState.searchQuery && (
                 <FilterTag
-                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                  className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                   onClick={handleRemoveSearchFilter}
                 >
                   Search: &ldquo;{filterState.searchQuery}&rdquo;
@@ -740,7 +744,7 @@ export function ModelsTab() {
               )}
               {filterState.showOnlySelected && (
                 <FilterTag
-                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                  className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                   onClick={handleRemoveSelectedFilter}
                 >
                   Selected only
@@ -749,13 +753,13 @@ export function ModelsTab() {
               {filterState.selectedProviders.map(provider => (
                 <FilterTag
                   key={provider}
-                  className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                  className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                   onClick={() => handleRemoveProviderFilter(provider)}
                 >
-                  <div className="w-3 h-3 flex items-center justify-center">
+                  <div className="flex h-3 w-3 items-center justify-center">
                     <ProviderIcon provider={provider} />
                   </div>
-                  <span className="truncate max-w-[100px]">
+                  <span className="max-w-[100px] truncate">
                     {PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}
                   </span>
                 </FilterTag>
@@ -767,21 +771,21 @@ export function ModelsTab() {
                 return (
                   <FilterTag
                     key={capability}
-                    className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20 dark:from-blue-500/20 dark:to-purple-500/20 dark:border-blue-500/30"
+                    className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                     onClick={() => handleRemoveCapabilityFilter(capability)}
                   >
-                    <span className="truncate max-w-[120px]">
+                    <span className="max-w-[120px] truncate">
                       {capabilityInfo?.label}
                     </span>
                   </FilterTag>
                 );
               })}
               <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="text-xs h-7 px-3 shrink-0"
+                className="h-7 shrink-0 px-3 text-xs"
                 disabled={isPending}
+                size="sm"
+                variant="ghost"
+                onClick={clearFilters}
               >
                 Clear all
               </Button>
@@ -805,15 +809,15 @@ export function ModelsTab() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex min-h-[400px] items-center justify-center">
             <Spinner className="text-blue-500" size="lg" />
           </div>
         ) : models.length > 0 ? (
           <VirtualizedModelList models={models} />
         ) : (
           <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-4 max-w-md">
-              <div className="text-6xl mb-4 opacity-20">🔍</div>
+            <div className="max-w-md space-y-4 text-center">
+              <div className="mb-4 text-6xl opacity-20">🔍</div>
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold">No models found</h3>
                 <p className="text-sm text-muted-foreground">
@@ -824,10 +828,10 @@ export function ModelsTab() {
               </div>
               {hasActiveFilters && (
                 <Button
-                  variant="outline"
-                  onClick={clearFilters}
                   className="mt-4"
                   disabled={isPending}
+                  variant="outline"
+                  onClick={clearFilters}
                 >
                   Clear all filters
                 </Button>
@@ -838,4 +842,4 @@ export function ModelsTab() {
       </div>
     </div>
   );
-}
+};

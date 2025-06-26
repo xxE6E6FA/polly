@@ -1,4 +1,9 @@
 import { useState } from "react";
+
+import { CaretDownIcon, CheckIcon, UserIcon } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
+
+import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -18,29 +23,27 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { CheckIcon, UserIcon, CaretDownIcon } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
 import { cn } from "@/lib/utils";
-import { Backdrop } from "@/components/ui/backdrop";
-import { Id } from "../../convex/_generated/dataModel";
 
-interface PersonaPickerProps {
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
+
+type PersonaPickerProps = {
   compact?: boolean;
   className?: string;
   selectedPersonaId?: Id<"personas"> | null;
   onPersonaSelect?: (personaId: Id<"personas"> | null) => void;
   tooltip?: string | React.ReactNode;
-}
+};
 
-export function PersonaPicker({
+export const PersonaPicker = ({
   compact = false,
   className,
   selectedPersonaId = null,
   onPersonaSelect,
   tooltip,
-}: PersonaPickerProps) {
+}: PersonaPickerProps) => {
   const userInfo = useUser();
   const personas = useQuery(
     api.personas.list,
@@ -65,7 +68,7 @@ export function PersonaPicker({
     return !isDisabled;
   });
 
-  const handlePersonaSelect = async (personaId: Id<"personas"> | null) => {
+  const handlePersonaSelect = (personaId: Id<"personas"> | null) => {
     onPersonaSelect?.(personaId);
     setOpen(false);
   };
@@ -82,8 +85,8 @@ export function PersonaPicker({
   if (compact) {
     const TriggerButton = (
       <Button
-        variant="ghost"
         size="sm"
+        variant="ghost"
         className={cn(
           "h-7 w-7 p-0 relative group picker-trigger",
           "hover:bg-accent/50 dark:hover:bg-accent/30",
@@ -95,7 +98,7 @@ export function PersonaPicker({
         {currentPersona ? (
           <span className="text-base">{currentPersona.icon}</span>
         ) : (
-          <UserIcon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <UserIcon className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
         )}
       </Button>
     );
@@ -105,9 +108,9 @@ export function PersonaPicker({
         {/* Backdrop blur overlay */}
         {open && (
           <Backdrop
-            variant="default"
             blur="sm"
-            className="z-40 animate-in fade-in-0 duration-200"
+            className="z-40 duration-200 animate-in fade-in-0"
+            variant="default"
           />
         )}
 
@@ -125,15 +128,15 @@ export function PersonaPicker({
             <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
           )}
           <PopoverContent
-            className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
+            avoidCollisions
+            className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+            collisionPadding={16}
             side="top"
             sideOffset={4}
-            collisionPadding={16}
-            avoidCollisions={true}
           >
             <PersonaList
-              personas={availablePersonas}
               currentPersona={currentPersona}
+              personas={availablePersonas}
               onPersonaSelect={handlePersonaSelect}
             />
           </PopoverContent>
@@ -144,9 +147,9 @@ export function PersonaPicker({
 
   const TriggerButton = (
     <Button
-      variant="outline"
-      role="combobox"
       aria-expanded={open}
+      role="combobox"
+      variant="outline"
       className={cn(
         "w-full justify-between group picker-trigger",
         "hover:bg-accent/30 dark:hover:bg-accent/20",
@@ -160,11 +163,11 @@ export function PersonaPicker({
       <div className="flex items-center gap-3">
         {currentPersona ? (
           <>
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-accent/50 dark:bg-accent/30">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/50 dark:bg-accent/30">
               <span className="text-lg">{currentPersona.icon}</span>
             </div>
             <div className="text-left">
-              <div className="font-medium text-sm">{currentPersona.name}</div>
+              <div className="text-sm font-medium">{currentPersona.name}</div>
               <div className="text-xs text-muted-foreground">
                 {currentPersona.description}
               </div>
@@ -172,11 +175,11 @@ export function PersonaPicker({
           </>
         ) : (
           <>
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-muted/50 dark:bg-muted/30 border border-border/50">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/50 bg-muted/50 dark:bg-muted/30">
               <UserIcon className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="text-left">
-              <div className="font-medium text-sm">Default</div>
+              <div className="text-sm font-medium">Default</div>
               <div className="text-xs text-muted-foreground">
                 Standard AI assistant behavior
               </div>
@@ -198,9 +201,9 @@ export function PersonaPicker({
       {/* Backdrop blur overlay */}
       {open && (
         <Backdrop
-          variant="default"
           blur="sm"
-          className="z-40 animate-in fade-in-0 duration-200"
+          className="z-40 duration-200 animate-in fade-in-0"
+          variant="default"
         />
       )}
 
@@ -218,24 +221,24 @@ export function PersonaPicker({
           <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
         )}
         <PopoverContent
-          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
+          avoidCollisions
+          className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+          collisionPadding={16}
           side="top"
           sideOffset={4}
-          collisionPadding={16}
-          avoidCollisions={true}
         >
           <PersonaList
-            personas={availablePersonas}
             currentPersona={currentPersona}
+            personas={availablePersonas}
             onPersonaSelect={handlePersonaSelect}
           />
         </PopoverContent>
       </Popover>
     </>
   );
-}
+};
 
-interface PersonaListProps {
+type PersonaListProps = {
   personas:
     | Array<{
         _id: Id<"personas">;
@@ -255,13 +258,13 @@ interface PersonaListProps {
     isBuiltIn: boolean;
   } | null;
   onPersonaSelect: (personaId: Id<"personas"> | null) => void;
-}
+};
 
-function PersonaList({
+const PersonaList = ({
   personas,
   currentPersona,
   onPersonaSelect,
-}: PersonaListProps) {
+}: PersonaListProps) => {
   // Group personas by built-in vs custom
   const builtInPersonas = personas?.filter(p => p.isBuiltIn) || [];
   const customPersonas = personas?.filter(p => !p.isBuiltIn) || [];
@@ -288,9 +291,9 @@ function PersonaList({
             Default
           </div>
           <CommandItem
+            className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
             value="default"
             onSelect={() => onPersonaSelect(null)}
-            className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
           >
             <span className="text-lg">🤖</span>
             <div className="flex-1">
@@ -306,7 +309,7 @@ function PersonaList({
         {/* Built-in personas */}
         {builtInPersonas.length > 0 && (
           <>
-            <div className="h-px bg-border/50 mx-2 my-1.5" />
+            <div className="mx-2 my-1.5 h-px bg-border/50" />
             <CommandGroup>
               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                 Built-in
@@ -318,9 +321,9 @@ function PersonaList({
               {builtInPersonas.map(persona => (
                 <CommandItem
                   key={persona._id}
+                  className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
                   value={persona.name}
                   onSelect={() => onPersonaSelect(persona._id)}
-                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
                 >
                   <span className="text-lg">{persona.icon || "🤖"}</span>
                   <div className="flex-1">
@@ -341,7 +344,7 @@ function PersonaList({
         {/* Custom personas */}
         {customPersonas.length > 0 && (
           <>
-            <div className="h-px bg-border/50 mx-2 my-1.5" />
+            <div className="mx-2 my-1.5 h-px bg-border/50" />
             <CommandGroup>
               <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                 Custom
@@ -353,9 +356,9 @@ function PersonaList({
               {customPersonas.map(persona => (
                 <CommandItem
                   key={persona._id}
+                  className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
                   value={persona.name}
                   onSelect={() => onPersonaSelect(persona._id)}
-                  className="flex items-center gap-2 py-3 sm:py-2 px-4 sm:px-3 min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
                 >
                   <span className="text-lg">{persona.icon || "🤖"}</span>
                   <div className="flex-1">
@@ -375,4 +378,4 @@ function PersonaList({
       </CommandList>
     </Command>
   );
-}
+};

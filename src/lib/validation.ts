@@ -1,5 +1,7 @@
 export function validateApiKey(provider: string, key: string): boolean {
-  if (!key || typeof key !== "string") return false;
+  if (!key || typeof key !== "string") {
+    return false;
+  }
 
   switch (provider) {
     case "openai":

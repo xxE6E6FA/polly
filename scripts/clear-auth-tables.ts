@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
-import { api } from "../convex/_generated/api";
 import * as dotenv from "dotenv";
+
+import { api } from "../convex/_generated/api";
 
 // Load environment variables
 dotenv.config({ path: ".env.local" });

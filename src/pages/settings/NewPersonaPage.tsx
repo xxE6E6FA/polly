@@ -1,13 +1,17 @@
 import { useState } from "react";
+
 import { useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
+
 import { useMutation } from "convex/react";
-import { EmojiClickData } from "emoji-picker-react";
+import { type EmojiClickData } from "emoji-picker-react";
+
+import { api } from "convex/_generated/api";
+
 import {
   PersonaForm,
-  PersonaFormData,
+  type PersonaFormData,
 } from "@/components/settings/persona-form";
-import { api } from "convex/_generated/api";
+import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
@@ -67,26 +71,26 @@ export default function NewPersonaPage() {
 
       <PersonaForm
         formData={formData}
-        setFormData={setFormData}
-        isEmojiPickerOpen={isEmojiPickerOpen}
-        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
         handleEmojiClick={handleEmojiClick}
+        isEmojiPickerOpen={isEmojiPickerOpen}
+        setFormData={setFormData}
+        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
       />
 
-      <div className="flex justify-end gap-3 pt-4 border-t">
+      <div className="flex justify-end gap-3 border-t pt-4">
         <Button
-          variant="outline"
-          size="default"
-          onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
           disabled={isLoading}
+          size="default"
+          variant="outline"
+          onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
         >
           Cancel
         </Button>
         <Button
-          variant="default"
-          size="default"
-          onClick={handleCreatePersona}
           disabled={!isFormValid || isLoading}
+          size="default"
+          variant="default"
+          onClick={handleCreatePersona}
         >
           {isLoading ? "Creating..." : "Create Persona"}
         </Button>

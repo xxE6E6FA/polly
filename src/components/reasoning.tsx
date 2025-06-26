@@ -1,13 +1,15 @@
-import { useRef, useEffect, useState } from "react";
-import { Spinner } from "@/components/spinner";
+import { useEffect, useRef, useState } from "react";
+
 import Markdown from "markdown-to-jsx";
 
-interface ReasoningProps {
+import { Spinner } from "@/components/spinner";
+
+type ReasoningProps = {
   reasoning: string;
   isLoading: boolean;
-}
+};
 
-export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
+export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +53,7 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
   return (
     <div className="mt-2 w-full">
       <button
-        className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-200 group"
+        className="group flex items-center gap-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground"
         onClick={() => setIsExpanded(prev => !prev)}
       >
         {/* Show spinner only when loading AND expanded (or about to expand) */}
@@ -64,16 +66,16 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
           {isExpanded ? (
             <>
               <svg
-                className="w-4 h-4 transition-transform duration-200 group-hover:scale-110"
+                className="h-4 w-4 transition-transform duration-200 group-hover:scale-110"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
+                  d="M5 15l7-7 7 7"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M5 15l7-7 7 7"
                 />
               </svg>
               Hide reasoning
@@ -81,16 +83,16 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
           ) : (
             <>
               <svg
-                className="w-4 h-4 transition-transform duration-200 group-hover:scale-110"
+                className="h-4 w-4 transition-transform duration-200 group-hover:scale-110"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
                 <path
+                  d="M19 9l-7 7-7-7"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
                 />
               </svg>
               Show reasoning
@@ -102,17 +104,17 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
       {/* Container for content with transitions and loading animation */}
       <div
         className={`
-          relative mt-2 border-l-2 border-muted/30 dark:border-l-muted/20
-          pl-4 overflow-hidden transition-all duration-300 ease-in-out
-          w-full
+          relative mt-2 w-full overflow-hidden border-l-2
+          border-muted/30 pl-4 transition-all duration-300 ease-in-out
+          dark:border-l-muted/20
           ${
             isLoading
               ? isExpanded
                 ? "h-[150px] bg-muted/5"
                 : "h-0 opacity-0"
               : isExpanded
-                ? "h-auto opacity-100 translate-y-0"
-                : "h-0 opacity-0 -translate-y-2"
+                ? "h-auto translate-y-0 opacity-100"
+                : "h-0 -translate-y-2 opacity-0"
           }
         `}
       >
@@ -120,18 +122,18 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
         <div
           ref={contentRef}
           className={`
-            relative h-full overflow-y-auto
-            scrollbar-none
-            [-ms-overflow-style:none]
-            [scrollbar-width:none]
-            [&::-webkit-scrollbar]:hidden
+            scrollbar-none relative h-full
+            overflow-y-auto
             scroll-smooth
             py-3
-            text-xs text-muted-foreground dark:text-muted-foreground/80
+            text-xs
+            text-muted-foreground
+            [-ms-overflow-style:none]
+            [scrollbar-width:none] dark:text-muted-foreground/80 [&::-webkit-scrollbar]:hidden
           `}
         >
           <div
-            className="text-xs leading-relaxed text-muted-foreground/90 dark:text-muted-foreground/80 max-w-none break-words"
+            className="max-w-none break-words text-xs leading-relaxed text-muted-foreground/90 dark:text-muted-foreground/80"
             style={{
               wordBreak: "break-word",
               overflowWrap: "break-word",
@@ -149,17 +151,17 @@ export function Reasoning({ reasoning, isLoading }: ReasoningProps) {
           <>
             {/* Top fade - text fades out going up */}
             <div
-              className="absolute top-0 left-0 right-0 h-6 bg-gradient-to-b from-background via-background/60 to-transparent pointer-events-none z-10"
               aria-hidden="true"
+              className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-6 bg-gradient-to-b from-background via-background/60 to-transparent"
             />
             {/* Bottom fade - text fades out going down */}
             <div
-              className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background via-background/60 to-transparent pointer-events-none z-10"
               aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-6 bg-gradient-to-t from-background via-background/60 to-transparent"
             />
           </>
         )}
       </div>
     </div>
   );
-}
+};

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-interface UseScrollDirectionProps {
+type UseScrollDirectionProps = {
   hideThreshold?: number;
-}
+};
 
-interface ScrollState {
+type ScrollState = {
   shouldHideHeader: boolean;
   isAtTop: boolean;
-}
+};
 
 export function useScrollDirection({
   hideThreshold = 100,
@@ -27,7 +27,9 @@ export function useScrollDirection({
   const initialLoadTimer = useRef<NodeJS.Timeout | null>(null);
 
   const updateScrollState = useCallback(() => {
-    if (!scrollElement.current) return;
+    if (!scrollElement.current) {
+      return;
+    }
 
     const currentScrollY = scrollElement.current.scrollTop;
     const difference = currentScrollY - lastScrollY.current;
