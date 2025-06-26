@@ -1,17 +1,21 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
 import { useQuery } from "convex/react";
+
 import { api } from "../../convex/_generated/api";
+import { type Doc } from "../../convex/_generated/dataModel";
 import {
+  clearUserCache,
   getCachedSelectedModel,
   setCachedSelectedModel,
-  clearUserCache,
 } from "../lib/user-cache";
-import { Doc } from "../../convex/_generated/dataModel";
 
 export function useSelectedModel() {
   // Initialize with cached data for instant rendering
   const [cachedModel] = useState<Doc<"userModels"> | null>(() => {
-    if (typeof window === "undefined") return null;
+    if (typeof window === "undefined") {
+      return null;
+    }
     return getCachedSelectedModel();
   });
 
@@ -27,7 +31,9 @@ export function useSelectedModel() {
 
   // Clear cache on logout (listen for the same event as user hook)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
     const handleGraduationComplete = () => {
       clearUserCache(); // This clears both user and model cache

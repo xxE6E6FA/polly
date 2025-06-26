@@ -1,25 +1,28 @@
 import React from "react";
-import { Button } from "./button";
+
 import {
   ArrowCounterClockwiseIcon,
   CaretDownIcon,
   CaretUpIcon,
-  CopyIcon,
   CheckIcon,
+  CopyIcon,
 } from "@phosphor-icons/react";
+
 import { cn } from "@/lib/utils";
 
-interface ErrorBoundaryState {
+import { Button } from "./button";
+
+type ErrorBoundaryState = {
   hasError: boolean;
   error?: Error;
   showDetails: boolean;
   copied: boolean;
-}
+};
 
-interface ErrorBoundaryProps {
+type ErrorBoundaryProps = {
   children: React.ReactNode;
   fallback?: React.ComponentType<{ error: Error; resetError: () => void }>;
-}
+};
 
 export class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,
@@ -74,7 +77,9 @@ export class ErrorBoundary extends React.Component<
   };
 
   copyErrorDetails = () => {
-    if (!this.state.error) return;
+    if (!this.state.error) {
+      return;
+    }
 
     const errorText = `${this.state.error.name || "Error"}: ${this.state.error.message || "Unknown error"}${
       this.state.error.stack ? `\n\n${this.state.error.stack}` : ""
@@ -99,20 +104,20 @@ export class ErrorBoundary extends React.Component<
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="flex min-h-screen items-center justify-center p-6">
           <div className="w-full max-w-2xl">
-            <div className="flex flex-col items-center text-center space-y-6 p-8 bg-background/50 backdrop-blur-sm rounded-xl">
+            <div className="flex flex-col items-center space-y-6 rounded-xl bg-background/50 p-8 text-center backdrop-blur-sm">
               <img
-                src="/polly-404.png"
                 alt="Polly looking confused"
-                className="w-32 h-32 object-contain animate-in fade-in-0 zoom-in-95 duration-500"
+                className="h-32 w-32 object-contain duration-500 animate-in fade-in-0 zoom-in-95"
+                src="/polly-404.png"
               />
 
               <div className="space-y-2">
                 <h1 className="text-3xl font-bold text-foreground">
                   Oops! Something went wrong
                 </h1>
-                <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                <p className="mx-auto max-w-md text-lg text-muted-foreground">
                   {this.state.hasError
                     ? "Polly encountered an unexpected error."
                     : "Polly couldn't load the application."}
@@ -120,24 +125,24 @@ export class ErrorBoundary extends React.Component<
               </div>
 
               <Button
-                onClick={() => window.location.reload()}
-                size="lg"
                 className="gap-2"
+                size="lg"
+                onClick={() => window.location.reload()}
               >
                 <ArrowCounterClockwiseIcon className="h-4 w-4" />
                 Reload page
               </Button>
 
               {this.state.error && (
-                <div className="w-full mt-8">
+                <div className="mt-8 w-full">
                   <button
-                    onClick={this.toggleDetails}
                     className={cn(
                       "w-full flex items-center justify-center gap-2 py-2 px-4",
                       "text-sm font-medium text-muted-foreground",
                       "hover:text-foreground transition-colors",
                       "rounded-lg hover:bg-muted/50"
                     )}
+                    onClick={this.toggleDetails}
                   >
                     <span>Error details</span>
                     {this.state.showDetails ? (
@@ -148,28 +153,28 @@ export class ErrorBoundary extends React.Component<
                   </button>
 
                   {this.state.showDetails && (
-                    <div className="mt-4 animate-in slide-in-from-top-2 fade-in-0 duration-200">
-                      <div className="rounded-lg border bg-muted/30 text-left relative">
+                    <div className="mt-4 duration-200 animate-in fade-in-0 slide-in-from-top-2">
+                      <div className="relative rounded-lg border bg-muted/30 text-left">
                         <Button
-                          onClick={this.copyErrorDetails}
-                          variant="ghost"
+                          className="absolute right-2 top-2 z-10"
                           size="sm"
-                          className="absolute top-2 right-2 z-10"
+                          variant="ghost"
+                          onClick={this.copyErrorDetails}
                         >
                           {this.state.copied ? (
                             <>
-                              <CheckIcon className="h-4 w-4 mr-2" />
+                              <CheckIcon className="mr-2 h-4 w-4" />
                               Copied
                             </>
                           ) : (
                             <>
-                              <CopyIcon className="h-4 w-4 mr-2" />
+                              <CopyIcon className="mr-2 h-4 w-4" />
                               Copy
                             </>
                           )}
                         </Button>
                         <div className="max-h-64 overflow-y-auto p-4">
-                          <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words pr-20">
+                          <pre className="whitespace-pre-wrap break-words pr-20 text-xs text-muted-foreground">
                             <span className="font-semibold text-destructive">
                               {this.state.error.name || "Error"}:
                             </span>{" "}

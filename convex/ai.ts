@@ -1,23 +1,25 @@
-import { v } from "convex/values";
-import { action, ActionCtx } from "./_generated/server";
-import { internal, api } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
 import { streamText } from "ai";
+import { v } from "convex/values";
 
-// Import types
-import { StreamMessage, ProviderType, Citation, WebSource } from "./ai/types";
-
-// Import utilities
-import { getUserFriendlyErrorMessage } from "./ai/errors";
+import { api, internal } from "./_generated/api";
+import { type Id } from "./_generated/dataModel";
+import { action, type ActionCtx } from "./_generated/server";
+import { extractCitations } from "./ai/citations";
 import { getApiKey } from "./ai/encryption";
-import { createLanguageModel, isReasoningModel } from "./ai/providers";
+import { getUserFriendlyErrorMessage } from "./ai/errors";
 import {
+  clearConversationStreaming,
   convertMessages,
   updateMessage,
-  clearConversationStreaming,
 } from "./ai/messages";
-import { extractCitations } from "./ai/citations";
+import { createLanguageModel, isReasoningModel } from "./ai/providers";
 import { StreamHandler } from "./ai/streaming";
+import {
+  type Citation,
+  type ProviderType,
+  type StreamMessage,
+  type WebSource,
+} from "./ai/types";
 
 // Main streaming action
 export const streamResponse = action({
@@ -130,12 +132,7 @@ export const streamResponse = action({
               },
             },
           }),
-        onFinish: async ({
-          text,
-          finishReason,
-          reasoning,
-          providerMetadata,
-        }) => {
+        onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
           // Store the finish data for later use after stream completes
           streamHandler.setFinishData({
             text,
@@ -177,9 +174,7 @@ export const streamResponse = action({
       }
 
       if (error instanceof Error && error.message === "MessageDeleted") {
-        console.log(
-          `Message ${args.messageId} was deleted during streaming, exiting gracefully`
-        );
+        // This is expected behavior when a message is deleted during streaming
         return;
       }
 
@@ -188,7 +183,7 @@ export const streamResponse = action({
         .runQuery(api.messages.getById, {
           id: args.messageId,
         })
-        .then(msg => !!msg)
+        .then(msg => Boolean(msg))
         .catch(() => false);
 
       if (messageExists) {
@@ -208,6 +203,13 @@ export const streamResponse = action({
 });
 
 // Handle Google search sources
+/**
+ *
+ * @param ctx
+ * @param result
+ * @param result.sources
+ * @param messageId
+ */
 async function handleGoogleSearchSources(
   ctx: ActionCtx,
   result: {
@@ -235,13 +237,13 @@ async function handleGoogleSearchSources(
 
       // Combine and deduplicate citations based on URL
       const citationMap = new Map<string, Citation>();
-      [...existingCitations, ...sourceCitations].forEach(citation => {
+      for (const citation of [...existingCitations, ...sourceCitations]) {
         if (!citationMap.has(citation.url)) {
           citationMap.set(citation.url, citation);
         }
-      });
+      }
 
-      const mergedCitations = Array.from(citationMap.values());
+      const mergedCitations = [...citationMap.values()];
 
       if (mergedCitations.length > 0) {
         try {
@@ -266,7 +268,7 @@ async function handleGoogleSearchSources(
             (error.message.includes("not found") ||
               error.message.includes("nonexistent document"))
           ) {
-            console.log("Message was deleted before citations could be added");
+            // Message was deleted before citations could be added - this is expected
             return;
           }
           throw error;

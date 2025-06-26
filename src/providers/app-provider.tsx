@@ -1,17 +1,18 @@
 import React from "react";
+
 import { ConvexProvider } from "./convex-provider";
-import { ThemeProvider } from "./theme-provider";
-import { UserProvider } from "./user-provider";
 import { QueryProvider } from "./query-provider";
 import { SidebarProvider } from "./sidebar-provider";
+import { ThemeProvider } from "./theme-provider";
 import { ThinkingProvider } from "./thinking-provider";
+import { UserProvider } from "./user-provider";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 
-interface AppProviderProps {
+type AppProviderProps = {
   children: React.ReactNode;
-}
+};
 
-export function AppProvider({ children }: AppProviderProps) {
+export const AppProvider = ({ children }: AppProviderProps) => {
   return (
     <ErrorBoundary>
       <ConvexProvider>
@@ -27,4 +28,4 @@ export function AppProvider({ children }: AppProviderProps) {
       </ConvexProvider>
     </ErrorBoundary>
   );
-}
+};

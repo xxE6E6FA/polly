@@ -1,14 +1,14 @@
 import { Sidebar } from "@/components/sidebar";
 
-interface SharedChatLayoutProps {
+type SharedChatLayoutProps = {
   children: React.ReactNode;
-}
+};
 
-export function SharedChatLayout({ children }: SharedChatLayoutProps) {
+export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
   return (
     <div className="flex h-screen w-full">
       <Sidebar />
-      <main className="flex-1 min-w-0 overflow-hidden">{children}</main>
+      <main className="min-w-0 flex-1 overflow-hidden">{children}</main>
     </div>
   );
-}
+};

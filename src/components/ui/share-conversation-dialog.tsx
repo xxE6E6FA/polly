@@ -1,6 +1,17 @@
 import { useState } from "react";
+
+import {
+  ArrowCounterClockwiseIcon,
+  ArrowSquareOutIcon,
+  CheckIcon,
+  CopyIcon,
+  ShareNetworkIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,34 +23,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  ShareNetworkIcon,
-  CopyIcon,
-  CheckIcon,
-  ArrowSquareOutIcon,
-  ArrowCounterClockwiseIcon,
-  XIcon,
-} from "@phosphor-icons/react";
-import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { ConversationId } from "@/types";
-import { cn } from "@/lib/utils";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Alert, AlertDescription, AlertIcon } from "./alert";
+import { cn } from "@/lib/utils";
+import { type ConversationId } from "@/types";
 
-interface ShareConversationDialogProps {
+import { Alert, AlertDescription, AlertIcon } from "./alert";
+import { api } from "../../../convex/_generated/api";
+
+type ShareConversationDialogProps = {
   conversationId: ConversationId;
   children: React.ReactNode;
-}
+};
 
-export function ShareConversationDialog({
+export const ShareConversationDialog = ({
   conversationId,
   children,
-}: ShareConversationDialogProps) {
+}: ShareConversationDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -140,7 +143,7 @@ export function ShareConversationDialog({
     }
   };
 
-  const isShared = !!sharedStatus?.shareId;
+  const isShared = Boolean(sharedStatus?.shareId);
   const hasNewMessages = sharedStatus?.hasNewMessages ?? false;
   const newMessagesCount =
     hasNewMessages &&
@@ -171,24 +174,24 @@ export function ShareConversationDialog({
               <div className="space-y-3">
                 <div className="relative">
                   <Input
+                    readOnly
+                    className="flex h-12 items-center pr-20 font-mono text-sm"
                     id="share-url"
                     value={shareUrl || generateShareUrl(sharedStatus.shareId)}
-                    readOnly
-                    className="pr-20 font-mono text-sm h-12 flex items-center"
                   />
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex">
+                  <div className="absolute right-2 top-1/2 flex -translate-y-1/2">
                     <TooltipProvider>
                       <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
+                            disabled={isCopied}
                             size="sm"
-                            onClick={handleCopyUrl}
+                            variant="ghost"
                             className={cn(
                               "h-8 w-8 p-0 transition-colors",
                               isCopied && "text-[hsl(220_95%_55%)]"
                             )}
-                            disabled={isCopied}
+                            onClick={handleCopyUrl}
                           >
                             {isCopied ? (
                               <CheckIcon className="h-4 w-4" />
@@ -197,7 +200,7 @@ export function ShareConversationDialog({
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="px-2 py-1">
+                        <TooltipContent className="px-2 py-1" side="bottom">
                           <p className="text-xs">
                             {isCopied ? "Copied!" : "Copy link"}
                           </p>
@@ -208,15 +211,15 @@ export function ShareConversationDialog({
                       <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleOpenInNewTab}
                             className="h-8 w-8 p-0"
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleOpenInNewTab}
                           >
                             <ArrowSquareOutIcon className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent side="bottom" className="px-2 py-1">
+                        <TooltipContent className="px-2 py-1" side="bottom">
                           <p className="text-xs">Open in new tab</p>
                         </TooltipContent>
                       </Tooltip>
@@ -227,7 +230,7 @@ export function ShareConversationDialog({
 
               {/* New messages alert */}
               {newMessagesCount > 0 && newMessagesCount < 100 && (
-                <Alert variant="warning" className="mb-4">
+                <Alert className="mb-4" variant="warning">
                   <AlertIcon variant="warning" />
                   <AlertDescription>
                     {newMessagesCount} new message
@@ -239,28 +242,28 @@ export function ShareConversationDialog({
               {/* Action buttons */}
               <div className="flex gap-3">
                 <Button
-                  onClick={handleUpdate}
+                  className="h-10 flex-1"
                   disabled={isUpdating || !hasNewMessages}
                   variant="outline"
-                  className="flex-1 h-10"
+                  onClick={handleUpdate}
                 >
                   {isUpdating ? (
-                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2" />
+                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4" />
                   )}
                   Update share
                 </Button>
                 <Button
-                  onClick={handleUnshare}
+                  className="h-10 flex-1"
                   disabled={isUnsharing}
                   variant="outline"
-                  className="flex-1 h-10"
+                  onClick={handleUnshare}
                 >
                   {isUnsharing ? (
-                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
-                    <XIcon className="h-4 w-4 mr-2" />
+                    <XIcon className="mr-2 h-4 w-4" />
                   )}
                   Stop sharing
                 </Button>
@@ -269,18 +272,18 @@ export function ShareConversationDialog({
           ) : (
             <div className="space-y-4">
               <Button
-                onClick={handleShare}
+                className="h-11 w-full bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
                 disabled={isSharing}
-                className="w-full h-11 bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
+                onClick={handleShare}
               >
                 {isSharing ? (
                   <>
-                    <ArrowCounterClockwiseIcon className="h-4 w-4 mr-2 animate-spin" />
+                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
                     Creating share link...
                   </>
                 ) : (
                   <>
-                    <ShareNetworkIcon className="h-4 w-4 mr-2" />
+                    <ShareNetworkIcon className="mr-2 h-4 w-4" />
                     Create share link
                   </>
                 )}
@@ -297,4 +300,4 @@ export function ShareConversationDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

@@ -1,6 +1,7 @@
-import { useQuery, useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+
 import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { type Id } from "../../convex/_generated/dataModel";
 
 export function useUserSettings(userId?: Id<"users">) {
   return useQuery(api.userSettings.getUserSettings, { userId });

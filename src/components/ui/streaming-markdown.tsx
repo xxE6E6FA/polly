@@ -1,21 +1,23 @@
 import {
-  memo,
-  useMemo,
   createContext,
+  memo,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+
 import {
   codeBlockLookBack,
   findCompleteCodeBlock,
   findPartialCodeBlock,
 } from "@llm-ui/code";
 import { markdownLookBack } from "@llm-ui/markdown";
-import { useLLMOutput, throttleBasic } from "@llm-ui/react";
-import { MarkdownBlock } from "./markdown-block";
+import { throttleBasic, useLLMOutput } from "@llm-ui/react";
+
 import { CodeBlockWrapperLLM } from "./code-block-wrapper";
+import { MarkdownBlock } from "./markdown-block";
 
 // Context for passing messageId to child components
 const MessageContext = createContext<string | undefined>(undefined);
@@ -29,19 +31,19 @@ const throttle = throttleBasic({
   windowLookBackMs: 500,
 });
 
-interface StreamingMarkdownProps {
+type StreamingMarkdownProps = {
   children: string;
   className?: string;
   isStreaming?: boolean;
   messageId?: string;
-}
+};
 
-function StreamingMarkdownInner({
+const StreamingMarkdownInner = ({
   children,
   className,
   isStreaming = false,
   messageId,
-}: StreamingMarkdownProps) {
+}: StreamingMarkdownProps) => {
   const blockConfig = useMemo(
     () => ({
       fallbackBlock: {
@@ -83,14 +85,14 @@ function StreamingMarkdownInner({
       </div>
     </MessageContext.Provider>
   );
-}
+};
 
-function StreamingMarkdownComponent({
+const StreamingMarkdownComponent = ({
   children,
   className,
   isStreaming = false,
   messageId,
-}: StreamingMarkdownProps) {
+}: StreamingMarkdownProps) => {
   const [frozenContent, setFrozenContent] = useState<string | null>(null);
   const [streamKey, setStreamKey] = useState(0);
   const wasStreamingRef = useRef(isStreaming);
@@ -110,14 +112,14 @@ function StreamingMarkdownComponent({
 
   return (
     <StreamingMarkdownInner
-      key={`${messageId}-${streamKey}`}
       children={contentToRender}
+      key={`${messageId}-${streamKey}`}
       className={className}
       isStreaming={isStreaming && frozenContent === null}
       messageId={messageId}
     />
   );
-}
+};
 
 export const StreamingMarkdown = memo(
   StreamingMarkdownComponent,

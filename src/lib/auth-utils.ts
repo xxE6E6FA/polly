@@ -1,4 +1,5 @@
-import { UserId } from "@/types";
+import { type UserId } from "@/types";
+
 import {
   getAnonymousUserIdFromCookie,
   setAnonymousUserIdCookie,
@@ -11,7 +12,9 @@ const ANONYMOUS_USER_CREATED_EVENT = "anonymous-user-created";
  * Get stored anonymous user ID from cookies first, then migrate from localStorage
  */
 export function getStoredAnonymousUserId(): UserId | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   // First try cookies (new approach)
   let userId = getAnonymousUserIdFromCookie();
@@ -31,9 +34,12 @@ export function getStoredAnonymousUserId(): UserId | null {
 
 /**
  * Store anonymous user ID and notify listeners
+ * @param userId
  */
 export function storeAnonymousUserId(userId: UserId) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
 
   setAnonymousUserIdCookie(userId);
 
@@ -46,6 +52,7 @@ export function storeAnonymousUserId(userId: UserId) {
 
 /**
  * Subscribe to anonymous user creation events
+ * @param callback
  */
 export function onAnonymousUserCreated(
   callback: (userId: UserId) => void
@@ -66,6 +73,7 @@ export function onAnonymousUserCreated(
 
 /**
  * Subscribe to changes in stored user ID (from any source)
+ * @param callback
  */
 export function onStoredUserIdChange(
   callback: (hasUserId: boolean) => void
@@ -75,7 +83,7 @@ export function onStoredUserIdChange(
   }
 
   const checkAndNotify = () => {
-    const hasUserId = !!getStoredAnonymousUserId();
+    const hasUserId = Boolean(getStoredAnonymousUserId());
     callback(hasUserId);
   };
 

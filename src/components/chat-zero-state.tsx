@@ -1,28 +1,31 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import { Link, useNavigate } from "react-router";
+
 import {
   CheckCircleIcon,
-  XIcon,
   KeyIcon,
   LightningIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router";
-import { PromptsTickerWrapper } from "./prompts-ticker";
 import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { useUser } from "@/hooks/use-user";
-import { ChatInput, ChatInputRef } from "./chat-input";
-import { useRef, useState, useEffect, useMemo } from "react";
+
+import { Button } from "@/components/ui/button";
 import { useCreateConversation } from "@/hooks/use-conversations";
-import { useNavigate } from "react-router";
+import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
 
-function SetupChecklist({
+import { ChatInput, type ChatInputRef } from "./chat-input";
+import { PromptsTickerWrapper } from "./prompts-ticker";
+import { api } from "../../convex/_generated/api";
+
+const SetupChecklist = ({
   hasApiKeys,
   hasEnabledModels,
 }: {
   hasApiKeys: boolean;
   hasEnabledModels: boolean;
-}) {
+}) => {
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
@@ -37,35 +40,37 @@ function SetupChecklist({
 
   const needsSetup = !hasApiKeys || !hasEnabledModels;
 
-  if (!needsSetup || isDismissed) return null;
+  if (!needsSetup || isDismissed) {
+    return null;
+  }
 
   return (
-    <div className="mt-4 sm:mt-6 max-w-sm sm:max-w-md mx-auto">
-      <div className="bg-muted/20 rounded-md border border-border/30 p-3 relative">
+    <div className="mx-auto mt-4 max-w-sm sm:mt-6 sm:max-w-md">
+      <div className="relative rounded-md border border-border/30 bg-muted/20 p-3">
         <Button
-          variant="ghost"
+          className="absolute right-2 top-2 h-6 w-6 p-0 hover:bg-muted/50"
           size="sm"
+          variant="ghost"
           onClick={handleDismiss}
-          className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-muted/50"
         >
-          <XIcon className="w-3 h-3" />
+          <XIcon className="h-3 w-3" />
         </Button>
         <div className="pr-6">
-          <h3 className="text-xs font-medium mb-4 flex items-center gap-1.5">
+          <h3 className="mb-4 flex items-center gap-1.5 text-xs font-medium">
             Next Steps
           </h3>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 text-xs">
               {hasApiKeys ? (
-                <CheckCircleIcon className="w-3 h-3 text-success shrink-0" />
+                <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
-                <div className="w-3 h-3 rounded-full border border-muted-foreground/30 shrink-0" />
+                <div className="h-3 w-3 shrink-0 rounded-full border border-muted-foreground/30" />
               )}
               <span
                 className={
                   hasApiKeys
-                    ? "text-muted-foreground line-through flex-1"
-                    : "text-muted-foreground flex-1"
+                    ? "flex-1 text-muted-foreground line-through"
+                    : "flex-1 text-muted-foreground"
                 }
               >
                 Add your API keys
@@ -73,9 +78,9 @@ function SetupChecklist({
               {!hasApiKeys && (
                 <Link to={ROUTES.SETTINGS.API_KEYS}>
                   <Button
-                    variant="outline"
+                    className="gap-1 bg-background/50 text-xs"
                     size="sm"
-                    className="text-xs gap-1 bg-background/50"
+                    variant="outline"
                   >
                     <KeyIcon className="h-3 w-3" />
                     Go to API Keys
@@ -85,15 +90,15 @@ function SetupChecklist({
             </div>
             <div className="flex items-center gap-2 text-xs">
               {hasEnabledModels ? (
-                <CheckCircleIcon className="w-3 h-3 text-success shrink-0" />
+                <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
-                <div className="w-3 h-3 rounded-full border border-muted-foreground/30 shrink-0" />
+                <div className="h-3 w-3 shrink-0 rounded-full border border-muted-foreground/30" />
               )}
               <span
                 className={
                   hasEnabledModels
-                    ? "text-muted-foreground line-through flex-1"
-                    : "text-muted-foreground flex-1"
+                    ? "flex-1 text-muted-foreground line-through"
+                    : "flex-1 text-muted-foreground"
                 }
               >
                 Enable AI models
@@ -101,9 +106,9 @@ function SetupChecklist({
               {hasApiKeys && !hasEnabledModels && (
                 <Link to={ROUTES.SETTINGS.MODELS}>
                   <Button
-                    variant="outline"
+                    className="gap-1 bg-background/50 text-xs"
                     size="sm"
-                    className="text-xs gap-1 bg-background/50"
+                    variant="outline"
                   >
                     <LightningIcon className="h-3 w-3" />
                     View Models
@@ -116,9 +121,9 @@ function SetupChecklist({
       </div>
     </div>
   );
-}
+};
 
-function Mascot({ isMobile }: { isMobile: boolean }) {
+const Mascot = ({ isMobile }: { isMobile: boolean }) => {
   const sizeClasses = isMobile ? "w-32 h-32" : "w-20 h-20 sm:w-24 sm:h-24";
   const marginClasses = isMobile ? "mb-4" : "mb-3 sm:mb-4";
 
@@ -126,30 +131,26 @@ function Mascot({ isMobile }: { isMobile: boolean }) {
     <div className={`flex justify-center ${marginClasses}`}>
       <div className="relative">
         <img
-          src="/polly-mascot.png"
           alt="Polly AI Mascot"
-          className={`${sizeClasses} object-contain drop-shadow-lg relative z-10`}
+          className={`${sizeClasses} relative z-10 object-contain drop-shadow-lg`}
           loading="eager"
+          src="/polly-mascot.png"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 rounded-full blur-lg opacity-50 scale-110"></div>
+        <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
       </div>
     </div>
   );
-}
+};
 
-function Heading({ isMobile }: { isMobile: boolean }) {
+const Heading = ({ isMobile }: { isMobile: boolean }) => {
   const titleClasses = isMobile
     ? "text-2xl font-semibold text-foreground tracking-tight"
     : "text-xl sm:text-2xl font-semibold text-foreground tracking-tight";
 
-  return (
-    <>
-      <h1 className={titleClasses}>What&apos;s on your mind?</h1>
-    </>
-  );
-}
+  return <h1 className={titleClasses}>What&apos;s on your mind?</h1>;
+};
 
-function ConditionalSetupChecklist({
+const ConditionalSetupChecklist = ({
   isAnonymous,
   hasApiKeys,
   hasEnabledModels,
@@ -159,7 +160,7 @@ function ConditionalSetupChecklist({
   hasApiKeys: boolean | undefined;
   hasEnabledModels: boolean | undefined;
   isLoadingStatus: boolean;
-}) {
+}) => {
   // For anonymous users, don't show anything
   if (isAnonymous) {
     return null;
@@ -171,21 +172,23 @@ function ConditionalSetupChecklist({
   }
 
   // Once loaded, show checklist if needed
-  if (hasApiKeys !== undefined && hasEnabledModels !== undefined) {
-    if (!hasApiKeys || !hasEnabledModels) {
-      return (
-        <SetupChecklist
-          hasApiKeys={!!hasApiKeys}
-          hasEnabledModels={!!hasEnabledModels}
-        />
-      );
-    }
+  if (
+    hasApiKeys !== undefined &&
+    hasEnabledModels !== undefined &&
+    (!hasApiKeys || !hasEnabledModels)
+  ) {
+    return (
+      <SetupChecklist
+        hasApiKeys={Boolean(hasApiKeys)}
+        hasEnabledModels={Boolean(hasEnabledModels)}
+      />
+    );
   }
 
   return null;
-}
+};
 
-export function ChatZeroState() {
+export const ChatZeroState = () => {
   const {
     user,
     isLoading: userLoading,
@@ -205,7 +208,7 @@ export function ChatZeroState() {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // sm breakpoint
+      setIsMobile(window.innerWidth < 640); // Sm breakpoint
     };
 
     checkMobile();
@@ -274,17 +277,17 @@ export function ChatZeroState() {
   }, [hasMessageLimit, messageCount, canSendMessage, hasUnlimitedCalls]);
 
   return (
-    <div className="h-full flex flex-col sm:flex sm:h-full sm:items-center sm:justify-center w-full max-w-full overflow-hidden">
-      <div className="mx-auto w-full min-w-0 h-full sm:h-auto flex flex-col sm:block">
-        <div className="flex-1 flex flex-col items-center justify-center sm:hidden">
-          <div className="text-center space-y-4">
-            <Mascot isMobile={true} />
-            <Heading isMobile={true} />
+    <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
+      <div className="mx-auto flex h-full w-full min-w-0 flex-col sm:block sm:h-auto">
+        <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
+          <div className="space-y-4 text-center">
+            <Mascot isMobile />
+            <Heading isMobile />
           </div>
         </div>
 
         {/* Desktop: Original centered layout */}
-        <div className="hidden sm:block text-center space-y-6 sm:space-y-8 max-w-full">
+        <div className="hidden max-w-full space-y-6 text-center sm:block sm:space-y-8">
           <div className="space-y-3 sm:space-y-4">
             <Mascot isMobile={false} />
             <Heading isMobile={false} />
@@ -292,41 +295,41 @@ export function ChatZeroState() {
 
           <div className="relative">
             <PromptsTickerWrapper
-              onQuickPrompt={handleQuickPrompt}
               hasReachedLimit={!canSendMessage}
-              remainingMessages={remainingMessages}
-              isAnonymous={isAnonymous}
-              userLoading={userLoading}
               hasWarning={hasWarning}
+              isAnonymous={isAnonymous}
+              remainingMessages={remainingMessages}
+              userLoading={userLoading}
+              onQuickPrompt={handleQuickPrompt}
             />
             <ChatInput ref={chatInputRef} {...chatInputProps} />
           </div>
 
           <ConditionalSetupChecklist
-            isAnonymous={isAnonymous}
             hasApiKeys={hasApiKeys}
             hasEnabledModels={hasEnabledModels}
+            isAnonymous={isAnonymous}
             isLoadingStatus={isLoadingStatus}
           />
         </div>
 
         {/* Mobile: Bottom section with checklist and chat input */}
-        <div className="flex-shrink-0 sm:hidden space-y-4">
+        <div className="flex-shrink-0 space-y-4 sm:hidden">
           <ConditionalSetupChecklist
-            isAnonymous={isAnonymous}
             hasApiKeys={hasApiKeys}
             hasEnabledModels={hasEnabledModels}
+            isAnonymous={isAnonymous}
             isLoadingStatus={isLoadingStatus}
           />
 
           <div className="relative">
             <PromptsTickerWrapper
-              onQuickPrompt={handleQuickPrompt}
               hasReachedLimit={!canSendMessage}
-              remainingMessages={remainingMessages}
-              isAnonymous={isAnonymous}
-              userLoading={userLoading}
               hasWarning={hasWarning}
+              isAnonymous={isAnonymous}
+              remainingMessages={remainingMessages}
+              userLoading={userLoading}
+              onQuickPrompt={handleQuickPrompt}
             />
             <ChatInput ref={mobileChatInputRef} {...chatInputProps} />
           </div>
@@ -334,4 +337,4 @@ export function ChatZeroState() {
       </div>
     </div>
   );
-}
+};

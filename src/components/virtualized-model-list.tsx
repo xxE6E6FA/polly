@@ -1,24 +1,26 @@
-import { useMemo, useRef, useState, useEffect, useCallback, memo } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import { Switch } from "@/components/ui/switch";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useMutation, useQuery } from "convex/react";
+
+import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  getModelCapabilities,
-  getCapabilityColor,
-} from "@/lib/model-capabilities";
-import { ProviderIcon } from "@/components/provider-icons";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
+import {
+  getCapabilityColor,
+  getModelCapabilities,
+} from "@/lib/model-capabilities";
 
-// Generic model interface that works with both AIModel and other model types
-interface BaseModel {
+import { api } from "../../convex/_generated/api";
+
+type BaseModel = {
   modelId: string;
   name: string;
   provider: string;
@@ -31,13 +33,12 @@ interface BaseModel {
   supportsFiles?: boolean;
   inputModalities?: string[];
   free?: boolean;
-}
+};
 
-interface VirtualizedModelListProps {
+type VirtualizedModelListProps = {
   models: BaseModel[];
-}
+};
 
-// Memoized model card component to prevent unnecessary re-renders
 const ModelCard = memo(
   ({
     model,
@@ -75,35 +76,35 @@ const ModelCard = memo(
 
     return (
       <div
-        className={`relative p-4 rounded-lg border transition-all duration-200 group cursor-pointer h-[150px] ${
+        className={`group relative h-[150px] cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
           isEnabled
-            ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 hover:border-blue-500/50 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
-            : "border-border/40 hover:border-border bg-background hover:bg-muted/30"
+            ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
+            : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
         }`}
         onClick={handleClick}
       >
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0 pr-2">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-medium text-sm leading-tight break-words">
+        <div className="mb-3 flex items-start justify-between">
+          <div className="min-w-0 flex-1 pr-2">
+            <div className="mb-1 flex items-center gap-2">
+              <h4 className="break-words text-sm font-medium leading-tight">
                 {model.name}
               </h4>
               {model.free && (
                 <Badge
+                  className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0 h-5 bg-green-100 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800 shrink-0"
                 >
                   Free
                 </Badge>
               )}
             </div>
             <div className="mt-1 flex items-center">
-              <div className="w-4 h-4 flex items-center justify-center">
+              <div className="flex h-4 w-4 items-center justify-center">
                 <ProviderIcon provider={model.provider} />
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             <Switch
               checked={isEnabled}
               onCheckedChange={handleClick}
@@ -112,27 +113,27 @@ const ModelCard = memo(
           </div>
         </div>
 
-        <div className="flex items-center gap-1 mb-3">
+        <div className="mb-3 flex items-center gap-1">
           {capabilities.map((capability, index) => {
             const IconComponent = capability.icon;
             return (
               <Tooltip key={capability.label || `capability-${index}`}>
                 <TooltipTrigger>
                   <div
-                    className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
                       isEnabled
-                        ? "bg-background hover:bg-muted border border-border/40"
+                        ? "border border-border/40 bg-background hover:bg-muted"
                         : "bg-muted hover:bg-muted-foreground/10"
                     }`}
                   >
                     <IconComponent
-                      className={`w-3 h-3 ${getCapabilityColor(capability.label)}`}
+                      className={`h-3 w-3 ${getCapabilityColor(capability.label)}`}
                     />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="text-center">
-                    <p className="font-medium text-xs">{capability.label}</p>
+                    <p className="text-xs font-medium">{capability.label}</p>
                     <p className="text-xs text-muted-foreground">
                       {capability.description}
                     </p>
@@ -145,9 +146,9 @@ const ModelCard = memo(
             <Tooltip>
               <TooltipTrigger>
                 <div
-                  className={`flex items-center justify-center px-2 h-6 rounded transition-colors text-xs font-medium ${
+                  className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
                     isEnabled
-                      ? "bg-background hover:bg-muted border border-border/40"
+                      ? "border border-border/40 bg-background hover:bg-muted"
                       : "bg-muted hover:bg-muted-foreground/10"
                   }`}
                 >
@@ -158,7 +159,7 @@ const ModelCard = memo(
               </TooltipTrigger>
               <TooltipContent>
                 <div className="text-center">
-                  <p className="font-medium text-xs">Context Window</p>
+                  <p className="text-xs font-medium">Context Window</p>
                   <p className="text-xs text-muted-foreground">
                     {contextDisplay.long}
                   </p>
@@ -192,7 +193,9 @@ export const VirtualizedModelList = memo(
 
     // Memoize enabled models lookup for better performance
     const enabledModelsLookup = useMemo(() => {
-      if (!enabledModels) return new Set();
+      if (!enabledModels) {
+        return new Set();
+      }
       return new Set(enabledModels.map(m => m.modelId));
     }, [enabledModels]);
 
@@ -254,34 +257,17 @@ export const VirtualizedModelList = memo(
       return result;
     }, [models, columnsPerRow]);
 
-    const virtualizer = useVirtualizer({
+    const virtualizer = useWindowVirtualizer({
       count: rows.length,
-      getScrollElement: () =>
-        typeof window !== "undefined" ? document.documentElement : null,
       estimateSize: () => 170, // Height of each row (card height + gap)
-      overscan: 8, // Increased overscan for smoother scrolling
-      measureElement:
-        typeof window !== "undefined" && window.ResizeObserver
-          ? element => element?.getBoundingClientRect().height
-          : undefined,
+      overscan: 5,
     });
 
     const items = virtualizer.getVirtualItems();
 
-    // Optimized scroll handler with passive events
-    useEffect(() => {
-      const handleScroll = () => {
-        virtualizer.measure();
-      };
-
-      // Use passive event listener for better performance
-      window.addEventListener("scroll", handleScroll, { passive: true });
-      return () => window.removeEventListener("scroll", handleScroll);
-    }, [virtualizer]);
-
     if (models.length === 0) {
       return (
-        <div className="text-center py-8">
+        <div className="py-8 text-center">
           <p className="text-sm text-muted-foreground">No models available</p>
         </div>
       );
@@ -289,49 +275,44 @@ export const VirtualizedModelList = memo(
 
     return (
       <TooltipProvider>
-        <div ref={parentRef} className="w-full relative">
-          <div
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${items[0]?.start ?? 0}px)`,
-              }}
-            >
-              {items.map(virtualItem => {
-                const rowModels = rows[virtualItem.index];
-                if (!rowModels || rowModels.length === 0) return null;
+        <div ref={parentRef} className="relative">
+          {/* Total size placeholder to maintain scroll height */}
+          <div style={{ height: virtualizer.getTotalSize() }} />
 
-                return (
-                  <div
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    className="pb-3"
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                      {rowModels.map(model => (
-                        <ModelCard
-                          key={`${model.provider}-${model.modelId}`}
-                          model={model}
-                          isEnabled={enabledModelsLookup.has(model.modelId)}
-                          onToggle={onToggleModel}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* Render only visible items */}
+          {items.map(virtualItem => {
+            const rowModels = rows[virtualItem.index];
+            if (!rowModels || rowModels.length === 0) {
+              return null;
+            }
+
+            return (
+              <div
+                key={virtualItem.key}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+                className="pb-3"
+              >
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {rowModels.map(model => (
+                    <ModelCard
+                      key={`${model.provider}-${model.modelId}`}
+                      isEnabled={enabledModelsLookup.has(model.modelId)}
+                      model={model}
+                      onToggle={onToggleModel}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </TooltipProvider>
     );

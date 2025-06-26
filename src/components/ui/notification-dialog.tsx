@@ -1,4 +1,11 @@
 import {
+  CheckCircleIcon,
+  InfoIcon,
+  WarningIcon,
+  XCircleIcon,
+} from "@phosphor-icons/react";
+
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
@@ -7,14 +14,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  WarningIcon,
-  CheckCircleIcon,
-  InfoIcon,
-  XCircleIcon,
-} from "@phosphor-icons/react";
 
-interface NotificationDialogProps {
+type NotificationDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -22,7 +23,7 @@ interface NotificationDialogProps {
   type?: "success" | "error" | "warning" | "info";
   actionText?: string;
   onAction?: () => void;
-}
+};
 
 const typeConfig = {
   error: {
@@ -47,7 +48,7 @@ const typeConfig = {
   },
 };
 
-export function NotificationDialog({
+export const NotificationDialog = ({
   open,
   onOpenChange,
   title,
@@ -55,7 +56,7 @@ export function NotificationDialog({
   type = "info",
   actionText = "OK",
   onAction,
-}: NotificationDialogProps) {
+}: NotificationDialogProps) => {
   const handleAction = () => {
     onAction?.();
     onOpenChange(false);
@@ -83,4 +84,4 @@ export function NotificationDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+};

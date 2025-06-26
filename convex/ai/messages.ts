@@ -1,9 +1,15 @@
-import { ActionCtx } from "../_generated/server";
-import { api, internal } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
-import { CoreMessage } from "ai";
-import { StreamMessage, MessagePart, StorageData, Citation } from "./types";
+import { type CoreMessage } from "ai";
+
 import { CONFIG } from "./config";
+import {
+  type Citation,
+  type MessagePart,
+  type StorageData,
+  type StreamMessage,
+} from "./types";
+import { api, internal } from "../_generated/api";
+import { type Id } from "../_generated/dataModel";
+import { type ActionCtx } from "../_generated/server";
 
 // Unified storage converter
 export const convertStorageToData = async (
@@ -47,9 +53,8 @@ export const convertAttachment = async (
 
     if (format === "dataUrl") {
       return `data:${storageData.mimeType};base64,${storageData.base64}`;
-    } else {
-      return { data: storageData.arrayBuffer, mimeType: storageData.mimeType };
     }
+    return { data: storageData.arrayBuffer, mimeType: storageData.mimeType };
   } catch (error) {
     console.error(`Error converting attachment to ${format}:`, error);
     throw error;
@@ -123,26 +128,27 @@ export const convertMessages = async (
   messages: StreamMessage[],
   provider: string
 ): Promise<CoreMessage[]> => {
-  return Promise.all(
-    messages.map(async (msg): Promise<CoreMessage> => {
-      if (typeof msg.content === "string") {
-        return {
-          role: msg.role,
-          content: msg.content,
-        } as CoreMessage;
-      }
-
-      // Handle multi-modal content
-      const parts = await Promise.all(
-        msg.content.map(part => convertMessagePart(ctx, part, provider))
-      );
-
-      return {
+  const promises = messages.map((msg): Promise<CoreMessage> => {
+    if (typeof msg.content === "string") {
+      return Promise.resolve({
         role: msg.role,
-        content: parts,
-      } as CoreMessage;
-    })
-  );
+        content: msg.content,
+      } as CoreMessage);
+    }
+
+    // Handle multi-modal content
+    return Promise.all(
+      msg.content.map(part => convertMessagePart(ctx, part, provider))
+    ).then(
+      parts =>
+        ({
+          role: msg.role,
+          content: parts,
+        }) as CoreMessage
+    );
+  });
+
+  return Promise.all(promises);
 };
 
 // Update message helper
@@ -180,7 +186,7 @@ export const updateMessage = async (
       id: messageId,
       content: updates.content,
       reasoning: updates.reasoning || undefined,
-      metadata: metadata,
+      metadata,
       citations: updates.citations?.length ? updates.citations : undefined,
     });
   } catch (error) {
@@ -218,7 +224,7 @@ export const clearConversationStreaming = async (
     }
   } catch (error) {
     // If the message doesn't exist, we can't clear the streaming state
-    // but that's okay - just log and continue
+    // But that's okay - just log and continue
     console.warn(
       `Failed to clear streaming state for message ${messageId}:`,
       error

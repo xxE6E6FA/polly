@@ -1,21 +1,25 @@
-import { useUser } from "@/hooks/use-user";
-import { useQuery } from "convex/react";
-import { api } from "../../../convex/_generated/api";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { resizeGoogleImageUrl } from "@/lib/utils";
 import {
+  CalendarBlankIcon,
+  ChatCircleIcon,
+  ChatCircleTextIcon,
   CrownIcon,
   HashIcon,
-  CalendarBlankIcon,
-  ChatCircleTextIcon,
-  ChatCircleIcon,
-  TrendUpIcon,
   SparkleIcon,
+  TrendUpIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { useUser } from "@/hooks/use-user";
+import { resizeGoogleImageUrl } from "@/lib/utils";
+
+import { api } from "../../../convex/_generated/api";
 
 function getInitials(name?: string | null) {
-  if (!name) return "U";
+  if (!name) {
+    return "U";
+  }
   return name
     .split(" ")
     .map(n => n[0])
@@ -24,7 +28,7 @@ function getInitials(name?: string | null) {
     .slice(0, 2);
 }
 
-export function UserIdCard() {
+export const UserIdCard = () => {
   const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
 
   const userStats = useQuery(
@@ -55,30 +59,30 @@ export function UserIdCard() {
           {/* Card content */}
           <div className="relative z-10 p-4">
             {/* Header with crown icon - hidden on mobile */}
-            <div className="hidden lg:flex items-center justify-between mb-4">
+            <div className="mb-4 hidden items-center justify-between lg:flex">
               <div className="flex items-center space-x-1.5">
                 <CrownIcon className="h-4 w-4 text-primary" />
-                <span className="font-bold text-xs tracking-wider text-primary">
+                <span className="text-xs font-bold tracking-wider text-primary">
                   POLLY MEMBER
                 </span>
               </div>
               <div className="flex items-center space-x-1">
                 <HashIcon className="h-3 w-3 text-muted-foreground" />
-                <span className="text-muted-foreground text-xs font-mono">
+                <span className="font-mono text-xs text-muted-foreground">
                   {userStats?.userId?.slice(-6).toUpperCase() || "LOAD"}
                 </span>
               </div>
             </div>
 
             {/* Avatar - centered - hidden on mobile */}
-            <div className="hidden lg:flex justify-center mb-3">
+            <div className="mb-3 hidden justify-center lg:flex">
               <div className="relative">
                 <Avatar className="h-36 w-36 ring-2 ring-border">
                   <AvatarImage
-                    src={resizeGoogleImageUrl(user.image || "", 144)}
                     alt={user.name || "User"}
+                    src={resizeGoogleImageUrl(user.image || "", 144)}
                   />
-                  <AvatarFallback className="text-sm bg-gradient-primary text-primary-foreground">
+                  <AvatarFallback className="bg-gradient-primary text-sm text-primary-foreground">
                     {getInitials(user.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -86,11 +90,11 @@ export function UserIdCard() {
             </div>
 
             {/* User info - centered - hidden on mobile */}
-            <div className="hidden lg:block text-center space-y-1 mb-4">
-              <h2 className="text-base font-bold text-foreground truncate">
+            <div className="mb-4 hidden space-y-1 text-center lg:block">
+              <h2 className="truncate text-base font-bold text-foreground">
                 {user.name || "Unnamed User"}
               </h2>
-              <p className="text-muted-foreground text-xs truncate">
+              <p className="truncate text-xs text-muted-foreground">
                 {user.email}
               </p>
               <div className="flex items-center justify-center space-x-1 text-muted-foreground">
@@ -107,44 +111,44 @@ export function UserIdCard() {
             </div>
 
             {/* Stats - vertical list - hidden on mobile */}
-            <div className="hidden lg:block space-y-2 mb-4">
-              <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
+            <div className="mb-4 hidden space-y-2 lg:block">
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
                 <div className="flex items-center space-x-2">
                   <ChatCircleTextIcon
                     className="h-3.5 w-3.5"
                     style={{ color: "hsl(220 95% 55%)" }}
                   />
-                  <span className="text-foreground text-xs">Conversations</span>
+                  <span className="text-xs text-foreground">Conversations</span>
                 </div>
-                <span className="text-foreground font-mono text-sm">
+                <span className="font-mono text-sm text-foreground">
                   {userStats?.conversationCount || 0}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
                 <div className="flex items-center space-x-2">
                   <ChatCircleIcon
                     className="h-3.5 w-3.5"
                     style={{ color: "hsl(260 85% 60%)" }}
                   />
-                  <span className="text-foreground text-xs">
+                  <span className="text-xs text-foreground">
                     Total Messages
                   </span>
                 </div>
-                <span className="text-foreground font-mono text-sm">
+                <span className="font-mono text-sm text-foreground">
                   {userStats?.totalMessages || 0}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between bg-muted rounded-lg p-2.5 border border-border/50">
+              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
                 <div className="flex items-center space-x-2">
                   <TrendUpIcon
                     className="h-3.5 w-3.5"
                     style={{ color: "hsl(280 75% 65%)" }}
                   />
-                  <span className="text-foreground text-xs">This Month</span>
+                  <span className="text-xs text-foreground">This Month</span>
                 </div>
-                <span className="text-foreground font-mono text-sm">
+                <span className="font-mono text-sm text-foreground">
                   {monthlyUsage?.monthlyMessagesSent || 0}
                 </span>
               </div>
@@ -152,29 +156,31 @@ export function UserIdCard() {
 
             {/* Usage bar - hidden for unlimited users */}
             {monthlyUsage && !hasUnlimitedCalls && (
-              <div className="bg-muted rounded-lg p-3 border border-border/50">
-                <div className="flex items-center justify-between mb-2">
+              <div className="rounded-lg border border-border/50 bg-muted p-3">
+                <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center space-x-1.5">
                     <SparkleIcon className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-foreground text-xs">
+                    <span className="text-xs text-foreground">
                       Monthly Usage
                     </span>
                   </div>
-                  <span className="text-foreground font-mono text-xs">
+                  <span className="font-mono text-xs text-foreground">
                     {monthlyUsage.monthlyMessagesSent}/
                     {monthlyUsage.monthlyLimit}
                   </span>
                 </div>
                 <Progress
+                  className="h-2.5 rounded-full border border-border/40 bg-muted/60 shadow-inner"
                   value={usagePercentage}
-                  className="h-2.5 bg-muted/60 border border-border/40 shadow-inner rounded-full"
                 />
-                <div className="flex items-center justify-between text-xs text-muted-foreground mt-1.5">
+                <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{monthlyUsage.remainingMessages} remaining</span>
                   <span>
                     resets on{" "}
                     {(() => {
-                      if (!userStats?.joinedAt) return "unknown";
+                      if (!userStats?.joinedAt) {
+                        return "unknown";
+                      }
                       const joinDate = new Date(userStats.joinedAt);
                       const now = new Date();
                       const joinDay = joinDate.getDate();
@@ -234,28 +240,30 @@ export function UserIdCard() {
       {/* Mobile usage section - standalone - hidden for unlimited users */}
       <div className="lg:hidden">
         {monthlyUsage && !hasUnlimitedCalls && (
-          <div className="bg-muted rounded-lg p-3 border border-border/60 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
+          <div className="rounded-lg border border-border/60 bg-muted p-3 shadow-sm">
+            <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center space-x-1.5">
                 <SparkleIcon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-foreground text-xs">Monthly Usage</span>
+                <span className="text-xs text-foreground">Monthly Usage</span>
               </div>
-              <span className="text-foreground font-mono text-xs">
+              <span className="font-mono text-xs text-foreground">
                 {monthlyUsage.monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
               </span>
             </div>
             <Progress
+              className="h-2.5 rounded-full border border-border/40 bg-muted/60 shadow-inner"
               value={usagePercentage}
-              className="h-2.5 bg-muted/60 border border-border/40 shadow-inner rounded-full"
             />
-            <div className="flex items-center justify-between text-xs text-muted-foreground mt-1.5">
+            <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
               <span className="font-mono">
                 {monthlyUsage.remainingMessages} remaining
               </span>
               <span>
                 resets on{" "}
                 {(() => {
-                  if (!userStats?.joinedAt) return "unknown";
+                  if (!userStats?.joinedAt) {
+                    return "unknown";
+                  }
                   const joinDate = new Date(userStats.joinedAt);
                   const now = new Date();
                   const joinDay = joinDate.getDate();
@@ -297,4 +305,4 @@ export function UserIdCard() {
       </div>
     </div>
   );
-}
+};

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -6,9 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 
-interface ConfirmationDialogProps {
+type ConfirmationDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -18,9 +18,9 @@ interface ConfirmationDialogProps {
   onConfirm: () => void;
   onCancel?: () => void;
   variant?: "default" | "destructive";
-}
+};
 
-export function ConfirmationDialog({
+export const ConfirmationDialog = ({
   open,
   onOpenChange,
   title,
@@ -30,7 +30,7 @@ export function ConfirmationDialog({
   onConfirm,
   onCancel,
   variant = "default",
-}: ConfirmationDialogProps) {
+}: ConfirmationDialogProps) => {
   const handleConfirm = () => {
     onConfirm();
     onOpenChange(false);
@@ -53,8 +53,8 @@ export function ConfirmationDialog({
             {cancelText}
           </Button>
           <Button
-            onClick={handleConfirm}
             variant={variant === "destructive" ? "destructive" : "default"}
+            onClick={handleConfirm}
           >
             {confirmText}
           </Button>
@@ -62,4 +62,4 @@ export function ConfirmationDialog({
       </DialogContent>
     </Dialog>
   );
-}
+};

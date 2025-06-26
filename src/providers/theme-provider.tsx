@@ -1,9 +1,9 @@
 import * as React from "react";
 
-interface ThemeProviderProps {
+type ThemeProviderProps = {
   children: React.ReactNode;
   serverTheme?: "light" | "dark";
-}
+};
 
 const ServerThemeContext = React.createContext<"light" | "dark">("light");
 
@@ -11,13 +11,13 @@ export function useServerTheme() {
   return React.useContext(ServerThemeContext);
 }
 
-export function ThemeProvider({
+export const ThemeProvider = ({
   children,
   serverTheme = "light",
-}: ThemeProviderProps) {
+}: ThemeProviderProps) => {
   return (
     <ServerThemeContext.Provider value={serverTheme}>
       {children}
     </ServerThemeContext.Provider>
   );
-}
+};

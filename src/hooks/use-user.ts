@@ -1,24 +1,31 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
-import { useQuery, useAction, useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { User, UserId } from "../../src/types";
-import { usePreloadedQuery, Preloaded } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import {
-  getCachedUserData,
-  setCachedUser,
-  clearUserCache,
-} from "../lib/user-cache";
-import { MONTHLY_MESSAGE_LIMIT } from "../lib/constants";
+  type Preloaded,
+  useAction,
+  useMutation,
+  usePreloadedQuery,
+  useQuery,
+} from "convex/react";
+
+import { api } from "../../convex/_generated/api";
 import {
   getStoredAnonymousUserId,
-  storeAnonymousUserId as storeUserId,
   onAnonymousUserCreated,
+  storeAnonymousUserId as storeUserId,
 } from "../lib/auth-utils";
+import { MONTHLY_MESSAGE_LIMIT } from "../lib/constants";
+import {
+  clearUserCache,
+  getCachedUserData,
+  setCachedUser,
+} from "../lib/user-cache";
+import { type User, type UserId } from "../types";
 
 // Keep in sync with server-side ANONYMOUS_MESSAGE_LIMIT in convex/users.ts
 const ANONYMOUS_MESSAGE_LIMIT = 10;
 
-interface UseUserReturn {
+type UseUserReturn = {
   user: User | null;
   messageCount: number;
   remainingMessages: number;
@@ -37,9 +44,10 @@ interface UseUserReturn {
   hasUserApiKeys?: boolean;
   hasUnlimitedCalls?: boolean;
   isHydrated?: boolean;
-}
+};
 
 // Helper function to compute user properties consistently
+
 function computeUserProperties(
   user: User | null,
   messageCount: number | undefined,
@@ -77,34 +85,32 @@ function computeUserProperties(
       isLoading,
       hasUnlimitedCalls: false, // Anonymous users never have unlimited calls
     };
-  } else {
-    // Authenticated users: use monthly limits
-    const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
-    const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-    const monthlyRemaining = Math.max(0, monthlyLimit - monthlyMessagesSent);
-
-    // Can send message if has unlimited calls OR under monthly limit OR has BYOK models available
-    const canSendMessage = !!(
-      user?.hasUnlimitedCalls ||
-      monthlyRemaining > 0 ||
-      hasUserApiKeys
-    );
-
-    return {
-      messageCount: 0, // Not relevant for authenticated users
-      remainingMessages: user?.hasUnlimitedCalls ? -1 : monthlyRemaining, // -1 indicates unlimited
-      isAnonymous,
-      hasMessageLimit: !user?.hasUnlimitedCalls,
-      canSendMessage,
-      isLoading,
-      monthlyUsage: monthlyUsage || undefined,
-      hasUserApiKeys,
-      hasUnlimitedCalls: user?.hasUnlimitedCalls || false,
-    };
   }
+  // Authenticated users: use monthly limits
+  const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
+  const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+  const monthlyRemaining = Math.max(0, monthlyLimit - monthlyMessagesSent);
+
+  // Can send message if has unlimited calls OR under monthly limit OR has BYOK models available
+  const canSendMessage = Boolean(
+    user?.hasUnlimitedCalls || monthlyRemaining > 0 || hasUserApiKeys
+  );
+
+  return {
+    messageCount: 0, // Not relevant for authenticated users
+    remainingMessages: user?.hasUnlimitedCalls ? -1 : monthlyRemaining, // -1 indicates unlimited
+    isAnonymous,
+    hasMessageLimit: !user?.hasUnlimitedCalls,
+    canSendMessage,
+    isLoading,
+    monthlyUsage: monthlyUsage || undefined,
+    hasUserApiKeys,
+    hasUnlimitedCalls: user?.hasUnlimitedCalls || false,
+  };
 }
 
 // Main unified user hook - works for both authenticated and anonymous users
+
 export function useUserData(): UseUserReturn {
   // Initialize with cached data for instant rendering
   const [cachedData] = useState(() => {
@@ -123,10 +129,6 @@ export function useUserData(): UseUserReturn {
   // Listen for anonymous user creation event
   useEffect(() => {
     return onAnonymousUserCreated(userId => {
-      console.log(
-        "[UseUser] Anonymous user created, updating stored ID:",
-        userId
-      );
       setStoredAnonymousUserId(userId);
     });
   }, []);
@@ -134,9 +136,6 @@ export function useUserData(): UseUserReturn {
   // Listen for graduation completion event and clear anonymous user state
   useEffect(() => {
     const handleGraduationComplete = () => {
-      console.log(
-        "[UseUser] Graduation completed, clearing anonymous user state"
-      );
       setStoredAnonymousUserId(null);
       clearUserCache();
     };
@@ -320,6 +319,7 @@ export function usePreloadedUser(
 export const storeAnonymousUserId = storeUserId;
 
 // Hook for ensuring a user exists (creates anonymous user if needed and not authenticated)
+
 export function useEnsureUser() {
   const getOrCreateUser = useAction(api.conversations.getOrCreateUser);
   const [isEnsuring, setIsEnsuring] = useState(false);

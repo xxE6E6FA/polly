@@ -1,14 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+
 import { useNavigate, useParams } from "react-router";
-import { Button } from "@/components/ui/button";
-import { useQuery, useMutation } from "convex/react";
+
+import { useMutation, useQuery } from "convex/react";
+import { type EmojiClickData } from "emoji-picker-react";
+
 import { api } from "convex/_generated/api";
-import { Id } from "convex/_generated/dataModel";
-import { EmojiClickData } from "emoji-picker-react";
+import { type Id } from "convex/_generated/dataModel";
+
 import {
   PersonaForm,
-  PersonaFormData,
+  type PersonaFormData,
 } from "@/components/settings/persona-form";
+import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 export default function EditPersonaPage() {
@@ -26,12 +30,7 @@ export default function EditPersonaPage() {
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [formData, setFormData] = useState<PersonaFormData>({
-    name: "",
-    description: "",
-    prompt: "",
-    icon: "🤖",
-  });
+  const [formData, setFormData] = useState<PersonaFormData | null>(null);
 
   useEffect(() => {
     if (persona) {
@@ -46,7 +45,7 @@ export default function EditPersonaPage() {
   }, [persona]);
 
   const handleUpdatePersona = async () => {
-    if (!formData.name.trim() || !formData.prompt.trim() || !personaId) {
+    if (!formData?.name.trim() || !formData?.prompt.trim() || !personaId) {
       return;
     }
 
@@ -69,7 +68,9 @@ export default function EditPersonaPage() {
   };
 
   const handleDeletePersona = async () => {
-    if (!personaId) return;
+    if (!personaId) {
+      return;
+    }
 
     if (
       !window.confirm(
@@ -91,7 +92,7 @@ export default function EditPersonaPage() {
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setFormData(prev => ({ ...prev, icon: emojiData.emoji }));
+    setFormData(prev => (prev ? { ...prev, icon: emojiData.emoji } : null));
     setIsEmojiPickerOpen(false);
   };
 
@@ -106,8 +107,8 @@ export default function EditPersonaPage() {
     );
   }
 
-  if (!persona) {
-    return <div>Loading...</div>;
+  if (!persona || !formData) {
+    return null;
   }
 
   const isFormValid = formData.name.trim() && formData.prompt.trim();
@@ -123,35 +124,35 @@ export default function EditPersonaPage() {
 
       <PersonaForm
         formData={formData}
-        setFormData={setFormData}
-        isEmojiPickerOpen={isEmojiPickerOpen}
-        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
         handleEmojiClick={handleEmojiClick}
+        isEmojiPickerOpen={isEmojiPickerOpen}
+        setFormData={setFormData}
+        setIsEmojiPickerOpen={setIsEmojiPickerOpen}
       />
 
-      <div className="flex justify-between pt-4 border-t">
+      <div className="flex justify-between border-t pt-4">
         <Button
-          variant="destructive"
-          size="default"
-          onClick={handleDeletePersona}
           disabled={isLoading}
+          size="default"
+          variant="destructive"
+          onClick={handleDeletePersona}
         >
           Delete Persona
         </Button>
         <div className="flex gap-3">
           <Button
-            variant="outline"
-            size="default"
-            onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
             disabled={isLoading}
+            size="default"
+            variant="outline"
+            onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
           >
             Cancel
           </Button>
           <Button
-            variant="default"
-            size="default"
-            onClick={handleUpdatePersona}
             disabled={!isFormValid || isLoading}
+            size="default"
+            variant="default"
+            onClick={handleUpdatePersona}
           >
             {isLoading ? "Saving..." : "Save Changes"}
           </Button>

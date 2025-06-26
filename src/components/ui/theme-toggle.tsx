@@ -1,24 +1,25 @@
-import { Button } from "@/components/ui/button";
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
+
+import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
 import { useTheme } from "@/hooks/use-theme";
+import { cn } from "@/lib/utils";
 
-interface ThemeToggleProps {
+type ThemeToggleProps = {
   size?: "sm" | "default" | "lg" | "icon-sm";
   variant?: "ghost" | "default" | "outline" | "secondary" | "action";
   className?: string;
-}
+};
 
-export function ThemeToggle({
+export const ThemeToggle = ({
   size = "icon-sm",
   variant = "ghost",
   className,
-}: ThemeToggleProps) {
+}: ThemeToggleProps) => {
   const { theme, toggleTheme } = useTheme();
 
   // Determine icon size based on button className (for mobile responsiveness)
@@ -28,13 +29,13 @@ export function ThemeToggle({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant={variant}
-          size={size}
-          onClick={toggleTheme}
           className={cn("transition-colors duration-150", className)}
+          size={size}
+          variant={variant}
           title={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
           }
+          onClick={toggleTheme}
         >
           {theme === "dark" ? (
             <SunIcon className={iconSize} />
@@ -50,4 +51,4 @@ export function ThemeToggle({
       </TooltipContent>
     </Tooltip>
   );
-}
+};

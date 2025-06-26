@@ -1,6 +1,7 @@
 import { ConvexHttpClient } from "convex/browser";
-import { api } from "../convex/_generated/api";
 import * as dotenv from "dotenv";
+
+import { api } from "../convex/_generated/api";
 
 // Load environment variables
 dotenv.config({ path: ".env.local" });
@@ -70,7 +71,7 @@ async function clearDatabase() {
   let totalDeleted = 0;
   let errors = 0;
 
-  results.forEach(({ name, count, error }) => {
+  for (const { name, count, error } of results) {
     if (error) {
       console.log(`❌ ${name}: ERROR - ${error}`);
       errors++;
@@ -78,7 +79,7 @@ async function clearDatabase() {
       console.log(`✅ ${name}: ${count} documents deleted`);
       totalDeleted += count;
     }
-  });
+  }
 
   console.log("=".repeat(50));
   console.log(`🎉 Database clear completed in ${duration}s!`);

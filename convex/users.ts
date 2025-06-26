@@ -1,7 +1,8 @@
 import { v } from "convex/values";
+
 import { mutation, query } from "./_generated/server";
+import { ANONYMOUS_MESSAGE_LIMIT, MONTHLY_MESSAGE_LIMIT } from "./constants";
 import { getCurrentUserId } from "./lib/auth";
-import { MONTHLY_MESSAGE_LIMIT, ANONYMOUS_MESSAGE_LIMIT } from "./constants";
 
 export const current = query({
   args: {},
@@ -46,7 +47,7 @@ export const getUserProfile = query({
       image: user.image,
       isAnonymous: user.isAnonymous,
       createdAt: user.createdAt,
-      hasImage: !!user.image,
+      hasImage: Boolean(user.image),
     };
   },
 });
@@ -290,7 +291,7 @@ export const update = mutation({
     name: v.optional(v.string()),
     image: v.optional(v.string()),
   },
-  handler: async (_ctx, _args) => {
+  handler: (_ctx, _args) => {
     throw new Error("User updates are not available without authentication");
   },
 });
@@ -455,9 +456,7 @@ export const graduateOrMergeAnonymousUser = mutation({
 
     if (existingConversations.length === 0) {
       // Case 1: First time sign in - Graduate the anonymous user
-      console.log(
-        `[GraduateUser] Graduating anonymous user ${args.anonymousUserId} to authenticated user ${args.authenticatedUserId}`
-      );
+      // Graduating anonymous user to authenticated user
 
       // Update all conversations from anonymous to authenticated user
       const anonymousConversations = await ctx.db
@@ -486,39 +485,35 @@ export const graduateOrMergeAnonymousUser = mutation({
       await ctx.db.delete(args.anonymousUserId);
 
       return { action: "graduated" as const };
-    } else {
-      // Case 2: Existing user who created anonymous conversations - Merge
-      console.log(
-        `[MergeUser] Merging anonymous user ${args.anonymousUserId} conversations to authenticated user ${args.authenticatedUserId}`
-      );
-
-      // Transfer all conversations from anonymous to authenticated user
-      const anonymousConversations = await ctx.db
-        .query("conversations")
-        .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
-        .collect();
-
-      for (const conversation of anonymousConversations) {
-        await ctx.db.patch(conversation._id, {
-          userId: args.authenticatedUserId,
-        });
-      }
-
-      // Update message count and monthly usage
-      const anonymousMessageCount = anonymousUser.messagesSent || 0;
-      const authenticatedMessageCount = authenticatedUser.messagesSent || 0;
-
-      await ctx.db.patch(args.authenticatedUserId, {
-        messagesSent: authenticatedMessageCount + anonymousMessageCount,
-        // For monthly usage, add the anonymous messages to the current month
-        monthlyMessagesSent:
-          (authenticatedUser.monthlyMessagesSent || 0) + anonymousMessageCount,
-      });
-
-      // Delete the anonymous user
-      await ctx.db.delete(args.anonymousUserId);
-
-      return { action: "merged" as const };
     }
+    // Case 2: Existing user who created anonymous conversations - Merge
+
+    // Transfer all conversations from anonymous to authenticated user
+    const anonymousConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
+      .collect();
+
+    for (const conversation of anonymousConversations) {
+      await ctx.db.patch(conversation._id, {
+        userId: args.authenticatedUserId,
+      });
+    }
+
+    // Update message count and monthly usage
+    const anonymousMessageCount = anonymousUser.messagesSent || 0;
+    const authenticatedMessageCount = authenticatedUser.messagesSent || 0;
+
+    await ctx.db.patch(args.authenticatedUserId, {
+      messagesSent: authenticatedMessageCount + anonymousMessageCount,
+      // For monthly usage, add the anonymous messages to the current month
+      monthlyMessagesSent:
+        (authenticatedUser.monthlyMessagesSent || 0) + anonymousMessageCount,
+    });
+
+    // Delete the anonymous user
+    await ctx.db.delete(args.anonymousUserId);
+
+    return { action: "merged" as const };
   },
 });

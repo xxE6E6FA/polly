@@ -1,7 +1,8 @@
-import { mutation, query, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
-import { requireAuth, getOptionalUserId } from "./lib/auth";
-import { internal, api } from "./_generated/api";
+
+import { api, internal } from "./_generated/api";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { getOptionalUserId, requireAuth } from "./lib/auth";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -38,8 +39,8 @@ async function serverEncryptApiKey(rawKey: string): Promise<{
   );
 
   return {
-    encryptedKey: Array.from(new Uint8Array(encrypted)),
-    initializationVector: Array.from(initializationVector),
+    encryptedKey: [...new Uint8Array(encrypted)],
+    initializationVector: [...initializationVector],
   };
 }
 
@@ -59,13 +60,19 @@ async function serverDecryptApiKey(
 }
 
 function createPartialKey(key: string): string {
-  if (!key) return "";
-  if (key.length <= 8) return "•".repeat(key.length);
-  return key.substring(0, 4) + "..." + key.substring(key.length - 4);
+  if (!key) {
+    return "";
+  }
+  if (key.length <= 8) {
+    return "•".repeat(key.length);
+  }
+  return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
 }
 
 function validateApiKeyFormat(provider: string, key: string): boolean {
-  if (!key || typeof key !== "string") return false;
+  if (!key || typeof key !== "string") {
+    return false;
+  }
 
   switch (provider) {
     case "openai":
@@ -111,25 +118,23 @@ export const storeApiKey = mutation({
       )
       .unique();
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        encryptedKey,
-        initializationVector,
-        partialKey,
-        isValid: false,
-        lastValidated: undefined,
-      });
-    } else {
-      await ctx.db.insert("userApiKeys", {
-        userId,
-        provider: args.provider,
-        encryptedKey,
-        initializationVector,
-        partialKey,
-        isValid: false,
-        createdAt: Date.now(),
-      });
-    }
+    await (existing
+      ? ctx.db.patch(existing._id, {
+          encryptedKey,
+          initializationVector,
+          partialKey,
+          isValid: false,
+          lastValidated: undefined,
+        })
+      : ctx.db.insert("userApiKeys", {
+          userId,
+          provider: args.provider,
+          encryptedKey,
+          initializationVector,
+          partialKey,
+          isValid: false,
+          createdAt: Date.now(),
+        }));
   },
 });
 
@@ -155,23 +160,21 @@ export const storeClientEncryptedApiKey = mutation({
       )
       .unique();
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        clientEncryptedKey: args.encryptedKey,
-        partialKey: args.partialKey,
-        isValid: false,
-        lastValidated: undefined,
-      });
-    } else {
-      await ctx.db.insert("userApiKeys", {
-        userId,
-        provider: args.provider,
-        clientEncryptedKey: args.encryptedKey,
-        partialKey: args.partialKey,
-        isValid: false,
-        createdAt: Date.now(),
-      });
-    }
+    await (existing
+      ? ctx.db.patch(existing._id, {
+          clientEncryptedKey: args.encryptedKey,
+          partialKey: args.partialKey,
+          isValid: false,
+          lastValidated: undefined,
+        })
+      : ctx.db.insert("userApiKeys", {
+          userId,
+          provider: args.provider,
+          clientEncryptedKey: args.encryptedKey,
+          partialKey: args.partialKey,
+          isValid: false,
+          createdAt: Date.now(),
+        }));
   },
 });
 
@@ -193,7 +196,7 @@ export const getUserApiKeys = query({
     return apiKeys.map(key => ({
       provider: key.provider,
       isValid: key.isValid,
-      hasKey: !!(key.encryptedKey || key.clientEncryptedKey),
+      hasKey: Boolean(key.encryptedKey || key.clientEncryptedKey),
       partialKey: key.partialKey,
       createdAt: key.createdAt,
       encryptionType: key.encryptedKey ? "server" : "client", // Indicate encryption type
@@ -281,12 +284,13 @@ export const hasAnyApiKey = query({
 });
 
 // Helper function to check if any environment API keys are available
+
 function hasEnvironmentApiKeys(): boolean {
-  return !!(
+  return Boolean(
     process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.OPENROUTER_API_KEY
+      process.env.ANTHROPIC_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.OPENROUTER_API_KEY
   );
 }
 
@@ -338,6 +342,7 @@ export const getDecryptedApiKey = action({
 });
 
 // Helper function to get API key from environment variables
+
 function getEnvironmentApiKey(provider: string): string | null {
   switch (provider) {
     case "openai":

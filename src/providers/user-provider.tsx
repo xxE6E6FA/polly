@@ -1,8 +1,10 @@
 import React, { createContext, useContext } from "react";
+
 import { useUserData } from "../hooks/use-user";
+
 import type { User } from "../types";
 
-interface UserContextType {
+type UserContextType = {
   user: User | null;
   messageCount: number;
   remainingMessages: number;
@@ -19,22 +21,22 @@ interface UserContextType {
   };
   hasUserApiKeys?: boolean;
   hasUnlimitedCalls?: boolean;
-}
+};
 
 const UserContext = createContext<UserContextType | null>(null);
 
-interface UserProviderProps {
+type UserProviderProps = {
   children: React.ReactNode;
-}
+};
 
-export function UserProvider({ children }: UserProviderProps) {
+export const UserProvider = ({ children }: UserProviderProps) => {
   // Call useUser hook only once at the provider level
   const userData = useUserData();
 
   return (
     <UserContext.Provider value={userData}>{children}</UserContext.Provider>
   );
-}
+};
 
 export function useUser(): UserContextType {
   const context = useContext(UserContext);

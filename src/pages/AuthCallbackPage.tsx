@@ -1,27 +1,32 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+
 import { useNavigate } from "react-router";
-import { useQuery, useMutation } from "convex/react";
+
 import { useAuthToken } from "@convex-dev/auth/react";
+import { useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
+
+import { api } from "convex/_generated/api";
+
 import {
   getAnonymousUserIdFromCookie,
   removeAnonymousUserIdCookie,
 } from "@/lib/cookies";
-import { UserId } from "@/types";
-import { api } from "convex/_generated/api";
-import { ConvexError } from "convex/values";
 import { ROUTES } from "@/lib/routes";
+import { type UserId } from "@/types";
 
 type GraduationState = "pending" | "processing" | "success" | "error";
+
 type ErrorType =
   | "graduation_failed"
   | "network_error"
   | "user_not_found"
   | "unknown";
 
-interface AuthError {
+type AuthError = {
   type: ErrorType;
   message: string;
-}
+};
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -54,7 +59,9 @@ export default function AuthCallbackPage() {
     }
 
     // Still loading the authenticated user details
-    if (authenticatedUser === undefined) return;
+    if (authenticatedUser === undefined) {
+      return;
+    }
 
     // Auth token exists but no user record yet - might be creating
     if (authenticatedUser === null) {
@@ -101,26 +108,24 @@ export default function AuthCallbackPage() {
             })
           );
 
-          // Track successful authentication
-          console.log("[Auth] User graduation successful", {
-            authenticatedUserId: authenticatedUser._id,
-            anonymousUserId,
-            timestamp: Date.now(),
-          });
+          // User graduation successful
 
           setGraduationState("success");
         })
-        .catch(err => {
-          console.error("[Auth] Failed to graduate user:", err);
+        .catch(error_ => {
+          console.error("[Auth] Failed to graduate user:", error_);
 
           // Determine error type
           let errorType: ErrorType = "unknown";
           let errorMessage = "Something went wrong during sign in.";
 
-          if (err instanceof ConvexError) {
-            errorMessage = err.message;
+          if (error_ instanceof ConvexError) {
+            errorMessage = error_.message;
             errorType = "graduation_failed";
-          } else if (err instanceof Error && err.message.includes("network")) {
+          } else if (
+            error_ instanceof Error &&
+            error_.message.includes("network")
+          ) {
             errorType = "network_error";
             errorMessage = "Network error. Please check your connection.";
           }
@@ -145,7 +150,8 @@ export default function AuthCallbackPage() {
       }, 1500);
 
       return () => clearTimeout(timer);
-    } else if (graduationState === "error") {
+    }
+    if (graduationState === "error") {
       const timer = setTimeout(() => {
         // On error, still redirect but to home
         navigate(ROUTES.HOME);
@@ -174,32 +180,32 @@ export default function AuthCallbackPage() {
         : "processing";
 
   // Check if we should show graduation-specific messages
-  const hasAnonymousUser = !!getAnonymousUserIdFromCookie();
+  const hasAnonymousUser = Boolean(getAnonymousUserIdFromCookie());
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-md w-full space-y-8 p-8 text-center">
-        <div className="flex justify-center mb-6">
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="w-full max-w-md space-y-8 p-8 text-center">
+        <div className="mb-6 flex justify-center">
           <img
-            src="/polly-mascot.png"
             alt="Polly mascot"
-            width={96}
-            height={96}
             className="h-24 w-24"
+            height={96}
             loading="eager"
+            src="/polly-mascot.png"
+            width={96}
           />
         </div>
 
-        <div className="space-y-4" role="status" aria-live="polite">
+        <div aria-live="polite" className="space-y-4" role="status">
           {displayStatus === "processing" && (
             <>
               <div
-                className="h-16 w-16 animate-spin rounded-full border-4 border-foreground/20 mx-auto"
+                aria-hidden="true"
+                className="mx-auto h-16 w-16 animate-spin rounded-full border-4 border-foreground/20"
                 style={{
                   borderTopColor: "hsl(var(--color-primary))",
                   borderRightColor: "hsl(var(--color-primary))",
                 }}
-                aria-hidden="true"
               />
               <h2 className="text-xl font-semibold text-foreground">
                 Setting up your account...
@@ -217,19 +223,19 @@ export default function AuthCallbackPage() {
 
           {displayStatus === "success" && (
             <>
-              <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
                 <svg
-                  className="w-8 h-8 text-success"
+                  aria-hidden="true"
+                  className="h-8 w-8 text-success"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  aria-hidden="true"
                 >
                   <path
+                    d="M5 13l4 4L19 7"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M5 13l4 4L19 7"
                   />
                 </svg>
               </div>
@@ -249,19 +255,19 @@ export default function AuthCallbackPage() {
 
           {displayStatus === "error" && (
             <>
-              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
                 <svg
-                  className="w-8 h-8 text-destructive"
+                  aria-hidden="true"
+                  className="h-8 w-8 text-destructive"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
-                  aria-hidden="true"
                 >
                   <path
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
               </div>

@@ -1,10 +1,11 @@
-import { useEffect, useCallback } from "react";
+import { useCallback, useEffect } from "react";
+
 import { useBlocker } from "react-router";
 
-interface UseNavigationBlockerOptions {
+type UseNavigationBlockerOptions = {
   when: boolean;
   message?: string;
-}
+};
 
 export function useNavigationBlocker({
   when,
@@ -17,7 +18,9 @@ export function useNavigationBlocker({
 
   // Handle browser back/forward buttons and page refresh
   useEffect(() => {
-    if (!when) return;
+    if (!when) {
+      return;
+    }
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();

@@ -1,4 +1,5 @@
 import { humanizeString } from "humanize-ai-lib";
+
 import { CONFIG } from "./config";
 
 export const humanizeText = (text: string): string => {

@@ -1,6 +1,6 @@
+import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
   // Authentication tables from Convex Auth
@@ -45,7 +45,7 @@ export default defineSchema({
   conversations: defineTable({
     title: v.string(),
     userId: v.id("users"),
-    personaId: v.optional(v.id("personas")), // null means default persona
+    personaId: v.optional(v.id("personas")), // Null means default persona
     sourceConversationId: v.optional(v.id("conversations")),
     isStreaming: v.optional(v.boolean()),
     createdAt: v.number(),
@@ -171,14 +171,14 @@ export default defineSchema({
     .index("by_user_model_id", ["userId", "modelId"]),
 
   personas: defineTable({
-    userId: v.optional(v.id("users")), // null for built-in personas
+    userId: v.optional(v.id("users")), // Null for built-in personas
     name: v.string(),
     description: v.string(),
     prompt: v.string(),
-    icon: v.optional(v.string()), // emoji or icon identifier
+    icon: v.optional(v.string()), // Emoji or icon identifier
     isBuiltIn: v.boolean(),
     isActive: v.boolean(),
-    order: v.optional(v.number()), // for sorting
+    order: v.optional(v.number()), // For sorting
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -188,7 +188,7 @@ export default defineSchema({
 
   userPersonaSettings: defineTable({
     userId: v.id("users"),
-    personaId: v.id("personas"), // reference to built-in persona
+    personaId: v.id("personas"), // Reference to built-in persona
     isDisabled: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -198,7 +198,7 @@ export default defineSchema({
 
   userSettings: defineTable({
     userId: v.id("users"),
-    personasEnabled: v.optional(v.boolean()), // null/undefined means enabled (default)
+    personasEnabled: v.optional(v.boolean()), // Null/undefined means enabled (default)
     defaultModelSelected: v.optional(v.boolean()), // Track if user explicitly selected default model
     openRouterSorting: v.optional(
       v.union(

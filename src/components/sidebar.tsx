@@ -1,26 +1,27 @@
-import { Button } from "@/components/ui/button";
-import { SidebarSearch } from "@/components/sidebar/search";
-import { ConversationList } from "@/components/sidebar/conversation-list";
-import { UserSection } from "@/components/sidebar/user-section";
-import { ConversationId } from "@/types";
+import { useCallback, useEffect, useState } from "react";
+
+import { Link, useParams } from "react-router";
+
 import { GearIcon, SidebarIcon } from "@phosphor-icons/react";
+
+import { ConversationList } from "@/components/sidebar/conversation-list";
+import { SidebarSearch } from "@/components/sidebar/search";
+import { UserSection } from "@/components/sidebar/user-section";
 import { Backdrop } from "@/components/ui/backdrop";
-
-import { cn } from "@/lib/utils";
-import { useState, useEffect, useCallback } from "react";
-
+import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { Link, useParams } from "react-router";
-import { useUser } from "@/hooks/use-user";
 import { useSidebar } from "@/hooks/use-sidebar";
+import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { type ConversationId } from "@/types";
 
-export function Sidebar() {
+export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const {
     isSidebarVisible,
@@ -77,8 +78,8 @@ export function Sidebar() {
     >
       {isMobile && (
         <Backdrop
-          variant="default"
           blur="sm"
+          variant="default"
           className={cn(
             "z-30 lg:hidden",
             isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -92,14 +93,14 @@ export function Sidebar() {
       >
         {isMobile ? (
           <Button
-            variant="ghost"
             size="icon-sm"
-            onClick={toggleSidebar}
+            title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+            variant="ghost"
             className={cn(
               "hover:bg-accent text-foreground/70 hover:text-foreground",
               "h-10 w-10"
             )}
-            title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+            onClick={toggleSidebar}
           >
             <SidebarIcon className="h-6 w-6" />
           </Button>
@@ -107,11 +108,11 @@ export function Sidebar() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant="ghost"
+                className="text-foreground/70 hover:bg-accent hover:text-foreground"
                 size="icon-sm"
-                onClick={toggleSidebar}
-                className="hover:bg-accent text-foreground/70 hover:text-foreground"
                 title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+                variant="ghost"
+                onClick={toggleSidebar}
               >
                 <SidebarIcon className="h-4 w-4" />
               </Button>
@@ -124,6 +125,7 @@ export function Sidebar() {
       </div>
 
       <div
+        suppressHydrationWarning
         className={cn(
           "bg-background flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40",
           "shadow-xl dark:shadow-2xl",
@@ -135,12 +137,11 @@ export function Sidebar() {
               ? "width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)"
               : "none",
         }}
-        suppressHydrationWarning
       >
-        <div className="flex flex-col h-full w-80">
+        <div className="flex h-full w-80 flex-col">
           <div className="flex-shrink-0 pb-2">
-            <div className="relative flex items-center justify-center h-16 px-4">
-              <Link to={ROUTES.HOME} className="group">
+            <div className="relative flex h-16 items-center justify-center px-4">
+              <Link className="group" to={ROUTES.HOME}>
                 <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
                   <div
                     className={cn(
@@ -180,13 +181,13 @@ export function Sidebar() {
                     <TooltipTrigger asChild>
                       <Link to={ROUTES.SETTINGS.ROOT}>
                         <Button
-                          variant="ghost"
                           size="icon-sm"
+                          title="Settings"
+                          variant="ghost"
                           className={cn(
                             "text-muted-foreground hover:text-foreground transition-colors",
                             isMobile && "h-10 w-10"
                           )}
-                          title="Settings"
                         >
                           <GearIcon
                             className={cn(isMobile ? "h-6 w-6" : "h-4 w-4")}
@@ -201,8 +202,8 @@ export function Sidebar() {
                 )}
 
                 <ThemeToggle
-                  variant="ghost"
                   size="icon-sm"
+                  variant="ghost"
                   className={cn(
                     "hover:bg-accent text-foreground/70 hover:text-foreground",
                     isMobile && "h-10 w-10"
@@ -228,8 +229,8 @@ export function Sidebar() {
             )}
           >
             <ConversationList
-              searchQuery={searchQuery}
               currentConversationId={currentConversationId}
+              searchQuery={searchQuery}
             />
           </div>
 
@@ -238,4 +239,4 @@ export function Sidebar() {
       </div>
     </div>
   );
-}
+};

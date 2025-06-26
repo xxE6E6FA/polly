@@ -1,10 +1,12 @@
-import { action } from "./_generated/server";
 import { v } from "convex/values";
+
 import { api } from "./_generated/api";
+import { action } from "./_generated/server";
 import { getCapabilityFromPatterns } from "./lib/model_capabilities_config";
 
 // OpenAI API Types - Public API structure
-interface OpenAIModel {
+
+type OpenAIModel = {
   id: string;
   object: "model";
   created?: number;
@@ -14,14 +16,15 @@ interface OpenAIModel {
   groups?: string[];
   features?: string[];
   max_tokens?: number;
-}
+};
 
-interface OpenAIApiResponse {
+type OpenAIApiResponse = {
   object: "list";
   data: OpenAIModel[];
-}
+};
 
 // OpenAI Models
+
 async function fetchOpenAIModels(apiKey: string) {
   try {
     const response = await fetch("https://api.openai.com/v1/models", {
@@ -123,20 +126,36 @@ async function fetchOpenAIModels(apiKey: string) {
 }
 
 // Helper function to generate better display names for OpenAI models
+
 function generateOpenAIDisplayName(modelId: string): string {
   // Handle special cases first
-  if (modelId === "chatgpt-4o-latest") return "ChatGPT 4o (Latest)";
-  if (modelId.startsWith("gpt-4.5"))
+  if (modelId === "chatgpt-4o-latest") {
+    return "ChatGPT 4o (Latest)";
+  }
+  if (modelId.startsWith("gpt-4.5")) {
     return modelId.replace("gpt-4.5", "GPT-4.5");
-  if (modelId.startsWith("gpt-4.1"))
+  }
+  if (modelId.startsWith("gpt-4.1")) {
     return modelId.replace("gpt-4.1", "GPT-4.1");
-  if (modelId.startsWith("gpt-4o")) return modelId.replace("gpt-4o", "GPT-4o");
-  if (modelId.startsWith("gpt-4")) return modelId.replace("gpt-4", "GPT-4");
-  if (modelId.startsWith("gpt-3.5"))
+  }
+  if (modelId.startsWith("gpt-4o")) {
+    return modelId.replace("gpt-4o", "GPT-4o");
+  }
+  if (modelId.startsWith("gpt-4")) {
+    return modelId.replace("gpt-4", "GPT-4");
+  }
+  if (modelId.startsWith("gpt-3.5")) {
     return modelId.replace("gpt-3.5", "GPT-3.5");
-  if (modelId.startsWith("o4")) return modelId.replace("o4", "o4");
-  if (modelId.startsWith("o3")) return modelId.replace("o3", "o3");
-  if (modelId.startsWith("o1")) return modelId.replace("o1", "o1");
+  }
+  if (modelId.startsWith("o4")) {
+    return modelId.replace("o4", "o4");
+  }
+  if (modelId.startsWith("o3")) {
+    return modelId.replace("o3", "o3");
+  }
+  if (modelId.startsWith("o1")) {
+    return modelId.replace("o1", "o1");
+  }
 
   // Default: capitalize first letter and replace hyphens
   return modelId
@@ -146,6 +165,7 @@ function generateOpenAIDisplayName(modelId: string): string {
 }
 
 // Anthropic Models
+
 async function fetchAnthropicModels(apiKey: string) {
   try {
     const response = await fetch("https://api.anthropic.com/v1/models", {
@@ -207,8 +227,9 @@ async function fetchAnthropicModels(apiKey: string) {
 }
 
 // Google API Types
-interface GoogleApiModel {
-  name: string; // e.g., "models/gemini-1.5-pro"
+
+type GoogleApiModel = {
+  name: string; // E.g., "models/gemini-1.5-pro"
   baseModelId?: string;
   version?: string;
   displayName?: string;
@@ -220,13 +241,14 @@ interface GoogleApiModel {
   maxTemperature?: number;
   topP?: number;
   topK?: number;
-}
+};
 
-interface GoogleApiResponse {
+type GoogleApiResponse = {
   models: GoogleApiModel[];
-}
+};
 
 // Google Models
+
 async function fetchGoogleModels(apiKey: string) {
   try {
     const response = await fetch(
@@ -291,24 +313,25 @@ async function fetchGoogleModels(apiKey: string) {
 }
 
 // OpenRouter API Types
-interface OpenRouterArchitecture {
+
+type OpenRouterArchitecture = {
   input_modalities: string[];
   output_modalities: string[];
   tokenizer: string;
   instruct_type: string | null;
-}
+};
 
-interface OpenRouterPricing {
+type OpenRouterPricing = {
   internal_reasoning: string;
-}
+};
 
-interface OpenRouterTopProvider {
+type OpenRouterTopProvider = {
   context_length: number;
   max_completion_tokens: number;
   is_moderated: boolean;
-}
+};
 
-interface OpenRouterModel {
+type OpenRouterModel = {
   id: string;
   canonical_slug: string;
   name: string;
@@ -320,13 +343,13 @@ interface OpenRouterModel {
   top_provider: OpenRouterTopProvider;
   per_request_limits: unknown;
   supported_parameters: string[];
-}
+};
 
-interface OpenRouterApiResponse {
+type OpenRouterApiResponse = {
   data: OpenRouterModel[];
-}
+};
 
-interface ModelResponse {
+type ModelResponse = {
   modelId: string;
   name: string;
   provider: string;
@@ -335,9 +358,10 @@ interface ModelResponse {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsFiles: boolean;
-}
+};
 
 // OpenRouter Models
+
 async function fetchOpenRouterModels(apiKey: string) {
   try {
     const response = await fetch("https://openrouter.ai/api/v1/models", {
@@ -393,40 +417,64 @@ async function fetchOpenRouterModels(apiKey: string) {
 }
 
 // Context window helpers
+
 function getOpenAIContextWindow(modelId: string): number {
-  if (modelId.includes("gpt-4o")) return 128000;
-  if (modelId.includes("gpt-4-turbo")) return 128000;
-  if (modelId.includes("gpt-4")) return 8192;
-  if (modelId.includes("gpt-3.5-turbo")) return 16385;
-  if (modelId.includes("o1-")) return 200000;
+  if (modelId.includes("gpt-4o")) {
+    return 128000;
+  }
+  if (modelId.includes("gpt-4-turbo")) {
+    return 128000;
+  }
+  if (modelId.includes("gpt-4")) {
+    return 8192;
+  }
+  if (modelId.includes("gpt-3.5-turbo")) {
+    return 16385;
+  }
+  if (modelId.includes("o1-")) {
+    return 200000;
+  }
   return 4096;
 }
 
 function getAnthropicContextWindow(modelId: string): number {
   // Claude 3.7 series
-  if (modelId.includes("claude-3.7")) return 200000;
+  if (modelId.includes("claude-3.7")) {
+    return 200000;
+  }
 
   // Claude 3.5 series
-  if (modelId.includes("claude-3.5")) return 200000;
+  if (modelId.includes("claude-3.5")) {
+    return 200000;
+  }
 
   // Claude 3 series (Opus, Sonnet, Haiku)
-  if (modelId.includes("claude-3")) return 200000;
+  if (modelId.includes("claude-3")) {
+    return 200000;
+  }
 
   // Claude 2 series
-  if (modelId.includes("claude-2")) return 100000;
+  if (modelId.includes("claude-2")) {
+    return 100000;
+  }
 
   // Default for newer models
   return 200000;
 }
 
 function getGoogleContextWindow(modelName: string): number {
-  if (modelName.includes("gemini-1.5-pro")) return 2097152;
-  if (modelName.includes("gemini-1.5-flash")) return 1048576;
-  if (modelName.includes("gemini-pro")) return 32768;
+  if (modelName.includes("gemini-1.5-pro")) {
+    return 2097152;
+  }
+  if (modelName.includes("gemini-1.5-flash")) {
+    return 1048576;
+  }
+  if (modelName.includes("gemini-pro")) {
+    return 32768;
+  }
   return 32768;
 }
 
-// Main action to fetch all models for a user
 export const fetchAllModels = action({
   args: {},
   handler: async ctx => {
@@ -476,7 +524,6 @@ export const fetchAllModels = action({
         allModels.push(...models);
       } catch (error) {
         console.error(`Failed to fetch models for ${keyInfo.provider}:`, error);
-        // Continue with other providers even if one fails
       }
     }
 

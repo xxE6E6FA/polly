@@ -1,24 +1,27 @@
 import { useMemo } from "react";
-import { ConversationItem } from "./conversation-item";
-import { ConversationGroup } from "./conversation-group";
-import { useConversationSearch } from "@/hooks/use-conversation-search";
-import { ConversationId } from "@/types";
-import { ChatCircleIcon } from "@phosphor-icons/react";
-import { Doc } from "../../../convex/_generated/dataModel";
 
-interface ConversationListContentProps {
+import { ChatCircleIcon } from "@phosphor-icons/react";
+
+import { useConversationSearch } from "@/hooks/use-conversation-search";
+import { type ConversationId } from "@/types";
+
+import { ConversationGroup } from "./conversation-group";
+import { ConversationItem } from "./conversation-item";
+import { type Doc } from "../../../convex/_generated/dataModel";
+
+type ConversationListContentProps = {
   conversations: Doc<"conversations">[] | undefined;
   searchQuery: string;
   currentConversationId?: ConversationId;
   isLoading?: boolean;
-}
+};
 
-export function ConversationListContent({
+export const ConversationListContent = ({
   conversations,
   searchQuery,
   currentConversationId,
   isLoading = false,
-}: ConversationListContentProps) {
+}: ConversationListContentProps) => {
   const filteredConversations = useConversationSearch(
     conversations || [],
     searchQuery
@@ -58,7 +61,7 @@ export function ConversationListContent({
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
 
-    sortedConversations.forEach(conversation => {
+    for (const conversation of sortedConversations) {
       const conversationDate = new Date(conversation.updatedAt);
       const conversationDay = new Date(
         conversationDate.getFullYear(),
@@ -83,7 +86,7 @@ export function ConversationListContent({
       } else {
         groups.older.push(conversation);
       }
-    });
+    }
 
     return groups;
   }, [conversations, filteredConversations]);
@@ -96,9 +99,9 @@ export function ConversationListContent({
   // If no conversations and there's a search, show no results found
   if (filteredConversations.length === 0 && searchQuery.trim().length > 0) {
     return (
-      <div className="flex items-center justify-center h-32">
-        <div className="text-center space-y-1">
-          <ChatCircleIcon className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+      <div className="flex h-32 items-center justify-center">
+        <div className="space-y-1 text-center">
+          <ChatCircleIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No results found</p>
         </div>
       </div>
@@ -107,7 +110,7 @@ export function ConversationListContent({
 
   // If no conversations and no search, just show empty div (no zero state)
   if ((conversations?.length ?? 0) === 0 && searchQuery.trim().length === 0) {
-    return <div></div>;
+    return <div />;
   }
 
   return (
@@ -173,31 +176,31 @@ export function ConversationListContent({
       )}
     </div>
   );
-}
+};
 
-function ConversationListSkeleton() {
+const ConversationListSkeleton = () => {
   return (
     <div className="space-y-4 pb-4">
       {/* Today section */}
       <div className="space-y-1">
-        <div className="h-4 w-12 bg-muted/60 rounded animate-pulse mx-3 mb-1" />
+        <div className="mx-3 mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
       </div>
 
       {/* Yesterday section */}
       <div className="space-y-1">
-        <div className="h-4 w-20 bg-muted/60 rounded animate-pulse mx-3 mb-1" />
+        <div className="mx-3 mb-1 h-4 w-20 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
       </div>
     </div>
   );
-}
+};
 
-function ConversationItemSkeleton() {
+const ConversationItemSkeleton = () => {
   return (
-    <div className="mx-1 rounded-lg bg-muted/40 px-3 py-2 h-8 animate-pulse" />
+    <div className="mx-1 h-8 animate-pulse rounded-lg bg-muted/40 px-3 py-2" />
   );
-}
+};

@@ -1,7 +1,9 @@
-import { useAuthActions } from "@convex-dev/auth/react";
-import { clearUserCache } from "../lib/user-cache";
-import { clearConversationCache } from "../lib/conversation-cache";
 import { useNavigate } from "react-router-dom";
+
+import { useAuthActions } from "@convex-dev/auth/react";
+
+import { clearConversationCache } from "../lib/conversation-cache";
+import { clearUserCache } from "../lib/user-cache";
 
 export function useAuthWithCache() {
   const originalAuthActions = useAuthActions();

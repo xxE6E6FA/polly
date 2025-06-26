@@ -1,7 +1,8 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+
 import { internal } from "./_generated/api";
-import { Doc } from "./_generated/dataModel";
+import { type Doc } from "./_generated/dataModel";
+import { action } from "./_generated/server";
 
 export const generateConversationSummary = action({
   args: {

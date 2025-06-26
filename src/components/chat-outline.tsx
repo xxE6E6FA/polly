@@ -1,10 +1,12 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { ChatMessage as ChatMessageType } from "@/types";
-import { UserIcon, RobotIcon } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
-import { useSidebar } from "@/hooks/use-sidebar";
 
-interface OutlineItem {
+import { RobotIcon, UserIcon } from "@phosphor-icons/react";
+
+import { useSidebar } from "@/hooks/use-sidebar";
+import { cn } from "@/lib/utils";
+import { type ChatMessage as ChatMessageType } from "@/types";
+
+type OutlineItem = {
   id: string;
   messageId: string;
   text: string;
@@ -13,28 +15,27 @@ interface OutlineItem {
   type: "user-message" | "assistant-section";
   messageIndex: number;
   parentMessageId?: string;
-}
+};
 
-interface ChatOutlineProps {
+type ChatOutlineProps = {
   messages: ChatMessageType[];
   onNavigate?: (messageId: string, headingId?: string) => void;
   className?: string;
-}
+};
 
-function ChatOutlineComponent({
+const ChatOutlineComponent = ({
   messages,
   onNavigate,
   className,
-}: ChatOutlineProps) {
+}: ChatOutlineProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { isSidebarVisible, isMobile } = useSidebar();
 
   // Function to strip markdown and get preview text
-  const stripMarkdownAndPreview = (
-    text: string,
-    maxLength: number = 60
-  ): string => {
-    if (!text) return "";
+  const stripMarkdownAndPreview = (text: string, maxLength = 60): string => {
+    if (!text) {
+      return "";
+    }
 
     // Remove markdown syntax
     const cleaned = text
@@ -48,19 +49,23 @@ function ChatOutlineComponent({
       // Remove inline code
       .replace(/`(.+?)`/g, "$1")
       // Remove links
-      .replace(/\[(.+?)\]\(.+?\)/g, "$1")
+      .replace(/\[(.+?)]\(.+?\)/g, "$1")
       // Remove line breaks and normalize whitespace
       .replace(/\n/g, " ")
       .replace(/\s+/g, " ")
       .trim();
 
-    if (cleaned.length <= maxLength) return cleaned;
-    return cleaned.substring(0, maxLength).trim() + "...";
+    if (cleaned.length <= maxLength) {
+      return cleaned;
+    }
+    return `${cleaned.substring(0, maxLength).trim()}...`;
   };
 
   // Function to clean title text for display (more aggressive markdown removal)
   const cleanTitleText = (text: string): string => {
-    if (!text) return "";
+    if (!text) {
+      return "";
+    }
 
     return (
       text
@@ -71,8 +76,8 @@ function ChatOutlineComponent({
         .replace(/__(.+?)__/g, "$1")
         .replace(/_(.+?)_/g, "$1")
         .replace(/`(.+?)`/g, "$1")
-        .replace(/\[(.+?)\]\(.+?\)/g, "$1")
-        .replace(/!\[.*?\]\(.+?\)/g, "") // Remove images
+        .replace(/\[(.+?)]\(.+?\)/g, "$1")
+        .replace(/!\[.*?]\(.+?\)/g, "") // Remove images
         .replace(/~~(.+?)~~/g, "$1") // Remove strikethrough
         .replace(/\n/g, " ")
         .replace(/\s+/g, " ")
@@ -107,13 +112,15 @@ function ChatOutlineComponent({
           const lines = nextMessage.content.split("\n");
           let inCodeBlock = false;
 
-          lines.forEach(line => {
+          for (const line of lines) {
             if (line.trim().startsWith("```")) {
               inCodeBlock = !inCodeBlock;
-              return;
+              continue;
             }
 
-            if (inCodeBlock) return;
+            if (inCodeBlock) {
+              continue;
+            }
 
             const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
             if (headingMatch) {
@@ -122,7 +129,7 @@ function ChatOutlineComponent({
               const cleanText = cleanTitleText(rawText);
               const headingId = `${nextMessage.id}-heading-${rawText
                 .toLowerCase()
-                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/[^\da-z]+/g, "-")
                 .replace(/^-+|-+$/g, "")}`;
 
               items.push({
@@ -136,7 +143,7 @@ function ChatOutlineComponent({
                 parentMessageId: message.id,
               });
             }
-          });
+          }
         }
       }
     }
@@ -184,7 +191,7 @@ function ChatOutlineComponent({
     >
       {/* Smooth morphing container - pill to rectangle */}
       <div
-        className="relative bg-background border border-border/50 shadow-xl transition-all duration-200 ease-out overflow-hidden"
+        className="relative overflow-hidden border border-border/50 bg-background shadow-xl transition-all duration-200 ease-out"
         style={{
           width: isExpanded ? "360px" : "24px",
           height: isExpanded ? "auto" : `${collapsedHeight}px`,
@@ -225,7 +232,7 @@ function ChatOutlineComponent({
             />
           ))}
           {outlineItems.length > 12 && (
-            <div className="text-xs text-muted-foreground/40 mt-1 font-light">
+            <div className="mt-1 text-xs font-light text-muted-foreground/40">
               +{outlineItems.length - 12}
             </div>
           )}
@@ -252,7 +259,6 @@ function ChatOutlineComponent({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => handleItemClick(item)}
                     className={cn(
                       "w-full text-left transition-all duration-150 hover:bg-muted/60 focus:bg-muted/60 focus:outline-none group/item",
                       item.type === "user-message"
@@ -265,19 +271,20 @@ function ChatOutlineComponent({
                           ? `${20 + indentLevel * 12}px`
                           : undefined,
                     }}
+                    onClick={() => handleItemClick(item)}
                   >
-                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       {item.type === "user-message" ? (
                         <>
-                          <UserIcon className="w-4 h-4 text-primary flex-shrink-0" />
-                          <div className="text-xs font-medium text-foreground line-clamp-2 leading-relaxed min-w-0">
+                          <UserIcon className="h-4 w-4 flex-shrink-0 text-primary" />
+                          <div className="line-clamp-2 min-w-0 text-xs font-medium leading-relaxed text-foreground">
                             {item.text}
                           </div>
                         </>
                       ) : (
                         <>
-                          <RobotIcon className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
-                          <div className="truncate text-muted-foreground/80 group-hover/item:text-muted-foreground text-xs">
+                          <RobotIcon className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
+                          <div className="truncate text-xs text-muted-foreground/80 group-hover/item:text-muted-foreground">
                             {item.text}
                           </div>
                         </>
@@ -292,6 +299,6 @@ function ChatOutlineComponent({
       </div>
     </div>
   );
-}
+};
 
 export const ChatOutline = memo(ChatOutlineComponent);

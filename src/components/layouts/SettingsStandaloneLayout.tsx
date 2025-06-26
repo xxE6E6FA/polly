@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+
 import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function SettingsStandaloneLayout() {
@@ -8,7 +9,7 @@ export default function SettingsStandaloneLayout() {
         backLink="/settings/personas"
         backText="Back to Personas"
       />
-      <div className="max-w-4xl mx-auto px-6 py-8 w-full flex-1">
+      <div className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
         <Outlet />
       </div>
     </>

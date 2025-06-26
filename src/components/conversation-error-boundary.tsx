@@ -1,12 +1,12 @@
 import React from "react";
 
-interface ConversationErrorBoundaryState {
+type ConversationErrorBoundaryState = {
   hasError: boolean;
-}
+};
 
-interface ConversationErrorBoundaryProps {
+type ConversationErrorBoundaryProps = {
   children: React.ReactNode;
-}
+};
 
 export class ConversationErrorBoundary extends React.Component<
   ConversationErrorBoundaryProps,
@@ -41,16 +41,16 @@ export class ConversationErrorBoundary extends React.Component<
       return (
         <div className="flex h-full items-center justify-center">
           <div className="text-center">
-            <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
-            <p className="text-muted-foreground mb-4">
+            <h2 className="mb-2 text-lg font-semibold">Something went wrong</h2>
+            <p className="mb-4 text-muted-foreground">
               Unable to load this conversation.
             </p>
             <button
+              className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 this.setState({ hasError: false });
                 window.location.href = "/";
               }}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
             >
               Go to Home
             </button>

@@ -1,13 +1,15 @@
-import { useAction } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { ConversationId, UserId, Attachment } from "../types";
-import { Id } from "../../convex/_generated/dataModel";
-import { storeAnonymousUserId } from "./use-user";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAction } from "convex/react";
+
+import { storeAnonymousUserId } from "./use-user";
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
 import { clearConversationCache } from "../lib/conversation-cache";
+import { type Attachment, type ConversationId, type UserId } from "../types";
 
 // Interface for createConversation parameters
-export interface CreateConversationParams {
+
+export type CreateConversationParams = {
   firstMessage: string;
   sourceConversationId?: ConversationId;
   personaId?: Id<"personas"> | null;
@@ -16,9 +18,10 @@ export interface CreateConversationParams {
   useWebSearch?: boolean;
   personaPrompt?: string | null;
   generateTitle?: boolean;
-}
+};
 
 // Simplified hook using the single new conversation action
+
 export function useCreateConversation() {
   const createNewConversation = useAction(
     api.conversations.createNewConversation
@@ -53,10 +56,6 @@ export function useCreateConversation() {
       }
 
       // Invalidate conversation cache for both TanStack Query
-      console.log(
-        "New conversation created, invalidating caches for user:",
-        result.userId
-      );
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
 
       // Clear our localStorage cache to force reload from server

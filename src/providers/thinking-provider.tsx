@@ -1,29 +1,42 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
-interface ThinkingContextType {
+type ThinkingContextType = {
   isThinking: boolean;
   setIsThinking: (thinking: boolean) => void;
-}
+};
 
 const ThinkingContext = createContext<ThinkingContextType | undefined>(
   undefined
 );
 
-export function ThinkingProvider({ children }: { children: React.ReactNode }) {
+export const ThinkingProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [isThinking, setIsThinking] = useState(false);
 
   const memoizedSetIsThinking = useCallback((thinking: boolean) => {
     setIsThinking(thinking);
   }, []);
 
+  const value = useMemo(
+    () => ({ isThinking, setIsThinking: memoizedSetIsThinking }),
+    [isThinking, memoizedSetIsThinking]
+  );
+
   return (
-    <ThinkingContext.Provider
-      value={{ isThinking, setIsThinking: memoizedSetIsThinking }}
-    >
+    <ThinkingContext.Provider value={value}>
       {children}
     </ThinkingContext.Provider>
   );
-}
+};
 
 export function useThinking() {
   const context = useContext(ThinkingContext);

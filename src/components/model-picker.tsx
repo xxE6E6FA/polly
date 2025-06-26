@@ -1,4 +1,22 @@
-import { useMemo, useState, useCallback, memo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
+
+import { useNavigate } from "react-router";
+
+import { useAuthToken } from "@convex-dev/auth/react";
+import {
+  CaretDownIcon,
+  ChatCircleIcon,
+  KeyIcon,
+  LightningIcon,
+  MagnifyingGlassIcon,
+  WarningIcon,
+} from "@phosphor-icons/react";
+import { useMutation, useQuery } from "convex/react";
+
+import { ProviderIcon } from "@/components/provider-icons";
+import { Backdrop } from "@/components/ui/backdrop";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -17,32 +35,17 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
-import {
-  MagnifyingGlassIcon,
-  WarningIcon,
-  CaretDownIcon,
-  ChatCircleIcon,
-  KeyIcon,
-  LightningIcon,
-} from "@phosphor-icons/react";
-import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router";
-
-import { AIModel } from "@/types";
-import { cn } from "@/lib/utils";
-import { Backdrop } from "@/components/ui/backdrop";
-import {
-  getModelCapabilities,
-  getCapabilityColor,
-} from "@/lib/model-capabilities";
-import { useMutation, useQuery } from "convex/react";
-import { useAuthToken } from "@convex-dev/auth/react";
-import { api } from "../../convex/_generated/api";
-import { ProviderIcon } from "@/components/provider-icons";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
+import {
+  getCapabilityColor,
+  getModelCapabilities,
+} from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { type AIModel } from "@/types";
+
+import { api } from "../../convex/_generated/api";
 
 // Provider mapping with titles and icons
 const PROVIDER_CONFIG = {
@@ -56,23 +59,23 @@ const PROVIDER_CONFIG = {
 // Polly icon component using the favicon
 const PollyIcon = () => (
   <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="16"
-    height="16"
-    viewBox="0 0 24 24"
+    className="h-4 w-4"
     fill="none"
+    height="16"
     stroke="currentColor"
-    strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="w-4 h-4"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+    width="16"
+    xmlns="http://www.w3.org/2000/svg"
   >
-    <path d="M16 7h.01"></path>
-    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"></path>
-    <path d="m20 7 2 .5-2 .5"></path>
-    <path d="M10 18v3"></path>
-    <path d="M14 17.75V21"></path>
-    <path d="M7 18a6 6 0 0 0 3.84-10.61"></path>
+    <path d="M16 7h.01" />
+    <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20" />
+    <path d="m20 7 2 .5-2 .5" />
+    <path d="M10 18v3" />
+    <path d="M14 17.75V21" />
+    <path d="M7 18a6 6 0 0 0 3.84-10.61" />
   </svg>
 );
 
@@ -82,7 +85,7 @@ const EnhancedProviderIcon = ({ provider }: { provider: string }) => {
     return <PollyIcon />;
   }
   return (
-    <div className="w-4 h-4 flex items-center justify-center">
+    <div className="flex h-4 w-4 items-center justify-center">
       <ProviderIcon provider={provider} />
     </div>
   );
@@ -106,16 +109,16 @@ const ModelItem = memo(
     return (
       <CommandItem
         key={model.modelId}
+        className="min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2.5"
         value={`${model.name} ${model.provider} ${model.modelId}`}
         onSelect={handleSelect}
-        className="py-3 sm:py-2.5 px-4 sm:px-3 cursor-pointer min-h-[44px] sm:min-h-0 hover:bg-accent/50 dark:hover:bg-accent/30 transition-colors"
       >
-        <div className="flex items-center justify-between w-full">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex w-full items-center justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {model.free && (
               <Badge
+                className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
                 variant="secondary"
-                className="text-[10px] px-1.5 py-0 h-5 bg-success-bg text-success border-success-border shrink-0"
               >
                 Free
               </Badge>
@@ -125,7 +128,7 @@ const ModelItem = memo(
             </span>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex shrink-0 items-center gap-1">
             {capabilities.length > 0 &&
               capabilities.slice(0, 4).map((capability, index) => {
                 const IconComponent = capability.icon;
@@ -134,7 +137,7 @@ const ModelItem = memo(
                     key={`${model.modelId}-${capability.label}-${index}`}
                   >
                     <TooltipTrigger asChild>
-                      <div className="flex items-center justify-center w-6 h-6 rounded-md bg-muted/50 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50 transition-all duration-200 cursor-help">
+                      <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
                         <IconComponent
                           className={cn(
                             "w-3.5 h-3.5",
@@ -148,7 +151,7 @@ const ModelItem = memo(
                         <div className="font-semibold text-foreground">
                           {capability.label}
                         </div>
-                        <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
                           {capability.description}
                         </div>
                       </div>
@@ -165,11 +168,11 @@ const ModelItem = memo(
 
 ModelItem.displayName = "ModelItem";
 
-interface ModelPickerProps {
+type ModelPickerProps = {
   className?: string;
-}
+};
 
-function ModelPickerComponent({ className }: ModelPickerProps) {
+const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const token = useAuthToken();
   const navigate = useNavigate();
@@ -180,7 +183,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
   const selectModelMutation = useMutation(api.userModels.selectModel);
 
   // Check if user is authenticated
-  const isAuthenticated = !!token;
+  const isAuthenticated = Boolean(token);
 
   // Display name getter
   const displayName = useMemo(() => {
@@ -209,16 +212,16 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
   ) {
     return (
       <Button
+        disabled
         variant="ghost"
         className={cn(
           "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
           className
         )}
-        disabled
       >
         <div className="flex items-center gap-1.5">
           <span className="font-medium">Loading models...</span>
-          <CaretDownIcon className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+          <CaretDownIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
         </div>
       </Button>
     );
@@ -231,18 +234,18 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
         {/* Backdrop blur overlay */}
         {open && (
           <Backdrop
-            variant="default"
             blur="sm"
-            className="z-40 animate-in fade-in-0 duration-200"
+            className="z-40 duration-200 animate-in fade-in-0"
+            variant="default"
           />
         )}
 
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
-              variant="ghost"
-              role="combobox"
               aria-expanded={open}
+              role="combobox"
+              variant="ghost"
               className={cn(
                 "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:text-foreground group relative picker-trigger",
                 "hover:bg-accent/50 dark:hover:bg-accent/30",
@@ -252,7 +255,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
               )}
             >
               <div className="flex items-center gap-1.5">
-                <span className="font-medium truncate max-w-[150px]">
+                <span className="max-w-[150px] truncate font-medium">
                   {displayName}
                 </span>
                 <CaretDownIcon
@@ -265,49 +268,49 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
             </Button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-[min(calc(100vw-2rem),380px)] p-0 overflow-hidden data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20"
+            avoidCollisions
+            className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+            collisionPadding={16}
             side="top"
             sideOffset={4}
-            collisionPadding={16}
-            avoidCollisions={true}
           >
             <div className="relative p-6">
-              <h3 className="text-base font-semibold mb-2 text-foreground text-center">
+              <h3 className="mb-2 text-center text-base font-semibold text-foreground">
                 Sign in for more features!
               </h3>
 
-              <div className="space-y-3 mb-6">
+              <div className="mb-6 space-y-3">
                 <div className="flex items-start gap-3">
-                  <ChatCircleIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <ChatCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Higher message limits
                     </div>
-                    <div className="text-muted-foreground text-xs">
+                    <div className="text-xs text-muted-foreground">
                       {MONTHLY_MESSAGE_LIMIT} messages/month for free
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <KeyIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <KeyIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Bring your own API keys
                     </div>
-                    <div className="text-muted-foreground text-xs">
+                    <div className="text-xs text-muted-foreground">
                       Use OpenAI, Anthropic, Google and OpenRouter models
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <LightningIcon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <LightningIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="text-sm">
                     <div className="font-medium text-foreground">
                       Advanced features
                     </div>
-                    <div className="text-muted-foreground text-xs">
+                    <div className="text-xs text-muted-foreground">
                       Custom personas, conversation sharing, and more!
                     </div>
                   </div>
@@ -316,9 +319,9 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
 
               {/* CTA button - using standard button styles */}
               <Button
+                className="w-full"
                 size="sm"
                 variant="default"
-                className="w-full"
                 onClick={e => {
                   // Prevent opening model picker
                   e.preventDefault();
@@ -330,7 +333,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
               </Button>
 
               {/* Footer text */}
-              <p className="text-xs text-muted-foreground text-center mt-3">
+              <p className="mt-3 text-center text-xs text-muted-foreground">
                 Free to use • No credit card required
               </p>
             </div>
@@ -346,17 +349,17 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
+            disabled
             variant="ghost"
             className={cn(
               "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
               className
             )}
-            disabled
           >
             <div className="flex items-center gap-1.5">
               <WarningIcon className="h-3.5 w-3.5 text-warning/50" />
               <span className="font-medium">Configure models</span>
-              <CaretDownIcon className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+              <CaretDownIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
             </div>
           </Button>
         </TooltipTrigger>
@@ -372,18 +375,18 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
       {/* Backdrop blur overlay */}
       {open && (
         <Backdrop
-          variant="default"
           blur="sm"
-          className="z-40 animate-in fade-in-0 duration-200"
+          className="z-40 duration-200 animate-in fade-in-0"
+          variant="default"
         />
       )}
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
-            variant="ghost"
-            role="combobox"
             aria-expanded={open}
+            role="combobox"
+            variant="ghost"
             className={cn(
               "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/80 hover:text-foreground group relative picker-trigger",
               "hover:bg-accent/50 dark:hover:bg-accent/30",
@@ -394,17 +397,17 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
           >
             <div className="flex items-center gap-1.5">
               {selectedModel?.provider === "polly" && (
-                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
               )}
               {selectedModel?.free && (
                 <Badge
+                  className="h-4 border-success/20 bg-success/10 px-1.5 py-0 text-[10px] text-success hover:bg-success/10"
                   variant="secondary"
-                  className="text-[10px] px-1.5 py-0 h-4 bg-success/10 text-success border-success/20 hover:bg-success/10"
                 >
                   Free
                 </Badge>
               )}
-              <span className="font-medium truncate max-w-[150px]">
+              <span className="max-w-[150px] truncate font-medium">
                 {displayName}
               </span>
               <CaretDownIcon
@@ -417,19 +420,19 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
           </Button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-[min(calc(100vw-2rem),380px)] p-0 data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 border-border/50 shadow-lg dark:shadow-xl dark:shadow-black/20 backdrop-blur-sm"
+          avoidCollisions
+          className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg backdrop-blur-sm data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+          collisionPadding={16}
           side="top"
           sideOffset={4}
-          collisionPadding={16}
-          avoidCollisions={true}
         >
           <Command className="pt-2">
-            <CommandInput placeholder="Search models..." className="h-9" />
+            <CommandInput className="h-9" placeholder="Search models..." />
             <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
               <CommandEmpty>
                 <div className="p-4 text-center">
-                  <MagnifyingGlassIcon className="h-8 w-8 text-muted-foreground/50 mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                  <p className="mb-1 text-sm text-muted-foreground">
                     No models found
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -440,7 +443,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
 
               {userModelsByProvider?.length === 0 ? (
                 <div className="p-6 text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="mb-2 text-sm text-muted-foreground">
                     No models available
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -472,7 +475,7 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
                         />
                       ))}
                       {providerIndex < userModelsByProvider.length - 1 && (
-                        <div className="h-px bg-border/50 mx-2 my-1.5" />
+                        <div className="mx-2 my-1.5 h-px bg-border/50" />
                       )}
                     </CommandGroup>
                   );
@@ -484,6 +487,6 @@ function ModelPickerComponent({ className }: ModelPickerProps) {
       </Popover>
     </>
   );
-}
+};
 
 export const ModelPicker = memo(ModelPickerComponent);

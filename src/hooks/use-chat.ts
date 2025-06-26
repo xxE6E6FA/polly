@@ -1,23 +1,28 @@
-import { useCallback, useMemo, useRef, useState, useEffect } from "react";
-import { ChatMessage, Attachment, ConversationId } from "@/types";
-import { useCreateConversation } from "./use-conversations";
-import { useUser } from "./use-user";
-import { useThinking } from "@/providers/thinking-provider";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
+import { useThinking } from "@/providers/thinking-provider";
+import {
+  type Attachment,
+  type ChatMessage,
+  type ConversationId,
+} from "@/types";
+
 import { useChatMessages } from "./use-chat-messages";
-
-import { useMutation, useAction, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
+import { useCreateConversation } from "./use-conversations";
 import { useSelectedModel } from "./use-selected-model";
+import { useUser } from "./use-user";
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
 
-interface UseChatOptions {
+type UseChatOptions = {
   conversationId?: ConversationId;
   onMessagesChange?: (messages: ChatMessage[]) => void;
   onError?: (error: Error) => void;
   onConversationCreate?: (conversationId: ConversationId) => void;
-}
+};
 
 export function useChat({
   conversationId,
@@ -55,19 +60,16 @@ export function useChat({
   const addMessage = useMutation(api.messages.create);
 
   // State management
-  const [currentConversationId, setCurrentConversationId] = useState<
-    ConversationId | undefined
-  >(conversationId);
   const [isGenerating, setIsGenerating] = useState(false);
-  const hasAttemptedResumeRef = useRef<string | null>(null);
 
-  // Update conversation ID tracking when prop changes
-  useEffect(() => {
-    setCurrentConversationId(conversationId);
-    if (conversationId !== hasAttemptedResumeRef.current) {
-      hasAttemptedResumeRef.current = null;
-    }
-  }, [conversationId]);
+  // Track if we've attempted to resume for each conversation
+  const attemptedResumeMap = useRef<Map<string, boolean>>(new Map());
+
+  // Clear attempted resume tracking when conversation changes
+  const prevConversationIdRef = useRef(conversationId);
+  if (conversationId !== prevConversationIdRef.current) {
+    prevConversationIdRef.current = conversationId;
+  }
 
   const withLoadingState = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T> => {
@@ -88,7 +90,7 @@ export function useChat({
     if (
       !conversationId ||
       !selectedModel ||
-      hasAttemptedResumeRef.current === conversationId ||
+      attemptedResumeMap.current.get(conversationId) ||
       isGenerating
     ) {
       return;
@@ -97,7 +99,7 @@ export function useChat({
     const lastMessage =
       chatMessages.convexMessages?.[chatMessages.convexMessages.length - 1];
     if (chatMessages.convexMessages?.length && lastMessage?.role === "user") {
-      hasAttemptedResumeRef.current = conversationId;
+      attemptedResumeMap.current.set(conversationId, true);
 
       const startResponse = async () => {
         try {
@@ -107,7 +109,7 @@ export function useChat({
             })
           );
         } catch (error) {
-          hasAttemptedResumeRef.current = null;
+          attemptedResumeMap.current.delete(conversationId);
           const errorMessage =
             error instanceof Error
               ? error.message
@@ -139,7 +141,9 @@ export function useChat({
       personaPrompt?: string | null,
       personaId?: Id<"personas"> | null
     ) => {
-      if (!content.trim() && !attachments?.length) return;
+      if (!content.trim() && !attachments?.length) {
+        return;
+      }
 
       if (!canSendMessage) {
         const errorMsg =
@@ -157,8 +161,6 @@ export function useChat({
       }
 
       try {
-        let conversationId = currentConversationId;
-
         // Create new conversation if needed
         if (!conversationId) {
           const newConversationId = await createNewConversationWithResponse({
@@ -180,8 +182,6 @@ export function useChat({
             return;
           }
 
-          conversationId = newConversationId;
-          setCurrentConversationId(newConversationId);
           return;
         }
 
@@ -219,7 +219,7 @@ export function useChat({
       onError,
       user,
       userLoading,
-      currentConversationId,
+      conversationId,
       createNewConversationWithResponse,
       onConversationCreate,
       selectedModel,
@@ -231,14 +231,16 @@ export function useChat({
   const sendMessageToNewConversation = useCallback(
     async (
       content: string,
-      shouldNavigate: boolean = true,
+      shouldNavigate = true,
       attachments?: Attachment[],
       contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaPrompt?: string | null,
       personaId?: Id<"personas"> | null
     ) => {
-      if (!content.trim() && !attachments?.length) return;
+      if (!content.trim() && !attachments?.length) {
+        return;
+      }
 
       if (!canSendMessage) {
         const errorMsg =
@@ -267,7 +269,7 @@ export function useChat({
           personaId,
           userId: user?._id,
           attachments,
-          useWebSearch: false, // don't use web search for new conversations by default
+          useWebSearch: false, // Don't use web search for new conversations by default
           personaPrompt,
         });
         if (!newConversationId) {
@@ -313,7 +315,7 @@ export function useChat({
   );
 
   const regenerateMessage = useCallback(async () => {
-    if (!currentConversationId) {
+    if (!conversationId) {
       const errorMsg = "No conversation found";
       toast.error("Cannot regenerate message", {
         description: errorMsg,
@@ -349,7 +351,7 @@ export function useChat({
     try {
       await withLoadingState(() =>
         retryFromMessageAction({
-          conversationId: currentConversationId,
+          conversationId,
           messageId: lastUserMessage._id,
           retryType: "user",
           model: selectedModel.modelId,
@@ -365,7 +367,7 @@ export function useChat({
       onError?.(error as Error);
     }
   }, [
-    currentConversationId,
+    conversationId,
     selectedModel,
     chatMessages.convexMessages,
     retryFromMessageAction,
@@ -378,10 +380,10 @@ export function useChat({
     setIsGenerating(false);
     setIsThinking(false);
 
-    if (currentConversationId) {
+    if (conversationId) {
       try {
         await stopGenerationAction({
-          conversationId: currentConversationId,
+          conversationId,
         });
       } catch (error) {
         console.error("Failed to stop generation:", error);
@@ -396,16 +398,11 @@ export function useChat({
         setIsThinking(true);
       }
     }
-  }, [
-    currentConversationId,
-    stopGenerationAction,
-    setIsGenerating,
-    setIsThinking,
-  ]);
+  }, [conversationId, stopGenerationAction, setIsGenerating, setIsThinking]);
 
   const editMessage = useCallback(
     async (messageId: string, newContent: string) => {
-      if (!currentConversationId) {
+      if (!conversationId) {
         const errorMsg = "No conversation found";
         toast.error("Cannot edit message", {
           description: errorMsg,
@@ -427,7 +424,7 @@ export function useChat({
       try {
         await withLoadingState(() =>
           editMessageAction({
-            conversationId: currentConversationId,
+            conversationId,
             messageId: messageId as Id<"messages">,
             newContent,
             model: selectedModel.modelId,
@@ -444,7 +441,7 @@ export function useChat({
       }
     },
     [
-      currentConversationId,
+      conversationId,
       selectedModel,
       editMessageAction,
       withLoadingState,
@@ -454,7 +451,7 @@ export function useChat({
 
   const retryUserMessage = useCallback(
     async (messageId: string) => {
-      if (!currentConversationId) {
+      if (!conversationId) {
         const errorMsg = "No conversation found";
         toast.error("Cannot retry message", {
           description: errorMsg,
@@ -476,7 +473,7 @@ export function useChat({
       try {
         await withLoadingState(() =>
           retryFromMessageAction({
-            conversationId: currentConversationId,
+            conversationId,
             messageId: messageId as Id<"messages">,
             retryType: "user",
             model: selectedModel.modelId,
@@ -493,7 +490,7 @@ export function useChat({
       }
     },
     [
-      currentConversationId,
+      conversationId,
       selectedModel,
       retryFromMessageAction,
       withLoadingState,
@@ -503,7 +500,7 @@ export function useChat({
 
   const retryAssistantMessage = useCallback(
     async (messageId: string) => {
-      if (!currentConversationId) {
+      if (!conversationId) {
         const errorMsg = "No conversation found";
         toast.error("Cannot retry message", {
           description: errorMsg,
@@ -525,7 +522,7 @@ export function useChat({
       try {
         await withLoadingState(() =>
           retryFromMessageAction({
-            conversationId: currentConversationId,
+            conversationId,
             messageId: messageId as Id<"messages">,
             retryType: "assistant",
             model: selectedModel.modelId,
@@ -542,7 +539,7 @@ export function useChat({
       }
     },
     [
-      currentConversationId,
+      conversationId,
       selectedModel,
       retryFromMessageAction,
       withLoadingState,
@@ -565,29 +562,29 @@ export function useChat({
   }, [chatMessages, isGenerating]);
 
   const isStreamingInCurrentConversation = useMemo(() => {
-    if (!currentConversationId) return false;
+    if (!conversationId) {
+      return false;
+    }
 
     // Check conversation's isStreaming field first for immediate feedback
-    if (conversation?.isStreaming) return true;
+    if (conversation?.isStreaming) {
+      return true;
+    }
 
     // Also check if there's any assistant message without a finish reason (still streaming)
     const streamingMessage = chatMessages.convexMessages?.find(
       msg =>
-        msg.conversationId === currentConversationId &&
+        msg.conversationId === conversationId &&
         msg.role === "assistant" &&
         !msg.metadata?.finishReason
     );
 
-    return !!streamingMessage;
-  }, [
-    currentConversationId,
-    chatMessages.convexMessages,
-    conversation?.isStreaming,
-  ]);
+    return Boolean(streamingMessage);
+  }, [conversationId, chatMessages.convexMessages, conversation?.isStreaming]);
 
   return {
     messages: chatMessages.messages,
-    conversationId: currentConversationId,
+    conversationId,
     isLoading: isGenerating,
     isLoadingMessages: chatMessages.isLoadingMessages,
     error: null,

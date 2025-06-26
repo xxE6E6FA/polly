@@ -1,11 +1,14 @@
-import { UserIcon, SignInIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
-import { useUser } from "../../hooks/use-user";
+
+import { SignInIcon, UserIcon } from "@phosphor-icons/react";
+
+import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import { preloadSettings } from "@/routes";
 
-interface UserSectionContentProps {
+import { useUser } from "../../hooks/use-user";
+
+type UserSectionContentProps = {
   user:
     | {
         _id: string;
@@ -22,18 +25,18 @@ interface UserSectionContentProps {
     | null
     | undefined;
   isAuthenticated: boolean;
-}
+};
 
-function UserSectionContent({
+const UserSectionContent = ({
   user,
   isAuthenticated,
-}: UserSectionContentProps) {
+}: UserSectionContentProps) => {
   if (!isAuthenticated) {
     return (
-      <Link to={ROUTES.AUTH} className="block w-full px-3 py-3">
+      <Link className="block w-full px-3 py-3" to={ROUTES.AUTH}>
         <Button
+          className="flex h-10 w-full items-center justify-start gap-3 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           variant="ghost"
-          className="w-full flex items-center justify-start gap-3 text-muted-foreground hover:text-foreground hover:bg-accent/50 text-sm h-10"
         >
           <SignInIcon className="h-4 w-4" />
           Sign In
@@ -44,20 +47,20 @@ function UserSectionContent({
 
   return (
     <Link
-      to={ROUTES.SETTINGS.ROOT}
       className="block w-full px-3 py-3"
+      to={ROUTES.SETTINGS.ROOT}
       onMouseEnter={preloadSettings}
     >
       <Button
+        className="h-10 w-full justify-start gap-3 text-sm hover:bg-accent/50"
         variant="ghost"
-        className="w-full justify-start gap-3 hover:bg-accent/50 h-10 text-sm"
       >
         {user?.image ? (
           <img
-            src={user.image}
             alt={user.name || "User avatar"}
-            className="rounded-full object-cover w-6 h-6"
+            className="h-6 w-6 rounded-full object-cover"
             loading="lazy"
+            src={user.image}
             onError={e => {
               const target = e.target as HTMLImageElement;
               target.style.display = "none";
@@ -68,8 +71,8 @@ function UserSectionContent({
             }}
           />
         ) : (
-          <div className="rounded-full bg-gradient-to-br from-accent-coral to-accent-purple items-center justify-center w-6 h-6">
-            <UserIcon className="text-white h-3 w-3" />
+          <div className="h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple">
+            <UserIcon className="h-3 w-3 text-white" />
           </div>
         )}
         <span className="truncate text-foreground">
@@ -78,9 +81,9 @@ function UserSectionContent({
       </Button>
     </Link>
   );
-}
+};
 
-export function UserSection() {
+export const UserSection = () => {
   const { user, isLoading } = useUser();
 
   const isAuthenticated = user && !user.isAnonymous;
@@ -91,13 +94,18 @@ export function UserSection() {
     return <UserSectionSkeleton />;
   }
 
-  return <UserSectionContent user={user} isAuthenticated={!!isAuthenticated} />;
-}
+  return (
+    <UserSectionContent
+      isAuthenticated={Boolean(isAuthenticated)}
+      user={user}
+    />
+  );
+};
 
-function UserSectionSkeleton() {
+const UserSectionSkeleton = () => {
   return (
     <div className="px-3 py-3">
-      <div className="rounded-md bg-muted/40 animate-pulse h-10" />
+      <div className="h-10 animate-pulse rounded-md bg-muted/40" />
     </div>
   );
-}
+};

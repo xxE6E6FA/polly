@@ -1,12 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import useUndo from "use-undo";
 
-interface UseWordBasedUndoOptions {
+type UseWordBasedUndoOptions = {
   debounceMs?: number;
   initialValue: string;
-}
+};
 
 // Helper function to count words
+
 function countWords(text: string): number {
   return text
     .trim()
@@ -52,7 +54,7 @@ export function useWordBasedUndo({
       }
 
       // Save if we add/remove significant punctuation or line breaks
-      const significantChars = /[.!?;:\n]/;
+      const significantChars = /[\n!.:;?]/;
       const oldHasSignificant = significantChars.test(oldValue);
       const newHasSignificant = significantChars.test(newValue);
       if (oldHasSignificant !== newHasSignificant) {

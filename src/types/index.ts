@@ -1,24 +1,29 @@
-import { Doc, Id } from "../../convex/_generated/dataModel";
+import { type Doc, type Id } from "../../convex/_generated/dataModel";
 
 export type User = Doc<"users">;
+
 export type Conversation = Doc<"conversations">;
+
 export type Message = Doc<"messages">;
+
 export type ConversationId = Id<"conversations">;
+
 export type MessageId = Id<"messages">;
+
 export type UserId = Id<"users">;
 
-export interface AIProvider {
+export type AIProvider = {
   id: string;
   name: string;
   models: AIModel[];
   requiresApiKey: boolean;
   supportsImages: boolean;
   supportsStreaming: boolean;
-}
+};
 
 export type AIModel = Doc<"userModels">;
 
-export interface OpenRouterModel {
+export type OpenRouterModel = {
   id: string;
   name: string;
   description?: string;
@@ -42,12 +47,13 @@ export interface OpenRouterModel {
   created?: number;
   hugging_face_id?: string;
   per_request_limits?: Record<string, unknown>;
-}
+};
 
 // Provider-specific model interfaces for handling different API responses
-export interface GeminiApiModel {
-  name: string; // e.g., "models/gemini-1.5-pro"
-  baseModelId: string; // e.g., "gemini-1.5-pro"
+
+export type GeminiApiModel = {
+  name: string; // E.g., "models/gemini-1.5-pro"
+  baseModelId: string; // E.g., "gemini-1.5-pro"
   version: string;
   displayName?: string;
   description?: string;
@@ -58,9 +64,9 @@ export interface GeminiApiModel {
   maxTemperature?: number;
   topP?: number;
   topK?: number;
-}
+};
 
-export interface ChatMessage {
+export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system" | "context";
   content: string;
@@ -82,9 +88,9 @@ export interface ChatMessage {
     stopped?: boolean;
   };
   createdAt: number;
-}
+};
 
-export interface Attachment {
+export type Attachment = {
   type: "image" | "pdf" | "text";
   url: string;
   name: string;
@@ -92,10 +98,11 @@ export interface Attachment {
   content?: string; // For text files, we'll store the actual text content
   thumbnail?: string; // For images, we'll store a small thumbnail for preview
   storageId?: Id<"_storage">; // Convex storage ID for files uploaded to Convex storage
-}
+};
 
 // Web Search Types
-export interface WebSearchCitation {
+
+export type WebSearchCitation = {
   type: "url_citation";
   url: string;
   title: string;
@@ -107,20 +114,20 @@ export interface WebSearchCitation {
   siteName?: string; // Website name (e.g., "GitHub", "Stack Overflow")
   publishedDate?: string; // Article publish date if available
   author?: string; // Author information if available
-}
+};
 
-export interface WebSearchResult {
+export type WebSearchResult = {
   query: string;
   results: WebSearchCitation[];
   timestamp: number;
   provider: string;
-}
+};
 
-export interface APIKeys {
+export type APIKeys = {
   openai?: string;
   anthropic?: string;
   google?: string;
   openrouter?: string;
-}
+};
 
 export type MessageRole = "user" | "assistant" | "system" | "context";

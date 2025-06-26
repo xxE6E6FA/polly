@@ -1,4 +1,16 @@
 import { useCallback, useState } from "react";
+
+import { Link } from "react-router";
+
+import {
+  FileTextIcon,
+  PencilSimpleLineIcon,
+  PlusIcon,
+  TrashIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
+import { useMutation, useQuery } from "convex/react";
+
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -8,35 +20,27 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import {
-  TrashIcon,
-  UserIcon,
-  PencilSimpleLineIcon,
-  FileTextIcon,
-  PlusIcon,
-} from "@phosphor-icons/react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
 import { useUser } from "@/hooks/use-user";
 import {
   useUserSettings,
   useUserSettingsMutations,
 } from "@/hooks/use-user-settings";
-import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
-import { Id } from "../../../convex/_generated/dataModel";
-import { SettingsHeader } from "./settings-header";
-import { Link } from "react-router";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 
-export function PersonasTab() {
+import { SettingsHeader } from "./settings-header";
+import { api } from "../../../convex/_generated/api";
+import { type Id } from "../../../convex/_generated/dataModel";
+
+export const PersonasTab = () => {
   const userInfo = useUser();
   const personas = useQuery(
     api.personas.list,
@@ -61,7 +65,9 @@ export function PersonasTab() {
   );
 
   const handleDeletePersona = useCallback(async () => {
-    if (!deletingPersona) return;
+    if (!deletingPersona) {
+      return;
+    }
 
     try {
       await removePersona({ id: deletingPersona });
@@ -109,13 +115,13 @@ export function PersonasTab() {
       <div className="space-y-6">
         <div className="flex items-start justify-between">
           <SettingsHeader
-            title="Personas"
             description="Manage custom system prompts for different conversation styles"
+            title="Personas"
           />
-          <div className="flex gap-2 shrink-0">
+          <div className="flex shrink-0 gap-2">
             <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
-              <Button variant="default" size="sm">
-                <PlusIcon className="h-4 w-4 mr-2" />
+              <Button size="sm" variant="default">
+                <PlusIcon className="mr-2 h-4 w-4" />
                 Create Persona
               </Button>
             </Link>
@@ -123,10 +129,10 @@ export function PersonasTab() {
         </div>
 
         {/* Global Personas Toggle */}
-        <div className="border rounded-lg p-4 bg-muted/20">
+        <div className="rounded-lg border bg-muted/20 p-4">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <h3 className="font-semibold text-base">Enable Personas</h3>
+              <h3 className="text-base font-semibold">Enable Personas</h3>
               <p className="text-sm text-muted-foreground">
                 Turn personas on or off completely. When disabled, the persona
                 picker will be hidden from the chat interface.
@@ -148,7 +154,7 @@ export function PersonasTab() {
                 <div>
                   <h3 className="text-lg font-semibold">Built-in Personas</h3>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {allBuiltInPersonas.map(persona => {
                     const disabled = isPersonaDisabled(persona._id);
                     return (
@@ -160,15 +166,15 @@ export function PersonasTab() {
                         )}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2 min-w-0 flex-1">
-                            <span className="text-lg flex-shrink-0">
+                          <div className="flex min-w-0 flex-1 items-start gap-2">
+                            <span className="flex-shrink-0 text-lg">
                               {persona.icon || "🤖"}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <h4 className="font-medium text-sm truncate">
+                              <h4 className="truncate text-sm font-medium">
                                 {persona.name}
                               </h4>
-                              <p className="text-xs text-muted-foreground line-clamp-2">
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
                                 {persona.description}
                               </p>
                             </div>
@@ -188,7 +194,7 @@ export function PersonasTab() {
             )}
 
             {/* User Custom Personas */}
-            {personas && personas.filter(p => !p.isBuiltIn).length > 0 && (
+            {personas && personas.some(p => !p.isBuiltIn) && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold">Custom Personas</h3>
@@ -196,21 +202,21 @@ export function PersonasTab() {
                     Your custom system prompts for different conversation styles
                   </p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   {personas
                     .filter(persona => !persona.isBuiltIn)
                     .map(persona => (
                       <div
                         key={persona._id}
-                        className="border rounded-lg p-3 sm:p-4 space-y-3"
+                        className="space-y-3 rounded-lg border p-3 sm:p-4"
                       >
                         <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <span className="text-xl flex-shrink-0">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <span className="flex-shrink-0 text-xl">
                               {persona.icon || "🤖"}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <h4 className="font-semibold text-sm">
+                              <h4 className="text-sm font-semibold">
                                 {persona.name}
                               </h4>
                               {persona.description && (
@@ -220,12 +226,12 @@ export function PersonasTab() {
                               )}
                             </div>
                           </div>
-                          <div className="flex gap-1 flex-shrink-0">
+                          <div className="flex flex-shrink-0 gap-1">
                             <Dialog>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <DialogTrigger asChild>
-                                    <Button variant="ghost" size="sm">
+                                    <Button size="sm" variant="ghost">
                                       <FileTextIcon className="h-3 w-3" />
                                     </Button>
                                   </DialogTrigger>
@@ -234,7 +240,7 @@ export function PersonasTab() {
                                   View system prompt
                                 </TooltipContent>
                               </Tooltip>
-                              <DialogContent className="sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col">
+                              <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-h-[80vh] sm:max-w-2xl">
                                 <DialogHeader>
                                   <DialogTitle className="flex items-center gap-2">
                                     <span className="text-lg">
@@ -243,7 +249,7 @@ export function PersonasTab() {
                                     {persona.name} - System Prompt
                                   </DialogTitle>
                                 </DialogHeader>
-                                <div className="flex-1 overflow-auto p-4 bg-muted/20 rounded-lg">
+                                <div className="flex-1 overflow-auto rounded-lg bg-muted/20 p-4">
                                   <StreamingMarkdown>
                                     {persona.prompt}
                                   </StreamingMarkdown>
@@ -257,7 +263,7 @@ export function PersonasTab() {
                                     persona._id
                                   )}
                                 >
-                                  <Button variant="ghost" size="sm">
+                                  <Button size="sm" variant="ghost">
                                     <PencilSimpleLineIcon className="h-3 w-3" />
                                   </Button>
                                 </Link>
@@ -267,9 +273,9 @@ export function PersonasTab() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="ghost"
+                                  className="text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                                   size="sm"
-                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20 transition-colors"
+                                  variant="ghost"
                                   onClick={() =>
                                     setDeletingPersona(persona._id)
                                   }
@@ -289,12 +295,12 @@ export function PersonasTab() {
 
             {/* Empty State for Custom Personas */}
             {personas && personas.filter(p => !p.isBuiltIn).length === 0 && (
-              <div className="text-center py-8 border rounded-lg border-dashed">
-                <UserIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
+              <div className="rounded-lg border border-dashed py-8 text-center">
+                <UserIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">
                   No Custom Personas
                 </h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="mb-4 text-muted-foreground">
                   Create your first custom persona to define specialized AI
                   behavior
                 </p>
@@ -305,15 +311,15 @@ export function PersonasTab() {
 
         {/* Delete Confirmation */}
         <ConfirmationDialog
-          open={!!deletingPersona}
-          onOpenChange={open => !open && setDeletingPersona(null)}
-          title="Delete Persona"
-          description="Are you sure you want to delete this persona? This action cannot be undone."
-          confirmText="Delete"
           cancelText="Cancel"
+          confirmText="Delete"
+          description="Are you sure you want to delete this persona? This action cannot be undone."
+          open={Boolean(deletingPersona)}
+          title="Delete Persona"
           onConfirm={handleDeletePersona}
+          onOpenChange={open => !open && setDeletingPersona(null)}
         />
       </div>
     </TooltipProvider>
   );
-}
+};

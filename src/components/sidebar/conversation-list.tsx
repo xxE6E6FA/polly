@@ -1,35 +1,39 @@
 import { useEffect, useState } from "react";
+
 import { useQuery } from "convex/react";
-import { ConversationListContent } from "./conversation-list-content";
-import { useUser } from "@/hooks/use-user";
-import { ConversationId } from "@/types";
+
 import { api } from "convex/_generated/api";
-import {
-  getCachedConversations,
-  setCachedConversations,
-  clearConversationCache,
-  updateCachedConversation,
-} from "@/lib/conversation-cache";
-import { Doc } from "convex/_generated/dataModel";
+import { type Doc } from "convex/_generated/dataModel";
+
+import { useUser } from "@/hooks/use-user";
 import {
   getStoredAnonymousUserId,
   onStoredUserIdChange,
 } from "@/lib/auth-utils";
+import {
+  clearConversationCache,
+  getCachedConversations,
+  setCachedConversations,
+  updateCachedConversation,
+} from "@/lib/conversation-cache";
+import { type ConversationId } from "@/types";
 
-interface ConversationListProps {
+import { ConversationListContent } from "./conversation-list-content";
+
+type ConversationListProps = {
   searchQuery: string;
   currentConversationId?: ConversationId;
-}
+};
 
-export function ConversationList({
+export const ConversationList = ({
   searchQuery,
   currentConversationId,
-}: ConversationListProps) {
+}: ConversationListProps) => {
   const { user } = useUser();
 
   // Check if there's any stored user ID (anonymous or authenticated)
   const [hasStoredUserId, setHasStoredUserId] = useState(() => {
-    return !!getStoredAnonymousUserId();
+    return Boolean(getStoredAnonymousUserId());
   });
 
   // Listen for storage changes and custom events to update hasStoredUserId
@@ -89,7 +93,7 @@ export function ConversationList({
 
   // Check if we're loading fresh data
   const isLoadingFreshData =
-    !!queryUserId && !!user && conversations === undefined;
+    Boolean(queryUserId) && Boolean(user) && conversations === undefined;
 
   // Show skeleton only if we have no data at all (no cache and loading)
   const showSkeleton = isLoadingFreshData && !cachedConversations;
@@ -97,9 +101,9 @@ export function ConversationList({
   return (
     <ConversationListContent
       conversations={conversationsToDisplay}
-      searchQuery={searchQuery}
       currentConversationId={currentConversationId}
       isLoading={showSkeleton}
+      searchQuery={searchQuery}
     />
   );
-}
+};

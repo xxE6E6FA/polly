@@ -1,16 +1,18 @@
 import { Link } from "react-router";
-import { ChatMessage } from "@/types";
-import { ArrowSquareOutIcon } from "@phosphor-icons/react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/routes";
 
-interface ContextMessageProps {
+import { ArrowSquareOutIcon } from "@phosphor-icons/react";
+
+import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
+import { type ChatMessage } from "@/types";
+
+type ContextMessageProps = {
   message: ChatMessage;
   className?: string;
-}
+};
 
-export function ContextMessage({ message, className }: ContextMessageProps) {
+export const ContextMessage = ({ message, className }: ContextMessageProps) => {
   if (message.role !== "context") {
     return null;
   }
@@ -23,33 +25,33 @@ export function ContextMessage({ message, className }: ContextMessageProps) {
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2">
             <h4 className="text-sm font-medium text-accent-coral">
               Context from previous conversation
             </h4>
             {message.sourceConversationId && (
               <Link
-                to={ROUTES.CHAT_CONVERSATION(message.sourceConversationId)}
                 className="inline-flex"
+                to={ROUTES.CHAT_CONVERSATION(message.sourceConversationId)}
               >
                 <Button
-                  variant="ghost"
+                  className="h-6 px-2 text-xs text-accent-coral/80 hover:bg-accent-coral/10 hover:text-accent-coral"
                   size="sm"
-                  className="h-6 px-2 text-xs text-accent-coral/80 hover:text-accent-coral hover:bg-accent-coral/10"
+                  variant="ghost"
                 >
-                  <ArrowSquareOutIcon className="w-3 h-3 mr-1" />
+                  <ArrowSquareOutIcon className="mr-1 h-3 w-3" />
                   View original
                 </Button>
               </Link>
             )}
           </div>
 
-          <div className="text-sm text-muted-foreground leading-relaxed">
+          <div className="text-sm leading-relaxed text-muted-foreground">
             {message.content}
           </div>
         </div>
       </div>
     </div>
   );
-}
+};

@@ -1,12 +1,12 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 
-interface ConfirmationOptions {
+type ConfirmationOptions = {
   title: string;
   description: string;
   confirmText?: string;
   cancelText?: string;
   variant?: "default" | "destructive";
-}
+};
 
 export function useConfirmationDialog() {
   const [isOpen, setIsOpen] = useState(false);

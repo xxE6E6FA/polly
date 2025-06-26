@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query, internalMutation } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+
+import { type Id } from "./_generated/dataModel";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 export const create = mutation({
   args: {
@@ -430,10 +431,9 @@ export const internalAtomicUpdate = internalMutation({
           }
 
           return await ctx.db.patch(id, updatesWithAppend);
-        } else {
-          // For non-append operations, just do a simple patch
-          return await ctx.db.patch(id, updates);
         }
+        // For non-append operations, just do a simple patch
+        return await ctx.db.patch(id, updates);
       } catch (error) {
         // Check if this is a write conflict and we should retry
         if (

@@ -1,20 +1,22 @@
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
-import { Attachment } from "@/types";
 import { PaperclipIcon } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 
-interface ConvexFileDisplayProps {
+import { type Attachment } from "@/types";
+
+import { api } from "../../convex/_generated/api";
+import { type Id } from "../../convex/_generated/dataModel";
+
+type ConvexFileDisplayProps = {
   attachment: Attachment;
   className?: string;
   onClick?: () => void;
-}
+};
 
-export function ConvexFileDisplay({
+export const ConvexFileDisplay = ({
   attachment,
   className = "",
   onClick,
-}: ConvexFileDisplayProps) {
+}: ConvexFileDisplayProps) => {
   // If we have a storageId, get the URL from Convex
   const convexFileUrl = useQuery(
     api.fileStorage.getFileUrl,
@@ -32,7 +34,7 @@ export function ConvexFileDisplay({
       <div
         className={`flex items-center justify-center bg-muted/20 ${className}`}
       >
-        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60" />
+        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
       </div>
     );
   }
@@ -51,15 +53,15 @@ export function ConvexFileDisplay({
   if (attachment.type === "image" && fileUrl) {
     return (
       <div
-        className={`rounded-xl overflow-hidden border border-border/20 shadow-sm ${className}`}
+        className={`overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
       >
         <img
-          src={fileUrl}
           alt={attachment.name}
-          className="w-full h-auto object-cover max-w-sm cursor-pointer"
+          className="h-auto w-full max-w-sm cursor-pointer object-cover"
+          loading="lazy"
+          src={fileUrl}
           style={{ maxHeight: "300px" }}
           onClick={onClick}
-          loading="lazy"
         />
       </div>
     );
@@ -68,34 +70,34 @@ export function ConvexFileDisplay({
   // For non-image files, show a file icon with name
   return (
     <div
-      className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm bg-muted/40 text-foreground transition-transform duration-200 hover:scale-105 cursor-pointer ${className}`}
+      className={`flex cursor-pointer items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground transition-transform duration-200 hover:scale-105 ${className}`}
       onClick={onClick}
     >
       <span>{attachment.type === "pdf" ? "📄" : "📝"}</span>
       <span>{attachment.name}</span>
       {attachment.storageId && (
-        <span className="text-xs text-muted-foreground bg-coral-100 text-coral-700 px-1.5 py-0.5 rounded-full">
+        <span className="rounded-full bg-coral-100 px-1.5 py-0.5 text-xs text-coral-700">
           Stored
         </span>
       )}
     </div>
   );
-}
+};
 
 /**
  * Component specifically for displaying image thumbnails in chat input
  */
-interface ConvexImageThumbnailProps {
+type ConvexImageThumbnailProps = {
   attachment: Attachment;
   className?: string;
   onClick?: () => void;
-}
+};
 
-export function ConvexImageThumbnail({
+export const ConvexImageThumbnail = ({
   attachment,
   className = "",
   onClick,
-}: ConvexImageThumbnailProps) {
+}: ConvexImageThumbnailProps) => {
   // If we have a storageId, get the URL from Convex
   const convexFileUrl = useQuery(
     api.fileStorage.getFileUrl,
@@ -112,9 +114,9 @@ export function ConvexImageThumbnail({
   if (attachment.storageId && !thumbnailUrl) {
     return (
       <div
-        className={`w-6 h-6 rounded flex-shrink-0 bg-muted/30 flex items-center justify-center ${className}`}
+        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/30 ${className}`}
       >
-        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-60" />
+        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
       </div>
     );
   }
@@ -122,15 +124,15 @@ export function ConvexImageThumbnail({
   if (attachment.type === "image" && thumbnailUrl) {
     return (
       <div
-        className={`w-6 h-6 rounded overflow-hidden flex-shrink-0 bg-muted/30 cursor-pointer ${className}`}
+        className={`h-6 w-6 flex-shrink-0 cursor-pointer overflow-hidden rounded bg-muted/30 ${className}`}
         title={attachment.name}
         onClick={onClick}
       >
         <img
-          src={thumbnailUrl}
           alt={attachment.name}
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover"
           loading="lazy"
+          src={thumbnailUrl}
         />
       </div>
     );
@@ -138,10 +140,10 @@ export function ConvexImageThumbnail({
 
   return (
     <div
-      className={`w-6 h-6 rounded flex-shrink-0 bg-muted/30 flex items-center justify-center ${className}`}
+      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/30 ${className}`}
       title={attachment.name}
     >
       <PaperclipIcon className="h-3 w-3" />
     </div>
   );
-}
+};

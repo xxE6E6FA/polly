@@ -21,9 +21,9 @@ export const CONFIG = {
     openrouter: "OPENROUTER_API_KEY",
   },
   REASONING_PATTERNS: [
-    /<thinking>([\s\S]*?)<\/thinking>/,
-    /<reasoning>([\s\S]*?)<\/reasoning>/,
-    /^Thinking:\s*([\s\S]*?)(?:\n\n|$)/,
-    /\[Reasoning\]([\s\S]*?)\[\/Reasoning\]/i,
+    /<thinking>([\S\s]*?)<\/thinking>/,
+    /<reasoning>([\S\s]*?)<\/reasoning>/,
+    /^Thinking:\s*([\S\s]*?)(?:\n\n|$)/,
+    /\[reasoning]([\S\s]*?)\[\/reasoning]/i,
   ],
 } as const;

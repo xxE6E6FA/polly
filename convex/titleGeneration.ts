@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+
 import { api } from "./_generated/api";
+import { action } from "./_generated/server";
 
 export const generateTitle = action({
   args: {
@@ -16,7 +17,7 @@ export const generateTitle = action({
       const clean = args.message.replace(/[#*`]/g, "").trim();
       generatedTitle =
         clean.length > 60
-          ? clean.substring(0, 57) + "..."
+          ? `${clean.substring(0, 57)}...`
           : clean || "New conversation";
     } else {
       try {
@@ -63,7 +64,7 @@ export const generateTitle = action({
         const clean = args.message.replace(/[#*`]/g, "").trim();
         generatedTitle =
           clean.length > 60
-            ? clean.substring(0, 57) + "..."
+            ? `${clean.substring(0, 57)}...`
             : clean || "New conversation";
       }
     }
