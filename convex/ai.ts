@@ -12,7 +12,8 @@ import {
   convertMessages,
   updateMessage,
 } from "./ai/messages";
-import { createLanguageModel, isReasoningModel } from "./ai/providers";
+import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
+import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
 import { StreamHandler } from "./ai/streaming";
 import {
   type Citation,
@@ -102,6 +103,11 @@ export const streamResponse = action({
       abortController = new AbortController();
       streamHandler.setAbortController(abortController);
 
+      const providerOptions = await getProviderStreamOptions(
+        args.provider as ProviderType,
+        args.model
+      );
+
       // Stream the response
       const result = streamText({
         model,
@@ -112,26 +118,7 @@ export const streamResponse = action({
         frequencyPenalty: args.frequencyPenalty,
         presencePenalty: args.presencePenalty,
         abortSignal: abortController.signal,
-        // Enable Google thinking for reasoning models
-        ...(args.provider === "google" &&
-          isReasoningModel(args.provider, args.model) && {
-            providerOptions: {
-              google: {
-                thinkingConfig: {
-                  includeThoughts: true,
-                },
-              },
-            },
-          }),
-        // Enable reasoning for OpenAI models
-        ...(args.provider === "openai" &&
-          isReasoningModel(args.provider, args.model) && {
-            providerOptions: {
-              openai: {
-                reasoning: true,
-              },
-            },
-          }),
+        ...providerOptions,
         onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
           // Store the finish data for later use after stream completes
           streamHandler.setFinishData({
@@ -143,11 +130,13 @@ export const streamResponse = action({
         },
       });
 
-      // Handle streaming
-      const supportsReasoning = isReasoningModel(args.provider, args.model);
+      const hasReasoningSupport = await isReasoningModelEnhanced(
+        args.provider,
+        args.model
+      );
 
       // Try full stream for reasoning models, fall back to text stream
-      if (supportsReasoning) {
+      if (hasReasoningSupport) {
         try {
           await streamHandler.processStream(result.fullStream, true);
         } catch (error) {
