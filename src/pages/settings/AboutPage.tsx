@@ -2,9 +2,22 @@ import { ArrowSquareOutIcon, GithubLogoIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  useUserSettings,
+  useUserSettingsMutations,
+} from "@/hooks/use-user-settings";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
 
 export default function AboutPage() {
+  const userSettings = useUserSettings();
+  const { updateUserSettings } = useUserSettingsMutations();
+
+  const handleAnonymizeToggle = async (checked: boolean) => {
+    await updateUserSettings({ anonymizeForDemo: checked });
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <Card>
@@ -94,6 +107,32 @@ export default function AboutPage() {
             <p className="text-sm text-muted-foreground">
               React, Vite, React Router, Convex, Vercel AI SDK, and Tailwind CSS
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-4 sm:pb-6">
+          <CardTitle className="text-lg sm:text-xl">Privacy</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label
+                htmlFor="anonymize-toggle"
+                className="text-base font-normal"
+              >
+                Anonymize User Data
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Blur your name, email, and avatar in the UI
+              </p>
+            </div>
+            <Switch
+              id="anonymize-toggle"
+              checked={userSettings?.anonymizeForDemo ?? false}
+              onCheckedChange={handleAnonymizeToggle}
+            />
           </div>
         </CardContent>
       </Card>

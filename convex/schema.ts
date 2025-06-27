@@ -209,6 +209,7 @@ export default defineSchema({
         v.literal("latency")
       )
     ), // OpenRouter provider sorting preference
+    anonymizeForDemo: v.optional(v.boolean()), // Blur user info for video demos
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
