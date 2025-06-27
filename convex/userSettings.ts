@@ -21,12 +21,14 @@ export const getUserSettings = query({
       return {
         personasEnabled: true, // Default to enabled
         openRouterSorting: "default" as const, // Default to OpenRouter's load balancing
+        anonymizeForDemo: false, // Default to disabled
       };
     }
 
     return {
       personasEnabled: settings.personasEnabled ?? true, // Default to enabled if null/undefined
       openRouterSorting: settings.openRouterSorting ?? ("default" as const), // Default to load balancing
+      anonymizeForDemo: settings.anonymizeForDemo ?? false, // Default to disabled
     };
   },
 });
@@ -42,6 +44,7 @@ export const updateUserSettings = mutation({
         v.literal("latency")
       )
     ),
+    anonymizeForDemo: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getCurrentUserId(ctx);
@@ -65,6 +68,9 @@ export const updateUserSettings = mutation({
         ...(args.openRouterSorting !== undefined && {
           openRouterSorting: args.openRouterSorting,
         }),
+        ...(args.anonymizeForDemo !== undefined && {
+          anonymizeForDemo: args.anonymizeForDemo,
+        }),
         updatedAt: now,
       });
     } else {
@@ -73,6 +79,7 @@ export const updateUserSettings = mutation({
         userId,
         personasEnabled: args.personasEnabled ?? true,
         openRouterSorting: args.openRouterSorting ?? "default",
+        anonymizeForDemo: args.anonymizeForDemo ?? false,
         createdAt: now,
         updatedAt: now,
       });

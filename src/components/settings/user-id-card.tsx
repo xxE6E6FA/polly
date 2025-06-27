@@ -12,7 +12,8 @@ import { useQuery } from "convex/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/hooks/use-user";
-import { resizeGoogleImageUrl } from "@/lib/utils";
+import { useUserSettings } from "@/hooks/use-user-settings";
+import { cn, resizeGoogleImageUrl } from "@/lib/utils";
 
 import { api } from "../../../convex/_generated/api";
 
@@ -30,11 +31,14 @@ function getInitials(name?: string | null) {
 
 export const UserIdCard = () => {
   const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
+  const userSettings = useUserSettings();
 
   const userStats = useQuery(
     api.users.getUserStats,
     user && !user.isAnonymous ? { userId: user._id } : "skip"
   );
+
+  const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
   if (!user || user.isAnonymous) {
     return null;
@@ -76,7 +80,7 @@ export const UserIdCard = () => {
 
             {/* Avatar - centered - hidden on mobile */}
             <div className="mb-3 hidden justify-center lg:flex">
-              <div className="relative">
+              <div className={cn("relative", shouldAnonymize && "blur-lg")}>
                 <Avatar className="h-36 w-36 ring-2 ring-border">
                   <AvatarImage
                     alt={user.name || "User"}
@@ -91,10 +95,20 @@ export const UserIdCard = () => {
 
             {/* User info - centered - hidden on mobile */}
             <div className="mb-4 hidden space-y-1 text-center lg:block">
-              <h2 className="truncate text-base font-bold text-foreground">
+              <h2
+                className={cn(
+                  "truncate text-base font-bold text-foreground",
+                  shouldAnonymize && "blur-md"
+                )}
+              >
                 {user.name || "Unnamed User"}
               </h2>
-              <p className="truncate text-xs text-muted-foreground">
+              <p
+                className={cn(
+                  "truncate text-xs text-muted-foreground",
+                  shouldAnonymize && "blur-md"
+                )}
+              >
                 {user.email}
               </p>
               <div className="flex items-center justify-center space-x-1 text-muted-foreground">
