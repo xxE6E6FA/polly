@@ -12,6 +12,7 @@ export const ROUTES = {
     PERSONAS: "/settings/personas",
     PERSONAS_NEW: "/settings/personas/new",
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,
+    SHARED_CONVERSATIONS: "/settings/shared-conversations",
     ABOUT: "/settings/about",
   },
   NOT_FOUND: "/404",
