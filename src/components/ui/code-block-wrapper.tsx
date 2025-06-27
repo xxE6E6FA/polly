@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 
 import { type LLMOutputComponent } from "@llm-ui/react";
 
+import { extractFirstCodeBlock } from "./nested-code-block-parser";
+
 const CodeBlock = lazy(() =>
   import("./code-block").then(m => ({ default: m.CodeBlock }))
 );
@@ -48,14 +50,27 @@ export const CodeBlockWrapper = (props: CodeBlockWrapperProps) => {
 
 // LLM output component for streaming markdown
 export const CodeBlockWrapperLLM: LLMOutputComponent = ({ blockMatch }) => {
-  // Extract language from the first line if it's a markdown code block
+  // Use our custom parser to handle nested code blocks properly
+  const codeBlock = extractFirstCodeBlock(blockMatch.output);
+
+  if (codeBlock) {
+    return (
+      <CodeBlockWrapper
+        className="my-4"
+        code={codeBlock.code}
+        language={codeBlock.language || "text"}
+      />
+    );
+  }
+
+  // Fallback to old logic if custom parser fails
   const lines = blockMatch.output.split("\n");
   const firstLine = lines[0];
   const language = firstLine.startsWith("```")
     ? firstLine.slice(3).trim()
     : "text";
 
-  // Get the actual code content (remove ``` markers)
+  // Simple extraction as fallback
   const code = lines.slice(1, -1).join("\n");
 
   return <CodeBlockWrapper className="my-4" code={code} language={language} />;
