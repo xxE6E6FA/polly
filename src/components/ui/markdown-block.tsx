@@ -3,6 +3,10 @@ import React, { useMemo } from "react";
 import { type LLMOutputComponent } from "@llm-ui/react";
 import Markdown from "markdown-to-jsx";
 
+import { generateHeadingId } from "@/lib/utils";
+
+import { useMessageId } from "./streaming-markdown";
+
 // Common numeric HTML entities that might appear during streaming
 const NUMERIC_ENTITIES = {
   "#32": " ", // Space
@@ -33,11 +37,31 @@ function bufferIncompleteEntities(text: string): string {
 // Markdown component for llm-ui - simplified to match their examples
 export const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => {
   const markdown = blockMatch.output;
+  const messageId = useMessageId();
 
   // Buffer incomplete HTML entities during streaming
   const processedMarkdown = useMemo(() => {
     return bufferIncompleteEntities(markdown);
   }, [markdown]);
+
+  // Create heading override functions
+  const createHeadingOverride = (level: 1 | 2 | 3 | 4 | 5 | 6) => ({
+    component: (props: React.ComponentPropsWithoutRef<"h1">) => {
+      const { children, ...rest } = props;
+      const textContent = React.Children.toArray(children)
+        .map(child => (typeof child === "string" ? child : ""))
+        .join("");
+
+      const id = messageId ? generateHeadingId(textContent, messageId) : "";
+      const HeadingTag = `h${level}` as const;
+
+      return (
+        <HeadingTag {...rest} id={id}>
+          {children}
+        </HeadingTag>
+      );
+    },
+  });
 
   return (
     <div className="prose prose-base max-w-none dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
@@ -51,6 +75,13 @@ export const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => {
           // Handle numeric entities that might appear during streaming
           namedCodesToUnicode: NUMERIC_ENTITIES,
           overrides: {
+            // Add heading overrides to include IDs
+            h1: createHeadingOverride(1),
+            h2: createHeadingOverride(2),
+            h3: createHeadingOverride(3),
+            h4: createHeadingOverride(4),
+            h5: createHeadingOverride(5),
+            h6: createHeadingOverride(6),
             // Basic overrides for consistent styling
             code: {
               component: ({

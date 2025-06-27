@@ -45,3 +45,12 @@ export function resizeGoogleImageUrl(url: string, size: number): string {
   // If no equals sign, append the size parameter
   return `${url}=s${size}-c`;
 }
+
+export function generateHeadingId(text: string, messageId: string): string {
+  const cleanedText = text
+    .toLowerCase()
+    .replace(/[^\da-z]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${messageId}-heading-${cleanedText}`;
+}
