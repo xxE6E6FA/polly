@@ -8,16 +8,16 @@ import {
   useState,
 } from "react";
 
-import {
-  codeBlockLookBack,
-  findCompleteCodeBlock,
-  findPartialCodeBlock,
-} from "@llm-ui/code";
 import { markdownLookBack } from "@llm-ui/markdown";
 import { throttleBasic, useLLMOutput } from "@llm-ui/react";
 
 import { CodeBlockWrapperLLM } from "./code-block-wrapper";
 import { MarkdownBlock } from "./markdown-block";
+import {
+  findCompleteNestedCodeBlock,
+  findPartialNestedCodeBlock,
+  nestedCodeBlockLookBack,
+} from "./nested-code-block-parser";
 
 // Context for passing messageId to child components
 const MessageContext = createContext<string | undefined>(undefined);
@@ -53,9 +53,9 @@ const StreamingMarkdownInner = ({
       blocks: [
         {
           component: CodeBlockWrapperLLM,
-          findCompleteMatch: findCompleteCodeBlock(),
-          findPartialMatch: findPartialCodeBlock(),
-          lookBack: codeBlockLookBack(),
+          findCompleteMatch: findCompleteNestedCodeBlock(),
+          findPartialMatch: findPartialNestedCodeBlock(),
+          lookBack: nestedCodeBlockLookBack(),
         },
       ],
     }),
