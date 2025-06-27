@@ -114,3 +114,46 @@ export type FinishData = {
   reasoning: string | null | undefined;
   providerMetadata: ProviderMetadata | undefined;
 };
+
+// Reasoning configuration types
+
+export type OpenAIReasoningConfig = {
+  reasoning: boolean;
+};
+
+export type GoogleReasoningConfig = {
+  thinkingConfig: {
+    includeThoughts: boolean;
+  };
+};
+
+export type AnthropicReasoningConfig = {
+  thinking: {
+    type: "enabled";
+    budget_tokens: number;
+  };
+};
+
+export type OpenRouterReasoningConfig = {
+  reasoning: {
+    effort: "low" | "medium" | "high";
+    max_tokens?: number;
+  };
+};
+
+export type ReasoningEffortLevel = "low" | "medium" | "high";
+
+export type ReasoningConfig = {
+  enabled: boolean;
+  effort?: ReasoningEffortLevel;
+  maxTokens?: number;
+};
+
+// Provider stream options types
+
+export type ProviderStreamOptions =
+  | Record<string, never> // Empty object for non-reasoning models
+  | { openai: { reasoning: boolean } }
+  | { google: { thinkingConfig: { includeThoughts: boolean } } }
+  | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
+  | { extraBody: { reasoning: { effort: string; max_tokens?: number } } };

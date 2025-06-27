@@ -26,6 +26,7 @@ import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { type AIModel, type Attachment } from "@/types";
+import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
@@ -35,7 +36,8 @@ type ChatInputProps = {
     content: string,
     attachments?: Attachment[],
     useWebSearch?: boolean,
-    personaId?: Id<"personas"> | null
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig
   ) => void;
   onSendMessageToNewConversation?: (
     content: string,
@@ -141,10 +143,17 @@ export const ChatInput = React.memo(
         content: string,
         attachments?: Attachment[],
         useWebSearch?: boolean,
-        personaId?: Id<"personas"> | null
+        personaId?: Id<"personas"> | null,
+        reasoningConfig?: ReasoningConfig
       ) => {
         if (props.conversationId && props.onSendMessage) {
-          props.onSendMessage(content, attachments, useWebSearch, personaId);
+          props.onSendMessage(
+            content,
+            attachments,
+            useWebSearch,
+            personaId,
+            reasoningConfig
+          );
           // Refocus the textarea after sending message in existing conversation
           setTimeout(() => {
             textareaRef.current?.focus();
@@ -157,6 +166,7 @@ export const ChatInput = React.memo(
             attachments,
             useWebSearch,
             generateTitle: true,
+            // TODO: Add reasoningConfig support for new conversations
           });
           if (conversationId) {
             navigate(ROUTES.CHAT_CONVERSATION(conversationId));

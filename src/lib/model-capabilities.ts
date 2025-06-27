@@ -108,6 +108,18 @@ export function hasReasoningCapabilities(
   return checkModelPatterns(model.modelId, patterns);
 }
 
+// Models that always have reasoning enabled and cannot disable it
+const MANDATORY_REASONING_PATTERNS = ["o1-", "o3-", "deepseek-r1"];
+
+export function hasMandatoryReasoning(model?: ModelForCapabilities): boolean {
+  if (!model) return false;
+
+  const modelId = model.modelId.toLowerCase();
+  return MANDATORY_REASONING_PATTERNS.some(pattern =>
+    modelId.includes(pattern.toLowerCase())
+  );
+}
+
 export function hasImageUploadCapabilities(
   model?: ModelForCapabilities
 ): boolean {

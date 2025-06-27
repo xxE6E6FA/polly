@@ -4,7 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type LanguageModel } from "ai";
 
-import { type ProviderType } from "./types";
+import { type ProviderType, type ProviderStreamOptions } from "./types";
 import { applyOpenRouterSorting } from "./utils";
 import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
@@ -91,8 +91,10 @@ export const createLanguageModel = async (
 
 export const getProviderStreamOptions = async (
   provider: ProviderType,
-  model: string
-): Promise<Record<string, unknown>> => {
+  model: string,
+  enableWebSearch?: boolean,
+  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number }
+): Promise<ProviderStreamOptions> => {
   // Check reasoning support with enhanced detection
   const supportsReasoning = await isReasoningModelEnhanced(provider, model);
 
@@ -103,10 +105,8 @@ export const getProviderStreamOptions = async (
   // OpenAI reasoning configuration
   if (provider === "openai") {
     return {
-      providerOptions: {
-        openai: {
-          reasoning: true,
-        },
+      openai: {
+        reasoning: true,
       },
     };
   }
@@ -114,22 +114,50 @@ export const getProviderStreamOptions = async (
   // Google thinking configuration for reasoning models
   if (provider === "google") {
     return {
-      providerOptions: {
-        google: {
-          thinkingConfig: {
-            includeThoughts: true,
-          },
+      google: {
+        thinkingConfig: {
+          includeThoughts: true,
         },
       },
     };
   }
 
+  // Anthropic extended thinking configuration
+  if (provider === "anthropic") {
+    // Map effort levels to token budgets
+    const budgetMap = {
+      low: 5000,
+      medium: 10000,
+      high: 20000,
+    };
+
+    const budgetTokens =
+      reasoningConfig?.maxTokens ??
+      budgetMap[reasoningConfig?.effort ?? "medium"];
+
+    const config = {
+      anthropic: {
+        thinking: {
+          type: "enabled" as const,
+          budgetTokens: budgetTokens,
+        },
+      },
+    };
+
+    return config;
+  }
+
   // OpenRouter reasoning configuration
   if (provider === "openrouter") {
+    const effort = reasoningConfig?.effort ?? "medium";
+
     return {
       extraBody: {
         reasoning: {
-          effort: "medium", // Can be "low", "medium", or "high"
+          effort,
+          ...(reasoningConfig?.maxTokens && {
+            max_tokens: reasoningConfig.maxTokens,
+          }),
         },
       },
     };

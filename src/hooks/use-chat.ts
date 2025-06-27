@@ -9,6 +9,7 @@ import {
   type ChatMessage,
   type ConversationId,
 } from "@/types";
+import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { useChatMessages } from "./use-chat-messages";
 import { useCreateConversation } from "./use-conversations";
@@ -139,7 +140,8 @@ export function useChat({
       attachments?: Attachment[],
       useWebSearch?: boolean,
       personaPrompt?: string | null,
-      personaId?: Id<"personas"> | null
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig
     ) => {
       if (!content.trim() && !attachments?.length) {
         return;
@@ -195,6 +197,12 @@ export function useChat({
               useWebSearch,
               model: selectedModel.modelId,
               provider: selectedModel.provider,
+              reasoningConfig: reasoningConfig
+                ? {
+                    effort: reasoningConfig.effort,
+                    maxTokens: reasoningConfig.maxTokens,
+                  }
+                : undefined,
             })
           );
         } else {

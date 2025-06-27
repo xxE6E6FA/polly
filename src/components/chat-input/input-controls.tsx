@@ -10,6 +10,10 @@ import { PaperclipIcon } from "@phosphor-icons/react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { PersonaPicker } from "@/components/persona-picker";
+import {
+  type ReasoningConfig,
+  ReasoningConfigSelect,
+} from "@/components/reasoning-config-select";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -49,7 +53,8 @@ type InputControlsProps = {
     content: string,
     attachments?: Attachment[],
     useWebSearch?: boolean,
-    personaId?: Id<"personas"> | null
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig
   ) => void;
   onSendAsNewConversation?: (navigate: boolean) => void;
   onInputStart?: () => void;
@@ -89,6 +94,10 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
     const [webSearchEnabled, setWebSearchEnabled] = useState(false);
     const [selectedPersonaId, setSelectedPersonaId] =
       useState<Id<"personas"> | null>(null);
+    const [reasoningConfig, setReasoningConfig] = useState<ReasoningConfig>({
+      enabled: false,
+      effort: "medium",
+    });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     // User settings for persona functionality
@@ -121,7 +130,8 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
         messageContent,
         binaryAttachments.length > 0 ? binaryAttachments : undefined,
         webSearchEnabled,
-        selectedPersonaId
+        selectedPersonaId,
+        reasoningConfig.enabled ? reasoningConfig : undefined
       );
 
       clearInput();
@@ -144,6 +154,7 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       clearAttachments,
       clearInput,
       selectedPersonaId,
+      reasoningConfig,
     ]);
 
     // Expose handleSubmit via ref
@@ -196,6 +207,14 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
                   onToggle={setWebSearchEnabled}
                 />
               )}
+
+            {canChat && selectedModel && (
+              <ReasoningConfigSelect
+                model={selectedModel}
+                config={reasoningConfig}
+                onConfigChange={setReasoningConfig}
+              />
+            )}
           </div>
 
           {/* Right side controls */}

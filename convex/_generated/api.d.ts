@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai_anthropic_native from "../ai/anthropic_native.js";
 import type * as ai_citations from "../ai/citations.js";
 import type * as ai_config from "../ai/config.js";
 import type * as ai_encryption from "../ai/encryption.js";
@@ -57,6 +58,7 @@ import type * as users from "../users.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "ai/anthropic_native": typeof ai_anthropic_native;
   "ai/citations": typeof ai_citations;
   "ai/config": typeof ai_config;
   "ai/encryption": typeof ai_encryption;

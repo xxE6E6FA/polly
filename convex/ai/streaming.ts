@@ -27,6 +27,10 @@ export class StreamHandler {
     private messageId: Id<"messages">
   ) {}
 
+  get messageIdValue() {
+    return this.messageId;
+  }
+
   setAbortController(abortController: AbortController) {
     this.abortController = abortController;
   }
@@ -50,7 +54,7 @@ export class StreamHandler {
     }
   }
 
-  async checkIfStopped(): Promise<boolean> {
+  public async checkIfStopped(): Promise<boolean> {
     // First check if message was deleted
     if (this.messageDeleted) {
       return true;
@@ -132,7 +136,7 @@ export class StreamHandler {
     });
   }
 
-  async appendToBuffer(text: string): Promise<void> {
+  public async appendToBuffer(text: string): Promise<void> {
     // If message is deleted or we already have finish data, don't append more chunks
     if (this.messageDeleted || this.hasFinishData()) {
       return;
@@ -190,7 +194,7 @@ export class StreamHandler {
     });
   }
 
-  setFinishData(data: FinishData) {
+  public setFinishData(data: FinishData) {
     this.finishData = data;
   }
 
@@ -288,7 +292,7 @@ export class StreamHandler {
     await clearConversationStreaming(this.ctx, this.messageId);
   }
 
-  async handleStop(): Promise<void> {
+  public async handleStop(): Promise<void> {
     if (this.messageDeleted) {
       return;
     }
@@ -390,7 +394,7 @@ export class StreamHandler {
 
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
-    } else if (part.type === "reasoning") {
+    } else if (part.type === "reasoning" || part.type === "thinking_delta") {
       // Check if we should stop before processing reasoning
       if (await this.checkIfStopped()) {
         if (this.messageDeleted) {
@@ -429,7 +433,7 @@ export class StreamHandler {
     }
   }
 
-  async finishProcessing(): Promise<void> {
+  public async finishProcessing(): Promise<void> {
     if (this.messageDeleted) {
       return;
     }
