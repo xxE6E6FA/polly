@@ -1,11 +1,12 @@
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 
 import { useQuery } from "convex/react";
 
-import { ChatMessage } from "@/components/chat-message";
-import { ContextMessage } from "@/components/context-message";
+import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
+import { ROUTES } from "@/lib/routes";
 
 import { api } from "../../convex/_generated/api";
 
@@ -31,7 +32,7 @@ export default function SharedConversationRoute() {
     return <NotFoundPage />;
   }
 
-  const { conversation, messages, sharedAt } = sharedData;
+  const { conversation, messages } = sharedData;
 
   // Transform messages to match ChatMessage type and filter out sensitive data
   const chatMessages = messages.map(msg => ({
@@ -41,82 +42,92 @@ export default function SharedConversationRoute() {
     reasoning: undefined, // Remove reasoning for shared conversations
     model: msg.model,
     provider: msg.provider,
-    parentId: msg.parentId,
+    parentId: msg.parentId || undefined,
     isMainBranch: msg.isMainBranch,
-    sourceConversationId: msg.sourceConversationId,
-    useWebSearch: msg.useWebSearch,
+    sourceConversationId: msg.sourceConversationId || undefined,
+    useWebSearch: msg.useWebSearch || false,
     attachments: undefined, // Remove attachments for privacy
     createdAt: msg._creationTime,
+    metadata: msg.metadata || undefined,
+    citations: msg.citations || undefined,
   }));
+
+  // Add a notification as a context message - these are shown at the top and scroll with content
+  const notificationMessage = {
+    id: "shared-notification",
+    role: "context" as const,
+    content: "This is a shared copy of a conversation from Polly",
+    isMainBranch: true,
+    createdAt: 0,
+    sourceConversationId: undefined,
+  };
+
+  // Combine notification with messages
+  const allMessages = [notificationMessage, ...chatMessages];
 
   // Render the shared conversation view with minimal UI
   return (
     <div className="flex h-screen w-full flex-col bg-background">
-      {/* Minimal header for shared conversations */}
+      {/* Header with branding */}
       <div className="border-b bg-muted/30">
-        <div className="mx-auto max-w-3xl px-4 sm:px-8">
-          <div className="flex h-14 items-center justify-between">
-            <div className="flex flex-col gap-0.5">
-              <h1 className="text-sm font-medium text-foreground">
+        <div className="mx-auto max-w-5xl px-4 sm:px-8">
+          <div className="flex h-16 items-center justify-between">
+            {/* Left side - Polly branding and conversation title */}
+            <div className="flex items-center gap-3">
+              {/* Polly logo */}
+              <Link to={ROUTES.HOME} className="flex items-center gap-2">
+                <img
+                  src="/polly-mascot.png"
+                  alt="Polly"
+                  className="h-9 w-9 rounded-lg object-contain"
+                />
+                <span className="hidden text-lg font-semibold text-foreground sm:inline">
+                  Polly
+                </span>
+              </Link>
+
+              {/* Separator */}
+              <div className="h-5 w-px bg-border" />
+
+              {/* Conversation title */}
+              <h1 className="truncate text-sm font-medium text-foreground">
                 {conversation.title || "Shared Conversation"}
               </h1>
-              <span className="text-xs text-muted-foreground">
-                Shared on {new Date(sharedAt).toLocaleDateString()}
-              </span>
             </div>
-            <ThemeToggle />
+
+            {/* Right side - Actions */}
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button asChild size="sm" variant="primary">
+                <Link to={ROUTES.HOME}>Try the app</Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Messages container */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 pb-32 sm:p-8">
-          <div className="mx-auto max-w-3xl space-y-2 sm:space-y-3">
-            {chatMessages
-              .filter(message => {
-                if (message.role === "system") {
-                  return false;
-                }
-                if (message.role === "assistant") {
-                  return message.content || message.reasoning;
-                }
-                return true;
-              })
-              .sort((a, b) => {
-                if (a.role === "context" && b.role !== "context") {
-                  return -1;
-                }
-                if (b.role === "context" && a.role !== "context") {
-                  return 1;
-                }
-                return 0;
-              })
-              .map(message => (
-                <div key={message.id} id={message.id}>
-                  {message.role === "context" ? (
-                    <ContextMessage message={message} />
-                  ) : (
-                    <ChatMessage
-                      message={message}
-                      onDeleteMessage={undefined}
-                      onRetryMessage={undefined}
-                      isStreaming={false}
-                      // Pass undefined for all actions to hide buttons
-                      onEditMessage={undefined}
-                    />
-                  )}
-                </div>
-              ))}
+      <div className="flex-1 overflow-hidden">
+        {chatMessages.length === 0 ? (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-muted-foreground">
+              No messages in this conversation
+            </p>
           </div>
-        </div>
-      </div>
-
-      {/* Footer notice */}
-      <div className="border-t bg-muted/30 p-4">
-        <p className="text-center text-xs text-muted-foreground">
-          This is a read-only view of a shared conversation
-        </p>
+        ) : (
+          <div className="h-full">
+            <VirtualizedChatMessages
+              messages={allMessages}
+              isStreaming={false}
+              onEditMessage={undefined}
+              onRetryUserMessage={undefined}
+              onRetryAssistantMessage={undefined}
+              onDeleteMessage={undefined}
+              scrollElement={null}
+              shouldScrollToBottom={false}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
