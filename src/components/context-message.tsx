@@ -17,6 +17,18 @@ export const ContextMessage = ({ message, className }: ContextMessageProps) => {
     return null;
   }
 
+  // Special handling for shared conversation notification
+  if (message.id === "shared-notification") {
+    return (
+      <div className={cn("w-full px-6 py-8 text-center", className)}>
+        <p className="text-sm text-muted-foreground mb-1">{message.content}</p>
+        <Link to={ROUTES.HOME} className="text-sm text-primary hover:underline">
+          Start your own conversation →
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
