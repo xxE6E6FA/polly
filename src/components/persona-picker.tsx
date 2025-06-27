@@ -18,11 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useUser } from "@/hooks/use-user";
 import { cn } from "@/lib/utils";
 
@@ -114,33 +110,24 @@ export const PersonaPicker = ({
           />
         )}
 
-        <Popover open={open} onOpenChange={setOpen}>
-          {tooltip && !open ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                {typeof tooltip === "string" ? <p>{tooltip}</p> : tooltip}
-              </TooltipContent>
-            </Tooltip>
-          ) : (
+        <TooltipWrapper content={tooltip} open={!open}>
+          <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-          )}
-          <PopoverContent
-            avoidCollisions
-            className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
-            collisionPadding={16}
-            side="top"
-            sideOffset={4}
-          >
-            <PersonaList
-              currentPersona={currentPersona}
-              personas={availablePersonas}
-              onPersonaSelect={handlePersonaSelect}
-            />
-          </PopoverContent>
-        </Popover>
+            <PopoverContent
+              avoidCollisions
+              className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+              collisionPadding={16}
+              side="top"
+              sideOffset={4}
+            >
+              <PersonaList
+                currentPersona={currentPersona}
+                personas={availablePersonas}
+                onPersonaSelect={handlePersonaSelect}
+              />
+            </PopoverContent>
+          </Popover>
+        </TooltipWrapper>
       </>
     );
   }
@@ -207,33 +194,24 @@ export const PersonaPicker = ({
         />
       )}
 
-      <Popover open={open} onOpenChange={setOpen}>
-        {tooltip && !open ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-            </TooltipTrigger>
-            <TooltipContent>
-              {typeof tooltip === "string" ? <p>{tooltip}</p> : tooltip}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
+      <TooltipWrapper content={tooltip} open={!open}>
+        <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-        )}
-        <PopoverContent
-          avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
-          collisionPadding={16}
-          side="top"
-          sideOffset={4}
-        >
-          <PersonaList
-            currentPersona={currentPersona}
-            personas={availablePersonas}
-            onPersonaSelect={handlePersonaSelect}
-          />
-        </PopoverContent>
-      </Popover>
+          <PopoverContent
+            avoidCollisions
+            className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+            collisionPadding={16}
+            side="top"
+            sideOffset={4}
+          >
+            <PersonaList
+              currentPersona={currentPersona}
+              personas={availablePersonas}
+              onPersonaSelect={handlePersonaSelect}
+            />
+          </PopoverContent>
+        </Popover>
+      </TooltipWrapper>
     </>
   );
 };

@@ -30,17 +30,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
-import {
-  getCapabilityColor,
-  getModelCapabilities,
-} from "@/lib/model-capabilities";
+import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { type AIModel } from "@/types";
@@ -133,20 +126,9 @@ const ModelItem = memo(
               capabilities.slice(0, 4).map((capability, index) => {
                 const IconComponent = capability.icon;
                 return (
-                  <Tooltip
+                  <TooltipWrapper
                     key={`${model.modelId}-${capability.label}-${index}`}
-                  >
-                    <TooltipTrigger asChild>
-                      <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                        <IconComponent
-                          className={cn(
-                            "w-3.5 h-3.5",
-                            getCapabilityColor(capability.label)
-                          )}
-                        />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
+                    content={
                       <div>
                         <div className="font-semibold text-foreground">
                           {capability.label}
@@ -155,8 +137,12 @@ const ModelItem = memo(
                           {capability.description}
                         </div>
                       </div>
-                    </TooltipContent>
-                  </Tooltip>
+                    }
+                  >
+                    <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                      <IconComponent className="h-3.5 w-3.5" />
+                    </div>
+                  </TooltipWrapper>
                 );
               })}
           </div>
@@ -346,27 +332,25 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   // Show initial setup message if no models are stored (signed-in users)
   if (userModelsByProvider?.length === 0) {
     return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            disabled
-            variant="ghost"
-            className={cn(
-              "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
-              className
-            )}
-          >
-            <div className="flex items-center gap-1.5">
-              <WarningIcon className="h-3.5 w-3.5 text-warning/50" />
-              <span className="font-medium">Configure models</span>
-              <CaretDownIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-            </div>
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Go to Settings → Models to load available models</p>
-        </TooltipContent>
-      </Tooltip>
+      <TooltipWrapper
+        content="Go to Settings → Models to load available models"
+        open
+      >
+        <Button
+          disabled
+          variant="ghost"
+          className={cn(
+            "h-auto px-2 py-1 text-xs font-medium text-muted-foreground/60 group disabled:opacity-60",
+            className
+          )}
+        >
+          <div className="flex items-center gap-1.5">
+            <WarningIcon className="h-3.5 w-3.5 text-warning/50" />
+            <span className="font-medium">Configure models</span>
+            <CaretDownIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+          </div>
+        </Button>
+      </TooltipWrapper>
     );
   }
 
@@ -421,7 +405,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
         </PopoverTrigger>
         <PopoverContent
           avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg backdrop-blur-sm data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
+          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
           collisionPadding={16}
           side="top"
           sideOffset={4}

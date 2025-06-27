@@ -6,17 +6,10 @@ import { useMutation, useQuery } from "convex/react";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useUser } from "@/hooks/use-user";
-import {
-  getCapabilityColor,
-  getModelCapabilities,
-} from "@/lib/model-capabilities";
+import { getModelCapabilities } from "@/lib/model-capabilities";
 
 import { api } from "../../convex/_generated/api";
 
@@ -117,55 +110,52 @@ const ModelCard = memo(
           {capabilities.map((capability, index) => {
             const IconComponent = capability.icon;
             return (
-              <Tooltip key={capability.label || `capability-${index}`}>
-                <TooltipTrigger>
-                  <div
-                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-                      isEnabled
-                        ? "border border-border/40 bg-background hover:bg-muted"
-                        : "bg-muted hover:bg-muted-foreground/10"
-                    }`}
-                  >
-                    <IconComponent
-                      className={`h-3 w-3 ${getCapabilityColor(capability.label)}`}
-                    />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
+              <TooltipWrapper
+                key={capability.label || `capability-${index}`}
+                content={
                   <div className="text-center">
                     <p className="text-xs font-medium">{capability.label}</p>
                     <p className="text-xs text-muted-foreground">
                       {capability.description}
                     </p>
                   </div>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-          {(model.contextLength || model.contextWindow) && (
-            <Tooltip>
-              <TooltipTrigger>
+                }
+              >
                 <div
-                  className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
+                  className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
                     isEnabled
                       ? "border border-border/40 bg-background hover:bg-muted"
                       : "bg-muted hover:bg-muted-foreground/10"
                   }`}
                 >
-                  <span className="text-muted-foreground">
-                    {contextDisplay.short}
-                  </span>
+                  <IconComponent className="h-3 w-3" />
                 </div>
-              </TooltipTrigger>
-              <TooltipContent>
+              </TooltipWrapper>
+            );
+          })}
+          {(model.contextLength || model.contextWindow) && (
+            <TooltipWrapper
+              content={
                 <div className="text-center">
                   <p className="text-xs font-medium">Context Window</p>
                   <p className="text-xs text-muted-foreground">
                     {contextDisplay.long}
                   </p>
                 </div>
-              </TooltipContent>
-            </Tooltip>
+              }
+            >
+              <div
+                className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
+                  isEnabled
+                    ? "border border-border/40 bg-background hover:bg-muted"
+                    : "bg-muted hover:bg-muted-foreground/10"
+                }`}
+              >
+                <span className="text-muted-foreground">
+                  {contextDisplay.short}
+                </span>
+              </div>
+            </TooltipWrapper>
           )}
         </div>
 
