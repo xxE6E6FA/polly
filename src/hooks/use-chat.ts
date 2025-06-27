@@ -165,24 +165,26 @@ export function useChat({
       try {
         // Create new conversation if needed
         if (!conversationId) {
-          const newConversationId = await createNewConversationWithResponse({
-            firstMessage: content,
-            sourceConversationId: undefined,
-            personaId,
-            userId: user?._id,
-            attachments,
-            useWebSearch,
-            personaPrompt,
-          });
-          if (!newConversationId) {
-            throw new Error("Failed to create conversation");
-          }
+          await withLoadingState(async () => {
+            const newConversationId = await createNewConversationWithResponse({
+              firstMessage: content,
+              sourceConversationId: undefined,
+              personaId,
+              userId: user?._id,
+              attachments,
+              useWebSearch,
+              personaPrompt,
+            });
+            if (!newConversationId) {
+              throw new Error("Failed to create conversation");
+            }
 
-          // For new conversations, navigate immediately - the Convex action handles the assistant response
-          if (onConversationCreate) {
-            onConversationCreate(newConversationId);
-            return;
-          }
+            // For new conversations, navigate immediately - the Convex action handles the assistant response
+            if (onConversationCreate) {
+              onConversationCreate(newConversationId);
+              return;
+            }
+          });
 
           return;
         }
@@ -271,33 +273,37 @@ export function useChat({
 
       try {
         // Use the new function that starts the assistant response immediately
-        const newConversationId = await createNewConversationWithResponse({
-          firstMessage: content,
-          sourceConversationId,
-          personaId,
-          userId: user?._id,
-          attachments,
-          useWebSearch: false, // Don't use web search for new conversations by default
-          personaPrompt,
-        });
-        if (!newConversationId) {
-          throw new Error("Failed to create conversation");
-        }
-
-        // Add context message if provided or if branching from another conversation
-        if (sourceConversationId) {
-          await addMessage({
-            conversationId: newConversationId,
-            role: "context",
-            content: contextSummary || "Branched from previous conversation",
+        const newConversationId = await withLoadingState(async () => {
+          const conversationId = await createNewConversationWithResponse({
+            firstMessage: content,
             sourceConversationId,
-            isMainBranch: true,
+            personaId,
+            userId: user?._id,
+            attachments,
+            useWebSearch: false, // Don't use web search for new conversations by default
+            personaPrompt,
           });
-        }
+          if (!conversationId) {
+            throw new Error("Failed to create conversation");
+          }
 
-        if (shouldNavigate && onConversationCreate) {
-          onConversationCreate(newConversationId);
-        }
+          // Add context message if provided or if branching from another conversation
+          if (sourceConversationId) {
+            await addMessage({
+              conversationId,
+              role: "context",
+              content: contextSummary || "Branched from previous conversation",
+              sourceConversationId,
+              isMainBranch: true,
+            });
+          }
+
+          if (shouldNavigate && onConversationCreate) {
+            onConversationCreate(conversationId);
+          }
+
+          return conversationId;
+        });
 
         return newConversationId;
       } catch (error) {
@@ -319,6 +325,7 @@ export function useChat({
       createNewConversationWithResponse,
       addMessage,
       onConversationCreate,
+      withLoadingState,
     ]
   );
 
@@ -572,11 +579,6 @@ export function useChat({
       return false;
     }
 
-    // If we've locally stopped generation, respect that immediately
-    if (!isGenerating) {
-      return false;
-    }
-
     // Check for any assistant message without a finish reason (active streaming)
     const streamingMessage = chatMessages.convexMessages?.find(
       msg =>
@@ -592,13 +594,9 @@ export function useChat({
     }
 
     // Fallback to conversation's isStreaming field for immediate feedback during start
+    // This covers the case where we're about to start streaming but no assistant message exists yet
     return Boolean(conversation?.isStreaming);
-  }, [
-    conversationId,
-    chatMessages.convexMessages,
-    conversation?.isStreaming,
-    isGenerating,
-  ]);
+  }, [conversationId, chatMessages.convexMessages, conversation?.isStreaming]);
 
   return {
     messages: chatMessages.messages,
