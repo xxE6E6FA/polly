@@ -455,6 +455,7 @@ export const createNewConversation = action({
       provider: selectedModel.provider,
       userId: actualUserId,
       temperature: 0.7,
+      maxTokens: 8192, // Generous default for conversations
       enableWebSearch: args.useWebSearch,
       webSearchMaxResults: 3,
     });
@@ -526,6 +527,14 @@ export const sendFollowUpMessage = action({
     useWebSearch: v.optional(v.boolean()),
     model: v.string(),
     provider: v.string(),
+    reasoningConfig: v.optional(
+      v.object({
+        effort: v.optional(
+          v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+        ),
+        maxTokens: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (
     ctx,
@@ -717,8 +726,10 @@ export const sendFollowUpMessage = action({
         provider: args.provider,
         userId: conversation.userId,
         temperature: 0.7,
+        maxTokens: 8192, // Generous default for conversations
         enableWebSearch: args.useWebSearch,
         webSearchMaxResults: 3,
+        reasoningConfig: args.reasoningConfig,
       });
 
       return {
@@ -955,6 +966,7 @@ export const retryFromMessage = action({
         provider: args.provider,
         userId: conversation.userId,
         temperature: 0.7,
+        maxTokens: 8192, // Generous default for conversations
         enableWebSearch: false, // Don't use web search for retries
         webSearchMaxResults: 3,
       });
@@ -1195,6 +1207,7 @@ export const editMessage = action({
         provider: args.provider,
         userId: conversation.userId,
         temperature: 0.7,
+        maxTokens: 8192, // Generous default for conversations
         enableWebSearch: false, // Don't use web search for edits
         webSearchMaxResults: 3,
       });
@@ -1370,6 +1383,7 @@ export const resumeConversation = action({
       provider: userModel.provider,
       userId,
       temperature: 0.7,
+      maxTokens: 8192, // Generous default for conversations
       enableWebSearch: lastMessage.useWebSearch || false,
       webSearchMaxResults: 3,
     });

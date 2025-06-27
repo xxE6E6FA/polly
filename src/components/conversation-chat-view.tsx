@@ -16,6 +16,7 @@ import {
   type ChatMessage as ChatMessageType,
   type ConversationId,
 } from "@/types";
+import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { ChatHeader } from "./chat-header";
 import { ChatInput, type ChatInputRef } from "./chat-input";
@@ -38,7 +39,8 @@ type ConversationChatViewProps = {
     content: string,
     attachments?: Attachment[],
     useWebSearch?: boolean,
-    personaId?: Id<"personas"> | null
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig
   ) => void;
   onSendMessageToNewConversation?: (
     content: string,
@@ -307,13 +309,20 @@ export const ConversationChatView = ({
       content: string,
       attachments?: Attachment[],
       useWebSearch?: boolean,
-      personaId?: Id<"personas"> | null
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig
     ) => {
       if (!hasApiKeys) {
         return;
       }
 
-      onSendMessage(content, attachments, useWebSearch, personaId);
+      onSendMessage(
+        content,
+        attachments,
+        useWebSearch,
+        personaId,
+        reasoningConfig
+      );
 
       setTimeout(() => {
         chatInputRef.current?.focus();

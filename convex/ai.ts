@@ -15,6 +15,7 @@ import {
 import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
 import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
 import { StreamHandler } from "./ai/streaming";
+import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import {
   type Citation,
   type ProviderType,
@@ -69,6 +70,14 @@ export const streamResponse = action({
     presencePenalty: v.optional(v.number()),
     enableWebSearch: v.optional(v.boolean()),
     webSearchMaxResults: v.optional(v.number()),
+    reasoningConfig: v.optional(
+      v.object({
+        effort: v.optional(
+          v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+        ),
+        maxTokens: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     let abortController: AbortController | undefined;
@@ -81,6 +90,37 @@ export const streamResponse = action({
         args.provider as ProviderType,
         args.userId
       );
+
+      // Check if we should use native Anthropic handler for reasoning
+      if (args.provider === "anthropic") {
+        const hasReasoningSupport = await isReasoningModelEnhanced(
+          args.provider,
+          args.model
+        );
+
+        if (hasReasoningSupport) {
+          // Use native Anthropic handler for reasoning models
+          const anthropicHandler = new AnthropicNativeHandler(
+            ctx,
+            apiKey,
+            args.messageId
+          );
+
+          abortController = new AbortController();
+          anthropicHandler.setAbortController(abortController);
+
+          await anthropicHandler.streamResponse({
+            messages: args.messages as StreamMessage[],
+            model: args.model,
+            temperature: args.temperature,
+            maxTokens: args.maxTokens,
+            topP: args.topP,
+            reasoningConfig: args.reasoningConfig,
+          });
+
+          return;
+        }
+      }
 
       // Convert messages to AI SDK format
       const messages = await convertMessages(
@@ -105,7 +145,9 @@ export const streamResponse = action({
 
       const providerOptions = await getProviderStreamOptions(
         args.provider as ProviderType,
-        args.model
+        args.model,
+        args.enableWebSearch,
+        args.reasoningConfig
       );
 
       // Stream the response
@@ -113,12 +155,12 @@ export const streamResponse = action({
         model,
         messages,
         temperature: args.temperature,
-        maxTokens: args.maxTokens,
+        maxTokens: args.maxTokens || 8192, // Higher default for better responses
         topP: args.topP,
         frequencyPenalty: args.frequencyPenalty,
         presencePenalty: args.presencePenalty,
         abortSignal: abortController.signal,
-        ...providerOptions,
+        providerOptions,
         onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
           // Store the finish data for later use after stream completes
           streamHandler.setFinishData({

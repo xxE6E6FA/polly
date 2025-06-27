@@ -74,8 +74,9 @@ export const CAPABILITY_PATTERNS = {
       excludes: [],
     },
     anthropic: {
-      // Some Anthropic models support reasoning
-      includes: ["claude-opus-4", "claude-sonnet-4", "claude-3-7-sonnet"],
+      // Anthropic models with extended thinking support
+      // Based on official documentation: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
+      includes: ["opus-4", "sonnet-4", "3-7"],
       excludes: [],
     },
   },
