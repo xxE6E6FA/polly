@@ -264,25 +264,6 @@ export type ModelCapability = {
   description: string;
 };
 
-export const getCapabilityColor = (capabilityLabel: string) => {
-  switch (capabilityLabel) {
-    case "Advanced Reasoning":
-      return "text-accent-purple";
-    case "Vision":
-      return "text-accent-blue";
-    case "Tools":
-      return "text-accent-emerald";
-    case "Fast":
-      return "text-accent-yellow";
-    case "Coding":
-      return "text-accent-emerald";
-    case "Latest":
-      return "text-accent-orange";
-    default:
-      return "text-accent-blue";
-  }
-};
-
 type ModelForCapabilities = {
   modelId: string;
   name: string;
