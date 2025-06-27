@@ -30,6 +30,7 @@ export const ConversationListContent = ({
   const groupedConversations = useMemo(() => {
     if (!conversations) {
       return {
+        pinned: [],
         today: [],
         yesterday: [],
         lastWeek: [],
@@ -48,6 +49,7 @@ export const ConversationListContent = ({
     lastMonth.setMonth(lastMonth.getMonth() - 1);
 
     const groups = {
+      pinned: [] as typeof conversations,
       today: [] as typeof conversations,
       yesterday: [] as typeof conversations,
       lastWeek: [] as typeof conversations,
@@ -55,13 +57,25 @@ export const ConversationListContent = ({
       older: [] as typeof conversations,
     };
 
-    // Sort conversations by updatedAt (most recent first)
-    const sortedConversations = [...filteredConversations].sort(
+    // Separate pinned and unpinned conversations
+    const pinnedConversations = filteredConversations.filter(c => c.isPinned);
+    const unpinnedConversations = filteredConversations.filter(
+      c => !c.isPinned
+    );
+
+    // Sort pinned conversations by updatedAt (most recent first)
+    groups.pinned = [...pinnedConversations].sort(
       (a, b) =>
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
 
-    for (const conversation of sortedConversations) {
+    // Sort unpinned conversations by updatedAt (most recent first) and group them
+    const sortedUnpinnedConversations = [...unpinnedConversations].sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+
+    for (const conversation of sortedUnpinnedConversations) {
       const conversationDate = new Date(conversation.updatedAt);
       const conversationDay = new Date(
         conversationDate.getFullYear(),
@@ -73,15 +87,9 @@ export const ConversationListContent = ({
         groups.today.push(conversation);
       } else if (conversationDay.getTime() === yesterday.getTime()) {
         groups.yesterday.push(conversation);
-      } else if (
-        conversationDay.getTime() > yesterday.getTime() &&
-        conversationDay.getTime() <= lastWeek.getTime()
-      ) {
+      } else if (conversationDate.getTime() > lastWeek.getTime()) {
         groups.lastWeek.push(conversation);
-      } else if (
-        conversationDay.getTime() > lastWeek.getTime() &&
-        conversationDay.getTime() <= lastMonth.getTime()
-      ) {
+      } else if (conversationDate.getTime() > lastMonth.getTime()) {
         groups.lastMonth.push(conversation);
       } else {
         groups.older.push(conversation);
@@ -115,6 +123,18 @@ export const ConversationListContent = ({
 
   return (
     <div className="space-y-4 pb-4">
+      {groupedConversations.pinned.length > 0 && (
+        <ConversationGroup title="Pinned">
+          {groupedConversations.pinned.map(conversation => (
+            <ConversationItem
+              key={conversation._id}
+              conversation={conversation}
+              currentConversationId={currentConversationId}
+            />
+          ))}
+        </ConversationGroup>
+      )}
+
       {groupedConversations.today.length > 0 && (
         <ConversationGroup title="Today">
           {groupedConversations.today.map(conversation => (

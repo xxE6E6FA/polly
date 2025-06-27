@@ -48,6 +48,7 @@ export default defineSchema({
     personaId: v.optional(v.id("personas")), // Null means default persona
     sourceConversationId: v.optional(v.id("conversations")),
     isStreaming: v.optional(v.boolean()),
+    isPinned: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

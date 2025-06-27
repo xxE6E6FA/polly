@@ -50,7 +50,13 @@ export function setCachedConversations(conversations: Doc<"conversations">[]) {
 
   try {
     const sortedConversations = [...conversations]
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => {
+        // First, sort by pinned status
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        // Then sort by updatedAt
+        return b.updatedAt - a.updatedAt;
+      })
       .slice(0, MAX_CACHED_CONVERSATIONS);
 
     const cacheData: CachedData = {
@@ -91,7 +97,13 @@ export function updateCachedConversation(
 
     // Re-sort and trim
     const sortedConversations = updatedConversations
-      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .sort((a, b) => {
+        // First, sort by pinned status
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        // Then sort by updatedAt
+        return b.updatedAt - a.updatedAt;
+      })
       .slice(0, MAX_CACHED_CONVERSATIONS);
 
     const cacheData: CachedData = {
