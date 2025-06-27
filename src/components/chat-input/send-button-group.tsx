@@ -5,6 +5,7 @@ import {
   PaperPlaneTiltIcon,
   SquareIcon,
 } from "@phosphor-icons/react";
+import { useState } from "react";
 
 import {
   DropdownMenu,
@@ -12,11 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { cn } from "@/lib/utils";
 
 type SendButtonGroupProps = {
@@ -46,6 +43,8 @@ export const SendButtonGroup = ({
   hasApiKeys,
   hasEnabledModels,
 }: SendButtonGroupProps) => {
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const showDropdown =
     hasExistingMessages &&
     conversationId &&
@@ -57,37 +56,37 @@ export const SendButtonGroup = ({
     <div className="flex items-stretch">
       {/* Send as new conversation dropdown */}
       {showDropdown && (
-        <DropdownMenu>
-          <Tooltip delayDuration={500}>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  disabled={isLoading || isSummarizing}
-                  type="button"
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <TooltipWrapper
+            content="More send options"
+            open={!dropdownOpen}
+            side="left"
+            delayDuration={500}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                disabled={isLoading || isSummarizing}
+                type="button"
+                className={cn(
+                  "inline-flex items-center justify-center font-medium text-sm",
+                  "h-9 w-8 p-0 rounded-l-full",
+                  canSend
+                    ? "bg-primary hover:bg-primary/90 text-primary-foreground border border-r-0 border-primary shadow-md"
+                    : "bg-muted/30 text-muted-foreground border border-r-0 border-border/50",
+                  "transition-all duration-200",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                )}
+              >
+                <CaretDownIcon
                   className={cn(
-                    "inline-flex items-center justify-center font-medium text-sm",
-                    "h-9 w-8 p-0 rounded-l-full",
-                    canSend
-                      ? "bg-primary hover:bg-primary/90 text-primary-foreground border border-r-0 border-primary shadow-md"
-                      : "bg-muted/30 text-muted-foreground border border-r-0 border-border/50",
-                    "transition-all duration-200",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    "h-3 w-3",
+                    canSend ? "text-primary-foreground" : "text-current"
                   )}
-                >
-                  <CaretDownIcon
-                    className={cn(
-                      "h-3 w-3",
-                      canSend ? "text-primary-foreground" : "text-current"
-                    )}
-                  />
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="left" sideOffset={8}>
-              <p className="text-xs">More send options</p>
-            </TooltipContent>
-          </Tooltip>
+                />
+              </button>
+            </DropdownMenuTrigger>
+          </TooltipWrapper>
           <DropdownMenuContent
             align="end"
             sideOffset={8}
