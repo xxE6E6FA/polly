@@ -20,12 +20,14 @@ import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { ChatHeader } from "./chat-header";
 import { ChatInput, type ChatInputRef } from "./chat-input";
-import { ChatMessage } from "./chat-message";
 import { ChatOutline } from "./chat-outline";
 import { ChatZeroState } from "./chat-zero-state";
-import { ContextMessage } from "./context-message";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { QuoteButton } from "./ui/quote-button";
+import {
+  VirtualizedChatMessages,
+  type VirtualizedChatMessagesRef,
+} from "./virtualized-chat-messages";
 import { type Id } from "../../convex/_generated/dataModel";
 
 type ConversationChatViewProps = {
@@ -74,7 +76,7 @@ export const ConversationChatView = ({
   onStopGeneration,
 }: ConversationChatViewProps) => {
   // UI state and refs
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const virtualizedMessagesRef = useRef<VirtualizedChatMessagesRef>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
   const { selection, addQuoteToInput, lockSelection, unlockSelection } =
@@ -85,9 +87,6 @@ export const ConversationChatView = ({
     hideThreshold: 80,
   });
 
-  const [isScrolling, setIsScrolling] = useState(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Mouse-based header reveal state
   const [isMouseInHeaderArea, setIsMouseInHeaderArea] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -96,8 +95,7 @@ export const ConversationChatView = ({
   // Handle mouse movement for header reveal
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!headerRef.current || !scrollState.shouldHideHeader) {
-        // Only apply mouse logic when header is hidden
+      if (!headerRef.current) {
         return;
       }
 
@@ -110,15 +108,19 @@ export const ConversationChatView = ({
           clearTimeout(mouseLeaveTimeoutRef.current);
           mouseLeaveTimeoutRef.current = null;
         }
-        setIsMouseInHeaderArea(true);
-      } else if (
-        isMouseInHeaderArea && // Add a small delay before hiding to prevent flickering
-        !mouseLeaveTimeoutRef.current
-      ) {
-        mouseLeaveTimeoutRef.current = setTimeout(() => {
-          setIsMouseInHeaderArea(false);
-          mouseLeaveTimeoutRef.current = null;
-        }, 300);
+
+        // Only set mouse in header area if header is currently hidden
+        if (scrollState.shouldHideHeader && !isMouseInHeaderArea) {
+          setIsMouseInHeaderArea(true);
+        }
+      } else if (isMouseInHeaderArea) {
+        // Add a small delay before hiding to prevent flickering
+        if (!mouseLeaveTimeoutRef.current) {
+          mouseLeaveTimeoutRef.current = setTimeout(() => {
+            setIsMouseInHeaderArea(false);
+            mouseLeaveTimeoutRef.current = null;
+          }, 300);
+        }
       }
     },
     [scrollState.shouldHideHeader, isMouseInHeaderArea]
@@ -157,147 +159,124 @@ export const ConversationChatView = ({
     };
   }, [handleMouseMove, handleMouseLeave]);
 
-  const smoothScrollToMessage = useCallback(
-    (
-      messageId: string,
-      options?: {
-        behavior?: ScrollBehavior;
-        offset?: number;
-        duration?: number;
-      }
-    ) => {
-      const {
-        behavior = "smooth",
-        offset = 80,
-        duration = 600,
-      } = options || {};
-
-      setIsScrolling(true);
-
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-
-      const attemptScroll = () => {
-        const messageElement = document.getElementById(messageId);
-        const container = messagesContainerRef.current;
-
-        if (messageElement && container) {
-          const containerRect = container.getBoundingClientRect();
-          const messageRect = messageElement.getBoundingClientRect();
-
-          const containerTop = containerRect.top;
-          const messageTop = messageRect.top;
-          const currentScrollTop = container.scrollTop;
-
-          const targetScrollTop =
-            currentScrollTop + (messageTop - containerTop) - offset;
-
-          if (behavior === "smooth") {
-            container.scrollTo({
-              top: Math.max(0, targetScrollTop),
-              behavior: "smooth",
-            });
-
-            scrollTimeoutRef.current = setTimeout(() => {
-              setIsScrolling(false);
-            }, duration);
-          } else {
-            container.scrollTo({
-              top: Math.max(0, targetScrollTop),
-              behavior: "auto",
-            });
-            setIsScrolling(false);
-          }
-
-          return true;
-        }
-        return false;
-      };
-
-      if (!attemptScroll()) {
-        setTimeout(() => {
-          if (!attemptScroll()) {
-            const container = messagesContainerRef.current;
-            if (container) {
-              container.scrollTo({
-                top: container.scrollHeight,
-                behavior,
-              });
-              scrollTimeoutRef.current = setTimeout(() => {
-                setIsScrolling(false);
-              }, duration);
-            }
-          }
-        }, 10);
-      }
-    },
-    [setIsScrolling]
-  );
-
-  const dynamicBottomSpacing = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "pb-32";
+  // Set up scroll ref for virtualized container
+  useEffect(() => {
+    if (messages.length === 0 || !messagesContainerRef.current) {
+      return;
     }
 
-    const viewportHeight = window.innerHeight;
-    const bufferSpace = Math.min(viewportHeight * 0.3, 200);
+    // Find the virtualized scroll container
+    const findScrollContainer = () => {
+      const virtualizedContainer = messagesContainerRef.current?.querySelector(
+        ".h-full.overflow-auto"
+      );
 
-    return `pb-[${Math.max(bufferSpace, 80)}px]`;
-  }, []);
+      if (virtualizedContainer) {
+        // Add scroll listener to reset mouse state
+        const handleScrollStart = () => {
+          // Reset mouse hover state when scrolling
+          if (isMouseInHeaderArea) {
+            setIsMouseInHeaderArea(false);
+            if (mouseLeaveTimeoutRef.current) {
+              clearTimeout(mouseLeaveTimeoutRef.current);
+              mouseLeaveTimeoutRef.current = null;
+            }
+          }
+        };
+
+        virtualizedContainer.addEventListener("scroll", handleScrollStart, {
+          passive: true,
+        });
+        setScrollRef(virtualizedContainer as HTMLElement);
+
+        // Clean up on unmount
+        return () => {
+          virtualizedContainer.removeEventListener("scroll", handleScrollStart);
+        };
+      }
+      return null;
+    };
+
+    // Try to find the container with retries
+    let retryCount = 0;
+    let cleanup: (() => void) | null = null;
+
+    const tryFind = () => {
+      cleanup = findScrollContainer();
+      if (!cleanup && retryCount < 5) {
+        retryCount++;
+        setTimeout(tryFind, 100);
+      }
+    };
+
+    tryFind();
+
+    return () => {
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [messages.length, setScrollRef, isMouseInHeaderArea]);
 
   const prevMessagesLengthRef = useRef(0);
-  const prevLastUserMessageIdRef = useRef<string | null>(null);
   const isInitialLoadRef = useRef(true);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
   // Reset initial load state when conversation changes
   useEffect(() => {
     isInitialLoadRef.current = true;
     prevMessagesLengthRef.current = 0;
-    prevLastUserMessageIdRef.current = null;
+    setShouldScrollToBottom(false);
+  }, [conversationId]);
 
-    // Force reset the scroll ref to trigger initial load state in scroll hook
-    if (messagesContainerRef.current) {
-      setScrollRef(messagesContainerRef.current);
+  // Reset scroll to bottom flag after it's been used
+  useEffect(() => {
+    if (shouldScrollToBottom) {
+      // Reset the flag after a longer delay to ensure virtualized component has time to scroll
+      const timer = setTimeout(() => setShouldScrollToBottom(false), 200);
+      return () => clearTimeout(timer);
     }
-  }, [conversationId, setScrollRef]);
-
-  useLayoutEffect(() => {
-    if (messagesContainerRef.current) {
-      setScrollRef(messagesContainerRef.current);
-    }
-  }, [setScrollRef]);
+  }, [shouldScrollToBottom]);
 
   useLayoutEffect(() => {
     if (isInitialLoadRef.current && messages.length > 0 && !isLoading) {
-      // Scroll to bottom when messages first load (including when switching conversations)
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      // Signal to scroll to bottom when messages first load (including when switching conversations)
+      setShouldScrollToBottom(true);
       isInitialLoadRef.current = false;
-    } else if (messages.length > 0 && !isInitialLoadRef.current) {
-      const lastMessage = messages[messages.length - 1];
 
-      if (
-        lastMessage.role === "user" &&
-        (messages.length > prevMessagesLengthRef.current ||
-          lastMessage.id !== prevLastUserMessageIdRef.current)
-      ) {
-        smoothScrollToMessage(lastMessage.id, {
-          behavior: "smooth",
-          offset: 60,
-          duration: 500,
+      // Also use the dedicated scroll method as a more reliable fallback
+      requestAnimationFrame(() => {
+        virtualizedMessagesRef.current?.scrollToBottom();
+      });
+    }
+
+    // Detect new messages and scroll to bottom
+    if (
+      !isInitialLoadRef.current &&
+      messages.length > prevMessagesLengthRef.current &&
+      messages.length > 0
+    ) {
+      const lastMessage = messages[messages.length - 1];
+      const lastUserMessage = [...messages]
+        .reverse()
+        .find(m => m.role === "user");
+
+      // Scroll if:
+      // 1. A new user message was added (we sent a message)
+      // 2. OR the last message is from assistant (response to our message)
+      if (lastUserMessage || lastMessage.role === "assistant") {
+        setShouldScrollToBottom(true);
+        requestAnimationFrame(() => {
+          virtualizedMessagesRef.current?.scrollToBottom();
         });
-        prevLastUserMessageIdRef.current = lastMessage.id;
       }
     }
 
     prevMessagesLengthRef.current = messages.length;
-  }, [messages, isLoading, smoothScrollToMessage]);
+  }, [messages, isLoading]);
 
   useLayoutEffect(() => {
     return () => {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
       if (mouseLeaveTimeoutRef.current) {
         clearTimeout(mouseLeaveTimeoutRef.current);
       }
@@ -349,13 +328,9 @@ export const ConversationChatView = ({
         }
       }
 
-      smoothScrollToMessage(messageId, {
-        behavior: "smooth",
-        offset: 100,
-        duration: 400,
-      });
+      virtualizedMessagesRef.current?.scrollToMessage(messageId);
     },
-    [smoothScrollToMessage]
+    [virtualizedMessagesRef]
   );
 
   const handleDeleteMessage = useCallback(
@@ -413,7 +388,7 @@ export const ConversationChatView = ({
                 ref={messagesContainerRef}
                 className={cn(
                   "flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out scrollbar-gutter-stable",
-                  isScrolling && "scroll-smooth"
+                  shouldScrollToBottom && "scroll-smooth"
                 )}
               >
                 {isLoadingConversation ? (
@@ -436,16 +411,11 @@ export const ConversationChatView = ({
                 ) : isEmpty ? (
                   <ChatZeroState />
                 ) : (
-                  <div
-                    className={cn(
-                      "space-y-1 sm:space-y-2",
-                      dynamicBottomSpacing
-                    )}
-                  >
+                  <div className="h-full flex flex-col">
                     <div
                       ref={headerRef}
                       className={cn(
-                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
+                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6 flex-shrink-0",
                         scrollState.shouldHideHeader &&
                           !isMouseInHeaderArea &&
                           "sm:-translate-y-full"
@@ -456,65 +426,25 @@ export const ConversationChatView = ({
                       </div>
                     </div>
 
-                    <div className="space-y-2 p-4 sm:space-y-3 sm:p-8">
-                      <div
-                        className="mx-auto w-full max-w-3xl space-y-2 sm:space-y-3"
-                        style={{ maxWidth: "48rem" }}
-                      >
-                        {messages
-                          .filter(message => {
-                            if (message.role === "system") {
-                              return false;
-                            }
-                            if (message.role === "assistant") {
-                              return message.content || message.reasoning;
-                            }
-                            return true;
-                          })
-                          .sort((a, b) => {
-                            if (a.role === "context" && b.role !== "context") {
-                              return -1;
-                            }
-                            if (b.role === "context" && a.role !== "context") {
-                              return 1;
-                            }
-                            return 0;
-                          })
-                          .map((message, index, filteredMessages) => {
-                            const isMessageStreaming =
-                              isStreaming &&
-                              index === filteredMessages.length - 1 &&
-                              message.role === "assistant" &&
-                              !message.metadata?.finishReason &&
-                              !message.metadata?.stopped;
+                    <div className="flex-1 min-h-0 relative">
+                      <VirtualizedChatMessages
+                        ref={virtualizedMessagesRef}
+                        messages={messages}
+                        isStreaming={isStreaming}
+                        onEditMessage={onEditMessage}
+                        onRetryUserMessage={onRetryUserMessage}
+                        onRetryAssistantMessage={onRetryAssistantMessage}
+                        onDeleteMessage={handleDeleteMessage}
+                        scrollElement={null}
+                        shouldScrollToBottom={shouldScrollToBottom}
+                      />
 
-                            return (
-                              <div key={message.id} id={message.id}>
-                                {message.role === "context" ? (
-                                  <ContextMessage message={message} />
-                                ) : (
-                                  <ChatMessage
-                                    isStreaming={isMessageStreaming}
-                                    message={message}
-                                    onDeleteMessage={handleDeleteMessage}
-                                    onEditMessage={
-                                      message.role === "user" && onEditMessage
-                                        ? onEditMessage
-                                        : undefined
-                                    }
-                                    onRetryMessage={
-                                      message.role === "user"
-                                        ? onRetryUserMessage
-                                        : onRetryAssistantMessage
-                                    }
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-
-                        {shouldShowLoadingSpinner && (
-                          <div className="flex justify-start px-4 py-2">
+                      {shouldShowLoadingSpinner && (
+                        <div className="absolute bottom-0 left-0 right-0 flex justify-center px-4 py-2 bg-background/80 backdrop-blur-sm">
+                          <div
+                            className="mx-auto w-full max-w-3xl"
+                            style={{ maxWidth: "48rem" }}
+                          >
                             <div className="flex items-center space-x-3">
                               <div className="h-5 w-5 animate-spin rounded-full border-2 border-transparent bg-gradient-tropical p-0.5">
                                 <div className="h-full w-full rounded-full bg-background" />
@@ -524,9 +454,8 @@ export const ConversationChatView = ({
                               </span>
                             </div>
                           </div>
-                        )}
-                      </div>
-                      <div ref={messagesEndRef} />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
