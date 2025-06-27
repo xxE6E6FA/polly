@@ -95,7 +95,8 @@ export const ConversationChatView = ({
   // Handle mouse movement for header reveal
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
-      if (!headerRef.current) {
+      if (!headerRef.current || !scrollState.shouldHideHeader) {
+        // Only apply mouse logic when header is hidden
         return;
       }
 
@@ -108,19 +109,15 @@ export const ConversationChatView = ({
           clearTimeout(mouseLeaveTimeoutRef.current);
           mouseLeaveTimeoutRef.current = null;
         }
-
-        // Only set mouse in header area if header is currently hidden
-        if (scrollState.shouldHideHeader && !isMouseInHeaderArea) {
-          setIsMouseInHeaderArea(true);
-        }
-      } else if (isMouseInHeaderArea) {
-        // Add a small delay before hiding to prevent flickering
-        if (!mouseLeaveTimeoutRef.current) {
-          mouseLeaveTimeoutRef.current = setTimeout(() => {
-            setIsMouseInHeaderArea(false);
-            mouseLeaveTimeoutRef.current = null;
-          }, 300);
-        }
+        setIsMouseInHeaderArea(true);
+      } else if (
+        isMouseInHeaderArea && // Add a small delay before hiding to prevent flickering
+        !mouseLeaveTimeoutRef.current
+      ) {
+        mouseLeaveTimeoutRef.current = setTimeout(() => {
+          setIsMouseInHeaderArea(false);
+          mouseLeaveTimeoutRef.current = null;
+        }, 300);
       }
     },
     [scrollState.shouldHideHeader, isMouseInHeaderArea]
@@ -172,51 +169,23 @@ export const ConversationChatView = ({
       );
 
       if (virtualizedContainer) {
-        // Add scroll listener to reset mouse state
-        const handleScrollStart = () => {
-          // Reset mouse hover state when scrolling
-          if (isMouseInHeaderArea) {
-            setIsMouseInHeaderArea(false);
-            if (mouseLeaveTimeoutRef.current) {
-              clearTimeout(mouseLeaveTimeoutRef.current);
-              mouseLeaveTimeoutRef.current = null;
-            }
-          }
-        };
-
-        virtualizedContainer.addEventListener("scroll", handleScrollStart, {
-          passive: true,
-        });
         setScrollRef(virtualizedContainer as HTMLElement);
-
-        // Clean up on unmount
-        return () => {
-          virtualizedContainer.removeEventListener("scroll", handleScrollStart);
-        };
+        return true;
       }
-      return null;
+      return false;
     };
 
     // Try to find the container with retries
     let retryCount = 0;
-    let cleanup: (() => void) | null = null;
-
     const tryFind = () => {
-      cleanup = findScrollContainer();
-      if (!cleanup && retryCount < 5) {
+      if (!findScrollContainer() && retryCount < 5) {
         retryCount++;
         setTimeout(tryFind, 100);
       }
     };
 
     tryFind();
-
-    return () => {
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [messages.length, setScrollRef, isMouseInHeaderArea]);
+  }, [messages.length, setScrollRef]);
 
   const prevMessagesLengthRef = useRef(0);
   const isInitialLoadRef = useRef(true);
@@ -415,10 +384,10 @@ export const ConversationChatView = ({
                     <div
                       ref={headerRef}
                       className={cn(
-                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6 flex-shrink-0",
+                        "sticky top-0 z-20 bg-background border-b border-border/30 transition-all duration-300 ease-out pl-16 pr-4 lg:pr-6 flex-shrink-0",
                         scrollState.shouldHideHeader &&
                           !isMouseInHeaderArea &&
-                          "sm:-translate-y-full"
+                          "sm:-translate-y-full sm:-mb-16"
                       )}
                     >
                       <div className="flex h-16 items-center">
