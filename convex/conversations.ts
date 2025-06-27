@@ -200,6 +200,19 @@ export const update = mutation({
   },
 });
 
+export const setPinned = mutation({
+  args: {
+    id: v.id("conversations"),
+    isPinned: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.id, {
+      isPinned: args.isPinned,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {

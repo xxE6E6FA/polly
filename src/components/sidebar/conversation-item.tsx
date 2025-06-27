@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router";
 import {
   DotsThreeVerticalIcon,
   PencilSimpleIcon,
+  PushPinIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
@@ -54,6 +55,7 @@ export const ConversationItem = ({
   const confirmationDialog = useConfirmationDialog();
   const deleteConversation = useMutation(api.conversations.remove);
   const updateConversationTitle = useMutation(api.conversations.update);
+  const setPinned = useMutation(api.conversations.setPinned);
   const { isMobile, setSidebarVisible } = useSidebar();
   const navigate = useNavigate();
 
@@ -176,6 +178,26 @@ export const ConversationItem = ({
     ]
   );
 
+  const handlePinToggle = useCallback(
+    async (e?: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      setIsPopoverOpen(false);
+      await setPinned({
+        id: conversation._id,
+        isPinned: !conversation.isPinned,
+      });
+      updateCachedConversation({
+        ...conversation,
+        isPinned: !conversation.isPinned,
+        updatedAt: Date.now(),
+      });
+    },
+    [conversation, setPinned]
+  );
+
   const handleConversationClick = useCallback(() => {
     if (isMobile) {
       setSidebarVisible(false);
@@ -227,8 +249,18 @@ export const ConversationItem = ({
               <div
                 className={cn(
                   "truncate font-medium",
-                  isMobile ? "text-xs" : "text-xs"
+                  isMobile ? "text-xs" : "text-xs",
+                  !isMobile &&
+                    currentConversationId === conversation._id &&
+                    "cursor-text hover:opacity-80"
                 )}
+                onClick={e => {
+                  if (!isMobile && currentConversationId === conversation._id) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleEditStart(conversation._id, conversation.title);
+                  }
+                }}
               >
                 {conversation.title}
               </div>
@@ -249,7 +281,12 @@ export const ConversationItem = ({
                 <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
-                      className="h-8 w-8 text-foreground/70 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+                      className={cn(
+                        "h-8 w-8 text-foreground/70 transition-opacity hover:text-foreground",
+                        isMobile
+                          ? "opacity-100"
+                          : "opacity-0 group-hover:opacity-100"
+                      )}
                       size="icon-sm"
                       variant="ghost"
                     >
@@ -265,6 +302,18 @@ export const ConversationItem = ({
                     onClick={e => e.stopPropagation()}
                   >
                     <div className="flex flex-col gap-0.5">
+                      <Button
+                        className="h-8 justify-start gap-2 px-2 text-xs"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handlePinToggle()}
+                      >
+                        <PushPinIcon
+                          className="h-3.5 w-3.5"
+                          weight={conversation.isPinned ? "fill" : "regular"}
+                        />
+                        {conversation.isPinned ? "Unpin" : "Pin"}
+                      </Button>
                       <Button
                         className="h-8 justify-start gap-2 px-2 text-xs"
                         size="sm"
@@ -298,20 +347,18 @@ export const ConversationItem = ({
                         className="h-7 w-7 text-foreground/70 hover:bg-accent hover:text-foreground"
                         size="icon-sm"
                         variant="ghost"
-                        onClick={e => {
-                          e.preventDefault();
-                          handleEditStart(
-                            conversation._id,
-                            conversation.title,
-                            e
-                          );
-                        }}
+                        onClick={handlePinToggle}
                       >
-                        <PencilSimpleIcon className="h-3.5 w-3.5" />
+                        <PushPinIcon
+                          className="h-3.5 w-3.5"
+                          weight={conversation.isPinned ? "fill" : "regular"}
+                        />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Edit title</p>
+                      <p>
+                        {conversation.isPinned ? "Unpin" : "Pin"} conversation
+                      </p>
                     </TooltipContent>
                   </Tooltip>
 
