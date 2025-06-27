@@ -38,6 +38,9 @@ const SettingsModelsPage = lazy(() => import("./pages/settings/ModelsPage"));
 const SettingsPersonasPage = lazy(
   () => import("./pages/settings/PersonasPage")
 );
+const SettingsSharedConversationsPage = lazy(
+  () => import("./pages/settings/SharedConversationsPage")
+);
 const SettingsAboutPage = lazy(() => import("./pages/settings/AboutPage"));
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/NewPersonaPage")
@@ -198,6 +201,19 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsPersonasPage />
+              </Suspense>
+            ),
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
+          },
+          {
+            path: "shared-conversations",
+            element: (
+              <Suspense fallback={<PageLoader size="partial" />}>
+                <SettingsSharedConversationsPage />
               </Suspense>
             ),
             errorElement: (

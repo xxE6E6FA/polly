@@ -1,6 +1,12 @@
 import { Link, useLocation, useNavigate } from "react-router";
 
-import { InfoIcon, KeyIcon, RobotIcon, UsersIcon } from "@phosphor-icons/react";
+import {
+  InfoIcon,
+  KeyIcon,
+  RobotIcon,
+  ShareNetworkIcon,
+  UsersIcon,
+} from "@phosphor-icons/react";
 
 import {
   Select,
@@ -34,6 +40,11 @@ const settingsNavItems = [
     href: ROUTES.SETTINGS.PERSONAS,
     label: "Personas",
     icon: UsersIcon,
+  },
+  {
+    href: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
+    label: "Shares",
+    icon: ShareNetworkIcon,
   },
   {
     href: ROUTES.SETTINGS.ABOUT,
