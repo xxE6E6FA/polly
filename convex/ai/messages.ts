@@ -44,21 +44,17 @@ export const convertAttachment = async (
   attachment: { storageId: Id<"_storage">; type: string; name?: string },
   format: "dataUrl" | "aiSdk"
 ): Promise<string | { data: ArrayBuffer; mimeType: string }> => {
-  try {
-    const storageData = await convertStorageToData(
-      ctx,
-      attachment.storageId,
-      attachment.type
-    );
+  const storageData = await convertStorageToData(
+    ctx,
+    attachment.storageId,
+    attachment.type
+  );
 
-    if (format === "dataUrl") {
-      return `data:${storageData.mimeType};base64,${storageData.base64}`;
-    }
-    return { data: storageData.arrayBuffer, mimeType: storageData.mimeType };
-  } catch (error) {
-    console.error(`Error converting attachment to ${format}:`, error);
-    throw error;
+  if (format === "dataUrl") {
+    return `data:${storageData.mimeType};base64,${storageData.base64}`;
   }
+
+  return { data: storageData.arrayBuffer, mimeType: storageData.mimeType };
 };
 
 // Convert message part to AI SDK format
@@ -79,11 +75,8 @@ export const convertMessagePart = async (
             "dataUrl"
           )) as string;
           return { type: "image" as const, image: dataUrl };
-        } catch (error) {
-          console.error(
-            "Failed to convert Convex attachment, falling back to URL:",
-            error
-          );
+        } catch {
+          // Failed to convert Convex attachment, falling back to URL
         }
       }
       return { type: "image" as const, image: part.image_url?.url || "" };
@@ -103,11 +96,8 @@ export const convertMessagePart = async (
             "aiSdk"
           )) as { data: ArrayBuffer; mimeType: string };
           return { type: "file" as const, data, mimeType };
-        } catch (error) {
-          console.error(
-            "Failed to convert Convex PDF, falling back to text:",
-            error
-          );
+        } catch {
+          // Failed to convert Convex PDF, falling back to text
         }
       }
       // Fallback to text format
@@ -170,7 +160,6 @@ export const updateMessage = async (
 
     // If message doesn't exist, silently return
     if (!currentMessage) {
-      console.warn(`Message ${messageId} no longer exists, skipping update`);
       return;
     }
 
@@ -196,9 +185,6 @@ export const updateMessage = async (
       (error.message.includes("not found") ||
         error.message.includes("nonexistent document"))
     ) {
-      console.warn(
-        `Failed to update message ${messageId}: message no longer exists`
-      );
       return;
     }
     // Re-throw other errors
@@ -211,23 +197,51 @@ export const clearConversationStreaming = async (
   ctx: ActionCtx,
   messageId: Id<"messages">
 ) => {
-  try {
-    const message = await ctx.runMutation(internal.messages.internalGetById, {
-      id: messageId,
-    });
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    if (message?.conversationId) {
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: message.conversationId,
-        isStreaming: false,
+  while (attempts < maxAttempts) {
+    try {
+      // Use query instead of mutation to get message data
+      const message = await ctx.runQuery(api.messages.getById, {
+        id: messageId,
       });
+
+      if (message?.conversationId) {
+        await ctx.runMutation(api.conversations.setStreamingState, {
+          id: message.conversationId,
+          isStreaming: false,
+        });
+      }
+
+      // Success - exit retry loop
+      return;
+    } catch (error) {
+      attempts++;
+
+      // If it's a write conflict and we have retries left, wait and try again
+      if (
+        attempts < maxAttempts &&
+        error instanceof Error &&
+        error.message.includes("Documents read from or written to")
+      ) {
+        // Exponential backoff: 50ms, 100ms, 200ms
+        const delay = 50 * Math.pow(2, attempts - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Final attempt failed or different error type
+      // Don't log write conflicts as warnings since they're expected
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes("Documents read from or written to")
+        )
+      ) {
+        // Failed to clear streaming state
+      }
+      return; // Give up gracefully
     }
-  } catch (error) {
-    // If the message doesn't exist, we can't clear the streaming state
-    // But that's okay - just log and continue
-    console.warn(
-      `Failed to clear streaming state for message ${messageId}:`,
-      error
-    );
   }
 };

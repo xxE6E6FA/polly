@@ -120,9 +120,9 @@ export default defineSchema({
       v.object({
         tokenCount: v.optional(v.number()),
         reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
+        finishReason: v.optional(v.string()), // "stop", "length", "error", "tool_calls", etc.
         duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
+        stopped: v.optional(v.boolean()), // True when user explicitly stopped generation
       })
     ),
     createdAt: v.number(),

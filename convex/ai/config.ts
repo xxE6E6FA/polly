@@ -3,6 +3,8 @@ export const CONFIG = {
     BATCH_SIZE: 30,
     BATCH_TIMEOUT: 75,
     CHECK_STOP_EVERY_N_CHUNKS: 2,
+    ABORT_TIMEOUT_MS: 5000, // Max time to wait for abort to complete
+    STOP_CHECK_INTERVAL_MS: 250, // How often to check for stop signals (reduced frequency)
   },
   AES: {
     name: "AES-GCM",

@@ -383,18 +383,16 @@ export function useChat({
     onError,
   ]);
 
-  const stopGeneration = useCallback(async () => {
-    // Immediately update UI state
+  const stopGeneration = useCallback(() => {
+    // Immediately update UI state for instant feedback
     setIsGenerating(false);
     setIsThinking(false);
 
     if (conversationId) {
-      try {
-        await stopGenerationAction({
-          conversationId,
-        });
-      } catch (error) {
-        console.error("Failed to stop generation:", error);
+      // Fire and forget - don't wait for completion to avoid UI lag
+      stopGenerationAction({
+        conversationId,
+      }).catch(error => {
         toast.error("Failed to stop generation", {
           description:
             error instanceof Error
@@ -404,7 +402,7 @@ export function useChat({
         // Reset state on error
         setIsGenerating(true);
         setIsThinking(true);
-      }
+      });
     }
   }, [conversationId, stopGenerationAction, setIsGenerating, setIsThinking]);
 
@@ -574,21 +572,33 @@ export function useChat({
       return false;
     }
 
-    // Check conversation's isStreaming field first for immediate feedback
-    if (conversation?.isStreaming) {
-      return true;
+    // If we've locally stopped generation, respect that immediately
+    if (!isGenerating) {
+      return false;
     }
 
-    // Also check if there's any assistant message without a finish reason (still streaming)
+    // Check for any assistant message without a finish reason (active streaming)
     const streamingMessage = chatMessages.convexMessages?.find(
       msg =>
         msg.conversationId === conversationId &&
         msg.role === "assistant" &&
-        !msg.metadata?.finishReason
+        !msg.metadata?.finishReason &&
+        !msg.metadata?.stopped // Not explicitly stopped
     );
 
-    return Boolean(streamingMessage);
-  }, [conversationId, chatMessages.convexMessages, conversation?.isStreaming]);
+    // If we have a streaming message, we're definitely streaming
+    if (streamingMessage) {
+      return true;
+    }
+
+    // Fallback to conversation's isStreaming field for immediate feedback during start
+    return Boolean(conversation?.isStreaming);
+  }, [
+    conversationId,
+    chatMessages.convexMessages,
+    conversation?.isStreaming,
+    isGenerating,
+  ]);
 
   return {
     messages: chatMessages.messages,

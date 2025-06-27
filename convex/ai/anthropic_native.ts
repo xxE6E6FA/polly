@@ -1,13 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
+import { handleStreamOperation } from "./error_handlers";
+import { ResourceManager } from "./resource_manager";
 import { type StreamMessage } from "./types";
 import { StreamHandler } from "./streaming";
+import { StreamInterruptor } from "./stream_interruptor";
 
 export class AnthropicNativeHandler {
   private anthropic: Anthropic;
   private streamHandler: StreamHandler;
+  private interruptor: StreamInterruptor;
+  private readonly resourceManager = new ResourceManager();
 
   constructor(
     private ctx: ActionCtx,
@@ -16,10 +21,12 @@ export class AnthropicNativeHandler {
   ) {
     this.anthropic = new Anthropic({ apiKey });
     this.streamHandler = new StreamHandler(ctx, messageId);
+    this.interruptor = new StreamInterruptor(ctx, messageId);
   }
 
   setAbortController(abortController: AbortController) {
     this.streamHandler.setAbortController(abortController);
+    this.interruptor.setAbortController(abortController);
   }
 
   async streamResponse(args: {
@@ -33,6 +40,17 @@ export class AnthropicNativeHandler {
       maxTokens?: number;
     };
   }) {
+    // Ensure conversation is marked as streaming at the start
+    const message = await this.ctx.runQuery(api.messages.getById, {
+      id: this.streamHandler.messageIdValue,
+    });
+
+    if (message?.conversationId) {
+      await this.ctx.runMutation(api.conversations.setStreamingState, {
+        id: message.conversationId,
+        isStreaming: true,
+      });
+    }
     // Convert messages to Anthropic format
     const anthropicMessages = this.convertMessages(args.messages);
 
@@ -71,10 +89,20 @@ export class AnthropicNativeHandler {
         },
       });
 
+      // Start monitoring for stop signals now that we're streaming
+      this.interruptor.startStopMonitoring();
+
       // Handle the stream
       await this.handleAnthropicStream(stream);
     } catch (error) {
-      console.error("Anthropic native streaming error:", error);
+      // Don't log AbortError as an error - it's expected when stopping
+      if (
+        error instanceof Error &&
+        (error.name === "AbortError" || error.message.includes("AbortError"))
+      ) {
+        return;
+      }
+
       throw error;
     }
   }
@@ -101,9 +129,14 @@ export class AnthropicNativeHandler {
 
     try {
       for await (const event of stream) {
-        // Check if stopped
-        if (await this.streamHandler.checkIfStopped()) {
+        // Robust stop checking - check multiple sources
+        // Check if we should stop streaming (dual check for responsiveness)
+        if (
+          this.interruptor.isStreamAborted() ||
+          (await this.streamHandler.checkIfStopped())
+        ) {
           stream.abort();
+          await this.interruptor.abort("StreamLoop");
           throw new Error("StoppedByUser");
         }
 
@@ -135,32 +168,29 @@ export class AnthropicNativeHandler {
       // Finish processing
       await this.streamHandler.finishProcessing();
     } catch (error) {
-      if (error instanceof Error && error.message === "StoppedByUser") {
+      if (
+        error instanceof Error &&
+        (error.message === "StoppedByUser" ||
+          error.name === "AbortError" ||
+          error.message.includes("AbortError"))
+      ) {
         await this.streamHandler.handleStop();
         return;
       }
       throw error;
+    } finally {
+      // Always cleanup resources
+      this.interruptor.cleanup();
+      this.resourceManager.cleanup();
     }
   }
 
   private async appendReasoning(reasoningDelta: string) {
-    try {
+    await handleStreamOperation(async () => {
       await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
         id: this.streamHandler.messageIdValue,
         appendReasoning: reasoningDelta,
       });
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message.includes("not found") ||
-          error.message.includes("nonexistent document"))
-      ) {
-        console.warn(
-          `Message ${this.streamHandler.messageIdValue} was deleted during reasoning append`
-        );
-        return;
-      }
-      throw error;
-    }
+    });
   }
 }

@@ -13,8 +13,10 @@ import {
   updateMessage,
 } from "./ai/messages";
 import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
+import { ResourceManager } from "./ai/resource_manager";
 import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
 import { StreamHandler } from "./ai/streaming";
+import { StreamInterruptor } from "./ai/stream_interruptor";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import {
   type Citation,
@@ -80,10 +82,24 @@ export const streamResponse = action({
     ),
   },
   handler: async (ctx, args) => {
+    const resourceManager = new ResourceManager();
     let abortController: AbortController | undefined;
     const streamHandler = new StreamHandler(ctx, args.messageId);
+    const interruptor = new StreamInterruptor(ctx, args.messageId);
 
     try {
+      // Ensure conversation is marked as streaming at the start
+      const message = await ctx.runQuery(api.messages.getById, {
+        id: args.messageId,
+      });
+
+      if (message?.conversationId) {
+        await ctx.runMutation(api.conversations.setStreamingState, {
+          id: message.conversationId,
+          isStreaming: true,
+        });
+      }
+
       // Get API key
       const apiKey = await getApiKey(
         ctx,
@@ -142,6 +158,7 @@ export const streamResponse = action({
       // Create abort controller for stopping
       abortController = new AbortController();
       streamHandler.setAbortController(abortController);
+      interruptor.setAbortController(abortController);
 
       const providerOptions = await getProviderStreamOptions(
         args.provider as ProviderType,
@@ -177,12 +194,21 @@ export const streamResponse = action({
         args.model
       );
 
+      // Start monitoring for stop signals now that we're streaming
+      interruptor.startStopMonitoring();
+
       // Try full stream for reasoning models, fall back to text stream
       if (hasReasoningSupport) {
         try {
           await streamHandler.processStream(result.fullStream, true);
         } catch (error) {
-          if (error instanceof Error && error.message === "StoppedByUser") {
+          if (
+            error instanceof Error &&
+            (error.message === "StoppedByUser" ||
+              error.name === "AbortError" ||
+              error.message.includes("AbortError") ||
+              error.message === "MessageDeleted")
+          ) {
             throw error;
           }
           await streamHandler.processStream(result.textStream, false);
@@ -199,7 +225,12 @@ export const streamResponse = action({
         await handleGoogleSearchSources(ctx, result, args.messageId);
       }
     } catch (error) {
-      if (error instanceof Error && error.message === "StoppedByUser") {
+      if (
+        error instanceof Error &&
+        (error.message === "StoppedByUser" ||
+          error.name === "AbortError" ||
+          error.message.includes("AbortError"))
+      ) {
         await streamHandler.handleStop();
         return;
       }
@@ -227,7 +258,9 @@ export const streamResponse = action({
       await clearConversationStreaming(ctx, args.messageId);
       throw error;
     } finally {
-      // Clean up abort controller
+      // Clean up resources
+      interruptor.cleanup();
+      resourceManager.cleanup();
       abortController = undefined;
     }
   },
@@ -248,107 +281,91 @@ async function handleGoogleSearchSources(
   },
   messageId: Id<"messages">
 ): Promise<void> {
-  try {
-    // Wait for sources to be available
-    const sources = await result.sources;
-    if (sources && sources.length > 0) {
-      // Get existing message to check for existing citations
-      const message = await ctx.runQuery(api.messages.getById, {
-        id: messageId,
-      });
+  // Wait for sources to be available
+  const sources = await result.sources;
+  if (sources && sources.length > 0) {
+    // Get existing message to check for existing citations
+    const message = await ctx.runQuery(api.messages.getById, {
+      id: messageId,
+    });
 
-      // If message no longer exists, skip
-      if (!message) {
-        return;
-      }
+    // If message no longer exists, skip
+    if (!message) {
+      return;
+    }
 
-      // Merge sources with existing citations from providerMetadata
-      const existingCitations = message.citations || [];
-      const sourceCitations = extractCitations(undefined, sources) || [];
+    // Merge sources with existing citations from providerMetadata
+    const existingCitations = message.citations || [];
+    const sourceCitations = extractCitations(undefined, sources) || [];
 
-      // Combine and deduplicate citations based on URL
-      const citationMap = new Map<string, Citation>();
-      for (const citation of [...existingCitations, ...sourceCitations]) {
-        if (!citationMap.has(citation.url)) {
-          citationMap.set(citation.url, citation);
-        }
-      }
-
-      const mergedCitations = [...citationMap.values()];
-
-      if (mergedCitations.length > 0) {
-        try {
-          await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-            id: messageId,
-            citations: mergedCitations,
-          });
-
-          // Enrich citations with metadata
-          await ctx.scheduler.runAfter(
-            0,
-            internal.citationEnrichment.enrichMessageCitations,
-            {
-              messageId,
-              citations: mergedCitations,
-            }
-          );
-        } catch (error) {
-          // If the message was deleted, just log and continue
-          if (
-            error instanceof Error &&
-            (error.message.includes("not found") ||
-              error.message.includes("nonexistent document"))
-          ) {
-            // Message was deleted before citations could be added - this is expected
-            return;
-          }
-          throw error;
-        }
+    // Combine and deduplicate citations based on URL
+    const citationMap = new Map<string, Citation>();
+    for (const citation of [...existingCitations, ...sourceCitations]) {
+      if (!citationMap.has(citation.url)) {
+        citationMap.set(citation.url, citation);
       }
     }
-  } catch (error) {
-    console.error("Failed to retrieve sources:", error);
+
+    const mergedCitations = [...citationMap.values()];
+
+    if (mergedCitations.length > 0) {
+      try {
+        await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+          id: messageId,
+          citations: mergedCitations,
+        });
+
+        // Enrich citations with metadata
+        await ctx.scheduler.runAfter(
+          0,
+          internal.citationEnrichment.enrichMessageCitations,
+          {
+            messageId,
+            citations: mergedCitations,
+          }
+        );
+      } catch (error) {
+        // If the message was deleted, just log and continue
+        if (
+          error instanceof Error &&
+          (error.message.includes("not found") ||
+            error.message.includes("nonexistent document"))
+        ) {
+          // Message was deleted before citations could be added - this is expected
+          return;
+        }
+        throw error;
+      }
+    }
   }
 }
 
 export const stopStreaming = action({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
-    // First check if the message is already stopped or finished
-    const message = await ctx.runQuery(api.messages.getById, {
-      id: args.messageId,
-    });
-
-    // If message doesn't exist or is already stopped/finished, just clear streaming state
-    if (
-      !message ||
-      message.metadata?.stopped ||
-      message.metadata?.finishReason
-    ) {
-      await clearConversationStreaming(ctx, args.messageId);
-      return;
-    }
-
-    // Try to update the message to stop streaming
-    try {
-      await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-        id: args.messageId,
-        metadata: {
-          finishReason: "stop",
-          stopped: true,
-          ...(message.metadata || {}), // Preserve existing metadata
-        },
-      });
-    } catch (error) {
-      // If the update fails due to concurrent modification, it's likely the streaming
-      // already finished or is in the process of finishing, so we can safely ignore
-      console.warn(
-        "Failed to update message during stop, likely already stopped:",
-        error
-      );
-    }
-
-    // Always clear conversation streaming state
+    // Immediately clear the streaming state for UI responsiveness
     await clearConversationStreaming(ctx, args.messageId);
+
+    // Immediately mark the message as stopped for UI feedback
+    // This ensures the UI shows "Stopped by user" right away
+    try {
+      const currentMessage = await ctx.runQuery(api.messages.getById, {
+        id: args.messageId,
+      });
+
+      if (currentMessage) {
+        await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+          id: args.messageId,
+          metadata: {
+            ...(currentMessage.metadata || {}),
+            finishReason: "stop",
+            stopped: true,
+          },
+        });
+      }
+    } catch {
+      // Message might not exist or already be updated, which is fine
+      // The stream handler will also set these flags when it detects the abort
+    }
   },
 });

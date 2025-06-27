@@ -243,6 +243,14 @@ export const setStreamingState = mutation({
     isStreaming: v.boolean(),
   },
   handler: async (ctx, args) => {
+    // Check current state to avoid unnecessary writes
+    const conversation = await ctx.db.get(args.id);
+
+    // If conversation doesn't exist or already has the desired state, do nothing
+    if (!conversation || conversation.isStreaming === args.isStreaming) {
+      return;
+    }
+
     return await ctx.db.patch(args.id, {
       isStreaming: args.isStreaming,
       updatedAt: Date.now(),
@@ -1246,33 +1254,27 @@ export const stopGeneration = action({
 
       if (streamingMessage) {
         // Stop the streaming for this specific message
+        // This will also clear the conversation streaming state
         await ctx.runAction(api.ai.stopStreaming, {
           messageId: streamingMessage._id,
         });
+      } else {
+        // No streaming message found, but clear the conversation state anyway
+        await ctx.runMutation(api.conversations.setStreamingState, {
+          id: args.conversationId,
+          isStreaming: false,
+        });
       }
-
-      // Always clear the conversation streaming state
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
 
       return {
         stopped: true,
       };
     } catch (error) {
-      console.error("Failed to stop generation:", error);
-
       // Still try to clear streaming state even if stopping failed
-      try {
-        await ctx.runMutation(api.conversations.setStreamingState, {
-          id: args.conversationId,
-          isStreaming: false,
-        });
-      } catch (clearError) {
-        console.error("Failed to clear streaming state:", clearError);
-      }
-
+      await ctx.runMutation(api.conversations.setStreamingState, {
+        id: args.conversationId,
+        isStreaming: false,
+      });
       throw error;
     }
   },
