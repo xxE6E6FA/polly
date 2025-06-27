@@ -1,5 +1,6 @@
 import { extractCitations, extractMarkdownCitations } from "./citations";
 import { CONFIG } from "./config";
+import { handleStreamOperation } from "./error_handlers";
 import { clearConversationStreaming } from "./messages";
 import {
   type FinishData,
@@ -35,23 +36,41 @@ export class StreamHandler {
     this.abortController = abortController;
   }
 
-  private async checkMessageExists(): Promise<boolean> {
-    try {
-      const message = await this.ctx.runQuery(api.messages.getById, {
-        id: this.messageId,
-      });
-      if (!message) {
-        this.messageDeleted = true;
-        this.abortController?.abort();
-        return false;
+  private safeAbort(): void {
+    if (this.abortController && !this.abortController.signal.aborted) {
+      try {
+        this.abortController.abort();
+      } catch {
+        // Failed to abort controller
       }
-      return true;
-    } catch {
-      // If we can't query the message, assume it's deleted
-      this.messageDeleted = true;
-      this.abortController?.abort();
+    }
+  }
+
+  private async checkMessageExists(): Promise<boolean> {
+    const result = await handleStreamOperation(
+      async () => {
+        const message = await this.ctx.runQuery(api.messages.getById, {
+          id: this.messageId,
+        });
+        return { exists: Boolean(message) };
+      },
+      () => {
+        this.messageDeleted = true;
+        this.safeAbort();
+      }
+    );
+
+    if (!result) {
       return false;
     }
+
+    if (!result.exists) {
+      this.messageDeleted = true;
+      this.safeAbort();
+      return false;
+    }
+
+    return true;
   }
 
   public async checkIfStopped(): Promise<boolean> {
@@ -70,20 +89,37 @@ export class StreamHandler {
       const message = await this.ctx.runQuery(api.messages.getById, {
         id: this.messageId,
       });
-      if (message?.metadata?.stopped) {
-        this.wasStopped = true;
-        this.abortController?.abort();
-        return true;
+
+      // Check if conversation is no longer streaming (our stop signal)
+      if (message?.conversationId) {
+        const conversation = await this.ctx.runQuery(api.conversations.get, {
+          id: message.conversationId,
+        });
+
+        if (conversation && !conversation.isStreaming) {
+          this.wasStopped = true;
+          this.safeAbort();
+          return true;
+        }
       }
     }
     return false;
   }
 
   private queueUpdate<T>(operation: () => Promise<T>): Promise<T> {
-    // Chain operations to ensure they run sequentially
-    const result = this.updateQueue.then(operation).catch(error => {
-      console.error("Update operation failed:", error);
-      throw error;
+    // Chain operations to ensure they run sequentially with retry logic
+    const result = this.updateQueue.then(async () => {
+      const operationResult = await handleStreamOperation(operation, () => {
+        this.messageDeleted = true;
+        this.safeAbort();
+      });
+
+      // If operation failed due to message deletion, throw to propagate
+      if (operationResult === null) {
+        throw new Error("MessageDeleted");
+      }
+
+      return operationResult;
     });
 
     // Update the queue to wait for this operation
@@ -124,11 +160,8 @@ export class StreamHandler {
           (error.message.includes("not found") ||
             error.message.includes("nonexistent document"))
         ) {
-          console.warn(
-            `Message ${this.messageId} was deleted during streaming`
-          );
           this.messageDeleted = true;
-          this.abortController?.abort();
+          this.safeAbort();
           return;
         }
         throw error;
@@ -182,11 +215,8 @@ export class StreamHandler {
           (error.message.includes("not found") ||
             error.message.includes("nonexistent document"))
         ) {
-          console.warn(
-            `Message ${this.messageId} was deleted before streaming started`
-          );
           this.messageDeleted = true;
-          this.abortController?.abort();
+          this.safeAbort();
           return;
         }
         throw error;
@@ -243,7 +273,6 @@ export class StreamHandler {
 
         // If message doesn't exist, mark as deleted
         if (!currentMessage) {
-          console.warn(`Message ${this.messageId} was deleted before finish`);
           this.messageDeleted = true;
           return;
         }
@@ -266,7 +295,6 @@ export class StreamHandler {
           (error.message.includes("not found") ||
             error.message.includes("nonexistent document"))
         ) {
-          console.warn(`Message ${this.messageId} was deleted during finish`);
           this.messageDeleted = true;
           return;
         }
@@ -278,15 +306,14 @@ export class StreamHandler {
 
     // Enrich citations with metadata if we have any (skip if message deleted)
     if (!this.messageDeleted && citations && citations.length > 0) {
-      await this.ctx.scheduler
-        .runAfter(0, internal.citationEnrichment.enrichMessageCitations, {
+      await this.ctx.scheduler.runAfter(
+        0,
+        internal.citationEnrichment.enrichMessageCitations,
+        {
           messageId: this.messageId,
           citations,
-        })
-        .catch(error => {
-          // Don't fail if citation enrichment fails
-          console.warn("Failed to enrich citations:", error);
-        });
+        }
+      );
     }
 
     await clearConversationStreaming(this.ctx, this.messageId);
@@ -320,7 +347,6 @@ export class StreamHandler {
           (error.message.includes("not found") ||
             error.message.includes("nonexistent document"))
         ) {
-          console.warn(`Message ${this.messageId} was deleted during stop`);
           this.messageDeleted = true;
           return;
         }
@@ -366,15 +392,8 @@ export class StreamHandler {
           ? this.handleFullStreamPart(part as StreamPart)
           : this.appendToBuffer(part as string));
       }
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message !== "StoppedByUser" &&
-        error.message !== "MessageDeleted"
-      ) {
-        console.error(`Stream processing error for ${this.messageId}:`, error);
-      }
-      throw error;
+    } catch {
+      // Stream processing error
     } finally {
       // Only flush if we don't have finish data and message wasn't deleted
       if (!this.hasFinishData() && !this.messageDeleted) {
@@ -420,11 +439,8 @@ export class StreamHandler {
             (error.message.includes("not found") ||
               error.message.includes("nonexistent document"))
           ) {
-            console.warn(
-              `Message ${this.messageId} was deleted during reasoning append`
-            );
             this.messageDeleted = true;
-            this.abortController?.abort();
+            this.safeAbort();
             return;
           }
           throw error;
@@ -439,7 +455,6 @@ export class StreamHandler {
     }
 
     if (!this.finishData) {
-      console.error(`No finish data available for message ${this.messageId}`);
       return;
     }
 
@@ -461,9 +476,6 @@ export class StreamHandler {
           (error.message.includes("not found") ||
             error.message.includes("nonexistent document"))
         ) {
-          console.warn(
-            `Message ${this.messageId} was deleted during final processing`
-          );
           this.messageDeleted = true;
           return;
         }
@@ -473,8 +485,8 @@ export class StreamHandler {
 
     await this.waitForQueuedUpdates();
 
-    // Now handle metadata and other finish tasks (skip if deleted)
-    if (!this.messageDeleted) {
+    // Now handle metadata and other finish tasks (skip if deleted or stopped)
+    if (!this.messageDeleted && !this.wasStopped) {
       await this.handleFinish(
         this.finishData.text,
         this.finishData.finishReason,
