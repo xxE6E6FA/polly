@@ -78,6 +78,31 @@ export function useCreateConversation() {
 
       return result.conversationId;
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      // Check if it's a monthly limit error
+      if (errorMessage.includes("Monthly Polly model limit reached")) {
+        // Extract the limit from the error message if possible
+        const limitMatch = errorMessage.match(/\((\d+) messages\)/);
+        const limit = limitMatch ? parseInt(limitMatch[1]) : 500;
+
+        // Show the monthly limit error UI instead of a toast
+        const { toast } = await import("sonner");
+
+        // We'll need to emit an event or use a global state to show the error component
+        // For now, show a more informative toast
+        toast.error("Monthly Polly Model Limit Reached", {
+          description: `You've used all ${limit} free messages this month. Switch to your BYOK models for unlimited usage, or wait for next month's reset.`,
+        });
+
+        // Re-throw with a specific error type
+        const limitError = new Error(errorMessage) as Error & { code?: string };
+        limitError.code = "MONTHLY_LIMIT_REACHED";
+        throw limitError;
+      }
+
+      // Generic error handling for other cases
       const { toast } = await import("sonner");
       toast.error("Failed to create conversation", {
         description: "Unable to start a new conversation. Please try again.",

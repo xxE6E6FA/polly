@@ -3,19 +3,7 @@
  * Used by both Convex and client-side implementations
  */
 
-export interface Citation {
-  type: "url_citation";
-  url: string;
-  title: string;
-  cited_text?: string;
-  snippet?: string;
-  description?: string;
-  image?: string;
-  favicon?: string;
-  siteName?: string;
-  publishedDate?: string;
-  author?: string;
-}
+import { type Citation } from "../../ai/types";
 
 /**
  * Extract citations from provider metadata

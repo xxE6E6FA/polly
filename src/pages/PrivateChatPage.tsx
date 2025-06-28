@@ -26,7 +26,6 @@ export default function PrivateChatPage() {
   const navigationState = location.state as {
     initialMessage?: string;
     attachments?: Attachment[];
-    useWebSearch?: boolean;
     personaId?: string | null;
     reasoningConfig?: ReasoningConfig;
   } | null;
@@ -86,7 +85,6 @@ export default function PrivateChatPage() {
     // Pass initial message from captured navigation state
     initialMessage: initialNavigationState.current?.initialMessage,
     initialAttachments: initialNavigationState.current?.attachments,
-    initialUseWebSearch: initialNavigationState.current?.useWebSearch,
     initialPersonaId: initialNavigationState.current?.personaId
       ? (initialNavigationState.current.personaId as Id<"personas">)
       : undefined,

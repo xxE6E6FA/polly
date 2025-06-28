@@ -30,7 +30,6 @@ export type StreamOptions = {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
-  enableWebSearch?: boolean;
   reasoningConfig?: SharedReasoningConfig;
 };
 
@@ -50,8 +49,7 @@ export type ChatStreamRequest = {
 function createLanguageModel(
   provider: AIProvider,
   model: string,
-  apiKey: string,
-  enableWebSearch?: boolean
+  apiKey: string
 ): LanguageModel {
   const optimizedFetch = (url: RequestInfo | URL, options?: RequestInit) => {
     return fetch(url, {
@@ -82,20 +80,14 @@ function createLanguageModel(
         apiKey,
         baseURL: "https://generativelanguage.googleapis.com/v1beta",
         fetch: optimizedFetch,
-      })(model, {
-        ...(enableWebSearch && { useSearchGrounding: true }),
-      });
+      })(model);
 
     case "openrouter": {
       const openrouter = createOpenRouter({
         apiKey,
         fetch: optimizedFetch,
       });
-      let modifiedModel = model;
-      if (enableWebSearch) {
-        modifiedModel = `${model}:online`;
-      }
-      return openrouter.chat(modifiedModel);
+      return openrouter.chat(model);
     }
 
     default:
@@ -214,12 +206,7 @@ export class ClientAIService {
     try {
       const coreMessages = convertToCoreMessages(messages);
 
-      const languageModel = createLanguageModel(
-        provider,
-        model,
-        apiKey,
-        options?.enableWebSearch
-      );
+      const languageModel = createLanguageModel(provider, model, apiKey);
 
       const providerOptions = getProviderStreamOptions(
         provider,

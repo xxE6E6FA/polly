@@ -29,7 +29,6 @@ interface UseUnifiedChatOptions {
   onConversationCreate?: (conversationId: ConversationId) => void;
   initialMessage?: string;
   initialAttachments?: Attachment[];
-  initialUseWebSearch?: boolean;
   initialPersonaId?: Id<"personas">;
   initialReasoningConfig?: ReasoningConfig;
   overrideMode?: ChatMode; // Optional override for specific use cases
@@ -39,11 +38,10 @@ export function useUnifiedChat({
   conversationId,
   onError,
   onConversationCreate,
-  initialMessage: _initialMessage,
-  initialAttachments: _initialAttachments,
-  initialUseWebSearch: _initialUseWebSearch,
+  initialMessage,
+  initialAttachments,
   initialPersonaId,
-  initialReasoningConfig: _initialReasoningConfig,
+  initialReasoningConfig,
   overrideMode,
 }: UseUnifiedChatOptions) {
   const navigate = useNavigate();
@@ -178,15 +176,15 @@ export function useUnifiedChat({
           return;
         }
 
-        await strategyRef.current.sendMessage(
+        await strategyRef.current.sendMessage({
           content,
           attachments,
           useWebSearch,
           personaId,
           reasoningConfig,
-          // Pass the current persona prompt if a persona is selected
-          personaId && currentPersona ? currentPersona.prompt : null
-        );
+          personaPrompt:
+            personaId && currentPersona ? currentPersona.prompt : null,
+        });
       } else {
         // Regular mode - use regularChat directly
         await regularChat.sendMessage(
@@ -288,7 +286,7 @@ export function useUnifiedChat({
   }, [mode, onError]);
 
   // Auto-send initial message when strategy is ready
-  const hasInitialMessage = !!_initialMessage?.trim();
+  const hasInitialMessage = !!initialMessage?.trim();
   const autoSentRef = useRef(false);
 
   useEffect(() => {
@@ -304,11 +302,11 @@ export function useUnifiedChat({
       // Use setTimeout to ensure the component is fully mounted
       setTimeout(() => {
         sendMessage(
-          _initialMessage!,
-          _initialAttachments,
-          _initialUseWebSearch,
+          initialMessage!,
+          initialAttachments,
+          undefined, // Web search disabled for private chat
           initialPersonaId,
-          _initialReasoningConfig
+          initialReasoningConfig
         ).catch(_error => {
           autoSentRef.current = false; // Allow retry
         });
@@ -318,11 +316,10 @@ export function useUnifiedChat({
     hasInitialMessage,
     mode,
     selectedModel,
-    _initialMessage,
-    _initialAttachments,
-    _initialUseWebSearch,
+    initialMessage,
+    initialAttachments,
     initialPersonaId,
-    _initialReasoningConfig,
+    initialReasoningConfig,
     sendMessage,
   ]);
 

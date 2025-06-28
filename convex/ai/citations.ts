@@ -1,8 +1,6 @@
+import { extractCitations as extractCitationsShared } from "../lib/shared/citations";
 import {
-  extractCitations as extractCitationsShared,
   type Citation,
-} from "../lib/shared/citations";
-import {
   type GoogleGroundingChunk,
   type OpenRouterAnnotation,
   type OpenRouterCitation,

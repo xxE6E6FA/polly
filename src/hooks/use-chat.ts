@@ -230,6 +230,26 @@ export function useChat({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send message";
+
+        // Check if it's a monthly limit error
+        if (errorMessage.includes("Monthly Polly model limit reached")) {
+          // Extract the limit from the error message if possible
+          const limitMatch = errorMessage.match(/\((\d+) messages\)/);
+          const limit = limitMatch ? parseInt(limitMatch[1]) : 500;
+
+          toast.error("Monthly Polly Model Limit Reached", {
+            description: `You've used all ${limit} free messages this month. Switch to your BYOK models for unlimited usage, or wait for next month's reset.`,
+          });
+
+          const limitError = new Error(errorMessage) as Error & {
+            code?: string;
+          };
+          limitError.code = "MONTHLY_LIMIT_REACHED";
+          onError?.(limitError);
+          return;
+        }
+
+        // Generic error handling
         toast.error("Failed to send message", {
           description: errorMessage,
         });

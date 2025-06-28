@@ -8,7 +8,11 @@ import {
   type ProviderMetadata,
   type StreamPart,
 } from "./types";
-import { extractReasoning, humanizeText } from "./utils";
+import {
+  extractReasoning,
+  humanizeText,
+  removeDuplicateSourceSections,
+} from "./utils";
 import {
   isReasoningPart,
   extractReasoningContent,
@@ -184,10 +188,11 @@ export class StreamHandler {
     this.contentBuffer += text;
 
     const timeSinceLastUpdate = Date.now() - this.lastUpdate;
-    if (
+    const shouldFlush =
       this.contentBuffer.length >= CONFIG.STREAM.BATCH_SIZE ||
-      timeSinceLastUpdate >= CONFIG.STREAM.BATCH_TIMEOUT
-    ) {
+      timeSinceLastUpdate >= CONFIG.STREAM.BATCH_TIMEOUT;
+
+    if (shouldFlush) {
       await this.flushContentBuffer();
     }
   }
@@ -248,8 +253,11 @@ export class StreamHandler {
       return;
     }
 
+    // Clean the text to remove duplicate source sections
+    const cleanedText = removeDuplicateSourceSections(text);
+
     // Extract reasoning if embedded in content
-    const extractedReasoning = reasoning || extractReasoning(text);
+    const extractedReasoning = reasoning || extractReasoning(cleanedText);
     const humanizedReasoning = extractedReasoning
       ? humanizeReasoningText(extractedReasoning)
       : undefined;
@@ -260,7 +268,7 @@ export class StreamHandler {
     // If using OpenRouter with web search and no citations found in metadata,
     // Try extracting from markdown links in the response text
     if (!citations || citations.length === 0) {
-      const markdownCitations = extractMarkdownCitations(text);
+      const markdownCitations = extractMarkdownCitations(cleanedText);
       if (markdownCitations.length > 0) {
         citations = markdownCitations;
       }
@@ -310,17 +318,8 @@ export class StreamHandler {
 
     await this.waitForQueuedUpdates();
 
-    // Enrich citations with metadata if we have any (skip if message deleted)
-    if (!this.messageDeleted && citations && citations.length > 0) {
-      await this.ctx.scheduler.runAfter(
-        0,
-        internal.citationEnrichment.enrichMessageCitations,
-        {
-          messageId: this.messageId,
-          citations,
-        }
-      );
-    }
+    // No need to enrich citations anymore - Exa provides all metadata directly
+    // Citations from other providers might need enrichment, but we're focusing on Exa
 
     await clearConversationStreaming(this.ctx, this.messageId);
   }
@@ -376,8 +375,12 @@ export class StreamHandler {
       throw new Error("MessageDeleted");
     }
 
+    let partCount = 0;
+
     try {
       for await (const part of stream) {
+        partCount++;
+
         // For full stream (reasoning), stop checks happen inside handleFullStreamPart
         // For text stream, we need to check here before appending
         if (
@@ -398,8 +401,12 @@ export class StreamHandler {
           ? this.handleFullStreamPart(part as StreamPart)
           : this.appendToBuffer(part as string));
       }
-    } catch {
-      // Stream processing error
+    } catch (error) {
+      console.error("=== Stream processing error ===", {
+        error: error instanceof Error ? error.message : String(error),
+        partCount,
+      });
+      throw error;
     } finally {
       // Only flush if we don't have finish data and message wasn't deleted
       if (!this.hasFinishData() && !this.messageDeleted) {
@@ -464,8 +471,12 @@ export class StreamHandler {
     }
 
     if (!this.finishData) {
+      console.warn("=== No finish data available ===");
       return;
     }
+
+    // Clean the content to remove duplicate source sections
+    const cleanedContent = removeDuplicateSourceSections(this.finishData.text);
 
     // Set the final content from onFinish (authoritative)
     await this.queueUpdate(async () => {
@@ -476,7 +487,7 @@ export class StreamHandler {
       try {
         await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
           id: this.messageId,
-          content: this.finishData!.text,
+          content: cleanedContent,
         });
       } catch (error) {
         // If message doesn't exist, mark as deleted and continue
@@ -497,7 +508,7 @@ export class StreamHandler {
     // Now handle metadata and other finish tasks (skip if deleted or stopped)
     if (!this.messageDeleted && !this.wasStopped) {
       await this.handleFinish(
-        this.finishData.text,
+        cleanedContent,
         this.finishData.finishReason,
         this.finishData.reasoning,
         this.finishData.providerMetadata

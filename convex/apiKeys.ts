@@ -290,7 +290,8 @@ function hasEnvironmentApiKeys(): boolean {
     process.env.OPENAI_API_KEY ||
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
-      process.env.OPENROUTER_API_KEY
+      process.env.OPENROUTER_API_KEY ||
+      process.env.EXA_API_KEY
   );
 }
 
@@ -301,7 +302,8 @@ export const getDecryptedApiKey = action({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("exa")
     ),
   },
   handler: async (ctx, args): Promise<string | null> => {
@@ -353,6 +355,8 @@ function getEnvironmentApiKey(provider: string): string | null {
       return process.env.GEMINI_API_KEY || null;
     case "openrouter":
       return process.env.OPENROUTER_API_KEY || null;
+    case "exa":
+      return process.env.EXA_API_KEY || null;
     default:
       return null;
   }
@@ -402,14 +406,25 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("exa")
     ),
   },
   handler: async (ctx, args) => {
+    // Exa is only stored as environment variable, not as user API key
+    if (args.provider === "exa") {
+      return null;
+    }
+
     const apiKey = await ctx.db
       .query("userApiKeys")
       .withIndex("by_user_provider", q =>
-        q.eq("userId", args.userId).eq("provider", args.provider)
+        q
+          .eq("userId", args.userId)
+          .eq(
+            "provider",
+            args.provider as "openai" | "anthropic" | "google" | "openrouter"
+          )
       )
       .unique();
 
