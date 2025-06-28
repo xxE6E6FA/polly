@@ -26,7 +26,7 @@ import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
 import { useChatPlaceholder } from "@/hooks/use-chat-placeholder";
 import { useChatSubmit } from "@/hooks/use-chat-submit";
 import { cn } from "@/lib/utils";
-import { type AIModel, type Attachment } from "@/types";
+import { type AIModel, type Attachment, type ConversationId } from "@/types";
 import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { api } from "../../convex/_generated/api";
@@ -42,19 +42,19 @@ type ChatInputProps = {
   ) => void;
   onSendMessageToNewConversation?: (
     content: string,
-    shouldNavigate: boolean,
+    shouldNavigate?: boolean,
     attachments?: Attachment[],
     contextSummary?: string,
-    sourceConversationId?: string,
+    sourceConversationId?: ConversationId,
     personaPrompt?: string | null,
     personaId?: Id<"personas"> | null
-  ) => Promise<void>;
+  ) => Promise<ConversationId | undefined>;
   onInputStart?: () => void;
   isLoading?: boolean;
   isStreaming?: boolean;
   onStop?: () => void;
   placeholder?: string;
-  conversationId?: string;
+  conversationId?: ConversationId;
   hasExistingMessages?: boolean;
 };
 
@@ -74,21 +74,47 @@ export const ChatInput = React.memo(
     const location = useLocation();
 
     // User and model data
-    const { canSendMessage, hasMessageLimit, isAnonymous, hasUserApiKeys } =
-      useUser();
-    const selectedModel = useSelectedModel();
-    const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
-
-    // Use our new hooks
-    const visualMode = useChatVisualMode();
-    const warnings = useChatWarnings();
-    const placeholderText = useChatPlaceholder({
-      placeholder: props.placeholder,
+    const {
       canSendMessage,
       hasMessageLimit,
       isAnonymous,
       hasUserApiKeys,
+      monthlyUsage,
+      hasUnlimitedCalls,
+    } = useUser();
+    const selectedModel = useSelectedModel();
+    const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
+
+    // Check if Polly model is selected and monthly limit is reached
+    const isPollyLimitReached = useMemo(() => {
+      return (
+        selectedModel?.free &&
+        monthlyUsage &&
+        monthlyUsage.remainingMessages === 0 &&
+        !hasUnlimitedCalls
+      );
+    }, [selectedModel, monthlyUsage, hasUnlimitedCalls]);
+
+    // Override canSendMessage if Polly limit is reached
+    const effectiveCanSendMessage = canSendMessage && !isPollyLimitReached;
+
+    // Use our new hooks
+    const visualMode = useChatVisualMode();
+    const warnings = useChatWarnings();
+    const defaultPlaceholder = useChatPlaceholder({
+      placeholder: props.placeholder,
+      canSendMessage: effectiveCanSendMessage,
+      hasMessageLimit,
+      isAnonymous,
+      hasUserApiKeys,
     });
+
+    const placeholderText = useMemo(() => {
+      if (isPollyLimitReached) {
+        return "Polly model limit reached. Switch to a BYOK model to continue.";
+      }
+      return defaultPlaceholder;
+    }, [isPollyLimitReached, defaultPlaceholder]);
 
     // Submit logic via hook
     const { submit, submitToNewConversation } = useChatSubmit({
@@ -172,7 +198,7 @@ export const ChatInput = React.memo(
         const messageContent = buildMessageContent(input);
         const binaryAttachments = getBinaryAttachments();
 
-        await submitToNewConversation(
+        const newConversationId = await submitToNewConversation(
           messageContent,
           binaryAttachments.length > 0 ? binaryAttachments : [],
           navigate
@@ -180,6 +206,9 @@ export const ChatInput = React.memo(
 
         clearInput();
         clearAttachments();
+
+        // Return the new conversation ID in case it's needed by the caller
+        return newConversationId;
       },
       [
         input,
@@ -279,13 +308,13 @@ export const ChatInput = React.memo(
       () =>
         cn(
           "rounded-xl p-2.5 sm:p-3 transition-all duration-300",
-          canSendMessage
+          effectiveCanSendMessage
             ? visualMode.isPrivateMode
               ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/30 dark:via-purple-900/20 dark:to-amber-950/10 shadow-lg shadow-purple-500/20 dark:shadow-purple-500/10"
               : "chat-input-container border-2 border-blue-200/30 dark:border-blue-800/20 bg-gradient-to-br from-blue-50/20 to-green-50/10 dark:from-blue-950/10 dark:to-green-950/5"
             : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
         ),
-      [canSendMessage, visualMode.isPrivateMode]
+      [effectiveCanSendMessage, visualMode.isPrivateMode]
     );
 
     // Memoize textarea classes
@@ -293,13 +322,13 @@ export const ChatInput = React.memo(
       () =>
         cn(
           "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0 text-base sm:text-sm leading-relaxed transition-opacity duration-200 min-h-[24px] max-h-[100px] overflow-y-auto py-1",
-          canSendMessage
+          effectiveCanSendMessage
             ? "placeholder:text-muted-foreground/60"
             : "placeholder:text-muted-foreground cursor-not-allowed",
           // Add right padding when private mode toggle is shown
           location.pathname !== "/private" && !props.conversationId && "pr-14"
         ),
-      [canSendMessage, location.pathname, props.conversationId]
+      [effectiveCanSendMessage, location.pathname, props.conversationId]
     );
 
     return (
@@ -332,7 +361,7 @@ export const ChatInput = React.memo(
 
               <AttachmentList
                 attachments={attachments}
-                canChat={canSendMessage}
+                canChat={effectiveCanSendMessage}
                 onPreviewFile={setPreviewFile}
                 onRemoveAttachment={removeAttachment}
               />
@@ -343,7 +372,9 @@ export const ChatInput = React.memo(
                     ref={textareaRef}
                     className={textareaClasses}
                     disabled={
-                      props.isLoading || props.isStreaming || !canSendMessage
+                      props.isLoading ||
+                      props.isStreaming ||
+                      !effectiveCanSendMessage
                     }
                     placeholder={placeholderText}
                     rows={1}
@@ -359,7 +390,7 @@ export const ChatInput = React.memo(
                 ref={inputControlsRef}
                 attachments={attachments}
                 buildMessageContent={buildMessageContent}
-                canChat={canSendMessage}
+                canChat={effectiveCanSendMessage}
                 clearAttachments={clearAttachments}
                 clearInput={clearInput}
                 conversationId={props.conversationId}

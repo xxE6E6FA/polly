@@ -18,6 +18,7 @@ import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
 import { StreamHandler } from "./ai/streaming";
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
+import { getExaApiKey, searchWithExa } from "./ai/exa";
 import {
   type Citation,
   type ProviderType,
@@ -138,21 +139,79 @@ export const streamResponse = action({
         }
       }
 
+      // Handle Exa web search if enabled
+      let exaCitations: Citation[] = [];
+      let searchContext = "";
+      
+      if (args.enableWebSearch) {
+        const exaApiKey = await getExaApiKey(ctx);
+        
+        if (exaApiKey) {
+          try {
+            // Get the last user message as the search query
+            const lastUserMessage = [...args.messages]
+              .reverse()
+              .find(msg => msg.role === "user");
+            
+            if (lastUserMessage) {
+              const searchQuery = typeof lastUserMessage.content === "string" 
+                ? lastUserMessage.content 
+                : lastUserMessage.content
+                    .filter((part: any) => part.type === "text")
+                    .map((part: any) => part.text)
+                    .join(" ");
+              
+              // Perform Exa search
+              const searchResults = await searchWithExa(ctx, exaApiKey, {
+                query: searchQuery,
+                maxResults: args.webSearchMaxResults || 5,
+                searchType: "neural",
+                includeText: true,
+                includeHighlights: true,
+              });
+              
+              exaCitations = searchResults.citations;
+              
+              // Format search results as context
+              if (searchResults.citations.length > 0) {
+                searchContext = "Web search results:\n\n" + 
+                  searchResults.citations
+                    .map((citation, index) => 
+                      `[${index + 1}] ${citation.title}\n${citation.url}\n${citation.snippet || citation.cited_text || ""}`
+                    )
+                    .join("\n\n");
+              }
+            }
+          } catch (error) {
+            console.error("Exa search error:", error);
+            // Continue without web search on error
+          }
+        }
+      }
+
       // Convert messages to AI SDK format
-      const messages = await convertMessages(
+      let messages = await convertMessages(
         ctx,
         args.messages as StreamMessage[],
         args.provider
       );
+      
+      // If we have search context, add it as a system message
+      if (searchContext) {
+        messages.push({
+          role: "system",
+          content: searchContext,
+        });
+      }
 
-      // Create language model
+      // Create language model (no longer pass enableWebSearch for provider-specific handling)
       const model = await createLanguageModel(
         ctx,
         args.provider as ProviderType,
         args.model,
         apiKey,
         args.userId,
-        args.enableWebSearch
+        false // Disable provider-specific web search since we're using Exa
       );
 
       // Create abort controller for stopping
@@ -163,7 +222,6 @@ export const streamResponse = action({
       const providerOptions = await getProviderStreamOptions(
         args.provider as ProviderType,
         args.model,
-        args.enableWebSearch,
         args.reasoningConfig
       );
 
@@ -220,9 +278,9 @@ export const streamResponse = action({
       // Now that streaming is complete, handle the finish
       await streamHandler.finishProcessing();
 
-      // Handle Google search sources
-      if (args.provider === "google" && args.enableWebSearch) {
-        await handleGoogleSearchSources(ctx, result, args.messageId);
+      // Store Exa citations if we have them
+      if (exaCitations.length > 0) {
+        await handleExaCitations(ctx, exaCitations, args.messageId);
       }
     } catch (error) {
       if (
@@ -266,24 +324,17 @@ export const streamResponse = action({
   },
 });
 
-// Handle Google search sources
-/**
- *
- * @param ctx
- * @param result
- * @param result.sources
- * @param messageId
- */
-async function handleGoogleSearchSources(
+// Handle Exa citations
+async function handleExaCitations(
   ctx: ActionCtx,
-  result: {
-    sources?: Promise<WebSource[]>;
-  },
+  citations: Citation[],
   messageId: Id<"messages">
 ): Promise<void> {
-  // Wait for sources to be available
-  const sources = await result.sources;
-  if (sources && sources.length > 0) {
+  if (citations.length === 0) {
+    return;
+  }
+
+  try {
     // Get existing message to check for existing citations
     const message = await ctx.runQuery(api.messages.getById, {
       id: messageId,
@@ -294,13 +345,12 @@ async function handleGoogleSearchSources(
       return;
     }
 
-    // Merge sources with existing citations from providerMetadata
+    // Merge with existing citations from message
     const existingCitations = message.citations || [];
-    const sourceCitations = extractCitations(undefined, sources) || [];
 
     // Combine and deduplicate citations based on URL
     const citationMap = new Map<string, Citation>();
-    for (const citation of [...existingCitations, ...sourceCitations]) {
+    for (const citation of [...existingCitations, ...citations]) {
       if (!citationMap.has(citation.url)) {
         citationMap.set(citation.url, citation);
       }
@@ -308,35 +358,32 @@ async function handleGoogleSearchSources(
 
     const mergedCitations = [...citationMap.values()];
 
-    if (mergedCitations.length > 0) {
-      try {
-        await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-          id: messageId,
-          citations: mergedCitations,
-        });
+    // Update message with citations
+    await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+      id: messageId,
+      citations: mergedCitations,
+    });
 
-        // Enrich citations with metadata
-        await ctx.scheduler.runAfter(
-          0,
-          internal.citationEnrichment.enrichMessageCitations,
-          {
-            messageId,
-            citations: mergedCitations,
-          }
-        );
-      } catch (error) {
-        // If the message was deleted, just log and continue
-        if (
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("nonexistent document"))
-        ) {
-          // Message was deleted before citations could be added - this is expected
-          return;
-        }
-        throw error;
+    // Enrich citations with metadata
+    await ctx.scheduler.runAfter(
+      0,
+      internal.citationEnrichment.enrichMessageCitations,
+      {
+        messageId,
+        citations: mergedCitations,
       }
+    );
+  } catch (error) {
+    // If the message was deleted, just log and continue
+    if (
+      error instanceof Error &&
+      (error.message.includes("not found") ||
+        error.message.includes("nonexistent document"))
+    ) {
+      // Message was deleted before citations could be added - this is expected
+      return;
     }
+    throw error;
   }
 }
 

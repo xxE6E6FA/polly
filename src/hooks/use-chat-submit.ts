@@ -28,7 +28,9 @@ import { type Id } from "../../convex/_generated/dataModel";
 interface ChatSubmitStrategy {
   canSubmit(input: string, attachments: Attachment[]): boolean;
   submit(params: SubmitParams): Promise<void>;
-  submitToNewConversation?(params: NewConversationParams): Promise<void>;
+  submitToNewConversation?(
+    params: NewConversationParams
+  ): Promise<ConversationId | undefined>;
 }
 
 interface SubmitParams {
@@ -42,7 +44,7 @@ interface SubmitParams {
 interface NewConversationParams extends SubmitParams {
   shouldNavigate: boolean;
   contextSummary?: string;
-  sourceConversationId?: string;
+  sourceConversationId?: ConversationId;
 }
 
 // Base class with common functionality
@@ -92,19 +94,21 @@ class ConversationWithBranchingStrategy extends DirectMessageStrategy {
     ) => void,
     private onSendMessageToNewConversation: (
       content: string,
-      shouldNavigate: boolean,
+      shouldNavigate?: boolean,
       attachments?: Attachment[],
       contextSummary?: string,
-      sourceConversationId?: string,
+      sourceConversationId?: ConversationId,
       personaPrompt?: string | null,
       personaId?: Id<"personas"> | null
-    ) => Promise<void>
+    ) => Promise<ConversationId | undefined>
   ) {
     super(onSendMessage);
   }
 
-  async submitToNewConversation(params: NewConversationParams): Promise<void> {
-    await this.onSendMessageToNewConversation(
+  async submitToNewConversation(
+    params: NewConversationParams
+  ): Promise<ConversationId | undefined> {
+    return await this.onSendMessageToNewConversation(
       params.content,
       params.shouldNavigate,
       params.attachments,
@@ -167,7 +171,7 @@ class NavigateToPrivateChatStrategy extends BaseSubmitStrategy {
 }
 
 interface UseChatSubmitOptions {
-  conversationId?: string;
+  conversationId?: ConversationId;
   onSendMessage?: (
     content: string,
     attachments?: Attachment[],
@@ -177,13 +181,13 @@ interface UseChatSubmitOptions {
   ) => void;
   onSendMessageToNewConversation?: (
     content: string,
-    shouldNavigate: boolean,
+    shouldNavigate?: boolean,
     attachments?: Attachment[],
     contextSummary?: string,
-    sourceConversationId?: string,
+    sourceConversationId?: ConversationId,
     personaPrompt?: string | null,
     personaId?: Id<"personas"> | null
-  ) => Promise<void>;
+  ) => Promise<ConversationId | undefined>;
   onAfterSubmit?: () => void;
 }
 
@@ -292,18 +296,20 @@ export function useChatSubmit({
         // Silently ignore summary generation errors
       }
 
-      await strategy.submitToNewConversation({
+      const result = await strategy.submitToNewConversation({
         content,
         attachments,
         shouldNavigate,
         contextSummary,
-        sourceConversationId: conversationId,
+        sourceConversationId: conversationId as ConversationId,
         useWebSearch: false,
         personaId: null,
         reasoningConfig: undefined,
       });
 
       onAfterSubmit?.();
+
+      return result;
     },
     [strategy, conversationId, generateConversationSummary, onAfterSubmit]
   );

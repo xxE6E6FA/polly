@@ -1,6 +1,10 @@
 import { toast } from "sonner";
 import { flushSync } from "react-dom";
-import { type ChatStrategy, type ChatStrategyOptions } from "./types";
+import {
+  type ChatStrategy,
+  type ChatStrategyOptions,
+  type SendMessageParams,
+} from "./types";
 import {
   type Attachment,
   type ChatMessage,
@@ -11,6 +15,7 @@ import { type ReasoningConfig } from "@/components/reasoning-config-select";
 import { ClientAIService, type AIProvider } from "@/lib/ai/client-ai-service";
 import { messageUtils } from "@/lib/ai/message-utils";
 import { type Id } from "../../../convex/_generated/dataModel";
+import { getDefaultSystemPrompt } from "convex/constants";
 
 // Strategy for local-only chat (no server persistence)
 export class LocalChatStrategy implements ChatStrategy {
@@ -73,19 +78,15 @@ export class LocalChatStrategy implements ChatStrategy {
     });
   }
 
-  async sendMessage(
-    content: string,
-    attachments?: Attachment[],
-    useWebSearch?: boolean,
-    _personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig,
-    personaPrompt?: string | null
-  ): Promise<void> {
+  async sendMessage(params: SendMessageParams): Promise<void> {
+    const { content, attachments, personaId, reasoningConfig, personaPrompt } =
+      params;
+    // Note: useWebSearch is ignored for private chat
+
     await this.sendMessageInternal(
       content,
       attachments,
-      useWebSearch,
-      _personaId,
+      personaId,
       reasoningConfig,
       personaPrompt
     );
@@ -94,7 +95,6 @@ export class LocalChatStrategy implements ChatStrategy {
   private async sendMessageInternal(
     content: string,
     attachments?: Attachment[],
-    useWebSearch?: boolean,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
     personaPrompt?: string | null
@@ -166,7 +166,8 @@ export class LocalChatStrategy implements ChatStrategy {
         throw new Error(`No valid API key found for ${provider}`);
       }
 
-      const apiKeys: APIKeys = { [provider]: decryptedKey };
+      const apiKeys: APIKeys = {};
+      apiKeys[provider as keyof APIKeys] = decryptedKey;
 
       // Only include completed messages for AI request (exclude the empty assistant message we just created)
       const messagesForAI = this.messages
@@ -189,6 +190,14 @@ export class LocalChatStrategy implements ChatStrategy {
           content: resolvedPersonaPrompt,
           attachments: undefined,
         });
+      } else {
+        // Add default system prompt when no persona is selected
+        const defaultPrompt = getDefaultSystemPrompt(selectedModel.modelId);
+        messagesForAI.unshift({
+          role: "system" as const,
+          content: defaultPrompt,
+          attachments: undefined,
+        });
       }
 
       let accumulatedContent = "";
@@ -201,7 +210,6 @@ export class LocalChatStrategy implements ChatStrategy {
         provider,
         apiKeys,
         options: {
-          enableWebSearch: useWebSearch,
           reasoningConfig: reasoningConfig?.enabled
             ? {
                 effort: reasoningConfig.effort,
@@ -357,7 +365,6 @@ export class LocalChatStrategy implements ChatStrategy {
     await this.sendMessageInternal(
       targetMessage.content,
       targetMessage.attachments,
-      targetMessage.useWebSearch,
       null, // personaId not stored in local messages
       undefined, // reasoningConfig not stored in local messages
       null // personaPrompt
@@ -450,7 +457,8 @@ export class LocalChatStrategy implements ChatStrategy {
         throw new Error(`No valid API key found for ${provider}`);
       }
 
-      const apiKeys: APIKeys = { [provider]: decryptedKey };
+      const apiKeys: APIKeys = {};
+      apiKeys[provider as keyof APIKeys] = decryptedKey;
 
       // Get all messages up to and including the previous user message
       const messagesForAI = this.messages
@@ -475,9 +483,7 @@ export class LocalChatStrategy implements ChatStrategy {
         model: selectedModel.modelId,
         provider,
         apiKeys,
-        options: {
-          enableWebSearch: previousUserMessage.useWebSearch,
-        },
+        options: {},
         callbacks: {
           onContent: chunk => {
             accumulatedContent += chunk;

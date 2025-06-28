@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { cn } from "@/lib/utils";
+import { type ConversationId } from "@/types";
 
 type SendButtonGroupProps = {
   canSend: boolean;
@@ -22,7 +23,7 @@ type SendButtonGroupProps = {
   isLoading: boolean;
   isSummarizing: boolean;
   hasExistingMessages: boolean;
-  conversationId?: string;
+  conversationId?: ConversationId;
   onSend: () => void;
   onStop?: () => void;
   onSendAsNewConversation?: (navigate: boolean) => void;

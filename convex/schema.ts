@@ -1,6 +1,13 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  attachmentSchema,
+  messageRoleSchema,
+  webCitationSchema,
+  messageMetadataSchema,
+  providerSchema,
+} from "./lib/schemas";
 
 export default defineSchema({
   // Authentication tables from Convex Auth
@@ -69,12 +76,7 @@ export default defineSchema({
 
   messages: defineTable({
     conversationId: v.id("conversations"),
-    role: v.union(
-      v.literal("user"),
-      v.literal("assistant"),
-      v.literal("system"),
-      v.literal("context")
-    ),
+    role: messageRoleSchema,
     content: v.string(),
     reasoning: v.optional(v.string()),
     model: v.optional(v.string()),
@@ -83,50 +85,10 @@ export default defineSchema({
     isMainBranch: v.boolean(),
     sourceConversationId: v.optional(v.id("conversations")),
     useWebSearch: v.optional(v.boolean()),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()), // For text files
-          thumbnail: v.optional(v.string()), // For image thumbnails
-          storageId: v.optional(v.id("_storage")), // Convex storage ID
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     // Web search citations
-    citations: v.optional(
-      v.array(
-        v.object({
-          type: v.literal("url_citation"),
-          url: v.string(),
-          title: v.string(),
-          cited_text: v.optional(v.string()),
-          snippet: v.optional(v.string()),
-          description: v.optional(v.string()), // OpenGraph description
-          image: v.optional(v.string()), // OpenGraph image URL
-          favicon: v.optional(v.string()), // Website favicon URL
-          siteName: v.optional(v.string()), // Website name
-          publishedDate: v.optional(v.string()), // Article publish date
-          author: v.optional(v.string()), // Author information
-        })
-      )
-    ),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()), // "stop", "length", "error", "tool_calls", etc.
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()), // True when user explicitly stopped generation
-      })
-    ),
+    citations: v.optional(v.array(webCitationSchema)),
+    metadata: v.optional(messageMetadataSchema),
     createdAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])
@@ -134,12 +96,7 @@ export default defineSchema({
 
   userApiKeys: defineTable({
     userId: v.id("users"),
-    provider: v.union(
-      v.literal("openai"),
-      v.literal("anthropic"),
-      v.literal("google"),
-      v.literal("openrouter")
-    ),
+    provider: providerSchema,
     // Server-side encryption (for server operations)
     encryptedKey: v.optional(v.array(v.number())),
     initializationVector: v.optional(v.array(v.number())),

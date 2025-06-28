@@ -5,6 +5,138 @@ import { type Id } from "./_generated/dataModel";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { type ActionCtx } from "./_generated/server";
 import { getOptionalUserId } from "./lib/auth";
+import {
+  attachmentSchema,
+  reasoningConfigSchema,
+  messageRoleSchema,
+  webCitationSchema,
+} from "./lib/schemas";
+import {
+  DEFAULT_TEMPERATURE,
+  DEFAULT_MAX_TOKENS,
+  MESSAGE_BATCH_SIZE,
+  WEB_SEARCH_MAX_RESULTS,
+  getDefaultSystemPrompt,
+} from "./constants";
+import {
+  type StreamingActionResult,
+  type MessageActionArgs,
+  type ConversationDoc,
+  type MessageDoc,
+  findStreamingMessage,
+  ensureStreamingCleared,
+  deleteMessagesAfterIndex,
+  resolveAttachmentUrls,
+  buildUserMessageContent,
+  getDefaultSystemPromptForConversation,
+} from "./lib/conversation_utils";
+
+// Common helper to create a user message with attachments
+const createUserMessage = async (
+  ctx: ActionCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    content: string;
+    attachments?: Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      mimeType?: string;
+    }>;
+    useWebSearch?: boolean;
+    userId: Id<"users">;
+    provider: string;
+    isPollyProvided?: boolean;
+  }
+): Promise<Id<"messages">> => {
+  // Process attachments if provided
+  let processedAttachments = args.attachments;
+  if (args.attachments && args.attachments.length > 0) {
+    processedAttachments = await processAttachmentsForStorage(
+      ctx,
+      args.attachments
+    );
+  }
+
+  // Create user message
+  const userMessageId = await ctx.runMutation(api.messages.create, {
+    conversationId: args.conversationId,
+    role: "user",
+    content: args.content,
+    attachments: processedAttachments,
+    useWebSearch: args.useWebSearch,
+    isMainBranch: true,
+  });
+
+  // Increment user's message count for limit tracking (only for Polly-provided models)
+  await ctx.runMutation(api.users.incrementMessageCount, {
+    userId: args.userId,
+    modelProvider: args.provider,
+    isPollyProvided: args.isPollyProvided,
+  });
+
+  return userMessageId;
+};
+
+// Common helper for streaming action execution
+const executeStreamingAction = async (
+  ctx: ActionCtx,
+  args: MessageActionArgs & {
+    userMessageId?: Id<"messages">;
+    conversation: ConversationDoc;
+    contextMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content:
+        | string
+        | Array<{
+            type: "text" | "image_url" | "file";
+            text?: string;
+            image_url?: { url: string };
+            file?: { filename: string; file_data: string };
+            attachment?: {
+              storageId: Id<"_storage">;
+              type: string;
+              name: string;
+            };
+          }>;
+    }>;
+    useWebSearch?: boolean;
+    reasoningConfig?: {
+      enabled?: boolean;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
+    };
+  }
+): Promise<StreamingActionResult> => {
+  let assistantMessageId: Id<"messages"> | undefined;
+
+  try {
+    // Setup and start streaming
+    assistantMessageId = await setupAndStartStreaming(ctx, {
+      conversationId: args.conversationId,
+      contextMessages: args.contextMessages,
+      model: args.model,
+      provider: args.provider,
+      userId: args.conversation.userId,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+    });
+
+    return {
+      userMessageId: args.userMessageId,
+      assistantMessageId,
+    };
+  } catch (error) {
+    return await handleStreamingError(ctx, error, args.conversationId, {
+      userMessageId: args.userMessageId,
+      assistantMessageId,
+    });
+  }
+};
 
 // Helper function to process attachments and upload base64 data to Convex storage
 const processAttachmentsForStorage = async (
@@ -110,31 +242,257 @@ const processAttachmentsForStorage = async (
   );
 };
 
-// Helper function to resolve attachment URLs from storage IDs
-const resolveAttachmentUrls = async (
+// Helper function to validate conversation and get API key
+const validateConversationAndAuth = async (
   ctx: ActionCtx,
-  attachments: Array<{
-    type: "image" | "pdf" | "text";
-    url: string;
-    name: string;
-    size: number;
-    content?: string;
-    thumbnail?: string;
-    storageId?: Id<"_storage">;
-  }>
+  args: {
+    conversationId: Id<"conversations">;
+    provider: string;
+  }
 ) => {
-  return await Promise.all(
-    attachments.map(async attachment => {
-      if (attachment.storageId) {
-        const url = await ctx.storage.getUrl(attachment.storageId);
+  // Validate conversation exists
+  const conversation = await ctx.runQuery(api.conversations.get, {
+    id: args.conversationId,
+  });
+
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  // Get the selected model to check if it's Polly-provided
+  const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
+  const isPollyProvided = selectedModel?.free === true;
+
+  // Enforce message limit for users (only for Polly-provided models)
+  await ctx.runMutation(api.users.enforceMessageLimit, {
+    userId: conversation.userId,
+    modelProvider: args.provider,
+    isPollyProvided,
+  });
+
+  // Get API key for the provider
+  const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
+    provider: args.provider as "openai" | "anthropic" | "google" | "openrouter",
+  });
+
+  if (!apiKey) {
+    throw new Error(
+      `No API key found for ${args.provider}. Please add an API key in Settings.`
+    );
+  }
+
+  return { conversation, apiKey };
+};
+
+// Helper function to build context messages from conversation history
+const buildContextMessages = async (
+  ctx: ActionCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    personaId?: Id<"personas">;
+    includeUpToIndex?: number; // For retry/edit scenarios
+  }
+) => {
+  // Get all messages for context
+  const messages = await ctx.runQuery(api.messages.list, {
+    conversationId: args.conversationId,
+  });
+
+  // Slice messages if needed (for retry/edit)
+  const relevantMessages =
+    args.includeUpToIndex !== undefined
+      ? messages.slice(0, args.includeUpToIndex + 1)
+      : messages;
+
+  const personaPrompt = args.personaId
+    ? (await ctx.runQuery(api.personas.get, { id: args.personaId }))?.prompt
+    : undefined;
+
+  // Resolve attachment URLs for messages with storageIds
+  const messagesWithResolvedUrls = await Promise.all(
+    relevantMessages.map(async msg => {
+      if (msg.attachments && msg.attachments.length > 0) {
+        const resolvedAttachments = await resolveAttachmentUrls(
+          ctx,
+          msg.attachments
+        );
         return {
-          ...attachment,
-          url: url || attachment.url, // Fallback to original URL if getUrl fails
+          ...msg,
+          attachments: resolvedAttachments,
         };
       }
-      return attachment;
+      return msg;
     })
   );
+
+  // Build context messages for the API
+  const contextMessagesPromises = messagesWithResolvedUrls
+    .filter(msg => msg.role !== "context") // Skip context messages
+    .map(async msg => {
+      if (msg.role === "system") {
+        // Filter out previous citation instructions to avoid duplication
+        const isCitationInstruction =
+          msg.content.includes("🚨 CRITICAL CITATION REQUIREMENTS") ||
+          msg.content.includes("SEARCH RESULTS:") ||
+          msg.content.includes("AVAILABLE SOURCES FOR CITATION:");
+
+        if (isCitationInstruction) {
+          return undefined; // Skip this message
+        }
+
+        return {
+          role: "system" as const,
+          content: msg.content,
+        };
+      }
+
+      if (msg.role === "user") {
+        const content = await buildUserMessageContent(
+          ctx,
+          msg.content,
+          msg.attachments
+        );
+        return {
+          role: "user" as const,
+          content,
+        };
+      }
+
+      if (msg.role === "assistant") {
+        return {
+          role: "assistant" as const,
+          content: msg.content,
+        };
+      }
+
+      return;
+    });
+
+  const contextMessagesWithNulls = await Promise.all(contextMessagesPromises);
+  const contextMessages = contextMessagesWithNulls.filter(
+    msg => msg !== undefined
+  );
+
+  // Add persona prompt as system message if it exists and no system message is present
+  if (personaPrompt && !contextMessages.some(msg => msg.role === "system")) {
+    contextMessages.unshift({
+      role: "system",
+      content: personaPrompt,
+    });
+  } else if (
+    !personaPrompt &&
+    !contextMessages.some(msg => msg.role === "system")
+  ) {
+    // Add default system prompt when no persona is selected
+    const defaultPrompt = getDefaultSystemPromptForConversation(
+      relevantMessages as MessageDoc[]
+    );
+
+    contextMessages.unshift({
+      role: "system",
+      content: defaultPrompt,
+    });
+  }
+
+  return { contextMessages, messages: relevantMessages };
+};
+
+// Helper function to setup and start streaming
+const setupAndStartStreaming = async (
+  ctx: ActionCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    contextMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content:
+        | string
+        | Array<{
+            type: "text" | "image_url" | "file";
+            text?: string;
+            image_url?: { url: string };
+            file?: { filename: string; file_data: string };
+            attachment?: {
+              storageId: Id<"_storage">;
+              type: string;
+              name: string;
+            };
+          }>;
+    }>;
+    model: string;
+    provider: string;
+    userId: Id<"users">;
+    useWebSearch?: boolean;
+    reasoningConfig?: {
+      enabled?: boolean;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
+    };
+  }
+) => {
+  // Set conversation streaming state
+  await ctx.runMutation(api.conversations.setStreamingState, {
+    id: args.conversationId,
+    isStreaming: true,
+  });
+
+  // Create assistant message for streaming
+  const assistantMessageId = await ctx.runMutation(api.messages.create, {
+    conversationId: args.conversationId,
+    role: "assistant",
+    content: "",
+    model: args.model,
+    provider: args.provider,
+    isMainBranch: true,
+  });
+
+  // Start streaming response
+  await ctx.runAction(api.ai.streamResponse, {
+    messages: args.contextMessages,
+    messageId: assistantMessageId,
+    model: args.model,
+    provider: args.provider,
+    userId: args.userId,
+    temperature: DEFAULT_TEMPERATURE,
+    maxTokens: DEFAULT_MAX_TOKENS,
+    enableWebSearch: args.useWebSearch,
+    webSearchMaxResults: WEB_SEARCH_MAX_RESULTS,
+    reasoningConfig: args.reasoningConfig?.enabled
+      ? {
+          effort: args.reasoningConfig.effort,
+          maxTokens: args.reasoningConfig.maxTokens,
+        }
+      : undefined,
+  });
+
+  return assistantMessageId;
+};
+
+// Helper function to handle streaming errors
+const handleStreamingError = async (
+  ctx: ActionCtx,
+  error: unknown,
+  conversationId: Id<"conversations">,
+  messageIds?: {
+    userMessageId?: Id<"messages">;
+    assistantMessageId?: Id<"messages">;
+  }
+) => {
+  // Clear streaming state on error
+  await ctx.runMutation(api.conversations.setStreamingState, {
+    id: conversationId,
+    isStreaming: false,
+  });
+
+  // If stopped by user, this is not an error - just return the message IDs
+  if (error instanceof Error && error.message === "StoppedByUser") {
+    return {
+      userMessageId: messageIds?.userMessageId || ("" as Id<"messages">),
+      assistantMessageId:
+        messageIds?.assistantMessageId || ("" as Id<"messages">),
+    };
+  }
+
+  throw error;
 };
 
 export const create = mutation({
@@ -167,23 +525,7 @@ export const createWithMessages = internalMutation({
     sourceConversationId: v.optional(v.id("conversations")),
     firstMessage: v.string(),
     personaPrompt: v.optional(v.string()),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
@@ -224,9 +566,16 @@ export const createWithMessages = internalMutation({
       createdAt: now,
     });
 
-    // Increment user's message count for limit tracking
+    // Get whether this is a Polly-provided model based on the provider
+    // In the internal mutation we already have the model/provider info from args
+    const isPollyProvided =
+      args.provider === "google" &&
+      args.model?.includes("gemini-2.5-flash-lite");
+
+    // Increment user's message count for limit tracking (only for Polly-provided models)
     await ctx.runMutation(api.users.incrementMessageCount, {
       userId: args.userId,
+      isPollyProvided,
     });
 
     // Create empty assistant message for streaming
@@ -372,9 +721,8 @@ export const remove = mutation({
     if (messages.length > 0) {
       const messageIds = messages.map(m => m._id);
       // We'll delete messages in batches to avoid potential timeouts
-      const batchSize = 50;
-      for (let i = 0; i < messageIds.length; i += batchSize) {
-        const batch = messageIds.slice(i, i + batchSize);
+      for (let i = 0; i < messageIds.length; i += MESSAGE_BATCH_SIZE) {
+        const batch = messageIds.slice(i, i + MESSAGE_BATCH_SIZE);
         await ctx.runMutation(api.messages.removeMultiple, { ids: batch });
       }
     }
@@ -393,7 +741,6 @@ export const archive = mutation({
       throw new Error("Conversation not found");
     }
 
-    // Archive the conversation
     return await ctx.db.patch(args.id, {
       isArchived: true,
       updatedAt: Date.now(),
@@ -410,7 +757,6 @@ export const unarchive = mutation({
       throw new Error("Conversation not found");
     }
 
-    // Unarchive the conversation
     return await ctx.db.patch(args.id, {
       isArchived: false,
       updatedAt: Date.now(),
@@ -498,36 +844,10 @@ export const createNewConversation = action({
     sourceConversationId: v.optional(v.id("conversations")),
     personaId: v.optional(v.id("personas")),
     personaPrompt: v.optional(v.string()),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     generateTitle: v.optional(v.boolean()),
-    reasoningConfig: v.optional(
-      v.object({
-        enabled: v.boolean(),
-        effort: v.union(
-          v.literal("low"),
-          v.literal("medium"),
-          v.literal("high")
-        ),
-        maxTokens: v.optional(v.number()),
-      })
-    ),
+    reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
     ctx,
@@ -542,11 +862,6 @@ export const createNewConversation = action({
       ? await ctx.runMutation(api.users.createAnonymous)
       : args.userId;
 
-    // Enforce message limit for users
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: actualUserId,
-    });
-
     // Get user's selected model
     const selectedModel = await ctx.runQuery(
       api.userModels.getUserSelectedModel
@@ -554,6 +869,15 @@ export const createNewConversation = action({
     if (!selectedModel) {
       throw new Error("No model selected. Please select a model in Settings.");
     }
+
+    // Check if it's a Polly-provided model
+    const isPollyProvided = selectedModel.free === true;
+
+    // Enforce message limit for users (only for Polly-provided models)
+    await ctx.runMutation(api.users.enforceMessageLimit, {
+      userId: actualUserId,
+      isPollyProvided,
+    });
 
     // Fetch persona prompt if personaId is provided but personaPrompt is not
     let finalPersonaPrompt = args.personaPrompt;
@@ -615,71 +939,28 @@ export const createNewConversation = action({
         role: "system",
         content: finalPersonaPrompt,
       });
+    } else {
+      // Add default system prompt when no persona is selected
+      const defaultPrompt = getDefaultSystemPrompt(
+        selectedModel.name || selectedModel.modelId
+      );
+      contextMessages.push({
+        role: "system",
+        content: defaultPrompt,
+      });
     }
 
     // Add user message with attachments
-    if (processedAttachments?.length) {
-      const contentParts: Array<{
-        type: "text" | "image_url" | "file";
-        text?: string;
-        image_url?: { url: string };
-        file?: { filename: string; file_data: string };
-        attachment?: {
-          storageId: Id<"_storage">;
-          type: string;
-          name: string;
-        };
-      }> = [{ type: "text", text: args.firstMessage }];
+    const userContent = await buildUserMessageContent(
+      ctx,
+      args.firstMessage,
+      processedAttachments
+    );
 
-      for (const attachment of processedAttachments) {
-        if (attachment.type === "image") {
-          // For images with storageId, we need to get the URL for AI processing
-          let imageUrl = attachment.url;
-          if (attachment.storageId && !attachment.url) {
-            imageUrl = (await ctx.storage.getUrl(attachment.storageId)) || "";
-          }
-
-          contentParts.push({
-            type: "image_url",
-            image_url: { url: imageUrl },
-            // Include attachment metadata for Convex storage optimization
-            attachment: attachment.storageId
-              ? {
-                  storageId: attachment.storageId,
-                  type: attachment.type,
-                  name: attachment.name,
-                }
-              : undefined,
-          });
-        } else if (attachment.type === "text" || attachment.type === "pdf") {
-          contentParts.push({
-            type: "file",
-            file: {
-              filename: attachment.name,
-              file_data: attachment.content || "",
-            },
-            // Include attachment metadata for Convex storage optimization
-            attachment: attachment.storageId
-              ? {
-                  storageId: attachment.storageId,
-                  type: attachment.type,
-                  name: attachment.name,
-                }
-              : undefined,
-          });
-        }
-      }
-
-      contextMessages.push({
-        role: "user",
-        content: contentParts,
-      });
-    } else {
-      contextMessages.push({
-        role: "user",
-        content: args.firstMessage,
-      });
-    }
+    contextMessages.push({
+      role: "user",
+      content: userContent,
+    });
 
     // Schedule AI response
     await ctx.scheduler.runAfter(0, api.ai.streamResponse, {
@@ -688,10 +969,10 @@ export const createNewConversation = action({
       model: selectedModel.modelId,
       provider: selectedModel.provider,
       userId: actualUserId,
-      temperature: 0.7,
-      maxTokens: 8192, // Generous default for conversations
+      temperature: DEFAULT_TEMPERATURE,
+      maxTokens: DEFAULT_MAX_TOKENS,
       enableWebSearch: args.useWebSearch,
-      webSearchMaxResults: 3,
+      webSearchMaxResults: WEB_SEARCH_MAX_RESULTS,
       reasoningConfig: args.reasoningConfig?.enabled
         ? {
             effort: args.reasoningConfig.effort,
@@ -747,37 +1028,11 @@ export const sendFollowUpMessage = action({
   args: {
     conversationId: v.id("conversations"),
     content: v.string(),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     model: v.string(),
     provider: v.string(),
-    reasoningConfig: v.optional(
-      v.object({
-        enabled: v.boolean(),
-        effort: v.union(
-          v.literal("low"),
-          v.literal("medium"),
-          v.literal("high")
-        ),
-        maxTokens: v.optional(v.number()),
-      })
-    ),
+    reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
     ctx,
@@ -786,230 +1041,51 @@ export const sendFollowUpMessage = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
-    // Validate conversation exists
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
+    // Validate conversation and get API key
+    const { conversation } = await validateConversationAndAuth(ctx, {
+      conversationId: args.conversationId,
+      provider: args.provider,
     });
 
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
+    // Get the selected model to check if it's Polly-provided
+    const selectedModel = await ctx.runQuery(
+      api.userModels.getUserSelectedModel
+    );
+    const isPollyProvided = selectedModel?.free === true;
 
-    // Enforce message limit for users
-    await ctx.runMutation(api.users.enforceMessageLimit, {
+    // Create user message
+    const userMessageId = await createUserMessage(ctx, {
+      conversationId: args.conversationId,
+      content: args.content,
+      attachments: args.attachments,
+      useWebSearch: args.useWebSearch,
       userId: conversation.userId,
-      modelProvider: args.provider,
+      provider: args.provider,
+      isPollyProvided,
     });
 
-    // Get API key for the provider
-    const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-      provider: args.provider as
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "openrouter",
+    // Build context messages
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
     });
 
-    if (!apiKey) {
-      throw new Error(
-        `No API key found for ${args.provider}. Please add an API key in Settings.`
-      );
-    }
+    // Execute streaming action
+    const result = await executeStreamingAction(ctx, {
+      conversationId: args.conversationId,
+      model: args.model,
+      provider: args.provider,
+      userMessageId,
+      conversation,
+      contextMessages,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+    });
 
-    let assistantMessageId: Id<"messages"> | undefined;
-    let userMessageId: Id<"messages"> | undefined;
-
-    try {
-      // Set conversation streaming state
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: true,
-      });
-
-      // Process attachments - upload base64 content to Convex storage
-      let processedAttachments = args.attachments;
-      if (args.attachments && args.attachments.length > 0) {
-        processedAttachments = await processAttachmentsForStorage(
-          ctx,
-          args.attachments
-        );
-      }
-
-      // Add user message
-      userMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "user",
-        content: args.content,
-        attachments: processedAttachments,
-        useWebSearch: args.useWebSearch,
-        isMainBranch: true,
-      });
-
-      // Increment user's message count for limit tracking
-      await ctx.runMutation(api.users.incrementMessageCount, {
-        userId: conversation.userId,
-        modelProvider: args.provider,
-      });
-
-      // Get all messages for context
-      const messages = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Get persona prompt if conversation has a persona
-      let personaPrompt: string | null = null;
-      if (conversation.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: conversation.personaId,
-        });
-        personaPrompt = persona?.prompt || null;
-      }
-
-      // Resolve attachment URLs for messages with storageIds
-      const messagesWithResolvedUrls = await Promise.all(
-        messages.map(async msg => {
-          if (msg.attachments && msg.attachments.length > 0) {
-            const resolvedAttachments = await resolveAttachmentUrls(
-              ctx,
-              msg.attachments
-            );
-            return {
-              ...msg,
-              attachments: resolvedAttachments,
-            };
-          }
-          return msg;
-        })
-      );
-
-      // Build context messages for the API
-      const contextMessages = messagesWithResolvedUrls
-        .filter(msg => msg.role !== "context") // Skip context messages
-        .map(msg => {
-          if (msg.role === "system") {
-            return {
-              role: "system" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "user") {
-            if (msg.attachments && msg.attachments.length > 0) {
-              const content = [
-                { type: "text" as const, text: msg.content },
-                ...msg.attachments.map(attachment => {
-                  if (attachment.type === "image") {
-                    return {
-                      type: "image_url" as const,
-                      image_url: { url: attachment.url },
-                      // Include attachment metadata for Convex storage optimization
-                      attachment: attachment.storageId
-                        ? {
-                            storageId: attachment.storageId,
-                            type: attachment.type,
-                            name: attachment.name,
-                          }
-                        : undefined,
-                    };
-                  }
-                  if (attachment.type === "pdf" || attachment.type === "text") {
-                    return {
-                      type: "file" as const,
-                      file: {
-                        filename: attachment.name,
-                        file_data: attachment.content || "",
-                      },
-                    };
-                  }
-                  return {
-                    type: "text" as const,
-                    text: `[${attachment.name}]`,
-                  };
-                }),
-              ];
-              return {
-                role: "user" as const,
-                content,
-              };
-            }
-            return {
-              role: "user" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "assistant") {
-            return {
-              role: "assistant" as const,
-              content: msg.content,
-            };
-          }
-
-          return;
-        })
-        .filter(msg => msg !== undefined);
-
-      // Add persona prompt as system message if it exists and no system message is present
-      if (
-        personaPrompt &&
-        !contextMessages.some(msg => msg.role === "system")
-      ) {
-        contextMessages.unshift({
-          role: "system",
-          content: personaPrompt,
-        });
-      }
-
-      // Create assistant message for streaming
-      assistantMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "assistant",
-        content: "",
-        model: args.model,
-        provider: args.provider,
-        isMainBranch: true,
-      });
-
-      // Start streaming response
-      await ctx.runAction(api.ai.streamResponse, {
-        messages: contextMessages,
-        messageId: assistantMessageId,
-        model: args.model,
-        provider: args.provider,
-        userId: conversation.userId,
-        temperature: 0.7,
-        maxTokens: 8192, // Generous default for conversations
-        enableWebSearch: args.useWebSearch,
-        webSearchMaxResults: 3,
-        reasoningConfig: args.reasoningConfig?.enabled
-          ? {
-              effort: args.reasoningConfig.effort,
-              maxTokens: args.reasoningConfig.maxTokens,
-            }
-          : undefined,
-      });
-
-      return {
-        userMessageId,
-        assistantMessageId,
-      };
-    } catch (error) {
-      // Clear streaming state on error
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
-
-      // If stopped by user, this is not an error - just return the message ID
-      if (error instanceof Error && error.message === "StoppedByUser") {
-        return {
-          userMessageId: userMessageId || ("" as Id<"messages">),
-          assistantMessageId: assistantMessageId || ("" as Id<"messages">),
-        };
-      }
-
-      throw error;
-    }
+    return {
+      userMessageId,
+      assistantMessageId: result.assistantMessageId,
+    };
   },
 });
 
@@ -1025,228 +1101,70 @@ export const retryFromMessage = action({
     ctx,
     args
   ): Promise<{ assistantMessageId: Id<"messages"> }> => {
-    // Validate conversation exists
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
+    // Validate conversation and get API key
+    const { conversation } = await validateConversationAndAuth(ctx, {
+      conversationId: args.conversationId,
+      provider: args.provider,
     });
 
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    // Enforce message limit for users (retrying counts as sending a new message)
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: conversation.userId,
-      modelProvider: args.provider,
+    // Get all messages for the conversation
+    const messages = await ctx.runQuery(api.messages.list, {
+      conversationId: args.conversationId,
     });
 
-    // Get API key for the provider
-    const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-      provider: args.provider as
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "openrouter",
+    // Find the target message
+    const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
+    if (messageIndex === -1) {
+      throw new Error("Message not found");
+    }
+
+    let contextEndIndex: number;
+    let useWebSearch: boolean | undefined;
+
+    if (args.retryType === "user") {
+      // Retry from user message - include the user message and regenerate assistant response
+      contextEndIndex = messageIndex;
+      useWebSearch = messages[messageIndex].useWebSearch;
+    } else {
+      // Retry from assistant message - go back to previous user message
+      const previousUserMessageIndex = messageIndex - 1;
+      const previousUserMessage = messages[previousUserMessageIndex];
+
+      if (!previousUserMessage || previousUserMessage.role !== "user") {
+        throw new Error("Cannot find previous user message to retry from");
+      }
+
+      contextEndIndex = previousUserMessageIndex;
+      useWebSearch = previousUserMessage.useWebSearch;
+    }
+
+    // Delete messages after the context end point
+    await deleteMessagesAfterIndex(
+      ctx,
+      messages as MessageDoc[],
+      contextEndIndex
+    );
+
+    // Build context messages up to the retry point
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
+      includeUpToIndex: contextEndIndex,
     });
 
-    if (!apiKey) {
-      throw new Error(
-        `No API key found for ${args.provider}. Please add an API key in Settings.`
-      );
-    }
+    // Execute streaming action
+    const result = await executeStreamingAction(ctx, {
+      conversationId: args.conversationId,
+      model: args.model,
+      provider: args.provider,
+      conversation,
+      contextMessages,
+      useWebSearch,
+    });
 
-    let assistantMessageId: Id<"messages"> | undefined;
-
-    try {
-      // Set conversation streaming state
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: true,
-      });
-
-      // Get all messages for the conversation
-      const messages = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Find the target message
-      const messageIndex = messages.findIndex(
-        msg => msg._id === args.messageId
-      );
-      if (messageIndex === -1) {
-        throw new Error("Message not found");
-      }
-
-      let contextEndIndex: number;
-
-      if (args.retryType === "user") {
-        // Retry from user message - include the user message and regenerate assistant response
-        contextEndIndex = messageIndex;
-      } else {
-        // Retry from assistant message - go back to previous user message
-        const previousUserMessageIndex = messageIndex - 1;
-        const previousUserMessage = messages[previousUserMessageIndex];
-
-        if (!previousUserMessage || previousUserMessage.role !== "user") {
-          throw new Error("Cannot find previous user message to retry from");
-        }
-
-        contextEndIndex = previousUserMessageIndex;
-      }
-
-      // Delete messages after the context end point
-      const messagesToDelete = messages.slice(contextEndIndex + 1);
-      for (const msg of messagesToDelete) {
-        await ctx.runMutation(api.messages.remove, { id: msg._id });
-      }
-
-      // Resolve attachment URLs for context messages
-      const contextMessagesSlice = messages.slice(0, contextEndIndex + 1);
-      const contextMessagesWithResolvedUrls = await Promise.all(
-        contextMessagesSlice.map(async msg => {
-          if (msg.attachments && msg.attachments.length > 0) {
-            const resolvedAttachments = await resolveAttachmentUrls(
-              ctx,
-              msg.attachments
-            );
-            return {
-              ...msg,
-              attachments: resolvedAttachments,
-            };
-          }
-          return msg;
-        })
-      );
-
-      // Get the context messages up to the retry point
-      const contextMessages = contextMessagesWithResolvedUrls
-        .filter(msg => msg.role !== "context")
-        .map(msg => {
-          if (msg.role === "system") {
-            return {
-              role: "system" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "user") {
-            if (msg.attachments && msg.attachments.length > 0) {
-              const content = [
-                { type: "text" as const, text: msg.content },
-                ...msg.attachments.map(attachment => {
-                  if (attachment.type === "image") {
-                    return {
-                      type: "image_url" as const,
-                      image_url: { url: attachment.url },
-                      // Include attachment metadata for Convex storage optimization
-                      attachment: attachment.storageId
-                        ? {
-                            storageId: attachment.storageId,
-                            type: attachment.type,
-                            name: attachment.name,
-                          }
-                        : undefined,
-                    };
-                  }
-                  if (attachment.type === "pdf" || attachment.type === "text") {
-                    return {
-                      type: "file" as const,
-                      file: {
-                        filename: attachment.name,
-                        file_data: attachment.content || "",
-                      },
-                    };
-                  }
-                  return {
-                    type: "text" as const,
-                    text: `[${attachment.name}]`,
-                  };
-                }),
-              ];
-              return {
-                role: "user" as const,
-                content,
-              };
-            }
-            return {
-              role: "user" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "assistant") {
-            return {
-              role: "assistant" as const,
-              content: msg.content,
-            };
-          }
-
-          return;
-        })
-        .filter(msg => msg !== undefined);
-
-      // Get persona prompt if conversation has a persona
-      let personaPrompt: string | null = null;
-      if (conversation.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: conversation.personaId,
-        });
-        personaPrompt = persona?.prompt || null;
-      }
-
-      // Add persona prompt as system message if it exists and no system message is present
-      if (
-        personaPrompt &&
-        !contextMessages.some(msg => msg.role === "system")
-      ) {
-        contextMessages.unshift({
-          role: "system",
-          content: personaPrompt,
-        });
-      }
-
-      // Create assistant message for streaming
-      assistantMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "assistant",
-        content: "",
-        model: args.model,
-        provider: args.provider,
-        isMainBranch: true,
-      });
-
-      // Start streaming response
-      await ctx.runAction(api.ai.streamResponse, {
-        messages: contextMessages,
-        messageId: assistantMessageId,
-        model: args.model,
-        provider: args.provider,
-        userId: conversation.userId,
-        temperature: 0.7,
-        maxTokens: 8192, // Generous default for conversations
-        enableWebSearch: false, // Don't use web search for retries
-        webSearchMaxResults: 3,
-      });
-
-      return {
-        assistantMessageId,
-      };
-    } catch (error) {
-      // Clear streaming state on error
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
-
-      // If stopped by user, this is not an error - just return the message ID
-      if (error instanceof Error && error.message === "StoppedByUser") {
-        return {
-          assistantMessageId: assistantMessageId || ("" as Id<"messages">),
-        };
-      }
-
-      throw error;
-    }
+    return {
+      assistantMessageId: result.assistantMessageId,
+    };
   },
 });
 
@@ -1262,224 +1180,72 @@ export const editMessage = action({
     ctx,
     args
   ): Promise<{ assistantMessageId: Id<"messages"> }> => {
-    // Validate conversation exists
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
+    // Validate conversation and get API key
+    const { conversation } = await validateConversationAndAuth(ctx, {
+      conversationId: args.conversationId,
+      provider: args.provider,
     });
 
-    if (!conversation) {
-      throw new Error("Conversation not found");
+    // Get all messages for the conversation
+    const messages = await ctx.runQuery(api.messages.list, {
+      conversationId: args.conversationId,
+    });
+
+    // Find the target message and validate it's a user message
+    const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
+    if (messageIndex === -1) {
+      throw new Error("Message not found");
     }
 
-    // Enforce message limit for users (editing counts as sending a new message)
-    await ctx.runMutation(api.users.enforceMessageLimit, {
+    const targetMessage = messages[messageIndex];
+    if (targetMessage.role !== "user") {
+      throw new Error("Can only edit user messages");
+    }
+
+    // Store the original web search setting before deleting messages
+    const useWebSearch = targetMessage.useWebSearch;
+
+    // Update the message content
+    await ctx.runMutation(api.messages.update, {
+      id: args.messageId,
+      content: args.newContent,
+    });
+
+    // Get the selected model to check if it's Polly-provided
+    const selectedModel = await ctx.runQuery(
+      api.userModels.getUserSelectedModel
+    );
+    const isPollyProvided = selectedModel?.free === true;
+
+    // Increment user's message count for limit tracking (editing counts as sending)
+    await ctx.runMutation(api.users.incrementMessageCount, {
       userId: conversation.userId,
       modelProvider: args.provider,
+      isPollyProvided,
     });
 
-    // Get API key for the provider
-    const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-      provider: args.provider as
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "openrouter",
+    // Delete all messages after the edited message
+    await deleteMessagesAfterIndex(ctx, messages as MessageDoc[], messageIndex);
+
+    // Build context messages including the edited message
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
     });
 
-    if (!apiKey) {
-      throw new Error(
-        `No API key found for ${args.provider}. Please add an API key in Settings.`
-      );
-    }
+    // Execute streaming action
+    const result = await executeStreamingAction(ctx, {
+      conversationId: args.conversationId,
+      model: args.model,
+      provider: args.provider,
+      conversation,
+      contextMessages,
+      useWebSearch,
+    });
 
-    let assistantMessageId: Id<"messages"> | undefined;
-
-    try {
-      // Set conversation streaming state
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: true,
-      });
-
-      // Get all messages for the conversation
-      const messages = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Find the target message and validate it's a user message
-      const messageIndex = messages.findIndex(
-        msg => msg._id === args.messageId
-      );
-      if (messageIndex === -1) {
-        throw new Error("Message not found");
-      }
-
-      const targetMessage = messages[messageIndex];
-      if (targetMessage.role !== "user") {
-        throw new Error("Can only edit user messages");
-      }
-
-      // Update the message content
-      await ctx.runMutation(api.messages.update, {
-        id: args.messageId,
-        content: args.newContent,
-      });
-
-      // Increment user's message count for limit tracking (editing counts as sending)
-      await ctx.runMutation(api.users.incrementMessageCount, {
-        userId: conversation.userId,
-        modelProvider: args.provider,
-      });
-
-      // Delete all messages after the edited message
-      const messagesToDelete = messages.slice(messageIndex + 1);
-      for (const msg of messagesToDelete) {
-        await ctx.runMutation(api.messages.remove, { id: msg._id });
-      }
-
-      // Get the updated messages for context (including the edited message)
-      const updatedMessages = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Resolve attachment URLs for updated messages
-      const updatedMessagesWithResolvedUrls = await Promise.all(
-        updatedMessages.map(async msg => {
-          if (msg.attachments && msg.attachments.length > 0) {
-            const resolvedAttachments = await resolveAttachmentUrls(
-              ctx,
-              msg.attachments
-            );
-            return {
-              ...msg,
-              attachments: resolvedAttachments,
-            };
-          }
-          return msg;
-        })
-      );
-
-      // Build context messages
-      const contextMessages = updatedMessagesWithResolvedUrls
-        .filter(msg => msg.role !== "context")
-        .map(msg => {
-          if (msg.role === "system") {
-            return {
-              role: "system" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "user") {
-            if (msg.attachments && msg.attachments.length > 0) {
-              const content = [
-                { type: "text" as const, text: msg.content },
-                ...msg.attachments.map(attachment => {
-                  if (attachment.type === "image") {
-                    return {
-                      type: "image_url" as const,
-                      image_url: { url: attachment.url },
-                      // Include attachment metadata for Convex storage optimization
-                      attachment: attachment.storageId
-                        ? {
-                            storageId: attachment.storageId,
-                            type: attachment.type,
-                            name: attachment.name,
-                          }
-                        : undefined,
-                    };
-                  }
-                  if (attachment.type === "pdf" || attachment.type === "text") {
-                    return {
-                      type: "file" as const,
-                      file: {
-                        filename: attachment.name,
-                        file_data: attachment.content || "",
-                      },
-                    };
-                  }
-                  return {
-                    type: "text" as const,
-                    text: `[${attachment.name}]`,
-                  };
-                }),
-              ];
-              return {
-                role: "user" as const,
-                content,
-              };
-            }
-            return {
-              role: "user" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "assistant") {
-            return {
-              role: "assistant" as const,
-              content: msg.content,
-            };
-          }
-
-          return;
-        })
-        .filter(msg => msg !== undefined);
-
-      // Get persona prompt if conversation has a persona
-      let personaPrompt: string | null = null;
-      if (conversation.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: conversation.personaId,
-        });
-        personaPrompt = persona?.prompt || null;
-      }
-
-      // Add persona prompt as system message if it exists and no system message is present
-      if (
-        personaPrompt &&
-        !contextMessages.some(msg => msg.role === "system")
-      ) {
-        contextMessages.unshift({
-          role: "system",
-          content: personaPrompt,
-        });
-      }
-
-      // Create assistant message for streaming
-      assistantMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "assistant",
-        content: "",
-        model: args.model,
-        provider: args.provider,
-        isMainBranch: true,
-      });
-
-      // Start streaming response
-      await ctx.runAction(api.ai.streamResponse, {
-        messages: contextMessages,
-        messageId: assistantMessageId,
-        model: args.model,
-        provider: args.provider,
-        userId: conversation.userId,
-        temperature: 0.7,
-        maxTokens: 8192, // Generous default for conversations
-        enableWebSearch: false, // Don't use web search for edits
-        webSearchMaxResults: 3,
-      });
-
-      return {
-        assistantMessageId,
-      };
-    } catch (error) {
-      // Clear streaming state on error
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
-      throw error;
-    }
+    return {
+      assistantMessageId: result.assistantMessageId,
+    };
   },
 });
 
@@ -1495,11 +1261,7 @@ export const stopGeneration = action({
       });
 
       // Find the most recent assistant message that might be streaming
-      // This would be an assistant message with empty or partial content
-      const streamingMessage = messages
-        .filter(msg => msg.role === "assistant")
-        .reverse() // Start from the most recent
-        .find(msg => !msg.metadata?.finishReason); // No finish reason means it's still streaming
+      const streamingMessage = findStreamingMessage(messages as MessageDoc[]);
 
       if (streamingMessage) {
         // Stop the streaming for this specific message
@@ -1509,10 +1271,7 @@ export const stopGeneration = action({
         });
       } else {
         // No streaming message found, but clear the conversation state anyway
-        await ctx.runMutation(api.conversations.setStreamingState, {
-          id: args.conversationId,
-          isStreaming: false,
-        });
+        await ensureStreamingCleared(ctx, args.conversationId);
       }
 
       return {
@@ -1520,10 +1279,7 @@ export const stopGeneration = action({
       };
     } catch (error) {
       // Still try to clear streaming state even if stopping failed
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
+      await ensureStreamingCleared(ctx, args.conversationId);
       throw error;
     }
   },
@@ -1563,80 +1319,31 @@ export const resumeConversation = action({
       id: args.conversationId,
     });
 
-    let personaPrompt: string | null = null;
-    if (conversation?.personaId) {
-      const persona = await ctx.runQuery(api.personas.get, {
-        id: conversation.personaId,
-      });
-      personaPrompt = persona?.prompt || null;
+    if (!conversation) {
+      throw new Error("Conversation not found");
     }
 
-    // Prepare context messages
-    const contextMessages = messages
-      .filter(msg => msg.role !== "context")
-      .map(msg => ({
-        role: msg.role as "user" | "assistant" | "system",
-        content: msg.attachments?.length
-          ? [
-              { type: "text" as const, text: msg.content },
-              ...msg.attachments.map(attachment => ({
-                type: "file" as const,
-                file: {
-                  filename: attachment.name,
-                  file_data: attachment.storageId || "",
-                },
-              })),
-            ]
-          : msg.content,
-      }));
-
-    // Add persona prompt as system message if available
-    const finalContextMessages = personaPrompt
-      ? [
-          { role: "system" as const, content: personaPrompt },
-          ...contextMessages,
-        ]
-      : contextMessages;
+    // Build context messages
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
+    });
 
     // Get user's selected model
-    const userId = conversation?.userId;
-    if (!userId) {
-      throw new Error("No user found for conversation");
-    }
-
     const userModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
 
     if (!userModel) {
       throw new Error("No model selected for user");
     }
 
-    // Set conversation to streaming state
-    await ctx.runMutation(api.conversations.setStreamingState, {
-      id: args.conversationId,
-      isStreaming: true,
-    });
-
-    // Create assistant message and start streaming
-    const assistantMessageId = await ctx.runMutation(api.messages.create, {
+    // Setup and start streaming
+    await setupAndStartStreaming(ctx, {
       conversationId: args.conversationId,
-      role: "assistant",
-      content: "",
+      contextMessages,
       model: userModel.modelId,
       provider: userModel.provider,
-      isMainBranch: true,
-    });
-
-    // Start streaming response
-    await ctx.runAction(api.ai.streamResponse, {
-      messages: finalContextMessages,
-      messageId: assistantMessageId,
-      model: userModel.modelId,
-      provider: userModel.provider,
-      userId,
-      temperature: 0.7,
-      maxTokens: 8192, // Generous default for conversations
-      enableWebSearch: lastMessage.useWebSearch || false,
-      webSearchMaxResults: 3,
+      userId: conversation.userId,
+      useWebSearch: lastMessage.useWebSearch || false,
     });
 
     return { resumed: true };
@@ -1649,52 +1356,14 @@ export const savePrivateConversation = action({
     userId: v.id("users"),
     messages: v.array(
       v.object({
-        role: v.union(
-          v.literal("user"),
-          v.literal("assistant"),
-          v.literal("system"),
-          v.literal("context")
-        ),
+        role: messageRoleSchema,
         content: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string()),
         provider: v.optional(v.string()),
         reasoning: v.optional(v.string()),
-        attachments: v.optional(
-          v.array(
-            v.object({
-              type: v.union(
-                v.literal("image"),
-                v.literal("pdf"),
-                v.literal("text")
-              ),
-              url: v.string(),
-              name: v.string(),
-              size: v.number(),
-              content: v.optional(v.string()),
-              thumbnail: v.optional(v.string()),
-              storageId: v.optional(v.id("_storage")),
-              mimeType: v.optional(v.string()), // Add mimeType for base64 conversion
-            })
-          )
-        ),
-        citations: v.optional(
-          v.array(
-            v.object({
-              type: v.literal("url_citation"),
-              url: v.string(),
-              title: v.string(),
-              cited_text: v.optional(v.string()),
-              snippet: v.optional(v.string()),
-              description: v.optional(v.string()),
-              image: v.optional(v.string()),
-              favicon: v.optional(v.string()),
-              siteName: v.optional(v.string()),
-              publishedDate: v.optional(v.string()),
-              author: v.optional(v.string()),
-            })
-          )
-        ),
+        attachments: v.optional(v.array(attachmentSchema)),
+        citations: v.optional(v.array(webCitationSchema)),
         metadata: v.optional(
           v.object({
             tokenCount: v.optional(v.number()),
@@ -1710,9 +1379,16 @@ export const savePrivateConversation = action({
     personaId: v.optional(v.id("personas")),
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
-    // Enforce message limit for users
+    // Get user's selected model to check if it's Polly-provided
+    const selectedModel = await ctx.runQuery(
+      api.userModels.getUserSelectedModel
+    );
+    const isPollyProvided = selectedModel?.free === true;
+
+    // Enforce message limit for users (only for Polly-provided models)
     await ctx.runMutation(api.users.enforceMessageLimit, {
       userId: args.userId,
+      isPollyProvided,
     });
 
     // Generate a title from the first user message or use provided title
@@ -1799,23 +1475,7 @@ export const continueConversation = action({
   args: {
     conversationId: v.id("conversations"),
     content: v.string(),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     model: v.string(),
     provider: v.string(),
@@ -1827,214 +1487,15 @@ export const continueConversation = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
-    // Validate conversation exists
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
+    // This is essentially the same as sendFollowUpMessage
+    // Redirecting to avoid code duplication
+    return await ctx.runAction(api.conversations.sendFollowUpMessage, {
+      conversationId: args.conversationId,
+      content: args.content,
+      attachments: args.attachments,
+      useWebSearch: args.useWebSearch,
+      model: args.model,
+      provider: args.provider,
     });
-
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    // Enforce message limit for users
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: conversation.userId,
-      modelProvider: args.provider,
-    });
-
-    // Get API key for the provider
-    const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-      provider: args.provider as
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "openrouter",
-    });
-
-    if (!apiKey) {
-      throw new Error(
-        `No API key found for ${args.provider}. Please add an API key in Settings.`
-      );
-    }
-
-    let assistantMessageId: Id<"messages"> | undefined;
-    let userMessageId: Id<"messages"> | undefined;
-
-    try {
-      // Set conversation streaming state
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: true,
-      });
-
-      // Process attachments - upload base64 content to Convex storage
-      let processedAttachments = args.attachments;
-      if (args.attachments && args.attachments.length > 0) {
-        processedAttachments = await processAttachmentsForStorage(
-          ctx,
-          args.attachments
-        );
-      }
-
-      // Add user message
-      userMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "user",
-        content: args.content,
-        attachments: processedAttachments,
-        useWebSearch: args.useWebSearch,
-        isMainBranch: true,
-      });
-
-      // Increment user's message count for limit tracking
-      await ctx.runMutation(api.users.incrementMessageCount, {
-        userId: conversation.userId,
-        modelProvider: args.provider,
-      });
-
-      // Get all messages for context
-      const messages = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Get persona prompt if conversation has a persona
-      let personaPrompt: string | null = null;
-      if (conversation.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: conversation.personaId,
-        });
-        personaPrompt = persona?.prompt || null;
-      }
-
-      // Resolve attachment URLs for messages with storageIds
-      const messagesWithResolvedUrls = await Promise.all(
-        messages.map(async msg => {
-          if (msg.attachments && msg.attachments.length > 0) {
-            const resolvedAttachments = await resolveAttachmentUrls(
-              ctx,
-              msg.attachments
-            );
-            return {
-              ...msg,
-              attachments: resolvedAttachments,
-            };
-          }
-          return msg;
-        })
-      );
-
-      // Build context messages for the API
-      const contextMessages = messagesWithResolvedUrls
-        .filter(msg => msg.role !== "context") // Skip context messages
-        .map(msg => {
-          if (msg.role === "system") {
-            return {
-              role: "system" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "user") {
-            if (msg.attachments && msg.attachments.length > 0) {
-              const content = [
-                { type: "text" as const, text: msg.content },
-                ...msg.attachments.map(attachment => {
-                  if (attachment.type === "image") {
-                    return {
-                      type: "image_url" as const,
-                      image_url: { url: attachment.url },
-                      // Include attachment metadata for Convex storage optimization
-                      attachment: attachment.storageId
-                        ? {
-                            storageId: attachment.storageId,
-                            type: attachment.type,
-                            name: attachment.name,
-                          }
-                        : undefined,
-                    };
-                  }
-                  if (attachment.type === "pdf" || attachment.type === "text") {
-                    return {
-                      type: "file" as const,
-                      file: {
-                        filename: attachment.name,
-                        file_data: attachment.content || "",
-                      },
-                    };
-                  }
-                  return {
-                    type: "text" as const,
-                    text: `[${attachment.name}]`,
-                  };
-                }),
-              ];
-              return {
-                role: "user" as const,
-                content,
-              };
-            }
-            return {
-              role: "user" as const,
-              content: msg.content,
-            };
-          }
-
-          if (msg.role === "assistant") {
-            return {
-              role: "assistant" as const,
-              content: msg.content,
-            };
-          }
-
-          return;
-        })
-        .filter(msg => msg !== undefined);
-
-      // Add persona prompt as system message if it exists and no system message is present
-      if (
-        personaPrompt &&
-        !contextMessages.some(msg => msg.role === "system")
-      ) {
-        contextMessages.unshift({
-          role: "system",
-          content: personaPrompt,
-        });
-      }
-
-      // Create assistant message for streaming
-      assistantMessageId = await ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "assistant",
-        content: "",
-        model: args.model,
-        provider: args.provider,
-        isMainBranch: true,
-      });
-
-      // Start streaming response
-      await ctx.runAction(api.ai.streamResponse, {
-        messages: contextMessages,
-        messageId: assistantMessageId,
-        model: args.model,
-        provider: args.provider,
-        userId: conversation.userId,
-        temperature: 0.7,
-        maxTokens: 8192, // Generous default for conversations
-        enableWebSearch: args.useWebSearch,
-        webSearchMaxResults: 3,
-      });
-
-      return {
-        userMessageId,
-        assistantMessageId,
-      };
-    } catch (error) {
-      // Clear streaming state on error
-      await ctx.runMutation(api.conversations.setStreamingState, {
-        id: args.conversationId,
-        isStreaming: false,
-      });
-      throw error;
-    }
   },
 });

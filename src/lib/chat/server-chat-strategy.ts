@@ -1,4 +1,8 @@
-import { type ChatStrategy, type ChatStrategyOptions } from "./types";
+import {
+  type ChatStrategy,
+  type ChatStrategyOptions,
+  type SendMessageParams,
+} from "./types";
 import { type Attachment, type ChatMessage } from "@/types";
 import { type ReasoningConfig } from "@/components/reasoning-config-select";
 import { type Id } from "../../../convex/_generated/dataModel";
@@ -24,14 +28,16 @@ type ServerChatStrategyOptions = ChatStrategyOptions & {
 export class ServerChatStrategy implements ChatStrategy {
   constructor(private options: ServerChatStrategyOptions) {}
 
-  sendMessage(
-    content: string,
-    attachments?: Attachment[],
-    useWebSearch?: boolean,
-    personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig,
-    personaPrompt?: string | null
-  ): Promise<void> {
+  sendMessage(params: SendMessageParams): Promise<void> {
+    const {
+      content,
+      attachments,
+      useWebSearch,
+      personaId,
+      reasoningConfig,
+      personaPrompt,
+    } = params;
+
     return this.options.sendMessage(
       content,
       attachments,

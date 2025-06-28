@@ -1,17 +1,23 @@
 import { v } from "convex/values";
 
 import { type Id } from "./_generated/dataModel";
-import { internalMutation, mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  mutation,
+  query,
+  internalQuery,
+} from "./_generated/server";
+import {
+  attachmentSchema,
+  messageRoleSchema,
+  webCitationSchema,
+  messageMetadataSchema,
+} from "./lib/schemas";
 
 export const create = mutation({
   args: {
     conversationId: v.id("conversations"),
-    role: v.union(
-      v.literal("user"),
-      v.literal("assistant"),
-      v.literal("system"),
-      v.literal("context")
-    ),
+    role: messageRoleSchema,
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
@@ -20,23 +26,7 @@ export const create = mutation({
     reasoning: v.optional(v.string()),
     sourceConversationId: v.optional(v.id("conversations")),
     useWebSearch: v.optional(v.boolean()),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()), // For text files
-          thumbnail: v.optional(v.string()), // For image thumbnails
-          storageId: v.optional(v.id("_storage")), // Convex storage ID
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     metadata: v.optional(
       v.object({
         tokenCount: v.optional(v.number()),
@@ -140,23 +130,7 @@ export const internalUpdate = internalMutation({
     content: v.optional(v.string()),
     reasoning: v.optional(v.string()),
     // Web search citations
-    citations: v.optional(
-      v.array(
-        v.object({
-          type: v.literal("url_citation"),
-          url: v.string(),
-          title: v.string(),
-          cited_text: v.optional(v.string()),
-          snippet: v.optional(v.string()),
-          description: v.optional(v.string()),
-          image: v.optional(v.string()),
-          favicon: v.optional(v.string()),
-          siteName: v.optional(v.string()),
-          publishedDate: v.optional(v.string()),
-          author: v.optional(v.string()),
-        })
-      )
-    ),
+    citations: v.optional(v.array(webCitationSchema)),
     metadata: v.optional(
       v.object({
         tokenCount: v.optional(v.number()),
@@ -376,33 +350,8 @@ export const internalAtomicUpdate = internalMutation({
     reasoning: v.optional(v.string()),
     appendContent: v.optional(v.string()),
     appendReasoning: v.optional(v.string()),
-    citations: v.optional(
-      v.array(
-        v.object({
-          type: v.literal("url_citation"),
-          url: v.string(),
-          title: v.string(),
-          cited_text: v.optional(v.string()),
-          snippet: v.optional(v.string()),
-          description: v.optional(v.string()),
-          image: v.optional(v.string()),
-          favicon: v.optional(v.string()),
-          siteName: v.optional(v.string()),
-          publishedDate: v.optional(v.string()),
-          author: v.optional(v.string()),
-        })
-      )
-    ),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-        webSearchCost: v.optional(v.number()),
-      })
-    ),
+    citations: v.optional(v.array(webCitationSchema)),
+    metadata: v.optional(messageMetadataSchema),
   },
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;
@@ -465,6 +414,13 @@ export const internalGetById = internalMutation({
   },
 });
 
+export const internalGetByIdQuery = internalQuery({
+  args: { id: v.id("messages") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const internalGetAllInConversation = internalMutation({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
@@ -475,5 +431,27 @@ export const internalGetAllInConversation = internalMutation({
       )
       .order("asc")
       .collect();
+  },
+});
+
+// Public wrapper for migration (temporary - remove after migration)
+export const runSearchResultsMigration = mutation({
+  args: {},
+  handler: async ctx => {
+    const messages = await ctx.db.query("messages").collect();
+    let migratedCount = 0;
+
+    for (const message of messages) {
+      if (message.metadata?.searchResults) {
+        // Remove searchResults from metadata
+        const { searchResults: _unused, ...cleanMetadata } = message.metadata;
+        await ctx.db.patch(message._id, {
+          metadata: cleanMetadata,
+        });
+        migratedCount++;
+      }
+    }
+
+    return { migratedCount, totalMessages: messages.length };
   },
 });

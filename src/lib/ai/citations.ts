@@ -2,5 +2,6 @@
 export {
   extractCitations,
   extractMarkdownCitations,
-  type Citation,
 } from "../../../convex/lib/shared/citations";
+
+export { type Citation } from "../../../convex/ai/types";

@@ -20,11 +20,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { WebSearchToggle } from "@/components/web-search-toggle";
 import { useUser } from "@/hooks/use-user";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn } from "@/lib/utils";
-import { type AIModel, type Attachment } from "@/types";
+import { type AIModel, type Attachment, type ConversationId } from "@/types";
 
 import { SendButtonGroup } from "./send-button-group";
 import { type Id } from "../../../convex/_generated/dataModel";
@@ -36,7 +35,7 @@ type InputControlsProps = {
   selectedModel?: AIModel | null;
   currentModel?: AIModel;
   hasExistingMessages: boolean;
-  conversationId?: string;
+  conversationId?: ConversationId;
 
   onStop?: () => void;
   hasApiKeys?: boolean;
@@ -91,7 +90,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
     },
     ref
   ) => {
-    const [webSearchEnabled, setWebSearchEnabled] = useState(false);
     const [selectedPersonaId, setSelectedPersonaId] =
       useState<Id<"personas"> | null>(null);
     const [reasoningConfig, setReasoningConfig] = useState<ReasoningConfig>({
@@ -126,14 +124,13 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       onSendMessage(
         messageContent,
         binaryAttachments.length > 0 ? binaryAttachments : undefined,
-        webSearchEnabled,
+        undefined, // Always let AI decide (backend uses Gemini for intelligent detection)
         selectedPersonaId,
         reasoningConfig.enabled ? reasoningConfig : undefined
       );
 
       clearInput();
       clearAttachments();
-      setWebSearchEnabled(false);
 
       if (onInputStart && messageContent.trim()) {
         onInputStart();
@@ -145,7 +142,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       canChat,
       onSendMessage,
       onInputStart,
-      webSearchEnabled,
       buildMessageContent,
       getBinaryAttachments,
       clearAttachments,
@@ -188,16 +184,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
             )}
 
             {canChat && <ModelPicker />}
-
-            {canChat &&
-              selectedModel &&
-              (selectedModel.provider === "openrouter" ||
-                selectedModel.provider === "google") && (
-                <WebSearchToggle
-                  enabled={webSearchEnabled}
-                  onToggle={setWebSearchEnabled}
-                />
-              )}
 
             {canChat && selectedModel && (
               <ReasoningConfigSelect

@@ -11,6 +11,7 @@ import {
 import { Citations } from "@/components/citations";
 import { ConvexFileDisplay } from "@/components/convex-file-display";
 import { Reasoning } from "@/components/reasoning";
+import { SearchQuery } from "@/components/search-query";
 import { Button } from "@/components/ui/button";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
@@ -235,22 +236,22 @@ const ChatMessageComponent = ({
     setIsEditing(false);
   }, [onEditMessage, message.id, editContent]);
 
-  const handleRetry = useCallback(async () => {
+  const handleRetry = useCallback(() => {
     if (onRetryMessage && !isRetrying) {
       setIsRetrying(true);
       try {
-        await onRetryMessage(message.id);
+        onRetryMessage(message.id);
       } finally {
         setIsRetrying(false);
       }
     }
   }, [onRetryMessage, message.id, isRetrying]);
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (onDeleteMessage && !isDeleting) {
       setIsDeleting(true);
       try {
-        await onDeleteMessage(message.id);
+        onDeleteMessage(message.id);
       } finally {
         setIsDeleting(false);
       }
@@ -312,6 +313,7 @@ const ChatMessageComponent = ({
     <>
       <div
         data-message-role={message.role}
+        data-message-id={message.id}
         className={cn(
           "group w-full px-3 py-2 sm:px-6 sm:py-2.5 transition-colors",
           "bg-transparent"
@@ -398,9 +400,27 @@ const ChatMessageComponent = ({
         ) : (
           <div className="w-full">
             <div className="min-w-0 flex-1">
+              {message.metadata?.searchQuery && (
+                <div className="mb-2.5">
+                  <SearchQuery
+                    feature={message.metadata.searchFeature}
+                    category={message.metadata.searchCategory}
+                    citations={message.citations}
+                    isLoading={
+                      isStreaming &&
+                      (!message.content || message.content.length === 0)
+                    }
+                  />
+                </div>
+              )}
+
               {reasoning && (
                 <div className="mb-2.5">
-                  <Reasoning isLoading={isStreaming} reasoning={reasoning} />
+                  <Reasoning
+                    isLoading={isStreaming}
+                    reasoning={reasoning}
+                    hasSearch={!!message.metadata?.searchQuery}
+                  />
                 </div>
               )}
 
@@ -431,11 +451,17 @@ const ChatMessageComponent = ({
                 </div>
               )}
 
-              {message.citations && message.citations.length > 0 && (
-                <div className="mt-2.5">
-                  <Citations compact citations={message.citations} />
-                </div>
-              )}
+              {/* Only show citations after reasoning is complete and content has started */}
+              {message.citations &&
+                message.citations.length > 0 &&
+                (!isStreaming || message.content.length > 0) && (
+                  <Citations
+                    key={`citations-${message.id}-${isStreaming ? "streaming" : "complete"}`}
+                    citations={message.citations}
+                    messageId={message.id}
+                    content={message.content}
+                  />
+                )}
 
               {renderAttachments(message.attachments, "assistant")}
 

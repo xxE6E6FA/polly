@@ -1,21 +1,20 @@
-import { useState } from "react";
-
 import {
-  ArrowSquareOutIcon,
-  CalendarIcon,
-  CaretDownIcon,
-  CaretUpIcon,
-  GlobeIcon,
-  UserIcon,
-} from "@phosphor-icons/react";
-
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useLayoutEffect,
+} from "react";
+import { LinkIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { WebSearchCitation } from "@/types";
 
 type CitationsProps = {
   citations: WebSearchCitation[];
   className?: string;
-  compact?: boolean;
+  messageId?: string;
+  content?: string;
+  activeDuration?: number; // Make active highlight duration configurable
 };
 
 const getDomain = (url: string) => {
@@ -26,193 +25,283 @@ const getDomain = (url: string) => {
   }
 };
 
-const formatDate = (dateString?: string) => {
-  if (!dateString) {
-    return null;
-  }
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return null;
-  }
-};
-
-const handleCitationClick = (e: React.MouseEvent, url: string) => {
-  e.preventDefault();
-  window.open(url, "_blank", "noopener,noreferrer");
-};
-
-const CitationCard = ({ citation }: { citation: WebSearchCitation }) => {
-  const domain = getDomain(citation.url);
-  const faviconUrl =
-    citation.favicon ||
-    `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-
-  return (
-    <a
-      href={citation.url}
-      className="block cursor-pointer rounded-lg border border-border 
-                 bg-background p-4 
-                 transition-colors duration-200 hover:border-accent-cyan/50"
-      onClick={e => handleCitationClick(e, citation.url)}
-    >
-      <div className="flex gap-4">
-        {/* Image/Favicon Section */}
-        {citation.image ? (
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
-            <img
-              alt=""
-              className="h-full w-full object-cover"
-              loading="lazy"
-              src={citation.image}
-              onError={e => {
-                e.currentTarget.parentElement!.style.display = "none";
-              }}
-            />
-          </div>
-        ) : (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-muted">
-            <img
-              alt=""
-              className="h-6 w-6 object-contain"
-              loading="lazy"
-              src={faviconUrl}
-              onError={e => {
-                // Replace with SVG icon on error
-                const parent = e.currentTarget.parentElement!;
-                parent.innerHTML = `
-                  <svg class="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                      d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                  </svg>
-                `;
-              }}
-            />
-          </div>
-        )}
-
-        {/* Content Section */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <h4 className="line-clamp-2 text-sm font-medium text-foreground">
-              {citation.title}
-            </h4>
-            <ArrowSquareOutIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          </div>
-
-          {/* Metadata */}
-          <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <GlobeIcon className="h-3 w-3" />
-              {citation.siteName || domain}
-            </span>
-            {citation.publishedDate && (
-              <span className="flex items-center gap-1">
-                <CalendarIcon className="h-3 w-3" />
-                {formatDate(citation.publishedDate)}
-              </span>
-            )}
-            {citation.author && (
-              <span className="flex max-w-[150px] items-center gap-1 truncate">
-                <UserIcon className="h-3 w-3" />
-                {citation.author}
-              </span>
-            )}
-          </div>
-
-          {/* Description */}
-          {(citation.description || citation.snippet) && (
-            <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-              {citation.description || citation.snippet}
-            </p>
-          )}
-
-          {/* Quoted text */}
-          {citation.cited_text &&
-            citation.cited_text !== citation.snippet &&
-            citation.cited_text !== citation.description && (
-              <blockquote
-                className="mt-2 line-clamp-2 border-l-2 border-accent-cyan/30 
-                                   pl-3 text-xs italic text-muted-foreground"
-              >
-                "{citation.cited_text}"
-              </blockquote>
-            )}
-        </div>
-      </div>
-    </a>
-  );
-};
-
 export const Citations = ({
   citations,
   className,
-  compact = false,
+  messageId,
+  content,
+  activeDuration = 3000,
 }: CitationsProps) => {
-  const [isExpanded, setIsExpanded] = useState(!compact);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showAllSources, setShowAllSources] = useState(false);
+  const [activeCitation, setActiveCitation] = useState<number | null>(null);
+  const [citedIndices, setCitedIndices] = useState<Set<number>>(new Set());
+  const citationRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const activeTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const observerRef = useRef<MutationObserver | null>(null);
+  const rafIdRef = useRef<number>(0);
+
+  // Scan for citation links
+  const scanForCitations = useCallback(() => {
+    if (!messageId) return;
+
+    const messageContainer = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+
+    if (messageContainer) {
+      const citationLinks =
+        messageContainer.querySelectorAll('a[href^="#cite-"]');
+      const usedIndices = new Set<number>();
+
+      citationLinks.forEach(link => {
+        const href = link.getAttribute("href");
+        const citationNumber = href
+          ? parseInt(href.split("-").pop() || "")
+          : null;
+        if (citationNumber && citationNumber <= citations.length) {
+          usedIndices.add(citationNumber - 1); // Convert to 0-based index
+        }
+      });
+
+      setCitedIndices(usedIndices);
+    }
+  }, [messageId, citations.length]);
+
+  // Use requestAnimationFrame for better performance
+  const scheduleScanning = useCallback(() => {
+    if (rafIdRef.current) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+
+    rafIdRef.current = requestAnimationFrame(() => {
+      scanForCitations();
+      rafIdRef.current = 0;
+    });
+  }, [scanForCitations]);
+
+  // Set up citation detection
+  useLayoutEffect(() => {
+    if (!messageId) return;
+
+    // Immediate scan if content exists
+    scanForCitations();
+
+    // Set up MutationObserver
+    const messageContainer = document.querySelector(
+      `[data-message-id="${messageId}"]`
+    );
+
+    if (messageContainer) {
+      // Disconnect any existing observer
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+
+      observerRef.current = new MutationObserver(() => {
+        scheduleScanning();
+      });
+
+      observerRef.current.observe(messageContainer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+      });
+    }
+
+    return () => {
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [messageId, content, scheduleScanning, scanForCitations]);
+
+  // Handle citation scrolling with IntersectionObserver
+  const scrollToCitation = useCallback((citationNumber: number) => {
+    const element = citationRefs.current[citationNumber - 1];
+    if (!element) return;
+
+    // Check if element is already in view
+    const rect = element.getBoundingClientRect();
+    const isInView =
+      rect.top >= 0 &&
+      rect.bottom <= window.innerHeight &&
+      rect.left >= 0 &&
+      rect.right <= window.innerWidth;
+
+    if (!isInView) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, []);
+
+  // Handle citation clicks
+  useEffect(() => {
+    const handleCitationClick = (event: Event) => {
+      const target = event.target as HTMLElement;
+      const citationLink = target.closest('a[href^="#cite-"]');
+
+      if (citationLink) {
+        const messageContainer = citationLink.closest("[data-message-id]");
+        const clickedMessageId =
+          messageContainer?.getAttribute("data-message-id");
+
+        if (clickedMessageId !== messageId) return;
+
+        const href = citationLink.getAttribute("href");
+        const citationNumber = href
+          ? parseInt(href.split("-").pop() || "")
+          : null;
+
+        if (citationNumber && citationNumber <= citations.length) {
+          event.preventDefault();
+
+          // Clear any existing timer
+          if (activeTimerRef.current) {
+            clearTimeout(activeTimerRef.current);
+          }
+
+          // Expand and highlight
+          setIsExpanded(true);
+          setActiveCitation(citationNumber);
+
+          // Use requestAnimationFrame for scroll timing
+          requestAnimationFrame(() => {
+            scrollToCitation(citationNumber);
+          });
+
+          // Set timer to remove active state
+          activeTimerRef.current = setTimeout(() => {
+            setActiveCitation(null);
+          }, activeDuration);
+        }
+      }
+    };
+
+    document.addEventListener("click", handleCitationClick, true);
+
+    return () => {
+      document.removeEventListener("click", handleCitationClick, true);
+      if (activeTimerRef.current) {
+        clearTimeout(activeTimerRef.current);
+      }
+    };
+  }, [citations.length, messageId, scrollToCitation, activeDuration]);
 
   if (!citations || citations.length === 0) {
     return null;
   }
 
-  if (compact) {
-    return (
-      <div className={cn("mt-4 w-full", className)}>
-        <button
-          className="flex w-full items-center justify-between text-sm font-medium 
-                     text-muted-foreground transition-colors duration-200 hover:text-foreground"
-          onClick={() => setIsExpanded(!isExpanded)}
-        >
-          <div className="flex items-center gap-2">
-            <GlobeIcon className="h-4 w-4 text-accent-cyan" />
-            <span>Web sources</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-              {citations.length}
-            </span>
-          </div>
-          {isExpanded ? (
-            <CaretUpIcon className="h-4 w-4" />
-          ) : (
-            <CaretDownIcon className="h-4 w-4" />
-          )}
-        </button>
+  // Filter citations based on whether we're showing all or just cited ones
+  const displayedCitations = showAllSources
+    ? citations
+    : citations.filter((_, index) => citedIndices.has(index));
 
-        {isExpanded && (
-          <div className="mt-3 space-y-2">
-            {citations.map((citation, index) => (
-              <CitationCard
-                key={citation.url || `citation-${index}`}
-                citation={citation}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    );
+  // Calculate counts for display
+  const citedCount = citedIndices.size;
+  const totalCount = citations.length;
+
+  // Don't render if no citations were actually used in the response
+  if (citedCount === 0) {
+    return null;
   }
 
   return (
-    <div className={cn("mt-6 w-full", className)}>
-      <div className="mb-4 flex items-center gap-2">
-        <GlobeIcon className="h-4 w-4 text-accent-cyan" />
-        <h3 className="text-sm font-medium text-foreground">
-          Web Sources ({citations.length})
-        </h3>
-      </div>
+    <div ref={containerRef} className={cn("mt-4", className)}>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+        aria-expanded={isExpanded}
+        aria-controls={`citations-${messageId}`}
+      >
+        <CaretRightIcon
+          className={cn(
+            "h-3 w-3 transition-transform duration-200",
+            isExpanded && "rotate-90"
+          )}
+          aria-hidden="true"
+        />
+        <LinkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="font-medium">
+          {citedCount > 0 && citedCount < totalCount ? (
+            <>
+              {citedCount} cited
+              {!showAllSources && ` of ${totalCount}`} sources
+            </>
+          ) : (
+            <>
+              {totalCount} source{totalCount === 1 ? "" : "s"}
+            </>
+          )}
+        </span>
+      </button>
 
-      <div className="space-y-2">
-        {citations.map((citation, index) => (
-          <CitationCard
-            key={citation.url || `citation-${index}`}
-            citation={citation}
-          />
-        ))}
-      </div>
+      {isExpanded && (
+        <div
+          id={`citations-${messageId}`}
+          className="mt-3 animate-in slide-in-from-top-2 duration-200"
+        >
+          <div className="space-y-1.5">
+            {displayedCitations.map((citation, _displayIndex) => {
+              // Find the original index in the full citations array
+              const originalIndex = citations.indexOf(citation);
+              const citationNumber = originalIndex + 1;
+
+              return (
+                <div
+                  key={citation.url || `citation-${originalIndex}`}
+                  ref={el => {
+                    citationRefs.current[originalIndex] = el;
+                  }}
+                  data-citation-index={originalIndex}
+                  id={`cite-${messageId}-${citationNumber}`}
+                  className={cn(
+                    "group flex items-start gap-2.5 p-2 -mx-2 rounded-md transition-all duration-200",
+                    activeCitation === citationNumber &&
+                      "bg-primary/5 ring-1 ring-primary/20"
+                  )}
+                >
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[10px] font-medium text-muted-foreground bg-muted rounded-full flex-shrink-0 mt-0.5">
+                    {citationNumber}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={citation.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/link text-sm text-foreground hover:text-primary transition-colors"
+                    >
+                      <div className="font-medium line-clamp-1 group-hover/link:underline">
+                        {citation.title}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {getDomain(citation.url)}
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {citedCount > 0 && citedCount < totalCount && (
+            <button
+              onClick={() => setShowAllSources(!showAllSources)}
+              className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAllSources
+                ? "Show only cited sources"
+                : `Show all ${totalCount} sources searched`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

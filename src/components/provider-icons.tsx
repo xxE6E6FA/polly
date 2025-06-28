@@ -48,6 +48,21 @@ const OpenRouterIcon = () => (
   </svg>
 );
 
+const ExaIcon = () => (
+  <svg
+    className="h-6 w-6"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Exa</title>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M8 12h8M12 8v8" />
+  </svg>
+);
+
 export const ProviderIcon = ({ provider }: ProviderIconProps) => {
   switch (provider) {
     case "openai":
@@ -58,6 +73,8 @@ export const ProviderIcon = ({ provider }: ProviderIconProps) => {
       return <GoogleIcon />;
     case "openrouter":
       return <OpenRouterIcon />;
+    case "exa":
+      return <ExaIcon />;
     default:
       return null;
   }

@@ -2,6 +2,7 @@ import { type CoreMessage } from "ai";
 
 import { type WebSearchCitation, type Attachment } from "@/types";
 import { extractCitations, extractMarkdownCitations } from "./citations";
+import { removeDuplicateSourceSections } from "./utils";
 import {
   isReasoningPart,
   extractReasoningContent,
@@ -154,6 +155,9 @@ export class ClientStreamHandler {
     this.finishProcessed = true;
     const { text, finishReason, reasoning, providerMetadata } = this.finishData;
 
+    // Clean the text to remove duplicate source sections
+    const cleanedText = removeDuplicateSourceSections(text);
+
     if (reasoning && this.callbacks.onReasoning) {
       const humanizedReasoning = humanizeReasoningText(reasoning);
       this.callbacks.onReasoning(humanizedReasoning);
@@ -161,7 +165,7 @@ export class ClientStreamHandler {
 
     let citations = extractCitations(providerMetadata);
     if (!citations || citations.length === 0) {
-      citations = extractMarkdownCitations(text);
+      citations = extractMarkdownCitations(cleanedText);
     }
 
     if (citations.length > 0 && this.callbacks.onCitations) {

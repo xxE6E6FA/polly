@@ -19,6 +19,7 @@ import type * as ai_config from "../ai/config.js";
 import type * as ai_encryption from "../ai/encryption.js";
 import type * as ai_error_handlers from "../ai/error_handlers.js";
 import type * as ai_errors from "../ai/errors.js";
+import type * as ai_exa from "../ai/exa.js";
 import type * as ai_messages from "../ai/messages.js";
 import type * as ai_openrouter_capabilities from "../ai/openrouter_capabilities.js";
 import type * as ai_providers from "../ai/providers.js";
@@ -72,6 +73,7 @@ declare const fullApi: ApiFromModules<{
   "ai/encryption": typeof ai_encryption;
   "ai/error_handlers": typeof ai_error_handlers;
   "ai/errors": typeof ai_errors;
+  "ai/exa": typeof ai_exa;
   "ai/messages": typeof ai_messages;
   "ai/openrouter_capabilities": typeof ai_openrouter_capabilities;
   "ai/providers": typeof ai_providers;

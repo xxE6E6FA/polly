@@ -14,16 +14,18 @@ import {
 import { type ReasoningConfig } from "@/components/reasoning-config-select";
 import { type Id } from "../../../convex/_generated/dataModel";
 
+export interface SendMessageParams {
+  content: string;
+  attachments?: Attachment[];
+  useWebSearch?: boolean;
+  personaId?: Id<"personas"> | null;
+  reasoningConfig?: ReasoningConfig;
+  personaPrompt?: string | null;
+}
+
 export interface ChatStrategy {
   // Message operations
-  sendMessage(
-    content: string,
-    attachments?: Attachment[],
-    useWebSearch?: boolean,
-    personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig,
-    personaPrompt?: string | null
-  ): Promise<void>;
+  sendMessage(params: SendMessageParams): Promise<void>;
 
   stopGeneration(): void;
   deleteMessage(messageId: string): Promise<void>;

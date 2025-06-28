@@ -75,17 +75,19 @@ export type ChatMessage = {
   provider?: string;
   parentId?: string;
   isMainBranch: boolean;
-  sourceConversationId?: string;
+  sourceConversationId?: ConversationId;
   useWebSearch?: boolean;
   attachments?: Attachment[];
   citations?: WebSearchCitation[]; // Web search citations
-  webSearchResults?: WebSearchResult[]; // Full web search metadata
   metadata?: {
     tokenCount?: number;
     reasoningTokenCount?: number;
     finishReason?: string;
     duration?: number;
     stopped?: boolean;
+    searchQuery?: string;
+    searchFeature?: string;
+    searchCategory?: string;
   };
   createdAt: number;
 };
@@ -116,13 +118,6 @@ export type WebSearchCitation = {
   siteName?: string; // Website name (e.g., "GitHub", "Stack Overflow")
   publishedDate?: string; // Article publish date if available
   author?: string; // Author information if available
-};
-
-export type WebSearchResult = {
-  query: string;
-  results: WebSearchCitation[];
-  timestamp: number;
-  provider: string;
 };
 
 export type APIKeys = {
