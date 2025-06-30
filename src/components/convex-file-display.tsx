@@ -26,7 +26,12 @@ export const ConvexFileDisplay = ({
   );
 
   // Determine the actual URL to use
-  const fileUrl = attachment.storageId ? convexFileUrl : attachment.url;
+  let fileUrl = attachment.storageId ? convexFileUrl : attachment.url;
+
+  // For private mode files with Base64 content, create a data URL
+  if (!fileUrl && attachment.content && attachment.mimeType) {
+    fileUrl = `data:${attachment.mimeType};base64,${attachment.content}`;
+  }
 
   // Show loading state for Convex files
   if (attachment.storageId && convexFileUrl === undefined) {
@@ -80,6 +85,11 @@ export const ConvexFileDisplay = ({
           Stored
         </span>
       )}
+      {!attachment.storageId && attachment.content && (
+        <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
+          Ready
+        </span>
+      )}
     </div>
   );
 };
@@ -107,9 +117,14 @@ export const ConvexImageThumbnail = ({
   );
 
   // For thumbnails, prefer local thumbnail if available, then Convex URL, then fallback URL
-  const thumbnailUrl =
+  let thumbnailUrl =
     attachment.thumbnail ||
     (attachment.storageId ? convexFileUrl : attachment.url);
+
+  // For private mode files with Base64 content, create a data URL
+  if (!thumbnailUrl && attachment.content && attachment.mimeType) {
+    thumbnailUrl = `data:${attachment.mimeType};base64,${attachment.content}`;
+  }
 
   if (attachment.storageId && !thumbnailUrl) {
     return (

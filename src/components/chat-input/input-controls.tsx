@@ -37,6 +37,7 @@ type InputControlsProps = {
   currentModel?: AIModel;
   hasExistingMessages: boolean;
   conversationId?: string;
+
   onStop?: () => void;
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
@@ -90,7 +91,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
     },
     ref
   ) => {
-    // Internal state
     const [webSearchEnabled, setWebSearchEnabled] = useState(false);
     const [selectedPersonaId, setSelectedPersonaId] =
       useState<Id<"personas"> | null>(null);
@@ -100,12 +100,10 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
     });
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // User settings for persona functionality
     const userInfo = useUser();
     const userSettings = useUserSettings(userInfo.user?._id);
     const personasEnabled = userSettings?.personasEnabled !== false;
 
-    // Handle file input change
     const handleFileInputChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         handleFileUpload(e.target.files);
@@ -114,7 +112,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       [handleFileUpload]
     );
 
-    // Handle submit
     const handleSubmit = useCallback(() => {
       if (!input.trim() && attachments.length === 0) {
         return;
@@ -157,7 +154,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
       reasoningConfig,
     ]);
 
-    // Expose handleSubmit via ref
     useImperativeHandle(
       ref,
       () => ({
@@ -172,11 +168,8 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
 
     return (
       <>
-        {/* Controls row */}
         <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/20 pt-2.5">
-          {/* Left side controls - single line layout */}
           <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-            {/* Persona selector */}
             {canChat && personasEnabled && !conversationId && (
               <PersonaPicker
                 compact
@@ -194,10 +187,8 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
               />
             )}
 
-            {/* Model selector - most prominent */}
             {canChat && <ModelPicker />}
 
-            {/* Web search toggle */}
             {canChat &&
               selectedModel &&
               (selectedModel.provider === "openrouter" ||
@@ -217,7 +208,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
             )}
           </div>
 
-          {/* Right side controls */}
           <div className="flex flex-shrink-0 items-center gap-2">
             {canChat && (
               <Tooltip>
@@ -284,7 +274,6 @@ export const InputControls = forwardRef<InputControlsRef, InputControlsProps>(
           </div>
         </div>
 
-        {/* Hidden file input */}
         <input
           ref={fileInputRef}
           multiple

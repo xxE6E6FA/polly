@@ -136,7 +136,6 @@ async function fetchUrlMetadata(url: string): Promise<EnrichedCitationData> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`Failed to fetch ${url}: ${response.status}`);
       return {};
     }
 
@@ -175,8 +174,7 @@ async function fetchUrlMetadata(url: string): Promise<EnrichedCitationData> {
 
     reader.cancel();
     return extractMetadata(html, url);
-  } catch (error) {
-    console.error(`Error fetching metadata for ${url}:`, error);
+  } catch (_error) {
     return {};
   }
 }
@@ -230,8 +228,8 @@ export const enrichMessageCitations = internalAction({
             publishedDate: citation.publishedDate || metadata.publishedDate,
             author: citation.author || metadata.author,
           };
-        } catch (error) {
-          console.error(`Failed to enrich citation ${citation.url}:`, error);
+        } catch (_error) {
+          // Silently ignore enrichment errors for individual citations
         }
       });
 
@@ -251,7 +249,7 @@ export const enrichCitations = action({
   args: {
     urls: v.array(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const results = await Promise.all(
       args.urls.map(async url => {
         const metadata = await fetchUrlMetadata(url);

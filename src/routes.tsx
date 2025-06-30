@@ -7,6 +7,7 @@ import RootLayout from "./components/layouts/RootLayout";
 import { Spinner } from "./components/spinner";
 import ChatConversationPage from "./pages/ChatConversationPage";
 import HomePage from "./pages/HomePage";
+import PrivateChatPage from "./pages/PrivateChatPage";
 
 // Lazy load everything except HomePage, ChatConversationPage, and ChatLayout
 const AuthPage = lazy(() => import("./pages/AuthPage"));
@@ -108,6 +109,26 @@ export const routes: RouteObject[] = [
             <AuthCallbackPage />
           </Suspense>
         ),
+      },
+      {
+        path: "private",
+        element: <ChatLayout />,
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
+        children: [
+          {
+            index: true,
+            element: <PrivateChatPage />,
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
+          },
+        ],
       },
       {
         path: "chat",

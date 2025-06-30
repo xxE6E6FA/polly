@@ -6,6 +6,7 @@ import { SidebarProvider } from "./sidebar-provider";
 import { ThemeProvider } from "./theme-provider";
 import { ThinkingProvider } from "./thinking-provider";
 import { UserProvider } from "./user-provider";
+import { PrivateModeProvider } from "../contexts/private-mode-context";
 import { ErrorBoundary } from "../components/ui/error-boundary";
 
 type AppProviderProps = {
@@ -19,9 +20,11 @@ export const AppProvider = ({ children }: AppProviderProps) => {
         <QueryProvider>
           <ThemeProvider>
             <UserProvider>
-              <SidebarProvider>
-                <ThinkingProvider>{children}</ThinkingProvider>
-              </SidebarProvider>
+              <PrivateModeProvider>
+                <SidebarProvider>
+                  <ThinkingProvider>{children}</ThinkingProvider>
+                </SidebarProvider>
+              </PrivateModeProvider>
             </UserProvider>
           </ThemeProvider>
         </QueryProvider>

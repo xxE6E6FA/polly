@@ -1,5 +1,8 @@
 import {
+  extractCitations as extractCitationsShared,
   type Citation,
+} from "../lib/shared/citations";
+import {
   type GoogleGroundingChunk,
   type OpenRouterAnnotation,
   type OpenRouterCitation,
@@ -7,7 +10,7 @@ import {
   type WebSource,
 } from "./types";
 
-// Citation extractor factory
+// Citation extractor factory for Convex-specific formats
 const citationExtractors = {
   sources: (sources: WebSource[]): Citation[] => {
     return sources
@@ -60,72 +63,52 @@ const citationExtractors = {
   },
 };
 
-// Extract citations from provider metadata and/or sources
+// Enhanced extract citations that uses shared logic plus Convex-specific formats
 export const extractCitations = (
-  providerMetadata?: ProviderMetadata,
+  providerMetadata?: ProviderMetadata | Record<string, unknown>,
   sources?: WebSource[]
 ): Citation[] | undefined => {
   const citations: Citation[] = [];
 
-  // Extract from different sources
+  // First try the shared extraction (handles standard formats)
+  const sharedCitations = extractCitationsShared(providerMetadata);
+  if (sharedCitations) {
+    citations.push(...sharedCitations);
+  }
+
+  // Then handle Convex-specific formats
   if (sources && Array.isArray(sources)) {
     citations.push(...citationExtractors.sources(sources));
   }
 
-  if (providerMetadata?.openrouter?.citations) {
+  // Type-safe check for Convex-specific metadata
+  const convexMetadata = providerMetadata as ProviderMetadata | undefined;
+
+  if (convexMetadata?.openrouter?.citations) {
     citations.push(
-      ...citationExtractors.openrouter(providerMetadata.openrouter.citations)
+      ...citationExtractors.openrouter(convexMetadata.openrouter.citations)
     );
   }
 
   // Check for OpenRouter annotations in provider metadata
-  if (providerMetadata?.openrouter?.annotations) {
+  if (convexMetadata?.openrouter?.annotations) {
     citations.push(
       ...citationExtractors.openrouterAnnotations(
-        providerMetadata.openrouter.annotations
+        convexMetadata.openrouter.annotations
       )
     );
   }
 
-  if (providerMetadata?.google?.groundingChunks) {
+  if (convexMetadata?.google?.groundingChunks) {
     citations.push(
-      ...citationExtractors.google(providerMetadata.google.groundingChunks)
+      ...citationExtractors.google(convexMetadata.google.groundingChunks)
     );
   }
 
-  return citations.length > 0 ? citations : undefined;
-};
+  // Deduplicate citations by URL
+  const uniqueCitations = Array.from(
+    new Map(citations.map(c => [c.url, c])).values()
+  );
 
-// Extract citations from markdown links in text
-export const extractMarkdownCitations = (text: string): Citation[] => {
-  const citations: Citation[] = [];
-  const markdownLinkRegex = /\[([^\]]+)]\(([^)]+)\)/g;
-
-  let match;
-  while ((match = markdownLinkRegex.exec(text)) !== null) {
-    const [_, linkText, url] = match;
-
-    // Skip if it's not a valid URL
-    try {
-      new URL(url);
-    } catch {
-      continue;
-    }
-
-    // Extract domain name for the title if the link text is a domain
-    const domain = linkText
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split("/")[0];
-
-    citations.push({
-      type: "url_citation" as const,
-      url,
-      title: linkText || domain || "Web Source",
-      // We don't have snippet data from markdown links
-      snippet: "",
-    });
-  }
-
-  return citations;
+  return uniqueCitations.length > 0 ? uniqueCitations : undefined;
 };

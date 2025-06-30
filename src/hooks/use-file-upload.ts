@@ -10,9 +10,13 @@ import { type AIModel, type Attachment } from "@/types";
 
 type UseFileUploadProps = {
   currentModel?: AIModel;
+  privateMode?: boolean;
 };
 
-export function useFileUpload({ currentModel }: UseFileUploadProps) {
+export function useFileUpload({
+  currentModel,
+  privateMode,
+}: UseFileUploadProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadProgress, setUploadProgress] = useState<
     Map<string, FileUploadProgress>
@@ -160,9 +164,32 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
               return newMap;
             });
           } else {
-            const attachment = await uploadFile(file, progress => {
-              setUploadProgress(prev => new Map(prev.set(fileKey, progress)));
-            });
+            // For all binary files (images, PDFs), store locally as Base64 initially
+            // They will be uploaded to Convex later when message is sent (if not in private mode)
+            const base64Content = await new Promise<string>(
+              (resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const result = reader.result as string;
+                  // Remove the data URL prefix (e.g., "data:image/png;base64,")
+                  const base64 = result.split(",")[1];
+                  resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              }
+            );
+
+            const attachment: Attachment = {
+              type: fileSupport.category as "image" | "pdf" | "text",
+              url: "", // No URL since it's stored locally initially
+              name: file.name,
+              size: file.size,
+              content: base64Content, // Store as base64 in content field
+              mimeType: file.type,
+              // Mark if this should be uploaded to Convex when message is sent
+              storageId: undefined, // Will be set when uploaded to Convex
+            };
 
             newAttachments.push(attachment);
             setUploadProgress(prev => {
@@ -172,7 +199,6 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
             });
           }
         } catch (error) {
-          console.error(`Failed to process file ${file.name}:`, error);
           notificationDialog.notify({
             title: "File Upload Failed",
             description: `Failed to upload file ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -190,18 +216,20 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
 
       setAttachments(prev => [...prev, ...newAttachments]);
 
-      // Show success toast for uploaded files
+      // Show success toast for added files
       if (newAttachments.length > 0) {
         const { toast } = await import("sonner");
         toast.success(
-          `File${newAttachments.length > 1 ? "s" : ""} uploaded successfully`,
+          `File${newAttachments.length > 1 ? "s" : ""} added successfully`,
           {
-            description: `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} ready to use in your conversation.`,
+            description: privateMode
+              ? `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} ready to use in your private conversation.`
+              : `${newAttachments.length} file${newAttachments.length > 1 ? "s" : ""} ready to use. Will be uploaded when message is sent.`,
           }
         );
       }
     },
-    [notificationDialog, currentModel, uploadFile]
+    [notificationDialog, currentModel, privateMode]
   );
 
   const removeAttachment = useCallback((index: number) => {
@@ -230,6 +258,50 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
     return attachments.filter(att => att.type !== "text");
   }, [attachments]);
 
+  const uploadAttachmentsToConvex = useCallback(
+    async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
+      if (privateMode) {
+        // In private mode, don't upload to Convex - just return as-is
+        return attachmentsToUpload;
+      }
+
+      const uploadedAttachments: Attachment[] = [];
+
+      for (const attachment of attachmentsToUpload) {
+        if (attachment.type === "text" || attachment.storageId) {
+          // Text files or already uploaded files - use as-is
+          uploadedAttachments.push(attachment);
+        } else if (attachment.content && attachment.mimeType) {
+          // Binary file stored as Base64 - upload to Convex
+          try {
+            // Convert Base64 back to File object for upload
+            const byteCharacters = atob(attachment.content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const file = new File([byteArray], attachment.name, {
+              type: attachment.mimeType,
+            });
+
+            const uploadedAttachment = await uploadFile(file);
+            uploadedAttachments.push(uploadedAttachment);
+          } catch (_error) {
+            // Fallback: keep the Base64 version
+            uploadedAttachments.push(attachment);
+          }
+        } else {
+          // Fallback for any other cases
+          uploadedAttachments.push(attachment);
+        }
+      }
+
+      return uploadedAttachments;
+    },
+    [privateMode, uploadFile]
+  );
+
   return {
     attachments,
     uploadProgress,
@@ -238,6 +310,7 @@ export function useFileUpload({ currentModel }: UseFileUploadProps) {
     clearAttachments,
     buildMessageContent,
     getBinaryAttachments,
+    uploadAttachmentsToConvex,
     notificationDialog,
   };
 }

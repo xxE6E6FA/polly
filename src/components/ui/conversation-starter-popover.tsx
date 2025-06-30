@@ -40,7 +40,7 @@ export const ConversationStarterPopover = ({
     api.conversationStarters.generateConversationStarters
   );
   const { user } = useUser();
-  const { createNewConversationWithResponse } = useCreateConversation();
+  const { createNewConversation } = useCreateConversation();
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
 
@@ -84,7 +84,7 @@ export const ConversationStarterPopover = ({
     }
 
     try {
-      const conversationId = await createNewConversationWithResponse({
+      const conversationId = await createNewConversation({
         firstMessage: prompt,
         userId: user._id,
         generateTitle: true,

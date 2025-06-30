@@ -162,7 +162,7 @@ export const ShareConversationDialog = ({
           </DialogTitle>
           <DialogDescription className="text-base">
             {isShared
-              ? `This conversation is publicly accessible. Shared ${formatDistanceToNow(new Date(sharedStatus.sharedAt), { addSuffix: true })}.`
+              ? `This conversation is publicly accessible. Shared ${formatDistanceToNow(new Date(sharedStatus?.sharedAt || Date.now()), { addSuffix: true })}.`
               : "Share this conversation with others. They'll see the conversation as it appears when you share or update it."}
           </DialogDescription>
         </DialogHeader>
@@ -177,7 +177,9 @@ export const ShareConversationDialog = ({
                     readOnly
                     className="flex h-12 items-center pr-20 font-mono text-sm"
                     id="share-url"
-                    value={shareUrl || generateShareUrl(sharedStatus.shareId)}
+                    value={
+                      shareUrl || generateShareUrl(sharedStatus?.shareId || "")
+                    }
                   />
                   <div className="absolute right-2 top-1/2 flex -translate-y-1/2">
                     <TooltipProvider>

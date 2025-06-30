@@ -20,7 +20,7 @@ export const ProtectedSuspense = ({
   const navigate = useNavigate();
   const { user, isLoading } = useUser();
 
-  const isAuthenticated = Boolean(token) && Boolean(user) && !user.isAnonymous;
+  const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
 
   // Handle redirection
   useEffect(() => {

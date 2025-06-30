@@ -11,6 +11,7 @@ import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { getCapabilityFromPatterns } from "../lib/model_capabilities_config";
 import { isReasoningModelEnhanced } from "./reasoning_detection";
+import { getProviderReasoningConfig } from "../lib/provider_reasoning_config";
 
 // Provider factory map
 const createProviderModel = {
@@ -92,7 +93,7 @@ export const createLanguageModel = async (
 export const getProviderStreamOptions = async (
   provider: ProviderType,
   model: string,
-  enableWebSearch?: boolean,
+  _enableWebSearch?: boolean,
   reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number }
 ): Promise<ProviderStreamOptions> => {
   // Check reasoning support with enhanced detection
@@ -111,60 +112,9 @@ export const getProviderStreamOptions = async (
     };
   }
 
-  // Google thinking configuration for reasoning models
-  if (provider === "google") {
-    return {
-      google: {
-        thinkingConfig: {
-          includeThoughts: true,
-        },
-      },
-    };
-  }
-
-  // Anthropic extended thinking configuration
-  if (provider === "anthropic") {
-    // Map effort levels to token budgets
-    const budgetMap = {
-      low: 5000,
-      medium: 10000,
-      high: 20000,
-    };
-
-    const budgetTokens =
-      reasoningConfig?.maxTokens ??
-      budgetMap[reasoningConfig?.effort ?? "medium"];
-
-    const config = {
-      anthropic: {
-        thinking: {
-          type: "enabled" as const,
-          budgetTokens: budgetTokens,
-        },
-      },
-    };
-
-    return config;
-  }
-
-  // OpenRouter reasoning configuration
-  if (provider === "openrouter") {
-    const effort = reasoningConfig?.effort ?? "medium";
-
-    return {
-      extraBody: {
-        reasoning: {
-          effort,
-          ...(reasoningConfig?.maxTokens && {
-            max_tokens: reasoningConfig.maxTokens,
-          }),
-        },
-      },
-    };
-  }
-
-  // Other providers don't need special options yet
-  return {};
+  // Use shared reasoning configuration to ensure consistency
+  // with client-side streaming for all providers
+  return getProviderReasoningConfig(provider, model, reasoningConfig);
 };
 
 export const isReasoningModel = (provider: string, model: string): boolean => {
