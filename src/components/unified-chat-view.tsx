@@ -24,6 +24,7 @@ import { ChatOutline } from "./chat-outline";
 import { ChatZeroState } from "./chat-zero-state";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { QuoteButton } from "./ui/quote-button";
+import { Spinner } from "./spinner";
 import {
   VirtualizedChatMessages,
   type VirtualizedChatMessagesRef,
@@ -113,16 +114,17 @@ export const UnifiedChatView = memo(
     const confirmationDialog = useConfirmationDialog();
     const hasInitializedScroll = useRef(false);
     const previousMessageCount = useRef(messages.length);
+    const hasLoadedConversation = useRef(false);
 
     const shouldScrollToBottom = useMemo(() => {
       return isStreaming || hasStreamingContent;
     }, [isStreaming, hasStreamingContent]);
 
-    // Auto-scroll effect when messages change
+    // Auto-scroll effect when messages change during streaming
     useLayoutEffect(() => {
-      if (shouldScrollToBottom && messagesContainerRef.current) {
-        messagesContainerRef.current.scrollTop =
-          messagesContainerRef.current.scrollHeight;
+      if (shouldScrollToBottom && virtualizedMessagesRef.current) {
+        // Use the virtualizer's scrollToBottom method instead of direct DOM manipulation
+        virtualizedMessagesRef.current.scrollToBottom();
       }
     }, [messages, shouldScrollToBottom]);
 
@@ -134,11 +136,9 @@ export const UnifiedChatView = memo(
         !hasInitializedScroll.current &&
         virtualizedMessagesRef.current
       ) {
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-          virtualizedMessagesRef.current?.scrollToBottom();
-          hasInitializedScroll.current = true;
-        }, 100);
+        // Scroll immediately without delay
+        virtualizedMessagesRef.current.scrollToBottom();
+        hasInitializedScroll.current = true;
       }
     }, [isLoadingMessages, messages.length]);
 
@@ -146,6 +146,13 @@ export const UnifiedChatView = memo(
     useEffect(() => {
       hasInitializedScroll.current = false;
     }, [conversationId]);
+
+    // Track when we've successfully loaded any conversation
+    useEffect(() => {
+      if (!isLoadingMessages && messages.length > 0) {
+        hasLoadedConversation.current = true;
+      }
+    }, [isLoadingMessages, messages.length]);
 
     // Scroll to bottom when a new user message is added
     useEffect(() => {
@@ -156,10 +163,10 @@ export const UnifiedChatView = memo(
         const lastMessage = messages[messages.length - 1];
         // Check if the new message is from the user
         if (lastMessage?.role === "user" && virtualizedMessagesRef.current) {
-          // Small delay to ensure the message is rendered
-          setTimeout(() => {
+          // Use requestAnimationFrame for smoother scrolling
+          requestAnimationFrame(() => {
             virtualizedMessagesRef.current?.scrollToBottom();
-          }, 50);
+          });
         }
       }
       previousMessageCount.current = messages.length;
@@ -264,13 +271,14 @@ export const UnifiedChatView = memo(
                   )}
                 >
                   {isLoadingConversation ? (
-                    <div className="flex h-full items-center justify-center">
-                      <div className="text-center space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                          Loading conversation...
-                        </p>
+                    // Show spinner on initial load, blank content when switching conversations
+                    hasLoadedConversation.current ? (
+                      <div className="h-full" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <Spinner size="lg" />
                       </div>
-                    </div>
+                    )
                   ) : isEmpty && !isPrivateMode && !conversationId ? (
                     <ChatZeroState />
                   ) : isEmpty ? (
@@ -303,9 +311,7 @@ export const UnifiedChatView = memo(
                       placeholder={
                         isPrivateMode
                           ? "Private mode: messages won't be saved..."
-                          : isLoadingConversation
-                            ? "Loading conversation..."
-                            : "Ask me anything..."
+                          : "Ask me anything..."
                       }
                       onSendMessage={handleSendMessage}
                       onStop={onStopGeneration}
