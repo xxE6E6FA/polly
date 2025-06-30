@@ -37,9 +37,9 @@ const UserSectionContent = ({
 }: UserSectionContentProps) => {
   if (!isAuthenticated) {
     return (
-      <Link className="block w-full px-3 py-3" to={ROUTES.AUTH}>
+      <Link className="block w-full px-3 py-2" to={ROUTES.AUTH}>
         <Button
-          className="flex h-10 w-full items-center justify-start gap-3 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          className="flex h-9 w-full items-center justify-start gap-2.5 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           variant="ghost"
         >
           <SignInIcon className="h-4 w-4" />
@@ -51,12 +51,12 @@ const UserSectionContent = ({
 
   return (
     <Link
-      className="block w-full px-3 py-3"
+      className="block w-full p-2"
       to={ROUTES.SETTINGS.ROOT}
       onMouseEnter={preloadSettings}
     >
       <Button
-        className="h-10 w-full justify-start gap-3 text-sm hover:bg-accent/50"
+        className="h-9 w-full justify-start gap-2.5 text-sm hover:bg-accent/50"
         variant="ghost"
       >
         {user?.image ? (
@@ -80,7 +80,7 @@ const UserSectionContent = ({
         ) : (
           <div
             className={cn(
-              "h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
+              "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
               shouldAnonymize && "blur-sm"
             )}
           >
@@ -124,8 +124,8 @@ export const UserSection = () => {
 
 const UserSectionSkeleton = () => {
   return (
-    <div className="px-3 py-3">
-      <div className="h-10 animate-pulse rounded-md bg-muted/40" />
+    <div className="px-3 py-2">
+      <div className="h-9 animate-pulse rounded-md bg-muted/40" />
     </div>
   );
 };

@@ -5,9 +5,9 @@ import { cn } from "@/lib/utils";
 
 // Constants for shared styles
 const WARNING_BANNER_CLASSES =
-  "absolute -top-8 left-1/2 transform -translate-x-1/2 z-10";
+  "absolute -top-7 left-1/2 transform -translate-x-1/2 z-10";
 const WARNING_CONTENT_CLASSES =
-  "inline-flex items-center gap-2 p-2.5 rounded-md transition-all duration-200 text-xs shadow-lg h-8 whitespace-nowrap";
+  "inline-flex items-center gap-2 p-1.5 rounded-md transition-all duration-200 text-xs shadow-lg h-7 whitespace-nowrap";
 const WARNING_BUTTON_CLASSES = "p-0.5 rounded transition-colors duration-150";
 
 type WarningMessage = {

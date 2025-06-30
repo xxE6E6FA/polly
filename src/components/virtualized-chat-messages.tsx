@@ -51,7 +51,7 @@ const MessageItem = memo(
       <div className="px-4 sm:px-8">
         <div
           id={message.id}
-          className="mx-auto w-full max-w-3xl pb-2 sm:pb-3"
+          className="mx-auto w-full max-w-3xl pb-1 sm:pb-2"
           style={{ maxWidth: "48rem" }}
         >
           {message.role === "context" ? (
@@ -281,9 +281,11 @@ export const VirtualizedChatMessages = memo(
         >
           <div
             style={{
-              height: virtualizer.getTotalSize(),
+              height: virtualizer.getTotalSize() + 24,
               width: "100%",
               position: "relative",
+              paddingTop: "24px",
+              paddingBottom: "0",
             }}
           >
             {items.map(virtualItem => {
@@ -305,7 +307,7 @@ export const VirtualizedChatMessages = memo(
                     top: 0,
                     left: 0,
                     width: "100%",
-                    transform: `translateY(${virtualItem.start}px)`,
+                    transform: `translateY(${virtualItem.start + 24}px)`,
                   }}
                 >
                   <MessageItem

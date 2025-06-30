@@ -4,12 +4,10 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
   memo,
 } from "react";
 
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
-import { useScrollDirection } from "@/hooks/use-scroll-direction";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
@@ -63,11 +61,11 @@ type UnifiedChatViewProps = {
 const ConversationZeroState = () => {
   return (
     <div className="flex h-full w-full items-center justify-center">
-      <div className="text-center space-y-2 max-w-md px-4">
-        <p className="text-lg font-medium text-foreground">
+      <div className="text-center space-y-1 max-w-md px-4">
+        <p className="text-base font-medium text-foreground">
           Start a conversation
         </p>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Send a message to begin chatting
         </p>
       </div>
@@ -113,54 +111,8 @@ export const UnifiedChatView = memo(
     const chatInputRef = useRef<ChatInputRef>(null);
     const { selection, lockSelection, unlockSelection } = useTextSelection();
     const confirmationDialog = useConfirmationDialog();
-
-    const [scrollState, setScrollRef] = useScrollDirection({
-      hideThreshold: 80,
-    });
-
-    // Mouse-based header reveal state
-    const [isMouseInHeaderArea, setIsMouseInHeaderArea] = useState(false);
-    const headerRef = useRef<HTMLDivElement>(null);
-    const mouseLeaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    // Handle mouse movement for header reveal
-    const handleMouseMove = useCallback(
-      (e: MouseEvent) => {
-        if (!headerRef.current || !scrollState.shouldHideHeader) {
-          return;
-        }
-
-        const rect = headerRef.current.getBoundingClientRect();
-        const isInArea = e.clientY <= rect.bottom + 20;
-
-        if (isInArea && !isMouseInHeaderArea) {
-          setIsMouseInHeaderArea(true);
-          if (mouseLeaveTimeoutRef.current) {
-            clearTimeout(mouseLeaveTimeoutRef.current);
-            mouseLeaveTimeoutRef.current = null;
-          }
-        } else if (!isInArea && isMouseInHeaderArea) {
-          mouseLeaveTimeoutRef.current = setTimeout(() => {
-            setIsMouseInHeaderArea(false);
-            mouseLeaveTimeoutRef.current = null;
-          }, 300);
-        }
-      },
-      [scrollState.shouldHideHeader, isMouseInHeaderArea]
-    );
-
-    // Set up mouse tracking
-    useEffect(() => {
-      if (scrollState.shouldHideHeader) {
-        document.addEventListener("mousemove", handleMouseMove);
-        return () => {
-          document.removeEventListener("mousemove", handleMouseMove);
-          if (mouseLeaveTimeoutRef.current) {
-            clearTimeout(mouseLeaveTimeoutRef.current);
-          }
-        };
-      }
-    }, [scrollState.shouldHideHeader, handleMouseMove]);
+    const hasInitializedScroll = useRef(false);
+    const previousMessageCount = useRef(messages.length);
 
     const shouldScrollToBottom = useMemo(() => {
       return isStreaming || hasStreamingContent;
@@ -173,6 +125,55 @@ export const UnifiedChatView = memo(
           messagesContainerRef.current.scrollHeight;
       }
     }, [messages, shouldScrollToBottom]);
+
+    // Handle initial scroll to bottom when opening an existing conversation
+    useEffect(() => {
+      if (
+        !isLoadingMessages &&
+        messages.length > 0 &&
+        !hasInitializedScroll.current &&
+        virtualizedMessagesRef.current
+      ) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          virtualizedMessagesRef.current?.scrollToBottom();
+          hasInitializedScroll.current = true;
+        }, 100);
+      }
+    }, [isLoadingMessages, messages.length]);
+
+    // Reset scroll initialization when conversation changes
+    useEffect(() => {
+      hasInitializedScroll.current = false;
+    }, [conversationId]);
+
+    // Scroll to bottom when a new user message is added
+    useEffect(() => {
+      if (
+        messages.length > previousMessageCount.current &&
+        messages.length > 0
+      ) {
+        const lastMessage = messages[messages.length - 1];
+        // Check if the new message is from the user
+        if (lastMessage?.role === "user" && virtualizedMessagesRef.current) {
+          // Small delay to ensure the message is rendered
+          setTimeout(() => {
+            virtualizedMessagesRef.current?.scrollToBottom();
+          }, 50);
+        }
+      }
+      previousMessageCount.current = messages.length;
+    }, [messages]);
+
+    // Handle outline navigation
+    const handleOutlineNavigate = useCallback(
+      (messageId: string, headingId?: string) => {
+        if (virtualizedMessagesRef.current) {
+          virtualizedMessagesRef.current.scrollToMessage(messageId, headingId);
+        }
+      },
+      []
+    );
 
     // Handle message sending
     const handleSendMessage = useCallback(
@@ -225,13 +226,6 @@ export const UnifiedChatView = memo(
       unlockSelection();
     }, [unlockSelection]);
 
-    // Setup scroll ref
-    useLayoutEffect(() => {
-      if (messagesContainerRef.current) {
-        setScrollRef(messagesContainerRef.current);
-      }
-    }, [setScrollRef]);
-
     const isEmpty = messages.length === 0;
     const isLoadingConversation = conversationId && isLoadingMessages;
 
@@ -240,95 +234,61 @@ export const UnifiedChatView = memo(
         <div className="relative flex h-full flex-1 flex-col overflow-hidden">
           <div className="flex-1 overflow-hidden">
             <div className="relative flex h-full flex-col overflow-hidden">
-              <div className="relative z-10 flex h-full flex-col">
+              <div className="relative z-10 flex h-full flex-col overflow-hidden">
+                {/* Static Header */}
+                {(isLoadingConversation || !isEmpty) && (
+                  <div className="sticky top-0 z-20 h-12 flex-shrink-0">
+                    <div className="flex h-12 items-center px-4 lg:px-6">
+                      <ChatHeader
+                        conversationId={conversationId}
+                        isPrivateMode={isPrivateMode}
+                        onSavePrivateChat={onSavePrivateChat}
+                        canSavePrivateChat={canSavePrivateChat}
+                        privateMessages={isPrivateMode ? messages : undefined}
+                        privatePersonaId={
+                          isPrivateMode
+                            ? (currentPersonaId ?? undefined)
+                            : undefined
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Messages area */}
                 <div
                   ref={messagesContainerRef}
                   className={cn(
-                    "flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300 ease-out scrollbar-gutter-stable",
-                    shouldScrollToBottom && "scroll-smooth"
+                    "flex-1 overflow-hidden",
+                    isEmpty && "overflow-y-auto"
                   )}
                 >
                   {isLoadingConversation ? (
-                    <div className="space-y-1 pb-32 sm:space-y-2">
-                      <div
-                        ref={headerRef}
-                        className={cn(
-                          "sticky top-0 z-20 bg-background border-b border-border/30 transition-transform duration-300 ease-out pl-16 pr-4 lg:pr-6",
-                          scrollState.shouldHideHeader &&
-                            !isMouseInHeaderArea &&
-                            "sm:-translate-y-full"
-                        )}
-                      >
-                        <div className="flex h-16 items-center">
-                          <ChatHeader
-                            conversationId={conversationId}
-                            isPrivateMode={isPrivateMode}
-                            onSavePrivateChat={onSavePrivateChat}
-                            canSavePrivateChat={canSavePrivateChat}
-                            privateMessages={
-                              isPrivateMode ? messages : undefined
-                            }
-                            privatePersonaId={
-                              isPrivateMode
-                                ? (currentPersonaId ?? undefined)
-                                : undefined
-                            }
-                          />
-                        </div>
+                    <div className="flex h-full items-center justify-center">
+                      <div className="text-center space-y-1">
+                        <p className="text-xs text-muted-foreground">
+                          Loading conversation...
+                        </p>
                       </div>
-                      <div className="flex-1" />
                     </div>
                   ) : isEmpty && !isPrivateMode && !conversationId ? (
                     <ChatZeroState />
                   ) : isEmpty ? (
                     <ConversationZeroState />
                   ) : (
-                    <div className="h-full flex flex-col">
-                      <div
-                        ref={headerRef}
-                        className={cn(
-                          "sticky top-0 z-20 bg-background border-b border-border/30 transition-all duration-300 ease-out pl-16 pr-4 lg:pr-6 flex-shrink-0",
-                          scrollState.shouldHideHeader &&
-                            !isMouseInHeaderArea &&
-                            "sm:-translate-y-full sm:-mb-16"
-                        )}
-                      >
-                        <div className="flex h-16 items-center">
-                          <ChatHeader
-                            conversationId={conversationId}
-                            isPrivateMode={isPrivateMode}
-                            onSavePrivateChat={onSavePrivateChat}
-                            canSavePrivateChat={canSavePrivateChat}
-                            privateMessages={
-                              isPrivateMode ? messages : undefined
-                            }
-                            privatePersonaId={
-                              isPrivateMode
-                                ? (currentPersonaId ?? undefined)
-                                : undefined
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex-1 min-h-0 relative">
-                        <VirtualizedChatMessages
-                          ref={virtualizedMessagesRef}
-                          messages={messages}
-                          isStreaming={isStreaming}
-                          onDeleteMessage={
-                            isPrivateMode ? undefined : handleDeleteMessage
-                          }
-                          onEditMessage={
-                            isPrivateMode ? undefined : onEditMessage
-                          }
-                          onRetryUserMessage={onRetryUserMessage}
-                          onRetryAssistantMessage={onRetryAssistantMessage}
-                          scrollElement={null}
-                          shouldScrollToBottom={shouldScrollToBottom}
-                        />
-                      </div>
-                    </div>
+                    <VirtualizedChatMessages
+                      ref={virtualizedMessagesRef}
+                      messages={messages}
+                      isStreaming={isStreaming}
+                      onDeleteMessage={
+                        isPrivateMode ? undefined : handleDeleteMessage
+                      }
+                      onEditMessage={isPrivateMode ? undefined : onEditMessage}
+                      onRetryUserMessage={onRetryUserMessage}
+                      onRetryAssistantMessage={onRetryAssistantMessage}
+                      scrollElement={null}
+                      shouldScrollToBottom={shouldScrollToBottom}
+                    />
                   )}
                 </div>
 
@@ -367,7 +327,9 @@ export const UnifiedChatView = memo(
           </div>
         </div>
 
-        {messages.length > 1 && <ChatOutline messages={messages} />}
+        {messages.length > 1 && (
+          <ChatOutline messages={messages} onNavigate={handleOutlineNavigate} />
+        )}
 
         <ConfirmationDialog
           open={confirmationDialog.isOpen}

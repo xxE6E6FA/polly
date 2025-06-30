@@ -89,7 +89,10 @@ export const Sidebar = () => {
       )}
 
       <div
-        className={cn("fixed left-4 top-4 z-50", isMobile && "left-3 top-3")}
+        className={cn(
+          "fixed left-2 top-2 z-50",
+          isMobile && "left-1.5 top-1.5"
+        )}
       >
         {isMobile ? (
           <Button
@@ -98,11 +101,11 @@ export const Sidebar = () => {
             variant="ghost"
             className={cn(
               "hover:bg-accent text-foreground/70 hover:text-foreground",
-              "h-10 w-10"
+              "h-9 w-9"
             )}
             onClick={toggleSidebar}
           >
-            <SidebarIcon className="h-6 w-6" />
+            <SidebarIcon className="h-5 w-5" />
           </Button>
         ) : (
           <Tooltip>
@@ -140,13 +143,13 @@ export const Sidebar = () => {
       >
         <div className="flex h-full w-80 flex-col">
           <div className="flex-shrink-0 pb-2">
-            <div className="relative flex h-16 items-center justify-center px-4">
+            <div className="relative flex h-12 items-center justify-center px-3">
               <Link className="group" to={ROUTES.HOME}>
-                <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
+                <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
                   <div
                     className={cn(
                       "polly-logo-gradient-unified flex-shrink-0",
-                      "w-6 h-6"
+                      "w-5 h-5"
                     )}
                     style={{
                       maskImage: "url('/favicon.svg')",
@@ -162,7 +165,7 @@ export const Sidebar = () => {
                   <h1
                     className={cn(
                       "leading-none font-bold polly-logo-text-unified",
-                      "text-xl"
+                      "text-lg"
                     )}
                   >
                     Polly
@@ -173,7 +176,7 @@ export const Sidebar = () => {
               <div
                 className={cn(
                   "absolute flex items-center",
-                  isMobile ? "right-2 gap-2" : "right-4 gap-1"
+                  isMobile ? "right-1.5 gap-2" : "right-3 gap-1"
                 )}
               >
                 {user && !user.isAnonymous && (
@@ -186,11 +189,11 @@ export const Sidebar = () => {
                           variant="ghost"
                           className={cn(
                             "text-muted-foreground hover:text-foreground transition-colors",
-                            isMobile && "h-10 w-10"
+                            isMobile && "h-9 w-9"
                           )}
                         >
                           <GearIcon
-                            className={cn(isMobile ? "h-6 w-6" : "h-4 w-4")}
+                            className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")}
                           />
                         </Button>
                       </Link>
@@ -206,14 +209,14 @@ export const Sidebar = () => {
                   variant="ghost"
                   className={cn(
                     "hover:bg-accent text-foreground/70 hover:text-foreground",
-                    isMobile && "h-10 w-10"
+                    isMobile && "h-9 w-9"
                   )}
                 />
               </div>
             </div>
 
             <div
-              className={cn("space-y-4", isMobile ? "px-3 pb-4" : "px-4 pb-4")}
+              className={cn("space-y-3", isMobile ? "px-2 pb-3" : "px-3 pb-3")}
             >
               <SidebarSearch
                 searchQuery={searchQuery}

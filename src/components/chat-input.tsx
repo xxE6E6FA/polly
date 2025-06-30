@@ -247,7 +247,7 @@ export const ChatInput = React.memo(
     const formClasses = useMemo(
       () =>
         cn(
-          "rounded-xl p-3 sm:p-4 transition-all duration-300",
+          "rounded-xl p-2.5 sm:p-3 transition-all duration-300",
           canSendMessage
             ? visualMode.isPrivateMode
               ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/30 dark:via-purple-900/20 dark:to-amber-950/10 shadow-lg shadow-purple-500/20 dark:shadow-purple-500/10"
@@ -270,7 +270,7 @@ export const ChatInput = React.memo(
     );
 
     return (
-      <div className="relative px-3 pb-3 pt-2 sm:px-6 sm:pb-6">
+      <div className="relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3">
         <div className="mx-auto w-full max-w-3xl">
           {warnings.showLimitWarning && !warnings.showLimitReached && (
             <ChatWarningBanner
