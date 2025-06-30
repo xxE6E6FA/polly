@@ -43,8 +43,8 @@ export default function NewPersonaPage() {
       });
 
       navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to create persona:", error);
+    } catch (_error) {
+      // Error is handled by the UI
     } finally {
       setIsLoading(false);
     }
@@ -73,7 +73,11 @@ export default function NewPersonaPage() {
         formData={formData}
         handleEmojiClick={handleEmojiClick}
         isEmojiPickerOpen={isEmojiPickerOpen}
-        setFormData={setFormData}
+        setFormData={
+          setFormData as React.Dispatch<
+            React.SetStateAction<PersonaFormData | null>
+          >
+        }
         setIsEmojiPickerOpen={setIsEmojiPickerOpen}
       />
 

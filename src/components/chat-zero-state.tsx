@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Link, useNavigate } from "react-router";
 
@@ -200,7 +200,7 @@ export const ChatZeroState = () => {
   } = useUser();
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
-  const { createNewConversationWithResponse } = useCreateConversation();
+  const { createNewConversation } = useCreateConversation();
   const navigate = useNavigate();
 
   // Track if we're on mobile
@@ -225,34 +225,36 @@ export const ChatZeroState = () => {
     user && !user.isAnonymous ? {} : "skip"
   );
 
-  const handleQuickPrompt = async (prompt: string) => {
-    // Use the appropriate input based on current viewport
-    const targetInput = isMobile
-      ? mobileChatInputRef.current
-      : chatInputRef.current;
+  const handleQuickPrompt = useCallback(
+    async (prompt: string) => {
+      // Use the appropriate input based on current viewport
+      const targetInput = isMobile
+        ? mobileChatInputRef.current
+        : chatInputRef.current;
 
-    if (targetInput) {
-      targetInput.setInput(prompt);
-      targetInput.focus();
-    } else {
-      // Fallback: create conversation directly
-      const conversationId = await createNewConversationWithResponse({
-        firstMessage: prompt,
-        userId: user?._id,
-        generateTitle: true,
-      });
-      if (conversationId) {
-        navigate(ROUTES.CHAT_CONVERSATION(conversationId));
+      if (targetInput) {
+        targetInput.setInput(prompt);
+        targetInput.focus();
+      } else {
+        // Fallback: create conversation directly
+        const conversationId = await createNewConversation({
+          firstMessage: prompt,
+          userId: user?._id,
+          generateTitle: true,
+        });
+        if (conversationId) {
+          navigate(ROUTES.CHAT_CONVERSATION(conversationId));
+        }
       }
-    }
-  };
+    },
+    [isMobile, createNewConversation, user?._id, navigate]
+  );
 
   const chatInputProps = {
     hasExistingMessages: false,
     isLoading: false,
     isStreaming: false,
     onStop: () => {},
-    placeholder: "Ask me anything...",
   };
 
   // Only show as anonymous after we've loaded user data

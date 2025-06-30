@@ -4,6 +4,7 @@ export const ROUTES = {
   AUTH_CALLBACK: "/auth/callback",
   CHAT: "/chat",
   CHAT_CONVERSATION: (conversationId: string) => `/chat/${conversationId}`,
+  PRIVATE_CHAT: "/private",
   SHARE: (shareId: string) => `/share/${shareId}`,
   SETTINGS: {
     ROOT: "/settings",

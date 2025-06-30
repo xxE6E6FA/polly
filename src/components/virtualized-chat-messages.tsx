@@ -126,8 +126,13 @@ export const VirtualizedChatMessages = memo(
       const virtualizer = useVirtualizer({
         count: processedMessages.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 200, // Just a rough estimate, TanStack will measure actual heights
+        estimateSize: useCallback(() => 200, []), // Memoized estimate function
         overscan: 5, // Render extra items for smoother scrolling
+        measureElement:
+          typeof window !== "undefined" &&
+          navigator.userAgent.indexOf("Firefox") === -1
+            ? undefined
+            : element => element?.getBoundingClientRect().height, // Optimize for non-Firefox browsers
       });
 
       // Scroll to bottom function
@@ -305,7 +310,7 @@ export const VirtualizedChatMessages = memo(
                 >
                   <MessageItem
                     message={message}
-                    isStreaming={isMessageStreaming}
+                    isStreaming={!!isMessageStreaming}
                     onEditMessage={onEditMessage}
                     onRetryUserMessage={onRetryUserMessage}
                     onRetryAssistantMessage={onRetryAssistantMessage}

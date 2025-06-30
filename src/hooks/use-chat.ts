@@ -31,7 +31,7 @@ export function useChat({
   onConversationCreate,
 }: UseChatOptions) {
   const { user, isLoading: userLoading, canSendMessage } = useUser();
-  const { createNewConversationWithResponse } = useCreateConversation();
+  const { createNewConversation } = useCreateConversation();
   const { setIsThinking } = useThinking();
 
   // Use specialized hooks
@@ -166,7 +166,7 @@ export function useChat({
         // Create new conversation if needed
         if (!conversationId) {
           await withLoadingState(async () => {
-            const newConversationId = await createNewConversationWithResponse({
+            const newConversationId = await createNewConversation({
               firstMessage: content,
               sourceConversationId: undefined,
               personaId,
@@ -201,6 +201,7 @@ export function useChat({
               provider: selectedModel.provider,
               reasoningConfig: reasoningConfig
                 ? {
+                    enabled: reasoningConfig.enabled,
                     effort: reasoningConfig.effort,
                     maxTokens: reasoningConfig.maxTokens,
                   }
@@ -230,7 +231,7 @@ export function useChat({
       user,
       userLoading,
       conversationId,
-      createNewConversationWithResponse,
+      createNewConversation,
       onConversationCreate,
       selectedModel,
       sendFollowUpMessageAction,
@@ -274,7 +275,7 @@ export function useChat({
       try {
         // Use the new function that starts the assistant response immediately
         const newConversationId = await withLoadingState(async () => {
-          const conversationId = await createNewConversationWithResponse({
+          const conversationId = await createNewConversation({
             firstMessage: content,
             sourceConversationId,
             personaId,
@@ -322,7 +323,7 @@ export function useChat({
       onError,
       user,
       userLoading,
-      createNewConversationWithResponse,
+      createNewConversation,
       addMessage,
       onConversationCreate,
       withLoadingState,

@@ -109,7 +109,12 @@ export function hasReasoningCapabilities(
 }
 
 // Models that always have reasoning enabled and cannot disable it
-const MANDATORY_REASONING_PATTERNS = ["o1-", "o3-", "deepseek-r1"];
+const MANDATORY_REASONING_PATTERNS = [
+  "o1-",
+  "o3-",
+  "deepseek-r1",
+  "gemini-2.5-pro",
+];
 
 export function hasMandatoryReasoning(model?: ModelForCapabilities): boolean {
   if (!model) return false;

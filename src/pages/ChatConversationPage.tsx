@@ -1,10 +1,12 @@
+import { useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
 
 import { useQuery } from "convex/react";
 
-import { ConversationChatView } from "@/components/conversation-chat-view";
+import { UnifiedChatView } from "@/components/unified-chat-view";
 import { NotFoundPage } from "@/components/ui/not-found-page";
-import { useChat } from "@/hooks/use-chat";
+import { useUnifiedChat } from "@/hooks/use-unified-chat";
+import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
 import { type ConversationId } from "@/types";
@@ -15,6 +17,12 @@ export default function ConversationRoute() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const { user, isLoading: userLoading } = useUser();
+  const { setPrivateMode } = usePrivateMode();
+
+  // Ensure we're not in private mode when viewing a conversation
+  useEffect(() => {
+    setPrivateMode(false);
+  }, [setPrivateMode]);
 
   if (!conversationId) {
     throw new Error("Conversation ID is required");
@@ -28,24 +36,35 @@ export default function ConversationRoute() {
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  const {
-    messages: chatMessages,
-    isLoading: isGenerating,
-    isLoadingMessages,
-    sendMessage,
-    sendMessageToNewConversation,
-    editMessage,
-    retryUserMessage,
-    retryAssistantMessage,
-    deleteMessage,
-    stopGeneration,
-    isStreaming,
-  } = useChat({
-    conversationId: conversationId as ConversationId,
-    onError: error => console.error("Chat error:", error),
-    onConversationCreate: (newConversationId: ConversationId) => {
+  const handleError = useCallback((_error: Error) => {
+    // Error is handled by the UI components
+  }, []);
+
+  const handleConversationCreate = useCallback(
+    (newConversationId: ConversationId) => {
       navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
     },
+    [navigate]
+  );
+
+  const {
+    messages,
+    isLoading,
+    isLoadingMessages,
+    isStreaming,
+    hasStreamingContent,
+    currentPersonaId,
+    canSavePrivateChat,
+    sendMessage,
+    deleteMessage,
+    editMessage,
+    stopGeneration,
+    retryUserMessage,
+    retryAssistantMessage,
+  } = useUnifiedChat({
+    conversationId: conversationId as ConversationId,
+    onError: handleError,
+    onConversationCreate: handleConversationCreate,
   });
 
   // If user is loaded and the query has completed and conversation is null,
@@ -55,20 +74,22 @@ export default function ConversationRoute() {
   }
 
   return (
-    <ConversationChatView
+    <UnifiedChatView
       conversationId={conversationId as ConversationId}
-      hasApiKeys={hasApiKeys ?? false}
-      isLoading={isGenerating}
+      messages={messages}
+      isLoading={isLoading}
       isLoadingMessages={isLoadingMessages || userLoading}
       isStreaming={isStreaming}
-      messages={chatMessages || []}
+      hasStreamingContent={hasStreamingContent}
+      currentPersonaId={currentPersonaId}
+      canSavePrivateChat={canSavePrivateChat}
+      hasApiKeys={hasApiKeys ?? true}
+      onSendMessage={sendMessage}
       onDeleteMessage={deleteMessage}
       onEditMessage={editMessage}
-      onRetryAssistantMessage={retryAssistantMessage}
-      onRetryUserMessage={retryUserMessage}
-      onSendMessage={sendMessage}
-      onSendMessageToNewConversation={sendMessageToNewConversation}
       onStopGeneration={stopGeneration}
+      onRetryUserMessage={retryUserMessage}
+      onRetryAssistantMessage={retryAssistantMessage}
     />
   );
 }

@@ -154,6 +154,10 @@ export type ReasoningConfig = {
 export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
-  | { google: { thinkingConfig: { includeThoughts: boolean } } }
+  | {
+      google: {
+        thinkingConfig: { includeThoughts: boolean; thinkingBudget?: number };
+      };
+    }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
   | { extraBody: { reasoning: { effort: string; max_tokens?: number } } };

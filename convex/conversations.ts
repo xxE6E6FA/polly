@@ -330,6 +330,17 @@ export const createNewConversation = action({
     ),
     useWebSearch: v.optional(v.boolean()),
     generateTitle: v.optional(v.boolean()),
+    reasoningConfig: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        effort: v.union(
+          v.literal("low"),
+          v.literal("medium"),
+          v.literal("high")
+        ),
+        maxTokens: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (
     ctx,
@@ -479,6 +490,12 @@ export const createNewConversation = action({
       maxTokens: 8192, // Generous default for conversations
       enableWebSearch: args.useWebSearch,
       webSearchMaxResults: 3,
+      reasoningConfig: args.reasoningConfig?.enabled
+        ? {
+            effort: args.reasoningConfig.effort,
+            maxTokens: args.reasoningConfig.maxTokens,
+          }
+        : undefined,
     });
 
     // Schedule title generation if requested
@@ -550,8 +567,11 @@ export const sendFollowUpMessage = action({
     provider: v.string(),
     reasoningConfig: v.optional(
       v.object({
-        effort: v.optional(
-          v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+        enabled: v.boolean(),
+        effort: v.union(
+          v.literal("low"),
+          v.literal("medium"),
+          v.literal("high")
         ),
         maxTokens: v.optional(v.number()),
       })
@@ -750,7 +770,12 @@ export const sendFollowUpMessage = action({
         maxTokens: 8192, // Generous default for conversations
         enableWebSearch: args.useWebSearch,
         webSearchMaxResults: 3,
-        reasoningConfig: args.reasoningConfig,
+        reasoningConfig: args.reasoningConfig?.enabled
+          ? {
+              effort: args.reasoningConfig.effort,
+              maxTokens: args.reasoningConfig.maxTokens,
+            }
+          : undefined,
       });
 
       return {
@@ -1433,3 +1458,436 @@ const resolveAttachmentUrls = async (
     })
   );
 };
+
+// Action to save a private conversation with all its messages
+export const savePrivateConversation = action({
+  args: {
+    userId: v.id("users"),
+    messages: v.array(
+      v.object({
+        role: v.union(
+          v.literal("user"),
+          v.literal("assistant"),
+          v.literal("system"),
+          v.literal("context")
+        ),
+        content: v.string(),
+        createdAt: v.number(),
+        model: v.optional(v.string()),
+        provider: v.optional(v.string()),
+        reasoning: v.optional(v.string()),
+        attachments: v.optional(
+          v.array(
+            v.object({
+              type: v.union(
+                v.literal("image"),
+                v.literal("pdf"),
+                v.literal("text")
+              ),
+              url: v.string(),
+              name: v.string(),
+              size: v.number(),
+              content: v.optional(v.string()),
+              thumbnail: v.optional(v.string()),
+              storageId: v.optional(v.id("_storage")),
+              mimeType: v.optional(v.string()), // Add mimeType for base64 conversion
+            })
+          )
+        ),
+        citations: v.optional(
+          v.array(
+            v.object({
+              type: v.literal("url_citation"),
+              url: v.string(),
+              title: v.string(),
+              cited_text: v.optional(v.string()),
+              snippet: v.optional(v.string()),
+              description: v.optional(v.string()),
+              image: v.optional(v.string()),
+              favicon: v.optional(v.string()),
+              siteName: v.optional(v.string()),
+              publishedDate: v.optional(v.string()),
+              author: v.optional(v.string()),
+            })
+          )
+        ),
+        metadata: v.optional(
+          v.object({
+            tokenCount: v.optional(v.number()),
+            reasoningTokenCount: v.optional(v.number()),
+            finishReason: v.optional(v.string()),
+            duration: v.optional(v.number()),
+            stopped: v.optional(v.boolean()),
+          })
+        ),
+      })
+    ),
+    title: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+  },
+  handler: async (ctx, args): Promise<Id<"conversations">> => {
+    // Enforce message limit for users
+    await ctx.runMutation(api.users.enforceMessageLimit, {
+      userId: args.userId,
+    });
+
+    // Generate a title from the first user message or use provided title
+    const firstUserMessage = args.messages.find(msg => msg.role === "user");
+    const conversationTitle =
+      args.title ||
+      (firstUserMessage
+        ? firstUserMessage.content.slice(0, 100) +
+          (firstUserMessage.content.length > 100 ? "..." : "")
+        : "Saved Private Chat");
+
+    // Create the conversation
+    const conversationId = await ctx.runMutation(api.conversations.create, {
+      title: conversationTitle,
+      userId: args.userId,
+      personaId: args.personaId,
+    });
+
+    // Process and save all messages to the conversation
+    for (const message of args.messages) {
+      // Skip empty assistant messages (placeholders)
+      if (message.role === "assistant" && !message.content) {
+        continue;
+      }
+
+      // Process attachments - upload base64 content to Convex storage
+      let processedAttachments = message.attachments;
+      if (message.attachments && message.attachments.length > 0) {
+        processedAttachments = await Promise.all(
+          message.attachments.map(async attachment => {
+            // If attachment has base64 content but no storageId, upload it
+            if (
+              attachment.content &&
+              !attachment.storageId &&
+              (attachment.type === "image" || attachment.type === "pdf")
+            ) {
+              try {
+                // Convert base64 to blob
+                const mimeType =
+                  attachment.mimeType ||
+                  (attachment.type === "image"
+                    ? "image/jpeg"
+                    : "application/pdf");
+                const byteCharacters = atob(attachment.content);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: mimeType });
+
+                // Upload to Convex storage
+                const storageId = await ctx.storage.store(blob);
+
+                // Return attachment with storageId and without base64 content
+                return {
+                  type: attachment.type,
+                  url: "", // Will be resolved when displaying
+                  name: attachment.name,
+                  size: attachment.size,
+                  storageId: storageId as Id<"_storage">,
+                  thumbnail: attachment.thumbnail,
+                  // Remove content to save space
+                  content: undefined,
+                };
+              } catch (error) {
+                console.error(
+                  `Failed to upload attachment ${attachment.name}:`,
+                  error
+                );
+                // Fall back to original attachment
+                return attachment;
+              }
+            }
+            // Return as-is if already has storageId or is a text file
+            return attachment;
+          })
+        );
+      }
+
+      await ctx.runMutation(api.messages.create, {
+        conversationId,
+        role: message.role,
+        content: message.content,
+        model: message.model,
+        provider: message.provider,
+        reasoning: message.reasoning,
+        attachments: processedAttachments,
+        metadata: message.metadata,
+        isMainBranch: true,
+      });
+
+      // If the message has citations, we need to update it after creation
+      // since citations aren't in the create args
+      if (message.citations && message.citations.length > 0) {
+        const createdMessages = await ctx.runQuery(
+          api.messages.getAllInConversation,
+          { conversationId }
+        );
+        const lastMessage = createdMessages[createdMessages.length - 1];
+        if (lastMessage) {
+          await ctx.runMutation(internal.messages.internalUpdate, {
+            id: lastMessage._id,
+            citations: message.citations,
+          });
+        }
+      }
+    }
+
+    // Mark conversation as not streaming since all messages are already complete
+    await ctx.runMutation(api.conversations.update, {
+      id: conversationId,
+      isStreaming: false,
+    });
+
+    // Schedule title generation if not provided
+    if (!args.title) {
+      await ctx.scheduler.runAfter(100, api.titleGeneration.generateTitle, {
+        conversationId,
+        message: firstUserMessage?.content || "Saved Private Chat",
+      });
+    }
+
+    return conversationId;
+  },
+});
+
+// Continue to send messages in a conversation
+export const continueConversation = action({
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(
+            v.literal("image"),
+            v.literal("pdf"),
+            v.literal("text")
+          ),
+          url: v.string(),
+          name: v.string(),
+          size: v.number(),
+          content: v.optional(v.string()),
+          thumbnail: v.optional(v.string()),
+          storageId: v.optional(v.id("_storage")),
+        })
+      )
+    ),
+    useWebSearch: v.optional(v.boolean()),
+    model: v.string(),
+    provider: v.string(),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    userMessageId: Id<"messages">;
+    assistantMessageId: Id<"messages">;
+  }> => {
+    // Validate conversation exists
+    const conversation = await ctx.runQuery(api.conversations.get, {
+      id: args.conversationId,
+    });
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    // Enforce message limit for users
+    await ctx.runMutation(api.users.enforceMessageLimit, {
+      userId: conversation.userId,
+      modelProvider: args.provider,
+    });
+
+    // Get API key for the provider
+    const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
+      provider: args.provider as
+        | "openai"
+        | "anthropic"
+        | "google"
+        | "openrouter",
+    });
+
+    if (!apiKey) {
+      throw new Error(
+        `No API key found for ${args.provider}. Please add an API key in Settings.`
+      );
+    }
+
+    let assistantMessageId: Id<"messages"> | undefined;
+    let userMessageId: Id<"messages"> | undefined;
+
+    try {
+      // Set conversation streaming state
+      await ctx.runMutation(api.conversations.setStreamingState, {
+        id: args.conversationId,
+        isStreaming: true,
+      });
+
+      // Add user message
+      userMessageId = await ctx.runMutation(api.messages.create, {
+        conversationId: args.conversationId,
+        role: "user",
+        content: args.content,
+        attachments: args.attachments,
+        useWebSearch: args.useWebSearch,
+        isMainBranch: true,
+      });
+
+      // Increment user's message count for limit tracking
+      await ctx.runMutation(api.users.incrementMessageCount, {
+        userId: conversation.userId,
+        modelProvider: args.provider,
+      });
+
+      // Get all messages for context
+      const messages = await ctx.runQuery(api.messages.list, {
+        conversationId: args.conversationId,
+      });
+
+      // Get persona prompt if conversation has a persona
+      let personaPrompt: string | null = null;
+      if (conversation.personaId) {
+        const persona = await ctx.runQuery(api.personas.get, {
+          id: conversation.personaId,
+        });
+        personaPrompt = persona?.prompt || null;
+      }
+
+      // Resolve attachment URLs for messages with storageIds
+      const messagesWithResolvedUrls = await Promise.all(
+        messages.map(async msg => {
+          if (msg.attachments && msg.attachments.length > 0) {
+            const resolvedAttachments = await resolveAttachmentUrls(
+              ctx,
+              msg.attachments
+            );
+            return {
+              ...msg,
+              attachments: resolvedAttachments,
+            };
+          }
+          return msg;
+        })
+      );
+
+      // Build context messages for the API
+      const contextMessages = messagesWithResolvedUrls
+        .filter(msg => msg.role !== "context") // Skip context messages
+        .map(msg => {
+          if (msg.role === "system") {
+            return {
+              role: "system" as const,
+              content: msg.content,
+            };
+          }
+
+          if (msg.role === "user") {
+            if (msg.attachments && msg.attachments.length > 0) {
+              const content = [
+                { type: "text" as const, text: msg.content },
+                ...msg.attachments.map(attachment => {
+                  if (attachment.type === "image") {
+                    return {
+                      type: "image_url" as const,
+                      image_url: { url: attachment.url },
+                      // Include attachment metadata for Convex storage optimization
+                      attachment: attachment.storageId
+                        ? {
+                            storageId: attachment.storageId,
+                            type: attachment.type,
+                            name: attachment.name,
+                          }
+                        : undefined,
+                    };
+                  }
+                  if (attachment.type === "pdf" || attachment.type === "text") {
+                    return {
+                      type: "file" as const,
+                      file: {
+                        filename: attachment.name,
+                        file_data: attachment.content || "",
+                      },
+                    };
+                  }
+                  return {
+                    type: "text" as const,
+                    text: `[${attachment.name}]`,
+                  };
+                }),
+              ];
+              return {
+                role: "user" as const,
+                content,
+              };
+            }
+            return {
+              role: "user" as const,
+              content: msg.content,
+            };
+          }
+
+          if (msg.role === "assistant") {
+            return {
+              role: "assistant" as const,
+              content: msg.content,
+            };
+          }
+
+          return;
+        })
+        .filter(msg => msg !== undefined);
+
+      // Add persona prompt as system message if it exists and no system message is present
+      if (
+        personaPrompt &&
+        !contextMessages.some(msg => msg.role === "system")
+      ) {
+        contextMessages.unshift({
+          role: "system",
+          content: personaPrompt,
+        });
+      }
+
+      // Create assistant message for streaming
+      assistantMessageId = await ctx.runMutation(api.messages.create, {
+        conversationId: args.conversationId,
+        role: "assistant",
+        content: "",
+        model: args.model,
+        provider: args.provider,
+        isMainBranch: true,
+      });
+
+      // Start streaming response
+      await ctx.runAction(api.ai.streamResponse, {
+        messages: contextMessages,
+        messageId: assistantMessageId,
+        model: args.model,
+        provider: args.provider,
+        userId: conversation.userId,
+        temperature: 0.7,
+        maxTokens: 8192, // Generous default for conversations
+        enableWebSearch: args.useWebSearch,
+        webSearchMaxResults: 3,
+      });
+
+      return {
+        userMessageId,
+        assistantMessageId,
+      };
+    } catch (error) {
+      // Clear streaming state on error
+      await ctx.runMutation(api.conversations.setStreamingState, {
+        id: args.conversationId,
+        isStreaming: false,
+      });
+      throw error;
+    }
+  },
+});

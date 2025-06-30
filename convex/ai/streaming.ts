@@ -1,4 +1,5 @@
-import { extractCitations, extractMarkdownCitations } from "./citations";
+import { extractCitations } from "./citations";
+import { extractMarkdownCitations } from "../lib/shared/citations";
 import { CONFIG } from "./config";
 import { handleStreamOperation } from "./error_handlers";
 import { clearConversationStreaming } from "./messages";
@@ -8,6 +9,11 @@ import {
   type StreamPart,
 } from "./types";
 import { extractReasoning, humanizeText } from "./utils";
+import {
+  isReasoningPart,
+  extractReasoningContent,
+  humanizeReasoningText,
+} from "../lib/shared/stream_utils";
 import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
@@ -245,7 +251,7 @@ export class StreamHandler {
     // Extract reasoning if embedded in content
     const extractedReasoning = reasoning || extractReasoning(text);
     const humanizedReasoning = extractedReasoning
-      ? humanizeText(extractedReasoning)
+      ? humanizeReasoningText(extractedReasoning)
       : undefined;
 
     // Extract citations from provider metadata
@@ -413,7 +419,7 @@ export class StreamHandler {
 
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
-    } else if (part.type === "reasoning" || part.type === "thinking_delta") {
+    } else if (isReasoningPart(part)) {
       // Check if we should stop before processing reasoning
       if (await this.checkIfStopped()) {
         if (this.messageDeleted) {
@@ -422,30 +428,33 @@ export class StreamHandler {
         throw new Error("StoppedByUser");
       }
 
-      await this.queueUpdate(async () => {
-        if (this.messageDeleted || this.wasStopped) {
-          return;
-        }
-
-        try {
-          await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
-            id: this.messageId,
-            appendReasoning: part.textDelta || "",
-          });
-        } catch (error) {
-          // If message doesn't exist, mark as deleted and continue
-          if (
-            error instanceof Error &&
-            (error.message.includes("not found") ||
-              error.message.includes("nonexistent document"))
-          ) {
-            this.messageDeleted = true;
-            this.safeAbort();
+      const reasoningContent = extractReasoningContent(part);
+      if (reasoningContent) {
+        await this.queueUpdate(async () => {
+          if (this.messageDeleted || this.wasStopped) {
             return;
           }
-          throw error;
-        }
-      });
+
+          try {
+            await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+              id: this.messageId,
+              appendReasoning: reasoningContent,
+            });
+          } catch (error) {
+            // If message doesn't exist, mark as deleted and continue
+            if (
+              error instanceof Error &&
+              (error.message.includes("not found") ||
+                error.message.includes("nonexistent document"))
+            ) {
+              this.messageDeleted = true;
+              this.safeAbort();
+              return;
+            }
+            throw error;
+          }
+        });
+      }
     }
   }
 
