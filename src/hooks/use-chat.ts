@@ -18,6 +18,17 @@ import { useUser } from "./use-user";
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
 
+// Helper function to clean attachments for Convex by removing fields not in the schema
+function cleanAttachmentsForConvex(attachments?: Attachment[]) {
+  if (!attachments) return undefined;
+
+  return attachments.map(attachment => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { mimeType, ...cleanAttachment } = attachment;
+    return cleanAttachment;
+  });
+}
+
 type UseChatOptions = {
   conversationId?: ConversationId;
   onMessagesChange?: (messages: ChatMessage[]) => void;
@@ -195,7 +206,7 @@ export function useChat({
             sendFollowUpMessageAction({
               conversationId,
               content,
-              attachments,
+              attachments: cleanAttachmentsForConvex(attachments),
               useWebSearch,
               model: selectedModel.modelId,
               provider: selectedModel.provider,
