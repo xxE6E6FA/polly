@@ -22,6 +22,17 @@ export type CreateConversationParams = {
   reasoningConfig?: ReasoningConfig;
 };
 
+// Function to clean attachments for Convex by removing fields not in the schema
+function cleanAttachmentsForConvex(attachments?: Attachment[]) {
+  if (!attachments) return undefined;
+
+  return attachments.map(attachment => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { mimeType, ...cleanAttachment } = attachment;
+    return cleanAttachment;
+  });
+}
+
 // Simplified hook using the single new conversation action
 
 export function useCreateConversation() {
@@ -48,7 +59,7 @@ export function useCreateConversation() {
         sourceConversationId,
         ...(personaId && { personaId }),
         ...(personaPrompt && { personaPrompt }),
-        attachments,
+        attachments: cleanAttachmentsForConvex(attachments),
         useWebSearch,
         generateTitle,
         reasoningConfig,

@@ -6,6 +6,137 @@ import { action, internalMutation, mutation, query } from "./_generated/server";
 import { type ActionCtx } from "./_generated/server";
 import { getOptionalUserId } from "./lib/auth";
 
+// Helper function to process attachments and upload base64 data to Convex storage
+const processAttachmentsForStorage = async (
+  ctx: ActionCtx,
+  attachments?: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+    mimeType?: string;
+  }>
+): Promise<
+  | Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+    }>
+  | undefined
+> => {
+  if (!attachments || attachments.length === 0) {
+    return undefined;
+  }
+
+  return await Promise.all(
+    attachments.map(async attachment => {
+      // Check if we need to upload to storage
+      const needsUpload =
+        (attachment.type === "image" || attachment.type === "pdf") &&
+        !attachment.storageId &&
+        (attachment.url.startsWith("data:") || attachment.content);
+
+      if (needsUpload) {
+        try {
+          let mimeType: string;
+          let base64Data: string;
+
+          // Handle data URL format
+          if (attachment.url.startsWith("data:")) {
+            const matches = attachment.url.match(/^data:([^;]+);base64,(.+)$/);
+            if (!matches) {
+              throw new Error("Invalid data URL format");
+            }
+            mimeType = matches[1];
+            base64Data = matches[2];
+          }
+          // Handle separate content field (from private chat saves)
+          else if (attachment.content) {
+            mimeType =
+              attachment.mimeType ||
+              (attachment.type === "image" ? "image/jpeg" : "application/pdf");
+            base64Data = attachment.content;
+          } else {
+            // No data to upload
+            return attachment;
+          }
+
+          // Convert base64 to blob
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: mimeType });
+
+          // Upload to Convex storage
+          const storageId = await ctx.storage.store(blob);
+
+          // Return attachment with storageId
+          return {
+            type: attachment.type,
+            url: "", // Will be resolved when needed
+            name: attachment.name,
+            size: attachment.size,
+            storageId: storageId as Id<"_storage">,
+            thumbnail: attachment.thumbnail,
+            content: undefined, // Remove base64 content to save space
+          };
+        } catch (error) {
+          console.error(
+            `Failed to upload attachment ${attachment.name}:`,
+            error
+          );
+          // Fall back to original attachment (without mimeType for schema compatibility)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { mimeType, ...cleanAttachment } = attachment;
+          return cleanAttachment;
+        }
+      }
+
+      // Return as-is if no upload needed (but remove mimeType for schema compatibility)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { mimeType, ...cleanAttachment } = attachment;
+      return cleanAttachment;
+    })
+  );
+};
+
+// Helper function to resolve attachment URLs from storage IDs
+const resolveAttachmentUrls = async (
+  ctx: ActionCtx,
+  attachments: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+  }>
+) => {
+  return await Promise.all(
+    attachments.map(async attachment => {
+      if (attachment.storageId) {
+        const url = await ctx.storage.getUrl(attachment.storageId);
+        return {
+          ...attachment,
+          url: url || attachment.url, // Fallback to original URL if getUrl fails
+        };
+      }
+      return attachment;
+    })
+  );
+};
+
 export const create = mutation({
   args: {
     title: v.string(),
@@ -377,6 +508,15 @@ export const createNewConversation = action({
       finalPersonaPrompt = persona?.prompt ?? undefined;
     }
 
+    // Process attachments - upload base64 content to Convex storage
+    let processedAttachments = args.attachments;
+    if (args.attachments && args.attachments.length > 0) {
+      processedAttachments = await processAttachmentsForStorage(
+        ctx,
+        args.attachments
+      );
+    }
+
     // Batch create conversation and messages in single internal mutation
     const result: {
       conversationId: Id<"conversations">;
@@ -389,7 +529,7 @@ export const createNewConversation = action({
       sourceConversationId: args.sourceConversationId,
       firstMessage: args.firstMessage,
       personaPrompt: finalPersonaPrompt,
-      attachments: args.attachments,
+      attachments: processedAttachments,
       useWebSearch: args.useWebSearch,
       model: selectedModel.modelId,
       provider: selectedModel.provider,
@@ -422,7 +562,7 @@ export const createNewConversation = action({
     }
 
     // Add user message with attachments
-    if (args.attachments?.length) {
+    if (processedAttachments?.length) {
       const contentParts: Array<{
         type: "text" | "image_url" | "file";
         text?: string;
@@ -435,11 +575,17 @@ export const createNewConversation = action({
         };
       }> = [{ type: "text", text: args.firstMessage }];
 
-      for (const attachment of args.attachments) {
+      for (const attachment of processedAttachments) {
         if (attachment.type === "image") {
+          // For images with storageId, we need to get the URL for AI processing
+          let imageUrl = attachment.url;
+          if (attachment.storageId && !attachment.url) {
+            imageUrl = (await ctx.storage.getUrl(attachment.storageId)) || "";
+          }
+
           contentParts.push({
             type: "image_url",
-            image_url: { url: attachment.url },
+            image_url: { url: imageUrl },
             // Include attachment metadata for Convex storage optimization
             attachment: attachment.storageId
               ? {
@@ -624,12 +770,21 @@ export const sendFollowUpMessage = action({
         isStreaming: true,
       });
 
+      // Process attachments - upload base64 content to Convex storage
+      let processedAttachments = args.attachments;
+      if (args.attachments && args.attachments.length > 0) {
+        processedAttachments = await processAttachmentsForStorage(
+          ctx,
+          args.attachments
+        );
+      }
+
       // Add user message
       userMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "user",
         content: args.content,
-        attachments: args.attachments,
+        attachments: processedAttachments,
         useWebSearch: args.useWebSearch,
         isMainBranch: true,
       });
@@ -1432,33 +1587,6 @@ export const resumeConversation = action({
   },
 });
 
-// Helper function to resolve attachment URLs from storage IDs
-const resolveAttachmentUrls = async (
-  ctx: ActionCtx,
-  attachments: Array<{
-    type: "image" | "pdf" | "text";
-    url: string;
-    name: string;
-    size: number;
-    content?: string;
-    thumbnail?: string;
-    storageId?: Id<"_storage">;
-  }>
-) => {
-  return await Promise.all(
-    attachments.map(async attachment => {
-      if (attachment.storageId) {
-        const url = await ctx.storage.getUrl(attachment.storageId);
-        return {
-          ...attachment,
-          url: url || attachment.url, // Fallback to original URL if getUrl fails
-        };
-      }
-      return attachment;
-    })
-  );
-};
-
 // Action to save a private conversation with all its messages
 export const savePrivateConversation = action({
   args: {
@@ -1557,55 +1685,9 @@ export const savePrivateConversation = action({
       // Process attachments - upload base64 content to Convex storage
       let processedAttachments = message.attachments;
       if (message.attachments && message.attachments.length > 0) {
-        processedAttachments = await Promise.all(
-          message.attachments.map(async attachment => {
-            // If attachment has base64 content but no storageId, upload it
-            if (
-              attachment.content &&
-              !attachment.storageId &&
-              (attachment.type === "image" || attachment.type === "pdf")
-            ) {
-              try {
-                // Convert base64 to blob
-                const mimeType =
-                  attachment.mimeType ||
-                  (attachment.type === "image"
-                    ? "image/jpeg"
-                    : "application/pdf");
-                const byteCharacters = atob(attachment.content);
-                const byteNumbers = new Array(byteCharacters.length);
-                for (let i = 0; i < byteCharacters.length; i++) {
-                  byteNumbers[i] = byteCharacters.charCodeAt(i);
-                }
-                const byteArray = new Uint8Array(byteNumbers);
-                const blob = new Blob([byteArray], { type: mimeType });
-
-                // Upload to Convex storage
-                const storageId = await ctx.storage.store(blob);
-
-                // Return attachment with storageId and without base64 content
-                return {
-                  type: attachment.type,
-                  url: "", // Will be resolved when displaying
-                  name: attachment.name,
-                  size: attachment.size,
-                  storageId: storageId as Id<"_storage">,
-                  thumbnail: attachment.thumbnail,
-                  // Remove content to save space
-                  content: undefined,
-                };
-              } catch (error) {
-                console.error(
-                  `Failed to upload attachment ${attachment.name}:`,
-                  error
-                );
-                // Fall back to original attachment
-                return attachment;
-              }
-            }
-            // Return as-is if already has storageId or is a text file
-            return attachment;
-          })
+        processedAttachments = await processAttachmentsForStorage(
+          ctx,
+          message.attachments
         );
       }
 
@@ -1729,12 +1811,21 @@ export const continueConversation = action({
         isStreaming: true,
       });
 
+      // Process attachments - upload base64 content to Convex storage
+      let processedAttachments = args.attachments;
+      if (args.attachments && args.attachments.length > 0) {
+        processedAttachments = await processAttachmentsForStorage(
+          ctx,
+          args.attachments
+        );
+      }
+
       // Add user message
       userMessageId = await ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "user",
         content: args.content,
-        attachments: args.attachments,
+        attachments: processedAttachments,
         useWebSearch: args.useWebSearch,
         isMainBranch: true,
       });
