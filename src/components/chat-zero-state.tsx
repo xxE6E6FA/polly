@@ -45,21 +45,21 @@ const SetupChecklist = ({
   }
 
   return (
-    <div className="mx-auto mt-4 max-w-sm sm:mt-6 sm:max-w-md">
-      <div className="relative rounded-md border border-border/30 bg-muted/20 p-3">
+    <div className="mx-auto mt-2 max-w-sm sm:mt-4 sm:max-w-md">
+      <div className="relative rounded-md border border-border/30 bg-muted/20 p-2.5">
         <Button
-          className="absolute right-2 top-2 h-6 w-6 p-0 hover:bg-muted/50"
+          className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/50"
           size="sm"
           variant="ghost"
           onClick={handleDismiss}
         >
-          <XIcon className="h-3 w-3" />
+          <XIcon className="h-2.5 w-2.5" />
         </Button>
         <div className="pr-6">
-          <h3 className="mb-4 flex items-center gap-1.5 text-xs font-medium">
+          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-medium">
             Next Steps
           </h3>
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs">
               {hasApiKeys ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
@@ -124,8 +124,8 @@ const SetupChecklist = ({
 };
 
 const Mascot = ({ isMobile }: { isMobile: boolean }) => {
-  const sizeClasses = isMobile ? "w-32 h-32" : "w-20 h-20 sm:w-24 sm:h-24";
-  const marginClasses = isMobile ? "mb-4" : "mb-3 sm:mb-4";
+  const sizeClasses = isMobile ? "w-28 h-28" : "w-16 h-16 sm:w-20 sm:h-20";
+  const marginClasses = isMobile ? "mb-3" : "mb-2 sm:mb-3";
 
   return (
     <div className={`flex justify-center ${marginClasses}`}>
@@ -144,8 +144,8 @@ const Mascot = ({ isMobile }: { isMobile: boolean }) => {
 
 const Heading = ({ isMobile }: { isMobile: boolean }) => {
   const titleClasses = isMobile
-    ? "text-2xl font-semibold text-foreground tracking-tight"
-    : "text-xl sm:text-2xl font-semibold text-foreground tracking-tight";
+    ? "text-xl font-semibold text-foreground tracking-tight"
+    : "text-lg sm:text-xl font-semibold text-foreground tracking-tight";
 
   return <h1 className={titleClasses}>What&apos;s on your mind?</h1>;
 };
@@ -289,8 +289,8 @@ export const ChatZeroState = () => {
         </div>
 
         {/* Desktop: Original centered layout */}
-        <div className="hidden max-w-full space-y-6 text-center sm:block sm:space-y-8">
-          <div className="space-y-3 sm:space-y-4">
+        <div className="hidden max-w-full space-y-4 text-center sm:block sm:space-y-6">
+          <div className="space-y-2 sm:space-y-3">
             <Mascot isMobile={false} />
             <Heading isMobile={false} />
           </div>

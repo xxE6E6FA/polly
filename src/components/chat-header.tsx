@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-user";
+import { useSidebar } from "@/hooks/use-sidebar";
 import {
   downloadFile,
   exportAsJSON,
@@ -34,6 +35,7 @@ import {
   generateFilename,
 } from "@/lib/export";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import { type ConversationId, type ChatMessage } from "@/types";
 
 import { Skeleton } from "./ui/skeleton";
@@ -60,6 +62,7 @@ export const ChatHeader = ({
 }: ChatHeaderProps) => {
   const { user } = useUser();
   const token = useAuthToken();
+  const { isSidebarVisible, mounted } = useSidebar();
 
   // Check if user is authenticated (not anonymous)
   const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
@@ -167,20 +170,32 @@ export const ChatHeader = ({
 
   // For chat pages, show full header with conversation title
   return (
-    <div className="flex min-h-[2.5rem] w-full items-center justify-between gap-2 sm:gap-4">
+    <div
+      className={cn(
+        "relative flex min-h-[2rem] w-full items-center justify-between gap-2 bg-background py-3 sm:gap-4",
+        // Add left padding only when sidebar is collapsed
+        !isSidebarVisible && "pl-12 sm:pl-14",
+        // Add transition for smooth animation (matching sidebar transition)
+        mounted && "transition-[padding] duration-300 ease-out",
+        // Add z-index to ensure header is above content
+        "z-10",
+        // Add bottom fade effect
+        "after:pointer-events-none after:absolute after:-bottom-6 after:left-0 after:right-0 after:h-6 after:bg-gradient-to-b after:from-background after:to-transparent"
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {isPrivateMode ? (
           // Hide title in private mode
-          <div className="h-5" />
+          <div className="h-4" />
         ) : conversation === undefined ? (
           // Loading state for title
-          <Skeleton className="h-5 w-[120px] sm:w-[200px]" />
+          <Skeleton className="h-4 w-[120px] sm:w-[200px]" />
         ) : conversation?.title ? (
-          <h1 className="truncate text-sm font-medium text-foreground">
+          <h1 className="truncate text-xs font-medium text-foreground sm:text-sm">
             {conversation.title}
           </h1>
         ) : (
-          <div className="h-5" />
+          <div className="h-4" />
         )}
         {persona && (
           <Tooltip>
