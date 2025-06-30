@@ -289,8 +289,8 @@ export const ChatInput = React.memo(
 
           <form onSubmit={handleFormSubmit}>
             <div className={cn(formClasses, "relative overflow-hidden")}>
-              {/* Private Mode Toggle - only show when not on /private route */}
-              {location.pathname !== "/private" && (
+              {/* Private Mode Toggle - only show when not on /private route and not in a conversation */}
+              {location.pathname !== "/private" && !props.conversationId && (
                 <PrivateModeToggle
                   isPrivateMode={visualMode.isPrivateMode}
                   onToggle={visualMode.toggleMode}
