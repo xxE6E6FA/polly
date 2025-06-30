@@ -1,6 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { WindowVirtualizer } from "virtua";
 import { useMutation, useQuery } from "convex/react";
 
 import { ProviderIcon } from "@/components/provider-icons";
@@ -171,7 +170,6 @@ ModelCard.displayName = "ModelCard";
 
 export const VirtualizedModelList = memo(
   ({ models }: VirtualizedModelListProps) => {
-    const parentRef = useRef<HTMLDivElement>(null);
     const [columnsPerRow, setColumnsPerRow] = useState(4);
 
     const { user } = useUser();
@@ -247,14 +245,6 @@ export const VirtualizedModelList = memo(
       return result;
     }, [models, columnsPerRow]);
 
-    const virtualizer = useWindowVirtualizer({
-      count: rows.length,
-      estimateSize: () => 170, // Height of each row (card height + gap)
-      overscan: 5,
-    });
-
-    const items = virtualizer.getVirtualItems();
-
     if (models.length === 0) {
       return (
         <div className="py-8 text-center">
@@ -265,45 +255,22 @@ export const VirtualizedModelList = memo(
 
     return (
       <TooltipProvider>
-        <div ref={parentRef} className="relative">
-          {/* Total size placeholder to maintain scroll height */}
-          <div style={{ height: virtualizer.getTotalSize() }} />
-
-          {/* Render only visible items */}
-          {items.map(virtualItem => {
-            const rowModels = rows[virtualItem.index];
-            if (!rowModels || rowModels.length === 0) {
-              return null;
-            }
-
-            return (
-              <div
-                key={virtualItem.key}
-                data-index={virtualItem.index}
-                ref={virtualizer.measureElement}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  width: "100%",
-                  transform: `translateY(${virtualItem.start}px)`,
-                }}
-                className="pb-3"
-              >
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {rowModels.map(model => (
-                    <ModelCard
-                      key={`${model.provider}-${model.modelId}`}
-                      isEnabled={enabledModelsLookup.has(model.modelId)}
-                      model={model}
-                      onToggle={onToggleModel}
-                    />
-                  ))}
-                </div>
+        <WindowVirtualizer>
+          {rows.map((rowModels, rowIndex) => (
+            <div key={rowIndex} className="pb-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {rowModels.map(model => (
+                  <ModelCard
+                    key={`${model.provider}-${model.modelId}`}
+                    isEnabled={enabledModelsLookup.has(model.modelId)}
+                    model={model}
+                    onToggle={onToggleModel}
+                  />
+                ))}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          ))}
+        </WindowVirtualizer>
       </TooltipProvider>
     );
   }
