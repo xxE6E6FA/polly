@@ -18,12 +18,12 @@ export function useChatVisualMode(
       togglePrivateMode();
       const newMode = !isPrivateMode;
       if (newMode) {
-        toast.success("Private mode enabled", {
-          description: "Messages will not be saved to the database",
+        toast.info("Private mode on", {
+          description: "Your messages won't be saved",
         });
       } else {
-        toast.info("Private mode disabled", {
-          description: "Messages will be saved to your chat history",
+        toast.info("Private mode off", {
+          description: "Your messages will be saved to history",
         });
       }
     }

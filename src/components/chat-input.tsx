@@ -215,6 +215,13 @@ export const ChatInput = React.memo(
       }
     }, []);
 
+    const handlePrivateModeToggle = useCallback(() => {
+      visualMode.toggleMode();
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus();
+      });
+    }, [visualMode]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -264,9 +271,11 @@ export const ChatInput = React.memo(
           "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0 text-base sm:text-sm leading-relaxed transition-opacity duration-200 min-h-[24px] max-h-[100px] overflow-y-auto py-1",
           canSendMessage
             ? "placeholder:text-muted-foreground/60"
-            : "placeholder:text-muted-foreground cursor-not-allowed"
+            : "placeholder:text-muted-foreground cursor-not-allowed",
+          // Add right padding when private mode toggle is shown
+          location.pathname !== "/private" && !props.conversationId && "pr-14"
         ),
-      [canSendMessage]
+      [canSendMessage, location.pathname, props.conversationId]
     );
 
     return (
@@ -293,7 +302,7 @@ export const ChatInput = React.memo(
               {location.pathname !== "/private" && !props.conversationId && (
                 <PrivateModeToggle
                   isPrivateMode={visualMode.isPrivateMode}
-                  onToggle={visualMode.toggleMode}
+                  onToggle={handlePrivateModeToggle}
                 />
               )}
 

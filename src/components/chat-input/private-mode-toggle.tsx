@@ -1,5 +1,5 @@
 import React from "react";
-import { LockSimple, LockSimpleOpen } from "@phosphor-icons/react";
+import { Ghost } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -17,72 +17,50 @@ export const PrivateModeToggle = React.memo<PrivateModeToggleProps>(
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <div
+          <button
             onClick={onToggle}
             className={cn(
-              "absolute top-0 right-0 w-10 h-10 cursor-pointer transition-all duration-300 ease-out group",
-              "before:absolute before:inset-0 before:transition-all before:duration-300 before:ease-out",
+              "absolute top-2 right-2 p-0.5 rounded-full",
+              "transition-all duration-300 ease-out select-none z-10",
+              "shadow-sm hover:shadow-md",
               isPrivateMode
-                ? "before:bg-gradient-to-bl before:from-purple-200/70 before:via-purple-300/50 before:to-transparent dark:before:from-purple-800/70 dark:before:via-purple-700/50"
-                : "before:bg-gradient-to-bl before:from-blue-100/50 before:via-blue-200/30 before:to-transparent dark:before:from-blue-900/50 dark:before:via-blue-800/30",
-              "hover:before:from-opacity-90 hover:before:via-opacity-70",
-              "active:scale-95 active:duration-100"
+                ? "bg-gradient-to-r from-purple-500 to-purple-600 dark:from-purple-600 dark:to-purple-700"
+                : "bg-gradient-to-r from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800"
             )}
-            style={{
-              clipPath: "polygon(100% 0%, 100% 100%, 0% 0%)",
-              transformOrigin: "top right",
-            }}
+            type="button"
+            aria-label={
+              isPrivateMode ? "Disable private mode" : "Enable private mode"
+            }
           >
-            {/* Corner fold shadow effect */}
-            <div
-              className={cn(
-                "absolute top-0 right-0 w-full h-full transition-all duration-300 ease-out",
-                "shadow-inner group-hover:shadow-md",
-                isPrivateMode
-                  ? "shadow-purple-400/40 dark:shadow-purple-600/30 group-hover:shadow-purple-500/60"
-                  : "shadow-blue-300/30 dark:shadow-blue-700/20 group-hover:shadow-blue-400/50"
-              )}
-              style={{
-                clipPath: "polygon(100% 0%, 100% 100%, 0% 0%)",
-              }}
-            />
-
-            {/* Lock indicator */}
-            <div
-              className={cn(
-                "absolute top-1.5 right-1.5 transition-all duration-300 ease-out",
-                "group-hover:scale-110",
-                isPrivateMode
-                  ? "opacity-80 text-purple-700 dark:text-purple-300"
-                  : "opacity-50 group-hover:opacity-70 text-blue-600 dark:text-blue-400"
-              )}
-            >
-              {isPrivateMode ? (
-                <LockSimple className="h-3.5 w-3.5" />
-              ) : (
-                <LockSimpleOpen className="h-3.5 w-3.5" />
-              )}
-            </div>
-
-            {/* Subtle pulse animation when in private mode */}
-            {isPrivateMode && (
+            {/* Switch container */}
+            <div className="relative w-11 h-6">
+              {/* Switch thumb */}
               <div
-                className="absolute inset-0 animate-pulse"
-                style={{
-                  clipPath: "polygon(100% 0%, 100% 100%, 0% 0%)",
-                  background:
-                    "linear-gradient(135deg, rgba(147, 51, 234, 0.1) 0%, transparent 50%)",
-                  animationDuration: "3s",
-                }}
-              />
-            )}
-          </div>
+                className={cn(
+                  "absolute top-0.5 h-5 w-5 rounded-full bg-white",
+                  "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+                  "shadow-sm hover:shadow-md flex items-center justify-center",
+                  isPrivateMode ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+              >
+                <Ghost
+                  className={cn(
+                    "h-3 w-3 transition-all duration-300",
+                    isPrivateMode
+                      ? "text-purple-600 dark:text-purple-500 scale-110 rotate-12"
+                      : "text-slate-400 dark:text-slate-500 scale-100"
+                  )}
+                  weight={isPrivateMode ? "fill" : "regular"}
+                />
+              </div>
+            </div>
+          </button>
         </TooltipTrigger>
         <TooltipContent side="left" sideOffset={8}>
           <p>
             {isPrivateMode
-              ? "Click to save messages to your account"
-              : "Click for private mode (messages won't be saved)"}
+              ? "Private mode is on - messages won't be saved"
+              : "Normal mode - messages will be saved to history"}
           </p>
         </TooltipContent>
       </Tooltip>
