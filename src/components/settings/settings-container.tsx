@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router";
 
 import {
+  ArchiveIcon,
   InfoIcon,
   KeyIcon,
   RobotIcon,
@@ -45,6 +46,11 @@ const settingsNavItems = [
     href: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
     label: "Shares",
     icon: ShareNetworkIcon,
+  },
+  {
+    href: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
+    label: "Archive",
+    icon: ArchiveIcon,
   },
   {
     href: ROUTES.SETTINGS.ABOUT,

@@ -13,6 +13,7 @@ import { useQuery } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { useCreateConversation } from "@/hooks/use-conversations";
 import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
 
 import { ChatInput, type ChatInputRef } from "./chat-input";
@@ -198,6 +199,7 @@ export const ChatZeroState = () => {
     hasMessageLimit,
     hasUnlimitedCalls,
   } = useUser();
+  const queryUserId = useQueryUserId();
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
   const { createNewConversation } = useCreateConversation();
@@ -239,7 +241,7 @@ export const ChatZeroState = () => {
         // Fallback: create conversation directly
         const conversationId = await createNewConversation({
           firstMessage: prompt,
-          userId: user?._id,
+          userId: queryUserId || undefined,
           generateTitle: true,
         });
         if (conversationId) {
@@ -247,7 +249,7 @@ export const ChatZeroState = () => {
         }
       }
     },
-    [isMobile, createNewConversation, user?._id, navigate]
+    [isMobile, createNewConversation, queryUserId, navigate]
   );
 
   const chatInputProps = {

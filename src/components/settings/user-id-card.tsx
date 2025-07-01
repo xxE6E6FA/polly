@@ -12,6 +12,7 @@ import { useQuery } from "convex/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/hooks/use-user";
+import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
 
@@ -31,11 +32,12 @@ function getInitials(name?: string | null) {
 
 export const UserIdCard = () => {
   const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
+  const authenticatedUserId = useAuthenticatedUserId();
   const userSettings = useUserSettings();
 
   const userStats = useQuery(
     api.users.getUserStats,
-    user && !user.isAnonymous ? { userId: user._id } : "skip"
+    authenticatedUserId ? { userId: authenticatedUserId } : "skip"
   );
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;

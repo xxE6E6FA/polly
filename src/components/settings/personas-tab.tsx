@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import {
   useUserSettings,
   useUserSettingsMutations,
@@ -42,18 +43,15 @@ import { type Id } from "../../../convex/_generated/dataModel";
 
 export const PersonasTab = () => {
   const userInfo = useUser();
+  const queryUserId = useQueryUserId();
   const personas = useQuery(
     api.personas.list,
-    userInfo.user?._id ? { userId: userInfo.user._id } : "skip"
+    queryUserId ? { userId: queryUserId } : "skip"
   );
   const allBuiltInPersonas = useQuery(api.personas.listAllBuiltIn);
   const userPersonaSettings = useQuery(
     api.personas.getUserPersonaSettings,
-    userInfo.user?._id
-      ? {
-          userId: userInfo.user._id,
-        }
-      : "skip"
+    queryUserId ? { userId: queryUserId } : "skip"
   );
   const userSettings = useUserSettings(userInfo.user?._id);
   const removePersona = useMutation(api.personas.remove);

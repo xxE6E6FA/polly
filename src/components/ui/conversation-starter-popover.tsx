@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/popover";
 import { useCreateConversation } from "@/hooks/use-conversations";
 import { useTextSelection } from "@/hooks/use-text-selection";
-import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export const ConversationStarterPopover = ({
   const generateStarters = useAction(
     api.conversationStarters.generateConversationStarters
   );
-  const { user } = useUser();
+  const queryUserId = useQueryUserId();
   const { createNewConversation } = useCreateConversation();
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
@@ -79,14 +79,14 @@ export const ConversationStarterPopover = ({
   }, [open, lockSelection, unlockSelection]);
 
   const handleStartConversation = async (prompt: string) => {
-    if (!user) {
+    if (!queryUserId) {
       return;
     }
 
     try {
       const conversationId = await createNewConversation({
         firstMessage: prompt,
-        userId: user._id,
+        userId: queryUserId,
         generateTitle: true,
       });
 

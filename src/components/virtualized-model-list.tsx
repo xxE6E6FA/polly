@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { useUser } from "@/hooks/use-user";
+import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 
 import { api } from "../../convex/_generated/api";
@@ -172,10 +172,10 @@ export const VirtualizedModelList = memo(
   ({ models }: VirtualizedModelListProps) => {
     const [columnsPerRow, setColumnsPerRow] = useState(4);
 
-    const { user } = useUser();
+    const authenticatedUserId = useAuthenticatedUserId();
     const enabledModels = useQuery(
       api.userModels.getUserModels,
-      !user?.isAnonymous && user?._id ? { userId: user._id } : {}
+      authenticatedUserId ? { userId: authenticatedUserId } : {}
     );
     const toggleModel = useMutation(api.userModels.toggleModel);
 

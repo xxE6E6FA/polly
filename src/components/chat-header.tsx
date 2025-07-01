@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-user";
 import { useSidebar } from "@/hooks/use-sidebar";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import {
   downloadFile,
   exportAsJSON,
@@ -45,6 +46,7 @@ import { type Id } from "../../convex/_generated/dataModel";
 type ChatHeaderProps = {
   conversationId?: ConversationId;
   isPrivateMode?: boolean;
+  isArchived?: boolean;
   onSavePrivateChat?: () => void;
   canSavePrivateChat?: boolean;
   privateMessages?: ChatMessage[]; // For private chat export
@@ -55,21 +57,25 @@ type ChatHeaderProps = {
 export const ChatHeader = ({
   conversationId,
   isPrivateMode,
+  isArchived,
   onSavePrivateChat,
   canSavePrivateChat,
   privateMessages,
   privatePersonaId,
 }: ChatHeaderProps) => {
   const { user } = useUser();
+  const queryUserId = useQueryUserId();
+  const { isSidebarVisible } = useSidebar();
   const token = useAuthToken();
-  const { isSidebarVisible, mounted } = useSidebar();
 
   // Check if user is authenticated (not anonymous)
   const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
 
   const conversation = useQuery(
     api.conversations.getAuthorized,
-    conversationId ? { id: conversationId, userId: user?._id } : "skip"
+    conversationId && queryUserId
+      ? { id: conversationId, userId: queryUserId }
+      : "skip"
   );
 
   const exportData = useQuery(
@@ -176,7 +182,7 @@ export const ChatHeader = ({
         // Add left padding only when sidebar is collapsed
         !isSidebarVisible && "pl-12 sm:pl-14",
         // Add transition for smooth animation (matching sidebar transition)
-        mounted && "transition-[padding] duration-300 ease-out",
+        isSidebarVisible && "transition-[padding] duration-300 ease-out",
         // Add z-index to ensure header is above content
         "z-10",
         // Add bottom fade effect
@@ -267,8 +273,8 @@ export const ChatHeader = ({
             </Tooltip>
           )}
 
-          {/* Only show share button for saved conversations */}
-          {conversationId && (
+          {/* Only show share button for saved conversations and not archived */}
+          {conversationId && !isArchived && (
             <ShareConversationDialog conversationId={conversationId}>
               <Button
                 className="sm:w-auto sm:gap-2 sm:px-3"

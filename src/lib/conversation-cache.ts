@@ -50,6 +50,7 @@ export function setCachedConversations(conversations: Doc<"conversations">[]) {
 
   try {
     const sortedConversations = [...conversations]
+      .filter(conv => !conv.isArchived) // Filter out archived conversations
       .sort((a, b) => {
         // First, sort by pinned status
         if (a.isPinned && !b.isPinned) return -1;

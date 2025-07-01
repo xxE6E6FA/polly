@@ -14,6 +14,7 @@ export const ROUTES = {
     PERSONAS_NEW: "/settings/personas/new",
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,
     SHARED_CONVERSATIONS: "/settings/shared-conversations",
+    ARCHIVED_CONVERSATIONS: "/settings/archived-conversations",
     ABOUT: "/settings/about",
   },
   NOT_FOUND: "/404",

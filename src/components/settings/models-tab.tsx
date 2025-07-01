@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useUser } from "@/hooks/use-user";
+import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
 import { cn } from "@/lib/utils";
 
 import { api } from "../../../convex/_generated/api";
@@ -250,11 +250,11 @@ export const ModelsTab = () => {
     300
   );
 
-  const { user } = useUser();
+  const authenticatedUserId = useAuthenticatedUserId();
   const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
   const enabledModels = useQuery(
     api.userModels.getUserModels,
-    !user?.isAnonymous && user?._id ? { userId: user._id } : {}
+    authenticatedUserId ? { userId: authenticatedUserId } : {}
   );
 
   const availableProviders = useMemo(
