@@ -56,7 +56,6 @@ function createLanguageModel(
   const optimizedFetch = (url: RequestInfo | URL, options?: RequestInit) => {
     return fetch(url, {
       ...options,
-      keepalive: true,
       priority: "high" as RequestPriority,
       headers: {
         ...options?.headers,

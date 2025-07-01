@@ -1,10 +1,58 @@
-import { PaperclipIcon } from "@phosphor-icons/react";
+import {
+  PaperclipIcon,
+  FileTextIcon,
+  FilePdfIcon,
+  FileCodeIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 
 import { type Attachment } from "@/types";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
+
+function getFileIcon(
+  attachment: Attachment,
+  size: "sm" | "md" = "md",
+  className?: string
+) {
+  const defaultSizeClasses = size === "sm" ? "h-2.5 w-2.5" : "h-3 w-3";
+  const sizeClasses = className
+    ? `${className} flex-shrink-0`
+    : defaultSizeClasses;
+
+  if (attachment.type === "pdf") {
+    return <FilePdfIcon className={`${sizeClasses} text-muted-foreground`} />;
+  }
+
+  if (attachment.type === "text") {
+    const extension = attachment.name.split(".").pop()?.toLowerCase();
+
+    const isTextFile =
+      extension &&
+      [
+        "txt",
+        "text",
+        "md",
+        "markdown",
+        "mdx",
+        "rtf",
+        "log",
+        "csv",
+        "tsv",
+      ].includes(extension);
+
+    if (isTextFile) {
+      return (
+        <FileTextIcon className={`${sizeClasses} text-muted-foreground`} />
+      );
+    }
+
+    return <FileCodeIcon className={`${sizeClasses} text-muted-foreground`} />;
+  }
+
+  return <PaperclipIcon className={`${sizeClasses} text-muted-foreground`} />;
+}
 
 type ConvexFileDisplayProps = {
   attachment: Attachment;
@@ -75,18 +123,19 @@ export const ConvexFileDisplay = ({
   // For non-image files, show a file icon with name
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 text-sm ${className}`}
-      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 py-1 text-xs ${
+        attachment.type === "pdf"
+          ? "cursor-pointer hover:bg-muted/50 transition-colors"
+          : ""
+      } ${className}`}
+      onClick={attachment.type === "pdf" ? onClick : undefined}
     >
-      <PaperclipIcon className="h-4 w-4 text-muted-foreground" />
+      {getFileIcon(attachment)}
       <span className="text-foreground">{attachment.name}</span>
     </div>
   );
 };
 
-/**
- * Component specifically for displaying image thumbnails in chat input
- */
 type ConvexImageThumbnailProps = {
   attachment: Attachment;
   className?: string;
@@ -143,12 +192,5 @@ export const ConvexImageThumbnail = ({
     );
   }
 
-  return (
-    <div
-      className={`flex flex-shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-800 ${className}`}
-      title={attachment.name}
-    >
-      <PaperclipIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
-    </div>
-  );
+  return getFileIcon(attachment, "sm", className);
 };

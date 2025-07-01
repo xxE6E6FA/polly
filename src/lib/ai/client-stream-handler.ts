@@ -189,6 +189,15 @@ export function convertAttachmentsToContent(
       }
     }
 
+    // For text files, include the actual content
+    if (attachment.type === "text" && attachment.content) {
+      return {
+        type: "text" as const,
+        text: `File: ${attachment.name}\n\n${attachment.content}`,
+      };
+    }
+
+    // For other files (PDFs, etc.), just show a placeholder
     return {
       type: "text" as const,
       text: `[Attached file: ${attachment.name} (${attachment.type})]`,
