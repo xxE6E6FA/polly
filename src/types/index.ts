@@ -99,6 +99,7 @@ export type Attachment = {
   thumbnail?: string; // For images, we'll store a small thumbnail for preview
   storageId?: Id<"_storage">; // Convex storage ID for files uploaded to Convex storage
   mimeType?: string; // MIME type for binary files in private mode
+  language?: string; // Programming language for text files (e.g., "javascript", "python")
 };
 
 // Web Search Types

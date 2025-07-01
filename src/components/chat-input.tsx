@@ -15,7 +15,7 @@ import { useLocation } from "react-router";
 import { AttachmentList } from "@/components/chat-input/attachment-list";
 import { PrivateModeToggle } from "@/components/chat-input/private-mode-toggle";
 import { InputControls } from "@/components/chat-input/input-controls";
-import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
+import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
 import { ChatWarningBanner } from "@/components/ui/chat-warning-banner";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -118,7 +118,6 @@ export const ChatInput = React.memo(
 
     const {
       attachments,
-      uploadProgress,
       handleFileUpload,
       removeAttachment,
       clearAttachments,
@@ -334,7 +333,6 @@ export const ChatInput = React.memo(
               <AttachmentList
                 attachments={attachments}
                 canChat={canSendMessage}
-                uploadProgress={uploadProgress}
                 onPreviewFile={setPreviewFile}
                 onRemoveAttachment={removeAttachment}
               />
@@ -394,7 +392,7 @@ export const ChatInput = React.memo(
           onOpenChange={notificationDialog.handleOpenChange}
         />
 
-        <ImagePreviewDialog
+        <FilePreviewDialog
           attachment={previewFile}
           imageUrl={previewImageUrl}
           open={Boolean(previewFile)}
