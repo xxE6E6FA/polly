@@ -1,6 +1,4 @@
 import { useMemo } from "react";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
 
 type UseChatPlaceholderOptions = {
   placeholder?: string;
@@ -17,9 +15,6 @@ export function useChatPlaceholder({
   isAnonymous,
   hasUserApiKeys,
 }: UseChatPlaceholderOptions) {
-  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
-  const hasEnabledModels = useQuery(api.userModels.hasUserModels, {});
-
   const placeholderText = useMemo(() => {
     // Use custom placeholder if provided
     if (placeholder) {
@@ -36,11 +31,6 @@ export function useChatPlaceholder({
         : "Monthly limit reached. Add API keys to use BYOK models...";
     }
 
-    // Loading state
-    if (hasApiKeys === undefined || hasEnabledModels === undefined) {
-      return "Loading...";
-    }
-
     // Default placeholder
     return "Ask me anything...";
   }, [
@@ -49,8 +39,6 @@ export function useChatPlaceholder({
     hasMessageLimit,
     isAnonymous,
     hasUserApiKeys,
-    hasApiKeys,
-    hasEnabledModels,
   ]);
 
   return placeholderText;
