@@ -315,10 +315,10 @@ const ChatMessageComponent = ({
           >
             <div
               className={cn(
-                "w-full transition-all duration-300 ease-out transform",
+                "transition-all duration-300 ease-out transform",
                 isEditing
-                  ? "rounded-xl border border-primary/30 bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10"
-                  : "inline-block rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 bg-muted/50 border border-border text-foreground shadow-sm hover:shadow-md hover:border-primary/30"
+                  ? "rounded-xl border border-primary/30 bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10 w-full"
+                  : "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 border border-border text-foreground shadow-sm hover:shadow-md hover:border-primary/30 w-fit ml-auto"
               )}
             >
               {isEditing ? (
