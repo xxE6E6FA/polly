@@ -56,6 +56,7 @@ export default function ConversationRoute() {
     isLoading,
     isLoadingMessages,
     sendMessage,
+    sendMessageToNewConversation,
     stopGeneration,
     editMessage,
     retryUserMessage,
@@ -86,6 +87,7 @@ export default function ConversationRoute() {
       hasApiKeys={hasApiKeys ?? true}
       isArchived={conversation?.isArchived ?? false}
       onSendMessage={sendMessage}
+      onSendMessageToNewConversation={sendMessageToNewConversation}
       onDeleteMessage={deleteMessage}
       onEditMessage={editMessage}
       onStopGeneration={stopGeneration}

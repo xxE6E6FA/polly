@@ -373,6 +373,7 @@ export function useUnifiedChat({
 
     // Actions
     sendMessage,
+    sendMessageToNewConversation: regularChat.sendMessageToNewConversation,
     stopGeneration,
     deleteMessage,
     editMessage,
