@@ -42,6 +42,9 @@ const SettingsPersonasPage = lazy(
 const SettingsSharedConversationsPage = lazy(
   () => import("./pages/settings/SharedConversationsPage")
 );
+const SettingsArchivedConversationsPage = lazy(
+  () => import("./pages/settings/ArchivedConversationsPage")
+);
 const SettingsAboutPage = lazy(() => import("./pages/settings/AboutPage"));
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/NewPersonaPage")
@@ -235,6 +238,19 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsSharedConversationsPage />
+              </Suspense>
+            ),
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
+          },
+          {
+            path: "archived-conversations",
+            element: (
+              <Suspense fallback={<PageLoader size="partial" />}>
+                <SettingsArchivedConversationsPage />
               </Suspense>
             ),
             errorElement: (

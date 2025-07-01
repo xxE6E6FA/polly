@@ -6,6 +6,7 @@ import { api } from "convex/_generated/api";
 import { type Doc } from "convex/_generated/dataModel";
 
 import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import {
   getStoredAnonymousUserId,
   onStoredUserIdChange,
@@ -30,6 +31,7 @@ export const ConversationList = ({
   currentConversationId,
 }: ConversationListProps) => {
   const { user } = useUser();
+  const queryUserId = useQueryUserId();
 
   // Check if there's any stored user ID (anonymous or authenticated)
   const [hasStoredUserId, setHasStoredUserId] = useState(() => {
@@ -48,11 +50,6 @@ export const ConversationList = ({
     }
     return null;
   });
-
-  // Determine the user ID to use for queries
-  // Prefer the authenticated user ID, fall back to stored anonymous ID
-  const queryUserId =
-    user?._id || (hasStoredUserId ? getStoredAnonymousUserId() : null);
 
   // Only fetch conversations if we have a user ID (either from user object or storage)
   const conversations = useQuery(

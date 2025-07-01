@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import {
+  ArchiveIcon,
   DotsThreeVerticalIcon,
   PencilSimpleIcon,
   PushPinIcon,
@@ -50,9 +51,11 @@ export const ConversationItem = ({
   const [editingTitle, setEditingTitle] = useState("");
   const [originalTitle, setOriginalTitle] = useState("");
   const [isHovered, setIsHovered] = useState(false);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isMobilePopoverOpen, setIsMobilePopoverOpen] = useState(false);
+  const [isDesktopPopoverOpen, setIsDesktopPopoverOpen] = useState(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const confirmationDialog = useConfirmationDialog();
+  const archiveConversation = useMutation(api.conversations.archive);
   const deleteConversation = useMutation(api.conversations.remove);
   const updateConversationTitle = useMutation(api.conversations.update);
   const setPinned = useMutation(api.conversations.setPinned);
@@ -74,7 +77,8 @@ export const ConversationItem = ({
       setEditingId(id);
       setEditingTitle(currentTitle);
       setOriginalTitle(currentTitle);
-      setIsPopoverOpen(false);
+      setIsMobilePopoverOpen(false);
+      setIsDesktopPopoverOpen(false);
     },
     []
   );
@@ -134,17 +138,63 @@ export const ConversationItem = ({
     handleEditCancel,
   ]);
 
+  const handleArchiveClick = useCallback(
+    (e?: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      setIsMobilePopoverOpen(false);
+      setIsDesktopPopoverOpen(false);
+      confirmationDialog.confirm(
+        {
+          title: "Archive Conversation",
+          description: `Are you sure you want to archive "${conversation.title}"? You can restore it later from the archived conversations.`,
+          confirmText: "Archive",
+          cancelText: "Cancel",
+          variant: "default",
+        },
+        async () => {
+          const isCurrentConversation =
+            currentConversationId === conversation._id;
+
+          if (isCurrentConversation) {
+            navigate(ROUTES.HOME);
+          }
+
+          if (isCurrentConversation) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+
+          await conversationErrorHandlers.handleArchive(async () => {
+            await archiveConversation({ id: conversation._id });
+            removeCachedConversation(conversation._id);
+          });
+        }
+      );
+    },
+    [
+      confirmationDialog,
+      conversation.title,
+      conversation._id,
+      archiveConversation,
+      currentConversationId,
+      navigate,
+    ]
+  );
+
   const handleDeleteClick = useCallback(
     (e?: React.MouseEvent) => {
       if (e) {
         e.stopPropagation();
         e.preventDefault();
       }
-      setIsPopoverOpen(false);
+      setIsMobilePopoverOpen(false);
+      setIsDesktopPopoverOpen(false);
       confirmationDialog.confirm(
         {
           title: "Delete Conversation",
-          description: `Are you sure you want to delete "${conversation.title}"? This action cannot be undone.`,
+          description: `Are you sure you want to permanently delete "${conversation.title}"? This action cannot be undone.`,
           confirmText: "Delete",
           cancelText: "Cancel",
           variant: "destructive",
@@ -184,7 +234,8 @@ export const ConversationItem = ({
         e.stopPropagation();
         e.preventDefault();
       }
-      setIsPopoverOpen(false);
+      setIsMobilePopoverOpen(false);
+      setIsDesktopPopoverOpen(false);
       await setPinned({
         id: conversation._id,
         isPinned: !conversation.isPinned,
@@ -278,7 +329,10 @@ export const ConversationItem = ({
           <>
             {isMobile ? (
               <div className="flex-shrink-0 pr-2">
-                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                <Popover
+                  open={isMobilePopoverOpen}
+                  onOpenChange={setIsMobilePopoverOpen}
+                >
                   <PopoverTrigger asChild>
                     <Button
                       className={cn(
@@ -298,8 +352,15 @@ export const ConversationItem = ({
                   </PopoverTrigger>
                   <PopoverContent
                     align="end"
+                    sideOffset={5}
                     className="w-40 p-1"
                     onClick={e => e.stopPropagation()}
+                    onInteractOutside={e => {
+                      const target = e.target as HTMLElement;
+                      if (target.closest('[role="button"]')) {
+                        e.preventDefault();
+                      }
+                    }}
                   >
                     <div className="flex flex-col gap-0.5">
                       <Button
@@ -326,6 +387,15 @@ export const ConversationItem = ({
                         Edit title
                       </Button>
                       <Button
+                        className="h-8 justify-start gap-2 px-2 text-xs"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleArchiveClick()}
+                      >
+                        <ArchiveIcon className="h-3.5 w-3.5" />
+                        Archive
+                      </Button>
+                      <Button
                         className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                         size="sm"
                         variant="ghost"
@@ -339,7 +409,7 @@ export const ConversationItem = ({
                 </Popover>
               </div>
             ) : (
-              isHovered && (
+              (isHovered || isDesktopPopoverOpen) && (
                 <div className="flex flex-shrink-0 items-center gap-0.5 pr-2">
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -362,21 +432,57 @@ export const ConversationItem = ({
                     </TooltipContent>
                   </Tooltip>
 
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <Popover
+                    open={isDesktopPopoverOpen}
+                    onOpenChange={setIsDesktopPopoverOpen}
+                  >
+                    <PopoverTrigger asChild>
                       <Button
-                        className="h-7 w-7 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                        className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
                         size="icon-sm"
                         variant="ghost"
-                        onClick={handleDeleteClick}
+                        onClick={e => e.stopPropagation()}
                       >
-                        <TrashIcon className="h-3.5 w-3.5" />
+                        <DotsThreeVerticalIcon
+                          className="h-3.5 w-3.5"
+                          weight="bold"
+                        />
                       </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Delete conversation</p>
-                    </TooltipContent>
-                  </Tooltip>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      sideOffset={5}
+                      className="w-40 p-1"
+                      onClick={e => e.stopPropagation()}
+                      onInteractOutside={e => {
+                        const target = e.target as HTMLElement;
+                        if (target.closest('[role="button"]')) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <Button
+                          className="h-8 justify-start gap-2 px-2 text-xs"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleArchiveClick()}
+                        >
+                          <ArchiveIcon className="h-3.5 w-3.5" />
+                          Archive
+                        </Button>
+                        <Button
+                          className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteClick()}
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          Delete
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )
             )}

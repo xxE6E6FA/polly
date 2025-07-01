@@ -22,6 +22,7 @@ import { ChatHeader } from "./chat-header";
 import { ChatInput, type ChatInputRef } from "./chat-input";
 import { ChatOutline } from "./chat-outline";
 import { ChatZeroState } from "./chat-zero-state";
+import { Button } from "./ui/button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import { QuoteButton } from "./ui/quote-button";
 import { Spinner } from "./spinner";
@@ -30,6 +31,9 @@ import {
   type VirtualizedChatMessagesRef,
 } from "./virtualized-chat-messages";
 import { type Id } from "../../convex/_generated/dataModel";
+import { ArchiveIcon } from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
@@ -41,6 +45,7 @@ type UnifiedChatViewProps = {
   currentPersonaId: Id<"personas"> | null;
   canSavePrivateChat: boolean;
   hasApiKeys: boolean;
+  isArchived?: boolean;
   onSendMessage: (
     content: string,
     attachments?: Attachment[],
@@ -97,6 +102,7 @@ export const UnifiedChatView = memo(
     currentPersonaId,
     canSavePrivateChat,
     hasApiKeys,
+    isArchived,
     onSendMessage,
     onDeleteMessage,
     onEditMessage,
@@ -106,6 +112,9 @@ export const UnifiedChatView = memo(
     onRetryAssistantMessage,
   }: UnifiedChatViewProps) => {
     const { isPrivateMode } = usePrivateMode();
+    // Mutations
+    const unarchiveConversation = useMutation(api.conversations.unarchive);
+
     // UI state and refs
     const virtualizedMessagesRef = useRef<VirtualizedChatMessagesRef>(null);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -236,6 +245,23 @@ export const UnifiedChatView = memo(
     const isEmpty = messages.length === 0;
     const isLoadingConversation = conversationId && isLoadingMessages;
 
+    const handleUnarchive = useCallback(async () => {
+      if (!conversationId) return;
+
+      try {
+        await unarchiveConversation({ id: conversationId });
+        const { toast } = await import("sonner");
+        toast.success("Conversation restored", {
+          description: "You can now continue chatting.",
+        });
+      } catch (_error) {
+        const { toast } = await import("sonner");
+        toast.error("Failed to restore conversation", {
+          description: "Unable to restore conversation. Please try again.",
+        });
+      }
+    }, [conversationId, unarchiveConversation]);
+
     return (
       <div className="flex h-full">
         <div className="relative flex h-full flex-1 flex-col overflow-hidden">
@@ -249,6 +275,7 @@ export const UnifiedChatView = memo(
                       <ChatHeader
                         conversationId={conversationId}
                         isPrivateMode={isPrivateMode}
+                        isArchived={isArchived}
                         onSavePrivateChat={onSavePrivateChat}
                         canSavePrivateChat={canSavePrivateChat}
                         privateMessages={isPrivateMode ? messages : undefined}
@@ -289,18 +316,49 @@ export const UnifiedChatView = memo(
                       messages={messages}
                       isStreaming={isStreaming}
                       onDeleteMessage={
-                        isPrivateMode ? undefined : handleDeleteMessage
+                        isPrivateMode || isArchived
+                          ? undefined
+                          : handleDeleteMessage
                       }
-                      onEditMessage={isPrivateMode ? undefined : onEditMessage}
-                      onRetryUserMessage={onRetryUserMessage}
-                      onRetryAssistantMessage={onRetryAssistantMessage}
+                      onEditMessage={
+                        isPrivateMode || isArchived ? undefined : onEditMessage
+                      }
+                      onRetryUserMessage={
+                        isArchived ? undefined : onRetryUserMessage
+                      }
+                      onRetryAssistantMessage={
+                        isArchived ? undefined : onRetryAssistantMessage
+                      }
                       scrollElement={null}
                       shouldScrollToBottom={shouldScrollToBottom}
                     />
                   )}
                 </div>
 
-                {hasApiKeys && (
+                {/* Archived conversation banner - replaces chat input */}
+                {isArchived && hasApiKeys && (
+                  <div className="relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3">
+                    <div className="mx-auto w-full max-w-3xl">
+                      <div className="flex items-center gap-3 rounded-xl border-2 border-amber-200/30 bg-gradient-to-br from-amber-50/80 to-orange-50/30 p-2.5 dark:border-amber-800/20 dark:from-amber-950/30 dark:to-orange-950/10 sm:p-3">
+                        <ArchiveIcon className="h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                        <span className="flex-1 text-sm text-amber-800 dark:text-amber-200">
+                          This conversation is archived. Restore it to continue
+                          chatting.
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-shrink-0 border-amber-600 bg-transparent text-amber-700 hover:bg-amber-100 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-900/50"
+                          onClick={handleUnarchive}
+                        >
+                          Restore Conversation
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {hasApiKeys && !isArchived && (
                   <div className="relative flex-shrink-0">
                     <ChatInput
                       ref={chatInputRef}

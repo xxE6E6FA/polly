@@ -261,6 +261,7 @@ export const list = query({
     return await ctx.db
       .query("conversations")
       .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.neq(q.field("isArchived"), true))
       .order("desc")
       .collect();
   },
@@ -302,6 +303,8 @@ export const getAuthorized = query({
         return null;
       }
 
+      // Return the conversation including archived ones
+      // Frontend will handle read-only mode for archived conversations
       return conversation;
     } catch {
       // Invalid ID format or any other error - return null to trigger 404
@@ -378,6 +381,59 @@ export const remove = mutation({
 
     // Delete the conversation
     return await ctx.db.delete(args.id);
+  },
+});
+
+export const archive = mutation({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.id);
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    // Archive the conversation
+    return await ctx.db.patch(args.id, {
+      isArchived: true,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const unarchive = mutation({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.id);
+
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    // Unarchive the conversation
+    return await ctx.db.patch(args.id, {
+      isArchived: false,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const listArchived = query({
+  args: { userId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    // Use provided userId or fall back to server-side auth
+    const userId = args.userId || (await getOptionalUserId(ctx));
+
+    if (!userId) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("conversations")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("isArchived"), true))
+      .order("desc")
+      .collect();
   },
 });
 

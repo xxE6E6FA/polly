@@ -8,6 +8,7 @@ import { NotFoundPage } from "@/components/ui/not-found-page";
 import { useUnifiedChat } from "@/hooks/use-unified-chat";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
 import { type ConversationId } from "@/types";
 
@@ -16,7 +17,8 @@ import { api } from "../../convex/_generated/api";
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const { user, isLoading: userLoading } = useUser();
+  const { isLoading: userLoading } = useUser();
+  const queryUserId = useQueryUserId();
   const { setPrivateMode } = usePrivateMode();
 
   // Ensure we're not in private mode when viewing a conversation
@@ -31,7 +33,7 @@ export default function ConversationRoute() {
   // Query conversation even while user is loading (will be skipped until user is available)
   const conversation = useQuery(
     api.conversations.getAuthorized,
-    user?._id ? { id: conversationId, userId: user._id } : "skip"
+    queryUserId ? { id: conversationId, userId: queryUserId } : "skip"
   );
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
@@ -84,6 +86,7 @@ export default function ConversationRoute() {
       currentPersonaId={currentPersonaId}
       canSavePrivateChat={canSavePrivateChat}
       hasApiKeys={hasApiKeys ?? true}
+      isArchived={conversation?.isArchived ?? false}
       onSendMessage={sendMessage}
       onDeleteMessage={deleteMessage}
       onEditMessage={editMessage}

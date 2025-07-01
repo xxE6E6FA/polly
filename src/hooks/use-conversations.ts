@@ -110,6 +110,23 @@ export const conversationErrorHandlers = {
     }
   },
 
+  async handleArchive(operation: () => Promise<unknown>) {
+    try {
+      const result = await operation();
+      const { toast } = await import("sonner");
+      toast.success("Conversation archived", {
+        description: "The conversation has been moved to archive.",
+      });
+      return result;
+    } catch (error) {
+      const { toast } = await import("sonner");
+      toast.error("Failed to archive conversation", {
+        description: "Unable to archive conversation. Please try again.",
+      });
+      throw error;
+    }
+  },
+
   async handleShare(operation: () => Promise<unknown>) {
     try {
       return await operation();

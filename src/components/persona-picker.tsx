@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useUser } from "@/hooks/use-user";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { cn } from "@/lib/utils";
 
 import { api } from "../../convex/_generated/api";
@@ -41,17 +42,14 @@ export const PersonaPicker = ({
   tooltip,
 }: PersonaPickerProps) => {
   const userInfo = useUser();
+  const queryUserId = useQueryUserId();
   const personas = useQuery(
     api.personas.list,
-    userInfo.user?._id ? { userId: userInfo.user._id } : "skip"
+    queryUserId ? { userId: queryUserId } : "skip"
   );
   const userPersonaSettings = useQuery(
     api.personas.getUserPersonaSettings,
-    userInfo.user?._id
-      ? {
-          userId: userInfo.user._id,
-        }
-      : "skip"
+    queryUserId ? { userId: queryUserId } : "skip"
   );
 
   const [open, setOpen] = useState(false);

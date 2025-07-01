@@ -49,6 +49,7 @@ export default defineSchema({
     sourceConversationId: v.optional(v.id("conversations")),
     isStreaming: v.optional(v.boolean()),
     isPinned: v.optional(v.boolean()),
+    isArchived: v.optional(v.boolean()), // New field for archiving
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
