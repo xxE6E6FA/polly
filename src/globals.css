@@ -880,3 +880,42 @@ pre {
 .btn-action-destructive svg {
   transition: all 0.2s ease;
 }
+
+/* Organic bounce animation for send button */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.75) rotate(-12deg);
+  }
+  50% {
+    transform: scale(1.15) rotate(3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Button entrance animation - subtle scale effect */
+@keyframes button-entrance {
+  0% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Icon bounce animation - playful entrance */
+@keyframes icon-bounce {
+  0% {
+    transform: scale(0.9) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(0deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
