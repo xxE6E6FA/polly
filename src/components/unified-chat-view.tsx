@@ -45,6 +45,15 @@ type UnifiedChatViewProps = {
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig
   ) => Promise<void>;
+  onSendMessageToNewConversation?: (
+    content: string,
+    shouldNavigate: boolean,
+    attachments?: Attachment[],
+    contextSummary?: string,
+    sourceConversationId?: string,
+    personaPrompt?: string | null,
+    personaId?: Id<"personas"> | null
+  ) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onStopGeneration: () => void;
@@ -95,6 +104,7 @@ export const UnifiedChatView = memo(
     hasApiKeys,
     isArchived,
     onSendMessage,
+    onSendMessageToNewConversation,
     onDeleteMessage,
     onEditMessage,
     onStopGeneration,
@@ -343,6 +353,7 @@ export const UnifiedChatView = memo(
                           : "Ask me anything..."
                       }
                       onSendMessage={handleSendMessage}
+                      onSendMessageToNewConversation={onSendMessageToNewConversation}
                       onStop={onStopGeneration}
                     />
 
