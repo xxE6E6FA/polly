@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  memo,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, memo } from "react";
 
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { useTextSelection } from "@/hooks/use-text-selection";
@@ -41,7 +34,6 @@ type UnifiedChatViewProps = {
   isLoading: boolean;
   isLoadingMessages?: boolean;
   isStreaming: boolean;
-  hasStreamingContent: boolean;
   currentPersonaId: Id<"personas"> | null;
   canSavePrivateChat: boolean;
   hasApiKeys: boolean;
@@ -98,7 +90,6 @@ export const UnifiedChatView = memo(
     isLoading,
     isLoadingMessages,
     isStreaming,
-    hasStreamingContent,
     currentPersonaId,
     canSavePrivateChat,
     hasApiKeys,
@@ -122,20 +113,15 @@ export const UnifiedChatView = memo(
     const { selection, lockSelection, unlockSelection } = useTextSelection();
     const confirmationDialog = useConfirmationDialog();
     const hasInitializedScroll = useRef(false);
-    const previousMessageCount = useRef(messages.length);
     const hasLoadedConversation = useRef(false);
 
+    // Pass isStreaming to VirtualizedChatMessages so it knows when to apply scroll behavior
     const shouldScrollToBottom = useMemo(() => {
-      return isStreaming || hasStreamingContent;
-    }, [isStreaming, hasStreamingContent]);
+      return isStreaming; // Pass streaming state, but let VirtualizedChatMessages decide how to scroll
+    }, [isStreaming]);
 
-    // Auto-scroll effect when messages change during streaming
-    useLayoutEffect(() => {
-      if (shouldScrollToBottom && virtualizedMessagesRef.current) {
-        // Use the virtualizer's scrollToBottom method instead of direct DOM manipulation
-        virtualizedMessagesRef.current.scrollToBottom();
-      }
-    }, [messages, shouldScrollToBottom]);
+    // Remove the auto-scroll effect for streaming messages
+    // The VirtualizedChatMessages component now handles this internally
 
     // Handle initial scroll to bottom when opening an existing conversation
     useEffect(() => {
@@ -163,23 +149,8 @@ export const UnifiedChatView = memo(
       }
     }, [isLoadingMessages, messages.length]);
 
-    // Scroll to bottom when a new user message is added
-    useEffect(() => {
-      if (
-        messages.length > previousMessageCount.current &&
-        messages.length > 0
-      ) {
-        const lastMessage = messages[messages.length - 1];
-        // Check if the new message is from the user
-        if (lastMessage?.role === "user" && virtualizedMessagesRef.current) {
-          // Use requestAnimationFrame for smoother scrolling
-          requestAnimationFrame(() => {
-            virtualizedMessagesRef.current?.scrollToBottom();
-          });
-        }
-      }
-      previousMessageCount.current = messages.length;
-    }, [messages]);
+    // Remove the effect that scrolls when user sends a message
+    // This is now handled inside VirtualizedChatMessages
 
     // Handle outline navigation
     const handleOutlineNavigate = useCallback(

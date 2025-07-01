@@ -3,25 +3,26 @@ import { type Attachment, type ChatMessage } from "@/types";
 import { type ReasoningConfig } from "@/components/reasoning-config-select";
 import { type Id } from "../../../convex/_generated/dataModel";
 
+type ServerChatStrategyOptions = ChatStrategyOptions & {
+  isLoading: boolean;
+  isStreaming: boolean;
+  sendMessage: (
+    content: string,
+    attachments?: Attachment[],
+    useWebSearch?: boolean,
+    personaPrompt?: string | null,
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig
+  ) => Promise<void>;
+  stopGeneration: () => void;
+  deleteMessage: (messageId: string) => Promise<void>;
+  editMessage: (messageId: string, content: string) => Promise<void>;
+  messages: ChatMessage[];
+};
+
 // Strategy for server-persisted chat (Convex backend)
 export class ServerChatStrategy implements ChatStrategy {
-  constructor(
-    private options: ChatStrategyOptions & {
-      isStreaming: boolean;
-      isLoading: boolean;
-      hasStreamingContent: boolean;
-      sendMessageFn: (
-        content: string,
-        attachments?: Attachment[],
-        useWebSearch?: boolean,
-        personaId?: Id<"personas"> | null,
-        reasoningConfig?: ReasoningConfig
-      ) => Promise<void>;
-      stopGenerationFn: () => void;
-      deleteMessageFn: (messageId: string) => Promise<void>;
-      editMessageFn: (messageId: string, content: string) => Promise<void>;
-    }
-  ) {}
+  constructor(private options: ServerChatStrategyOptions) {}
 
   sendMessage(
     content: string,
@@ -29,32 +30,33 @@ export class ServerChatStrategy implements ChatStrategy {
     useWebSearch?: boolean,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig,
-    _personaPrompt?: string | null
+    personaPrompt?: string | null
   ): Promise<void> {
-    return this.options.sendMessageFn(
+    return this.options.sendMessage(
       content,
       attachments,
       useWebSearch,
+      personaPrompt,
       personaId,
       reasoningConfig
     );
   }
 
   stopGeneration(): void {
-    this.options.stopGenerationFn();
+    this.options.stopGeneration();
   }
 
   deleteMessage(messageId: string): Promise<void> {
-    return this.options.deleteMessageFn(messageId);
+    return this.options.deleteMessage(messageId);
   }
 
   editMessage(messageId: string, content: string): Promise<void> {
-    return this.options.editMessageFn(messageId, content);
+    return this.options.editMessage(messageId, content);
   }
 
   getMessages(): ChatMessage[] {
     // Not used in regular mode - messages are accessed directly from useChat
-    return [];
+    return this.options.messages;
   }
 
   isStreaming(): boolean {
@@ -63,10 +65,6 @@ export class ServerChatStrategy implements ChatStrategy {
 
   isLoading(): boolean {
     return this.options.isLoading;
-  }
-
-  hasStreamingContent(): boolean {
-    return this.options.hasStreamingContent;
   }
 
   cleanup(): void {

@@ -575,15 +575,6 @@ export class LocalChatStrategy implements ChatStrategy {
     return this.isGenerating;
   }
 
-  hasStreamingContent(): boolean {
-    return this.messages.some(
-      msg =>
-        msg.role === "assistant" &&
-        msg.content &&
-        msg.id === this.streamingMessageId
-    );
-  }
-
   cleanup(): void {
     // Don't stop streaming on cleanup - let it complete naturally
     // This prevents issues where React effect cleanup interrupts active streams

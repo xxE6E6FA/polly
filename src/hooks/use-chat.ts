@@ -577,15 +577,6 @@ export function useChat({
   }, []);
 
   // Computed values
-  const hasStreamingContent = useMemo(() => {
-    return chatMessages.messages.some(
-      msg =>
-        msg.role === "assistant" &&
-        msg.content &&
-        chatMessages.isMessageStreaming(msg.id, isGenerating)
-    );
-  }, [chatMessages, isGenerating]);
-
   const isStreamingInCurrentConversation = useMemo(() => {
     if (!conversationId) {
       return false;
@@ -626,7 +617,6 @@ export function useChat({
     retryAssistantMessage,
     deleteMessage: chatMessages.deleteMessage,
     expectingStream: false,
-    hasStreamingContent,
     isStreaming: isStreamingInCurrentConversation,
   };
 }
