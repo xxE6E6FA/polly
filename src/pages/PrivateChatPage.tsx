@@ -69,14 +69,13 @@ export default function PrivateChatPage() {
     messages,
     isLoading,
     isStreaming,
-    hasStreamingContent,
     currentPersonaId,
     canSavePrivateChat,
     sendMessage,
-    deleteMessage,
-    editMessage,
     stopGeneration,
     savePrivateChat,
+    deleteMessage,
+    editMessage,
     retryUserMessage,
     retryAssistantMessage,
   } = useUnifiedChat({
@@ -99,7 +98,6 @@ export default function PrivateChatPage() {
       messages={messages}
       isLoading={isLoading}
       isStreaming={isStreaming}
-      hasStreamingContent={hasStreamingContent}
       currentPersonaId={currentPersonaId}
       canSavePrivateChat={canSavePrivateChat}
       hasApiKeys={true} // ChatInput handles its own API key loading

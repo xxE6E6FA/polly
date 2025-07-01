@@ -51,18 +51,17 @@ export default function ConversationRoute() {
 
   const {
     messages,
-    isLoading,
-    isLoadingMessages,
-    isStreaming,
-    hasStreamingContent,
     currentPersonaId,
     canSavePrivateChat,
+    isLoading,
+    isLoadingMessages,
     sendMessage,
-    deleteMessage,
-    editMessage,
     stopGeneration,
+    editMessage,
     retryUserMessage,
     retryAssistantMessage,
+    deleteMessage,
+    isStreaming,
   } = useUnifiedChat({
     conversationId: conversationId as ConversationId,
     onError: handleError,
@@ -82,7 +81,6 @@ export default function ConversationRoute() {
       isLoading={isLoading}
       isLoadingMessages={isLoadingMessages || userLoading}
       isStreaming={isStreaming}
-      hasStreamingContent={hasStreamingContent}
       currentPersonaId={currentPersonaId}
       canSavePrivateChat={canSavePrivateChat}
       hasApiKeys={hasApiKeys ?? true}

@@ -31,9 +31,8 @@ export interface ChatStrategy {
 
   // State getters
   getMessages(): ChatMessage[];
-  isStreaming(): boolean;
+  isStreaming?(): boolean;
   isLoading(): boolean;
-  hasStreamingContent(): boolean;
 
   // Lifecycle
   initialize?(): void;

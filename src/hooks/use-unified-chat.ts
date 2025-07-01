@@ -269,17 +269,6 @@ export function useUnifiedChat({
       : regularChat.isLoading;
   const isStreaming =
     mode === "private" ? privateStreamingState : regularChat.isStreaming;
-  const hasStreamingContent =
-    mode === "private"
-      ? privateStreamingState &&
-        privateMessagesState.some(
-          msg =>
-            msg.role === "assistant" &&
-            msg.content &&
-            !msg.metadata?.finishReason &&
-            !msg.metadata?.stopped
-        )
-      : regularChat.hasStreamingContent;
 
   const savePrivateChat = useCallback(async () => {
     if (mode !== "private" || !strategyRef.current) {
@@ -379,7 +368,6 @@ export function useUnifiedChat({
     messages,
     isLoading,
     isStreaming,
-    hasStreamingContent,
     currentPersonaId,
     canSavePrivateChat: mode === "private" && messages.length > 0,
 

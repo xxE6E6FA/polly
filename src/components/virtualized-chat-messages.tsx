@@ -27,6 +27,7 @@ type VirtualizedChatMessagesProps = {
 export interface VirtualizedChatMessagesRef {
   scrollToMessage: (messageId: string, headingId?: string) => void;
   scrollToBottom: () => void;
+  scrollToShowAssistantStart: () => void;
 }
 
 interface MessageItemProps {
@@ -98,6 +99,8 @@ export const VirtualizedChatMessages = memo(
     ) => {
       const vlistRef = useRef<VListHandle>(null);
       const prevMessagesLengthRef = useRef(messages.length);
+      const hasScrolledForCurrentAssistant = useRef(false);
+      const lastAssistantMessageId = useRef<string | null>(null);
 
       // Filter and sort messages
       const processedMessages = useMemo(() => {
@@ -107,7 +110,13 @@ export const VirtualizedChatMessages = memo(
               return false;
             }
             if (message.role === "assistant") {
-              return message.content || message.reasoning;
+              // Include assistant messages if they have content, reasoning, or if we're streaming
+              // This ensures empty assistant messages appear when streaming starts
+              return (
+                message.content ||
+                message.reasoning ||
+                (isStreaming && !message.metadata?.finishReason)
+              );
             }
             return true;
           })
@@ -120,7 +129,7 @@ export const VirtualizedChatMessages = memo(
             }
             return 0;
           });
-      }, [messages]);
+      }, [messages, isStreaming]);
 
       // Helper function to get the scroll container
       const getScrollContainer = useCallback(() => {
@@ -131,6 +140,34 @@ export const VirtualizedChatMessages = memo(
         );
         return vlistElement as HTMLElement | null;
       }, []);
+
+      // New method to scroll just enough to show the start of assistant message
+      const scrollToShowAssistantStart = useCallback(() => {
+        const container = getScrollContainer();
+        if (!container) return;
+
+        // Calculate the amount to scroll to show first 2-3 lines of assistant message
+        const currentScrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        const scrollHeight = container.scrollHeight;
+
+        // If we're already at the bottom, don't scroll
+        if (currentScrollTop + containerHeight >= scrollHeight - 10) {
+          return;
+        }
+
+        // Scroll down by a fixed amount (roughly 100-150px for 2-3 lines)
+        const scrollAmount = 120;
+        const targetScrollTop = Math.min(
+          currentScrollTop + scrollAmount,
+          scrollHeight - containerHeight
+        );
+
+        container.scrollTo({
+          top: targetScrollTop,
+          behavior: "smooth",
+        });
+      }, [getScrollContainer]);
 
       // Expose methods via ref
       useImperativeHandle(
@@ -201,23 +238,57 @@ export const VirtualizedChatMessages = memo(
               container.scrollTop = container.scrollHeight;
             }
           },
+          scrollToShowAssistantStart,
         }),
-        [processedMessages, getScrollContainer]
+        [processedMessages, getScrollContainer, scrollToShowAssistantStart]
       );
 
-      // Auto-scroll when messages change during streaming
+      // Track when a new assistant message appears for scroll control
       useEffect(() => {
-        if (shouldScrollToBottom && processedMessages.length > 0) {
-          // Virtua handles this automatically in reverse mode
-          // Just ensure we're at the bottom
-          const container = getScrollContainer();
-          if (container) {
-            container.scrollTop = container.scrollHeight;
+        if (processedMessages.length > 0) {
+          const lastMessage = processedMessages[processedMessages.length - 1];
+
+          // Check if this is a new assistant message
+          if (
+            lastMessage.role === "assistant" &&
+            lastMessage.id !== lastAssistantMessageId.current
+          ) {
+            lastAssistantMessageId.current = lastMessage.id;
+            hasScrolledForCurrentAssistant.current = false;
           }
         }
-      }, [shouldScrollToBottom, getScrollContainer, processedMessages.length]);
+      }, [processedMessages]);
 
-      // Scroll to bottom when user sends a message
+      // Modified auto-scroll logic for streaming
+      useEffect(() => {
+        if (!shouldScrollToBottom || processedMessages.length === 0) return;
+
+        const lastMessage = processedMessages[processedMessages.length - 1];
+        const container = getScrollContainer();
+
+        if (!container) return;
+
+        // For assistant messages, only do initial partial scroll
+        if (lastMessage.role === "assistant") {
+          // Only scroll once per assistant message when it first appears
+          if (!hasScrolledForCurrentAssistant.current) {
+            hasScrolledForCurrentAssistant.current = true;
+            scrollToShowAssistantStart();
+          }
+          // Don't continue auto-scrolling after initial reveal
+          return;
+        }
+
+        // For other cases, maintain existing behavior
+        container.scrollTop = container.scrollHeight;
+      }, [
+        shouldScrollToBottom,
+        getScrollContainer,
+        processedMessages,
+        scrollToShowAssistantStart,
+      ]);
+
+      // Scroll when user sends a message (to ensure assistant response is visible)
       useEffect(() => {
         if (
           messages.length > prevMessagesLengthRef.current &&
@@ -226,11 +297,19 @@ export const VirtualizedChatMessages = memo(
           const lastMessage = messages[messages.length - 1];
           // Check if the new message is from the user
           if (lastMessage?.role === "user") {
-            // In reverse mode, Virtua should keep us at the bottom automatically
-            // but we'll ensure it just in case
             const container = getScrollContainer();
             if (container) {
-              container.scrollTop = container.scrollHeight;
+              // Scroll past the user message with extra space for assistant
+              requestAnimationFrame(() => {
+                const scrollHeight = container.scrollHeight;
+                const containerHeight = container.clientHeight;
+                // Add extra 150px of space for the incoming assistant message
+                const targetScroll = scrollHeight - containerHeight + 150;
+                container.scrollTo({
+                  top: targetScroll,
+                  behavior: "smooth",
+                });
+              });
             }
           }
         }
