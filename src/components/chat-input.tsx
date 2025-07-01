@@ -15,8 +15,7 @@ import { useLocation } from "react-router";
 import { AttachmentList } from "@/components/chat-input/attachment-list";
 import { PrivateModeToggle } from "@/components/chat-input/private-mode-toggle";
 import { InputControls } from "@/components/chat-input/input-controls";
-import { ConvexFileDisplay } from "@/components/convex-file-display";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ImagePreviewDialog } from "@/components/ui/image-preview-dialog";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
 import { ChatWarningBanner } from "@/components/ui/chat-warning-banner";
 import { useFileUpload } from "@/hooks/use-file-upload";
@@ -129,6 +128,32 @@ export const ChatInput = React.memo(
     } = useFileUpload({ currentModel });
 
     const hasEnabledModels = useQuery(api.userModels.hasUserModels, {});
+
+    // Get Convex file URL if the preview file has a storage ID
+    const previewFileUrl = useQuery(
+      api.fileStorage.getFileUrl,
+      previewFile?.storageId
+        ? { storageId: previewFile.storageId as Id<"_storage"> }
+        : "skip"
+    );
+
+    // Determine the actual preview URL
+    const previewImageUrl = useMemo(() => {
+      if (!previewFile) return undefined;
+
+      // If we have a storageId, use the Convex URL
+      if (previewFile.storageId) {
+        return previewFileUrl || undefined;
+      }
+
+      // For private mode files with Base64 content
+      if (previewFile.content && previewFile.mimeType) {
+        return `data:${previewFile.mimeType};base64,${previewFile.content}`;
+      }
+
+      // Fallback to regular URL
+      return previewFile.url;
+    }, [previewFile, previewFileUrl]);
 
     const clearInput = useCallback(() => {
       setInput("");
@@ -369,21 +394,12 @@ export const ChatInput = React.memo(
           onOpenChange={notificationDialog.handleOpenChange}
         />
 
-        <Dialog
+        <ImagePreviewDialog
+          attachment={previewFile}
+          imageUrl={previewImageUrl}
           open={Boolean(previewFile)}
           onOpenChange={handlePreviewFileClose}
-        >
-          <DialogContent className="max-h-[90vh] p-0 sm:max-w-4xl">
-            <div className="p-6">
-              {previewFile && (
-                <ConvexFileDisplay
-                  attachment={previewFile}
-                  className="flex justify-center"
-                />
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+        />
       </div>
     );
   })

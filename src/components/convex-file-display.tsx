@@ -75,21 +75,11 @@ export const ConvexFileDisplay = ({
   // For non-image files, show a file icon with name
   return (
     <div
-      className={`flex cursor-pointer items-center gap-2 rounded-md bg-muted/40 px-3 py-2 text-sm text-foreground transition-transform duration-200 hover:scale-105 ${className}`}
+      className={`inline-flex items-center gap-2 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 text-sm ${className}`}
       onClick={onClick}
     >
-      <span>{attachment.type === "pdf" ? "📄" : "📝"}</span>
-      <span>{attachment.name}</span>
-      {attachment.storageId && (
-        <span className="rounded-full bg-coral-100 px-1.5 py-0.5 text-xs text-coral-700">
-          Stored
-        </span>
-      )}
-      {!attachment.storageId && attachment.content && (
-        <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
-          Ready
-        </span>
-      )}
+      <PaperclipIcon className="h-4 w-4 text-muted-foreground" />
+      <span className="text-foreground">{attachment.name}</span>
     </div>
   );
 };
@@ -129,7 +119,7 @@ export const ConvexImageThumbnail = ({
   if (attachment.storageId && !thumbnailUrl) {
     return (
       <div
-        className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/30 ${className}`}
+        className={`flex flex-shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-800 ${className}`}
       >
         <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
       </div>
@@ -139,13 +129,13 @@ export const ConvexImageThumbnail = ({
   if (attachment.type === "image" && thumbnailUrl) {
     return (
       <div
-        className={`h-6 w-6 flex-shrink-0 cursor-pointer overflow-hidden rounded bg-muted/30 ${className}`}
+        className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/10 ${className}`}
         title={attachment.name}
         onClick={onClick}
       >
         <img
           alt={attachment.name}
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           loading="lazy"
           src={thumbnailUrl}
         />
@@ -155,10 +145,10 @@ export const ConvexImageThumbnail = ({
 
   return (
     <div
-      className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded bg-muted/30 ${className}`}
+      className={`flex flex-shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-800 ${className}`}
       title={attachment.name}
     >
-      <PaperclipIcon className="h-3 w-3" />
+      <PaperclipIcon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
     </div>
   );
 };

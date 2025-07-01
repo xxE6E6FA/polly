@@ -278,15 +278,15 @@ const ChatMessageComponent = ({
         );
       }
 
+      // Assistant attachments - simplified style
       return (
         <div className="mt-2 flex flex-wrap gap-2">
           {attachments.map((attachment, index) => (
             <div
               key={attachment.name || attachment.url || `attachment-${index}`}
-              className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2 py-1 text-xs"
             >
-              <span>{attachment.type === "image" ? "🖼️" : "📄"}</span>
-              <span>{attachment.name}</span>
+              <span className="text-muted-foreground">{attachment.name}</span>
             </div>
           ))}
         </div>
