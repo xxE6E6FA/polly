@@ -24,7 +24,7 @@ import { SettingsHeader } from "./settings-header";
 import { api } from "../../../convex/_generated/api";
 import { Badge } from "../ui/badge";
 
-type ApiProvider = "openai" | "anthropic" | "google" | "openrouter" | "exa";
+type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
 
 const API_KEY_INFO = {
   openai: {
@@ -46,11 +46,6 @@ const API_KEY_INFO = {
     name: "OpenRouter",
     url: "https://openrouter.ai/keys",
     placeholder: "sk-or-...",
-  },
-  exa: {
-    name: "Exa",
-    url: "https://dashboard.exa.ai/api-keys",
-    placeholder: "your-exa-api-key",
   },
 };
 

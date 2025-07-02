@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/popover";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { useUser } from "@/hooks/use-user";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
@@ -89,31 +90,52 @@ const ModelItem = memo(
   ({
     model,
     onSelect,
+    hasReachedPollyLimit,
   }: {
     model: AIModel;
     onSelect: (value: string) => void;
+    hasReachedPollyLimit?: boolean;
   }) => {
     const capabilities = useMemo(() => getModelCapabilities(model), [model]);
 
     const handleSelect = useCallback(() => {
+      // Don't allow selecting Polly models if limit is reached
+      if (model.free && hasReachedPollyLimit) {
+        return;
+      }
       onSelect(model.modelId);
-    }, [model.modelId, onSelect]);
+    }, [model.modelId, model.free, hasReachedPollyLimit, onSelect]);
 
-    return (
+    // Check if this is a disabled Polly model
+    const isPollyDisabled = model.free && hasReachedPollyLimit;
+
+    const modelItem = (
       <CommandItem
         key={model.modelId}
-        className="min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2.5"
+        className={cn(
+          "min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2.5",
+          isPollyDisabled &&
+            "cursor-not-allowed opacity-60 hover:bg-transparent"
+        )}
         value={`${model.name} ${model.provider} ${model.modelId}`}
         onSelect={handleSelect}
       >
         <div className="flex w-full items-center justify-between">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            {model.free && (
+            {model.free && !isPollyDisabled && (
               <Badge
                 className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
                 variant="secondary"
               >
                 Free
+              </Badge>
+            )}
+            {isPollyDisabled && (
+              <Badge
+                className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
+                variant="secondary"
+              >
+                Limit Reached
               </Badge>
             )}
             <span className={cn("font-medium text-sm truncate")}>
@@ -149,6 +171,28 @@ const ModelItem = memo(
         </div>
       </CommandItem>
     );
+
+    if (isPollyDisabled) {
+      return (
+        <TooltipWrapper
+          content={
+            <div>
+              <div className="font-semibold text-foreground">
+                Monthly Limit Reached
+              </div>
+              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                You've used all {MONTHLY_MESSAGE_LIMIT} free messages this
+                month. Switch to BYOK models for unlimited usage.
+              </div>
+            </div>
+          }
+        >
+          {modelItem}
+        </TooltipWrapper>
+      );
+    }
+
+    return modelItem;
   }
 );
 
@@ -162,6 +206,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const token = useAuthToken();
   const navigate = useNavigate();
+  const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
 
   const userModelsByProvider = useQuery(api.userModels.getUserModelsByProvider);
   const selectedModel = useSelectedModel();
@@ -170,6 +215,17 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
 
   // Check if user is authenticated
   const isAuthenticated = Boolean(token);
+
+  // Check if user has reached Polly model limit
+  const hasReachedPollyLimit = useMemo(() => {
+    return (
+      user &&
+      !user.isAnonymous &&
+      monthlyUsage &&
+      monthlyUsage.remainingMessages === 0 &&
+      !hasUnlimitedCalls
+    );
+  }, [user, monthlyUsage, hasUnlimitedCalls]);
 
   // Display name getter
   const displayName = useMemo(() => {
@@ -380,15 +436,20 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
             )}
           >
             <div className="flex items-center gap-1.5">
-              {selectedModel?.provider === "polly" && (
-                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-              )}
-              {selectedModel?.free && (
+              {selectedModel?.free && !hasReachedPollyLimit && (
                 <Badge
                   className="h-4 border-success/20 bg-success/10 px-1.5 py-0 text-[10px] text-success hover:bg-success/10"
                   variant="secondary"
                 >
                   Free
+                </Badge>
+              )}
+              {selectedModel?.free && hasReachedPollyLimit && (
+                <Badge
+                  className="h-4 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 hover:bg-orange-50 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
+                  variant="secondary"
+                >
+                  Limit
                 </Badge>
               )}
               <span className="max-w-[150px] truncate font-medium">
@@ -456,6 +517,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
                           key={model.modelId}
                           model={model}
                           onSelect={handleSelect}
+                          hasReachedPollyLimit={hasReachedPollyLimit ?? false}
                         />
                       ))}
                       {providerIndex < userModelsByProvider.length - 1 && (
