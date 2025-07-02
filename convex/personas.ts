@@ -225,11 +225,21 @@ export const improvePrompt = action({
 
 Follow these guidelines:
 1. Maintain the core intent and personality of the original prompt
-2. Add specific instructions about tone, behavior, and expertise
-3. Include examples of how to respond when helpful
-4. Structure the prompt clearly with sections if needed
-5. Keep it concise but comprehensive (aim for 200-400 words)
-6. Use second person ("You are...", "You should...")
+2. Structure the improved prompt with clear sections using markdown headers
+3. Include specific behavioral guidelines:
+   - Communication style and tone instructions
+   - Response formatting preferences
+   - How to handle limitations or things you can't do
+   - Safety and ethics considerations if relevant
+4. Avoid unnecessary affirmations like "Certainly!", "Of course!", etc.
+5. Emphasize being direct and genuinely helpful
+6. Add instructions for:
+   - When to be concise vs. thorough
+   - How to match the user's tone
+   - How to handle uncertainty
+7. Keep it focused and practical (aim for 300-500 words)
+8. Use second person ("You are...", "You should...")
+9. End with a brief reminder of the assistant's core purpose
 
 Return ONLY the improved prompt text, no explanations or metadata.
 
