@@ -7,9 +7,14 @@ import { Spinner } from "@/components/spinner";
 type ReasoningProps = {
   reasoning: string;
   isLoading: boolean;
+  hasSearch?: boolean;
 };
 
-export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
+export const Reasoning = ({
+  reasoning,
+  isLoading,
+  hasSearch,
+}: ReasoningProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -45,59 +50,56 @@ export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
     }
   }, [reasoning, isExpanded, isLoading]);
 
-  // Only render if we have actual reasoning content
+  // Only render if we have actual reasoning content or if we're loading
   if (!reasoning || !reasoning.trim()) {
+    // If search is happening, don't show the initial loading state
+    // Let SearchQuery show first
+    if (isLoading && !hasSearch) {
+      // Show loading state even without content yet
+      return (
+        <div className="text-sm text-muted-foreground py-2 space-y-1">
+          <div className="flex items-center gap-2">
+            <Spinner className="h-3 w-3" />
+            <span>Thinking through your request...</span>
+          </div>
+        </div>
+      );
+    }
     return null;
   }
 
   return (
-    <div className="mt-2 w-full">
+    <div className="py-2">
       <button
-        className="group flex items-center gap-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground"
+        className="flex items-center gap-2 text-sm text-muted-foreground transition-all duration-200 hover:text-foreground"
         onClick={() => setIsExpanded(prev => !prev)}
       >
-        {/* Show spinner only when loading AND expanded (or about to expand) */}
-        {isLoading && isExpanded && (
-          <div className="scale-75">
-            <Spinner />
-          </div>
+        {/* Show spinner when loading in collapsed state */}
+        {isLoading && !isExpanded ? (
+          <Spinner className="h-3 w-3" />
+        ) : (
+          <svg
+            className={`h-3 w-3 transition-transform duration-200 ${
+              isExpanded ? "" : "group-hover:scale-110"
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d={isExpanded ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+            />
+          </svg>
         )}
-        <span className="flex items-center gap-1.5">
-          {isExpanded ? (
-            <>
-              <svg
-                className="h-4 w-4 transition-transform duration-200 group-hover:scale-110"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M5 15l7-7 7 7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              Hide reasoning
-            </>
-          ) : (
-            <>
-              <svg
-                className="h-4 w-4 transition-transform duration-200 group-hover:scale-110"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M19 9l-7 7-7-7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                />
-              </svg>
-              Show reasoning
-            </>
-          )}
+        <span>
+          {isLoading && !isExpanded
+            ? "Thinking through your request..."
+            : isExpanded
+              ? "Hide reasoning"
+              : "Show reasoning"}
         </span>
       </button>
 

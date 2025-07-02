@@ -59,7 +59,7 @@ export function getProviderReasoningConfigWithChecker(
     // Gemini 2.5 Pro doesn't allow reasoning to be disabled
     if (model.toLowerCase().includes("gemini-2.5-pro")) {
       // Force enable reasoning for 2.5 Pro regardless of config
-      return getProviderReasoningOptions(provider, model, {
+      return getProviderReasoningOptions(provider, {
         effort: reasoningConfig?.effort ?? "medium",
         maxTokens: reasoningConfig?.maxTokens,
       });
@@ -81,19 +81,17 @@ export function getProviderReasoningConfigWithChecker(
   }
 
   // Delegate to shared implementation
-  return getProviderReasoningOptions(provider, model, reasoningConfig);
+  return getProviderReasoningOptions(provider, reasoningConfig);
 }
 
 /**
  * Get provider-specific reasoning configuration
  * @param provider - The AI provider name
- * @param model - The model identifier
  * @param reasoningConfig - Optional reasoning configuration
  * @returns Provider-specific stream options
  */
 export function getProviderReasoningOptions(
   provider: string,
-  _model: string,
   reasoningConfig?: ReasoningConfig
 ): ProviderStreamOptions {
   // Note: This function assumes the caller has already verified

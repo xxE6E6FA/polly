@@ -1,10 +1,8 @@
-import { streamText } from "ai";
+import { streamText, generateText } from "ai";
 import { v } from "convex/values";
 
 import { api, internal } from "./_generated/api";
-import { type Id } from "./_generated/dataModel";
-import { action, type ActionCtx } from "./_generated/server";
-import { extractCitations } from "./ai/citations";
+import { action } from "./_generated/server";
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/errors";
 import {
@@ -18,13 +16,19 @@ import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
 import { StreamHandler } from "./ai/streaming";
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
-import { getExaApiKey, searchWithExa } from "./ai/exa";
+import { getExaApiKey, performWebSearch, extractSearchContext } from "./ai/exa";
+import {
+  generateSearchDecisionPromptWithContext,
+  parseSearchDecision,
+  type SearchDecision,
+  type SearchDecisionContext,
+} from "./ai/search_detection";
 import {
   type Citation,
   type ProviderType,
   type StreamMessage,
-  type WebSource,
 } from "./ai/types";
+import { WEB_SEARCH_MAX_RESULTS } from "./constants";
 
 // Main streaming action
 export const streamResponse = action({
@@ -71,7 +75,7 @@ export const streamResponse = action({
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
-    enableWebSearch: v.optional(v.boolean()),
+    enableWebSearch: v.optional(v.boolean()), // false = disable, all else = AI decides
     webSearchMaxResults: v.optional(v.number()),
     reasoningConfig: v.optional(
       v.object({
@@ -84,7 +88,7 @@ export const streamResponse = action({
   },
   handler: async (ctx, args) => {
     const resourceManager = new ResourceManager();
-    let abortController: AbortController | undefined;
+    let abortController: AbortController | null = null;
     const streamHandler = new StreamHandler(ctx, args.messageId);
     const interruptor = new StreamInterruptor(ctx, args.messageId);
 
@@ -139,82 +143,330 @@ export const streamResponse = action({
         }
       }
 
-      // Handle Exa web search if enabled
+      // Get the last user message to analyze for search needs
+      const lastUserMessage = [...args.messages]
+        .reverse()
+        .find(msg => msg.role === "user");
+
+      const userQuery =
+        typeof lastUserMessage?.content === "string"
+          ? lastUserMessage.content
+          : lastUserMessage?.content
+              .filter(part => part.type === "text")
+              .map(part => part.text || "")
+              .join(" ") || "";
+
+      // Handle Exa web search if needed
       let exaCitations: Citation[] = [];
       let searchContext = "";
-      
-      if (args.enableWebSearch) {
-        const exaApiKey = await getExaApiKey(ctx);
-        
+      let searchQuery = "";
+      let searchDecision: SearchDecision | null = null;
+
+      // We'll include previous search context if available, regardless of query type
+      // The LLM can decide how to use it based on the actual query
+
+      // Determine if web search is needed
+      // Simplified approach: Only respect explicit false, otherwise use AI detection
+      // This provides backward compatibility while reducing complexity
+      let shouldSearch = false;
+
+      if (args.enableWebSearch === false) {
+        // User explicitly disabled search - respect that
+        shouldSearch = false;
+      } else if (userQuery) {
+        // For all other cases (true, undefined, null), use intelligent detection
+        // Even for follow-ups, check if user explicitly wants a new search
+        try {
+          // Use Gemini Flash Lite for quick classification
+          // Benefits:
+          // 1. App-level API key (no user key required)
+          // 2. Extremely cheap (~$0.01 per 1M tokens)
+          // 3. Fast response times for simple classification
+          // 4. Good enough accuracy for search detection
+          const geminiApiKey = process.env.GEMINI_API_KEY;
+          if (!geminiApiKey) {
+            throw new Error("Gemini API key not configured");
+          }
+
+          // Allow override via env var for testing different models
+          const classificationModelName =
+            process.env.SEARCH_CLASSIFICATION_MODEL ||
+            "gemini-2.5-flash-lite-preview-06-17"; // Default to cheapest
+
+          const classificationModel = await createLanguageModel(
+            ctx,
+            "google" as ProviderType,
+            classificationModelName,
+            geminiApiKey,
+            args.userId
+          );
+
+          // Build context for better search decisions
+          const searchContext: SearchDecisionContext = {
+            userQuery,
+            conversationHistory: [],
+            previousSearches: [],
+          };
+
+          // Extract context messages from the current message array
+          // Context messages are system messages that provide background from previous conversations
+          const contextMessages = args.messages
+            .filter(msg => {
+              if (msg.role !== "system") return false;
+              const contentStr =
+                typeof msg.content === "string"
+                  ? msg.content
+                  : msg.content
+                      .filter(part => part.type === "text")
+                      .map(part => part.text || "")
+                      .join(" ");
+              return (
+                contentStr.includes("Context from previous conversation") ||
+                contentStr.includes("Previous conversation") ||
+                contentStr.includes("summarized the following conversation")
+              );
+            })
+            .map(msg => {
+              return typeof msg.content === "string"
+                ? msg.content
+                : msg.content
+                    .filter(part => part.type === "text")
+                    .map(part => part.text || "")
+                    .join(" ");
+            });
+
+          // Add the context summary to conversation history if available
+          if (contextMessages.length > 0 && searchContext.conversationHistory) {
+            // Add context as a special "context" role message
+            searchContext.conversationHistory.push({
+              role: "assistant" as "user" | "assistant", // Type requirement
+              content: contextMessages.join("\n\n"),
+              hasSearchResults: false,
+            });
+          }
+
+          // Add conversation history if available
+          if (message?.conversationId) {
+            try {
+              const recentMessages = await ctx.runQuery(api.messages.list, {
+                conversationId: message.conversationId,
+              });
+
+              // Get last 3 messages (excluding current)
+              const historyMessages = recentMessages
+                .filter(m => m._id !== args.messageId)
+                .slice(-3)
+                .map(m => ({
+                  role: m.role as "user" | "assistant",
+                  content: m.content,
+                  hasSearchResults: !!m.citations?.length,
+                }));
+
+              // Append to existing context (which may include context summary)
+              if (searchContext.conversationHistory) {
+                searchContext.conversationHistory.push(...historyMessages);
+              }
+
+              // Extract previous searches
+              const previousSearches = recentMessages
+                .filter(
+                  m => m.metadata?.searchQuery && m._id !== args.messageId
+                )
+                .slice(-2) // Last 2 searches
+                .map(m => ({
+                  query: m.metadata!.searchQuery as string,
+                  searchType: (m.metadata!.searchFeature as string) || "search",
+                  category: m.metadata?.searchCategory as string | undefined,
+                  resultCount: m.citations?.length || 0,
+                }));
+
+              searchContext.previousSearches = previousSearches;
+            } catch {
+              // Continue without context on error
+            }
+          }
+
+          const decisionPrompt =
+            generateSearchDecisionPromptWithContext(searchContext);
+
+          const { text } = await generateText({
+            model: classificationModel,
+            prompt: decisionPrompt,
+            temperature: 0.1, // Low temperature for consistent classification
+            maxTokens: 300, // Slightly more for context
+          });
+
+          searchDecision = parseSearchDecision(text, userQuery);
+          shouldSearch =
+            searchDecision.shouldSearch && searchDecision.confidence >= 0.7;
+        } catch {
+          // Fallback: default to no search on LLM failure
+          shouldSearch = false;
+          searchDecision = {
+            shouldSearch: false,
+            searchType: "search",
+            category: undefined,
+            reasoning: "LLM search decision failed - defaulting to no search",
+            confidence: 0.1,
+            suggestedSources: undefined,
+          };
+        }
+      }
+
+      if (shouldSearch && userQuery) {
+        const exaApiKey = getExaApiKey();
+
         if (exaApiKey) {
           try {
-            // Get the last user message as the search query
-            const lastUserMessage = [...args.messages]
-              .reverse()
-              .find(msg => msg.role === "user");
-            
-            if (lastUserMessage) {
-              const searchQuery = typeof lastUserMessage.content === "string" 
-                ? lastUserMessage.content 
-                : lastUserMessage.content
-                    .filter((part: any) => part.type === "text")
-                    .map((part: any) => part.text)
-                    .join(" ");
-              
-              // Perform Exa search
-              const searchResults = await searchWithExa(ctx, exaApiKey, {
-                query: searchQuery,
-                maxResults: args.webSearchMaxResults || 5,
-                searchType: "neural",
-                includeText: true,
-                includeHighlights: true,
-              });
-              
-              exaCitations = searchResults.citations;
-              
-              // Format search results as context
-              if (searchResults.citations.length > 0) {
-                searchContext = "Web search results:\n\n" + 
-                  searchResults.citations
-                    .map((citation, index) => 
-                      `[${index + 1}] ${citation.title}\n${citation.url}\n${citation.snippet || citation.cited_text || ""}`
-                    )
-                    .join("\n\n");
-              }
-            }
+            // Use search decision from LLM
+            const exaFeature = searchDecision?.searchType || "search";
+            const category = searchDecision?.category || undefined;
+
+            // Use the LLM's suggested query if available, otherwise use the original query
+            searchQuery = searchDecision?.suggestedQuery || userQuery;
+
+            // Update message with search query and feature type immediately
+            await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+              id: args.messageId,
+              metadata: {
+                ...(message?.metadata || {}),
+                searchQuery,
+                searchFeature: exaFeature,
+                searchCategory: category,
+              },
+            });
+
+            const searchResults = await performWebSearch(exaApiKey, {
+              query: searchQuery,
+              searchType: exaFeature,
+              category,
+              maxResults: args.webSearchMaxResults || WEB_SEARCH_MAX_RESULTS,
+            });
+
+            exaCitations = searchResults.citations;
+            searchContext = extractSearchContext(exaFeature, searchResults);
+
+            // Update message with search results and citations immediately
+            await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+              id: args.messageId,
+              metadata: {
+                ...(message?.metadata || {}),
+                searchQuery,
+                searchFeature: exaFeature,
+                searchCategory: category,
+              },
+              citations: exaCitations,
+            });
           } catch (error) {
-            console.error("Exa search error:", error);
+            console.error("=== Web search error ===", {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              searchQuery,
+              exaFeature: searchDecision?.searchType,
+            });
             // Continue without web search on error
           }
         }
       }
 
       // Convert messages to AI SDK format
-      let messages = await convertMessages(
+      const messages = await convertMessages(
         ctx,
         args.messages as StreamMessage[],
         args.provider
       );
-      
-      // If we have search context, add it as a system message
-      if (searchContext) {
-        messages.push({
-          role: "system",
-          content: searchContext,
-        });
+
+      // The LLM already has access to previous search results through the conversation history
+      // No need to duplicate this information
+
+      if (searchContext && exaCitations.length > 0) {
+        // Create citation instructions with numbered sources
+        const citationInstructions = `🚨 CRITICAL CITATION REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY 🚨
+
+You have web search results to use in your response. YOU MUST cite them properly.
+
+✅ CORRECT citation format:
+- "The Pre-Raphaelite Brotherhood was founded in 1848 [6]."
+- "According to recent data [2], the trend has shifted significantly."
+- "Multiple sources [1][3][7] confirm this approach."
+
+❌ WRONG - DO NOT DO THIS:
+- Do NOT write "Sources:" or "References:" sections
+- Do NOT list URLs at the end
+- Do NOT say "according to the search results" without a citation number
+- Do NOT write footnotes
+
+📋 YOUR TASK:
+1. Read the search results below
+2. Use information from them in your response
+3. ALWAYS add [number] immediately after any fact/claim from the search results
+4. The citation numbers correspond to the sources listed at the bottom
+
+⚠️ IMPORTANT: If you don't use inline citations [1], [2], etc., the sources won't be displayed to the user!
+
+SEARCH RESULTS:
+${searchContext}
+
+AVAILABLE SOURCES FOR CITATION:
+${exaCitations.map((c, i) => `[${i + 1}] ${c.title || "Web Source"} - ${c.url}`).join("\n")}
+
+REMEMBER: Use [1], [2], [3] etc. inline when citing facts. NO "Sources:" section at the end!`;
+
+        // Always insert citation instructions as a separate system message
+        // This ensures persona prompts remain intact and citation instructions are clear
+        let lastUserIndex = messages.length - 1;
+        while (lastUserIndex >= 0 && messages[lastUserIndex].role !== "user") {
+          lastUserIndex--;
+        }
+
+        if (lastUserIndex >= 0) {
+          // Insert citation instructions right before the last user message
+          messages.splice(lastUserIndex, 0, {
+            role: "system",
+            content: citationInstructions,
+          });
+        } else {
+          // Fallback: add at the end if no user message found
+          messages.push({
+            role: "system",
+            content: citationInstructions,
+          });
+        }
+      } else if (searchContext) {
+        // If we have search context but no citations (edge case), still provide the context
+        // but without citation instructions
+        const contextMessage = `SEARCH RESULTS:
+${searchContext}
+
+Note: Please use this information to help answer the user's query.`;
+
+        // Always insert search context as a separate system message
+        let lastUserIndex = messages.length - 1;
+        while (lastUserIndex >= 0 && messages[lastUserIndex].role !== "user") {
+          lastUserIndex--;
+        }
+
+        if (lastUserIndex >= 0) {
+          messages.splice(lastUserIndex, 0, {
+            role: "system",
+            content: contextMessage,
+          });
+        } else {
+          messages.push({
+            role: "system",
+            content: contextMessage,
+          });
+        }
       }
 
-      // Create language model (no longer pass enableWebSearch for provider-specific handling)
       const model = await createLanguageModel(
         ctx,
         args.provider as ProviderType,
         args.model,
         apiKey,
-        args.userId,
-        false // Disable provider-specific web search since we're using Exa
+        args.userId
       );
 
-      // Create abort controller for stopping
       abortController = new AbortController();
       streamHandler.setAbortController(abortController);
       interruptor.setAbortController(abortController);
@@ -225,8 +477,30 @@ export const streamResponse = action({
         args.reasoningConfig
       );
 
-      // Stream the response
-      const result = streamText({
+      const truncateContent = (content: string, maxLength: number): string => {
+        if (content.length <= maxLength) return content;
+
+        const truncateAt =
+          content.lastIndexOf("\n", maxLength - 100) || maxLength - 100;
+        return (
+          content.substring(0, truncateAt) +
+          "\n\n[Content truncated for length...]"
+        );
+      };
+
+      const MAX_SYSTEM_MESSAGE_LENGTH = 5000; // Reduced from 10000
+      messages.forEach((msg, index) => {
+        if (msg.role === "system" && typeof msg.content === "string") {
+          if (msg.content.length > MAX_SYSTEM_MESSAGE_LENGTH) {
+            messages[index].content = truncateContent(
+              msg.content,
+              MAX_SYSTEM_MESSAGE_LENGTH
+            );
+          }
+        }
+      });
+
+      const streamResult = streamText({
         model,
         messages,
         temperature: args.temperature,
@@ -237,7 +511,6 @@ export const streamResponse = action({
         abortSignal: abortController.signal,
         providerOptions,
         onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
-          // Store the finish data for later use after stream completes
           streamHandler.setFinishData({
             text,
             finishReason,
@@ -252,14 +525,19 @@ export const streamResponse = action({
         args.model
       );
 
-      // Start monitoring for stop signals now that we're streaming
       interruptor.startStopMonitoring();
 
-      // Try full stream for reasoning models, fall back to text stream
       if (hasReasoningSupport) {
         try {
-          await streamHandler.processStream(result.fullStream, true);
+          if (!streamResult.fullStream) {
+            console.error(
+              "=== No fullStream available despite reasoning support ==="
+            );
+            throw new Error("No fullStream available");
+          }
+          await streamHandler.processStream(streamResult.fullStream, true);
         } catch (error) {
+          console.error("=== Full stream error ===", error);
           if (
             error instanceof Error &&
             (error.message === "StoppedByUser" ||
@@ -269,20 +547,28 @@ export const streamResponse = action({
           ) {
             throw error;
           }
-          await streamHandler.processStream(result.textStream, false);
+          if (!streamResult.textStream) {
+            console.error("=== No textStream available for fallback ===");
+            throw new Error("No textStream available");
+          }
+          await streamHandler.processStream(streamResult.textStream, false);
         }
       } else {
-        await streamHandler.processStream(result.textStream, false);
+        if (!streamResult.textStream) {
+          console.error("=== No textStream available ===");
+          throw new Error("No textStream available");
+        }
+        await streamHandler.processStream(streamResult.textStream, false);
       }
 
-      // Now that streaming is complete, handle the finish
       await streamHandler.finishProcessing();
-
-      // Store Exa citations if we have them
-      if (exaCitations.length > 0) {
-        await handleExaCitations(ctx, exaCitations, args.messageId);
-      }
     } catch (error) {
+      console.error("=== streamResponse ERROR ===", {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
+
       if (
         error instanceof Error &&
         (error.message === "StoppedByUser" ||
@@ -316,85 +602,18 @@ export const streamResponse = action({
       await clearConversationStreaming(ctx, args.messageId);
       throw error;
     } finally {
-      // Clean up resources
       interruptor.cleanup();
       resourceManager.cleanup();
-      abortController = undefined;
+      abortController = null;
     }
   },
 });
 
-// Handle Exa citations
-async function handleExaCitations(
-  ctx: ActionCtx,
-  citations: Citation[],
-  messageId: Id<"messages">
-): Promise<void> {
-  if (citations.length === 0) {
-    return;
-  }
-
-  try {
-    // Get existing message to check for existing citations
-    const message = await ctx.runQuery(api.messages.getById, {
-      id: messageId,
-    });
-
-    // If message no longer exists, skip
-    if (!message) {
-      return;
-    }
-
-    // Merge with existing citations from message
-    const existingCitations = message.citations || [];
-
-    // Combine and deduplicate citations based on URL
-    const citationMap = new Map<string, Citation>();
-    for (const citation of [...existingCitations, ...citations]) {
-      if (!citationMap.has(citation.url)) {
-        citationMap.set(citation.url, citation);
-      }
-    }
-
-    const mergedCitations = [...citationMap.values()];
-
-    // Update message with citations
-    await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-      id: messageId,
-      citations: mergedCitations,
-    });
-
-    // Enrich citations with metadata
-    await ctx.scheduler.runAfter(
-      0,
-      internal.citationEnrichment.enrichMessageCitations,
-      {
-        messageId,
-        citations: mergedCitations,
-      }
-    );
-  } catch (error) {
-    // If the message was deleted, just log and continue
-    if (
-      error instanceof Error &&
-      (error.message.includes("not found") ||
-        error.message.includes("nonexistent document"))
-    ) {
-      // Message was deleted before citations could be added - this is expected
-      return;
-    }
-    throw error;
-  }
-}
-
 export const stopStreaming = action({
   args: { messageId: v.id("messages") },
   handler: async (ctx, args) => {
-    // Immediately clear the streaming state for UI responsiveness
     await clearConversationStreaming(ctx, args.messageId);
 
-    // Immediately mark the message as stopped for UI feedback
-    // This ensures the UI shows "Stopped by user" right away
     try {
       const currentMessage = await ctx.runQuery(api.messages.getById, {
         id: args.messageId,

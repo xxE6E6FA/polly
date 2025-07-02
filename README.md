@@ -30,6 +30,15 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
    pnpm dev
    ```
 
+## Features
+
+- Real-time chat with multiple AI providers (OpenAI, Anthropic, Google, OpenRouter)
+- Unified web search powered by Exa.ai across all AI models
+- Image and PDF upload support
+- Conversation persistence with Convex
+- User authentication and anonymous mode
+- Model switching and settings management
+
 ## Environment Variables
 
 ### Frontend (.env.local)
@@ -38,7 +47,10 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 
 ### Convex Backend (Set in Convex Dashboard)
 
+#### Core Services
+
 - `GEMINI_API_KEY` - Google Gemini API key (required for title and summary generation)
+- `EXA_API_KEY` - Exa.ai API key (enables web search for all AI models)
 
 #### OAuth Authentication
 
@@ -64,10 +76,25 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 6. Copy the Client ID and Client Secret
 7. Add them to Convex Dashboard → Settings → Environment Variables
 
-## Features
+## Web Search Integration
 
-- Real-time chat with multiple AI providers (OpenAI, Anthropic, Google, OpenRouter)
-- Image and PDF upload support
-- Conversation persistence with Convex
-- User authentication and anonymous mode
-- Model switching and settings management
+Polly uses [Exa.ai](https://exa.ai) as a unified web search provider for all AI models, providing consistent, high-quality neural search results.
+
+### How It Works
+
+The system intelligently detects when web search would enhance the response:
+
+1. An LLM analyzes the user's query to determine if web search would be beneficial
+2. If search is needed, Exa's neural search API is automatically invoked
+3. Search results are injected as context for the AI model
+4. Citations are displayed with the response and enriched with metadata
+
+This contextual approach ensures web search is used only when it adds value, avoiding unnecessary searches for simple queries.
+
+### Setup (For Administrators)
+
+1. Get an API key from [https://dashboard.exa.ai](https://dashboard.exa.ai)
+2. Add `EXA_API_KEY` to your Convex environment variables
+3. Web search capability will be automatically available when needed
+
+**Note**: Web search is a server-side feature. Users cannot configure their own Exa API keys.

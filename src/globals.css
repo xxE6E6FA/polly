@@ -277,6 +277,23 @@ pre {
   @apply overflow-x-auto py-4;
 }
 
+.katex-inline {
+  @apply inline-block;
+}
+
+.katex-error {
+  @apply text-red-500 dark:text-red-400 text-sm font-mono;
+}
+
+/* Ensure KaTeX content is properly styled in dark mode */
+.dark .katex {
+  color: inherit;
+}
+
+.dark .katex-display {
+  color: inherit;
+}
+
 /* Custom animations */
 @keyframes fade-in {
   from {
@@ -919,3 +936,129 @@ pre {
     transform: scale(1) rotate(0deg);
   }
 }
+
+/* Reverse spin animation for retry */
+@keyframes spin-reverse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 1s linear infinite;
+}
+
+/* Citation wrapper styles for proper grouping */
+.citation-wrapper {
+  display: inline-flex;
+  position: relative;
+  vertical-align: super;
+  font-size: 0;
+  line-height: 0;
+  margin: 0 0.5px;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+/* Keep citation groups together */
+.prose .citation-group {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  white-space: nowrap;
+  vertical-align: super;
+  font-size: 0;
+  line-height: 0;
+  position: relative;
+  /* Prevent line breaks within citation groups */
+  word-break: keep-all;
+  /* Add subtle padding for hover area */
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+/* Show hover area on group hover */
+.prose .citation-group:hover {
+  background-color: hsl(var(--primary) / 0.05);
+}
+
+/* Stack citations in a group by default */
+.citation-group .citation-wrapper:not(:first-child) {
+  margin-left: -6px;
+  z-index: 9;
+}
+
+/* Expanded state for citation groups */
+.citation-group.expanded {
+  /* Use transform to expand without affecting layout */
+  z-index: 50;
+}
+
+.citation-group.expanded .citation-wrapper:not(:first-child) {
+  /* Use transform instead of margin to prevent reflow */
+  transform: translateX(8px);
+  margin-left: -6px; /* Keep original margin */
+}
+
+/* Citation link hover effects */
+.citation-wrapper:hover a {
+  transform: scale(1.1);
+}
+
+/* Citation anchor styles - circular, opaque, smaller */
+.citation-wrapper a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  font-size: 8px;
+  font-weight: 600;
+  border-radius: 50%;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+}
+
+/* Light mode citation colors */
+.citation-wrapper a {
+  color: hsl(var(--primary));
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--primary) / 0.3);
+}
+
+.citation-wrapper:hover a {
+  background: hsl(var(--primary) / 0.2);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Dark mode citation colors */
+.dark .citation-wrapper a {
+  color: hsl(var(--primary));
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--primary) / 0.4);
+}
+
+.dark .citation-wrapper:hover a {
+  background: hsl(var(--primary) / 0.3);
+  border-color: hsl(var(--primary) / 0.6);
+}
+
+/* Message Content Styles */
+.prose {
+  --tw-prose-body: hsl(var(--foreground));
+  --tw-prose-headings: hsl(var(--foreground));
+  --tw-prose-links: hsl(var(--primary));
+  --tw-prose-bold: hsl(var(--foreground));
+  --tw-prose-code: hsl(var(--foreground));
+  --tw-prose-quotes: hsl(var(--muted-foreground));
+  --tw-prose-counters: hsl(var(--muted-foreground));
+  --tw-prose-bullets: hsl(var(--muted-foreground));
+}
+
+/* Button hover effects */

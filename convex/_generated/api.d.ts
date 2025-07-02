@@ -25,6 +25,7 @@ import type * as ai_openrouter_capabilities from "../ai/openrouter_capabilities.
 import type * as ai_providers from "../ai/providers.js";
 import type * as ai_reasoning_detection from "../ai/reasoning_detection.js";
 import type * as ai_resource_manager from "../ai/resource_manager.js";
+import type * as ai_search_detection from "../ai/search_detection.js";
 import type * as ai_stream_interruptor from "../ai/stream_interruptor.js";
 import type * as ai_streaming from "../ai/streaming.js";
 import type * as ai_types from "../ai/types.js";
@@ -32,7 +33,6 @@ import type * as ai_utils from "../ai/utils.js";
 import type * as ai from "../ai.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
-import type * as citationEnrichment from "../citationEnrichment.js";
 import type * as constants from "../constants.js";
 import type * as conversationStarters from "../conversationStarters.js";
 import type * as conversationSummary from "../conversationSummary.js";
@@ -44,6 +44,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
 import type * as lib_model_capabilities_config from "../lib/model_capabilities_config.js";
 import type * as lib_provider_reasoning_config from "../lib/provider_reasoning_config.js";
+import type * as lib_schemas from "../lib/schemas.js";
 import type * as lib_shared_anthropic_stream from "../lib/shared/anthropic_stream.js";
 import type * as lib_shared_citations from "../lib/shared/citations.js";
 import type * as lib_shared_reasoning_config from "../lib/shared/reasoning_config.js";
@@ -79,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   "ai/providers": typeof ai_providers;
   "ai/reasoning_detection": typeof ai_reasoning_detection;
   "ai/resource_manager": typeof ai_resource_manager;
+  "ai/search_detection": typeof ai_search_detection;
   "ai/stream_interruptor": typeof ai_stream_interruptor;
   "ai/streaming": typeof ai_streaming;
   "ai/types": typeof ai_types;
@@ -86,7 +88,6 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
-  citationEnrichment: typeof citationEnrichment;
   constants: typeof constants;
   conversationStarters: typeof conversationStarters;
   conversationSummary: typeof conversationSummary;
@@ -98,6 +99,7 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation_utils": typeof lib_conversation_utils;
   "lib/model_capabilities_config": typeof lib_model_capabilities_config;
   "lib/provider_reasoning_config": typeof lib_provider_reasoning_config;
+  "lib/schemas": typeof lib_schemas;
   "lib/shared/anthropic_stream": typeof lib_shared_anthropic_stream;
   "lib/shared/citations": typeof lib_shared_citations;
   "lib/shared/reasoning_config": typeof lib_shared_reasoning_config;
