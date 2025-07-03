@@ -8,9 +8,15 @@ import { useSelectedModel } from "@/hooks/use-selected-model";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 
 import { ROUTES } from "@/lib/routes";
-import { ClientAIService, type AIProvider } from "@/lib/ai/client-ai-service";
-import { type ConversationId, type Attachment } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
+import {
+  ClientAIService,
+  type AIProviderType,
+} from "@/lib/ai/client-ai-service";
+import {
+  type ConversationId,
+  type Attachment,
+  type ReasoningConfig,
+} from "@/types";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
@@ -18,7 +24,7 @@ import { type Id } from "../../convex/_generated/dataModel";
 export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedModel = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
   const { setPrivateMode } = usePrivateMode();
 
@@ -53,7 +59,7 @@ export default function PrivateChatPage() {
   // Pre-warm API connection when entering private mode
   useEffect(() => {
     if (selectedModel) {
-      const provider = selectedModel.provider as AIProvider;
+      const provider = selectedModel.provider as AIProviderType;
 
       // Get decrypted API key and warm up connection
       getDecryptedApiKey({ provider }).then(apiKey => {

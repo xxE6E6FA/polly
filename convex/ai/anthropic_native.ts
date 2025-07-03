@@ -4,7 +4,7 @@ import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { handleStreamOperation } from "./error_handlers";
 import { ResourceManager } from "./resource_manager";
-import { type StreamMessage } from "./types";
+import { type StreamMessage } from "../types";
 import { StreamHandler } from "./streaming";
 import { StreamInterruptor } from "./stream_interruptor";
 import {

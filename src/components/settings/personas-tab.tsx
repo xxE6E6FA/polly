@@ -9,7 +9,7 @@ import {
   TrashIcon,
   UserIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -30,10 +30,12 @@ import {
 } from "@/components/ui/tooltip";
 import { useUser } from "@/hooks/use-user";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useUserSettings } from "@/hooks/use-user-settings";
+import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
 import {
-  useUserSettings,
-  useUserSettingsMutations,
-} from "@/hooks/use-user-settings";
+  useOptimisticPersonaToggle,
+  useOptimisticPersonasGlobalToggle,
+} from "@/hooks/use-optimistic-toggles";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -54,9 +56,27 @@ export const PersonasTab = () => {
     queryUserId ? { userId: queryUserId } : "skip"
   );
   const userSettings = useUserSettings(userInfo.user?._id);
-  const removePersona = useMutation(api.personas.remove);
-  const toggleBuiltInPersona = useMutation(api.personas.toggleBuiltInPersona);
-  const { togglePersonasEnabled } = useUserSettingsMutations();
+
+  // Use optimized mutations for immediate feedback
+  const { mutate: toggleBuiltInPersonaOptimistic } =
+    useOptimisticPersonaToggle();
+  const { mutate: togglePersonasGloballyOptimistic } =
+    useOptimisticPersonasGlobalToggle();
+
+  // Use optimized mutation for delete operation
+  const { mutateAsync: removePersona } = useConvexMutationOptimized(
+    api.personas.remove,
+    {
+      onSuccess: () => {
+        // Success handling is automatic via optimistic updates
+      },
+      onError: error => {
+        console.error("Failed to delete persona:", error);
+      },
+      invalidateQueries: ["personas"],
+      dispatchEvents: ["personas-changed"],
+    }
+  );
 
   const [deletingPersona, setDeletingPersona] = useState<Id<"personas"> | null>(
     null
@@ -76,14 +96,11 @@ export const PersonasTab = () => {
   }, [deletingPersona, removePersona]);
 
   const handleToggleBuiltInPersona = useCallback(
-    async (personaId: Id<"personas">, isDisabled: boolean) => {
-      try {
-        await toggleBuiltInPersona({ personaId, isDisabled });
-      } catch (error) {
-        console.error("Failed to toggle built-in persona:", error);
-      }
+    (personaId: Id<"personas">, isDisabled: boolean) => {
+      // Use optimistic mutation for immediate feedback
+      toggleBuiltInPersonaOptimistic({ personaId, isDisabled });
     },
-    [toggleBuiltInPersona]
+    [toggleBuiltInPersonaOptimistic]
   );
 
   const isPersonaDisabled = useCallback(
@@ -98,14 +115,11 @@ export const PersonasTab = () => {
   );
 
   const handleTogglePersonasGlobally = useCallback(
-    async (enabled: boolean) => {
-      try {
-        await togglePersonasEnabled({ enabled });
-      } catch (error) {
-        console.error("Failed to toggle personas globally:", error);
-      }
+    (enabled: boolean) => {
+      // Use optimistic mutation for immediate feedback
+      togglePersonasGloballyOptimistic({ enabled });
     },
-    [togglePersonasEnabled]
+    [togglePersonasGloballyOptimistic]
   );
 
   return (

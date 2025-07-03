@@ -2,18 +2,10 @@ import { useCallback } from "react";
 
 import { useMutation } from "convex/react";
 
-import { type Attachment } from "@/types";
+import { type Attachment, type FileUploadProgress } from "@/types";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
-
-export type FileUploadProgress = {
-  file: File;
-  progress: number;
-  status: "pending" | "uploading" | "processing" | "complete" | "error";
-  error?: string;
-  attachment?: Attachment;
-};
 
 export function useConvexFileUpload() {
   const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl);

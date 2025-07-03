@@ -7,16 +7,12 @@ import {
   SparkleIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/hooks/use-user";
-import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { useUserStats } from "@/hooks/use-user-stats";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
-
-import { api } from "../../../convex/_generated/api";
 
 function getInitials(name?: string | null) {
   if (!name) {
@@ -32,13 +28,8 @@ function getInitials(name?: string | null) {
 
 export const UserIdCard = () => {
   const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
-  const authenticatedUserId = useAuthenticatedUserId();
   const userSettings = useUserSettings();
-
-  const userStats = useQuery(
-    api.users.getUserStats,
-    authenticatedUserId ? { userId: authenticatedUserId } : "skip"
-  );
+  const userStats = useUserStats();
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 

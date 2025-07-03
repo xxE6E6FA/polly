@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,10 @@ export const ChatHeader = ({
   const queryUserId = useQueryUserId();
   const { isSidebarVisible } = useSidebar();
   const token = useAuthToken();
+  const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
+    null
+  );
 
   // Check if user is authenticated (not anonymous)
   const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
@@ -80,7 +85,7 @@ export const ChatHeader = ({
 
   const exportData = useQuery(
     api.conversations.getForExport,
-    conversationId ? { id: conversationId } : "skip"
+    conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
   );
 
   const persona = useQuery(
@@ -142,37 +147,54 @@ export const ChatHeader = ({
     }
 
     // Handle regular conversation export
-    if (!exportData || !conversation) {
+    if (!conversationId) {
       toast.error("Export failed", {
-        description: "Unable to load conversation data",
+        description: "No conversation to export",
       });
       return;
     }
 
-    try {
-      let content: string;
-      let mimeType: string;
-
-      if (format === "json") {
-        content = exportAsJSON(exportData);
-        mimeType = "application/json";
-      } else {
-        content = exportAsMarkdown(exportData);
-        mimeType = "text/markdown";
-      }
-
-      const filename = generateFilename(conversation.title, format);
-      downloadFile(content, filename, mimeType);
-
-      toast.success("Export successful", {
-        description: `Conversation exported as ${filename}`,
-      });
-    } catch (_error) {
-      toast.error("Export failed", {
-        description: "An error occurred while exporting the conversation",
-      });
-    }
+    setExportingFormat(format);
+    setShouldLoadExportData(true);
   };
+
+  // Handle export data loading completion and errors
+  useEffect(() => {
+    if (exportData && exportingFormat && conversation) {
+      try {
+        let content: string;
+        let mimeType: string;
+
+        if (exportingFormat === "json") {
+          content = exportAsJSON(exportData);
+          mimeType = "application/json";
+        } else {
+          content = exportAsMarkdown(exportData);
+          mimeType = "text/markdown";
+        }
+
+        const filename = generateFilename(conversation.title, exportingFormat);
+        downloadFile(content, filename, mimeType);
+
+        toast.success("Export successful", {
+          description: `Conversation exported as ${filename}`,
+        });
+      } catch (_error) {
+        toast.error("Export failed", {
+          description: "An error occurred while exporting the conversation",
+        });
+      } finally {
+        setExportingFormat(null);
+        setShouldLoadExportData(false);
+      }
+    } else if (shouldLoadExportData && exportData === null && exportingFormat) {
+      toast.error("Export failed", {
+        description: "Unable to load conversation data",
+      });
+      setExportingFormat(null);
+      setShouldLoadExportData(false);
+    }
+  }, [exportData, exportingFormat, conversation, shouldLoadExportData]);
 
   // For chat pages, show full header with conversation title
   return (
@@ -301,22 +323,34 @@ export const ChatHeader = ({
               <DropdownMenuItem
                 className="cursor-pointer"
                 disabled={
-                  isPrivateMode ? !privateMessages?.length : !exportData
+                  isPrivateMode
+                    ? !privateMessages?.length
+                    : !conversationId || exportingFormat !== null
                 }
                 onClick={() => handleExport("md")}
               >
                 <FileTextIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span>Export as Markdown</span>
+                <span>
+                  {exportingFormat === "md"
+                    ? "Exporting..."
+                    : "Export as Markdown"}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="cursor-pointer"
                 disabled={
-                  isPrivateMode ? !privateMessages?.length : !exportData
+                  isPrivateMode
+                    ? !privateMessages?.length
+                    : !conversationId || exportingFormat !== null
                 }
                 onClick={() => handleExport("json")}
               >
                 <FileCodeIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span>Export as JSON</span>
+                <span>
+                  {exportingFormat === "json"
+                    ? "Exporting..."
+                    : "Export as JSON"}
+                </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

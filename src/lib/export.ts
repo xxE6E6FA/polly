@@ -1,9 +1,4 @@
-import { type Doc } from "../../convex/_generated/dataModel";
-
-export type ExportData = {
-  conversation: Doc<"conversations">;
-  messages: Doc<"messages">[];
-};
+import { type ExportData } from "@/types";
 
 export function exportAsJSON(data: ExportData): string {
   return JSON.stringify(

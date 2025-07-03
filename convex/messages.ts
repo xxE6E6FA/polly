@@ -7,12 +7,14 @@ import {
   query,
   internalQuery,
 } from "./_generated/server";
+import { internal } from "./_generated/api";
 import {
   attachmentSchema,
   messageRoleSchema,
   webCitationSchema,
   messageMetadataSchema,
 } from "./lib/schemas";
+import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 
 export const create = mutation({
   args: {
@@ -44,6 +46,17 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
+    // Only increment totalMessageCount for user messages using atomic operation
+    if (args.role === "user") {
+      const conversation = await ctx.db.get(args.conversationId);
+      if (conversation) {
+        // Use atomic increment instead of read-modify-write
+        await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
+          userId: conversation.userId,
+        });
+      }
+    }
+
     return messageId;
   },
 });
@@ -52,43 +65,59 @@ export const list = query({
   args: {
     conversationId: v.id("conversations"),
     includeAlternatives: v.optional(v.boolean()),
+    paginationOpts: paginationOptsSchema,
+    resolveAttachments: v.optional(v.boolean()), // Only resolve when needed
   },
   handler: async (ctx, args) => {
-    const query = ctx.db
+    let query = ctx.db
       .query("messages")
       .withIndex("by_conversation", q =>
         q.eq("conversationId", args.conversationId)
       )
       .order("asc");
 
-    const messages = !args.includeAlternatives
-      ? await query.filter(q => q.eq(q.field("isMainBranch"), true)).collect()
+    if (!args.includeAlternatives) {
+      query = query.filter(q => q.eq(q.field("isMainBranch"), true));
+    }
+
+    // Use pagination if specified for large conversations
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+    const messages = validatedOpts
+      ? await query.paginate(validatedOpts)
       : await query.collect();
 
-    // Resolve URLs for attachments with storageId
-    return await Promise.all(
-      messages.map(async message => {
-        if (message.attachments) {
-          const resolvedAttachments = await Promise.all(
-            message.attachments.map(async attachment => {
-              if (attachment.storageId) {
-                const url = await ctx.storage.getUrl(attachment.storageId);
-                return {
-                  ...attachment,
-                  url: url || attachment.url, // Fallback to original URL if getUrl fails
-                };
-              }
-              return attachment;
-            })
-          );
-          return {
-            ...message,
-            attachments: resolvedAttachments,
-          };
-        }
-        return message;
-      })
-    );
+    // Only resolve attachment URLs when explicitly requested (e.g., for display)
+    if (args.resolveAttachments !== false && !args.paginationOpts) {
+      // Only resolve for non-paginated results to avoid expensive operations
+      return await Promise.all(
+        (Array.isArray(messages) ? messages : messages.page).map(
+          async message => {
+            if (message.attachments) {
+              const resolvedAttachments = await Promise.all(
+                message.attachments.map(async attachment => {
+                  if (attachment.storageId) {
+                    const url = await ctx.storage.getUrl(attachment.storageId);
+                    return {
+                      ...attachment,
+                      url: url || attachment.url,
+                    };
+                  }
+                  return attachment;
+                })
+              );
+              return {
+                ...message,
+                attachments: resolvedAttachments,
+              };
+            }
+            return message;
+          }
+        )
+      );
+    }
+
+    // Return messages without resolving attachment URLs for better performance
+    return Array.isArray(messages) ? messages : messages;
   },
 });
 
@@ -107,19 +136,23 @@ export const update = mutation({
     id: v.id("messages"),
     content: v.optional(v.string()),
     reasoning: v.optional(v.string()),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-      })
-    ),
+    // Allow direct patch for efficient updates
+    patch: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    return await ctx.db.patch(id, updates);
+    const { id, patch, ...directUpdates } = args;
+
+    // Use patch if provided, otherwise use direct updates
+    const updates = patch || directUpdates;
+
+    // Remove undefined values
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
+    if (Object.keys(cleanUpdates).length > 0) {
+      await ctx.db.patch(id, cleanUpdates);
+    }
   },
 });
 
@@ -186,9 +219,12 @@ export const setBranch = mutation({
         .withIndex("by_parent", q => q.eq("parentId", args.parentId))
         .collect();
 
-      for (const sibling of siblings) {
-        await ctx.db.patch(sibling._id, { isMainBranch: false });
-      }
+      // Parallelize all sibling updates
+      await Promise.all(
+        siblings.map(sibling =>
+          ctx.db.patch(sibling._id, { isMainBranch: false })
+        )
+      );
     }
 
     // Set this message as main branch
@@ -207,18 +243,36 @@ export const remove = mutation({
       return;
     }
 
+    // Prepare parallel operations
+    const operations: Promise<void>[] = [];
+
     // If message has a conversation, clear streaming state
     if (message.conversationId) {
-      try {
-        // Clear streaming state for the conversation
-        await ctx.db.patch(message.conversationId, {
-          isStreaming: false,
-        });
-      } catch (error) {
-        console.warn(
-          `Failed to clear streaming state for conversation ${message.conversationId}:`,
-          error
-        );
+      operations.push(
+        ctx.db
+          .patch(message.conversationId, {
+            isStreaming: false,
+          })
+          .catch(error => {
+            console.warn(
+              `Failed to clear streaming state for conversation ${message.conversationId}:`,
+              error
+            );
+          })
+      );
+
+      // Only decrement totalMessageCount for user messages using atomic operation
+      if (message.role === "user") {
+        const conversation = await ctx.db.get(message.conversationId);
+        if (conversation) {
+          operations.push(
+            ctx
+              .runMutation(internal.users.decrementTotalMessageCountAtomic, {
+                userId: conversation.userId,
+              })
+              .then(() => {})
+          );
+        }
       }
     }
 
@@ -226,19 +280,23 @@ export const remove = mutation({
     if (message.attachments) {
       for (const attachment of message.attachments) {
         if (attachment.storageId) {
-          try {
-            await ctx.storage.delete(attachment.storageId);
-          } catch (error) {
-            console.warn(
-              `Failed to delete file ${attachment.storageId}:`,
-              error
-            );
-          }
+          operations.push(
+            ctx.storage.delete(attachment.storageId).catch(error => {
+              console.warn(
+                `Failed to delete file ${attachment.storageId}:`,
+                error
+              );
+            })
+          );
         }
       }
     }
 
-    return await ctx.db.delete(args.id);
+    // Add message deletion
+    operations.push(ctx.db.delete(args.id));
+
+    // Execute all operations in parallel
+    await Promise.all(operations);
   },
 });
 
@@ -248,53 +306,88 @@ export const removeMultiple = mutation({
     // Get all messages to check for attachments and conversations
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
-    // Collect unique conversation IDs
     const conversationIds = new Set<Id<"conversations">>();
+    const userMessageCounts = new Map<Id<"users">, number>();
+    const storageDeletePromises: Promise<void>[] = [];
 
-    // Clean up any attached files from storage
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
           conversationIds.add(message.conversationId);
+
+          // Only count user messages for totalMessageCount
+          if (message.role === "user") {
+            const conversation = await ctx.db.get(message.conversationId);
+            if (conversation) {
+              const currentCount =
+                userMessageCounts.get(conversation.userId) || 0;
+              userMessageCounts.set(conversation.userId, currentCount + 1);
+            }
+          }
         }
 
         if (message.attachments) {
           for (const attachment of message.attachments) {
             if (attachment.storageId) {
-              try {
-                await ctx.storage.delete(attachment.storageId);
-              } catch (error) {
-                console.warn(
-                  `Failed to delete file ${attachment.storageId}:`,
-                  error
-                );
-              }
+              storageDeletePromises.push(
+                ctx.storage.delete(attachment.storageId).catch(error => {
+                  console.warn(
+                    `Failed to delete file ${attachment.storageId}:`,
+                    error
+                  );
+                })
+              );
             }
           }
         }
       }
     }
 
-    // Clear streaming state for affected conversations
+    // Parallelize all operations
+    const operations: Promise<void>[] = [];
+
+    // Add conversation streaming state updates
     for (const conversationId of conversationIds) {
-      try {
-        await ctx.db.patch(conversationId, {
-          isStreaming: false,
-        });
-      } catch (error) {
-        console.warn(
-          `Failed to clear streaming state for conversation ${conversationId}:`,
-          error
-        );
-      }
+      operations.push(
+        ctx.db
+          .patch(conversationId, {
+            isStreaming: false,
+          })
+          .catch(error => {
+            console.warn(
+              `Failed to clear streaming state for conversation ${conversationId}:`,
+              error
+            );
+          })
+      );
     }
 
-    const deletionPromises = args.ids.map(id =>
-      ctx.db.delete(id).catch(error => {
-        console.warn(`Failed to delete message ${id}:`, error);
-      })
+    // Add user message count decrements using atomic operations
+    for (const [userId, messageCount] of userMessageCounts) {
+      operations.push(
+        ctx
+          .runMutation(internal.users.decrementTotalMessageCountAtomic, {
+            userId,
+            decrement: messageCount,
+          })
+          .then(() => {})
+      );
+    }
+
+    // Add message deletions
+    operations.push(
+      ...args.ids.map(id =>
+        ctx.db.delete(id).catch(error => {
+          console.warn(`Failed to delete message ${id}:`, error);
+        })
+      )
     );
-    await Promise.all(deletionPromises);
+
+    // Add storage deletions
+    operations.push(...storageDeletePromises);
+
+    // Execute all operations in parallel
+    await Promise.all(operations);
   },
 });
 
@@ -356,54 +449,56 @@ export const internalAtomicUpdate = internalMutation({
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;
 
-    // Use a retry loop with exponential backoff for write conflicts
-    let retries = 0;
-    const maxRetries = 5; // More retries for atomic updates during streaming
+    // Optimize: Use single atomic operation for appends to minimize read/write cycles
+    if (appendContent || appendReasoning) {
+      // Get current message once
+      const message = await ctx.db.get(id);
+      if (!message) {
+        throw new Error(`Message with id ${id} not found`);
+      }
 
-    while (retries <= maxRetries) {
+      const updatesWithAppend = { ...updates };
+      if (appendContent) {
+        updatesWithAppend.content = (message.content || "") + appendContent;
+      }
+      if (appendReasoning) {
+        updatesWithAppend.reasoning =
+          (message.reasoning || "") + appendReasoning;
+      }
+
+      // Single patch operation - no retry loop needed for most cases
       try {
-        // For append operations, we need to be extra careful about concurrent modifications
-        if (appendContent || appendReasoning) {
-          // Use a transaction-like approach: read and update in one go
-          const message = await ctx.db.get(id);
-          if (!message) {
-            throw new Error(`Message with id ${id} not found`);
+        return await ctx.db.patch(id, updatesWithAppend);
+      } catch (error) {
+        // Only retry once for genuine conflicts
+        if (
+          error instanceof Error &&
+          error.message.includes("changed while this mutation was being run")
+        ) {
+          // Brief delay and single retry
+          await new Promise(resolve => setTimeout(resolve, 5));
+          const retryMessage = await ctx.db.get(id);
+          if (!retryMessage) {
+            throw new Error(`Message with id ${id} not found on retry`);
           }
 
-          const updatesWithAppend = { ...updates };
+          const retryUpdates = { ...updates };
           if (appendContent) {
-            updatesWithAppend.content = (message.content || "") + appendContent;
+            retryUpdates.content = (retryMessage.content || "") + appendContent;
           }
           if (appendReasoning) {
-            updatesWithAppend.reasoning =
-              (message.reasoning || "") + appendReasoning;
+            retryUpdates.reasoning =
+              (retryMessage.reasoning || "") + appendReasoning;
           }
 
-          return await ctx.db.patch(id, updatesWithAppend);
-        }
-        // For non-append operations, just do a simple patch
-        return await ctx.db.patch(id, updates);
-      } catch (error) {
-        // Check if this is a write conflict and we should retry
-        if (
-          retries < maxRetries &&
-          error instanceof Error &&
-          (error.message.includes(
-            "changed while this mutation was being run"
-          ) ||
-            error.message.includes("write conflict") ||
-            error.message.includes("conflict"))
-        ) {
-          retries++;
-          // Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms
-          await new Promise(resolve =>
-            setTimeout(resolve, 10 * Math.pow(2, retries - 1))
-          );
-          continue;
+          return await ctx.db.patch(id, retryUpdates);
         }
         throw error;
       }
     }
+
+    // For non-append operations, direct patch (most common case)
+    return await ctx.db.patch(id, updates);
   },
 });
 
@@ -453,5 +548,29 @@ export const runSearchResultsMigration = mutation({
     }
 
     return { migratedCount, totalMessages: messages.length };
+  },
+});
+
+export const hasStreamingMessage = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    // Find any assistant message without a finish reason
+    const streamingMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .filter(q =>
+        q.and(
+          q.eq(q.field("role"), "assistant"),
+          q.eq(q.field("metadata.finishReason"), undefined)
+        )
+      )
+      .first();
+
+    return {
+      hasStreaming: Boolean(streamingMessage),
+      streamingMessageId: streamingMessage?._id || null,
+    };
   },
 });

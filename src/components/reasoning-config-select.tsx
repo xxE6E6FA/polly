@@ -18,15 +18,11 @@ import {
   hasMandatoryReasoning,
 } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
-import { type AIModel } from "@/types";
-
-export type ReasoningEffortLevel = "low" | "medium" | "high";
-
-export type ReasoningConfig = {
-  enabled: boolean;
-  effort: ReasoningEffortLevel;
-  maxTokens?: number;
-};
+import {
+  type AIModel,
+  type ReasoningConfig,
+  type ReasoningEffortLevel,
+} from "@/types";
 
 type ReasoningConfigProps = {
   model?: AIModel | null;
@@ -147,7 +143,7 @@ export const ReasoningConfigSelect = ({
   const Icon = theme.icon;
 
   // Get current value for the select
-  const currentValue = config.enabled ? config.effort : "off";
+  const currentValue = config.enabled ? config.effort || "medium" : "off";
 
   // Filter options based on whether reasoning is mandatory
   const availableOptions = isMandatory

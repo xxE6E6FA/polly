@@ -93,10 +93,11 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
             emailVerified: profileEmailVerified || anonymousUser.emailVerified,
             image: profileImage || anonymousUser.image,
             isAnonymous: false,
-            // Preserve message counts for graduated user
             monthlyMessagesSent: anonymousUser.messagesSent || 0,
             monthlyLimit: MONTHLY_MESSAGE_LIMIT,
             lastMonthlyReset: Date.now(),
+            conversationCount: anonymousUser.conversationCount || 0,
+            totalMessageCount: anonymousUser.totalMessageCount || 0,
           });
 
           return anonymousUserId;
@@ -152,10 +153,11 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         isAnonymous: provider.id === "anonymous",
         createdAt: now,
         messagesSent: 0,
-        // Initialize monthly limits
         monthlyMessagesSent: 0,
         monthlyLimit: MONTHLY_MESSAGE_LIMIT,
         lastMonthlyReset: now,
+        conversationCount: 0,
+        totalMessageCount: 0,
       });
 
       return userId;
@@ -185,6 +187,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
             userId,
             personasEnabled: true,
             openRouterSorting: "default",
+            autoArchiveEnabled: false,
+            autoArchiveDays: 30,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           });

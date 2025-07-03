@@ -4,7 +4,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type LanguageModel } from "ai";
 
-import { type ProviderType, type ProviderStreamOptions } from "./types";
+import { type ProviderType, type ProviderStreamOptions } from "../types";
 import { applyOpenRouterSorting } from "./utils";
 import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";

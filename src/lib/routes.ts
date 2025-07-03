@@ -19,9 +19,3 @@ export const ROUTES = {
   },
   NOT_FOUND: "/404",
 } as const;
-
-export type RouteParams = {
-  conversationId?: string;
-  shareId?: string;
-  id?: string;
-};

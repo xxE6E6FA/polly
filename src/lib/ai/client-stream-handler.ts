@@ -1,6 +1,7 @@
 import { type CoreMessage } from "ai";
 
-import { type WebSearchCitation, type Attachment } from "@/types";
+import { type Attachment, type StreamCallbacks } from "@/types";
+
 import { extractCitations, extractMarkdownCitations } from "./citations";
 import { removeDuplicateSourceSections } from "./utils";
 import {
@@ -10,13 +11,7 @@ import {
   type StreamPart,
 } from "../../../convex/lib/shared/stream_utils";
 
-export type StreamCallbacks = {
-  onContent: (content: string) => void;
-  onReasoning?: (reasoning: string) => void;
-  onCitations?: (citations: WebSearchCitation[]) => void;
-  onFinish: (finishReason: string) => void;
-  onError: (error: Error) => void;
-};
+export type { StreamCallbacks };
 
 /**
  * Client-side Stream Handler for Private Chat

@@ -1,8 +1,10 @@
 import { ConvexError, v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 
 import { type Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
+import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 
 // Generate a random share ID
 
@@ -260,14 +262,37 @@ export const getSharedConversation = query({
 
 // List user's shared conversations
 export const listUserSharedConversations = query({
-  args: {},
-  handler: async ctx => {
+  args: {
+    paginationOpts: paginationOptsSchema,
+  },
+  handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
-    return await ctx.db
+    const query = ctx.db
       .query("sharedConversations")
       .withIndex("by_user", q => q.eq("userId", userId))
-      .order("desc")
-      .collect();
+      .order("desc");
+
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+    return validatedOpts
+      ? await query.paginate(validatedOpts)
+      : await query.collect();
+  },
+});
+
+// Dedicated pagination-only query for usePaginatedQuery
+export const listUserSharedConversationsPaginated = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    const query = ctx.db
+      .query("sharedConversations")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .order("desc");
+
+    return await query.paginate(args.paginationOpts);
   },
 });

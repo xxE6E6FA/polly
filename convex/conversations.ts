@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-
+import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { type Id } from "./_generated/dataModel";
 import { action, internalMutation, mutation, query } from "./_generated/server";
@@ -11,6 +11,11 @@ import {
   messageRoleSchema,
   webCitationSchema,
 } from "./lib/schemas";
+import {
+  paginationOptsSchema,
+  createEmptyPaginationResult,
+  validatePaginationOpts,
+} from "./lib/pagination";
 import {
   DEFAULT_TEMPERATURE,
   DEFAULT_MAX_TOKENS,
@@ -73,9 +78,8 @@ const createUserMessage = async (
   });
 
   // Increment user's message count for limit tracking (only for Polly-provided models)
-  await ctx.runMutation(api.users.incrementMessageCount, {
+  await ctx.runMutation(api.users.incrementMessageCountAtomic, {
     userId: args.userId,
-    modelProvider: args.provider,
     isPollyProvided: args.isPollyProvided,
   });
 
@@ -249,11 +253,11 @@ const validateConversationAndAuth = async (
     conversationId: Id<"conversations">;
     provider: string;
   }
-) => {
+): Promise<{ conversation: ConversationDoc; apiKey: string }> => {
   // Validate conversation exists
-  const conversation = await ctx.runQuery(api.conversations.get, {
+  const conversation = (await ctx.runQuery(api.conversations.get, {
     id: args.conversationId,
-  });
+  })) as ConversationDoc | null;
 
   if (!conversation) {
     throw new Error("Conversation not found");
@@ -294,9 +298,14 @@ const buildContextMessages = async (
   }
 ) => {
   // Get all messages for context
-  const messages = await ctx.runQuery(api.messages.list, {
+  const messagesResult = await ctx.runQuery(api.messages.list, {
     conversationId: args.conversationId,
   });
+
+  // Handle pagination result - if no pagination options passed, result is array
+  const messages = Array.isArray(messagesResult)
+    ? messagesResult
+    : messagesResult.page;
 
   // Slice messages if needed (for retry/edit)
   const relevantMessages =
@@ -385,7 +394,7 @@ const buildContextMessages = async (
   ) {
     // Add default system prompt when no persona is selected
     const defaultPrompt = getDefaultSystemPromptForConversation(
-      relevantMessages as MessageDoc[]
+      relevantMessages as unknown as MessageDoc[]
     );
 
     contextMessages.unshift({
@@ -504,7 +513,8 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
-    return await ctx.db.insert("conversations", {
+
+    const conversationId = await ctx.db.insert("conversations", {
       title: args.title,
       userId: args.userId,
       personaId: args.personaId,
@@ -513,6 +523,13 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Use atomic increment instead of read-modify-write
+    await ctx.runMutation(internal.users.incrementConversationCountAtomic, {
+      userId: args.userId,
+    });
+
+    return conversationId;
   },
 });
 
@@ -544,7 +561,15 @@ export const createWithMessages = internalMutation({
       updatedAt: now,
     });
 
-    // Create system message if persona prompt exists
+    // Use atomic increment for conversation count
+    await ctx.runMutation(internal.users.incrementConversationCountAtomic, {
+      userId: args.userId,
+    });
+
+    // Count user messages we'll create for total message count tracking
+    let userMessageCount = 0;
+
+    // Create system message if persona prompt exists (don't count system messages)
     if (args.personaPrompt) {
       await ctx.db.insert("messages", {
         conversationId,
@@ -555,7 +580,7 @@ export const createWithMessages = internalMutation({
       });
     }
 
-    // Create user message
+    // Create user message (count this one)
     const userMessageId = await ctx.db.insert("messages", {
       conversationId,
       role: "user",
@@ -565,20 +590,20 @@ export const createWithMessages = internalMutation({
       isMainBranch: true,
       createdAt: now,
     });
+    userMessageCount++;
 
     // Get whether this is a Polly-provided model based on the provider
-    // In the internal mutation we already have the model/provider info from args
     const isPollyProvided =
       args.provider === "google" &&
       args.model?.includes("gemini-2.5-flash-lite");
 
-    // Increment user's message count for limit tracking (only for Polly-provided models)
-    await ctx.runMutation(api.users.incrementMessageCount, {
+    // Use atomic increment for message count (only for Polly-provided models)
+    await ctx.runMutation(api.users.incrementMessageCountAtomic, {
       userId: args.userId,
       isPollyProvided,
     });
 
-    // Create empty assistant message for streaming
+    // Create empty assistant message for streaming (don't count assistant messages)
     const assistantMessageId = await ctx.db.insert("messages", {
       conversationId,
       role: "assistant",
@@ -587,6 +612,12 @@ export const createWithMessages = internalMutation({
       provider: args.provider,
       isMainBranch: true,
       createdAt: now,
+    });
+
+    // Use atomic increment for total message count (only count user messages)
+    await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
+      userId: args.userId,
+      increment: userMessageCount,
     });
 
     return {
@@ -598,21 +629,75 @@ export const createWithMessages = internalMutation({
 });
 
 export const list = query({
-  args: { userId: v.optional(v.id("users")) },
+  args: {
+    userId: v.optional(v.id("users")),
+    paginationOpts: paginationOptsSchema,
+  },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
     const userId = args.userId || (await getOptionalUserId(ctx));
 
     if (!userId) {
-      return [];
+      return args.paginationOpts ? createEmptyPaginationResult() : [];
     }
 
-    return await ctx.db
+    const query = ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
       .filter(q => q.neq(q.field("isArchived"), true))
-      .order("desc")
-      .collect();
+      .order("desc");
+
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+    return validatedOpts
+      ? await query.paginate(validatedOpts)
+      : await query.collect();
+  },
+});
+
+// Optimized list query that only returns essential fields
+export const listOptimized = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    paginationOpts: paginationOptsSchema,
+  },
+  handler: async (ctx, args) => {
+    // Use provided userId or fall back to server-side auth
+    const userId = args.userId || (await getOptionalUserId(ctx));
+
+    if (!userId) {
+      return args.paginationOpts ? createEmptyPaginationResult() : [];
+    }
+
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .filter(q => q.neq(q.field("isArchived"), true))
+      .order("desc");
+
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+    const results = validatedOpts
+      ? await query.paginate(validatedOpts)
+      : await query.collect();
+
+    // Return only essential fields for list display
+    const optimizeConversation = (conv: ConversationDoc) => ({
+      _id: conv._id,
+      _creationTime: conv._creationTime,
+      title: conv.title,
+      updatedAt: conv.updatedAt,
+      isPinned: conv.isPinned,
+      isStreaming: conv.isStreaming,
+      // Skip: userId, personaId, sourceConversationId, isArchived, createdAt
+    });
+
+    if (validatedOpts && "page" in results) {
+      return {
+        ...results,
+        page: results.page.map(optimizeConversation),
+      };
+    }
+
+    return (results as ConversationDoc[]).map(optimizeConversation);
   },
 });
 
@@ -699,6 +784,12 @@ export const setPinned = mutation({
 export const remove = mutation({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {
+    // Get conversation to find userId for cache invalidation
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
     // First, ensure streaming is stopped for this conversation
     try {
       await ctx.db.patch(args.id, {
@@ -728,7 +819,26 @@ export const remove = mutation({
     }
 
     // Delete the conversation
-    return await ctx.db.delete(args.id);
+    const result = await ctx.db.delete(args.id);
+
+    // Use atomic decrement operations to avoid race conditions
+    // Only count user messages for totalMessageCount
+    const userMessageCount = messages.filter(m => m.role === "user").length;
+
+    // Use atomic decrement for conversation count
+    await ctx.runMutation(internal.users.decrementConversationCountAtomic, {
+      userId: conversation.userId,
+    });
+
+    // Use atomic decrement for total message count if there are user messages
+    if (userMessageCount > 0) {
+      await ctx.runMutation(internal.users.decrementTotalMessageCountAtomic, {
+        userId: conversation.userId,
+        decrement: userMessageCount,
+      });
+    }
+
+    return result;
   },
 });
 
@@ -765,21 +875,79 @@ export const unarchive = mutation({
 });
 
 export const listArchived = query({
-  args: { userId: v.optional(v.id("users")) },
+  args: {
+    userId: v.optional(v.id("users")),
+    paginationOpts: paginationOptsSchema,
+  },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
     const userId = args.userId || (await getOptionalUserId(ctx));
 
     if (!userId) {
-      return [];
+      return args.paginationOpts ? createEmptyPaginationResult() : [];
+    }
+
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userId).eq("isArchived", true)
+      )
+      .order("desc");
+
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+    return validatedOpts
+      ? await query.paginate(validatedOpts)
+      : await query.collect();
+  },
+});
+
+// Dedicated pagination-only queries for usePaginatedQuery
+export const listPaginated = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    paginationOpts: v.object({
+      numItems: v.number(),
+      cursor: v.union(v.string(), v.null()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    // Use provided userId or fall back to server-side auth
+    const userId = args.userId || (await getOptionalUserId(ctx));
+
+    if (!userId) {
+      return createEmptyPaginationResult();
+    }
+
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .filter(q => q.neq(q.field("isArchived"), true))
+      .order("desc");
+
+    return await query.paginate(args.paginationOpts);
+  },
+});
+
+export const listArchivedPaginated = query({
+  args: {
+    userId: v.optional(v.id("users")),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    // Use provided userId or fall back to server-side auth
+    const resolvedUserId = args.userId || (await getOptionalUserId(ctx));
+
+    if (!resolvedUserId) {
+      return createEmptyPaginationResult();
     }
 
     return await ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .filter(q => q.eq(q.field("isArchived"), true))
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", resolvedUserId).eq("isArchived", true)
+      )
       .order("desc")
-      .collect();
+      .paginate(args.paginationOpts);
   },
 });
 
@@ -789,14 +957,8 @@ export const setStreamingState = mutation({
     isStreaming: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // Check current state to avoid unnecessary writes
-    const conversation = await ctx.db.get(args.id);
-
-    // If conversation doesn't exist or already has the desired state, do nothing
-    if (!conversation || conversation.isStreaming === args.isStreaming) {
-      return;
-    }
-
+    // Direct patch without checking current state
+    // Convex handles duplicate writes efficiently
     return await ctx.db.patch(args.id, {
       isStreaming: args.isStreaming,
       updatedAt: Date.now(),
@@ -805,10 +967,12 @@ export const setStreamingState = mutation({
 });
 
 export const getForExport = query({
-  args: { id: v.string() },
+  args: {
+    id: v.string(),
+    limit: v.optional(v.number()), // Limit number of messages to reduce bandwidth
+  },
   handler: async (ctx, args) => {
     try {
-      // Attempt to use the string as a Convex ID
       const conversationId = args.id as Id<"conversations">;
       const conversation = await ctx.db.get(conversationId);
 
@@ -816,21 +980,94 @@ export const getForExport = query({
         return null;
       }
 
-      const messages = await ctx.db
+      // Use take() to limit results and avoid loading massive conversations
+      const messagesQuery = ctx.db
         .query("messages")
         .withIndex("by_conversation", q =>
           q.eq("conversationId", conversationId)
         )
         .filter(q => q.eq(q.field("isMainBranch"), true))
-        .order("asc")
-        .collect();
+        .order("asc");
+
+      const messages = args.limit
+        ? await messagesQuery.take(args.limit)
+        : await messagesQuery.collect();
+
+      // Strip heavy fields for export to reduce bandwidth
+      const optimizedMessages = messages.map(message => ({
+        _id: message._id,
+        _creationTime: message._creationTime,
+        conversationId: message.conversationId,
+        role: message.role,
+        content: message.content,
+        model: message.model,
+        provider: message.provider,
+        parentId: message.parentId,
+        isMainBranch: message.isMainBranch,
+        createdAt: message.createdAt,
+        // Only include citations, skip heavy attachments and metadata for export
+        ...(message.citations && { citations: message.citations }),
+      }));
 
       return {
         conversation,
-        messages,
+        messages: optimizedMessages,
       };
     } catch {
-      // Invalid ID format or any other error - return null
+      return null;
+    }
+  },
+});
+
+// Optimized export function with bandwidth reduction
+export const getForExportOptimized = query({
+  args: {
+    id: v.string(),
+    limit: v.optional(v.number()), // Limit number of messages to reduce bandwidth
+  },
+  handler: async (ctx, args) => {
+    try {
+      const conversationId = args.id as Id<"conversations">;
+      const conversation = await ctx.db.get(conversationId);
+
+      if (!conversation) {
+        return null;
+      }
+
+      // Use take() to limit results and avoid loading massive conversations
+      const messagesQuery = ctx.db
+        .query("messages")
+        .withIndex("by_conversation", q =>
+          q.eq("conversationId", conversationId)
+        )
+        .filter(q => q.eq(q.field("isMainBranch"), true))
+        .order("asc");
+
+      const messages = args.limit
+        ? await messagesQuery.take(args.limit)
+        : await messagesQuery.collect();
+
+      // Strip heavy fields for export to reduce bandwidth
+      const optimizedMessages = messages.map(message => ({
+        _id: message._id,
+        _creationTime: message._creationTime,
+        conversationId: message.conversationId,
+        role: message.role,
+        content: message.content,
+        model: message.model,
+        provider: message.provider,
+        parentId: message.parentId,
+        isMainBranch: message.isMainBranch,
+        createdAt: message.createdAt,
+        // Only include citations, skip heavy attachments and metadata for export
+        ...(message.citations && { citations: message.citations }),
+      }));
+
+      return {
+        conversation,
+        messages: optimizedMessages,
+      };
+    } catch {
       return null;
     }
   },
@@ -848,6 +1085,7 @@ export const createNewConversation = action({
     useWebSearch: v.optional(v.boolean()),
     generateTitle: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
+    contextSummary: v.optional(v.string()),
   },
   handler: async (
     ctx,
@@ -914,6 +1152,17 @@ export const createNewConversation = action({
       model: selectedModel.modelId,
       provider: selectedModel.provider,
     });
+
+    // Create context message if contextSummary is provided
+    if (args.sourceConversationId && args.contextSummary) {
+      await ctx.runMutation(api.messages.create, {
+        conversationId: result.conversationId,
+        role: "context",
+        content: `Context from previous conversation: ${args.contextSummary}`,
+        sourceConversationId: args.sourceConversationId,
+        isMainBranch: true,
+      });
+    }
 
     // Build context messages for AI response
     const contextMessages: Array<{
@@ -983,10 +1232,14 @@ export const createNewConversation = action({
 
     // Schedule title generation if requested
     if (args.generateTitle !== false) {
-      await ctx.scheduler.runAfter(100, api.titleGeneration.generateTitle, {
-        conversationId: result.conversationId,
-        message: args.firstMessage,
-      });
+      await ctx.scheduler.runAfter(
+        100,
+        api.titleGeneration.generateTitleBackground,
+        {
+          conversationId: result.conversationId,
+          message: args.firstMessage,
+        }
+      );
     }
 
     return {
@@ -1108,9 +1361,14 @@ export const retryFromMessage = action({
     });
 
     // Get all messages for the conversation
-    const messages = await ctx.runQuery(api.messages.list, {
+    const messagesResult = await ctx.runQuery(api.messages.list, {
       conversationId: args.conversationId,
     });
+
+    // Handle pagination result - if no pagination options passed, result is array
+    const messages = Array.isArray(messagesResult)
+      ? messagesResult
+      : messagesResult.page;
 
     // Find the target message
     const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
@@ -1187,9 +1445,14 @@ export const editMessage = action({
     });
 
     // Get all messages for the conversation
-    const messages = await ctx.runQuery(api.messages.list, {
+    const messagesResult = await ctx.runQuery(api.messages.list, {
       conversationId: args.conversationId,
     });
+
+    // Handle pagination result - if no pagination options passed, result is array
+    const messages = Array.isArray(messagesResult)
+      ? messagesResult
+      : messagesResult.page;
 
     // Find the target message and validate it's a user message
     const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
@@ -1209,19 +1472,6 @@ export const editMessage = action({
     await ctx.runMutation(api.messages.update, {
       id: args.messageId,
       content: args.newContent,
-    });
-
-    // Get the selected model to check if it's Polly-provided
-    const selectedModel = await ctx.runQuery(
-      api.userModels.getUserSelectedModel
-    );
-    const isPollyProvided = selectedModel?.free === true;
-
-    // Increment user's message count for limit tracking (editing counts as sending)
-    await ctx.runMutation(api.users.incrementMessageCount, {
-      userId: conversation.userId,
-      modelProvider: args.provider,
-      isPollyProvided,
     });
 
     // Delete all messages after the edited message
@@ -1256,12 +1506,20 @@ export const stopGeneration = action({
   handler: async (ctx, args): Promise<{ stopped: boolean }> => {
     try {
       // Get all messages for the conversation to find the currently streaming one
-      const messages = await ctx.runQuery(api.messages.list, {
+      const messagesResult = await ctx.runQuery(api.messages.list, {
         conversationId: args.conversationId,
       });
 
+      // Handle pagination result - if no pagination options passed, result is array
+      const messages = Array.isArray(messagesResult)
+        ? messagesResult
+        : messagesResult.page;
+
       // Find the most recent assistant message that might be streaming
-      const streamingMessage = findStreamingMessage(messages as MessageDoc[]);
+      // Cast through unknown to handle citation type differences between pagination result and MessageDoc
+      const streamingMessage = findStreamingMessage(
+        messages as unknown as MessageDoc[]
+      );
 
       if (streamingMessage) {
         // Stop the streaming for this specific message
@@ -1291,9 +1549,14 @@ export const resumeConversation = action({
   },
   handler: async (ctx, args): Promise<{ resumed: boolean }> => {
     // Get all messages for the conversation
-    const messages = await ctx.runQuery(api.messages.list, {
+    const messagesResult = await ctx.runQuery(api.messages.list, {
       conversationId: args.conversationId,
     });
+
+    // Handle pagination result - if no pagination options passed, result is array
+    const messages = Array.isArray(messagesResult)
+      ? messagesResult
+      : messagesResult.page;
 
     if (messages.length === 0) {
       return { resumed: false };
@@ -1497,5 +1760,20 @@ export const continueConversation = action({
       model: args.model,
       provider: args.provider,
     });
+  },
+});
+
+export const getStreamingState = query({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) {
+      return null;
+    }
+
+    return {
+      isStreaming: conversation.isStreaming,
+      conversationId: conversation._id,
+    };
   },
 });

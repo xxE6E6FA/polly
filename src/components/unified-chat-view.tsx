@@ -8,8 +8,8 @@ import {
   type Attachment,
   type ConversationId,
   type ChatMessage,
+  type ReasoningConfig,
 } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { ChatHeader } from "./chat-header";
 import { ChatInput, type ChatInputRef } from "./chat-input";

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { useNavigate, useParams } from "react-router";
 
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { type EmojiClickData } from "emoji-picker-react";
 
 import { api } from "convex/_generated/api";
@@ -13,6 +13,7 @@ import {
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { Button } from "@/components/ui/button";
+import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
 import { ROUTES } from "@/lib/routes";
 
 export default function EditPersonaPage() {
@@ -24,13 +25,36 @@ export default function EditPersonaPage() {
     api.personas.get,
     personaId ? { id: personaId as Id<"personas"> } : "skip"
   );
-  const updatePersona = useMutation(api.personas.update);
-  const deletePersona = useMutation(api.personas.remove);
 
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
+
+  // Use optimized mutation hooks
+  const { mutateAsync: updatePersona, isLoading: isUpdating } =
+    useConvexMutationOptimized(api.personas.update, {
+      onSuccess: () => {
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      },
+      onError: error => {
+        console.error("Failed to update persona:", error);
+      },
+      invalidateQueries: ["personas"],
+      dispatchEvents: ["personas-changed"],
+    });
+
+  const { mutateAsync: deletePersona, isLoading: isDeleting } =
+    useConvexMutationOptimized(api.personas.remove, {
+      onSuccess: () => {
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      },
+      onError: error => {
+        console.error("Failed to delete persona:", error);
+      },
+      invalidateQueries: ["personas"],
+      dispatchEvents: ["personas-changed"],
+    });
+
+  const isLoading = isUpdating || isDeleting;
 
   useEffect(() => {
     if (persona) {
@@ -49,22 +73,13 @@ export default function EditPersonaPage() {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      await updatePersona({
-        id: personaId as Id<"personas">,
-        name: formData.name,
-        description: formData.description,
-        prompt: formData.prompt,
-        icon: formData.icon,
-      });
-
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to update persona:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await updatePersona({
+      id: personaId as Id<"personas">,
+      name: formData.name,
+      description: formData.description,
+      prompt: formData.prompt,
+      icon: formData.icon,
+    });
   };
 
   const handleDeletePersona = async () => {
@@ -80,15 +95,7 @@ export default function EditPersonaPage() {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      await deletePersona({ id: personaId as Id<"personas"> });
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to delete persona:", error);
-    } finally {
-      setIsLoading(false);
-    }
+    await deletePersona({ id: personaId as Id<"personas"> });
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -137,7 +144,7 @@ export default function EditPersonaPage() {
           variant="destructive"
           onClick={handleDeletePersona}
         >
-          Delete Persona
+          {isDeleting ? "Deleting..." : "Delete Persona"}
         </Button>
         <div className="flex gap-3">
           <Button
@@ -154,7 +161,7 @@ export default function EditPersonaPage() {
             variant="default"
             onClick={handleUpdatePersona}
           >
-            {isLoading ? "Saving..." : "Save Changes"}
+            {isUpdating ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>

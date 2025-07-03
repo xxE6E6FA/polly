@@ -31,7 +31,7 @@ type AuthError = {
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const authToken = useAuthToken();
-  const authenticatedUser = useQuery(api.users.getCurrentUser);
+  const authenticatedUser = useQuery(api.users.current);
   const graduateOrMergeUser = useMutation(
     api.users.graduateOrMergeAnonymousUser
   );

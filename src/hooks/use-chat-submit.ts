@@ -12,15 +12,16 @@ import { useCallback, useMemo } from "react";
 import { useNavigate, type NavigateFunction } from "react-router";
 import { useAction } from "convex/react";
 
+import { useCreateConversation } from "@/hooks/use-conversations";
 import {
-  useCreateConversation,
   type CreateConversationParams,
-} from "@/hooks/use-conversations";
+  type Attachment,
+  type ConversationId,
+  type ReasoningConfig,
+} from "@/types";
 import { useUser } from "@/hooks/use-user";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 import { ROUTES } from "@/lib/routes";
-import { type Attachment, type ConversationId } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
@@ -209,7 +210,7 @@ export function useChatSubmit({
   const navigate = useNavigate();
   const { user } = useUser();
   const { isPrivateMode } = usePrivateMode();
-  const { createNewConversation } = useCreateConversation();
+  const { createConversation } = useCreateConversation();
   const generateConversationSummary = useAction(
     api.conversationSummary.generateConversationSummary
   );
@@ -232,7 +233,7 @@ export function useChatSubmit({
     } else {
       // Regular mode - new conversation
       return new CreateConversationStrategy(
-        createNewConversation,
+        createConversation,
         navigate,
         user?._id
       );
@@ -243,7 +244,7 @@ export function useChatSubmit({
     onSendMessageToNewConversation,
     isPrivateMode,
     navigate,
-    createNewConversation,
+    createConversation,
     user?._id,
   ]);
 
