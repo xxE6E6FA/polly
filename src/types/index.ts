@@ -1,16 +1,30 @@
 import { type Doc, type Id } from "../../convex/_generated/dataModel";
 
+// ============================================================================
+// CONVEX GENERATED TYPES RE-EXPORTS
+// ============================================================================
+
+export type { Doc, Id } from "../../convex/_generated/dataModel";
+
+// ============================================================================
+// CORE ENTITY TYPES
+// ============================================================================
+
 export type User = Doc<"users">;
-
 export type Conversation = Doc<"conversations">;
-
 export type Message = Doc<"messages">;
 
+// ID types
 export type ConversationId = Id<"conversations">;
-
 export type MessageId = Id<"messages">;
-
 export type UserId = Id<"users">;
+
+// ============================================================================
+// AI & MODEL TYPES
+// ============================================================================
+
+export type AIModel = Doc<"userModels">;
+export type AIProviderType = "openai" | "anthropic" | "google" | "openrouter";
 
 export type AIProvider = {
   id: string;
@@ -20,8 +34,6 @@ export type AIProvider = {
   supportsImages: boolean;
   supportsStreaming: boolean;
 };
-
-export type AIModel = Doc<"userModels">;
 
 export type OpenRouterModel = {
   id: string;
@@ -49,11 +61,9 @@ export type OpenRouterModel = {
   per_request_limits?: Record<string, unknown>;
 };
 
-// Provider-specific model interfaces for handling different API responses
-
 export type GeminiApiModel = {
-  name: string; // E.g., "models/gemini-1.5-pro"
-  baseModelId: string; // E.g., "gemini-1.5-pro"
+  name: string;
+  baseModelId: string;
   version: string;
   displayName?: string;
   description?: string;
@@ -66,11 +76,35 @@ export type GeminiApiModel = {
   topK?: number;
 };
 
+export type ModelCapability = {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  description: string;
+};
+
+// ============================================================================
+// REASONING CONFIGURATION TYPES
+// ============================================================================
+
+export type ReasoningEffortLevel = "low" | "medium" | "high";
+
+export type ReasoningConfig = {
+  enabled: boolean;
+  effort?: ReasoningEffortLevel;
+  maxTokens?: number;
+};
+
+// ============================================================================
+// CHAT & MESSAGING TYPES
+// ============================================================================
+
+export type MessageRole = "user" | "assistant" | "system" | "context";
+
 export type ChatMessage = {
   id: string;
-  role: "user" | "assistant" | "system" | "context";
+  role: MessageRole;
   content: string;
-  reasoning?: string; // Internal reasoning/thinking tokens
+  reasoning?: string;
   model?: string;
   provider?: string;
   parentId?: string;
@@ -78,7 +112,7 @@ export type ChatMessage = {
   sourceConversationId?: ConversationId;
   useWebSearch?: boolean;
   attachments?: Attachment[];
-  citations?: WebSearchCitation[]; // Web search citations
+  citations?: WebSearchCitation[];
   metadata?: {
     tokenCount?: number;
     reasoningTokenCount?: number;
@@ -97,14 +131,126 @@ export type Attachment = {
   url: string;
   name: string;
   size: number;
-  content?: string; // For text files, we'll store the actual text content
-  thumbnail?: string; // For images, we'll store a small thumbnail for preview
-  storageId?: Id<"_storage">; // Convex storage ID for files uploaded to Convex storage
-  mimeType?: string; // MIME type for binary files in private mode
-  language?: string; // Programming language for text files (e.g., "javascript", "python")
+  content?: string;
+  thumbnail?: string;
+  storageId?: Id<"_storage">;
+  mimeType?: string;
+  language?: string;
 };
 
-// Web Search Types
+// ============================================================================
+// CHAT STRATEGY TYPES
+// ============================================================================
+
+export interface SendMessageParams {
+  content: string;
+  attachments?: Attachment[];
+  useWebSearch?: boolean;
+  personaId?: Id<"personas"> | null;
+  reasoningConfig?: ReasoningConfig;
+  personaPrompt?: string | null;
+}
+
+export interface ChatStrategy {
+  sendMessage(params: SendMessageParams): Promise<void>;
+  stopGeneration(): void;
+  deleteMessage(messageId: string): Promise<void>;
+  editMessage(messageId: string, content: string): Promise<void>;
+  getMessages(): ChatMessage[];
+  isStreaming?(): boolean;
+  isLoading(): boolean;
+  initialize?(): void;
+  cleanup?(): void;
+}
+
+export interface ChatStrategyOptions {
+  conversationId?: ConversationId;
+  userId?: Id<"users">;
+  onError?: (error: Error) => void;
+  onConversationCreate?: (conversationId: ConversationId) => void;
+  onStreamingStateChange?: (isStreaming: boolean) => void;
+  initialMessage?: string;
+  initialAttachments?: Attachment[];
+  initialUseWebSearch?: boolean;
+  initialPersonaId?: Id<"personas">;
+  initialReasoningConfig?: ReasoningConfig;
+}
+
+export type ChatMode = "regular" | "private";
+
+export type CreateConversationParams = {
+  firstMessage: string;
+  sourceConversationId?: ConversationId;
+  personaId?: Id<"personas"> | null;
+  userId?: Id<"users">;
+  attachments?: Attachment[];
+  useWebSearch?: boolean;
+  personaPrompt?: string | null;
+  generateTitle?: boolean;
+  reasoningConfig?: ReasoningConfig;
+  contextSummary?: string;
+};
+
+// ============================================================================
+// STREAMING TYPES
+// ============================================================================
+
+export type StreamOptions = {
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  reasoningConfig?: ReasoningConfig;
+};
+
+export type StreamCallbacks = {
+  onContent: (content: string) => void;
+  onReasoning?: (reasoning: string) => void;
+  onCitations?: (citations: WebSearchCitation[]) => void;
+  onFinish: (finishReason: string) => void;
+  onError: (error: Error) => void;
+};
+
+export type ChatStreamRequest = {
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    attachments?: Attachment[];
+  }>;
+  model: string;
+  provider: AIProviderType;
+  apiKeys: APIKeys;
+  options?: StreamOptions;
+  callbacks: StreamCallbacks;
+};
+
+// ============================================================================
+// ANTHROPIC CLIENT TYPES
+// ============================================================================
+
+export interface AnthropicStreamOptions {
+  messages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    attachments?: Attachment[];
+  }>;
+  model: string;
+  apiKey: string;
+  temperature?: number;
+  maxTokens?: number;
+  topP?: number;
+  reasoningConfig?: {
+    effort?: "low" | "medium" | "high";
+    maxTokens?: number;
+  };
+  abortSignal?: AbortSignal;
+  callbacks: StreamCallbacks;
+}
+
+// ============================================================================
+// SEARCH & CITATION TYPES
+// ============================================================================
 
 export type WebSearchCitation = {
   type: "url_citation";
@@ -112,13 +258,17 @@ export type WebSearchCitation = {
   title: string;
   cited_text?: string;
   snippet?: string;
-  description?: string; // OpenGraph description or meta description
-  image?: string; // OpenGraph image or thumbnail URL
-  favicon?: string; // Website favicon URL
-  siteName?: string; // Website name (e.g., "GitHub", "Stack Overflow")
-  publishedDate?: string; // Article publish date if available
-  author?: string; // Author information if available
+  description?: string;
+  image?: string;
+  favicon?: string;
+  siteName?: string;
+  publishedDate?: string;
+  author?: string;
 };
+
+// ============================================================================
+// API KEYS TYPES
+// ============================================================================
 
 export type APIKeys = {
   openai?: string;
@@ -127,4 +277,98 @@ export type APIKeys = {
   openrouter?: string;
 };
 
-export type MessageRole = "user" | "assistant" | "system" | "context";
+// ============================================================================
+// EXPORT TYPES
+// ============================================================================
+
+export type ExportData = {
+  conversation: Doc<"conversations">;
+  messages: Doc<"messages">[];
+};
+
+// ============================================================================
+// ROUTE TYPES
+// ============================================================================
+
+export type RouteParams = {
+  conversationId?: string;
+  shareId?: string;
+  id?: string;
+};
+
+// ============================================================================
+// UI COMPONENT TYPES
+// ============================================================================
+
+export interface CodeBlockMatch {
+  language: string;
+  code: string;
+  fullMatch: string;
+  start: number;
+  end: number;
+}
+
+export type FileUploadProgress = {
+  file: File;
+  progress: number;
+  status: "pending" | "uploading" | "processing" | "complete" | "error";
+  error?: string;
+  attachment?: Attachment;
+};
+
+// ============================================================================
+// CONVEX ACTION RESULT TYPES
+// ============================================================================
+
+export type CreateConversationResult = {
+  conversationId: ConversationId;
+  userId: UserId;
+  isNewUser: boolean;
+};
+
+export type GetOrCreateUserResult = {
+  userId: UserId;
+  isNewUser: boolean;
+};
+
+export type CreateMessageResult = {
+  userMessageId: Id<"messages">;
+  assistantMessageId: Id<"messages">;
+};
+
+export type FetchedModel = {
+  modelId: string;
+  name: string;
+  provider: string;
+  contextWindow: number;
+  supportsReasoning: boolean;
+  supportsTools: boolean;
+  supportsImages: boolean;
+  supportsFiles: boolean;
+};
+
+export type CreateConversationArgs = {
+  userId?: UserId;
+  firstMessage: string;
+  sourceConversationId?: ConversationId;
+  personaId?: Id<"personas">;
+  personaPrompt?: string;
+  attachments?: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+    mimeType?: string;
+  }>;
+  useWebSearch?: boolean;
+  generateTitle?: boolean;
+  reasoningConfig?: {
+    enabled: boolean;
+    effort: "low" | "medium" | "high";
+    maxTokens: number;
+  };
+  contextSummary?: string;
+};

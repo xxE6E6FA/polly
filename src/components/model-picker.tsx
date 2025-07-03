@@ -11,7 +11,8 @@ import {
   MagnifyingGlassIcon,
   WarningIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
 
 import { ProviderIcon } from "@/components/provider-icons";
 import { Backdrop } from "@/components/ui/backdrop";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/popover";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { useUserModels } from "@/hooks/use-user-models";
 import { useUser } from "@/hooks/use-user";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
 import { getModelCapabilities } from "@/lib/model-capabilities";
@@ -208,9 +210,8 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const navigate = useNavigate();
   const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
 
-  const userModelsByProvider = useQuery(api.userModels.getUserModelsByProvider);
-  const selectedModel = useSelectedModel();
-  const hasEnabledModels = useQuery(api.userModels.hasUserModels);
+  const { userModelsByProvider, hasUserModels } = useUserModels();
+  const { selectedModel, selectModelOptimistically } = useSelectedModel();
   const selectModelMutation = useMutation(api.userModels.selectModel);
 
   // Check if user is authenticated
@@ -238,18 +239,45 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
 
   // Handle model selection
   const handleSelect = useCallback(
-    (modelId: string) => {
-      selectModelMutation({ modelId });
+    async (modelId: string) => {
+      // Close popover immediately for better UX
       setOpen(false);
+
+      // Find the selected model data for optimistic update
+      const selectedModelData = userModelsByProvider
+        ?.flatMap((provider: { models: AIModel[] }) => provider.models)
+        .find((model: AIModel) => model.modelId === modelId);
+
+      // Trigger optimistic update immediately
+      if (selectedModelData) {
+        selectModelOptimistically(modelId, selectedModelData);
+      }
+
+      try {
+        // Trigger the mutation
+        await selectModelMutation({ modelId });
+      } catch (error) {
+        console.error("Failed to select model:", error);
+
+        // Show user-friendly error message
+        toast.error("Failed to select model", {
+          description: "Unable to change the selected model. Please try again.",
+        });
+      } finally {
+        // Always dispatch the event to refresh cache, regardless of success or failure
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("user-models-changed"));
+        }
+      }
     },
-    [selectModelMutation]
+    [selectModelMutation, userModelsByProvider, selectModelOptimistically]
   );
 
-  // Show loading state - only if both selectedModel and hasEnabledModels are still loading
+  // Show loading state - only if both selectedModel and hasUserModels are still loading
   if (
     !selectedModel &&
     !userModelsByProvider &&
-    hasEnabledModels === undefined &&
+    hasUserModels === undefined &&
     isAuthenticated
   ) {
     return (
@@ -496,36 +524,42 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
                   </p>
                 </div>
               ) : (
-                userModelsByProvider?.map((provider, providerIndex) => {
-                  const providerConfig =
-                    PROVIDER_CONFIG[
-                      provider.id as keyof typeof PROVIDER_CONFIG
-                    ];
-                  const providerTitle = providerConfig?.title || provider.name;
-                  const providerIcon = providerConfig?.icon || provider.id;
+                userModelsByProvider?.map(
+                  (
+                    provider: { id: string; name: string; models: AIModel[] },
+                    providerIndex: number
+                  ) => {
+                    const providerConfig =
+                      PROVIDER_CONFIG[
+                        provider.id as keyof typeof PROVIDER_CONFIG
+                      ];
+                    const providerTitle =
+                      providerConfig?.title || provider.name;
+                    const providerIcon = providerConfig?.icon || provider.id;
 
-                  return (
-                    <CommandGroup key={provider.id}>
-                      <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
-                        <EnhancedProviderIcon provider={providerIcon} />
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {providerTitle}
-                        </span>
-                      </div>
-                      {provider.models.map(model => (
-                        <ModelItem
-                          key={model.modelId}
-                          model={model}
-                          onSelect={handleSelect}
-                          hasReachedPollyLimit={hasReachedPollyLimit ?? false}
-                        />
-                      ))}
-                      {providerIndex < userModelsByProvider.length - 1 && (
-                        <div className="mx-2 my-1.5 h-px bg-border/50" />
-                      )}
-                    </CommandGroup>
-                  );
-                }) || []
+                    return (
+                      <CommandGroup key={provider.id}>
+                        <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
+                          <EnhancedProviderIcon provider={providerIcon} />
+                          <span className="text-xs font-medium text-muted-foreground">
+                            {providerTitle}
+                          </span>
+                        </div>
+                        {provider.models.map((model: AIModel) => (
+                          <ModelItem
+                            key={model.modelId}
+                            model={model}
+                            onSelect={handleSelect}
+                            hasReachedPollyLimit={hasReachedPollyLimit ?? false}
+                          />
+                        ))}
+                        {providerIndex < userModelsByProvider.length - 1 && (
+                          <div className="mx-2 my-1.5 h-px bg-border/50" />
+                        )}
+                      </CommandGroup>
+                    );
+                  }
+                ) || []
               )}
             </CommandList>
           </Command>

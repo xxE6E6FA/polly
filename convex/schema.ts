@@ -22,11 +22,12 @@ export default defineSchema({
     isAnonymous: v.optional(v.boolean()),
     messagesSent: v.optional(v.number()), // Total messages sent (for anonymous user limits)
     createdAt: v.optional(v.number()),
-    // Monthly message limit tracking for signed-in users
-    monthlyMessagesSent: v.optional(v.number()), // Messages sent in current month
-    monthlyLimit: v.optional(v.number()), // Monthly limit (default from MONTHLY_MESSAGE_LIMIT constant)
-    lastMonthlyReset: v.optional(v.number()), // Last reset timestamp
-    hasUnlimitedCalls: v.optional(v.boolean()), // Flag for unlimited calls
+    monthlyMessagesSent: v.optional(v.number()),
+    monthlyLimit: v.optional(v.number()),
+    lastMonthlyReset: v.optional(v.number()),
+    hasUnlimitedCalls: v.optional(v.boolean()),
+    conversationCount: v.optional(v.number()),
+    totalMessageCount: v.optional(v.number()),
   }).index("email", ["email"]),
 
   accounts: defineTable({
@@ -59,7 +60,13 @@ export default defineSchema({
     isArchived: v.optional(v.boolean()), // New field for archiving
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    // Optimized indexes for common queries
+    .index("by_user_recent", ["userId", "updatedAt"]) // For recent conversations
+    .index("by_user_pinned", ["userId", "isPinned", "updatedAt"]) // For pinned conversations
+    .index("by_user_archived", ["userId", "isArchived", "updatedAt"]) // For archived conversations
+    .index("by_created_at", ["createdAt"]), // For cleanup operations
 
   sharedConversations: defineTable({
     shareId: v.string(),
@@ -92,7 +99,15 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])
-    .index("by_parent", ["parentId"]),
+    .index("by_parent", ["parentId"])
+    // Add optimized indexes for common query patterns
+    .index("by_conversation_main_branch", [
+      "conversationId",
+      "isMainBranch",
+      "createdAt",
+    ])
+    .index("by_conversation_role", ["conversationId", "role", "createdAt"])
+    .index("by_created_at", ["createdAt"]), // For cleanup operations
 
   userApiKeys: defineTable({
     userId: v.id("users"),
@@ -168,6 +183,9 @@ export default defineSchema({
       )
     ), // OpenRouter provider sorting preference
     anonymizeForDemo: v.optional(v.boolean()), // Blur user info for video demos
+    // Conversation archiving settings
+    autoArchiveEnabled: v.optional(v.boolean()), // Whether to automatically archive old conversations
+    autoArchiveDays: v.optional(v.number()), // Number of days after which to archive conversations
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

@@ -73,7 +73,11 @@ export const ConversationList = ({
 
   // Update cache when conversations list changes
   useEffect(() => {
-    if (conversations && conversations.length > 0) {
+    if (
+      conversations &&
+      Array.isArray(conversations) &&
+      conversations.length > 0
+    ) {
       setCachedConversations(conversations);
     }
   }, [conversations]);
@@ -86,7 +90,9 @@ export const ConversationList = ({
   }, [currentConversation]);
 
   // Determine what data to display
-  const conversationsToDisplay = conversations || cachedConversations || [];
+  const conversationsToDisplay = Array.isArray(conversations)
+    ? conversations
+    : cachedConversations || [];
 
   // Check if we're loading fresh data
   const isLoadingFreshData =

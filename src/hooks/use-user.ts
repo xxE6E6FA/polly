@@ -1,12 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import {
-  type Preloaded,
-  useAction,
-  useMutation,
-  usePreloadedQuery,
-  useQuery,
-} from "convex/react";
+import { type Preloaded, useMutation, usePreloadedQuery } from "convex/react";
 
 import { api } from "../../convex/_generated/api";
 import {
@@ -21,6 +15,7 @@ import {
   setCachedUser,
 } from "../lib/user-cache";
 import { type User, type UserId } from "../types";
+import { useConvexWithOptimizedCache } from "./use-convex-cache";
 
 // Keep in sync with server-side ANONYMOUS_MESSAGE_LIMIT in convex/users.ts
 const ANONYMOUS_MESSAGE_LIMIT = 10;
@@ -46,8 +41,6 @@ type UseUserReturn = {
   isHydrated?: boolean;
 };
 
-// Helper function to compute user properties consistently
-
 function computeUserProperties(
   user: User | null,
   messageCount: number | undefined,
@@ -64,62 +57,59 @@ function computeUserProperties(
   hasUserApiKeys: boolean | undefined,
   isLoading: boolean
 ): Omit<UseUserReturn, "user"> {
-  const isAnonymous = user?.isAnonymous ?? true;
+  const isAnonymous = !user || user.isAnonymous;
+  const effectiveMessageCount = messageCount ?? 0;
 
+  // For anonymous users
   if (isAnonymous) {
-    // Anonymous users: use existing logic
-    const actualMessageCount = messageCount ?? 0;
     const remainingMessages = Math.max(
       0,
-      ANONYMOUS_MESSAGE_LIMIT - actualMessageCount
+      ANONYMOUS_MESSAGE_LIMIT - effectiveMessageCount
     );
-    const hasMessageLimit = true;
-    const canSendMessage = actualMessageCount < ANONYMOUS_MESSAGE_LIMIT;
-
     return {
-      messageCount: actualMessageCount,
+      messageCount: effectiveMessageCount,
       remainingMessages,
-      isAnonymous,
-      hasMessageLimit,
-      canSendMessage,
+      isAnonymous: true,
+      hasMessageLimit: true,
+      canSendMessage: remainingMessages > 0,
       isLoading,
-      hasUnlimitedCalls: false, // Anonymous users never have unlimited calls
+      hasUnlimitedCalls: false,
+      isHydrated: !isLoading,
     };
   }
-  // Authenticated users: use monthly limits
-  const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
-  const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-  const monthlyRemaining = Math.max(0, monthlyLimit - monthlyMessagesSent);
 
-  // Can send message if has unlimited calls OR under monthly limit OR has BYOK models available
-  const canSendMessage = Boolean(
-    user?.hasUnlimitedCalls || monthlyRemaining > 0 || hasUserApiKeys
-  );
+  // For authenticated users
+  const hasUnlimitedCalls = Boolean(user.hasUnlimitedCalls);
+  const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+  const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
+  const remainingMessages = hasUnlimitedCalls
+    ? Number.MAX_SAFE_INTEGER
+    : Math.max(0, monthlyLimit - monthlyMessagesSent);
 
   return {
-    messageCount: 0, // Not relevant for authenticated users
-    remainingMessages: user?.hasUnlimitedCalls ? -1 : monthlyRemaining, // -1 indicates unlimited
-    isAnonymous,
-    hasMessageLimit: !user?.hasUnlimitedCalls,
-    canSendMessage,
+    messageCount: effectiveMessageCount,
+    remainingMessages,
+    isAnonymous: false,
+    hasMessageLimit: !hasUnlimitedCalls,
+    canSendMessage: hasUnlimitedCalls || remainingMessages > 0,
     isLoading,
-    monthlyUsage: monthlyUsage || undefined,
+    monthlyUsage: monthlyUsage
+      ? {
+          monthlyMessagesSent,
+          monthlyLimit,
+          remainingMessages,
+          resetDate: monthlyUsage.resetDate,
+          needsReset: monthlyUsage.needsReset,
+        }
+      : undefined,
     hasUserApiKeys,
-    hasUnlimitedCalls: user?.hasUnlimitedCalls || false,
+    hasUnlimitedCalls,
+    isHydrated: !isLoading,
   };
 }
 
 // Main unified user hook - works for both authenticated and anonymous users
-
 export function useUserData(): UseUserReturn {
-  // Initialize with cached data for instant rendering
-  const [cachedData] = useState(() => {
-    return getCachedUserData();
-  });
-
-  // First try to get authenticated user via Convex Auth
-  const authenticatedUser = useQuery(api.users.getCurrentUser);
-
   // Get anonymous user ID from storage for fallback
   const [storedAnonymousUserId, setStoredAnonymousUserId] =
     useState<UserId | null>(() => {
@@ -133,7 +123,148 @@ export function useUserData(): UseUserReturn {
     });
   }, []);
 
-  // Listen for graduation completion event and clear anonymous user state
+  // Migration helpers
+  const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
+  const initializeMonthlyLimits = useMutation(
+    api.users.initializeMonthlyLimits
+  );
+
+  // Use optimized cache for authenticated user
+  const { data: authenticatedUser, isLoading: isLoadingAuth } =
+    useConvexWithOptimizedCache(
+      api.users.current,
+      {},
+      {
+        queryKey: "currentUser",
+        getCachedData: () => getCachedUserData()?.user || null,
+        setCachedData: user => {
+          if (user) {
+            const cached = getCachedUserData();
+            setCachedUser(
+              user,
+              cached?.messageCount,
+              cached?.monthlyUsage,
+              cached?.hasUserApiKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
+  // Use optimized cache for anonymous user
+  const { data: anonymousUser, isLoading: isLoadingAnon } =
+    useConvexWithOptimizedCache(
+      api.users.getById,
+      !authenticatedUser && storedAnonymousUserId
+        ? { id: storedAnonymousUserId }
+        : "skip",
+      {
+        queryKey: ["anonymousUser", storedAnonymousUserId || ""],
+        getCachedData: () => {
+          const cached = getCachedUserData();
+          return cached?.user?.isAnonymous ? cached.user : null;
+        },
+        setCachedData: user => {
+          if (user?.isAnonymous) {
+            const cached = getCachedUserData();
+            setCachedUser(
+              user,
+              cached?.messageCount,
+              cached?.monthlyUsage,
+              cached?.hasUserApiKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
+  // Determine current user
+  const currentUser: User | null = useMemo(() => {
+    if (authenticatedUser) return authenticatedUser;
+    if (anonymousUser && storedAnonymousUserId) return anonymousUser;
+    return null;
+  }, [authenticatedUser, anonymousUser, storedAnonymousUserId]);
+
+  // Use optimized cache for message count
+  const currentUserId = currentUser?._id || null;
+  const { data: messageCount, isLoading: isLoadingMessageCount } =
+    useConvexWithOptimizedCache(
+      api.users.getMessageCount,
+      currentUserId ? { userId: currentUserId } : "skip",
+      {
+        queryKey: ["messageCount", currentUserId || ""],
+        getCachedData: () => getCachedUserData()?.messageCount ?? null,
+        setCachedData: count => {
+          if (currentUser && typeof count === "number") {
+            const cached = getCachedUserData();
+            setCachedUser(
+              currentUser,
+              count,
+              cached?.monthlyUsage,
+              cached?.hasUserApiKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
+  // Use optimized cache for monthly usage
+  const { data: monthlyUsage, isLoading: isLoadingMonthlyUsage } =
+    useConvexWithOptimizedCache(
+      api.users.getMonthlyUsage,
+      authenticatedUser && !authenticatedUser.isAnonymous
+        ? { userId: authenticatedUser._id }
+        : "skip",
+      {
+        queryKey: ["monthlyUsage", authenticatedUser?._id || ""],
+        getCachedData: () => getCachedUserData()?.monthlyUsage ?? null,
+        setCachedData: usage => {
+          if (currentUser && usage) {
+            const cached = getCachedUserData();
+            setCachedUser(
+              currentUser,
+              cached?.messageCount,
+              usage,
+              cached?.hasUserApiKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
+  // Use optimized cache for API keys
+  const { data: hasUserApiKeys, isLoading: isLoadingApiKeys } =
+    useConvexWithOptimizedCache(
+      api.users.hasUserApiKeys,
+      authenticatedUser && !authenticatedUser.isAnonymous ? {} : "skip",
+      {
+        queryKey: "hasUserApiKeys",
+        getCachedData: () => getCachedUserData()?.hasUserApiKeys ?? null,
+        setCachedData: hasKeys => {
+          if (currentUser && typeof hasKeys === "boolean") {
+            const cached = getCachedUserData();
+            setCachedUser(
+              currentUser,
+              cached?.messageCount,
+              cached?.monthlyUsage,
+              hasKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
+  // Handle user graduation event cleanup
   useEffect(() => {
     const handleGraduationComplete = () => {
       setStoredAnonymousUserId(null);
@@ -146,52 +277,7 @@ export function useUserData(): UseUserReturn {
     };
   }, []);
 
-  // Migration helpers
-  const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
-  const initializeMonthlyLimits = useMutation(
-    api.users.initializeMonthlyLimits
-  );
-
-  // Query anonymous user data if no authenticated user and we have a stored ID
-  const anonymousUser = useQuery(
-    api.users.getById,
-    !authenticatedUser && storedAnonymousUserId
-      ? { id: storedAnonymousUserId }
-      : "skip"
-  );
-
-  // Get message count for the current user
-  const currentUserId = authenticatedUser?._id || anonymousUser?._id || null;
-  const messageCount = useQuery(
-    api.users.getMessageCount,
-    currentUserId ? { userId: currentUserId } : "skip"
-  );
-
-  // Get monthly usage for authenticated users
-  const monthlyUsage = useQuery(
-    api.users.getMonthlyUsage,
-    authenticatedUser && !authenticatedUser.isAnonymous
-      ? { userId: authenticatedUser._id }
-      : "skip"
-  );
-
-  // Check if user has API keys for BYOK models
-  const hasUserApiKeys = useQuery(
-    api.users.hasUserApiKeys,
-    authenticatedUser && !authenticatedUser.isAnonymous ? {} : "skip"
-  );
-
-  // Determine which user to use (authenticated takes priority)
-  const currentUser: User | null = useMemo(() => {
-    if (authenticatedUser) {
-      return authenticatedUser;
-    }
-    if (anonymousUser && storedAnonymousUserId) {
-      return anonymousUser;
-    }
-    return null;
-  }, [authenticatedUser, anonymousUser, storedAnonymousUserId]);
-
+  // Initialize missing data
   useEffect(() => {
     if (currentUser && currentUser.messagesSent === undefined) {
       initializeMessagesSent({ userId: currentUser._id });
@@ -204,80 +290,42 @@ export function useUserData(): UseUserReturn {
     }
   }, [currentUser, initializeMonthlyLimits]);
 
-  // Update cache when user data changes
-  useEffect(() => {
-    if (currentUser) {
-      // Extract only the fields we need for caching
-      const cacheableMonthlyUsage = monthlyUsage
-        ? {
-            monthlyMessagesSent: monthlyUsage.monthlyMessagesSent,
-            monthlyLimit: monthlyUsage.monthlyLimit,
-            remainingMessages: monthlyUsage.remainingMessages,
-            resetDate: monthlyUsage.resetDate,
-            needsReset: monthlyUsage.needsReset,
-          }
-        : undefined;
-
-      setCachedUser(
-        currentUser,
-        messageCount,
-        cacheableMonthlyUsage,
-        hasUserApiKeys
-      );
-    } else if (authenticatedUser === null && !storedAnonymousUserId) {
-      // Clear cache when logged out
-      clearUserCache();
-    }
-  }, [
-    currentUser,
-    messageCount,
-    monthlyUsage,
-    hasUserApiKeys,
-    authenticatedUser,
-    storedAnonymousUserId,
-  ]);
-
   // Determine loading state
   const isLoading = useMemo(() => {
-    // If authenticated user query is still pending
-    if (authenticatedUser === undefined) {
+    if (isLoadingAuth) return true;
+    if (!authenticatedUser && storedAnonymousUserId && isLoadingAnon)
       return true;
-    }
-
-    // If we have no authenticated user but have a stored anonymous ID and that query is still pending
+    if (currentUserId && isLoadingMessageCount) return true;
     if (
-      authenticatedUser === null &&
-      storedAnonymousUserId &&
-      anonymousUser === undefined
-    ) {
+      authenticatedUser &&
+      !authenticatedUser.isAnonymous &&
+      isLoadingMonthlyUsage
+    )
       return true;
-    }
-
-    // If we have no authenticated user and no stored anonymous user ID, we're not loading
-    // (we'll wait for user to start a conversation to create anonymous user)
-    if (authenticatedUser === null && !storedAnonymousUserId) {
-      return false;
-    }
-
+    if (authenticatedUser && !authenticatedUser.isAnonymous && isLoadingApiKeys)
+      return true;
     return false;
-  }, [authenticatedUser, anonymousUser, storedAnonymousUserId]);
-
-  // Use cached data while loading
-  const effectiveUser = currentUser || cachedData?.user || null;
-  const effectiveMessageCount = messageCount ?? cachedData?.messageCount;
-  const effectiveMonthlyUsage = monthlyUsage ?? cachedData?.monthlyUsage;
-  const effectiveHasUserApiKeys = hasUserApiKeys ?? cachedData?.hasUserApiKeys;
+  }, [
+    isLoadingAuth,
+    isLoadingAnon,
+    isLoadingMessageCount,
+    isLoadingMonthlyUsage,
+    isLoadingApiKeys,
+    authenticatedUser,
+    storedAnonymousUserId,
+    currentUserId,
+  ]);
 
   const userProperties = computeUserProperties(
-    effectiveUser,
-    effectiveMessageCount,
-    effectiveMonthlyUsage,
-    effectiveHasUserApiKeys,
+    currentUser,
+    messageCount ?? undefined,
+    monthlyUsage,
+    hasUserApiKeys ?? undefined,
     isLoading
   );
 
   return {
-    user: effectiveUser,
+    user: currentUser,
     ...userProperties,
   };
 }
@@ -315,45 +363,10 @@ export function usePreloadedUser(
   };
 }
 
-// Export the centralized storeAnonymousUserId function
-export const storeAnonymousUserId = storeUserId;
-
-// Hook for ensuring a user exists (creates anonymous user if needed and not authenticated)
-
-export function useEnsureUser() {
-  const getOrCreateUser = useAction(api.conversations.getOrCreateUser);
-  const [isEnsuring, setIsEnsuring] = useState(false);
-  const { user } = useUserData();
-
-  const ensureUser = useCallback(
-    async (existingUserId?: UserId) => {
-      // If we already have an authenticated user, return their ID
-      if (user && !user.isAnonymous) {
-        return user._id;
-      }
-
-      setIsEnsuring(true);
-      try {
-        const result = await getOrCreateUser({
-          userId: existingUserId || user?._id,
-        });
-
-        // If a new anonymous user was created, store it
-        if (result.isNewUser) {
-          storeAnonymousUserId(result.userId);
-        }
-
-        return result.userId;
-      } finally {
-        setIsEnsuring(false);
-      }
-    },
-    [getOrCreateUser, user]
-  );
-
-  return { ensureUser, isEnsuring };
+// Main hook alias for backward compatibility
+export function useUser() {
+  return useUserData();
 }
 
-// Re-export useUser from provider to make migration easier
-// This avoids having to update all imports across the codebase
-export { useUser } from "../providers/user-provider";
+// Helper function for storing anonymous user ID
+export const storeAnonymousUserId = storeUserId;

@@ -202,7 +202,7 @@ export const ChatZeroState = () => {
   const queryUserId = useQueryUserId();
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
-  const { createNewConversation } = useCreateConversation();
+  const { createConversation } = useCreateConversation();
   const navigate = useNavigate();
 
   // Track if we're on mobile
@@ -239,7 +239,7 @@ export const ChatZeroState = () => {
         targetInput.focus();
       } else {
         // Fallback: create conversation directly
-        const conversationId = await createNewConversation({
+        const conversationId = await createConversation({
           firstMessage: prompt,
           userId: queryUserId || undefined,
           generateTitle: true,
@@ -249,7 +249,7 @@ export const ChatZeroState = () => {
         }
       }
     },
-    [isMobile, createNewConversation, queryUserId, navigate]
+    [isMobile, createConversation, queryUserId, navigate]
   );
 
   const chatInputProps = {

@@ -11,16 +11,17 @@ import { usePrivateMode } from "@/contexts/private-mode-context";
 import { api } from "../../convex/_generated/api";
 import { ROUTES } from "@/lib/routes";
 
-import { type ChatStrategy, type ChatMode } from "@/lib/chat/types";
-import { LocalChatStrategy } from "@/lib/chat/local-chat-strategy";
-import { type AIProvider } from "@/lib/ai/client-ai-service";
 import {
+  type ChatStrategy,
+  type ChatMode,
   type Attachment,
   type ConversationId,
   type WebSearchCitation,
   type ChatMessage,
+  type ReasoningConfig,
 } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
+import { LocalChatStrategy } from "@/lib/chat/local-chat-strategy";
+import { type AIProviderType } from "@/lib/ai/client-ai-service";
 import { type Id } from "../../convex/_generated/dataModel";
 
 interface UseUnifiedChatOptions {
@@ -48,7 +49,7 @@ export function useUnifiedChat({
   const { user, canSendMessage } = useUser();
   const { setIsThinking } = useThinking();
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();
-  const selectedModel = useSelectedModel();
+  const { selectedModel } = useSelectedModel();
 
   // Note: API keys are loaded by ChatInput directly, no need to load them here
 
@@ -118,7 +119,7 @@ export function useUnifiedChat({
 
       getCanSendMessage: () => canSendMessage,
       getDecryptedApiKey: getDecryptedApiKey as (args: {
-        provider: AIProvider;
+        provider: AIProviderType;
       }) => Promise<string | null>,
       getPersona: async (personaId: Id<"personas">) => {
         return await convex.query(api.personas.get, { id: personaId });
@@ -214,10 +215,11 @@ export function useUnifiedChat({
         if (!strategyRef.current) return;
         await strategyRef.current.deleteMessage(messageId);
       } else {
-        await regularChat.deleteMessage(messageId);
+        // Regular chat doesn't have deleteMessage - would need to implement if needed
+        console.warn("Delete message not implemented for regular chat");
       }
     },
-    [mode, regularChat]
+    [mode]
   );
 
   const editMessage = useCallback(
@@ -381,6 +383,6 @@ export function useUnifiedChat({
 
     // For compatibility
     conversationId,
-    isLoadingMessages: regularChat.isLoadingMessages,
+    isLoadingMessages: mode === "private" ? false : regularChat.isLoading,
   };
 }

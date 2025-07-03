@@ -8,46 +8,24 @@ import { type LanguageModel } from "ai";
 import {
   ClientStreamHandler,
   convertToCoreMessages,
-  type StreamCallbacks,
 } from "./client-stream-handler";
 import { getUserFriendlyErrorMessage } from "./errors";
-import { type APIKeys, type Attachment } from "@/types";
+import {
+  type AIProviderType,
+  type StreamOptions,
+  type ChatStreamRequest,
+} from "@/types";
 import {
   getProviderReasoningConfig,
   supportsReasoning,
 } from "./provider-reasoning-config";
-import {
-  type ReasoningConfig as SharedReasoningConfig,
-  type ProviderStreamOptions,
-} from "../../../convex/lib/shared/reasoning_config";
+import { type ProviderStreamOptions } from "../../../convex/types";
 import { AnthropicClient } from "./anthropic-client";
 
-export type AIProvider = "openai" | "anthropic" | "google" | "openrouter";
-
-export type StreamOptions = {
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  reasoningConfig?: SharedReasoningConfig;
-};
-
-export type ChatStreamRequest = {
-  messages: Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-    attachments?: Attachment[];
-  }>;
-  model: string;
-  provider: AIProvider;
-  apiKeys: APIKeys;
-  options?: StreamOptions;
-  callbacks: StreamCallbacks;
-};
+export type { AIProviderType };
 
 function createLanguageModel(
-  provider: AIProvider,
+  provider: AIProviderType,
   model: string,
   apiKey: string
 ): LanguageModel {
@@ -96,7 +74,7 @@ function createLanguageModel(
 }
 
 function getProviderStreamOptions(
-  provider: AIProvider,
+  provider: AIProviderType,
   model: string,
   options?: StreamOptions
 ): ProviderStreamOptions {
@@ -107,17 +85,23 @@ function getProviderStreamOptions(
 export class ClientAIService {
   private currentStreamHandler: ClientStreamHandler | null = null;
   private currentAbortController: AbortController | null = null;
-  private static warmedUpProviders = new Set<AIProvider>();
+  private static warmedUpProviders = new Set<AIProviderType>();
 
-  static preWarmProvider(provider: AIProvider, apiKey: string): Promise<void> {
+  static preWarmProvider(
+    provider: AIProviderType,
+    apiKey: string
+  ): Promise<void> {
     return this.warmUpProvider(provider, apiKey);
   }
 
-  private static async warmUpProvider(provider: AIProvider, apiKey: string) {
+  private static async warmUpProvider(
+    provider: AIProviderType,
+    apiKey: string
+  ) {
     if (this.warmedUpProviders.has(provider)) return;
 
     try {
-      const warmUpEndpoints: Record<AIProvider, string> = {
+      const warmUpEndpoints: Record<AIProviderType, string> = {
         google: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
         openai: "https://api.openai.com/v1/models",
         anthropic: "https://api.anthropic.com/v1/models",

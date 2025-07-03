@@ -1,21 +1,11 @@
 import { v } from "convex/values";
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { ANONYMOUS_MESSAGE_LIMIT, MONTHLY_MESSAGE_LIMIT } from "./constants";
 import { getCurrentUserId } from "./lib/auth";
+import { withCache, cacheKeys, LONG_CACHE_TTL } from "./lib/cache_utils";
 
 export const current = query({
-  args: {},
-  handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
-    if (!userId) {
-      return null;
-    }
-    return await ctx.db.get(userId);
-  },
-});
-
-export const getCurrentUser = query({
   args: {},
   handler: async ctx => {
     const userId = await getCurrentUserId(ctx);
@@ -62,6 +52,8 @@ export const createAnonymous = mutation({
       isAnonymous: true,
       messagesSent: 0,
       createdAt: now,
+      conversationCount: 0,
+      totalMessageCount: 0,
     });
   },
 });
@@ -169,58 +161,121 @@ export const hasUserApiKeys = query({
   },
 });
 
-// Message limit enforcement - using constants from ./constants.ts
-
-export const incrementMessageCount = mutation({
+// Optimized atomic increment using direct patches - conditionally reads user data when isPollyProvided is not false
+export const incrementMessageCountAtomic = mutation({
   args: {
     userId: v.id("users"),
-    modelProvider: v.optional(v.string()),
     isPollyProvided: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    const now = Date.now();
 
-    if (user.isAnonymous) {
-      // Anonymous users: increment total message count
-      const currentCount = user.messagesSent || 0;
-      await ctx.db.patch(args.userId, {
-        messagesSent: currentCount + 1,
-      });
-    } else {
-      // Authenticated users: only increment monthly count for Polly-provided models
-      // Use explicit flag if provided, otherwise assume Polly-provided for backward compatibility
-      if (args.isPollyProvided !== false) {
-        const now = Date.now();
+    // For Polly-provided models, we need to check if reset is needed
+    if (args.isPollyProvided !== false) {
+      // Only read user data when we need to check monthly reset logic
+      const user = await ctx.db.get(args.userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+
+      if (user.isAnonymous) {
+        // Anonymous users: simple atomic increment
+        await ctx.db.patch(args.userId, {
+          messagesSent: (user.messagesSent || 0) + 1,
+        });
+      } else {
+        // Authenticated users: check if monthly reset is needed
         const createdAt = user.createdAt || now;
         const lastReset = user.lastMonthlyReset || createdAt;
-
-        // Calculate if we need to reset
         const lastResetDate = new Date(lastReset);
         const currentDate = new Date(now);
         const nextResetDate = new Date(lastResetDate);
         nextResetDate.setMonth(nextResetDate.getMonth() + 1);
-
         const needsReset = currentDate >= nextResetDate;
 
         if (needsReset) {
-          // Reset monthly count
+          // Reset monthly count to 1
           await ctx.db.patch(args.userId, {
             monthlyMessagesSent: 1,
             lastMonthlyReset: now,
             monthlyLimit: user.monthlyLimit || MONTHLY_MESSAGE_LIMIT,
           });
         } else {
-          // Increment monthly count
-          const currentMonthlyCount = user.monthlyMessagesSent || 0;
+          // Atomic increment monthly count
           await ctx.db.patch(args.userId, {
-            monthlyMessagesSent: currentMonthlyCount + 1,
+            monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
             monthlyLimit: user.monthlyLimit || MONTHLY_MESSAGE_LIMIT,
           });
         }
       }
+    }
+    // For BYOK models, no increment needed - unlimited usage
+  },
+});
+
+// Optimized conversation count increment - atomic operation
+export const incrementConversationCountAtomic = internalMutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    // Read current count only once, then atomic increment
+    const user = await ctx.db.get(args.userId);
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        conversationCount: (user.conversationCount || 0) + 1,
+      });
+    }
+  },
+});
+
+// Optimized total message count increment - atomic operation
+export const incrementTotalMessageCountAtomic = internalMutation({
+  args: {
+    userId: v.id("users"),
+    increment: v.optional(v.number()), // Allow custom increment amount
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        totalMessageCount:
+          (user.totalMessageCount || 0) + (args.increment || 1),
+      });
+    }
+  },
+});
+
+// Optimized total message count decrement - atomic operation
+export const decrementTotalMessageCountAtomic = internalMutation({
+  args: {
+    userId: v.id("users"),
+    decrement: v.optional(v.number()), // Allow custom decrement amount
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        totalMessageCount: Math.max(
+          0,
+          (user.totalMessageCount || 0) - (args.decrement || 1)
+        ),
+      });
+    }
+  },
+});
+
+// Optimized conversation count decrement - atomic operation
+export const decrementConversationCountAtomic = internalMutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
+      });
     }
   },
 });
@@ -382,7 +437,6 @@ export const setUnlimitedCalls = mutation({
   },
 });
 
-// Get user statistics including conversation count and message count
 export const getUserStats = query({
   args: { userId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
@@ -400,22 +454,29 @@ export const getUserStats = query({
       return null;
     }
 
-    // Get conversation count
-    const conversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
+    // If counters are not initialized, compute them once
+    let conversationCount = user.conversationCount;
+    let totalMessages = user.totalMessageCount;
 
-    // Get total message count (across all conversations)
-    let totalMessages = 0;
-    for (const conversation of conversations) {
-      const messages = await ctx.db
-        .query("messages")
-        .withIndex("by_conversation", q =>
-          q.eq("conversationId", conversation._id)
-        )
+    if (conversationCount === undefined || totalMessages === undefined) {
+      const conversations = await ctx.db
+        .query("conversations")
+        .withIndex("by_user", q => q.eq("userId", userId))
         .collect();
-      totalMessages += messages.length;
+
+      conversationCount = conversations.length;
+      totalMessages = 0;
+
+      for (const conversation of conversations) {
+        const messages = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation", q =>
+            q.eq("conversationId", conversation._id)
+          )
+          .collect();
+        // Only count user messages for totalMessages
+        totalMessages += messages.filter(m => m.role === "user").length;
+      }
     }
 
     return {
@@ -424,10 +485,75 @@ export const getUserStats = query({
       email: user.email,
       image: user.image,
       joinedAt: user.createdAt || Date.now(),
-      conversationCount: conversations.length,
+      conversationCount,
       totalMessages,
-      messagesSent: user.messagesSent || 0, // For anonymous users
+      messagesSent: user.messagesSent || 0,
+      needsCounterInitialization:
+        user.conversationCount === undefined ||
+        user.totalMessageCount === undefined,
     };
+  },
+});
+
+// Cached lightweight version - only returns essential stats
+export const getUserStatsCached = query({
+  args: { userId: v.optional(v.id("users")) },
+  handler: async (ctx, args) => {
+    let userId = args.userId;
+    if (!userId) {
+      const currentUserId = await getCurrentUserId(ctx);
+      if (!currentUserId) {
+        return null;
+      }
+      userId = currentUserId;
+    }
+
+    // Use cache for expensive stats
+    return await withCache(
+      cacheKeys.userStats(userId),
+      async () => {
+        const user = await ctx.db.get(userId);
+        if (!user || user.isAnonymous) {
+          return null;
+        }
+
+        // Return only the pre-computed stats (fast)
+        return {
+          userId,
+          name: user.name,
+          conversationCount: user.conversationCount || 0,
+          totalMessages: user.totalMessageCount || 0,
+          messagesSent: user.messagesSent || 0,
+        };
+      },
+      LONG_CACHE_TTL
+    );
+  },
+});
+
+export const initializeUserStatsCounters = mutation({
+  args: {
+    userId: v.id("users"),
+    conversationCount: v.number(),
+    totalMessageCount: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user || user.isAnonymous) {
+      return;
+    }
+
+    if (
+      user.conversationCount !== undefined &&
+      user.totalMessageCount !== undefined
+    ) {
+      return;
+    }
+
+    await ctx.db.patch(args.userId, {
+      conversationCount: args.conversationCount,
+      totalMessageCount: args.totalMessageCount,
+    });
   },
 });
 

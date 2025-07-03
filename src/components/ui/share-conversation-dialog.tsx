@@ -50,10 +50,11 @@ export const ShareConversationDialog = ({
   const [shareUrl, setShareUrl] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
-  // Get current sharing status
-  const sharedStatus = useQuery(api.sharedConversations.getSharedStatus, {
-    conversationId,
-  });
+  // Get current sharing status (only when dialog is open)
+  const sharedStatus = useQuery(
+    api.sharedConversations.getSharedStatus,
+    isOpen ? { conversationId } : "skip"
+  );
 
   // Mutations
   const shareConversation = useMutation(

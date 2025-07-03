@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WindowVirtualizer } from "virtua";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
+import { useOptimisticModelToggle } from "@/hooks/use-optimistic-toggles";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 
 import { api } from "../../convex/_generated/api";
@@ -177,7 +178,9 @@ export const VirtualizedModelList = memo(
       api.userModels.getUserModels,
       authenticatedUserId ? { userId: authenticatedUserId } : {}
     );
-    const toggleModel = useMutation(api.userModels.toggleModel);
+
+    // Use optimistic toggle for immediate UI feedback
+    const { mutate: toggleModelOptimistic } = useOptimisticModelToggle();
 
     // Memoize enabled models lookup for better performance
     const enabledModelsLookup = useMemo(() => {
@@ -188,7 +191,7 @@ export const VirtualizedModelList = memo(
     }, [enabledModels]);
 
     const onToggleModel = useCallback(
-      async (model: BaseModel) => {
+      (model: BaseModel) => {
         // Convert BaseModel to the exact format expected by the mutation validator
         const modelData = {
           modelId: model.modelId,
@@ -201,9 +204,16 @@ export const VirtualizedModelList = memo(
           supportsReasoning: model.supportsReasoning || false,
           inputModalities: model.inputModalities,
         };
-        await toggleModel({ modelId: model.modelId, modelData });
+
+        // Use optimistic mutation for immediate feedback
+        toggleModelOptimistic({ modelId: model.modelId, modelData });
+
+        // Dispatch event to notify hooks to refresh
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("user-models-changed"));
+        }
       },
-      [toggleModel]
+      [toggleModelOptimistic]
     );
 
     // Calculate columns based on screen size with debounced updates

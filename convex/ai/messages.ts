@@ -6,7 +6,7 @@ import {
   type MessagePart,
   type StorageData,
   type StreamMessage,
-} from "./types";
+} from "../types";
 import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";

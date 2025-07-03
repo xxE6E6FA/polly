@@ -2,11 +2,12 @@ import { useCallback, useState } from "react";
 
 import {
   type FileUploadProgress,
-  useConvexFileUpload,
-} from "@/hooks/use-convex-file-upload";
+  type AIModel,
+  type Attachment,
+} from "@/types";
 import { useNotificationDialog } from "@/hooks/use-notification-dialog";
 import { isFileTypeSupported } from "@/lib/model-capabilities";
-import { type AIModel, type Attachment } from "@/types";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 
 function convertImageToWebP(
   file: File,

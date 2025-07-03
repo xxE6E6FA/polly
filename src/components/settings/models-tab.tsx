@@ -15,7 +15,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
@@ -38,6 +38,8 @@ import { api } from "../../../convex/_generated/api";
 import { VirtualizedModelList } from "../virtualized-model-list";
 import { SettingsHeader } from "./settings-header";
 import { Alert, AlertDescription, AlertIcon } from "../ui/alert";
+import { useConvexActionOptimized } from "@/hooks/use-convex-cache";
+import { type FetchedModel } from "@/types";
 
 const PROVIDER_NAMES = {
   openai: "OpenAI",
@@ -267,44 +269,35 @@ export const ModelsTab = () => {
     [enabledModels]
   );
 
-  const fetchAllModels = useAction(api.models.fetchAllModels);
-  const [unfilteredModels, setUnfilteredModels] = useState<
-    Array<{
-      modelId: string;
-      name: string;
-      provider: string;
-      contextWindow: number;
-      supportsReasoning: boolean;
-      supportsTools: boolean;
-      supportsImages: boolean;
-      supportsFiles: boolean;
-    }>
-  >([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { executeAsync: fetchAllModels, isLoading } = useConvexActionOptimized<
+    FetchedModel[],
+    Record<string, never>
+  >(api.models.fetchAllModels, {
+    onSuccess: models => {
+      setUnfilteredModels(models);
+      setIsInitialLoad(false);
+      setError(null);
+    },
+    onError: error => {
+      console.error("Failed to fetch models:", error);
+      setError(error);
+    },
+  });
+
+  const [unfilteredModels, setUnfilteredModels] = useState<FetchedModel[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    const fetchModels = async () => {
+    const loadModels = async () => {
       if (availableProviders.length === 0) {
         return;
       }
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        const models = await fetchAllModels();
-        setUnfilteredModels(models);
-        setIsInitialLoad(false);
-      } catch (error) {
-        console.error("Failed to fetch models:", error);
-        setError(error as Error);
-      } finally {
-        setIsLoading(false);
-      }
+      await fetchAllModels({});
     };
 
-    fetchModels();
+    loadModels();
   }, [fetchAllModels, availableProviders]);
 
   const allModels = useMemo(() => {
@@ -455,17 +448,7 @@ export const ModelsTab = () => {
       return;
     }
 
-    try {
-      setIsLoading(true);
-      setError(null);
-      const models = await fetchAllModels();
-      setUnfilteredModels(models);
-    } catch (error) {
-      console.error("Failed to refresh models:", error);
-      setError(error as Error);
-    } finally {
-      setIsLoading(false);
-    }
+    await fetchAllModels({});
   }, [fetchAllModels, availableProviders]);
 
   const hasActiveFilters = useMemo(

@@ -8,7 +8,6 @@ import {
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction } from "convex/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { toast } from "sonner";
 
@@ -24,6 +23,7 @@ import {
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Textarea } from "@/components/ui/textarea";
 import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
+import { useConvexActionOptimized } from "@/hooks/use-convex-cache";
 
 import { api } from "../../../convex/_generated/api";
 
@@ -49,10 +49,27 @@ export const PersonaForm = ({
   setIsEmojiPickerOpen,
   handleEmojiClick,
 }: PersonaFormProps) => {
-  const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
 
-  const improvePromptAction = useAction(api.personas.improvePrompt);
+  // Use optimized action hook for prompt improvement
+  const { executeAsync: improvePrompt, isLoading: isImprovingPrompt } =
+    useConvexActionOptimized<string, { prompt: string }>(
+      api.personas.improvePrompt,
+      {
+        onSuccess: improvedPrompt => {
+          handlePromptChange(improvedPrompt);
+          toast.success("Prompt improved!", {
+            description: "Your prompt has been enhanced with AI suggestions.",
+          });
+        },
+        onError: error => {
+          console.error("Failed to improve prompt:", error);
+          toast.error("Failed to improve prompt", {
+            description: "Unable to improve the prompt. Please try again.",
+          });
+        },
+      }
+    );
 
   const updateFormField = useCallback(
     (field: keyof PersonaFormData, value: string) => {
@@ -81,60 +98,16 @@ export const PersonaForm = ({
     [setPromptValue, updateFormField]
   );
 
-  const improvePrompt = async () => {
-    if (!promptValue.trim() || isImprovingPrompt) {
+  const handleImprovePrompt = useCallback(async () => {
+    if (!promptValue.trim()) {
+      toast.error("No prompt to improve", {
+        description: "Please enter a prompt first before trying to improve it.",
+      });
       return;
     }
 
-    setIsImprovingPrompt(true);
-    try {
-      const result = await improvePromptAction({ prompt: promptValue });
-
-      if (!result.improvedPrompt) {
-        throw new Error("No improvement was generated for your prompt");
-      }
-
-      setPromptValue(result.improvedPrompt);
-      updateFormField("prompt", result.improvedPrompt);
-      toast.success("Prompt improved successfully!", {
-        description: "Your prompt has been enhanced with AI suggestions.",
-      });
-    } catch (error) {
-      console.error("Error improving prompt:", error);
-
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to improve prompt";
-
-      if (
-        errorMessage.includes("No improvement generated") ||
-        errorMessage.includes("No improvement was generated")
-      ) {
-        toast.error("Unable to improve prompt", {
-          description:
-            "Try providing more specific details about your assistant's role and behavior, then try again.",
-          duration: 6000,
-        });
-      } else if (
-        errorMessage.includes("rate limit") ||
-        errorMessage.includes("too many requests")
-      ) {
-        toast.error("Rate limit exceeded", {
-          description:
-            "Please wait a moment before trying to improve your prompt again.",
-          duration: 5000,
-        });
-      } else {
-        toast.error("Failed to improve prompt", {
-          description: errorMessage.includes("HTTP")
-            ? "There was a server error. Please try again in a moment."
-            : errorMessage,
-          duration: 5000,
-        });
-      }
-    } finally {
-      setIsImprovingPrompt(false);
-    }
-  };
+    await improvePrompt({ prompt: promptValue });
+  }, [promptValue, improvePrompt]);
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
@@ -297,7 +270,7 @@ export const PersonaForm = ({
                 size="sm"
                 type="button"
                 variant="outline"
-                onClick={improvePrompt}
+                onClick={handleImprovePrompt}
               >
                 {isImprovingPrompt ? (
                   <>
@@ -323,7 +296,7 @@ export const PersonaForm = ({
               size="sm"
               type="button"
               variant="link"
-              onClick={improvePrompt}
+              onClick={handleImprovePrompt}
             >
               improve prompt
             </Button>{" "}
@@ -397,7 +370,7 @@ export const PersonaForm = ({
                   size="sm"
                   type="button"
                   variant="outline"
-                  onClick={improvePrompt}
+                  onClick={handleImprovePrompt}
                 >
                   {isImprovingPrompt ? (
                     <>

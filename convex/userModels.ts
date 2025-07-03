@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { type Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { getOptionalUserId, requireAuth } from "./lib/auth";
+import { withCache, cacheKeys, CACHE_TTL } from "./lib/cache_utils";
 
 export const getUserModels = query({
   args: {
@@ -22,28 +23,50 @@ export const getUserModels = query({
   },
 });
 
+export const getUserModelsCached = query({
+  args: {
+    userId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const userId = args.userId || (await getOptionalUserId(ctx));
+
+    if (!userId) {
+      return [];
+    }
+
+    return await withCache(
+      cacheKeys.userModels(userId),
+      async () => {
+        return await ctx.db
+          .query("userModels")
+          .withIndex("by_user", q => q.eq("userId", userId))
+          .collect();
+      },
+      CACHE_TTL
+    );
+  },
+});
+
 export const getUserSelectedModel = query({
   args: {},
   handler: async ctx => {
     const userId = await getOptionalUserId(ctx);
 
     if (!userId) {
-      // For anonymous users, return default Gemini model if API key is available
       return getAnonymousDefaultModel();
     }
 
     const selectedModel = await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .filter(q => q.eq(q.field("selected"), true))
+      .withIndex("by_user_selected", q =>
+        q.eq("userId", userId).eq("selected", true)
+      )
       .unique();
 
-    // If signed-in user has a selected model, return it
     if (selectedModel) {
       return selectedModel;
     }
 
-    // Check if user has explicitly selected the default model
     const userSettings = await ctx.db
       .query("userSettings")
       .withIndex("by_user", q => q.eq("userId", userId))
@@ -53,30 +76,25 @@ export const getUserSelectedModel = query({
       return getAnonymousDefaultModel();
     }
 
-    // Check if user has any models configured at all
     const userHasModels = await ctx.db
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
-    // If no models configured, provide default model (same as anonymous users)
     if (!userHasModels) {
       return getAnonymousDefaultModel();
     }
 
-    // User has models but none selected and hasn't explicitly selected default
     return null;
   },
 });
 
-// Get models by provider (for organizing in ModelPicker)
 export const getUserModelsByProvider = query({
   args: {},
   handler: async ctx => {
     const userId = await getOptionalUserId(ctx);
 
     if (!userId) {
-      // For anonymous users, return default Gemini model if API key is available
       const defaultModel = getAnonymousDefaultModel();
       if (!defaultModel) {
         return [];
@@ -96,11 +114,9 @@ export const getUserModelsByProvider = query({
       .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
 
-    // Always include the default model under Polly provider
     const defaultModel = getAnonymousDefaultModel();
     const providers = [];
 
-    // Add Polly provider with default model first (if available)
     if (defaultModel) {
       providers.push({
         id: "polly",
@@ -109,9 +125,7 @@ export const getUserModelsByProvider = query({
       });
     }
 
-    // If user has configured models, add them grouped by provider
     if (models.length > 0) {
-      // Group by provider
       const byProvider = models.reduce(
         (acc, model) => {
           acc[model.provider] = acc[model.provider] || [];
@@ -121,7 +135,6 @@ export const getUserModelsByProvider = query({
         {} as Record<string, typeof models>
       );
 
-      // Convert to array format expected by component
       const userProviders = Object.entries(byProvider).map(
         ([providerName, providerModels]) => ({
           id: providerName,
@@ -137,14 +150,12 @@ export const getUserModelsByProvider = query({
   },
 });
 
-// Check if user has any enabled models
 export const hasUserModels = query({
   args: {},
   handler: async ctx => {
     const userId = await getOptionalUserId(ctx);
 
     if (!userId) {
-      // For anonymous users, return true if we have Gemini API key
       return Boolean(process.env.GEMINI_API_KEY);
     }
 
@@ -153,12 +164,10 @@ export const hasUserModels = query({
       .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
 
-    // If user has configured models, return true
     if (count.length > 0) {
       return true;
     }
 
-    // If no configured models but we have Gemini API key, return true (default model available)
     return Boolean(process.env.GEMINI_API_KEY);
   },
 });
@@ -210,44 +219,51 @@ export const selectModel = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
+    if (!args.modelId || args.modelId.trim() === "") {
+      throw new Error("Model ID is required");
+    }
+
     const selectedModel = await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .filter(q => q.eq(q.field("selected"), true))
+      .withIndex("by_user_selected", q =>
+        q.eq("userId", userId).eq("selected", true)
+      )
       .unique();
 
-    // Check if this is the default model
     const defaultModel = getAnonymousDefaultModel();
     const isDefaultModel =
       defaultModel && args.modelId === defaultModel.modelId;
 
     if (isDefaultModel) {
-      // For default model, clear any existing selection and mark default as selected
-      if (selectedModel) {
-        await ctx.db.patch(selectedModel._id, { selected: false });
-      }
-
-      // Update or create user settings to track default model selection
       const userSettings = await ctx.db
         .query("userSettings")
         .withIndex("by_user", q => q.eq("userId", userId))
         .unique();
 
-      await (userSettings
-        ? ctx.db.patch(userSettings._id, {
-            defaultModelSelected: true,
-            updatedAt: Date.now(),
-          })
-        : ctx.db.insert("userSettings", {
-            userId,
-            defaultModelSelected: true,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          }));
-      return;
+      const operations = [];
+
+      if (selectedModel) {
+        operations.push(ctx.db.patch(selectedModel._id, { selected: false }));
+      }
+
+      operations.push(
+        userSettings
+          ? ctx.db.patch(userSettings._id, {
+              defaultModelSelected: true,
+              updatedAt: Date.now(),
+            })
+          : ctx.db.insert("userSettings", {
+              userId,
+              defaultModelSelected: true,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            })
+      );
+
+      await Promise.all(operations);
+      return { success: true, modelId: args.modelId, isDefault: true };
     }
 
-    // For regular models, find the model in user's configured models
     const model = await ctx.db
       .query("userModels")
       .withIndex("by_user_model_id", q =>
@@ -256,28 +272,46 @@ export const selectModel = mutation({
       .unique();
 
     if (!model) {
-      throw new Error("Model not found");
+      throw new Error(
+        `Model '${args.modelId}' not found in user's configured models. Please add the model in Settings first.`
+      );
     }
 
-    if (model.modelId !== selectedModel?.modelId) {
-      await ctx.db.patch(model._id, { selected: true });
-      if (selectedModel) {
-        await ctx.db.patch(selectedModel._id, { selected: false });
-      }
-
-      // Clear default model selection flag since user selected a different model
-      const userSettings = await ctx.db
-        .query("userSettings")
-        .withIndex("by_user", q => q.eq("userId", userId))
-        .unique();
-
-      if (userSettings?.defaultModelSelected) {
-        await ctx.db.patch(userSettings._id, {
-          defaultModelSelected: false,
-          updatedAt: Date.now(),
-        });
-      }
+    if (model.modelId === selectedModel?.modelId) {
+      return {
+        success: true,
+        modelId: args.modelId,
+        isDefault: false,
+        alreadySelected: true,
+      };
     }
+
+    const operations = [];
+
+    operations.push(ctx.db.patch(model._id, { selected: true }));
+
+    if (selectedModel) {
+      operations.push(ctx.db.patch(selectedModel._id, { selected: false }));
+    }
+
+    const userSettingsPromise = ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .unique();
+
+    const [, , userSettings] = await Promise.all([
+      ...operations,
+      userSettingsPromise,
+    ]);
+
+    if (userSettings?.defaultModelSelected) {
+      await ctx.db.patch(userSettings._id, {
+        defaultModelSelected: false,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { success: true, modelId: args.modelId, isDefault: false };
   },
 });
 

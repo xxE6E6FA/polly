@@ -1,4 +1,4 @@
-import { type AIProvider } from "./client-ai-service";
+import { type AIProviderType } from "./client-ai-service";
 import { hasReasoningCapabilities } from "@/lib/model-capabilities";
 import {
   getProviderReasoningConfigWithChecker,
@@ -11,7 +11,7 @@ import {
  * Uses capability detection from the model capabilities
  */
 export function getProviderReasoningConfig(
-  provider: AIProvider,
+  provider: AIProviderType,
   model: string,
   reasoningConfig?: ReasoningConfig
 ): ProviderStreamOptions {
@@ -35,7 +35,7 @@ export function getProviderReasoningConfig(
  * Check if a model supports reasoning using client-side detection
  */
 export function supportsReasoning(
-  provider: AIProvider,
+  provider: AIProviderType,
   model: string
 ): boolean {
   // Use client-specific capability detection
@@ -50,7 +50,7 @@ export function supportsReasoning(
  * Get the expected reasoning event types for a provider
  * This helps with debugging and validation
  */
-export function getReasoningEventTypes(provider: AIProvider): string[] {
+export function getReasoningEventTypes(provider: AIProviderType): string[] {
   switch (provider) {
     case "anthropic":
       return ["thinking_delta", "reasoning"];

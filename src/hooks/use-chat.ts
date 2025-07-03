@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { useThinking } from "@/providers/thinking-provider";
@@ -8,13 +8,14 @@ import {
   type Attachment,
   type ChatMessage,
   type ConversationId,
+  type ReasoningConfig,
 } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
 
 import { useChatMessages } from "./use-chat-messages";
 import { useCreateConversation } from "./use-conversations";
 import { useSelectedModel } from "./use-selected-model";
 import { useUser } from "./use-user";
+import { useConvexActionOptimized } from "./use-convex-cache";
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
 
@@ -42,11 +43,10 @@ export function useChat({
   onConversationCreate,
 }: UseChatOptions) {
   const { user, isLoading: userLoading, canSendMessage } = useUser();
-  const { createNewConversation } = useCreateConversation();
+  const { createConversation } = useCreateConversation();
   const { setIsThinking } = useThinking();
 
   // Use specialized hooks
-
   const chatMessages = useChatMessages({
     conversationId,
     onError,
@@ -58,21 +58,62 @@ export function useChat({
     conversationId ? { id: conversationId } : "skip"
   );
 
-  // Centralized Convex actions
-  const sendFollowUpMessageAction = useAction(
-    api.conversations.sendFollowUpMessage
-  );
-  const retryFromMessageAction = useAction(api.conversations.retryFromMessage);
-  const editMessageAction = useAction(api.conversations.editMessage);
-  const stopGenerationAction = useAction(api.conversations.stopGeneration);
-  const resumeConversationAction = useAction(
-    api.conversations.resumeConversation
-  );
-  const selectedModel = useSelectedModel();
-  const addMessage = useMutation(api.messages.create);
+  // Use optimized action hooks for better error handling and consistency
+  const { executeAsync: sendFollowUpMessage, isLoading: isSendingFollowUp } =
+    useConvexActionOptimized(api.conversations.sendFollowUpMessage, {
+      onError: error => {
+        console.error("Failed to send follow-up message:", error);
+        onError?.(error);
+      },
+      invalidateQueries: ["messages", "conversations"],
+      dispatchEvents: ["message-sent"],
+    });
 
-  // State management
-  const [isGenerating, setIsGenerating] = useState(false);
+  const { executeAsync: retryFromMessage, isLoading: isRetrying } =
+    useConvexActionOptimized(api.conversations.retryFromMessage, {
+      onError: error => {
+        console.error("Failed to retry message:", error);
+        onError?.(error);
+      },
+      invalidateQueries: ["messages"],
+      dispatchEvents: ["message-retried"],
+    });
+
+  const { executeAsync: editMessage, isLoading: isEditing } =
+    useConvexActionOptimized(api.conversations.editMessage, {
+      onError: error => {
+        console.error("Failed to edit message:", error);
+        onError?.(error);
+      },
+      invalidateQueries: ["messages"],
+      dispatchEvents: ["message-edited"],
+    });
+
+  const { executeAsync: stopGeneration, isLoading: isStopping } =
+    useConvexActionOptimized(api.conversations.stopGeneration, {
+      onError: error => {
+        console.error("Failed to stop generation:", error);
+        onError?.(error);
+      },
+      invalidateQueries: ["conversations"],
+      dispatchEvents: ["generation-stopped"],
+    });
+
+  const { executeAsync: resumeConversation, isLoading: isResuming } =
+    useConvexActionOptimized(api.conversations.resumeConversation, {
+      onError: error => {
+        console.error("Failed to resume conversation:", error);
+        onError?.(error);
+      },
+      invalidateQueries: ["messages", "conversations"],
+      dispatchEvents: ["conversation-resumed"],
+    });
+
+  const { selectedModel } = useSelectedModel();
+
+  // State management - combine all loading states
+  const isGenerating =
+    isSendingFollowUp || isRetrying || isEditing || isStopping || isResuming;
 
   // Track if we've attempted to resume for each conversation
   const attemptedResumeMap = useRef<Map<string, boolean>>(new Map());
@@ -86,64 +127,36 @@ export function useChat({
   const withLoadingState = useCallback(
     async <T>(operation: () => Promise<T>): Promise<T> => {
       try {
-        setIsGenerating(true);
         setIsThinking(true);
         return await operation();
       } finally {
-        setIsGenerating(false);
         setIsThinking(false);
       }
     },
     [setIsThinking]
   );
 
-  // Auto-resume conversation logic
+  // Auto-resume incomplete conversations
   useEffect(() => {
     if (
-      !conversationId ||
-      !selectedModel ||
-      attemptedResumeMap.current.get(conversationId) ||
-      isGenerating
+      conversation &&
+      conversation.isStreaming &&
+      conversationId &&
+      !attemptedResumeMap.current.get(conversationId)
     ) {
-      return;
-    }
-
-    const lastMessage =
-      chatMessages.convexMessages?.[chatMessages.convexMessages.length - 1];
-    if (chatMessages.convexMessages?.length && lastMessage?.role === "user") {
       attemptedResumeMap.current.set(conversationId, true);
 
-      const startResponse = async () => {
+      const handleResume = async () => {
         try {
-          await withLoadingState(() =>
-            resumeConversationAction({
-              conversationId,
-            })
-          );
-        } catch (error) {
-          attemptedResumeMap.current.delete(conversationId);
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to resume conversation";
-          toast.error("Failed to resume conversation", {
-            description: errorMessage,
-          });
-          onError?.(error as Error);
+          await resumeConversation({ conversationId });
+        } catch {
+          // Error handling is done in the optimized hook
         }
       };
 
-      startResponse();
+      handleResume();
     }
-  }, [
-    conversationId,
-    chatMessages.convexMessages,
-    selectedModel,
-    isGenerating,
-    resumeConversationAction,
-    withLoadingState,
-    onError,
-  ]);
+  }, [conversation, conversationId, resumeConversation]);
 
   const sendMessage = useCallback(
     async (
@@ -177,7 +190,7 @@ export function useChat({
         // Create new conversation if needed
         if (!conversationId) {
           await withLoadingState(async () => {
-            const newConversationId = await createNewConversation({
+            const newConversationId = await createConversation({
               firstMessage: content,
               sourceConversationId: undefined,
               personaId,
@@ -203,7 +216,7 @@ export function useChat({
         // For existing conversations, use the centralized Convex action
         if (selectedModel) {
           await withLoadingState(() =>
-            sendFollowUpMessageAction({
+            sendFollowUpMessage({
               conversationId,
               content,
               attachments: cleanAttachmentsForConvex(attachments),
@@ -230,26 +243,6 @@ export function useChat({
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send message";
-
-        // Check if it's a monthly limit error
-        if (errorMessage.includes("Monthly Polly model limit reached")) {
-          // Extract the limit from the error message if possible
-          const limitMatch = errorMessage.match(/\((\d+) messages\)/);
-          const limit = limitMatch ? parseInt(limitMatch[1]) : 500;
-
-          toast.error("Monthly Polly Model Limit Reached", {
-            description: `You've used all ${limit} free messages this month. Switch to your BYOK models for unlimited usage, or wait for next month's reset.`,
-          });
-
-          const limitError = new Error(errorMessage) as Error & {
-            code?: string;
-          };
-          limitError.code = "MONTHLY_LIMIT_REACHED";
-          onError?.(limitError);
-          return;
-        }
-
-        // Generic error handling
         toast.error("Failed to send message", {
           description: errorMessage,
         });
@@ -262,11 +255,11 @@ export function useChat({
       user,
       userLoading,
       conversationId,
-      createNewConversation,
+      createConversation,
+      withLoadingState,
       onConversationCreate,
       selectedModel,
-      sendFollowUpMessageAction,
-      withLoadingState,
+      sendFollowUpMessage,
     ]
   );
 
@@ -304,30 +297,19 @@ export function useChat({
       }
 
       try {
-        // Use the new function that starts the assistant response immediately
         const newConversationId = await withLoadingState(async () => {
-          const conversationId = await createNewConversation({
+          const conversationId = await createConversation({
             firstMessage: content,
             sourceConversationId,
             personaId,
             userId: user?._id,
             attachments,
-            useWebSearch: false, // Don't use web search for new conversations by default
+            useWebSearch: false,
             personaPrompt,
+            contextSummary,
           });
           if (!conversationId) {
             throw new Error("Failed to create conversation");
-          }
-
-          // Add context message if provided or if branching from another conversation
-          if (sourceConversationId) {
-            await addMessage({
-              conversationId,
-              role: "context",
-              content: contextSummary || "Branched from previous conversation",
-              sourceConversationId,
-              isMainBranch: true,
-            });
           }
 
           if (shouldNavigate && onConversationCreate) {
@@ -354,172 +336,23 @@ export function useChat({
       onError,
       user,
       userLoading,
-      createNewConversation,
-      addMessage,
+      createConversation,
+      withLoadingState,
       onConversationCreate,
-      withLoadingState,
-    ]
-  );
-
-  const regenerateMessage = useCallback(async () => {
-    if (!conversationId) {
-      const errorMsg = "No conversation found";
-      toast.error("Cannot regenerate message", {
-        description: errorMsg,
-      });
-      onError?.(new Error(errorMsg));
-      return;
-    }
-
-    if (!selectedModel) {
-      const errorMsg =
-        "No model selected. Please select a model in the model picker to regenerate messages.";
-      toast.error("Cannot regenerate message", {
-        description: errorMsg,
-      });
-      onError?.(new Error(errorMsg));
-      return;
-    }
-
-    // Find the last user message to retry from
-    const lastUserMessage = chatMessages.convexMessages
-      ?.filter(msg => msg.role === "user")
-      .pop();
-
-    if (!lastUserMessage) {
-      const errorMsg = "No user message found to regenerate from";
-      toast.error("Cannot regenerate message", {
-        description: errorMsg,
-      });
-      onError?.(new Error(errorMsg));
-      return;
-    }
-
-    try {
-      await withLoadingState(() =>
-        retryFromMessageAction({
-          conversationId,
-          messageId: lastUserMessage._id,
-          retryType: "user",
-          model: selectedModel.modelId,
-          provider: selectedModel.provider,
-        })
-      );
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to regenerate message";
-      toast.error("Failed to regenerate message", {
-        description: errorMessage,
-      });
-      onError?.(error as Error);
-    }
-  }, [
-    conversationId,
-    selectedModel,
-    chatMessages.convexMessages,
-    retryFromMessageAction,
-    withLoadingState,
-    onError,
-  ]);
-
-  const stopGeneration = useCallback(() => {
-    // Immediately update UI state for instant feedback
-    setIsGenerating(false);
-    setIsThinking(false);
-
-    if (conversationId) {
-      // Fire and forget - don't wait for completion to avoid UI lag
-      stopGenerationAction({
-        conversationId,
-      }).catch(error => {
-        toast.error("Failed to stop generation", {
-          description:
-            error instanceof Error
-              ? error.message
-              : "Unable to stop message generation",
-        });
-        // Reset state on error
-        setIsGenerating(true);
-        setIsThinking(true);
-      });
-    }
-  }, [conversationId, stopGenerationAction, setIsGenerating, setIsThinking]);
-
-  const editMessage = useCallback(
-    async (messageId: string, newContent: string) => {
-      if (!conversationId) {
-        const errorMsg = "No conversation found";
-        toast.error("Cannot edit message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
-        return;
-      }
-
-      if (!selectedModel) {
-        const errorMsg =
-          "No model selected. Please select a model in the model picker to edit messages.";
-        toast.error("Cannot edit message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
-        return;
-      }
-
-      try {
-        await withLoadingState(() =>
-          editMessageAction({
-            conversationId,
-            messageId: messageId as Id<"messages">,
-            newContent,
-            model: selectedModel.modelId,
-            provider: selectedModel.provider,
-          })
-        );
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to edit message";
-        toast.error("Failed to edit message", {
-          description: errorMessage,
-        });
-        onError?.(error as Error);
-      }
-    },
-    [
-      conversationId,
-      selectedModel,
-      editMessageAction,
-      withLoadingState,
-      onError,
     ]
   );
 
   const retryUserMessage = useCallback(
     async (messageId: string) => {
-      if (!conversationId) {
-        const errorMsg = "No conversation found";
-        toast.error("Cannot retry message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
-        return;
-      }
-
-      if (!selectedModel) {
-        const errorMsg =
-          "No model selected. Please select a model in the model picker to retry messages.";
-        toast.error("Cannot retry message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
+      if (!conversationId || !selectedModel) {
         return;
       }
 
       try {
         await withLoadingState(() =>
-          retryFromMessageAction({
+          retryFromMessage({
             conversationId,
-            messageId: messageId as Id<"messages">,
+            messageId,
             retryType: "user",
             model: selectedModel.modelId,
             provider: selectedModel.provider,
@@ -534,41 +367,20 @@ export function useChat({
         onError?.(error as Error);
       }
     },
-    [
-      conversationId,
-      selectedModel,
-      retryFromMessageAction,
-      withLoadingState,
-      onError,
-    ]
+    [conversationId, selectedModel, retryFromMessage, withLoadingState, onError]
   );
 
   const retryAssistantMessage = useCallback(
     async (messageId: string) => {
-      if (!conversationId) {
-        const errorMsg = "No conversation found";
-        toast.error("Cannot retry message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
-        return;
-      }
-
-      if (!selectedModel) {
-        const errorMsg =
-          "No model selected. Please select a model in the model picker to retry messages.";
-        toast.error("Cannot retry message", {
-          description: errorMsg,
-        });
-        onError?.(new Error(errorMsg));
+      if (!conversationId || !selectedModel) {
         return;
       }
 
       try {
         await withLoadingState(() =>
-          retryFromMessageAction({
+          retryFromMessage({
             conversationId,
-            messageId: messageId as Id<"messages">,
+            messageId,
             retryType: "assistant",
             model: selectedModel.modelId,
             provider: selectedModel.provider,
@@ -583,60 +395,67 @@ export function useChat({
         onError?.(error as Error);
       }
     },
-    [
-      conversationId,
-      selectedModel,
-      retryFromMessageAction,
-      withLoadingState,
-      onError,
-    ]
+    [conversationId, selectedModel, retryFromMessage, withLoadingState, onError]
   );
 
-  const clearMessages = useCallback(() => {
-    // Keep messages in Convex - could implement deletion if needed
-  }, []);
+  const editMessageContent = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (!conversationId || !selectedModel) {
+        return;
+      }
 
-  // Computed values
-  const isStreamingInCurrentConversation = useMemo(() => {
+      try {
+        await withLoadingState(() =>
+          editMessage({
+            conversationId,
+            messageId,
+            newContent,
+            model: selectedModel.modelId,
+            provider: selectedModel.provider,
+          })
+        );
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to edit message";
+        toast.error("Failed to edit message", {
+          description: errorMessage,
+        });
+        onError?.(error as Error);
+      }
+    },
+    [conversationId, selectedModel, editMessage, withLoadingState, onError]
+  );
+
+  const stopGenerationAction = useCallback(async () => {
     if (!conversationId) {
-      return false;
+      return;
     }
 
-    // Check for any assistant message without a finish reason (active streaming)
-    const streamingMessage = chatMessages.convexMessages?.find(
-      msg =>
-        msg.conversationId === conversationId &&
-        msg.role === "assistant" &&
-        !msg.metadata?.finishReason &&
-        !msg.metadata?.stopped // Not explicitly stopped
-    );
-
-    // If we have a streaming message, we're definitely streaming
-    if (streamingMessage) {
-      return true;
+    try {
+      await stopGeneration({ conversationId });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to stop generation";
+      toast.error("Failed to stop generation", {
+        description: errorMessage,
+      });
+      onError?.(error as Error);
     }
+  }, [conversationId, stopGeneration, onError]);
 
-    // Fallback to conversation's isStreaming field for immediate feedback during start
-    // This covers the case where we're about to start streaming but no assistant message exists yet
-    return Boolean(conversation?.isStreaming);
-  }, [conversationId, chatMessages.convexMessages, conversation?.isStreaming]);
+  // Determine if conversation is streaming
+  const isStreaming = conversation?.isStreaming || false;
 
   return {
     messages: chatMessages.messages,
-    conversationId,
-    isLoading: isGenerating,
-    isLoadingMessages: chatMessages.isLoadingMessages,
-    error: null,
+    isLoading: chatMessages.isLoadingMessages,
+    isGenerating,
+    isStreaming,
     sendMessage,
     sendMessageToNewConversation,
-    regenerateMessage,
-    clearMessages,
-    stopGeneration,
-    editMessage,
     retryUserMessage,
     retryAssistantMessage,
-    deleteMessage: chatMessages.deleteMessage,
-    expectingStream: false,
-    isStreaming: isStreamingInCurrentConversation,
+    editMessage: editMessageContent,
+    stopGeneration: stopGenerationAction,
   };
 }

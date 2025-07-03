@@ -2,9 +2,9 @@ export const CONFIG = {
   STREAM: {
     BATCH_SIZE: 30,
     BATCH_TIMEOUT: 75,
-    CHECK_STOP_EVERY_N_CHUNKS: 2,
+    CHECK_STOP_EVERY_N_CHUNKS: 10,
     ABORT_TIMEOUT_MS: 5000, // Max time to wait for abort to complete
-    STOP_CHECK_INTERVAL_MS: 250, // How often to check for stop signals (reduced frequency)
+    STOP_CHECK_INTERVAL_MS: 500, // Increased from 250ms to 500ms - check less frequently
   },
   AES: {
     name: "AES-GCM",

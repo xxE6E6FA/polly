@@ -1,0 +1,336 @@
+import { v } from "convex/values";
+import { internalMutation, mutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import { type Id } from "./_generated/dataModel";
+import { getCurrentUserId } from "./lib/auth";
+
+// Background task to archive old conversations
+export const archiveOldConversations = internalMutation({
+  args: {
+    daysOld: v.optional(v.number()), // Default 90 days
+    batchSize: v.optional(v.number()), // Default 100
+  },
+  handler: async (ctx, args) => {
+    const daysOld = args.daysOld || 90;
+    const batchSize = args.batchSize || 100;
+    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Find old conversations that aren't already archived or pinned
+    const oldConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
+      .filter(q =>
+        q.and(
+          q.neq(q.field("isArchived"), true),
+          q.neq(q.field("isPinned"), true)
+        )
+      )
+      .take(batchSize);
+
+    // Archive them in parallel
+    const archiveOperations = oldConversations.map(conv =>
+      ctx.db.patch(conv._id, {
+        isArchived: true,
+        updatedAt: Date.now(),
+      })
+    );
+
+    await Promise.all(archiveOperations);
+
+    return {
+      archivedCount: oldConversations.length,
+      hasMore: oldConversations.length === batchSize,
+    };
+  },
+});
+
+// Clean up orphaned messages (messages without a conversation)
+export const cleanupOrphanedMessages = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+    daysOld: v.optional(v.number()), // Only check messages older than this many days
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize || 100;
+    const daysOld = args.daysOld || 7; // Default to checking messages older than 7 days
+    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Get a batch of messages older than the cutoff date using the indexed query
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
+      .take(batchSize);
+
+    const orphanedIds = [];
+
+    // Group messages by conversationId to reduce database queries
+    const conversationIdGroups = new Map<string, typeof messages>();
+    for (const message of messages) {
+      const conversationId = message.conversationId;
+      if (!conversationIdGroups.has(conversationId)) {
+        conversationIdGroups.set(conversationId, []);
+      }
+      conversationIdGroups.get(conversationId)!.push(message);
+    }
+
+    // Check each unique conversation ID once
+    for (const [conversationId, messagesGroup] of conversationIdGroups) {
+      const conversation = await ctx.db.get(
+        conversationId as Id<"conversations">
+      );
+      if (!conversation) {
+        // All messages in this group are orphaned
+        orphanedIds.push(...messagesGroup.map(msg => msg._id));
+      }
+    }
+
+    // Delete orphaned messages in parallel
+    if (orphanedIds.length > 0) {
+      await ctx.runMutation(api.messages.removeMultiple, {
+        ids: orphanedIds,
+      });
+    }
+
+    return {
+      cleanedCount: orphanedIds.length,
+      hasMore: messages.length === batchSize,
+      cutoffDate,
+      daysOld,
+    };
+  },
+});
+
+// Archive conversations based on user settings
+export const archiveConversationsForUser = internalMutation({
+  args: {
+    userId: v.id("users"),
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize || 100;
+
+    // Get user's archiving settings
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", args.userId))
+      .first();
+
+    // If user has auto-archive disabled, skip
+    if (!userSettings?.autoArchiveEnabled) {
+      return {
+        archivedCount: 0,
+        hasMore: false,
+        reason: "auto-archive disabled",
+      };
+    }
+
+    const daysOld = userSettings.autoArchiveDays ?? 30;
+    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Find old conversations for this user that aren't already archived or pinned
+    const oldConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", args.userId))
+      .filter(q =>
+        q.and(
+          q.lt(q.field("createdAt"), cutoffDate),
+          q.neq(q.field("isArchived"), true),
+          q.neq(q.field("isPinned"), true)
+        )
+      )
+      .take(batchSize);
+
+    // Archive them in parallel
+    const archiveOperations = oldConversations.map(conv =>
+      ctx.db.patch(conv._id, {
+        isArchived: true,
+        updatedAt: Date.now(),
+      })
+    );
+
+    await Promise.all(archiveOperations);
+
+    return {
+      archivedCount: oldConversations.length,
+      hasMore: oldConversations.length === batchSize,
+      daysOld,
+    };
+  },
+});
+
+// Archive conversations based on user settings for all users
+export const archiveConversationsForAllUsers = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize || 10; // Process fewer users at a time
+
+    // Get users who have auto-archive enabled
+    const usersWithAutoArchive = await ctx.db
+      .query("userSettings")
+      .filter(q => q.eq(q.field("autoArchiveEnabled"), true))
+      .take(batchSize);
+
+    let totalArchived = 0;
+    const results: Array<{
+      userId: string;
+      archivedCount: number;
+      hasMore: boolean;
+      reason?: string;
+      daysOld?: number;
+    }> = [];
+
+    // Process each user's conversations
+    for (const userSettings of usersWithAutoArchive) {
+      // Get user's archiving settings
+      const daysOld = userSettings.autoArchiveDays ?? 30;
+      const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+      // Find old conversations for this user that aren't already archived or pinned
+      const oldConversations = await ctx.db
+        .query("conversations")
+        .withIndex("by_user_recent", q => q.eq("userId", userSettings.userId))
+        .filter(q =>
+          q.and(
+            q.lt(q.field("createdAt"), cutoffDate),
+            q.neq(q.field("isArchived"), true),
+            q.neq(q.field("isPinned"), true)
+          )
+        )
+        .take(100);
+
+      // Archive them in parallel
+      const archiveOperations = oldConversations.map(conv =>
+        ctx.db.patch(conv._id, {
+          isArchived: true,
+          updatedAt: Date.now(),
+        })
+      );
+
+      await Promise.all(archiveOperations);
+
+      const archivedCount = oldConversations.length;
+      totalArchived += archivedCount;
+      results.push({
+        userId: userSettings.userId,
+        archivedCount,
+        hasMore: oldConversations.length === 100,
+        daysOld,
+      });
+    }
+
+    return {
+      totalArchived,
+      usersProcessed: usersWithAutoArchive.length,
+      hasMore: usersWithAutoArchive.length === batchSize,
+      results,
+    };
+  },
+});
+
+// Schedule periodic cleanup (call this from a cron job or manually)
+export const scheduleCleanup = mutation({
+  args: {},
+  handler: async ctx => {
+    // Schedule user-based archive task
+    await ctx.scheduler.runAfter(
+      0,
+      internal.cleanup.archiveConversationsForAllUsers,
+      {
+        batchSize: 10,
+      }
+    );
+
+    // Schedule orphaned message cleanup
+    await ctx.scheduler.runAfter(
+      60 * 1000,
+      internal.cleanup.cleanupOrphanedMessages,
+      {
+        batchSize: 100,
+        daysOld: 7, // Only check messages older than 7 days
+      }
+    );
+
+    return { scheduled: true };
+  },
+});
+
+// Manually trigger archiving for the current user
+export const archiveMyOldConversations = mutation({
+  args: {},
+  handler: async ctx => {
+    const userId = await getCurrentUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Get user's archiving settings
+    const userSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .first();
+
+    // If user has auto-archive disabled, still allow manual archiving with default settings
+    const daysOld = userSettings?.autoArchiveDays ?? 30;
+    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Find old conversations for this user that aren't already archived or pinned
+    const oldConversations = await ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .filter(q =>
+        q.and(
+          q.lt(q.field("createdAt"), cutoffDate),
+          q.neq(q.field("isArchived"), true),
+          q.neq(q.field("isPinned"), true)
+        )
+      )
+      .take(100);
+
+    // Archive them in parallel
+    const archiveOperations = oldConversations.map(conv =>
+      ctx.db.patch(conv._id, {
+        isArchived: true,
+        updatedAt: Date.now(),
+      })
+    );
+
+    await Promise.all(archiveOperations);
+
+    return {
+      archivedCount: oldConversations.length,
+      hasMore: oldConversations.length === 100,
+      daysOld,
+    };
+  },
+});
+
+// Clean up old shared conversations
+export const cleanupOldSharedConversations = internalMutation({
+  args: {
+    daysOld: v.optional(v.number()), // Default 30 days
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const daysOld = args.daysOld || 30;
+    const batchSize = args.batchSize || 100;
+    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Find old shared conversations
+    const oldShared = await ctx.db
+      .query("sharedConversations")
+      .filter(q => q.lt(q.field("lastUpdated"), cutoffDate))
+      .take(batchSize);
+
+    // Delete them in parallel
+    const deleteOperations = oldShared.map(shared => ctx.db.delete(shared._id));
+
+    await Promise.all(deleteOperations);
+
+    return {
+      deletedCount: oldShared.length,
+      hasMore: oldShared.length === batchSize,
+    };
+  },
+});

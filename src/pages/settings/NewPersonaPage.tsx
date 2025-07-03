@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import { useNavigate } from "react-router";
 
-import { useMutation } from "convex/react";
 import { type EmojiClickData } from "emoji-picker-react";
 
 import { api } from "convex/_generated/api";
@@ -12,14 +11,13 @@ import {
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { Button } from "@/components/ui/button";
+import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
 import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
   const navigate = useNavigate();
-  const createPersona = useMutation(api.personas.create);
 
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
     name: "",
@@ -28,26 +26,32 @@ export default function NewPersonaPage() {
     icon: "🤖",
   });
 
+  // Use optimized mutation hook
+  const { mutateAsync: createPersona, isLoading } = useConvexMutationOptimized(
+    api.personas.create,
+    {
+      onSuccess: () => {
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      },
+      onError: error => {
+        console.error("Failed to create persona:", error);
+      },
+      invalidateQueries: ["personas"],
+      dispatchEvents: ["personas-changed"],
+    }
+  );
+
   const handleCreatePersona = async () => {
     if (!formData.name.trim() || !formData.prompt.trim()) {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      await createPersona({
-        name: formData.name,
-        description: formData.description,
-        prompt: formData.prompt,
-        icon: formData.icon,
-      });
-
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (_error) {
-      // Error is handled by the UI
-    } finally {
-      setIsLoading(false);
-    }
+    await createPersona({
+      name: formData.name,
+      description: formData.description,
+      prompt: formData.prompt,
+      icon: formData.icon,
+    });
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
