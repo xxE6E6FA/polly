@@ -17,7 +17,10 @@ import { PrivateModeToggle } from "@/components/chat-input/private-mode-toggle";
 import { InputControls } from "@/components/chat-input/input-controls";
 import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
-import { ChatWarningBanner } from "@/components/ui/chat-warning-banner";
+import {
+  ChatWarningBanner,
+  StableWarningContainer,
+} from "@/components/ui/chat-warning-banner";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useUser } from "@/hooks/use-user";
@@ -311,11 +314,11 @@ export const ChatInput = React.memo(
     const formClasses = useMemo(
       () =>
         cn(
-          "rounded-xl p-2.5 sm:p-3 transition-all duration-300",
+          "rounded-xl p-2.5 sm:p-3 transition-all duration-200",
           effectiveCanSendMessage
             ? visualMode.isPrivateMode
               ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/30 dark:via-purple-900/20 dark:to-amber-950/10 shadow-lg shadow-purple-500/20 dark:shadow-purple-500/10"
-              : "chat-input-container border-2 border-blue-200/30 dark:border-blue-800/20 bg-gradient-to-br from-blue-50/20 to-green-50/10 dark:from-blue-950/10 dark:to-green-950/5"
+              : "chat-input-container"
             : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
         ),
       [effectiveCanSendMessage, visualMode.isPrivateMode]
@@ -336,21 +339,61 @@ export const ChatInput = React.memo(
     );
 
     return (
-      <div className="relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3">
+      <div
+        className={cn(
+          "relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3",
+          // Add padding for floating warnings in conversations
+          props.hasExistingMessages &&
+            (warnings.showLimitWarning || warnings.showLimitReached) &&
+            "pt-6 sm:pt-7"
+        )}
+      >
         <div className="mx-auto w-full max-w-3xl">
-          {warnings.showLimitWarning && !warnings.showLimitReached && (
-            <ChatWarningBanner
-              type="warning"
-              message={warnings.limitWarningMessage}
-              onDismiss={warnings.dismissWarning}
-            />
-          )}
+          {/* Use stable layout for home page, floating for conversations */}
+          {!props.hasExistingMessages ? (
+            // Home page: stable warning container that always reserves space
+            <StableWarningContainer
+              hasWarning={
+                warnings.showLimitWarning || warnings.showLimitReached
+              }
+            >
+              {warnings.showLimitWarning && !warnings.showLimitReached && (
+                <ChatWarningBanner
+                  type="warning"
+                  message={warnings.limitWarningMessage}
+                  onDismiss={warnings.dismissWarning}
+                  variant="stable"
+                />
+              )}
 
-          {warnings.showLimitReached && (
-            <ChatWarningBanner
-              type="error"
-              message={warnings.limitReachedMessage}
-            />
+              {warnings.showLimitReached && (
+                <ChatWarningBanner
+                  type="error"
+                  message={warnings.limitReachedMessage}
+                  variant="stable"
+                />
+              )}
+            </StableWarningContainer>
+          ) : (
+            // Conversation page: floating warnings
+            <>
+              {warnings.showLimitWarning && !warnings.showLimitReached && (
+                <ChatWarningBanner
+                  type="warning"
+                  message={warnings.limitWarningMessage}
+                  onDismiss={warnings.dismissWarning}
+                  variant="floating"
+                />
+              )}
+
+              {warnings.showLimitReached && (
+                <ChatWarningBanner
+                  type="error"
+                  message={warnings.limitReachedMessage}
+                  variant="floating"
+                />
+              )}
+            </>
           )}
 
           <form onSubmit={handleFormSubmit}>
