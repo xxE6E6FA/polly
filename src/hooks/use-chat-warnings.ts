@@ -20,23 +20,36 @@ export function useChatWarnings() {
   // Create a key based on messageCount for warning dismissal
   const warningDismissalKey = `warning-${messageCount}`;
 
-  // Calculate warning states
-  const showLimitWarning = useMemo(
-    () =>
-      hasMessageLimit &&
-      messageCount > 0 &&
-      canSendMessage &&
-      !dismissedWarnings.has(warningDismissalKey) &&
-      !hasUnlimitedCalls,
-    [
-      hasMessageLimit,
-      messageCount,
-      canSendMessage,
-      dismissedWarnings,
-      warningDismissalKey,
-      hasUnlimitedCalls,
-    ]
-  );
+  // Calculate warning states with improved logic
+  const showLimitWarning = useMemo(() => {
+    if (!hasMessageLimit || !canSendMessage || hasUnlimitedCalls) {
+      return false;
+    }
+
+    // For anonymous users: show warning if they have sent any messages
+    if (isAnonymous) {
+      return messageCount > 0 && !dismissedWarnings.has(warningDismissalKey);
+    }
+
+    // For signed-in users: only show warning when they have less than 10 messages remaining
+    const effectiveRemainingMessages =
+      monthlyUsage?.remainingMessages ?? remainingMessages;
+    return (
+      effectiveRemainingMessages < 10 &&
+      effectiveRemainingMessages > 0 &&
+      !dismissedWarnings.has(warningDismissalKey)
+    );
+  }, [
+    hasMessageLimit,
+    canSendMessage,
+    hasUnlimitedCalls,
+    isAnonymous,
+    messageCount,
+    dismissedWarnings,
+    warningDismissalKey,
+    monthlyUsage?.remainingMessages,
+    remainingMessages,
+  ]);
 
   const showLimitReached = useMemo(
     () => hasMessageLimit && !canSendMessage && !hasUnlimitedCalls,
