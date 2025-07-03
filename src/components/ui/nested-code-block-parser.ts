@@ -6,13 +6,7 @@
  * This parser properly handles nesting by tracking opening/closing pairs.
  */
 
-export interface CodeBlockMatch {
-  language: string;
-  code: string;
-  fullMatch: string;
-  start: number;
-  end: number;
-}
+import { type CodeBlockMatch } from "@/types";
 
 /**
  * Parse nested code blocks from markdown text

@@ -10,10 +10,13 @@ import { PaperclipIcon } from "@phosphor-icons/react";
 
 import { ModelPicker } from "@/components/model-picker";
 import { PersonaPicker } from "@/components/persona-picker";
+import { ReasoningConfigSelect } from "@/components/reasoning-config-select";
 import {
   type ReasoningConfig,
-  ReasoningConfigSelect,
-} from "@/components/reasoning-config-select";
+  type AIModel,
+  type Attachment,
+  type ConversationId,
+} from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -23,7 +26,6 @@ import {
 import { useUser } from "@/hooks/use-user";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn } from "@/lib/utils";
-import { type AIModel, type Attachment, type ConversationId } from "@/types";
 
 import { SendButtonGroup } from "./send-button-group";
 import { type Id } from "../../../convex/_generated/dataModel";

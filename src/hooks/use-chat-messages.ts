@@ -33,26 +33,50 @@ export function useChatMessages({
   const deleteMessagesByIds = useMutation(api.messages.removeMultiple);
   const deleteConversation = useMutation(api.conversations.remove);
 
-  // Convert Convex messages to ChatMessage format
+  // Convert Convex messages to ChatMessage format with memoization
   const messages: ChatMessage[] = useMemo(() => {
-    return (
-      convexMessages?.map(msg => ({
-        id: msg._id,
-        role: msg.role,
-        content: msg.content,
-        reasoning: msg.reasoning,
-        model: msg.model,
-        provider: msg.provider,
-        parentId: msg.parentId,
-        isMainBranch: msg.isMainBranch,
-        sourceConversationId: msg.sourceConversationId,
-        useWebSearch: msg.useWebSearch,
-        attachments: msg.attachments,
-        citations: msg.citations,
-        metadata: msg.metadata,
-        createdAt: msg.createdAt,
-      })) ?? []
+    if (!convexMessages) return [];
+
+    const messagesArray = Array.isArray(convexMessages)
+      ? convexMessages
+      : convexMessages.page;
+
+    return messagesArray.map(msg => ({
+      id: msg._id,
+      role: msg.role,
+      content: msg.content,
+      reasoning: msg.reasoning,
+      model: msg.model,
+      provider: msg.provider,
+      parentId: msg.parentId,
+      isMainBranch: msg.isMainBranch,
+      sourceConversationId: msg.sourceConversationId,
+      useWebSearch: msg.useWebSearch,
+      attachments: msg.attachments,
+      citations: msg.citations,
+      metadata: msg.metadata,
+      createdAt: msg.createdAt,
+    }));
+  }, [convexMessages]);
+
+  // Cache streaming state computation to avoid recalculation
+  const streamingMessageInfo = useMemo(() => {
+    if (!convexMessages) return null;
+
+    const messagesArray = Array.isArray(convexMessages)
+      ? convexMessages
+      : convexMessages.page;
+
+    const streamingMessage = messagesArray.find(
+      msg =>
+        msg.role === "assistant" &&
+        !msg.metadata?.finishReason &&
+        !msg.metadata?.stopped
     );
+
+    return streamingMessage
+      ? { id: streamingMessage._id, isStreaming: true }
+      : null;
   }, [convexMessages]);
 
   const deleteMessagesAfter = useCallback(
@@ -146,14 +170,25 @@ export function useChatMessages({
 
   const isMessageStreaming = useCallback(
     (messageId: string, isGenerating: boolean) => {
-      const message = convexMessages?.find(m => m._id === messageId);
+      if (!convexMessages) return false;
+
+      // Use cached streaming info if available
+      if (streamingMessageInfo && streamingMessageInfo.id === messageId) {
+        return isGenerating;
+      }
+
+      const messagesArray = Array.isArray(convexMessages)
+        ? convexMessages
+        : convexMessages.page;
+
+      const message = messagesArray.find(m => m._id === messageId);
       return (
         message?.role === "assistant" &&
         !message.metadata?.finishReason &&
         isGenerating
       );
     },
-    [convexMessages]
+    [convexMessages, streamingMessageInfo]
   );
 
   return {

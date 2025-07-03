@@ -7,7 +7,7 @@ import {
   type FinishData,
   type ProviderMetadata,
   type StreamPart,
-} from "./types";
+} from "../types";
 import {
   extractReasoning,
   humanizeText,
@@ -33,6 +33,14 @@ export class StreamHandler {
   private finishData: FinishData | null = null;
   private messageDeleted = false;
 
+  // Cache to reduce redundant queries
+  private messageExistsCache: boolean | null = null;
+  private conversationIdCache: Id<"conversations"> | null = null;
+  private lastStopCheckTime = 0;
+  private cachedStreamingState: boolean | null = null;
+  private cacheValidUntil = 0;
+  private static readonly CACHE_DURATION_MS = 1000; // Cache for 1 second
+
   constructor(
     private ctx: ActionCtx,
     private messageId: Id<"messages">
@@ -57,15 +65,28 @@ export class StreamHandler {
   }
 
   private async checkMessageExists(): Promise<boolean> {
+    // Use cached result if available and valid
+    if (this.messageExistsCache !== null && Date.now() < this.cacheValidUntil) {
+      return this.messageExistsCache;
+    }
+
     const result = await handleStreamOperation(
       async () => {
         const message = await this.ctx.runQuery(api.messages.getById, {
           id: this.messageId,
         });
-        return { exists: Boolean(message) };
+        const exists = Boolean(message);
+
+        // Cache the result and conversation ID
+        this.messageExistsCache = exists;
+        this.conversationIdCache = message?.conversationId || null;
+        this.cacheValidUntil = Date.now() + StreamHandler.CACHE_DURATION_MS;
+
+        return { exists };
       },
       () => {
         this.messageDeleted = true;
+        this.messageExistsCache = false;
         this.safeAbort();
       }
     );
@@ -76,6 +97,7 @@ export class StreamHandler {
 
     if (!result.exists) {
       this.messageDeleted = true;
+      this.messageExistsCache = false;
       this.safeAbort();
       return false;
     }
@@ -91,25 +113,58 @@ export class StreamHandler {
 
     this.chunkCounter++;
     if (this.chunkCounter % CONFIG.STREAM.CHECK_STOP_EVERY_N_CHUNKS === 0) {
+      const now = Date.now();
+
+      // Rate limit stop checks to avoid excessive queries
+      if (now - this.lastStopCheckTime < CONFIG.STREAM.STOP_CHECK_INTERVAL_MS) {
+        return false;
+      }
+
+      this.lastStopCheckTime = now;
+
       const exists = await this.checkMessageExists();
       if (!exists) {
         return true;
       }
 
-      const message = await this.ctx.runQuery(api.messages.getById, {
-        id: this.messageId,
-      });
+      // Use cached conversation ID if available
+      let conversationId = this.conversationIdCache;
+
+      // If no cached conversation ID, fetch it
+      if (!conversationId) {
+        const message = await this.ctx.runQuery(api.messages.getById, {
+          id: this.messageId,
+        });
+        conversationId = message?.conversationId || null;
+        this.conversationIdCache = conversationId;
+      }
 
       // Check if conversation is no longer streaming (our stop signal)
-      if (message?.conversationId) {
-        const conversation = await this.ctx.runQuery(api.conversations.get, {
-          id: message.conversationId,
-        });
+      if (conversationId) {
+        // Use cached streaming state if available and valid
+        if (
+          this.cachedStreamingState !== null &&
+          Date.now() < this.cacheValidUntil
+        ) {
+          if (!this.cachedStreamingState) {
+            this.wasStopped = true;
+            this.safeAbort();
+            return true;
+          }
+        } else {
+          const conversation = await this.ctx.runQuery(api.conversations.get, {
+            id: conversationId,
+          });
 
-        if (conversation && !conversation.isStreaming) {
-          this.wasStopped = true;
-          this.safeAbort();
-          return true;
+          const isStreaming = conversation?.isStreaming ?? false;
+          this.cachedStreamingState = isStreaming;
+          this.cacheValidUntil = Date.now() + StreamHandler.CACHE_DURATION_MS;
+
+          if (!isStreaming) {
+            this.wasStopped = true;
+            this.safeAbort();
+            return true;
+          }
         }
       }
     }

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 
 import { api } from "./_generated/api";
-import { action } from "./_generated/server";
+import { action, internalMutation } from "./_generated/server";
 
 export const generateTitle = action({
   args: {
@@ -78,5 +78,101 @@ export const generateTitle = action({
     }
 
     return generatedTitle;
+  },
+});
+
+// Optimized background title generation with retry logic
+export const generateTitleBackground = action({
+  args: {
+    conversationId: v.id("conversations"),
+    message: v.string(),
+    retryCount: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<void> => {
+    const maxRetries = 3;
+    const retryCount = args.retryCount || 0;
+
+    try {
+      await ctx.runAction(api.titleGeneration.generateTitle, {
+        message: args.message,
+        conversationId: args.conversationId,
+      });
+    } catch (error) {
+      console.error(
+        `Title generation failed (attempt ${retryCount + 1}):`,
+        error
+      );
+
+      // Retry with exponential backoff
+      if (retryCount < maxRetries) {
+        const delayMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        await ctx.scheduler.runAfter(
+          delayMs,
+          api.titleGeneration.generateTitleBackground,
+          {
+            conversationId: args.conversationId,
+            message: args.message,
+            retryCount: retryCount + 1,
+          }
+        );
+      } else {
+        // Final fallback - set a simple title
+        const fallbackTitle = args.message.slice(0, 60) || "New conversation";
+        await ctx.runMutation(api.conversations.update, {
+          id: args.conversationId,
+          title: fallbackTitle,
+        });
+      }
+    }
+  },
+});
+
+// Internal mutation for batch title updates (for migrations or bulk operations)
+export const batchUpdateTitles = internalMutation({
+  args: {
+    updates: v.array(
+      v.object({
+        conversationId: v.id("conversations"),
+        title: v.string(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Update all titles in parallel with error handling for partial failures
+    const results = await Promise.allSettled(
+      args.updates.map(update =>
+        ctx.db.patch(update.conversationId, {
+          title: update.title,
+          updatedAt: Date.now(),
+        })
+      )
+    );
+
+    // Log any failures without stopping the entire batch
+    const failures = results
+      .map((result, index) => ({ result, index }))
+      .filter(({ result }) => result.status === "rejected");
+
+    if (failures.length > 0) {
+      console.error(
+        `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
+      );
+      failures.forEach(({ result, index }) => {
+        const update = args.updates[index];
+        const reason =
+          result.status === "rejected" ? result.reason : "Unknown error";
+        console.error(
+          `Failed to update conversation ${update.conversationId}:`,
+          reason
+        );
+      });
+    }
+
+    const successCount = results.filter(
+      result => result.status === "fulfilled"
+    ).length;
+    console.log(
+      `Batch title update completed: ${successCount}/${args.updates.length} successful`
+    );
   },
 });

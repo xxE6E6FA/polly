@@ -102,6 +102,12 @@ export const VirtualizedChatMessages = memo(
       const hasScrolledForCurrentAssistant = useRef(false);
       const lastAssistantMessageId = useRef<string | null>(null);
 
+      // Generate a unique ID for this VList instance
+      const vlistId = useMemo(
+        () => `vlist-chat-${Math.random().toString(36).substr(2, 9)}`,
+        []
+      );
+
       // Filter and sort messages
       const processedMessages = useMemo(() => {
         return messages
@@ -133,13 +139,12 @@ export const VirtualizedChatMessages = memo(
 
       // Helper function to get the scroll container
       const getScrollContainer = useCallback(() => {
-        // Find the scroll container by looking for the VList's rendered element
-        // Virtua renders into a div with overflow auto
+        // Use the unique data attribute to reliably find the scroll container
         const vlistElement = document.querySelector(
-          '[style*="overflow: auto"][style*="height: 100%"]'
+          `[data-vlist-id="${vlistId}"]`
         );
         return vlistElement as HTMLElement | null;
-      }, []);
+      }, [vlistId]);
 
       // New method to scroll just enough to show the start of assistant message
       const scrollToShowAssistantStart = useCallback(() => {
@@ -346,6 +351,7 @@ export const VirtualizedChatMessages = memo(
             paddingTop: "24px",
           }}
           className="overscroll-contain"
+          data-vlist-id={vlistId}
           reverse // This makes it a chat-like interface
           overscan={10}
         >

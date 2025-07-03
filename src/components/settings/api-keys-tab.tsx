@@ -14,10 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUser } from "@/hooks/use-user";
-import {
-  useUserSettings,
-  useUserSettingsMutations,
-} from "@/hooks/use-user-settings";
+import { useUserSettings } from "@/hooks/use-user-settings";
+import { useOptimisticUserSettingsUpdate } from "@/hooks/use-optimistic-toggles";
 import { validateApiKey } from "@/lib/validation";
 
 import { SettingsHeader } from "./settings-header";
@@ -62,34 +60,32 @@ function getProviderCardStyle(isConnected: boolean) {
 export const ApiKeysTab = () => {
   const { user } = useUser();
   const userSettings = useUserSettings(user?._id);
-  const { updateUserSettings } = useUserSettingsMutations();
   const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
   const storeKeyMutation = useMutation(api.apiKeys.storeApiKey);
   const removeKeyMutation = useMutation(api.apiKeys.removeApiKey);
+
+  // Use optimistic updates for immediate feedback
+  const { mutate: updateUserSettingsOptimistic } =
+    useOptimisticUserSettingsUpdate();
 
   // Check if user has OpenRouter API key
   const hasOpenRouterKey = apiKeys?.some(
     key => key.provider === "openrouter" && key.hasKey
   );
 
-  const handleOpenRouterSortingChange = async (value: string) => {
-    try {
-      await updateUserSettings({
-        openRouterSorting: value as
-          | "default"
-          | "price"
-          | "throughput"
-          | "latency",
-      });
-      toast.success("OpenRouter Settings Updated", {
-        description: "Your provider sorting preference has been saved.",
-      });
-    } catch (error) {
-      console.error("Failed to update OpenRouter settings:", error);
-      toast.error("Error", {
-        description: "Failed to update settings. Please try again.",
-      });
-    }
+  const handleOpenRouterSortingChange = (value: string) => {
+    // Use optimistic mutation for immediate feedback
+    updateUserSettingsOptimistic({
+      openRouterSorting: value as
+        | "default"
+        | "price"
+        | "throughput"
+        | "latency",
+    });
+
+    toast.success("OpenRouter Settings Updated", {
+      description: "Your provider sorting preference has been saved.",
+    });
   };
 
   const handleApiKeySubmit = async (

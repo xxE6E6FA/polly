@@ -4,15 +4,17 @@ import {
   type ChatStrategy,
   type ChatStrategyOptions,
   type SendMessageParams,
-} from "./types";
-import {
   type Attachment,
   type ChatMessage,
   type WebSearchCitation,
   type APIKeys,
+  type ReasoningConfig,
 } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
-import { ClientAIService, type AIProvider } from "@/lib/ai/client-ai-service";
+
+import {
+  ClientAIService,
+  type AIProviderType,
+} from "@/lib/ai/client-ai-service";
 import { messageUtils } from "@/lib/ai/message-utils";
 import { type Id } from "../../../convex/_generated/dataModel";
 import { getDefaultSystemPrompt } from "convex/constants";
@@ -30,7 +32,7 @@ export class LocalChatStrategy implements ChatStrategy {
 
       getCanSendMessage: () => boolean;
       getDecryptedApiKey: (args: {
-        provider: AIProvider;
+        provider: AIProviderType;
       }) => Promise<string | null>;
       getPersona?: (
         personaId: Id<"personas">
@@ -159,7 +161,7 @@ export class LocalChatStrategy implements ChatStrategy {
       this.isGenerating = true;
       setIsThinking(true);
 
-      const provider = selectedModel.provider as AIProvider;
+      const provider = selectedModel.provider as AIProviderType;
       const decryptedKey = await getDecryptedApiKey({ provider });
 
       if (!decryptedKey) {
@@ -211,10 +213,7 @@ export class LocalChatStrategy implements ChatStrategy {
         apiKeys,
         options: {
           reasoningConfig: reasoningConfig?.enabled
-            ? {
-                effort: reasoningConfig.effort,
-                maxTokens: reasoningConfig.maxTokens,
-              }
+            ? reasoningConfig
             : undefined,
         },
         callbacks: {
@@ -450,7 +449,7 @@ export class LocalChatStrategy implements ChatStrategy {
       this.isGenerating = true;
       setIsThinking(true);
 
-      const provider = selectedModel.provider as AIProvider;
+      const provider = selectedModel.provider as AIProviderType;
       const decryptedKey = await getDecryptedApiKey({ provider });
 
       if (!decryptedKey) {

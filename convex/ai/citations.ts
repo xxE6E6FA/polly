@@ -6,7 +6,7 @@ import {
   type OpenRouterCitation,
   type ProviderMetadata,
   type WebSource,
-} from "./types";
+} from "../types";
 
 // Citation extractor factory for Convex-specific formats
 const citationExtractors = {

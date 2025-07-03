@@ -26,8 +26,12 @@ import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
 import { useChatPlaceholder } from "@/hooks/use-chat-placeholder";
 import { useChatSubmit } from "@/hooks/use-chat-submit";
 import { cn } from "@/lib/utils";
-import { type AIModel, type Attachment, type ConversationId } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
+import {
+  type AIModel,
+  type Attachment,
+  type ConversationId,
+  type ReasoningConfig,
+} from "@/types";
 
 import { api } from "../../convex/_generated/api";
 import { type Id } from "../../convex/_generated/dataModel";
@@ -82,7 +86,7 @@ export const ChatInput = React.memo(
       monthlyUsage,
       hasUnlimitedCalls,
     } = useUser();
-    const selectedModel = useSelectedModel();
+    const { selectedModel } = useSelectedModel();
     const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
     // Check if Polly model is selected and monthly limit is reached

@@ -6,27 +6,7 @@ import {
   type AnthropicStreamEvent,
 } from "../../../convex/lib/shared/anthropic_stream";
 import { ANTHROPIC_BUDGET_MAP } from "../../../convex/lib/shared/reasoning_config";
-import { type StreamCallbacks } from "./client-stream-handler";
-import { type Attachment } from "@/types";
-
-export interface AnthropicStreamOptions {
-  messages: Array<{
-    role: "user" | "assistant" | "system";
-    content: string;
-    attachments?: Attachment[];
-  }>;
-  model: string;
-  apiKey: string;
-  temperature?: number;
-  maxTokens?: number;
-  topP?: number;
-  reasoningConfig?: {
-    effort?: "low" | "medium" | "high";
-    maxTokens?: number;
-  };
-  abortSignal?: AbortSignal;
-  callbacks: StreamCallbacks;
-}
+import { type AnthropicStreamOptions } from "@/types";
 
 /**
  * Client-side Anthropic native streaming for reasoning models

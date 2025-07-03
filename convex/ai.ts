@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
+import { type Doc } from "./_generated/dataModel";
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/errors";
 import {
@@ -23,11 +24,7 @@ import {
   type SearchDecision,
   type SearchDecisionContext,
 } from "./ai/search_detection";
-import {
-  type Citation,
-  type ProviderType,
-  type StreamMessage,
-} from "./ai/types";
+import { type Citation, type ProviderType, type StreamMessage } from "./types";
 import { WEB_SEARCH_MAX_RESULTS } from "./constants";
 
 // Main streaming action
@@ -248,15 +245,23 @@ export const streamResponse = action({
           // Add conversation history if available
           if (message?.conversationId) {
             try {
-              const recentMessages = await ctx.runQuery(api.messages.list, {
-                conversationId: message.conversationId,
-              });
+              const recentMessagesResult = await ctx.runQuery(
+                api.messages.list,
+                {
+                  conversationId: message.conversationId,
+                }
+              );
+
+              // Handle both array and pagination result
+              const recentMessages = Array.isArray(recentMessagesResult)
+                ? recentMessagesResult
+                : recentMessagesResult.page;
 
               // Get last 3 messages (excluding current)
               const historyMessages = recentMessages
-                .filter(m => m._id !== args.messageId)
+                .filter((m: Doc<"messages">) => m._id !== args.messageId)
                 .slice(-3)
-                .map(m => ({
+                .map((m: Doc<"messages">) => ({
                   role: m.role as "user" | "assistant",
                   content: m.content,
                   hasSearchResults: !!m.citations?.length,
@@ -270,10 +275,11 @@ export const streamResponse = action({
               // Extract previous searches
               const previousSearches = recentMessages
                 .filter(
-                  m => m.metadata?.searchQuery && m._id !== args.messageId
+                  (m: Doc<"messages">) =>
+                    m.metadata?.searchQuery && m._id !== args.messageId
                 )
                 .slice(-2) // Last 2 searches
-                .map(m => ({
+                .map((m: Doc<"messages">) => ({
                   query: m.metadata!.searchQuery as string,
                   searchType: (m.metadata!.searchFeature as string) || "search",
                   category: m.metadata?.searchCategory as string | undefined,

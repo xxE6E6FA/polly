@@ -2,9 +2,11 @@ import {
   type ChatStrategy,
   type ChatStrategyOptions,
   type SendMessageParams,
-} from "./types";
-import { type Attachment, type ChatMessage } from "@/types";
-import { type ReasoningConfig } from "@/components/reasoning-config-select";
+  type Attachment,
+  type ChatMessage,
+  type ReasoningConfig,
+} from "@/types";
+
 import { type Id } from "../../../convex/_generated/dataModel";
 
 type ServerChatStrategyOptions = ChatStrategyOptions & {

@@ -15,7 +15,7 @@ import {
   SUPPORTED_TEXT_TYPES,
 } from "convex/lib/model_capabilities_config";
 
-import { type AIModel } from "@/types";
+import { type AIModel, type ModelCapability } from "@/types";
 
 export const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "gpt-4o": "GPT-4o",
@@ -262,12 +262,6 @@ export function resolveModelProvider(
     source: "fallback",
   };
 }
-
-export type ModelCapability = {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  description: string;
-};
 
 type ModelForCapabilities = {
   modelId: string;
