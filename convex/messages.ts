@@ -15,6 +15,7 @@ import {
   messageMetadataSchema,
 } from "./lib/schemas";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
+import { withRetry } from "./ai/error_handlers";
 
 export const create = mutation({
   args: {
@@ -46,11 +47,9 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
-    // Only increment totalMessageCount for user messages using atomic operation
     if (args.role === "user") {
       const conversation = await ctx.db.get(args.conversationId);
       if (conversation) {
-        // Use atomic increment instead of read-modify-write
         await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
           userId: conversation.userId,
         });
@@ -77,18 +76,21 @@ export const list = query({
       .order("asc");
 
     if (!args.includeAlternatives) {
-      query = query.filter(q => q.eq(q.field("isMainBranch"), true));
+      // Use optimized compound index for main branch messages
+      query = ctx.db
+        .query("messages")
+        .withIndex("by_conversation_main_branch", q =>
+          q.eq("conversationId", args.conversationId).eq("isMainBranch", true)
+        )
+        .order("asc");
     }
 
-    // Use pagination if specified for large conversations
     const validatedOpts = validatePaginationOpts(args.paginationOpts);
     const messages = validatedOpts
       ? await query.paginate(validatedOpts)
       : await query.collect();
 
-    // Only resolve attachment URLs when explicitly requested (e.g., for display)
     if (args.resolveAttachments !== false && !args.paginationOpts) {
-      // Only resolve for non-paginated results to avoid expensive operations
       return await Promise.all(
         (Array.isArray(messages) ? messages : messages.page).map(
           async message => {
@@ -116,7 +118,6 @@ export const list = query({
       );
     }
 
-    // Return messages without resolving attachment URLs for better performance
     return Array.isArray(messages) ? messages : messages;
   },
 });
@@ -136,16 +137,13 @@ export const update = mutation({
     id: v.id("messages"),
     content: v.optional(v.string()),
     reasoning: v.optional(v.string()),
-    // Allow direct patch for efficient updates
     patch: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const { id, patch, ...directUpdates } = args;
 
-    // Use patch if provided, otherwise use direct updates
     const updates = patch || directUpdates;
 
-    // Remove undefined values
     const cleanUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
@@ -156,7 +154,6 @@ export const update = mutation({
   },
 });
 
-// Internal mutation for streaming updates
 export const internalUpdate = internalMutation({
   args: {
     id: v.id("messages"),
@@ -178,7 +175,6 @@ export const internalUpdate = internalMutation({
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
 
-    // Use a retry loop with exponential backoff for write conflicts
     let retries = 0;
     const maxRetries = 3;
 
@@ -186,7 +182,6 @@ export const internalUpdate = internalMutation({
       try {
         return await ctx.db.patch(id, updates);
       } catch (error) {
-        // Check if this is a write conflict and we should retry
         if (
           retries < maxRetries - 1 &&
           error instanceof Error &&
@@ -194,7 +189,6 @@ export const internalUpdate = internalMutation({
             error.message.includes("conflict"))
         ) {
           retries++;
-          // Exponential backoff: 10ms, 20ms, 40ms
           await new Promise(resolve =>
             setTimeout(resolve, 10 * Math.pow(2, retries - 1))
           );
@@ -212,14 +206,12 @@ export const setBranch = mutation({
     parentId: v.optional(v.id("messages")),
   },
   handler: async (ctx, args) => {
-    // Set all siblings to non-main branch
     if (args.parentId) {
       const siblings = await ctx.db
         .query("messages")
         .withIndex("by_parent", q => q.eq("parentId", args.parentId))
         .collect();
 
-      // Parallelize all sibling updates
       await Promise.all(
         siblings.map(sibling =>
           ctx.db.patch(sibling._id, { isMainBranch: false })
@@ -227,7 +219,6 @@ export const setBranch = mutation({
       );
     }
 
-    // Set this message as main branch
     return await ctx.db.patch(args.messageId, { isMainBranch: true });
   },
 });
@@ -235,18 +226,14 @@ export const setBranch = mutation({
 export const remove = mutation({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
-    // Get the message to check for attachments and conversation
     const message = await ctx.db.get(args.id);
 
     if (!message) {
-      // Message already deleted
       return;
     }
 
-    // Prepare parallel operations
     const operations: Promise<void>[] = [];
 
-    // If message has a conversation, clear streaming state
     if (message.conversationId) {
       operations.push(
         ctx.db
@@ -261,7 +248,6 @@ export const remove = mutation({
           })
       );
 
-      // Only decrement totalMessageCount for user messages using atomic operation
       if (message.role === "user") {
         const conversation = await ctx.db.get(message.conversationId);
         if (conversation) {
@@ -276,7 +262,6 @@ export const remove = mutation({
       }
     }
 
-    // Clean up any attached files from storage
     if (message.attachments) {
       for (const attachment of message.attachments) {
         if (attachment.storageId) {
@@ -292,10 +277,8 @@ export const remove = mutation({
       }
     }
 
-    // Add message deletion
     operations.push(ctx.db.delete(args.id));
 
-    // Execute all operations in parallel
     await Promise.all(operations);
   },
 });
@@ -303,7 +286,6 @@ export const remove = mutation({
 export const removeMultiple = mutation({
   args: { ids: v.array(v.id("messages")) },
   handler: async (ctx, args) => {
-    // Get all messages to check for attachments and conversations
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
     const conversationIds = new Set<Id<"conversations">>();
@@ -315,7 +297,6 @@ export const removeMultiple = mutation({
         if (message.conversationId) {
           conversationIds.add(message.conversationId);
 
-          // Only count user messages for totalMessageCount
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
@@ -343,10 +324,8 @@ export const removeMultiple = mutation({
       }
     }
 
-    // Parallelize all operations
     const operations: Promise<void>[] = [];
 
-    // Add conversation streaming state updates
     for (const conversationId of conversationIds) {
       operations.push(
         ctx.db
@@ -362,7 +341,6 @@ export const removeMultiple = mutation({
       );
     }
 
-    // Add user message count decrements using atomic operations
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
         ctx
@@ -374,7 +352,6 @@ export const removeMultiple = mutation({
       );
     }
 
-    // Add message deletions
     operations.push(
       ...args.ids.map(id =>
         ctx.db.delete(id).catch(error => {
@@ -383,10 +360,8 @@ export const removeMultiple = mutation({
       )
     );
 
-    // Add storage deletions
     operations.push(...storageDeletePromises);
 
-    // Execute all operations in parallel
     await Promise.all(operations);
   },
 });
@@ -409,7 +384,6 @@ export const getAllInConversation = query({
       .order("asc")
       .collect();
 
-    // Resolve URLs for attachments with storageId
     return await Promise.all(
       messages.map(async message => {
         if (message.attachments) {
@@ -449,56 +423,38 @@ export const internalAtomicUpdate = internalMutation({
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;
 
-    // Optimize: Use single atomic operation for appends to minimize read/write cycles
-    if (appendContent || appendReasoning) {
-      // Get current message once
-      const message = await ctx.db.get(id);
-      if (!message) {
-        throw new Error(`Message with id ${id} not found`);
-      }
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
 
-      const updatesWithAppend = { ...updates };
-      if (appendContent) {
-        updatesWithAppend.content = (message.content || "") + appendContent;
+    if (!appendContent && !appendReasoning) {
+      if (Object.keys(filteredUpdates).length === 0) {
+        return;
       }
-      if (appendReasoning) {
-        updatesWithAppend.reasoning =
-          (message.reasoning || "") + appendReasoning;
-      }
-
-      // Single patch operation - no retry loop needed for most cases
-      try {
-        return await ctx.db.patch(id, updatesWithAppend);
-      } catch (error) {
-        // Only retry once for genuine conflicts
-        if (
-          error instanceof Error &&
-          error.message.includes("changed while this mutation was being run")
-        ) {
-          // Brief delay and single retry
-          await new Promise(resolve => setTimeout(resolve, 5));
-          const retryMessage = await ctx.db.get(id);
-          if (!retryMessage) {
-            throw new Error(`Message with id ${id} not found on retry`);
-          }
-
-          const retryUpdates = { ...updates };
-          if (appendContent) {
-            retryUpdates.content = (retryMessage.content || "") + appendContent;
-          }
-          if (appendReasoning) {
-            retryUpdates.reasoning =
-              (retryMessage.reasoning || "") + appendReasoning;
-          }
-
-          return await ctx.db.patch(id, retryUpdates);
-        }
-        throw error;
-      }
+      return await ctx.db.patch(id, filteredUpdates);
     }
 
-    // For non-append operations, direct patch (most common case)
-    return await ctx.db.patch(id, updates);
+    return await withRetry(
+      async () => {
+        const message = await ctx.db.get(id);
+        if (!message) {
+          throw new Error(`Message with id ${id} not found`);
+        }
+
+        const appendUpdates = { ...filteredUpdates };
+
+        if (appendContent) {
+          appendUpdates.content = (message.content || "") + appendContent;
+        }
+        if (appendReasoning) {
+          appendUpdates.reasoning = (message.reasoning || "") + appendReasoning;
+        }
+
+        return await ctx.db.patch(id, appendUpdates);
+      },
+      2,
+      10
+    );
   },
 });
 
@@ -529,7 +485,6 @@ export const internalGetAllInConversation = internalMutation({
   },
 });
 
-// Public wrapper for migration (temporary - remove after migration)
 export const runSearchResultsMigration = mutation({
   args: {},
   handler: async ctx => {
@@ -538,7 +493,6 @@ export const runSearchResultsMigration = mutation({
 
     for (const message of messages) {
       if (message.metadata?.searchResults) {
-        // Remove searchResults from metadata
         const { searchResults: _unused, ...cleanMetadata } = message.metadata;
         await ctx.db.patch(message._id, {
           metadata: cleanMetadata,
@@ -554,17 +508,13 @@ export const runSearchResultsMigration = mutation({
 export const hasStreamingMessage = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    // Find any assistant message without a finish reason
     const streamingMessage = await ctx.db
       .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .filter(q =>
-        q.and(
-          q.eq(q.field("role"), "assistant"),
-          q.eq(q.field("metadata.finishReason"), undefined)
-        )
+      .withIndex("by_conversation_streaming", q =>
+        q
+          .eq("conversationId", args.conversationId)
+          .eq("role", "assistant")
+          .eq("metadata.finishReason", undefined)
       )
       .first();
 

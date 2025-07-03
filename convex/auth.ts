@@ -74,18 +74,15 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         : undefined;
 
       // Handle anonymous user graduation
-      const anonymousUserId = (
-        args as { state?: { anonymousUserId?: Id<"users"> } }
-      ).state?.anonymousUserId as Id<"users"> | undefined;
+      const stateObj = (args as { state?: { anonymousUserId?: string } }).state;
+      const anonymousUserId = stateObj?.anonymousUserId as
+        | Id<"users">
+        | undefined;
 
       if (anonymousUserId) {
-        // Anonymous user ID found in state
-
         const anonymousUser = await ctx.db.get(anonymousUserId);
 
         if (anonymousUser?.isAnonymous) {
-          // Graduating anonymous user
-
           // Graduate the anonymous user by updating their record
           await ctx.db.patch(anonymousUserId, {
             name: profileName || anonymousUser.name,
@@ -114,8 +111,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           throw new ConvexError("User account is in an invalid state");
         }
 
-        // Updating existing user
-
         // Update user with latest auth data
         await ctx.db.patch(existingUserId, {
           name: profileName || existingUser.name,
@@ -126,6 +121,33 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         });
 
         return existingUserId;
+      }
+
+      // Check if there are any recent anonymous users that could be candidates for graduation
+      // This is a fallback for cases where the anonymous user ID is lost
+      const recentAnonymousUsers = await ctx.db
+        .query("users")
+        .filter(q => q.eq(q.field("isAnonymous"), true))
+        .order("desc")
+        .take(10); // Check last 10 anonymous users
+
+      // If there's only one recent anonymous user, it's likely the one to graduate
+      if (recentAnonymousUsers.length === 1) {
+        const anonymousUser = recentAnonymousUsers[0];
+
+        await ctx.db.patch(anonymousUser._id, {
+          name: profileName || anonymousUser.name,
+          email: profileEmail || anonymousUser.email,
+          emailVerified: profileEmailVerified || anonymousUser.emailVerified,
+          image: profileImage || anonymousUser.image,
+          isAnonymous: false,
+          monthlyMessagesSent: anonymousUser.messagesSent || 0,
+          monthlyLimit: MONTHLY_MESSAGE_LIMIT,
+          lastMonthlyReset: Date.now(),
+          conversationCount: anonymousUser.conversationCount || 0,
+          totalMessageCount: anonymousUser.totalMessageCount || 0,
+        });
+        return anonymousUser._id;
       }
 
       // Create new user
@@ -139,7 +161,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           .first();
 
         if (existingEmailUser) {
-          // User with email already exists, linking accounts
           return existingEmailUser._id;
         }
       }

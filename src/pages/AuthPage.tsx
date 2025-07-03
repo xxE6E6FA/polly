@@ -4,6 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { getStoredAnonymousUserId } from "@/lib/auth-utils";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
@@ -12,10 +13,20 @@ export default function AuthPage() {
   const handleSignIn = useCallback(async () => {
     try {
       setIsLoading(true);
-      await signIn("google");
+
+      // Get stored anonymous user ID if it exists
+      const anonymousUserId = getStoredAnonymousUserId();
+
+      // Pass the anonymous user ID in the state for graduation
+      if (anonymousUserId) {
+        await signIn("google", { state: { anonymousUserId } });
+      } else {
+        await signIn("google");
+      }
     } catch (error) {
-      console.error("[Auth] Sign-in failed:", error);
+      console.error("[AuthPage] Sign in error:", error);
       toast.error("Failed to sign in. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   }, [signIn]);

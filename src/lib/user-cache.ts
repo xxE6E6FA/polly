@@ -20,6 +20,7 @@ type CachedUserData = {
     needsReset: boolean;
   };
   hasUserApiKeys?: boolean;
+  hasUserModels?: boolean;
 };
 
 type CachedModelData = {
@@ -105,6 +106,7 @@ export function getCachedUserData(): Omit<
       messageCount: data.messageCount,
       monthlyUsage: data.monthlyUsage,
       hasUserApiKeys: data.hasUserApiKeys,
+      hasUserModels: data.hasUserModels,
     };
   } catch (error) {
     console.error("Error reading user cache:", error);

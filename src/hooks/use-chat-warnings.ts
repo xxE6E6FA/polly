@@ -58,7 +58,7 @@ export function useChatWarnings() {
     return {
       text: `${monthlyUsage?.remainingMessages || 0} monthly message${
         monthlyUsage?.remainingMessages === 1 ? "" : "s"
-      } remaining`,
+      } remaining. `,
       suffix: hasUserApiKeys
         ? "Use BYOK models for unlimited chats"
         : "Add API keys for unlimited chats",

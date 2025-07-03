@@ -4,18 +4,16 @@ import { api, internal } from "./_generated/api";
 import { type Id } from "./_generated/dataModel";
 import { getCurrentUserId } from "./lib/auth";
 
-// Background task to archive old conversations
 export const archiveOldConversations = internalMutation({
   args: {
-    daysOld: v.optional(v.number()), // Default 90 days
-    batchSize: v.optional(v.number()), // Default 100
+    daysOld: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const daysOld = args.daysOld || 90;
     const batchSize = args.batchSize || 100;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Find old conversations that aren't already archived or pinned
     const oldConversations = await ctx.db
       .query("conversations")
       .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
@@ -27,7 +25,6 @@ export const archiveOldConversations = internalMutation({
       )
       .take(batchSize);
 
-    // Archive them in parallel
     const archiveOperations = oldConversations.map(conv =>
       ctx.db.patch(conv._id, {
         isArchived: true,
@@ -44,18 +41,16 @@ export const archiveOldConversations = internalMutation({
   },
 });
 
-// Clean up orphaned messages (messages without a conversation)
 export const cleanupOrphanedMessages = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
-    daysOld: v.optional(v.number()), // Only check messages older than this many days
+    daysOld: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const batchSize = args.batchSize || 100;
-    const daysOld = args.daysOld || 7; // Default to checking messages older than 7 days
+    const daysOld = args.daysOld || 7;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Get a batch of messages older than the cutoff date using the indexed query
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
@@ -63,7 +58,6 @@ export const cleanupOrphanedMessages = internalMutation({
 
     const orphanedIds = [];
 
-    // Group messages by conversationId to reduce database queries
     const conversationIdGroups = new Map<string, typeof messages>();
     for (const message of messages) {
       const conversationId = message.conversationId;
@@ -73,18 +67,15 @@ export const cleanupOrphanedMessages = internalMutation({
       conversationIdGroups.get(conversationId)!.push(message);
     }
 
-    // Check each unique conversation ID once
     for (const [conversationId, messagesGroup] of conversationIdGroups) {
       const conversation = await ctx.db.get(
         conversationId as Id<"conversations">
       );
       if (!conversation) {
-        // All messages in this group are orphaned
         orphanedIds.push(...messagesGroup.map(msg => msg._id));
       }
     }
 
-    // Delete orphaned messages in parallel
     if (orphanedIds.length > 0) {
       await ctx.runMutation(api.messages.removeMultiple, {
         ids: orphanedIds,
@@ -100,7 +91,6 @@ export const cleanupOrphanedMessages = internalMutation({
   },
 });
 
-// Archive conversations based on user settings
 export const archiveConversationsForUser = internalMutation({
   args: {
     userId: v.id("users"),
@@ -109,13 +99,11 @@ export const archiveConversationsForUser = internalMutation({
   handler: async (ctx, args) => {
     const batchSize = args.batchSize || 100;
 
-    // Get user's archiving settings
     const userSettings = await ctx.db
       .query("userSettings")
       .withIndex("by_user", q => q.eq("userId", args.userId))
       .first();
 
-    // If user has auto-archive disabled, skip
     if (!userSettings?.autoArchiveEnabled) {
       return {
         archivedCount: 0,
@@ -127,7 +115,6 @@ export const archiveConversationsForUser = internalMutation({
     const daysOld = userSettings.autoArchiveDays ?? 30;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Find old conversations for this user that aren't already archived or pinned
     const oldConversations = await ctx.db
       .query("conversations")
       .withIndex("by_user_recent", q => q.eq("userId", args.userId))
@@ -140,7 +127,6 @@ export const archiveConversationsForUser = internalMutation({
       )
       .take(batchSize);
 
-    // Archive them in parallel
     const archiveOperations = oldConversations.map(conv =>
       ctx.db.patch(conv._id, {
         isArchived: true,
@@ -158,18 +144,18 @@ export const archiveConversationsForUser = internalMutation({
   },
 });
 
-// Archive conversations based on user settings for all users
 export const archiveConversationsForAllUsers = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const batchSize = args.batchSize || 10; // Process fewer users at a time
+    const batchSize = args.batchSize || 10;
 
-    // Get users who have auto-archive enabled
     const usersWithAutoArchive = await ctx.db
       .query("userSettings")
-      .filter(q => q.eq(q.field("autoArchiveEnabled"), true))
+      .withIndex("by_auto_archive_enabled", q =>
+        q.eq("autoArchiveEnabled", true)
+      )
       .take(batchSize);
 
     let totalArchived = 0;
@@ -181,13 +167,10 @@ export const archiveConversationsForAllUsers = internalMutation({
       daysOld?: number;
     }> = [];
 
-    // Process each user's conversations
     for (const userSettings of usersWithAutoArchive) {
-      // Get user's archiving settings
       const daysOld = userSettings.autoArchiveDays ?? 30;
       const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-      // Find old conversations for this user that aren't already archived or pinned
       const oldConversations = await ctx.db
         .query("conversations")
         .withIndex("by_user_recent", q => q.eq("userId", userSettings.userId))
@@ -200,7 +183,6 @@ export const archiveConversationsForAllUsers = internalMutation({
         )
         .take(100);
 
-      // Archive them in parallel
       const archiveOperations = oldConversations.map(conv =>
         ctx.db.patch(conv._id, {
           isArchived: true,
@@ -229,11 +211,9 @@ export const archiveConversationsForAllUsers = internalMutation({
   },
 });
 
-// Schedule periodic cleanup (call this from a cron job or manually)
 export const scheduleCleanup = mutation({
   args: {},
   handler: async ctx => {
-    // Schedule user-based archive task
     await ctx.scheduler.runAfter(
       0,
       internal.cleanup.archiveConversationsForAllUsers,
@@ -242,13 +222,12 @@ export const scheduleCleanup = mutation({
       }
     );
 
-    // Schedule orphaned message cleanup
     await ctx.scheduler.runAfter(
       60 * 1000,
       internal.cleanup.cleanupOrphanedMessages,
       {
         batchSize: 100,
-        daysOld: 7, // Only check messages older than 7 days
+        daysOld: 7,
       }
     );
 
@@ -256,7 +235,6 @@ export const scheduleCleanup = mutation({
   },
 });
 
-// Manually trigger archiving for the current user
 export const archiveMyOldConversations = mutation({
   args: {},
   handler: async ctx => {
@@ -265,17 +243,14 @@ export const archiveMyOldConversations = mutation({
       throw new Error("User not authenticated");
     }
 
-    // Get user's archiving settings
     const userSettings = await ctx.db
       .query("userSettings")
       .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
-    // If user has auto-archive disabled, still allow manual archiving with default settings
     const daysOld = userSettings?.autoArchiveDays ?? 30;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Find old conversations for this user that aren't already archived or pinned
     const oldConversations = await ctx.db
       .query("conversations")
       .withIndex("by_user_recent", q => q.eq("userId", userId))
@@ -288,7 +263,6 @@ export const archiveMyOldConversations = mutation({
       )
       .take(100);
 
-    // Archive them in parallel
     const archiveOperations = oldConversations.map(conv =>
       ctx.db.patch(conv._id, {
         isArchived: true,
@@ -306,10 +280,9 @@ export const archiveMyOldConversations = mutation({
   },
 });
 
-// Clean up old shared conversations
 export const cleanupOldSharedConversations = internalMutation({
   args: {
-    daysOld: v.optional(v.number()), // Default 30 days
+    daysOld: v.optional(v.number()),
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -317,13 +290,11 @@ export const cleanupOldSharedConversations = internalMutation({
     const batchSize = args.batchSize || 100;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Find old shared conversations
     const oldShared = await ctx.db
       .query("sharedConversations")
-      .filter(q => q.lt(q.field("lastUpdated"), cutoffDate))
+      .withIndex("by_last_updated", q => q.lt("lastUpdated", cutoffDate))
       .take(batchSize);
 
-    // Delete them in parallel
     const deleteOperations = oldShared.map(shared => ctx.db.delete(shared._id));
 
     await Promise.all(deleteOperations);

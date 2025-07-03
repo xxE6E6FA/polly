@@ -3,6 +3,7 @@ import { type UserId } from "@/types";
 import {
   getAnonymousUserIdFromCookie,
   setAnonymousUserIdCookie,
+  removeAnonymousUserIdCookie,
 } from "./cookies";
 
 const ANONYMOUS_USER_ID_KEY = "anonymous-user-id";
@@ -48,6 +49,22 @@ export function storeAnonymousUserId(userId: UserId) {
     detail: { userId },
   });
   window.dispatchEvent(event);
+}
+
+/**
+ * Clean up anonymous user ID after successful authentication
+ * This should be called when a user successfully graduates from anonymous to authenticated
+ */
+export function cleanupAnonymousUserId() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  // Remove from cookie
+  removeAnonymousUserIdCookie();
+
+  // Remove from localStorage if it exists
+  localStorage.removeItem(ANONYMOUS_USER_ID_KEY);
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   getStoredAnonymousUserId,
   onAnonymousUserCreated,
   storeAnonymousUserId as storeUserId,
+  cleanupAnonymousUserId,
 } from "../lib/auth-utils";
 import { MONTHLY_MESSAGE_LIMIT } from "../lib/constants";
 import {
@@ -41,9 +42,16 @@ type UseUserReturn = {
   isHydrated?: boolean;
 };
 
-function computeUserProperties(
-  user: User | null,
-  messageCount: number | undefined,
+function computeUserProperties({
+  user,
+  messageCount,
+  monthlyUsage,
+  hasUserApiKeys,
+  hasUserModels,
+  isLoading,
+}: {
+  user: User | null;
+  messageCount: number | undefined;
   monthlyUsage:
     | {
         monthlyMessagesSent: number;
@@ -53,10 +61,11 @@ function computeUserProperties(
         needsReset: boolean;
       }
     | null
-    | undefined,
-  hasUserApiKeys: boolean | undefined,
-  isLoading: boolean
-): Omit<UseUserReturn, "user"> {
+    | undefined;
+  hasUserApiKeys: boolean;
+  hasUserModels: boolean;
+  isLoading: boolean;
+}): Omit<UseUserReturn, "user"> {
   const isAnonymous = !user || user.isAnonymous;
   const effectiveMessageCount = messageCount ?? 0;
 
@@ -91,7 +100,7 @@ function computeUserProperties(
     remainingMessages,
     isAnonymous: false,
     hasMessageLimit: !hasUnlimitedCalls,
-    canSendMessage: hasUnlimitedCalls || remainingMessages > 0,
+    canSendMessage: hasUnlimitedCalls || remainingMessages > 0 || hasUserModels,
     isLoading,
     monthlyUsage: monthlyUsage
       ? {
@@ -264,11 +273,35 @@ export function useUserData(): UseUserReturn {
       }
     );
 
+  const { data: hasUserModels, isLoading: isLoadingUserModels } =
+    useConvexWithOptimizedCache(
+      api.userModels.hasUserModels,
+      authenticatedUser && !authenticatedUser.isAnonymous ? {} : "skip",
+      {
+        queryKey: "hasUserModels",
+        getCachedData: () => getCachedUserData()?.hasUserModels ?? null,
+        setCachedData: hasModels => {
+          if (currentUser && typeof hasModels === "boolean") {
+            const cached = getCachedUserData();
+            setCachedUser(
+              currentUser,
+              cached?.messageCount,
+              cached?.monthlyUsage,
+              cached?.hasUserApiKeys
+            );
+          }
+        },
+        clearCachedData: clearUserCache,
+        invalidationEvents: ["user-graduated"],
+      }
+    );
+
   // Handle user graduation event cleanup
   useEffect(() => {
     const handleGraduationComplete = () => {
       setStoredAnonymousUserId(null);
       clearUserCache();
+      cleanupAnonymousUserId();
     };
 
     window.addEventListener("user-graduated", handleGraduationComplete);
@@ -276,6 +309,19 @@ export function useUserData(): UseUserReturn {
       window.removeEventListener("user-graduated", handleGraduationComplete);
     };
   }, []);
+
+  // Detect user graduation (transition from anonymous to authenticated)
+  useEffect(() => {
+    const wasAnonymous = storedAnonymousUserId !== null;
+    const isNowAuthenticated =
+      authenticatedUser && !authenticatedUser.isAnonymous;
+
+    if (wasAnonymous && isNowAuthenticated) {
+      // User has graduated from anonymous to authenticated
+      const event = new CustomEvent("user-graduated");
+      window.dispatchEvent(event);
+    }
+  }, [storedAnonymousUserId, authenticatedUser]);
 
   // Initialize missing data
   useEffect(() => {
@@ -292,18 +338,29 @@ export function useUserData(): UseUserReturn {
 
   // Determine loading state
   const isLoading = useMemo(() => {
-    if (isLoadingAuth) return true;
-    if (!authenticatedUser && storedAnonymousUserId && isLoadingAnon)
+    // Always loading if auth is still loading
+    if (isLoadingAuth) {
       return true;
-    if (currentUserId && isLoadingMessageCount) return true;
-    if (
-      authenticatedUser &&
-      !authenticatedUser.isAnonymous &&
-      isLoadingMonthlyUsage
-    )
+    }
+
+    // Loading if we expect an anonymous user but it's still loading
+    if (!authenticatedUser && storedAnonymousUserId && isLoadingAnon) {
       return true;
-    if (authenticatedUser && !authenticatedUser.isAnonymous && isLoadingApiKeys)
+    }
+
+    // Loading if we have a user but message count is still loading
+    if (currentUserId && isLoadingMessageCount) {
       return true;
+    }
+
+    // For authenticated (non-anonymous) users, check additional data
+    const isAuthenticatedUser =
+      authenticatedUser && !authenticatedUser.isAnonymous;
+
+    if (isAuthenticatedUser) {
+      return isLoadingMonthlyUsage || isLoadingApiKeys || isLoadingUserModels;
+    }
+
     return false;
   }, [
     isLoadingAuth,
@@ -311,17 +368,30 @@ export function useUserData(): UseUserReturn {
     isLoadingMessageCount,
     isLoadingMonthlyUsage,
     isLoadingApiKeys,
+    isLoadingUserModels,
     authenticatedUser,
     storedAnonymousUserId,
     currentUserId,
   ]);
 
-  const userProperties = computeUserProperties(
-    currentUser,
-    messageCount ?? undefined,
-    monthlyUsage,
-    hasUserApiKeys ?? undefined,
-    isLoading
+  const userProperties = useMemo(
+    () =>
+      computeUserProperties({
+        user: currentUser,
+        messageCount: messageCount ?? undefined,
+        monthlyUsage,
+        hasUserApiKeys,
+        hasUserModels,
+        isLoading,
+      }),
+    [
+      currentUser,
+      messageCount,
+      monthlyUsage,
+      hasUserApiKeys,
+      hasUserModels,
+      isLoading,
+    ]
   );
 
   return {
@@ -334,12 +404,14 @@ export function usePreloadedUser(
   preloadedUser: Preloaded<typeof api.users.getById>,
   preloadedMessageCount: Preloaded<typeof api.users.getMessageCount>,
   preloadedMonthlyUsage: Preloaded<typeof api.users.getMonthlyUsage>,
-  preloadedHasUserApiKeys: Preloaded<typeof api.users.hasUserApiKeys>
+  preloadedHasUserApiKeys: Preloaded<typeof api.users.hasUserApiKeys>,
+  preloadedHasUserModels: Preloaded<typeof api.userModels.hasUserModels>
 ): UseUserReturn {
   const user = usePreloadedQuery(preloadedUser);
   const messageCount = usePreloadedQuery(preloadedMessageCount);
   const monthlyUsage = usePreloadedQuery(preloadedMonthlyUsage);
   const hasUserApiKeys = usePreloadedQuery(preloadedHasUserApiKeys);
+  const hasUserModels = usePreloadedQuery(preloadedHasUserModels);
 
   const initializeMessagesSent = useMutation(api.users.initializeMessagesSent);
 
@@ -349,12 +421,17 @@ export function usePreloadedUser(
     }
   }, [user, initializeMessagesSent]);
 
-  const userProperties = computeUserProperties(
-    user,
-    messageCount,
-    monthlyUsage,
-    hasUserApiKeys,
-    false
+  const userProperties = useMemo(
+    () =>
+      computeUserProperties({
+        user,
+        messageCount,
+        monthlyUsage,
+        hasUserApiKeys,
+        hasUserModels,
+        isLoading: false,
+      }),
+    [user, messageCount, monthlyUsage, hasUserApiKeys, hasUserModels]
   );
 
   return {

@@ -10,7 +10,6 @@ import {
 } from "./lib/schemas";
 
 export default defineSchema({
-  // Authentication tables from Convex Auth
   ...authTables,
 
   users: defineTable({
@@ -20,7 +19,7 @@ export default defineSchema({
     emailVerificationTime: v.optional(v.number()),
     image: v.optional(v.string()),
     isAnonymous: v.optional(v.boolean()),
-    messagesSent: v.optional(v.number()), // Total messages sent (for anonymous user limits)
+    messagesSent: v.optional(v.number()),
     createdAt: v.optional(v.number()),
     monthlyMessagesSent: v.optional(v.number()),
     monthlyLimit: v.optional(v.number()),
@@ -53,20 +52,19 @@ export default defineSchema({
   conversations: defineTable({
     title: v.string(),
     userId: v.id("users"),
-    personaId: v.optional(v.id("personas")), // Null means default persona
+    personaId: v.optional(v.id("personas")),
     sourceConversationId: v.optional(v.id("conversations")),
     isStreaming: v.optional(v.boolean()),
     isPinned: v.optional(v.boolean()),
-    isArchived: v.optional(v.boolean()), // New field for archiving
+    isArchived: v.optional(v.boolean()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
-    // Optimized indexes for common queries
-    .index("by_user_recent", ["userId", "updatedAt"]) // For recent conversations
-    .index("by_user_pinned", ["userId", "isPinned", "updatedAt"]) // For pinned conversations
-    .index("by_user_archived", ["userId", "isArchived", "updatedAt"]) // For archived conversations
-    .index("by_created_at", ["createdAt"]), // For cleanup operations
+    .index("by_user_recent", ["userId", "updatedAt"])
+    .index("by_user_pinned", ["userId", "isPinned", "updatedAt"])
+    .index("by_user_archived", ["userId", "isArchived", "updatedAt"])
+    .index("by_created_at", ["createdAt"]),
 
   sharedConversations: defineTable({
     shareId: v.string(),
@@ -79,7 +77,8 @@ export default defineSchema({
   })
     .index("by_share_id", ["shareId"])
     .index("by_original_conversation", ["originalConversationId"])
-    .index("by_user", ["userId"]),
+    .index("by_user", ["userId"])
+    .index("by_last_updated", ["lastUpdated"]),
 
   messages: defineTable({
     conversationId: v.id("conversations"),
@@ -93,29 +92,30 @@ export default defineSchema({
     sourceConversationId: v.optional(v.id("conversations")),
     useWebSearch: v.optional(v.boolean()),
     attachments: v.optional(v.array(attachmentSchema)),
-    // Web search citations
     citations: v.optional(v.array(webCitationSchema)),
     metadata: v.optional(messageMetadataSchema),
     createdAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])
     .index("by_parent", ["parentId"])
-    // Add optimized indexes for common query patterns
     .index("by_conversation_main_branch", [
       "conversationId",
       "isMainBranch",
       "createdAt",
     ])
     .index("by_conversation_role", ["conversationId", "role", "createdAt"])
-    .index("by_created_at", ["createdAt"]), // For cleanup operations
+    .index("by_conversation_streaming", [
+      "conversationId",
+      "role",
+      "metadata.finishReason",
+    ])
+    .index("by_created_at", ["createdAt"]),
 
   userApiKeys: defineTable({
     userId: v.id("users"),
     provider: providerSchema,
-    // Server-side encryption (for server operations)
     encryptedKey: v.optional(v.array(v.number())),
     initializationVector: v.optional(v.array(v.number())),
-    // Client-side encryption (end-to-end, like Whisper app)
     clientEncryptedKey: v.optional(v.string()),
     partialKey: v.string(),
     isValid: v.boolean(),
@@ -137,22 +137,23 @@ export default defineSchema({
     supportsReasoning: v.boolean(),
     inputModalities: v.optional(v.array(v.string())),
     selected: v.optional(v.boolean()),
-    free: v.optional(v.boolean()), // Mark as free model
+    free: v.optional(v.boolean()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_user_provider", ["userId", "provider"])
-    .index("by_user_model_id", ["userId", "modelId"]),
+    .index("by_user_model_id", ["userId", "modelId"])
+    .index("by_user_selected", ["userId", "selected"]),
 
   personas: defineTable({
-    userId: v.optional(v.id("users")), // Null for built-in personas
+    userId: v.optional(v.id("users")),
     name: v.string(),
     description: v.string(),
     prompt: v.string(),
-    icon: v.optional(v.string()), // Emoji or icon identifier
+    icon: v.optional(v.string()),
     isBuiltIn: v.boolean(),
     isActive: v.boolean(),
-    order: v.optional(v.number()), // For sorting
+    order: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -162,7 +163,7 @@ export default defineSchema({
 
   userPersonaSettings: defineTable({
     userId: v.id("users"),
-    personaId: v.id("personas"), // Reference to built-in persona
+    personaId: v.id("personas"),
     isDisabled: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -172,8 +173,8 @@ export default defineSchema({
 
   userSettings: defineTable({
     userId: v.id("users"),
-    personasEnabled: v.optional(v.boolean()), // Null/undefined means enabled (default)
-    defaultModelSelected: v.optional(v.boolean()), // Track if user explicitly selected default model
+    personasEnabled: v.optional(v.boolean()),
+    defaultModelSelected: v.optional(v.boolean()),
     openRouterSorting: v.optional(
       v.union(
         v.literal("default"),
@@ -181,12 +182,13 @@ export default defineSchema({
         v.literal("throughput"),
         v.literal("latency")
       )
-    ), // OpenRouter provider sorting preference
-    anonymizeForDemo: v.optional(v.boolean()), // Blur user info for video demos
-    // Conversation archiving settings
-    autoArchiveEnabled: v.optional(v.boolean()), // Whether to automatically archive old conversations
-    autoArchiveDays: v.optional(v.number()), // Number of days after which to archive conversations
+    ),
+    anonymizeForDemo: v.optional(v.boolean()),
+    autoArchiveEnabled: v.optional(v.boolean()),
+    autoArchiveDays: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user", ["userId"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_auto_archive_enabled", ["autoArchiveEnabled"]),
 });
