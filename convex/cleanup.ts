@@ -16,9 +16,9 @@ export const archiveOldConversations = internalMutation({
 
     const oldConversations = await ctx.db
       .query("conversations")
-      .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
       .filter(q =>
         q.and(
+          q.lt(q.field("updatedAt"), cutoffDate),
           q.neq(q.field("isArchived"), true),
           q.neq(q.field("isPinned"), true)
         )
@@ -120,7 +120,7 @@ export const archiveConversationsForUser = internalMutation({
       .withIndex("by_user_recent", q => q.eq("userId", args.userId))
       .filter(q =>
         q.and(
-          q.lt(q.field("createdAt"), cutoffDate),
+          q.lt(q.field("updatedAt"), cutoffDate),
           q.neq(q.field("isArchived"), true),
           q.neq(q.field("isPinned"), true)
         )
@@ -176,7 +176,7 @@ export const archiveConversationsForAllUsers = internalMutation({
         .withIndex("by_user_recent", q => q.eq("userId", userSettings.userId))
         .filter(q =>
           q.and(
-            q.lt(q.field("createdAt"), cutoffDate),
+            q.lt(q.field("updatedAt"), cutoffDate),
             q.neq(q.field("isArchived"), true),
             q.neq(q.field("isPinned"), true)
           )
@@ -256,7 +256,7 @@ export const archiveMyOldConversations = mutation({
       .withIndex("by_user_recent", q => q.eq("userId", userId))
       .filter(q =>
         q.and(
-          q.lt(q.field("createdAt"), cutoffDate),
+          q.lt(q.field("updatedAt"), cutoffDate),
           q.neq(q.field("isArchived"), true),
           q.neq(q.field("isPinned"), true)
         )

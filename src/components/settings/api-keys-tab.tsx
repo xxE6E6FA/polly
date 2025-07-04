@@ -140,7 +140,7 @@ export const ApiKeysTab = () => {
   // Show loading state
   if (apiKeys === undefined) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <SettingsHeader
           description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
           title="API Keys"
@@ -166,7 +166,7 @@ export const ApiKeysTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <SettingsHeader
         description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
         title="API Keys"

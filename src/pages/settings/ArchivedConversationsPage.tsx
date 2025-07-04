@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
+import { SettingsHeader } from "@/components/settings/settings-header";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
@@ -192,11 +193,11 @@ export const ArchivedConversationsPage = () => {
   );
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <div className="mb-6 flex items-center gap-3">
-        <ArchiveIcon className="h-5 w-5 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold">Archived Conversations</h1>
-      </div>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <SettingsHeader
+        title="Archived Conversations"
+        description="Manage your archived conversations"
+      />
 
       <VirtualizedPaginatedList
         query={

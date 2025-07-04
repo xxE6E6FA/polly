@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 
 import {
   ArchiveIcon,
-  InfoIcon,
+  GearIcon,
   KeyIcon,
   RobotIcon,
   ShareNetworkIcon,
@@ -19,14 +19,17 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
-import { UserIdCard } from "./user-id-card";
-
 type SettingsContainerProps = {
   children: React.ReactNode;
   className?: string;
 };
 
 const settingsNavItems = [
+  {
+    href: ROUTES.SETTINGS.GENERAL,
+    label: "General",
+    icon: GearIcon,
+  },
   {
     href: ROUTES.SETTINGS.API_KEYS,
     label: "API Keys",
@@ -52,11 +55,6 @@ const settingsNavItems = [
     label: "Archive",
     icon: ArchiveIcon,
   },
-  {
-    href: ROUTES.SETTINGS.ABOUT,
-    label: "About",
-    icon: InfoIcon,
-  },
 ];
 
 export const SettingsContainer = ({
@@ -71,9 +69,9 @@ export const SettingsContainer = ({
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-8">
+    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
       {/* Mobile Navigation */}
-      <div className="mb-6 lg:hidden">
+      <div className="mb-6 sm:hidden">
         <Select value={location.pathname} onValueChange={navigate}>
           <SelectTrigger className="w-full">
             <SelectValue>
@@ -99,48 +97,45 @@ export const SettingsContainer = ({
             })}
           </SelectContent>
         </Select>
-
-        {/* Mobile User ID Card */}
-        <div className="mt-4">
-          <UserIdCard />
-        </div>
       </div>
 
-      <div className="flex gap-6 lg:gap-8">
-        {/* Desktop Navigation */}
-        <div className="hidden w-64 flex-shrink-0 space-y-6 lg:block">
-          <nav>
-            <div className="space-y-1">
-              {settingsNavItems.map(item => {
-                const Icon = item.icon;
-                const isActive = location.pathname === item.href;
+      {/* Desktop Horizontal Tabs */}
+      <div className="hidden sm:block">
+        <nav className="mb-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-muted/60 border border-border/50 rounded-lg p-4 mb-6">
+              <div className="flex space-x-3 overflow-x-auto">
+                {settingsNavItems.map(item => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.href;
 
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200",
-                      isActive
-                        ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-foreground border border-blue-500/20"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+                  return (
+                    <Link
+                      key={item.href}
+                      to={item.href}
+                      className={cn(
+                        "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </nav>
+          </div>
+        </nav>
 
-          {/* Desktop User ID Card */}
-          <UserIdCard />
-        </div>
-
-        {/* Main Content */}
-        <div className={cn("flex-1 min-w-0", className)}>{children}</div>
+        {/* Desktop Content */}
+        <div className={cn("w-full", className)}>{children}</div>
       </div>
+
+      {/* Mobile Content */}
+      <div className={cn("sm:hidden", className)}>{children}</div>
     </div>
   );
 };

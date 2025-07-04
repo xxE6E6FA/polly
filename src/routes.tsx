@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 
-import { type RouteObject } from "react-router";
+import { type RouteObject, Navigate } from "react-router";
 
 import ChatLayout from "./components/layouts/ChatLayout";
 import RootLayout from "./components/layouts/RootLayout";
@@ -33,7 +33,9 @@ const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
   () => import("./components/layouts/SettingsMainLayout")
 );
-const SettingsIndexPage = lazy(() => import("./pages/settings/AboutPage"));
+const SettingsStandaloneLayout = lazy(
+  () => import("./components/layouts/SettingsStandaloneLayout")
+);
 const SettingsApiKeysPage = lazy(() => import("./pages/settings/ApiKeysPage"));
 const SettingsModelsPage = lazy(() => import("./pages/settings/ModelsPage"));
 const SettingsPersonasPage = lazy(
@@ -45,7 +47,7 @@ const SettingsSharedConversationsPage = lazy(
 const SettingsArchivedConversationsPage = lazy(
   () => import("./pages/settings/ArchivedConversationsPage")
 );
-const SettingsAboutPage = lazy(() => import("./pages/settings/AboutPage"));
+const SettingsGeneralPage = lazy(() => import("./pages/settings/GeneralPage"));
 const SettingsNewPersonaPage = lazy(
   () => import("./pages/settings/NewPersonaPage")
 );
@@ -75,7 +77,7 @@ const PageLoader = ({
 // Preload settings module when hovering over settings links
 export const preloadSettings = () => {
   import("./components/layouts/SettingsMainLayout");
-  import("./pages/settings/AboutPage"); // Preload default settings page too
+  import("./pages/settings/GeneralPage"); // Preload default settings page too
 };
 
 // Preload auth pages when needed
@@ -185,7 +187,7 @@ export const routes: RouteObject[] = [
             index: true,
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsIndexPage />
+                <Navigate to="/settings/general" replace />
               </Suspense>
             ),
             errorElement: (
@@ -260,10 +262,10 @@ export const routes: RouteObject[] = [
             ),
           },
           {
-            path: "about",
+            path: "general",
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
-                <SettingsAboutPage />
+                <SettingsGeneralPage />
               </Suspense>
             ),
             errorElement: (
@@ -272,8 +274,25 @@ export const routes: RouteObject[] = [
               </Suspense>
             ),
           },
+        ],
+      },
+      {
+        path: "settings/personas/new",
+        element: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <ProtectedSuspense fallback={<PageLoader size="full" />}>
+              <SettingsStandaloneLayout />
+            </ProtectedSuspense>
+          </Suspense>
+        ),
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
+        children: [
           {
-            path: "personas/new",
+            index: true,
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsNewPersonaPage />
@@ -285,8 +304,25 @@ export const routes: RouteObject[] = [
               </Suspense>
             ),
           },
+        ],
+      },
+      {
+        path: "settings/personas/:id/edit",
+        element: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <ProtectedSuspense fallback={<PageLoader size="full" />}>
+              <SettingsStandaloneLayout />
+            </ProtectedSuspense>
+          </Suspense>
+        ),
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
+        children: [
           {
-            path: "personas/:id/edit",
+            index: true,
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsEditPersonaPage />
