@@ -14,7 +14,7 @@ import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { detectAndParseImportData } from "@/lib/import-parsers";
 
 interface ImportExportActionsProps {
-  selectedConversations: Set<string>;
+  selectedConversations: Set<Id<"conversations">>;
   includeAttachments: boolean;
   onIncludeAttachmentsChange: (value: boolean) => void;
 }
@@ -31,9 +31,8 @@ export function ImportExportActions({
   const backgroundJobs = useBackgroundJobs();
   const importTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const bulkImport = useMutation(api.conversations.bulkImport);
   const validateImportData = useMutation(
-    api.importOptimized.validateImportData
+    api.conversationImport.validateImportData
   );
 
   // Safety timeout management
@@ -93,16 +92,8 @@ export function ImportExportActions({
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) {
-        console.log("No file selected");
         return;
       }
-
-      console.log(
-        "Starting import process for file:",
-        file.name,
-        file.size,
-        "bytes"
-      );
 
       // Check file size (warn if > 10MB)
       if (file.size > 10 * 1024 * 1024) {
@@ -129,11 +120,6 @@ export function ImportExportActions({
         try {
           setIsValidating(true);
           const content = e.target?.result as string;
-          console.log(
-            "File content loaded, size:",
-            content.length,
-            "characters"
-          );
 
           if (!content || content.trim() === "") {
             console.error("File content is empty");
@@ -142,14 +128,7 @@ export function ImportExportActions({
             return;
           }
 
-          console.log("Parsing import data...");
           const importResult = detectAndParseImportData(content);
-          console.log("Import result:", {
-            source: importResult.source,
-            conversationCount: importResult.conversations.length,
-            errorCount: importResult.errors.length,
-            errors: importResult.errors,
-          });
 
           if (importResult.errors.length > 0) {
             console.error("Import parsing errors:", importResult.errors);
@@ -166,7 +145,6 @@ export function ImportExportActions({
           }
 
           // Validate a sample of conversations for better error reporting
-          console.log("Validating conversation data...");
           try {
             const validationResult = await validateImportData({
               sampleConversations: importResult.conversations,
@@ -186,8 +164,6 @@ export function ImportExportActions({
                 `${validationResult.warnings.length} warnings found in data`
               );
             }
-
-            console.log("Validation stats:", validationResult.stats);
           } catch (validationError) {
             console.warn(
               "Validation failed, proceeding anyway:",
@@ -203,91 +179,28 @@ export function ImportExportActions({
               : "";
 
           const conversationCount = importResult.conversations.length;
-          const useOptimized = conversationCount > 50;
-          const useBackground = conversationCount > 10;
 
-          console.log(
-            `Processing ${conversationCount} conversations${sourceInfo}`,
-            { useOptimized, useBackground }
+          // Always use background jobs for consistency and proper tracking
+          confirmDialog.confirm(
+            {
+              title: "Import Conversations",
+              description: `This will import ${conversationCount} conversation(s)${sourceInfo} in the background. You'll be notified when it's complete. Continue?`,
+              confirmText: "Import",
+              cancelText: "Cancel",
+              variant: "default",
+            },
+            async () => {
+              try {
+                await backgroundJobs.startImport(importResult.conversations);
+                toast.success(
+                  `Started importing ${conversationCount} conversations${sourceInfo}`
+                );
+              } catch (error) {
+                console.error("Background import failed:", error);
+                toast.error("Failed to start import");
+              }
+            }
           );
-
-          if (useBackground) {
-            console.log("Using background jobs for import");
-            confirmDialog.confirm(
-              {
-                title: "Import Conversations",
-                description: `This will import ${conversationCount} conversation(s)${sourceInfo} in the background${useOptimized ? " using optimized processing" : ""}. You'll be notified when it's complete. Continue?`,
-                confirmText: "Import",
-                cancelText: "Cancel",
-                variant: "default",
-              },
-              async () => {
-                console.log("Background import confirmed");
-                try {
-                  await backgroundJobs.startImport(importResult.conversations, {
-                    skipDuplicates: true,
-                    useOptimized,
-                  });
-                  toast.success(
-                    `Started importing ${conversationCount} conversations${sourceInfo}${useOptimized ? " (optimized)" : ""}`
-                  );
-                } catch (error) {
-                  console.error("Background import failed:", error);
-                  toast.error("Failed to start import");
-                }
-              }
-            );
-          } else {
-            console.log("Using direct import for small batch");
-            confirmDialog.confirm(
-              {
-                title: "Import Conversations",
-                description: `This will import ${conversationCount} conversation(s)${sourceInfo}. This action cannot be undone. Continue?`,
-                confirmText: "Import",
-                cancelText: "Cancel",
-                variant: "default",
-              },
-              () => {
-                console.log("Direct import confirmed, starting import...");
-                setIsImporting(true);
-
-                const importPromise = bulkImport({
-                  conversations: importResult.conversations,
-                  skipDuplicates: true,
-                });
-
-                console.log("BulkImport mutation called");
-
-                importPromise
-                  .then(result => {
-                    console.log("Import completed successfully:", result);
-                    toast.success(
-                      `Successfully imported ${result.importedCount} conversations${sourceInfo}`
-                    );
-                    if (result.skippedCount > 0) {
-                      toast.info(
-                        `Skipped ${result.skippedCount} duplicate conversations`
-                      );
-                    }
-                  })
-                  .catch(error => {
-                    console.error("Import failed:", error);
-                    toast.error("Failed to import conversations", {
-                      description:
-                        error instanceof Error
-                          ? error.message
-                          : "Unknown error",
-                    });
-                  })
-                  .finally(() => {
-                    console.log(
-                      "Import process finished, clearing loading state"
-                    );
-                    setIsImporting(false);
-                  });
-              }
-            );
-          }
         } catch (error) {
           console.error("Failed to read or parse file:", error);
           toast.error("Failed to read or parse the file", {
@@ -298,7 +211,6 @@ export function ImportExportActions({
         }
       };
 
-      console.log("Starting file read...");
       reader.readAsText(file);
 
       // Clear the file input
@@ -306,11 +218,10 @@ export function ImportExportActions({
         fileInputRef.current.value = "";
       }
     },
-    [bulkImport, confirmDialog, backgroundJobs, validateImportData]
+    [confirmDialog, backgroundJobs, validateImportData]
   );
 
   const triggerFileInput = useCallback(() => {
-    console.log("File input triggered");
     fileInputRef.current?.click();
   }, []);
 

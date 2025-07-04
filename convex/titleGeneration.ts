@@ -71,7 +71,7 @@ export const generateTitle = action({
 
     // Update the conversation title if conversationId is provided
     if (args.conversationId) {
-      await ctx.runMutation(api.conversations.update, {
+      await ctx.runMutation(api.conversations.updateTitle, {
         id: args.conversationId,
         title: generatedTitle,
       });
@@ -118,7 +118,7 @@ export const generateTitleBackground = action({
       } else {
         // Final fallback - set a simple title
         const fallbackTitle = args.message.slice(0, 60) || "New conversation";
-        await ctx.runMutation(api.conversations.update, {
+        await ctx.runMutation(api.conversations.updateTitle, {
           id: args.conversationId,
           title: fallbackTitle,
         });
@@ -143,7 +143,6 @@ export const batchUpdateTitles = internalMutation({
       args.updates.map(update =>
         ctx.db.patch(update.conversationId, {
           title: update.title,
-          updatedAt: Date.now(),
         })
       )
     );
@@ -167,12 +166,5 @@ export const batchUpdateTitles = internalMutation({
         );
       });
     }
-
-    const successCount = results.filter(
-      result => result.status === "fulfilled"
-    ).length;
-    console.log(
-      `Batch title update completed: ${successCount}/${args.updates.length} successful`
-    );
   },
 });

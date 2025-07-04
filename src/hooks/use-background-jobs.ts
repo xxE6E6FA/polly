@@ -39,6 +39,12 @@ export interface BackgroundJob {
     version: string;
   };
   hasFile?: boolean;
+  result?: {
+    totalImported: number;
+    totalProcessed: number;
+    errors: string[];
+    conversationIds?: string[];
+  };
   createdAt: number;
   completedAt?: number;
 }
@@ -58,9 +64,8 @@ export function useBackgroundJobs() {
   const scheduleBackgroundImport = useAction(
     api.conversations.scheduleBackgroundImport
   );
-
-  const scheduleOptimizedImport = useAction(
-    api.importOptimized.scheduleOptimizedImport
+  const scheduleBackgroundBulkDelete = useAction(
+    api.conversations.scheduleBackgroundBulkDelete
   );
 
   const previousJobStatuses = useRef<typeof jobStatuses>(null);
@@ -71,6 +76,16 @@ export function useBackgroundJobs() {
     const transformedJobs = new Map<string, BackgroundJob>();
 
     jobStatuses.forEach(job => {
+      // Type assertion for jobs that may have result field
+      const jobWithResult = job as typeof job & {
+        result?: {
+          totalImported: number;
+          totalProcessed: number;
+          errors: string[];
+          conversationIds?: string[];
+        };
+      };
+
       const backgroundJob: BackgroundJob = {
         id: job.jobId,
         type: job.type as JobType,
@@ -84,6 +99,7 @@ export function useBackgroundJobs() {
         includeAttachments: job.includeAttachments,
         manifest: job.manifest,
         hasFile: job.hasFile,
+        result: jobWithResult.result,
         createdAt: job.createdAt,
         completedAt: job.completedAt,
       };
@@ -114,13 +130,29 @@ export function useBackgroundJobs() {
       const previousJob = previousMap.get(job.jobId);
       if (previousJob && previousJob.status !== job.status) {
         if (job.status === "completed") {
-          toast.success(
-            `${job.type === "export" ? "Export" : "Import"} completed successfully!`
-          );
+          let message = "";
+          if (job.type === "export") {
+            message = "Export completed successfully!";
+          } else if (job.type === "import") {
+            message = "Import completed successfully!";
+          } else if (job.type === "bulk_delete") {
+            message = "Bulk delete completed successfully!";
+          }
+          if (message) {
+            toast.success(message);
+          }
         } else if (job.status === "failed") {
-          toast.error(
-            `${job.type === "export" ? "Export" : "Import"} failed: ${job.error}`
-          );
+          let message = "";
+          if (job.type === "export") {
+            message = `Export failed: ${job.error}`;
+          } else if (job.type === "import") {
+            message = `Import failed: ${job.error}`;
+          } else if (job.type === "bulk_delete") {
+            message = `Bulk delete failed: ${job.error}`;
+          }
+          if (message) {
+            toast.error(message);
+          }
         }
       }
     });
@@ -138,7 +170,7 @@ export function useBackgroundJobs() {
       await scheduleBackgroundExport({
         conversationIds,
         includeAttachmentContent: options.includeAttachmentContent || false,
-        exportId: jobId,
+        jobId: jobId,
       });
 
       const newJob: BackgroundJob = {
@@ -172,14 +204,7 @@ export function useBackgroundJobs() {
     const jobId = crypto.randomUUID();
 
     try {
-      let actionToUse;
-      if (conversations.length > 50) {
-        actionToUse = scheduleOptimizedImport;
-      } else {
-        actionToUse = scheduleBackgroundImport;
-      }
-
-      await actionToUse({
+      await scheduleBackgroundImport({
         conversations,
         importId: jobId,
         ...options,
@@ -206,6 +231,40 @@ export function useBackgroundJobs() {
     } catch (error) {
       console.error("Import failed:", error);
       toast.error("Failed to start import");
+      throw error;
+    }
+  };
+
+  const startBulkDelete = async (conversationIds: Id<"conversations">[]) => {
+    const jobId = crypto.randomUUID();
+
+    try {
+      await scheduleBackgroundBulkDelete({
+        conversationIds,
+        jobId,
+      });
+
+      const newJob: BackgroundJob = {
+        id: jobId,
+        type: "bulk_delete",
+        status: "scheduled",
+        progress: 0,
+        processed: 0,
+        total: conversationIds.length,
+        title: `Delete ${conversationIds.length} Conversations`,
+        description: `Background deletion of ${conversationIds.length} conversation${conversationIds.length !== 1 ? "s" : ""}`,
+        createdAt: Date.now(),
+      };
+
+      setLocalJobs(prev => new Map(prev).set(jobId, newJob));
+      toast.success(
+        "Bulk delete started in background. You'll be notified when it's complete."
+      );
+
+      return jobId;
+    } catch (error) {
+      console.error("Bulk delete failed:", error);
+      toast.error("Failed to start bulk delete");
       throw error;
     }
   };
@@ -237,6 +296,7 @@ export function useBackgroundJobs() {
   return {
     startExport,
     startImport,
+    startBulkDelete,
     getJob,
     removeJob,
     getActiveJobs,

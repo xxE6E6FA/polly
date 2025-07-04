@@ -777,6 +777,24 @@ export const update = mutation({
   },
 });
 
+export const updateTitle = mutation({
+  args: {
+    id: v.string(),
+    title: v.string(),
+  },
+  handler: async (ctx, args) => {
+    try {
+      const conversationId = args.id as Id<"conversations">;
+      // Only update title, don't touch updatedAt to avoid bumping to top
+      return await ctx.db.patch(conversationId, {
+        title: args.title,
+      });
+    } catch {
+      throw new Error("Invalid conversation ID");
+    }
+  },
+});
+
 export const setPinned = mutation({
   args: {
     id: v.id("conversations"),
@@ -2206,63 +2224,6 @@ const generateExportMetadata = (
   return { title, description };
 };
 
-// Helper function to create export manifest from conversation data
-const _createExportManifest = (
-  conversations: Array<{
-    conversation: {
-      title: string;
-      createdAt: number;
-      updatedAt: number;
-    };
-    messages: Array<unknown>;
-  }>,
-  includeAttachments: boolean
-): {
-  totalConversations: number;
-  totalMessages: number;
-  conversationDateRange: {
-    earliest: number;
-    latest: number;
-  };
-  conversationTitles: string[];
-  includeAttachments: boolean;
-  fileSizeBytes?: number;
-  version: string;
-} => {
-  let totalMessages = 0;
-  let earliest = Date.now();
-  let latest = 0;
-  const titles: string[] = [];
-
-  conversations.forEach(conv => {
-    totalMessages += conv.messages.length;
-
-    if (conv.conversation.createdAt < earliest) {
-      earliest = conv.conversation.createdAt;
-    }
-    if (conv.conversation.updatedAt > latest) {
-      latest = conv.conversation.updatedAt;
-    }
-
-    // Store first 10 titles for preview
-    if (titles.length < 10) {
-      titles.push(conv.conversation.title);
-    }
-  });
-
-  return {
-    totalConversations: conversations.length,
-    totalMessages,
-    conversationDateRange: {
-      earliest,
-      latest,
-    },
-    conversationTitles: titles,
-    includeAttachments,
-    version: "1.0.0",
-  };
-};
-
 // Background export processing with job tracking
 export const scheduleBackgroundExport = action({
   args: {
@@ -2446,7 +2407,11 @@ export const processBackgroundImport = action({
         status: "processing",
       });
 
-      const results = { totalImported: 0, errors: [] as string[] };
+      const results = {
+        totalImported: 0,
+        errors: [] as string[],
+        allImportedIds: [] as string[],
+      };
 
       // Process conversations in batches
       for (let i = 0; i < args.conversations.length; i += BATCH_SIZE) {
@@ -2454,7 +2419,7 @@ export const processBackgroundImport = action({
 
         try {
           const batchResults = await ctx.runMutation(
-            internal.importOptimized.processBatch,
+            internal.conversationImport.processBatch,
             {
               conversations: batch,
               userId: args.userId,
@@ -2463,6 +2428,7 @@ export const processBackgroundImport = action({
           );
 
           results.totalImported += batchResults.conversationIds.length;
+          results.allImportedIds.push(...batchResults.conversationIds);
           // processBatch doesn't return errors, so we'll assume success
 
           // Update progress
@@ -2478,13 +2444,14 @@ export const processBackgroundImport = action({
         }
       }
 
-      // Save import result
+      // Save import result with conversation IDs
       await ctx.runMutation(api.backgroundJobs.saveImportResult, {
         jobId: args.importId,
         result: {
           totalImported: results.totalImported,
           totalProcessed: args.conversations.length,
           errors: results.errors,
+          conversationIds: results.allImportedIds,
         },
         status: "completed",
       });
@@ -2499,5 +2466,236 @@ export const processBackgroundImport = action({
       });
       throw error;
     }
+  },
+});
+
+// Background bulk delete processing with job tracking
+export const scheduleBackgroundBulkDelete = action({
+  args: {
+    conversationIds: v.array(v.id("conversations")),
+    jobId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    // Validate that user owns all conversations
+    const conversations = await Promise.all(
+      args.conversationIds.map(id =>
+        ctx.runQuery(api.conversations.get, { id })
+      )
+    );
+
+    const validConversations = conversations.filter(
+      conv => conv && conv.userId === userId
+    );
+    if (validConversations.length !== args.conversationIds.length) {
+      throw new ConvexError("Some conversations not found or access denied");
+    }
+
+    // Generate metadata for the job
+    const dateStr = new Date().toLocaleDateString();
+    const count = args.conversationIds.length;
+    const title =
+      count === 1
+        ? `Delete Conversation - ${dateStr}`
+        : `Delete ${count} Conversations - ${dateStr}`;
+    const description = `Background deletion of ${count} conversation${count !== 1 ? "s" : ""} on ${dateStr}`;
+
+    // Create bulk delete job record
+    await ctx.runMutation(api.backgroundJobs.create, {
+      jobId: args.jobId,
+      userId,
+      type: "bulk_delete",
+      totalItems: args.conversationIds.length,
+      title,
+      description,
+      conversationIds: args.conversationIds,
+    });
+
+    // Schedule background processing
+    await ctx.scheduler.runAfter(
+      100,
+      api.conversations.processBackgroundBulkDelete,
+      {
+        conversationIds: args.conversationIds,
+        jobId: args.jobId,
+        userId,
+      }
+    );
+
+    return { jobId: args.jobId, status: "scheduled" };
+  },
+});
+
+export const processBackgroundBulkDelete = action({
+  args: {
+    conversationIds: v.array(v.id("conversations")),
+    jobId: v.string(),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Update status to processing
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.jobId,
+        status: "processing",
+      });
+
+      const results = {
+        totalDeleted: 0,
+        errors: [] as string[],
+        deletedIds: [] as string[],
+      };
+
+      // Process conversations in small batches to avoid timeouts
+      const BATCH_SIZE = 3; // Small batch size for deletion operations
+      for (let i = 0; i < args.conversationIds.length; i += BATCH_SIZE) {
+        const batch = args.conversationIds.slice(i, i + BATCH_SIZE);
+
+        try {
+          // Process each conversation in the batch
+          for (const conversationId of batch) {
+            try {
+              const conversation = await ctx.runQuery(api.conversations.get, {
+                id: conversationId,
+              });
+
+              if (!conversation || conversation.userId !== args.userId) {
+                results.errors.push(
+                  `Conversation ${conversationId} not found or access denied`
+                );
+                continue;
+              }
+
+              // Delete the conversation using the single conversation remove function
+              await ctx.runMutation(api.conversations.remove, {
+                id: conversationId,
+              });
+
+              results.totalDeleted += 1;
+              results.deletedIds.push(conversationId);
+            } catch (error) {
+              results.errors.push(
+                `Failed to delete conversation ${conversationId}: ${error}`
+              );
+            }
+          }
+
+          // Update progress
+          await ctx.runMutation(api.backgroundJobs.updateProgress, {
+            jobId: args.jobId,
+            processedItems: Math.min(
+              i + BATCH_SIZE,
+              args.conversationIds.length
+            ),
+            totalItems: args.conversationIds.length,
+          });
+        } catch (error) {
+          results.errors.push(
+            `Batch ${Math.floor(i / BATCH_SIZE) + 1} failed: ${error}`
+          );
+        }
+      }
+
+      // Save bulk delete result
+      await ctx.runMutation(api.backgroundJobs.saveImportResult, {
+        jobId: args.jobId,
+        result: {
+          totalImported: results.totalDeleted, // Reusing field name for consistency
+          totalProcessed: args.conversationIds.length,
+          errors: results.errors,
+          conversationIds: results.deletedIds,
+        },
+        status: "completed",
+      });
+
+      return { success: true, totalDeleted: results.totalDeleted };
+    } catch (error) {
+      // Update status to failed
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.jobId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      throw error;
+    }
+  },
+});
+
+export const bulkRemove = mutation({
+  args: { ids: v.array(v.id("conversations")) },
+  handler: async (ctx, args) => {
+    const SYNC_THRESHOLD = 10; // Process up to 10 conversations synchronously
+
+    // For small numbers of conversations, process synchronously
+    if (args.ids.length <= SYNC_THRESHOLD) {
+      const results = [];
+      for (const id of args.ids) {
+        // Get conversation to find userId for cache invalidation
+        const conversation = await ctx.db.get(id);
+        if (!conversation) {
+          results.push({ id, status: "not_found" });
+          continue;
+        }
+
+        // First, ensure streaming is stopped for this conversation
+        try {
+          await ctx.db.patch(id, {
+            isStreaming: false,
+          });
+        } catch (error) {
+          console.warn(
+            `Failed to clear streaming state for conversation ${id}:`,
+            error
+          );
+        }
+
+        // Get all messages in the conversation
+        const messages = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation", q => q.eq("conversationId", id))
+          .collect();
+
+        // Use the messages.removeMultiple mutation which handles attachments and streaming
+        if (messages.length > 0) {
+          const messageIds = messages.map(m => m._id);
+          // We'll delete messages in batches to avoid potential timeouts
+          for (let i = 0; i < messageIds.length; i += MESSAGE_BATCH_SIZE) {
+            const batch = messageIds.slice(i, i + MESSAGE_BATCH_SIZE);
+            await ctx.runMutation(api.messages.removeMultiple, { ids: batch });
+          }
+        }
+
+        // Delete the conversation
+        await ctx.db.delete(id);
+
+        // Use atomic decrement operations to avoid race conditions
+        // Only count user messages for totalMessageCount
+        const userMessageCount = messages.filter(m => m.role === "user").length;
+
+        // Use atomic decrement for conversation count
+        await ctx.runMutation(internal.users.decrementConversationCountAtomic, {
+          userId: conversation.userId,
+        });
+
+        // Use atomic decrement for total message count if there are user messages
+        if (userMessageCount > 0) {
+          await ctx.runMutation(
+            internal.users.decrementTotalMessageCountAtomic,
+            {
+              userId: conversation.userId,
+              decrement: userMessageCount,
+            }
+          );
+        }
+        results.push({ id, status: "deleted" });
+      }
+      return results;
+    }
+
+    // For large numbers of conversations, delegate to background job
+    throw new ConvexError(
+      "Too many conversations to delete at once. Please use the background deletion feature."
+    );
   },
 });

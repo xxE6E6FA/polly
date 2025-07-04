@@ -1,5 +1,10 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+} from "./_generated/server";
 import { requireAuth } from "./lib/auth";
 
 // Export conversation type definition
@@ -297,6 +302,7 @@ export const saveImportResult = mutation({
       totalImported: v.number(),
       totalProcessed: v.number(),
       errors: v.array(v.string()),
+      conversationIds: v.optional(v.array(v.string())),
     }),
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
@@ -645,6 +651,52 @@ export const getActiveJobsCount = query({
 
     const activeJobs = await query.collect();
     return activeJobs.length;
+  },
+});
+
+// Clean up old completed jobs for all users (used by cron job)
+export const cleanupOldJobsForAllUsers = internalMutation({
+  args: {
+    olderThanDays: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const daysOld = args.olderThanDays || 30;
+    const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+
+    // Find all old completed/failed/cancelled jobs across all users
+    const oldJobs = await ctx.db
+      .query("backgroundJobs")
+      .filter(q =>
+        q.and(
+          q.or(
+            q.eq(q.field("status"), "completed"),
+            q.eq(q.field("status"), "failed"),
+            q.eq(q.field("status"), "cancelled")
+          ),
+          q.lt(q.field("updatedAt"), cutoffTime)
+        )
+      )
+      .collect();
+
+    let deletedCount = 0;
+    let filesDeleted = 0;
+
+    for (const job of oldJobs) {
+      // Delete associated file from storage if it exists
+      if (job.fileStorageId) {
+        try {
+          await ctx.storage.delete(job.fileStorageId);
+          filesDeleted++;
+        } catch (error) {
+          console.warn(`Failed to delete file ${job.fileStorageId}:`, error);
+        }
+      }
+
+      await ctx.db.delete(job._id);
+      deletedCount++;
+    }
+
+    return { deletedCount, filesDeleted };
   },
 });
 

@@ -262,6 +262,7 @@ export default defineSchema({
         totalImported: v.number(),
         totalProcessed: v.number(),
         errors: v.array(v.string()),
+        conversationIds: v.optional(v.array(v.string())),
       })
     ),
   })
