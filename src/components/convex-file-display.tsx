@@ -131,7 +131,7 @@ export const ConvexFileDisplay = ({
       onClick={attachment.type === "pdf" ? onClick : undefined}
     >
       {getFileIcon(attachment)}
-      <span className="text-foreground">{attachment.name}</span>
+      <span className="text-foreground selectable-text">{attachment.name}</span>
     </div>
   );
 };

@@ -277,10 +277,10 @@ export const Citations = ({
                       rel="noopener noreferrer"
                       className="group/link text-sm text-foreground hover:text-primary transition-colors"
                     >
-                      <div className="font-medium line-clamp-1 group-hover/link:underline">
+                      <div className="font-medium line-clamp-1 group-hover/link:underline selectable-text">
                         {citation.title}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
+                      <div className="text-xs text-muted-foreground mt-0.5 selectable-text">
                         {getDomain(citation.url)}
                       </div>
                     </a>

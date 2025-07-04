@@ -72,7 +72,7 @@ export const NotificationDialog = ({
             <IconComponent className={`h-5 w-5 ${typeConfig[type].color}`} />
             <AlertDialogTitle>{title}</AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="ml-8">
+          <AlertDialogDescription className="ml-8 selectable-text">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>

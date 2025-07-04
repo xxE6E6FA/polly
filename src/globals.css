@@ -193,6 +193,7 @@
 @layer base {
   * {
     @apply border-border;
+    user-select: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -261,6 +262,39 @@ pre {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+/* Allow text selection for content that should be selectable */
+.selectable-text {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Allow text selection for all content (includes images, etc.) */
+.selectable-all {
+  -webkit-user-select: all !important;
+  -moz-user-select: all !important;
+  -ms-user-select: all !important;
+  user-select: all !important;
+}
+
+/* Auto selection for inputs and form elements */
+.selectable-auto {
+  -webkit-user-select: auto !important;
+  -moz-user-select: auto !important;
+  -ms-user-select: auto !important;
+  user-select: auto !important;
+}
+
+/* Ensure all children of selectable elements are also selectable */
+.selectable-text *,
+.prose * {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Code block styling */
@@ -1034,6 +1068,10 @@ pre {
   --tw-prose-quotes: hsl(var(--muted-foreground));
   --tw-prose-counters: hsl(var(--muted-foreground));
   --tw-prose-bullets: hsl(var(--muted-foreground));
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
 }
 
 .prose em,

@@ -59,7 +59,7 @@ export const ContextMessage = ({ message, className }: ContextMessageProps) => {
             )}
           </div>
 
-          <div className="text-sm leading-relaxed text-muted-foreground">
+          <div className="text-sm leading-relaxed text-muted-foreground selectable-text">
             {message.content}
           </div>
         </div>
