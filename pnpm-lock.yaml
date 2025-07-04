@@ -116,6 +116,9 @@ importers:
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
+      dedent:
+        specifier: ^1.6.0
+        version: 1.6.0
       emoji-picker-react:
         specifier: ^4.12.2
         version: 4.12.2(react@19.1.0)

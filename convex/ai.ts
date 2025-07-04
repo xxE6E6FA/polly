@@ -1,5 +1,6 @@
 import { streamText, generateText } from "ai";
 import { v } from "convex/values";
+import dedent from "dedent";
 
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
@@ -256,18 +257,29 @@ export const streamResponse = action({
                 }
               );
 
-              // Handle both array and pagination result
-              const recentMessages = Array.isArray(recentMessagesResult)
-                ? recentMessagesResult
-                : recentMessagesResult.page;
+              // Handle both array and pagination result safely
+              let recentMessages: Doc<"messages">[] = [];
+              if (Array.isArray(recentMessagesResult)) {
+                recentMessages = recentMessagesResult;
+              } else if (
+                recentMessagesResult &&
+                typeof recentMessagesResult === "object" &&
+                "page" in recentMessagesResult
+              ) {
+                recentMessages = Array.isArray(recentMessagesResult.page)
+                  ? recentMessagesResult.page
+                  : [];
+              } else {
+                recentMessages = [];
+              }
 
-              // Get last 3 messages (excluding current)
+              // Get last 3 messages (excluding current) with safety checks
               const historyMessages = recentMessages
-                .filter((m: Doc<"messages">) => m._id !== args.messageId)
+                .filter((m: Doc<"messages">) => m && m._id !== args.messageId)
                 .slice(-3)
                 .map((m: Doc<"messages">) => ({
                   role: m.role as "user" | "assistant",
-                  content: m.content,
+                  content: m.content || "",
                   hasSearchResults: !!m.citations?.length,
                 }));
 
@@ -276,22 +288,22 @@ export const streamResponse = action({
                 searchContext.conversationHistory.push(...historyMessages);
               }
 
-              // Extract previous searches
+              // Extract previous searches with safety checks
               const previousSearches = recentMessages
                 .filter(
                   (m: Doc<"messages">) =>
-                    m.metadata?.searchQuery && m._id !== args.messageId
+                    m && m.metadata?.searchQuery && m._id !== args.messageId
                 )
                 .slice(-2) // Last 2 searches
                 .map((m: Doc<"messages">) => ({
-                  query: m.metadata!.searchQuery as string,
+                  query: (m.metadata!.searchQuery as string) || "",
                   searchType: (m.metadata!.searchFeature as string) || "search",
                   category: m.metadata?.searchCategory as string | undefined,
                   resultCount: m.citations?.length || 0,
                 }));
 
               searchContext.previousSearches = previousSearches;
-            } catch {
+            } catch (_error) {
               // Continue without context on error
             }
           }
@@ -413,9 +425,8 @@ export const streamResponse = action({
               citations: exaCitations,
             });
           } catch (error) {
-            console.error("=== Web search error ===", {
+            console.error("Web search error:", {
               error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
               searchQuery,
               exaFeature: searchDecision?.searchType,
             });
@@ -436,82 +447,46 @@ export const streamResponse = action({
 
       if (searchContext && exaCitations.length > 0) {
         // Create citation instructions with numbered sources
-        const citationInstructions = `🚨 CRITICAL CITATION REQUIREMENTS - YOU MUST FOLLOW THESE EXACTLY 🚨
+        const citationInstructions = dedent`
+          You have access to current information from web sources. Use this information naturally in your response and cite sources with numbered references.
 
-You have web search results to use in your response. YOU MUST cite them properly.
+          CITATION FORMAT:
+          - Add [number] immediately after facts or claims from sources
+          - Examples: "React 19 was released in December 2024 [1]." or "The company reported record growth [2][3]."
+          - Do NOT create "Sources:" or "References:" sections
+          - Do NOT mention "search results" or "according to sources" - just integrate the information naturally
 
-✅ CORRECT citation format:
-- "The Pre-Raphaelite Brotherhood was founded in 1848 [6]."
-- "According to recent data [2], the trend has shifted significantly."
-- "Multiple sources [1][3][7] confirm this approach."
+          AVAILABLE INFORMATION:
+          ${searchContext}
 
-❌ WRONG - DO NOT DO THIS:
-- Do NOT write "Sources:" or "References:" sections
-- Do NOT list URLs at the end
-- Do NOT say "according to the search results" without a citation number
-- Do NOT write footnotes
+          SOURCES:
+          ${exaCitations.map((c, i) => `[${i + 1}] ${c.title || "Web Source"} - ${c.url}`).join("\n")}
 
-📋 YOUR TASK:
-1. Read the search results below
-2. Use information from them in your response
-3. ALWAYS add [number] immediately after any fact/claim from the search results
-4. The citation numbers correspond to the sources listed at the bottom
+          Respond naturally using this information where relevant.
+        `;
 
-⚠️ IMPORTANT: If you don't use inline citations [1], [2], etc., the sources won't be displayed to the user!
-
-SEARCH RESULTS:
-${searchContext}
-
-AVAILABLE SOURCES FOR CITATION:
-${exaCitations.map((c, i) => `[${i + 1}] ${c.title || "Web Source"} - ${c.url}`).join("\n")}
-
-REMEMBER: Use [1], [2], [3] etc. inline when citing facts. NO "Sources:" section at the end!`;
-
-        // Always insert citation instructions as a separate system message
-        // This ensures persona prompts remain intact and citation instructions are clear
-        let lastUserIndex = messages.length - 1;
-        while (lastUserIndex >= 0 && messages[lastUserIndex].role !== "user") {
-          lastUserIndex--;
-        }
-
-        if (lastUserIndex >= 0) {
-          // Insert citation instructions right before the last user message
-          messages.splice(lastUserIndex, 0, {
-            role: "system",
-            content: citationInstructions,
-          });
-        } else {
-          // Fallback: add at the end if no user message found
-          messages.push({
-            role: "system",
-            content: citationInstructions,
-          });
-        }
+        // Use user role for citation instructions to ensure compatibility across all providers
+        // System messages are meant for initial context, not mid-conversation instructions
+        messages.push({
+          role: "user",
+          content: citationInstructions,
+        });
       } else if (searchContext) {
         // If we have search context but no citations (edge case), still provide the context
         // but without citation instructions
-        const contextMessage = `SEARCH RESULTS:
-${searchContext}
+        const contextMessage = dedent`
+          AVAILABLE INFORMATION:
+          ${searchContext}
 
-Note: Please use this information to help answer the user's query.`;
+          Use this information naturally in your response where relevant.
+        `;
 
-        // Always insert search context as a separate system message
-        let lastUserIndex = messages.length - 1;
-        while (lastUserIndex >= 0 && messages[lastUserIndex].role !== "user") {
-          lastUserIndex--;
-        }
-
-        if (lastUserIndex >= 0) {
-          messages.splice(lastUserIndex, 0, {
-            role: "system",
-            content: contextMessage,
-          });
-        } else {
-          messages.push({
-            role: "system",
-            content: contextMessage,
-          });
-        }
+        // Use user role for search context to ensure compatibility across all providers
+        // System messages are meant for initial context, not mid-conversation instructions
+        messages.push({
+          role: "user",
+          content: contextMessage,
+        });
       }
 
       const model = await createLanguageModel(
@@ -542,6 +517,24 @@ Note: Please use this information to help answer the user's query.`;
           "\n\n[Content truncated for length...]"
         );
       };
+
+      // Validate message array complexity for follow-up messages with search
+      if (searchContext && exaCitations.length > 0) {
+        const totalMessageLength = messages.reduce((total, msg) => {
+          return (
+            total + (typeof msg.content === "string" ? msg.content.length : 0)
+          );
+        }, 0);
+
+        // If total message length is too large, it might cause LLM issues
+        if (totalMessageLength > 50000) {
+          console.warn("Large message array detected:", {
+            totalLength: totalMessageLength,
+            messageCount: messages.length,
+            messageId: args.messageId,
+          });
+        }
+      }
 
       const MAX_SYSTEM_MESSAGE_LENGTH = 5000; // Reduced from 10000
       messages.forEach((msg, index) => {
@@ -585,14 +578,10 @@ Note: Please use this information to help answer the user's query.`;
       if (hasReasoningSupport) {
         try {
           if (!streamResult.fullStream) {
-            console.error(
-              "=== No fullStream available despite reasoning support ==="
-            );
             throw new Error("No fullStream available");
           }
           await streamHandler.processStream(streamResult.fullStream, true);
         } catch (error) {
-          console.error("=== Full stream error ===", error);
           if (
             error instanceof Error &&
             (error.message === "StoppedByUser" ||
@@ -603,14 +592,12 @@ Note: Please use this information to help answer the user's query.`;
             throw error;
           }
           if (!streamResult.textStream) {
-            console.error("=== No textStream available for fallback ===");
             throw new Error("No textStream available");
           }
           await streamHandler.processStream(streamResult.textStream, false);
         }
       } else {
         if (!streamResult.textStream) {
-          console.error("=== No textStream available ===");
           throw new Error("No textStream available");
         }
         await streamHandler.processStream(streamResult.textStream, false);
@@ -618,10 +605,9 @@ Note: Please use this information to help answer the user's query.`;
 
       await streamHandler.finishProcessing();
     } catch (error) {
-      console.error("=== streamResponse ERROR ===", {
-        error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
+      console.error("streamResponse ERROR:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
       });
 
       if (

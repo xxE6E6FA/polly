@@ -430,12 +430,8 @@ export class StreamHandler {
       throw new Error("MessageDeleted");
     }
 
-    let partCount = 0;
-
     try {
       for await (const part of stream) {
-        partCount++;
-
         // For full stream (reasoning), stop checks happen inside handleFullStreamPart
         // For text stream, we need to check here before appending
         if (
@@ -456,12 +452,6 @@ export class StreamHandler {
           ? this.handleFullStreamPart(part as StreamPart)
           : this.appendToBuffer(part as string));
       }
-    } catch (error) {
-      console.error("=== Stream processing error ===", {
-        error: error instanceof Error ? error.message : String(error),
-        partCount,
-      });
-      throw error;
     } finally {
       // Only flush if we don't have finish data and message wasn't deleted
       if (!this.hasFinishData() && !this.messageDeleted) {
@@ -481,6 +471,18 @@ export class StreamHandler {
 
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
+    } else if (part.type === "error") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorPart = part as any;
+      console.error("Stream error part received:", {
+        messageId: this.messageId,
+        error: errorPart.error,
+      });
+      // Handle error parts by throwing an error to stop the stream
+      const errorObj = errorPart.error;
+      const errorMessage =
+        errorObj?.message || errorObj?.toString() || "Unknown stream error";
+      throw new Error(`Stream error: ${errorMessage}`);
     } else if (isReasoningPart(part)) {
       // Check if we should stop before processing reasoning
       if (await this.checkIfStopped()) {
@@ -517,6 +519,11 @@ export class StreamHandler {
           }
         });
       }
+    } else {
+      console.warn("Unknown stream part type:", {
+        messageId: this.messageId,
+        partType: part.type,
+      });
     }
   }
 
@@ -526,7 +533,11 @@ export class StreamHandler {
     }
 
     if (!this.finishData) {
-      console.warn("=== No finish data available ===");
+      console.warn("=== No finish data available ===", {
+        messageId: this.messageId,
+        wasStopped: this.wasStopped,
+        isInitialized: this.isInitialized,
+      });
       return;
     }
 
