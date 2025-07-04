@@ -20,9 +20,13 @@ import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import { getExaApiKey, performWebSearch, extractSearchContext } from "./ai/exa";
 import {
   generateSearchDecisionPromptWithContext,
+  generateSelfAssessmentPrompt,
   parseSearchDecision,
+  parseSelfAssessment,
+  makeFinalSearchDecision,
   type SearchDecision,
   type SearchDecisionContext,
+  type SelfAssessmentResult,
 } from "./ai/search_detection";
 import { type Citation, type ProviderType, type StreamMessage } from "./types";
 import { WEB_SEARCH_MAX_RESULTS } from "./constants";
@@ -292,19 +296,63 @@ export const streamResponse = action({
             }
           }
 
-          const decisionPrompt =
-            generateSearchDecisionPromptWithContext(searchContext);
+          // STEP 1: Self-assessment - Can the LLM answer confidently?
+          const selfAssessmentPrompt =
+            generateSelfAssessmentPrompt(searchContext);
 
-          const { text } = await generateText({
+          const { text: selfAssessmentText } = await generateText({
             model: classificationModel,
-            prompt: decisionPrompt,
+            prompt: selfAssessmentPrompt,
             temperature: 0.1, // Low temperature for consistent classification
-            maxTokens: 300, // Slightly more for context
+            maxTokens: 300,
           });
 
-          searchDecision = parseSearchDecision(text, userQuery);
-          shouldSearch =
-            searchDecision.shouldSearch && searchDecision.confidence >= 0.7;
+          const selfAssessment: SelfAssessmentResult =
+            parseSelfAssessment(selfAssessmentText);
+
+          // STEP 2: If LLM cannot answer confidently, determine HOW to search
+          let searchDecisionResult: SearchDecision;
+
+          if (
+            selfAssessment.canAnswerConfidently &&
+            selfAssessment.confidence > 0.6
+          ) {
+            // LLM can answer confidently, no need to search
+            searchDecisionResult = {
+              shouldSearch: false,
+              searchType: "search",
+              reasoning: `LLM can answer confidently: ${selfAssessment.reasoning}`,
+              confidence: selfAssessment.confidence,
+              suggestedSources: 0,
+              suggestedQuery: userQuery,
+            };
+          } else {
+            // LLM cannot answer confidently, determine HOW to search (type, category, query optimization)
+            const searchDecisionPrompt =
+              generateSearchDecisionPromptWithContext(searchContext);
+
+            const { text: searchDecisionText } = await generateText({
+              model: classificationModel,
+              prompt: searchDecisionPrompt,
+              temperature: 0.1,
+              maxTokens: 300,
+            });
+
+            const preliminarySearchDecision = parseSearchDecision(
+              searchDecisionText,
+              userQuery
+            );
+
+            // Combine both assessments for final decision
+            searchDecisionResult = makeFinalSearchDecision(
+              selfAssessment,
+              preliminarySearchDecision,
+              userQuery
+            );
+          }
+
+          searchDecision = searchDecisionResult;
+          shouldSearch = searchDecision.shouldSearch;
         } catch {
           // Fallback: default to no search on LLM failure
           shouldSearch = false;
@@ -314,7 +362,8 @@ export const streamResponse = action({
             category: undefined,
             reasoning: "LLM search decision failed - defaulting to no search",
             confidence: 0.1,
-            suggestedSources: undefined,
+            suggestedSources: 0,
+            suggestedQuery: userQuery,
           };
         }
       }
