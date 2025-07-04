@@ -185,19 +185,19 @@ export class LocalChatStrategy implements ChatStrategy {
           attachments: msg.attachments,
         }));
 
-      // Add persona prompt as system message if provided
+      // Always add default system prompt as foundation
+      const defaultPrompt = getDefaultSystemPrompt(selectedModel.modelId);
+      messagesForAI.unshift({
+        role: "system" as const,
+        content: defaultPrompt,
+        attachments: undefined,
+      });
+
+      // Add persona prompt as additional system message if provided
       if (resolvedPersonaPrompt) {
         messagesForAI.unshift({
           role: "system" as const,
           content: resolvedPersonaPrompt,
-          attachments: undefined,
-        });
-      } else {
-        // Add default system prompt when no persona is selected
-        const defaultPrompt = getDefaultSystemPrompt(selectedModel.modelId);
-        messagesForAI.unshift({
-          role: "system" as const,
-          content: defaultPrompt,
           attachments: undefined,
         });
       }

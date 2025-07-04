@@ -1,10 +1,10 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
 import { api, internal } from "./_generated/api";
 import { type Id } from "./_generated/dataModel";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { type ActionCtx } from "./_generated/server";
-import { getOptionalUserId } from "./lib/auth";
+import { getOptionalUserId, requireAuth } from "./lib/auth";
 import {
   attachmentSchema,
   reasoningConfigSchema,
@@ -382,24 +382,27 @@ const buildContextMessages = async (
     msg => msg !== undefined
   );
 
-  // Add persona prompt as system message if it exists and no system message is present
-  if (personaPrompt && !contextMessages.some(msg => msg.role === "system")) {
-    contextMessages.unshift({
+  // Always add default system prompt as foundation
+  const defaultPrompt = getDefaultSystemPromptForConversation(
+    relevantMessages as unknown as MessageDoc[]
+  );
+
+  contextMessages.unshift({
+    role: "system",
+    content: defaultPrompt,
+  });
+
+  // Add persona prompt as additional system message if it exists and isn't already in the messages
+  // (persona prompts are stored in the database as system messages, so we only add if not already loaded)
+  const hasPersonaInMessages = contextMessages.some(
+    msg => msg.role === "system" && msg.content === personaPrompt
+  );
+
+  if (personaPrompt && !hasPersonaInMessages) {
+    // Add persona prompt after default system prompt to maintain consistent order
+    contextMessages.splice(1, 0, {
       role: "system",
       content: personaPrompt,
-    });
-  } else if (
-    !personaPrompt &&
-    !contextMessages.some(msg => msg.role === "system")
-  ) {
-    // Add default system prompt when no persona is selected
-    const defaultPrompt = getDefaultSystemPromptForConversation(
-      relevantMessages as unknown as MessageDoc[]
-    );
-
-    contextMessages.unshift({
-      role: "system",
-      content: defaultPrompt,
     });
   }
 
@@ -1182,20 +1185,20 @@ export const createNewConversation = action({
           }>;
     }> = [];
 
-    // Add system message if persona prompt exists
+    // Always add default system prompt as foundation
+    const defaultPrompt = getDefaultSystemPrompt(
+      selectedModel.name || selectedModel.modelId
+    );
+    contextMessages.push({
+      role: "system",
+      content: defaultPrompt,
+    });
+
+    // Add persona prompt as additional system message if it exists
     if (finalPersonaPrompt) {
       contextMessages.push({
         role: "system",
         content: finalPersonaPrompt,
-      });
-    } else {
-      // Add default system prompt when no persona is selected
-      const defaultPrompt = getDefaultSystemPrompt(
-        selectedModel.name || selectedModel.modelId
-      );
-      contextMessages.push({
-        role: "system",
-        content: defaultPrompt,
       });
     }
 
@@ -1775,5 +1778,635 @@ export const getStreamingState = query({
       isStreaming: conversation.isStreaming,
       conversationId: conversation._id,
     };
+  },
+});
+
+// Get all conversations for a user (for bulk export) - Optimized
+export const getAllForUser = query({
+  args: {
+    includeArchived: v.optional(v.boolean()),
+    includePinned: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const limit = args.limit || 1000; // Default limit to prevent excessive queries
+
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .order("desc");
+
+    // Apply limit
+    const conversations = await query.take(limit);
+
+    // Filter efficiently - only if we need to exclude certain types
+    if (args.includeArchived === false || args.includePinned === false) {
+      const filtered = conversations.filter(conv => {
+        if (args.includeArchived === false && conv.isArchived) return false;
+        if (args.includePinned === false && conv.isPinned) return false;
+        return true;
+      });
+
+      return filtered.map(conv => ({
+        _id: conv._id,
+        _creationTime: conv._creationTime,
+        title: conv.title,
+        isArchived: conv.isArchived,
+        isPinned: conv.isPinned,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        messageCount: 0, // Will be populated if needed
+      }));
+    }
+
+    // If including all types, return directly without filtering
+    return conversations.map(conv => ({
+      _id: conv._id,
+      _creationTime: conv._creationTime,
+      title: conv.title,
+      isArchived: conv.isArchived,
+      isPinned: conv.isPinned,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+      messageCount: 0, // Will be populated if needed
+    }));
+  },
+});
+
+// Get conversation metadata with message counts - Optimized for export UI
+export const getConversationsSummaryForExport = query({
+  args: {
+    includeArchived: v.optional(v.boolean()),
+    includePinned: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const limit = args.limit || 500; // Reasonable limit for UI display
+
+    const query = ctx.db
+      .query("conversations")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .order("desc");
+
+    const conversations = await query.take(limit);
+
+    // Filter efficiently - only if we need to exclude certain types
+    const filteredConversations = conversations.filter(conv => {
+      if (args.includeArchived === false && conv.isArchived) return false;
+      if (args.includePinned === false && conv.isPinned) return false;
+      return true;
+    });
+
+    // Get message counts for all conversations in parallel
+    const conversationSummaries = await Promise.all(
+      filteredConversations.map(async conv => {
+        const messageCount = await ctx.db
+          .query("messages")
+          .withIndex("by_conversation_main_branch", q =>
+            q.eq("conversationId", conv._id).eq("isMainBranch", true)
+          )
+          .collect()
+          .then(messages => messages.length);
+
+        return {
+          _id: conv._id,
+          _creationTime: conv._creationTime,
+          title: conv.title,
+          isArchived: conv.isArchived,
+          isPinned: conv.isPinned,
+          createdAt: conv.createdAt,
+          updatedAt: conv.updatedAt,
+          messageCount,
+        };
+      })
+    );
+
+    return {
+      conversations: conversationSummaries,
+      totalCount: conversationSummaries.length,
+    };
+  },
+});
+
+// Get conversation with all messages for export - Optimized single conversation
+export const getWithMessagesForExport = query({
+  args: {
+    conversationId: v.id("conversations"),
+    includeAttachmentContent: v.optional(v.boolean()),
+    maxMessages: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const maxMessages = args.maxMessages || 10000; // Reasonable limit
+
+    // Get conversation and verify ownership
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation || conversation.userId !== userId) {
+      throw new ConvexError("Conversation not found or access denied");
+    }
+
+    // Get messages with limit to prevent timeouts
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_main_branch", q =>
+        q.eq("conversationId", args.conversationId).eq("isMainBranch", true)
+      )
+      .order("asc")
+      .take(maxMessages);
+
+    return {
+      conversation: {
+        _id: conversation._id,
+        _creationTime: conversation._creationTime,
+        title: conversation.title,
+        isArchived: conversation.isArchived,
+        isPinned: conversation.isPinned,
+        createdAt: conversation.createdAt,
+        updatedAt: conversation.updatedAt,
+        personaId: conversation.personaId,
+      },
+      messages: messages.map(msg => ({
+        _id: msg._id,
+        _creationTime: msg._creationTime,
+        role: msg.role,
+        content: msg.content,
+        reasoning: msg.reasoning,
+        model: msg.model,
+        provider: msg.provider,
+        attachments: msg.attachments?.map(att => ({
+          type: att.type,
+          name: att.name,
+          size: att.size,
+          // Include attachment content only if explicitly requested
+          ...(args.includeAttachmentContent && {
+            url: att.url,
+            content: att.content,
+            thumbnail: att.thumbnail,
+          }),
+        })),
+        citations: msg.citations,
+        metadata: msg.metadata,
+        createdAt: msg.createdAt,
+      })),
+    };
+  },
+});
+
+// Bulk export multiple conversations with messages - Optimized for performance
+export const getBulkWithMessagesForExport = query({
+  args: {
+    conversationIds: v.array(v.id("conversations")),
+    includeAttachmentContent: v.optional(v.boolean()),
+    maxMessagesPerConversation: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const maxMessagesPerConv = args.maxMessagesPerConversation || 5000; // Reasonable limit per conversation
+    const maxConversations = 50; // Limit number of conversations to prevent timeouts
+
+    // Limit the number of conversations to prevent timeouts
+    const limitedConversationIds = args.conversationIds.slice(
+      0,
+      maxConversations
+    );
+
+    // Get all conversations in parallel and verify ownership
+    const conversationsPromises = limitedConversationIds.map(
+      async conversationId => {
+        const conversation = await ctx.db.get(conversationId);
+        if (!conversation || conversation.userId !== userId) {
+          return null; // Skip conversations we don't have access to
+        }
+        return conversation;
+      }
+    );
+
+    const conversations = (await Promise.all(conversationsPromises)).filter(
+      (conv): conv is NonNullable<typeof conv> => conv !== null
+    );
+
+    // Get messages for all conversations in parallel
+    const conversationDataPromises = conversations.map(async conversation => {
+      // Get messages with limit to prevent timeouts
+      const messages = await ctx.db
+        .query("messages")
+        .withIndex("by_conversation_main_branch", q =>
+          q.eq("conversationId", conversation._id).eq("isMainBranch", true)
+        )
+        .order("asc")
+        .take(maxMessagesPerConv);
+
+      return {
+        conversation: {
+          _id: conversation._id,
+          _creationTime: conversation._creationTime,
+          title: conversation.title,
+          isArchived: conversation.isArchived,
+          isPinned: conversation.isPinned,
+          createdAt: conversation.createdAt,
+          updatedAt: conversation.updatedAt,
+          personaId: conversation.personaId,
+        },
+        messages: messages.map(msg => ({
+          _id: msg._id,
+          _creationTime: msg._creationTime,
+          role: msg.role,
+          content: msg.content,
+          reasoning: msg.reasoning,
+          model: msg.model,
+          provider: msg.provider,
+          attachments: msg.attachments?.map(att => ({
+            type: att.type,
+            name: att.name,
+            size: att.size,
+            // Include attachment content only if explicitly requested
+            ...(args.includeAttachmentContent && {
+              url: att.url,
+              content: att.content,
+              thumbnail: att.thumbnail,
+            }),
+          })),
+          citations: msg.citations,
+          metadata: msg.metadata,
+          createdAt: msg.createdAt,
+        })),
+      };
+    });
+
+    const conversationData = await Promise.all(conversationDataPromises);
+
+    return {
+      conversations: conversationData,
+      totalRequested: args.conversationIds.length,
+      totalReturned: conversationData.length,
+      maxMessagesPerConversation: maxMessagesPerConv,
+    };
+  },
+});
+
+// Bulk import conversations - Optimized with better validation and error handling
+export const bulkImport = mutation({
+  args: {
+    conversations: v.array(
+      v.object({
+        title: v.string(),
+        messages: v.array(
+          v.object({
+            role: v.union(
+              v.literal("user"),
+              v.literal("assistant"),
+              v.literal("system")
+            ),
+            content: v.string(),
+            createdAt: v.optional(v.number()),
+            model: v.optional(v.string()),
+            provider: v.optional(v.string()),
+            reasoning: v.optional(v.string()),
+            // Support basic attachment metadata import
+            attachments: v.optional(
+              v.array(
+                v.object({
+                  type: v.union(
+                    v.literal("image"),
+                    v.literal("pdf"),
+                    v.literal("text")
+                  ),
+                  name: v.string(),
+                  size: v.number(),
+                })
+              )
+            ),
+          })
+        ),
+        createdAt: v.optional(v.number()),
+        updatedAt: v.optional(v.number()),
+        isArchived: v.optional(v.boolean()),
+        isPinned: v.optional(v.boolean()),
+      })
+    ),
+    skipDuplicates: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+    const now = Date.now();
+    const importedConversations = [];
+    const skippedConversations = [];
+    const errors = [];
+
+    // If skipDuplicates is true, get existing conversation titles to avoid duplicates
+    let existingTitles = new Set<string>();
+    if (args.skipDuplicates) {
+      const existingConversations = await ctx.db
+        .query("conversations")
+        .withIndex("by_user", q => q.eq("userId", userId))
+        .collect();
+      existingTitles = new Set(existingConversations.map(c => c.title));
+    }
+
+    // Process conversations in batches to avoid timeouts
+    const batchSize = 10;
+    for (let i = 0; i < args.conversations.length; i += batchSize) {
+      const batch = args.conversations.slice(i, i + batchSize);
+
+      for (const convData of batch) {
+        try {
+          // Skip if duplicate and skipDuplicates is enabled
+          if (args.skipDuplicates && existingTitles.has(convData.title)) {
+            skippedConversations.push(convData.title);
+            continue;
+          }
+
+          // Validate message content
+          if (!convData.messages || convData.messages.length === 0) {
+            errors.push(`Conversation "${convData.title}" has no messages`);
+            continue;
+          }
+
+          // Create conversation
+          const conversationId = await ctx.db.insert("conversations", {
+            title: convData.title || "Imported Conversation",
+            userId,
+            createdAt: convData.createdAt || now,
+            updatedAt: convData.updatedAt || now,
+            isArchived: convData.isArchived || false,
+            isPinned: convData.isPinned || false,
+          });
+
+          // Create messages with proper ordering
+          for (
+            let msgIndex = 0;
+            msgIndex < convData.messages.length;
+            msgIndex++
+          ) {
+            const msgData = convData.messages[msgIndex];
+
+            // Skip empty messages
+            if (!msgData.content || msgData.content.trim() === "") {
+              continue;
+            }
+
+            await ctx.db.insert("messages", {
+              conversationId,
+              role: msgData.role,
+              content: msgData.content,
+              isMainBranch: true,
+              createdAt: msgData.createdAt || now + msgIndex, // Ensure ordering
+              model: msgData.model,
+              provider: msgData.provider,
+              reasoning: msgData.reasoning,
+              // Include basic attachment metadata if provided
+              attachments: msgData.attachments?.map(att => ({
+                type: att.type,
+                name: att.name,
+                size: att.size,
+                url: "", // Will be empty since we're not importing actual files
+              })),
+            });
+          }
+
+          importedConversations.push(conversationId);
+
+          // Add to existing titles set to avoid duplicates within this import
+          existingTitles.add(convData.title);
+        } catch (error) {
+          errors.push(
+            `Failed to import conversation "${convData.title}": ${error}`
+          );
+        }
+      }
+    }
+
+    return {
+      importedCount: importedConversations.length,
+      conversationIds: importedConversations,
+      skippedCount: skippedConversations.length,
+      skippedTitles: skippedConversations,
+      errorCount: errors.length,
+      errors: errors.slice(0, 10), // Limit error messages to prevent response size issues
+    };
+  },
+});
+
+// Background export processing with job tracking
+export const scheduleBackgroundExport = action({
+  args: {
+    conversationIds: v.array(v.id("conversations")),
+    includeAttachmentContent: v.optional(v.boolean()),
+    exportId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    // Create export job record
+    await ctx.runMutation(api.exportJobs.create, {
+      exportId: args.exportId,
+      userId,
+      type: "export",
+      status: "scheduled",
+      conversationIds: args.conversationIds,
+      totalConversations: args.conversationIds.length,
+    });
+
+    // Schedule background processing
+    await ctx.scheduler.runAfter(
+      100,
+      api.conversations.processBackgroundExport,
+      {
+        conversationIds: args.conversationIds,
+        includeAttachmentContent: args.includeAttachmentContent,
+        exportId: args.exportId,
+        userId,
+      }
+    );
+
+    return { exportId: args.exportId, status: "scheduled" };
+  },
+});
+
+export const processBackgroundExport = action({
+  args: {
+    conversationIds: v.array(v.id("conversations")),
+    includeAttachmentContent: v.optional(v.boolean()),
+    exportId: v.string(),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Update status to processing
+      await ctx.runMutation(api.exportJobs.updateStatus, {
+        exportId: args.exportId,
+        status: "processing",
+      });
+
+      // Process in chunks to avoid timeouts
+      const chunkSize = 25; // Conservative chunk size
+      const allConversations = [];
+      let processedCount = 0;
+
+      for (let i = 0; i < args.conversationIds.length; i += chunkSize) {
+        const chunk = args.conversationIds.slice(i, i + chunkSize);
+
+        // Process chunk
+        const chunkResult = await ctx.runQuery(
+          api.conversations.getBulkWithMessagesForExport,
+          {
+            conversationIds: chunk,
+            includeAttachmentContent: args.includeAttachmentContent,
+            maxMessagesPerConversation: 5000,
+          }
+        );
+
+        allConversations.push(...chunkResult.conversations);
+        processedCount += chunk.length;
+
+        // Update progress
+        await ctx.runMutation(api.exportJobs.updateProgress, {
+          exportId: args.exportId,
+          processed: processedCount,
+          total: args.conversationIds.length,
+        });
+
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      // Prepare final export data
+      const exportData = {
+        version: "1.0.0",
+        source: "Polly",
+        exportedAt: new Date().toISOString(),
+        totalConversations: allConversations.length,
+        conversations: allConversations,
+      };
+
+      // Save the result
+      await ctx.runMutation(api.exportJobs.saveResult, {
+        exportId: args.exportId,
+        result: exportData,
+        status: "completed",
+      });
+
+      return { success: true, exportId: args.exportId };
+    } catch (error) {
+      console.error("Background export failed:", error);
+
+      await ctx.runMutation(api.exportJobs.updateStatus, {
+        exportId: args.exportId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      throw error;
+    }
+  },
+});
+
+// Background import processing
+export const scheduleBackgroundImport = action({
+  args: {
+    conversations: v.array(v.any()), // Use any for flexible import format
+    importId: v.string(),
+    skipDuplicates: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuth(ctx);
+
+    // Create import job record
+    await ctx.runMutation(api.exportJobs.create, {
+      exportId: args.importId,
+      userId,
+      type: "import",
+      status: "scheduled",
+      conversationIds: [], // Empty for imports
+      totalConversations: args.conversations.length,
+    });
+
+    // Schedule background processing
+    await ctx.scheduler.runAfter(
+      100,
+      api.conversations.processBackgroundImport,
+      {
+        conversations: args.conversations,
+        importId: args.importId,
+        skipDuplicates: args.skipDuplicates,
+        userId,
+      }
+    );
+
+    return { importId: args.importId, status: "scheduled" };
+  },
+});
+
+export const processBackgroundImport = action({
+  args: {
+    conversations: v.array(v.any()),
+    importId: v.string(),
+    skipDuplicates: v.optional(v.boolean()),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    try {
+      // Update status to processing
+      await ctx.runMutation(api.exportJobs.updateStatus, {
+        exportId: args.importId,
+        status: "processing",
+      });
+
+      // Process in smaller batches for imports
+      const batchSize = 5; // Smaller batches for imports (more database writes)
+      let totalImported = 0;
+      const errors = [];
+
+      for (let i = 0; i < args.conversations.length; i += batchSize) {
+        const batch = args.conversations.slice(i, i + batchSize);
+
+        // Process batch
+        const batchResult = await ctx.runMutation(
+          api.conversations.bulkImport,
+          {
+            conversations: batch,
+            skipDuplicates: args.skipDuplicates,
+          }
+        );
+
+        totalImported += batchResult.importedCount;
+        errors.push(...batchResult.errors);
+
+        // Update progress
+        await ctx.runMutation(api.exportJobs.updateProgress, {
+          exportId: args.importId,
+          processed: i + batch.length,
+          total: args.conversations.length,
+        });
+
+        // Small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      // Save final result
+      await ctx.runMutation(api.exportJobs.saveResult, {
+        exportId: args.importId,
+        result: {
+          totalImported,
+          totalProcessed: args.conversations.length,
+          errors: errors.slice(0, 20), // Limit error messages
+        },
+        status: "completed",
+      });
+
+      return { success: true, importId: args.importId, totalImported };
+    } catch (error) {
+      console.error("Background import failed:", error);
+
+      await ctx.runMutation(api.exportJobs.updateStatus, {
+        exportId: args.importId,
+        status: "failed",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+
+      throw error;
+    }
   },
 });
