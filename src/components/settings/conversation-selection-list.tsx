@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import {
   CheckIcon,
   MagnifyingGlassIcon,
@@ -16,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 
 type ConversationSummary = {
   _id: Id<"conversations">;
@@ -28,16 +31,18 @@ type ConversationSummary = {
 };
 
 interface ConversationSelectionListProps {
-  selectedConversations: Set<string>;
+  selectedConversations: Set<Id<"conversations">>;
   onConversationSelect: (
-    conversationId: string,
+    conversationId: Id<"conversations">,
     index: number,
     isShiftKey: boolean
   ) => void;
   onSelectAll: () => void;
-  onBulkSelect: (conversationIds: string[]) => void;
+  onBulkSelect: (conversationIds: Id<"conversations">[]) => void;
+  clearSelection: () => void;
   includeArchived?: boolean;
   includePinned?: boolean;
+  recentlyImportedIds?: Set<Id<"conversations">>;
 }
 
 export function ConversationSelectionList({
@@ -45,10 +50,16 @@ export function ConversationSelectionList({
   onConversationSelect,
   onSelectAll,
   onBulkSelect,
+  clearSelection,
   includeArchived = true,
   includePinned = true,
+  recentlyImportedIds,
 }: ConversationSelectionListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const bulkRemove = useMutation(api.conversations.bulkRemove);
+  const backgroundJobs = useBackgroundJobs();
 
   const conversationData = useQuery(
     api.conversations.getConversationsSummaryForExport,
@@ -77,7 +88,11 @@ export function ConversationSelectionList({
   }, [conversations, searchQuery]);
 
   const handleConversationSelect = useCallback(
-    (conversationId: string, index: number, isShiftKey: boolean) => {
+    (
+      conversationId: Id<"conversations">,
+      index: number,
+      isShiftKey: boolean
+    ) => {
       onConversationSelect(conversationId, index, isShiftKey);
     },
     [onConversationSelect]
@@ -104,15 +119,47 @@ export function ConversationSelectionList({
   }, [filteredConversations, onBulkSelect]);
 
   const handleItemClick = useCallback(
-    (conversationId: string, index: number, shiftKey: boolean) => {
+    (conversationId: Id<"conversations">, index: number, shiftKey: boolean) => {
       handleConversationSelect(conversationId, index, shiftKey);
     },
     [handleConversationSelect]
   );
 
+  const handleBulkDelete = useCallback(async () => {
+    setIsDeleting(true);
+    try {
+      const ids = Array.from(selectedConversations) as Id<"conversations">[];
+      const BACKGROUND_THRESHOLD = 10; // Use background jobs for more than 10 conversations
+
+      if (ids.length > BACKGROUND_THRESHOLD) {
+        // Use background job for large deletions
+        await backgroundJobs.startBulkDelete(ids);
+        toast.success(
+          `Started deleting ${ids.length} conversations in background. You'll be notified when complete.`
+        );
+      } else {
+        // Use synchronous deletion for small batches
+        const result = await bulkRemove({ ids });
+        toast.success(
+          `Deleted ${result.filter(r => r.status === "deleted").length} conversations`
+        );
+      }
+
+      setShowDeleteDialog(false);
+      clearSelection();
+      setIsDeleting(false);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error("Failed to delete conversations");
+      setIsDeleting(false);
+    }
+  }, [selectedConversations, bulkRemove, backgroundJobs, clearSelection]);
+
   const renderItem = useCallback(
     (conversation: ConversationSummary, index: number) => {
       const isSelected = selectedConversations.has(conversation._id);
+      const isRecentlyImported =
+        recentlyImportedIds?.has(conversation._id) || false;
       const isEven = index % 2 === 0;
 
       const fullDate = new Date(conversation.updatedAt).toLocaleDateString(
@@ -132,6 +179,8 @@ export function ConversationSelectionList({
             "flex items-center gap-3 px-4 py-2 cursor-pointer transition-colors duration-150",
             isEven ? "bg-background" : "bg-muted/30",
             isSelected && "!bg-primary/10 border-l-2 border-l-primary",
+            isRecentlyImported &&
+              "!bg-green-50 border-l-2 border-l-green-500 dark:!bg-green-950/30 dark:border-l-green-400",
             "hover:bg-muted/50"
           )}
           onClick={e => handleItemClick(conversation._id, index, e.shiftKey)}
@@ -152,34 +201,40 @@ export function ConversationSelectionList({
 
           {/* Content - single line */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Title and badges */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="text-sm font-medium min-w-0 flex-shrink truncate">
-                {conversation.title}
-              </span>
-
-              {/* Status badges after title */}
-              <div className="flex items-center gap-1 shrink-0">
-                {conversation.isPinned && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 px-2 text-xs flex items-center gap-1"
-                  >
-                    <PushPinIcon className="w-3 h-3" />
-                    Pinned
-                  </Badge>
-                )}
-                {conversation.isArchived && (
-                  <Badge
-                    variant="secondary"
-                    className="h-5 px-2 text-xs flex items-center gap-1"
-                  >
-                    <ArchiveIcon className="w-3 h-3" />
-                    Archived
-                  </Badge>
-                )}
-              </div>
+            {/* Status badges before title */}
+            <div className="flex items-center gap-1 shrink-0">
+              {isRecentlyImported && (
+                <Badge
+                  variant="default"
+                  className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
+                >
+                  New
+                </Badge>
+              )}
+              {conversation.isPinned && (
+                <Badge
+                  variant="secondary"
+                  className="h-5 px-2 text-xs flex items-center gap-1"
+                >
+                  <PushPinIcon className="w-3 h-3" />
+                  Pinned
+                </Badge>
+              )}
+              {conversation.isArchived && (
+                <Badge
+                  variant="secondary"
+                  className="h-5 px-2 text-xs flex items-center gap-1"
+                >
+                  <ArchiveIcon className="w-3 h-3" />
+                  Archived
+                </Badge>
+              )}
             </div>
+
+            {/* Title */}
+            <span className="text-sm font-medium min-w-0 flex-1 truncate">
+              {conversation.title}
+            </span>
 
             {/* Right side info */}
             <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
@@ -189,7 +244,7 @@ export function ConversationSelectionList({
         </div>
       );
     },
-    [selectedConversations, handleItemClick]
+    [selectedConversations, handleItemClick, recentlyImportedIds]
   );
 
   if (isLoading) {
@@ -214,6 +269,16 @@ export function ConversationSelectionList({
           <CardTitle className="flex items-center justify-between text-base">
             <span>Select Conversations</span>
             <div className="flex items-center gap-2">
+              {someSelected && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  Delete
+                </Button>
+              )}
               <Button
                 onClick={searchQuery ? handleSelectAllFiltered : onSelectAll}
                 variant="outline"
@@ -261,13 +326,48 @@ export function ConversationSelectionList({
               </p>
             </div>
           ) : (
-            <div className="h-full overflow-y-auto">
+            <div className="max-h-96 overflow-y-auto">
               {filteredConversations.map((conversation, index) =>
                 renderItem(conversation, index)
               )}
             </div>
           )}
         </CardContent>
+
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogTitle>Delete selected conversations?</DialogTitle>
+            <div className="py-2 text-sm text-muted-foreground">
+              This will permanently delete {selectedConversations.size}{" "}
+              conversation{selectedConversations.size !== 1 ? "s" : ""}. This
+              action cannot be undone.
+              {selectedConversations.size > 10 && (
+                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-blue-800 dark:text-blue-200 text-sm">
+                    Large deletions will be processed in the background. You'll
+                    be notified when complete.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+              >
+                Delete
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </Card>
     </TooltipProvider>
   );

@@ -129,14 +129,43 @@ interface T3ChatThread {
 }
 
 interface T3ChatMessage {
-  role: string;
+  _creationTime: number;
+  _id: string;
+  attachmentIds?: string[];
   content: string;
-  createdAt?: number;
+  created_at: number;
+  messageId: string;
   model?: string;
+  role: string;
+  status: string;
+  threadId: string;
+  updated_at: number;
+  userId: string;
+  id: string;
+  providerMetadata?: Record<string, unknown>;
+  createdAt?: number;
+  modelParams?: {
+    includeSearch?: boolean;
+    reasoningEffort?: string;
+  };
+  parts?: Array<{
+    text?: string;
+    type?: string;
+    args?: unknown;
+    result?: unknown;
+    toolCallId?: string;
+    toolName?: string;
+  }>;
+  resumableStreamId?: string;
+  timeToFirstToken?: number;
+  tokens?: number;
+  tokensPerSecond?: number;
 }
 
 interface T3ChatExport {
   threads: T3ChatThread[];
+  messages?: T3ChatMessage[];
+  version?: string;
 }
 
 export interface ParsedConversation {
@@ -597,13 +626,62 @@ function parseT3ChatFormat(data: UnknownJsonData): ImportResult {
   try {
     const t3Data = data as unknown as T3ChatExport;
     const threads = t3Data.threads || [];
+    const allMessages = t3Data.messages || [];
+
+    // Group messages by threadId
+    const messagesByThread: Record<string, T3ChatMessage[]> = {};
+    for (const msg of allMessages) {
+      if (msg.threadId) {
+        if (!messagesByThread[msg.threadId]) {
+          messagesByThread[msg.threadId] = [];
+        }
+        messagesByThread[msg.threadId].push(msg);
+      }
+    }
 
     for (const [index, thread] of threads.entries()) {
       try {
         const messages: ParsedConversation["messages"] = [];
+        const threadMessages =
+          messagesByThread[thread.threadId] ||
+          messagesByThread[thread.id] ||
+          [];
 
-        // T3 Chat threads might have embedded messages
-        if (Array.isArray(thread.messages)) {
+        // Sort messages by creation time
+        threadMessages.sort((a, b) => {
+          const timeA = a.createdAt || a.created_at || 0;
+          const timeB = b.createdAt || b.created_at || 0;
+          return timeA - timeB;
+        });
+
+        // Process messages for this thread
+        for (const msg of threadMessages) {
+          if (msg.content && msg.content.trim() !== "") {
+            // Extract text content from parts if available
+            let content = msg.content;
+
+            // If the message has parts with text, use that as the primary content
+            if (msg.parts && Array.isArray(msg.parts)) {
+              const textParts = msg.parts
+                .filter(part => part.type === "text" && part.text)
+                .map(part => part.text);
+              if (textParts.length > 0) {
+                content = textParts.join("\n");
+              }
+            }
+
+            messages.push({
+              role: msg.role as "user" | "assistant" | "system",
+              content: content,
+              createdAt: msg.createdAt || msg.created_at,
+              model: msg.model,
+              provider: msg.providerMetadata?.openai ? "openai" : "t3chat",
+            });
+          }
+        }
+
+        // If no messages found in the separate array, check if thread has embedded messages
+        if (messages.length === 0 && Array.isArray(thread.messages)) {
           for (const msg of thread.messages) {
             if (msg.role && msg.content) {
               messages.push({
@@ -615,18 +693,9 @@ function parseT3ChatFormat(data: UnknownJsonData): ImportResult {
               });
             }
           }
-        } else {
-          // If no messages are found, create a placeholder conversation
-          // This maintains the thread information even without message content
-          messages.push({
-            role: "user",
-            content: `[T3 Chat Thread: ${thread.title || `Thread ${index + 1}`}]`,
-            createdAt: thread.createdAt || thread.created_at,
-            model: thread.model,
-            provider: "t3chat",
-          });
         }
 
+        // Only create conversation if we have actual messages
         if (messages.length > 0) {
           conversations.push({
             title: thread.title || `T3 Chat Thread ${index + 1}`,
@@ -636,6 +705,10 @@ function parseT3ChatFormat(data: UnknownJsonData): ImportResult {
             isArchived: thread.visibility === "archived",
             isPinned: thread.pinned,
           });
+        } else {
+          errors.push(
+            `No messages found for thread: ${thread.title || thread.threadId}`
+          );
         }
       } catch (error) {
         errors.push(`Error parsing T3 Chat thread ${index + 1}: ${error}`);

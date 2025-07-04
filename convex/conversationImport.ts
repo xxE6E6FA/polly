@@ -9,8 +9,8 @@ import {
   webCitationSchema,
 } from "./lib/schemas";
 
-// Optimized bulk import with minimal database operations
-export const bulkImportOptimized = mutation({
+// Bulk import conversations with duplicate detection
+export const bulkImport = mutation({
   args: {
     conversations: v.array(
       v.object({
@@ -49,9 +49,9 @@ export const bulkImportOptimized = mutation({
   }> => {
     const userId = await requireAuth(ctx);
     const now = Date.now();
-    const batchSize = args.batchSize || 50; // Larger batch size for efficiency
+    const batchSize = args.batchSize || 50;
 
-    // Single query to get existing conversation titles if needed
+    // Get existing conversation titles for duplicate detection
     let existingTitles = new Set<string>();
     if (args.skipDuplicates) {
       const existingConversations = await ctx.db
@@ -61,7 +61,7 @@ export const bulkImportOptimized = mutation({
       existingTitles = new Set(existingConversations.map(c => c.title));
     }
 
-    // Pre-process conversations to filter duplicates and validate
+    // Filter and validate conversations
     const validConversations = args.conversations
       .filter(conv => {
         // Skip duplicates
@@ -80,7 +80,7 @@ export const bulkImportOptimized = mutation({
         }
         return true;
       })
-      .slice(0, 1000); // Hard limit to prevent excessive operations
+      .slice(0, 1000); // Limit to prevent excessive operations
 
     if (validConversations.length === 0) {
       return {
@@ -91,7 +91,7 @@ export const bulkImportOptimized = mutation({
       };
     }
 
-    // Process in batches to avoid hitting database limits
+    // Process in batches
     const results = [];
     const errors = [];
 
@@ -100,7 +100,7 @@ export const bulkImportOptimized = mutation({
 
       try {
         const batchResult: { conversationIds: string[] } =
-          await ctx.runMutation(internal.importOptimized.processBatch, {
+          await ctx.runMutation(internal.conversationImport.processBatch, {
             conversations: batch,
             userId,
             baseTime: now + i, // Ensure unique timestamps
@@ -121,7 +121,7 @@ export const bulkImportOptimized = mutation({
   },
 });
 
-// Internal mutation to process a batch of conversations efficiently
+// Internal mutation to process a batch of conversations
 export const processBatch = internalMutation({
   args: {
     conversations: v.array(
@@ -167,11 +167,10 @@ export const processBatch = internalMutation({
         isArchived: convData.isArchived || false,
         isPinned: convData.isPinned || false,
         personaId: convData.personaId,
-        // Ensure streaming state is properly set
         isStreaming: false,
       });
 
-      // Batch insert messages for this conversation
+      // Insert messages for this conversation
       const messagesToInsert = convData.messages
         .filter(msg => msg.content && msg.content.trim() !== "")
         .map((msg, msgIndex) => ({
@@ -188,7 +187,7 @@ export const processBatch = internalMutation({
           metadata: msg.metadata,
         }));
 
-      // Insert all messages for this conversation
+      // Insert all messages
       for (const messageData of messagesToInsert) {
         await ctx.db.insert("messages", messageData);
       }
@@ -200,8 +199,8 @@ export const processBatch = internalMutation({
   },
 });
 
-// Optimized background import with minimal function calls
-export const scheduleOptimizedImport = action({
+// Schedule a background import job
+export const scheduleImport = action({
   args: {
     conversations: v.array(v.any()),
     importId: v.string(),
@@ -218,17 +217,17 @@ export const scheduleOptimizedImport = action({
       ? args.conversations.slice(0, args.maxConversations)
       : args.conversations;
 
-    // Generate import metadata if not provided
+    // Generate import metadata
     const dateStr = new Date().toLocaleDateString();
     const count = limitedConversations.length;
     const title =
       args.title ||
       (count === 1
-        ? `Optimized Import - ${dateStr}`
+        ? `Import - ${dateStr}`
         : `${count} Conversations Import - ${dateStr}`);
     const description =
       args.description ||
-      `Optimized import of ${count} conversation${count !== 1 ? "s" : ""} on ${dateStr}`;
+      `Import of ${count} conversation${count !== 1 ? "s" : ""} on ${dateStr}`;
 
     // Create import job record
     await ctx.runMutation(api.backgroundJobs.create, {
@@ -240,38 +239,20 @@ export const scheduleOptimizedImport = action({
       description,
     });
 
-    // For larger imports, use ultra-optimized processing
-    if (limitedConversations.length > 50) {
-      // Schedule ultra-optimized processing for large imports
-      await ctx.scheduler.runAfter(
-        100,
-        api.importOptimized.processOptimizedImport,
-        {
-          conversations: limitedConversations,
-          importId: args.importId,
-          skipDuplicates: args.skipDuplicates || true,
-          userId,
-        }
-      );
-    } else {
-      // Use standard optimized processing for smaller imports
-      await ctx.scheduler.runAfter(
-        100,
-        api.importOptimized.processOptimizedImport,
-        {
-          conversations: limitedConversations,
-          importId: args.importId,
-          skipDuplicates: args.skipDuplicates || true,
-          userId,
-        }
-      );
-    }
+    // Schedule the import processing
+    await ctx.scheduler.runAfter(100, api.conversationImport.processImport, {
+      conversations: limitedConversations,
+      importId: args.importId,
+      skipDuplicates: args.skipDuplicates || true,
+      userId,
+    });
 
     return { importId: args.importId, status: "scheduled" };
   },
 });
 
-export const processOptimizedImport = action({
+// Process a scheduled import job
+export const processImport = action({
   args: {
     conversations: v.array(v.any()),
     importId: v.string(),
@@ -286,17 +267,18 @@ export const processOptimizedImport = action({
         status: "processing",
       });
 
-      // Process conversations in optimized batches
+      // Process conversations in batches
       const batchSize = 10;
       let totalImported = 0;
       const errors: string[] = [];
+      const allImportedIds: string[] = [];
 
       for (let i = 0; i < args.conversations.length; i += batchSize) {
         const batch = args.conversations.slice(i, i + batchSize);
 
         try {
           const batchResult = await ctx.runMutation(
-            api.importOptimized.bulkImportOptimized,
+            api.conversationImport.bulkImport,
             {
               conversations: batch,
               skipDuplicates: args.skipDuplicates,
@@ -304,6 +286,7 @@ export const processOptimizedImport = action({
           );
 
           totalImported += batchResult.importedCount;
+          allImportedIds.push(...batchResult.conversationIds);
           errors.push(...batchResult.errors);
 
           // Update progress
@@ -317,13 +300,14 @@ export const processOptimizedImport = action({
         }
       }
 
-      // Save final result
+      // Save final result with imported conversation IDs
       await ctx.runMutation(api.backgroundJobs.saveImportResult, {
         jobId: args.importId,
         result: {
           totalImported,
           totalProcessed: args.conversations.length,
           errors,
+          conversationIds: allImportedIds,
         },
         status: "completed",
       });
@@ -340,71 +324,7 @@ export const processOptimizedImport = action({
   },
 });
 
-// Ultra-efficient import for trusted data (minimal validation)
-export const ultraFastImport = mutation({
-  args: {
-    conversations: v.array(
-      v.object({
-        title: v.string(),
-        messages: v.array(
-          v.object({
-            role: messageRoleSchema,
-            content: v.string(),
-            createdAt: v.optional(v.number()),
-          })
-        ),
-        createdAt: v.optional(v.number()),
-      })
-    ),
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const conversationIds = [];
-
-    // Minimal validation - assume data is clean
-    const validConversations = args.conversations
-      .filter(conv => conv.title && conv.messages && conv.messages.length > 0)
-      .slice(0, 100); // Hard limit for ultra-fast processing
-
-    // Process with minimal overhead
-    for (let i = 0; i < validConversations.length; i++) {
-      const conv = validConversations[i];
-
-      // Single insert for conversation
-      const conversationId = await ctx.db.insert("conversations", {
-        title: conv.title,
-        userId: args.userId,
-        createdAt: conv.createdAt || now + i,
-        updatedAt: conv.createdAt || now + i,
-        isStreaming: false,
-      });
-
-      // Batch insert messages with minimal processing
-      for (let j = 0; j < conv.messages.length; j++) {
-        const msg = conv.messages[j];
-        if (msg.content && msg.content.trim()) {
-          await ctx.db.insert("messages", {
-            conversationId,
-            role: msg.role,
-            content: msg.content,
-            isMainBranch: true,
-            createdAt: msg.createdAt || now + i + j,
-          });
-        }
-      }
-
-      conversationIds.push(conversationId);
-    }
-
-    return {
-      importedCount: conversationIds.length,
-      conversationIds,
-    };
-  },
-});
-
-// Query to get import statistics (for monitoring)
+// Get import statistics
 export const getImportStats = query({
   args: {
     userId: v.optional(v.id("users")),
@@ -427,7 +347,7 @@ export const getImportStats = query({
       )
       .collect();
 
-    // Get recent conversations (potential imports)
+    // Get recent conversations
     const recentConversations = await ctx.db
       .query("conversations")
       .filter(q =>
@@ -452,7 +372,7 @@ export const getImportStats = query({
   },
 });
 
-// Batch cleanup for import-related data
+// Clean up old import data
 export const cleanupImportData = mutation({
   args: {
     olderThanDays: v.optional(v.number()),
@@ -460,7 +380,7 @@ export const cleanupImportData = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
-    const daysOld = args.olderThanDays || 7; // Default 7 days for import jobs
+    const daysOld = args.olderThanDays || 7;
     const dryRun = args.dryRun || false;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
@@ -499,126 +419,6 @@ export const cleanupImportData = mutation({
     }
 
     return { deletedCount };
-  },
-});
-
-// Ultra-optimized import with transaction-like behavior
-export const ultraOptimizedImport = internalMutation({
-  args: {
-    conversationBatch: v.array(
-      v.object({
-        title: v.string(),
-        messages: v.array(
-          v.object({
-            role: messageRoleSchema,
-            content: v.string(),
-            createdAt: v.optional(v.number()),
-            model: v.optional(v.string()),
-            provider: v.optional(v.string()),
-            reasoning: v.optional(v.string()),
-            attachments: v.optional(v.array(attachmentSchema)),
-            citations: v.optional(v.array(webCitationSchema)),
-            metadata: v.optional(messageMetadataSchema),
-          })
-        ),
-        createdAt: v.optional(v.number()),
-        updatedAt: v.optional(v.number()),
-        isArchived: v.optional(v.boolean()),
-        isPinned: v.optional(v.boolean()),
-        personaId: v.optional(v.id("personas")),
-      })
-    ),
-    userId: v.id("users"),
-    baseTime: v.number(),
-    existingTitles: v.array(v.string()),
-    skipDuplicates: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const existingTitlesSet = new Set(args.existingTitles);
-    const conversationIds = [];
-    const errors = [];
-    let importedCount = 0;
-
-    // Pre-validate all conversations before any database operations
-    const validConversations = [];
-    for (const conv of args.conversationBatch) {
-      // Skip duplicates
-      if (args.skipDuplicates && existingTitlesSet.has(conv.title)) {
-        continue;
-      }
-
-      // Validate conversation has messages
-      if (!conv.messages || conv.messages.length === 0) {
-        errors.push(`Conversation "${conv.title}" has no messages`);
-        continue;
-      }
-
-      // Validate messages have content
-      const validMessages = conv.messages.filter(
-        msg => msg.content && msg.content.trim() !== ""
-      );
-
-      if (validMessages.length === 0) {
-        errors.push(`Conversation "${conv.title}" has no valid messages`);
-        continue;
-      }
-
-      validConversations.push({
-        ...conv,
-        messages: validMessages,
-      });
-    }
-
-    // Batch insert all conversations and messages
-    try {
-      for (let i = 0; i < validConversations.length; i++) {
-        const conv = validConversations[i];
-        const convTimestamp = args.baseTime + i;
-
-        // Insert conversation
-        const conversationId = await ctx.db.insert("conversations", {
-          title: conv.title,
-          userId: args.userId,
-          createdAt: conv.createdAt || convTimestamp,
-          updatedAt: conv.updatedAt || convTimestamp,
-          isArchived: conv.isArchived || false,
-          isPinned: conv.isPinned || false,
-          personaId: conv.personaId,
-          isStreaming: false, // Ensure proper streaming state
-        });
-
-        // Batch insert messages with optimized ordering
-        const messageInsertPromises = conv.messages.map((msg, msgIndex) =>
-          ctx.db.insert("messages", {
-            conversationId,
-            role: msg.role,
-            content: msg.content,
-            isMainBranch: true,
-            createdAt: msg.createdAt || convTimestamp + msgIndex,
-            model: msg.model,
-            provider: msg.provider,
-            reasoning: msg.reasoning,
-            attachments: msg.attachments,
-            citations: msg.citations,
-            metadata: msg.metadata,
-          })
-        );
-
-        // Execute all message inserts in parallel for this conversation
-        await Promise.all(messageInsertPromises);
-
-        conversationIds.push(conversationId);
-        importedCount++;
-      }
-    } catch (error) {
-      errors.push(`Database operation failed: ${error}`);
-    }
-
-    return {
-      conversationIds,
-      importedCount,
-      errors,
-    };
   },
 });
 
@@ -692,13 +492,13 @@ export const getImportResult = query({
   },
 });
 
-// Enhanced validation function
+// Validate import data before processing
 export const validateImportData = mutation({
   args: {
     sampleConversations: v.array(v.any()),
     maxSampleSize: v.optional(v.number()),
   },
-  handler: (ctx, args) => {
+  handler: (_ctx, args) => {
     const maxSample = args.maxSampleSize || 10;
     const sample = args.sampleConversations.slice(0, maxSample);
 

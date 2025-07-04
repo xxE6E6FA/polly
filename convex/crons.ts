@@ -27,4 +27,12 @@ crons.monthly(
   { daysOld: 90, batchSize: 100 }
 );
 
+// Clean up old background jobs monthly on the 2nd at 4 AM UTC
+crons.monthly(
+  "cleanup old background jobs",
+  { day: 2, hourUTC: 4, minuteUTC: 0 },
+  internal.backgroundJobs.cleanupOldJobsForAllUsers,
+  { olderThanDays: 30 }
+);
+
 export default crons;
