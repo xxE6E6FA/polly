@@ -37,6 +37,7 @@ import type * as constants from "../constants.js";
 import type * as conversationStarters from "../conversationStarters.js";
 import type * as conversationSummary from "../conversationSummary.js";
 import type * as conversations from "../conversations.js";
+import type * as crons from "../crons.js";
 import type * as fileStorage from "../fileStorage.js";
 import type * as http from "../http.js";
 import type * as internal_ from "../internal.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   conversationStarters: typeof conversationStarters;
   conversationSummary: typeof conversationSummary;
   conversations: typeof conversations;
+  crons: typeof crons;
   fileStorage: typeof fileStorage;
   http: typeof http;
   internal: typeof internal_;

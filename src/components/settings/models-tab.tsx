@@ -466,7 +466,7 @@ export const ModelsTab = () => {
 
   if (availableProviders.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6">
         <SettingsHeader
           description="Configure your API keys to use different AI providers. Once you add API keys, models will be automatically fetched and displayed here."
           title="Models"
@@ -485,7 +485,7 @@ export const ModelsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between">
         <SettingsHeader
           description="Browse and explore AI models from your configured providers. Enable models to use them in conversations."

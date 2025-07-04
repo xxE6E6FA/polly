@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -197,11 +198,18 @@ export default function SharedConversationsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <SettingsHeader
         title="Shared Conversations"
         description="Manage your publicly shared conversations"
       />
+
+      <Alert>
+        <AlertDescription>
+          Shared conversations are automatically deleted after 90 days of
+          inactivity to maintain system performance.
+        </AlertDescription>
+      </Alert>
 
       <VirtualizedPaginatedList<SharedConversation>
         query={api.sharedConversations.listUserSharedConversationsPaginated}

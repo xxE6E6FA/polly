@@ -169,6 +169,14 @@ export const ShareConversationDialog = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Cleanup policy notice */}
+          <Alert>
+            <AlertDescription>
+              Shared conversations are automatically deleted after 90 days of
+              inactivity.
+            </AlertDescription>
+          </Alert>
+
           {isShared ? (
             <div className="space-y-6">
               {/* Share URL section */}
