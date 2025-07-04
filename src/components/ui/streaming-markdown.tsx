@@ -72,7 +72,7 @@ const StreamingMarkdownInner = ({
 
   return (
     <MessageContext.Provider value={messageId}>
-      <div className={className}>
+      <div className={`${className} selectable-text`}>
         {blockMatches.map((blockMatch, index) => {
           const Component = blockMatch.block.component;
           return (

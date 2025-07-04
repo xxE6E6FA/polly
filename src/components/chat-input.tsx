@@ -374,7 +374,7 @@ export const ChatInput = React.memo(
                 <div className="group relative flex-1">
                   <textarea
                     ref={textareaRef}
-                    className={textareaClasses}
+                    className={`${textareaClasses} selectable-auto`}
                     disabled={
                       props.isLoading ||
                       props.isStreaming ||

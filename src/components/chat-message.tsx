@@ -341,7 +341,7 @@ const ChatMessageComponent = ({
                   <div className="space-y-4">
                     <textarea
                       autoFocus
-                      className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base"
+                      className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base selectable-auto"
                       placeholder="Edit your message..."
                       value={editContent}
                       style={{
@@ -376,7 +376,7 @@ const ChatMessageComponent = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap break-words text-sm transition-all duration-300 ease-out sm:text-base">
+                  <div className="whitespace-pre-wrap break-words text-sm transition-all duration-300 ease-out sm:text-base selectable-text">
                     {displayContent}
                     {renderAttachments(message.attachments, "user")}
                   </div>
