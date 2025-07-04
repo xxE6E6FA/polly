@@ -975,4 +975,12 @@ pre {
   --tw-prose-bullets: hsl(var(--muted-foreground));
 }
 
-/* Button hover effects */
+.prose em,
+.prose i {
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+
+.dark .prose em,
+.dark .prose i {
+  color: hsl(var(--muted-foreground) / 0.9);
+}
