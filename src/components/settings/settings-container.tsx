@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 
 import {
   ArchiveIcon,
+  CloudArrowDownIcon,
   GearIcon,
   KeyIcon,
   RobotIcon,
@@ -54,6 +55,11 @@ const settingsNavItems = [
     href: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
     label: "Archive",
     icon: ArchiveIcon,
+  },
+  {
+    href: ROUTES.SETTINGS.CHAT_HISTORY,
+    label: "Chat History",
+    icon: CloudArrowDownIcon,
   },
 ];
 

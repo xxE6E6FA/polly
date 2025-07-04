@@ -191,4 +191,84 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_auto_archive_enabled", ["autoArchiveEnabled"]),
+
+  backgroundJobs: defineTable({
+    jobId: v.string(),
+    userId: v.id("users"),
+    type: v.union(
+      v.literal("export"),
+      v.literal("import"),
+      v.literal("bulk_archive"),
+      v.literal("bulk_delete"),
+      v.literal("conversation_summary"),
+      v.literal("data_migration"),
+      v.literal("model_migration"),
+      v.literal("backup")
+    ),
+    category: v.union(
+      v.literal("data_transfer"),
+      v.literal("bulk_operations"),
+      v.literal("ai_processing"),
+      v.literal("maintenance")
+    ),
+    status: v.union(
+      v.literal("scheduled"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    totalItems: v.number(),
+    processedItems: v.number(),
+    priority: v.union(
+      v.literal("low"),
+      v.literal("normal"),
+      v.literal("high"),
+      v.literal("urgent")
+    ),
+    retryCount: v.number(),
+    maxRetries: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    startedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    payload: v.optional(v.any()),
+    error: v.optional(v.string()),
+
+    conversationIds: v.optional(v.array(v.id("conversations"))),
+    includeAttachments: v.optional(v.boolean()),
+
+    manifest: v.optional(
+      v.object({
+        totalConversations: v.number(),
+        totalMessages: v.number(),
+        conversationDateRange: v.object({
+          earliest: v.number(),
+          latest: v.number(),
+        }),
+        conversationTitles: v.array(v.string()),
+        includeAttachments: v.boolean(),
+        fileSizeBytes: v.optional(v.number()),
+        version: v.string(),
+      })
+    ),
+    fileStorageId: v.optional(v.id("_storage")),
+
+    result: v.optional(
+      v.object({
+        totalImported: v.number(),
+        totalProcessed: v.number(),
+        errors: v.array(v.string()),
+      })
+    ),
+  })
+    .index("by_user_and_type", ["userId", "type"])
+    .index("by_user_and_status", ["userId", "status"])
+    .index("by_user_and_category", ["userId", "category"])
+    .index("by_status_and_created", ["status", "createdAt"])
+    .index("by_user_updated", ["userId", "updatedAt"])
+    .index("by_job_id", ["jobId"]),
 });
