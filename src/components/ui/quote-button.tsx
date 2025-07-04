@@ -70,7 +70,7 @@ export const QuoteButton = ({
         >
           <div className="flex gap-2">
             <Button
-              className="h-8 border-0 bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(240_90%_58%)] px-3 text-white shadow-lg transition-all duration-200 hover:from-[hsl(220_95%_50%)] hover:to-[hsl(240_90%_53%)] hover:shadow-xl"
+              className="h-8 border-0 bg-primary px-3 text-primary-foreground shadow-lg transition-all duration-200 hover:bg-primary-hover hover:shadow-xl"
               size="sm"
               onClick={handleQuote}
             >
@@ -90,7 +90,7 @@ export const QuoteButton = ({
               }}
             >
               <Button
-                className="h-8 border-0 bg-gradient-to-r from-[hsl(260_85%_60%)] to-[hsl(280_75%_65%)] px-3 text-white shadow-lg transition-all duration-200 hover:from-[hsl(260_85%_55%)] hover:to-[hsl(280_75%_60%)] hover:shadow-xl"
+                className="h-8 border-0 bg-secondary px-3 text-secondary-foreground shadow-lg transition-all duration-200 hover:bg-secondary-hover hover:shadow-xl"
                 size="sm"
                 onClick={handleShowConversationStarters}
               >
