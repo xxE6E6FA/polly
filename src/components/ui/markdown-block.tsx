@@ -28,8 +28,8 @@ const NUMERIC_ENTITIES = {
 // Regex patterns as constants to avoid recreation
 const INCOMPLETE_ENTITY_PATTERN = /&(?:#?x?[\dA-Fa-f]{0,6}|[A-Za-z]{0,10})?$/;
 const CODE_BLOCK_PATTERN = /```[\s\S]*?```|`[^`]*`/g;
-const CITATION_GROUP_PATTERN = /(\[\d+\](?:\s*,?\s*\[\d+\])+)/g;
-const SINGLE_CITATION_PATTERN = /\[(\d+)\]/g;
+const CITATION_GROUP_PATTERN = /\s*(\[\d+\](?:\s*,?\s*\[\d+\])+)\s*/g;
+const SINGLE_CITATION_PATTERN = /\s*\[(\d+)\]\s*/g;
 const CURRENCY_WITH_UNITS_PATTERN =
   /\$[\d,]+(\.\d+)?\s*(billion|million|trillion|thousand|k|m|b|t|USD|EUR|GBP|JPY|CAD|AUD|CHF|CNY|dollars?|cents?|pounds?|euros?|yen|yuan|rupees?|pesos?|reals?|rubles?|won|francs?|krona|krone|zloty|forint|shekel|rand|lira|baht|ringgit|rupiah|dong)(?=\s|$|[^\w])/gi;
 const STANDALONE_CURRENCY_PATTERN = /\$[\d,]+(\.\d{1,2})?(?=\s|$|[^\w])/g;
@@ -175,21 +175,24 @@ function preprocessCitations(text: string): string {
   let processed = cleanupEscapes(text);
 
   // Replace groups of citations with a span wrapper
-  processed = processed.replace(CITATION_GROUP_PATTERN, match => {
-    // Extract all citation numbers from the group
-    const citations = match.match(/\[\d+\]/g);
-    if (!citations || citations.length <= 1) return match;
+  processed = processed.replace(
+    CITATION_GROUP_PATTERN,
+    (match, citationGroup) => {
+      // Extract all citation numbers from the group
+      const citations = citationGroup.match(/\[\d+\]/g);
+      if (!citations || citations.length <= 1) return match;
 
-    // Build the wrapped group
-    const wrappedCitations = citations
-      .map(citation => {
-        const num = citation.match(/\d+/)?.[0];
-        return `<sup class="citation-wrapper"><a href="#cite-${num}" class="citation-link">${num}</a></sup>`;
-      })
-      .join("");
+      // Build the wrapped group (no whitespace around or between citations)
+      const wrappedCitations = citations
+        .map((citation: string) => {
+          const num = citation.match(/\d+/)?.[0];
+          return `<a href="#cite-${num}" class="citation-link">${num}</a>`;
+        })
+        .join("");
 
-    return `<span class="citation-group">${wrappedCitations}</span>`;
-  });
+      return `<span class="citation-group">${wrappedCitations}</span>`;
+    }
+  );
 
   // Handle single citations that aren't part of a group
   // Fix: Use a more robust approach to avoid indexOf issues
@@ -209,8 +212,8 @@ function preprocessCitations(text: string): string {
 
     if (codeBlockCount % 2 === 0 && !isInGroup) {
       citationMatches.push({
-        match: match[0],
-        num: match[1],
+        match: match[0], // Full match including whitespace
+        num: match[1], // Citation number
         index: match.index,
       });
     }
@@ -218,7 +221,8 @@ function preprocessCitations(text: string): string {
 
   // Process matches in reverse order to maintain correct indices
   citationMatches.reverse().forEach(({ match, num, index }) => {
-    const replacement = `<span class="citation-group"><sup class="citation-wrapper"><a href="#cite-${num}" class="citation-link">${num}</a></sup></span>`;
+    // Replace the entire match (including whitespace) with just the citation HTML
+    const replacement = `<span class="citation-group"><a href="#cite-${num}" class="citation-link">${num}</a></span>`;
     processed =
       processed.slice(0, index) +
       replacement +
@@ -309,14 +313,11 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
   ({ href, children, ...props }) => {
     // Check if this is a citation link
     if (href?.startsWith("#cite-")) {
-      const citationNumber = String(children);
-
+      // Don't add additional wrapper - preprocessCitations already handles this
       return (
-        <sup className="citation-wrapper inline-flex items-center relative transition-all duration-200 hover:z-30">
-          <a {...props} href={href} className="citation-link">
-            {citationNumber}
-          </a>
-        </sup>
+        <a {...props} href={href} className="citation-link">
+          {children}
+        </a>
       );
     }
 
