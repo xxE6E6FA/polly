@@ -39,11 +39,37 @@ type ShareConversationDialogProps = {
   children: React.ReactNode;
 };
 
+type ControlledShareConversationDialogProps = {
+  conversationId: ConversationId;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
 export const ShareConversationDialog = ({
   conversationId,
   children,
 }: ShareConversationDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>{children}</DialogTrigger>
+      </Dialog>
+      <ControlledShareConversationDialog
+        conversationId={conversationId}
+        open={isOpen}
+        onOpenChange={setIsOpen}
+      />
+    </>
+  );
+};
+
+export const ControlledShareConversationDialog = ({
+  conversationId,
+  open,
+  onOpenChange,
+}: ControlledShareConversationDialogProps) => {
   const [isSharing, setIsSharing] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUnsharing, setIsUnsharing] = useState(false);
@@ -53,7 +79,7 @@ export const ShareConversationDialog = ({
   // Get current sharing status (only when dialog is open)
   const sharedStatus = useQuery(
     api.sharedConversations.getSharedStatus,
-    isOpen ? { conversationId } : "skip"
+    open ? { conversationId } : "skip"
   );
 
   // Mutations
@@ -154,8 +180,7 @@ export const ShareConversationDialog = ({
       : 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">
