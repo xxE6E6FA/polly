@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { useQuery } from "convex/react";
 
 import { UnifiedChatView } from "@/components/unified-chat-view";
+import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { useUnifiedChat } from "@/hooks/use-unified-chat";
 import { usePrivateMode } from "@/contexts/private-mode-context";
@@ -21,7 +22,6 @@ export default function ConversationRoute() {
   const queryUserId = useQueryUserId();
   const { setPrivateMode } = usePrivateMode();
 
-  // Ensure we're not in private mode when viewing a conversation
   useEffect(() => {
     setPrivateMode(false);
   }, [setPrivateMode]);
@@ -30,17 +30,12 @@ export default function ConversationRoute() {
     throw new Error("Conversation ID is required");
   }
 
-  // Query conversation even while user is loading (will be skipped until user is available)
   const conversation = useQuery(
     api.conversations.getAuthorized,
     queryUserId ? { id: conversationId, userId: queryUserId } : "skip"
   );
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
-
-  const handleError = useCallback((_error: Error) => {
-    // Error is handled by the UI components
-  }, []);
 
   const handleConversationCreate = useCallback(
     (newConversationId: ConversationId) => {
@@ -51,48 +46,47 @@ export default function ConversationRoute() {
 
   const {
     messages,
-    currentPersonaId,
-    canSavePrivateChat,
     isLoading,
-    isLoadingMessages,
+    isStreaming,
+    currentPersonaId,
     sendMessage,
-    sendMessageToNewConversation,
     stopGeneration,
+    deleteMessage,
     editMessage,
     retryUserMessage,
     retryAssistantMessage,
-    deleteMessage,
-    isStreaming,
   } = useUnifiedChat({
     conversationId: conversationId as ConversationId,
-    onError: handleError,
     onConversationCreate: handleConversationCreate,
   });
 
-  // If user is loaded and the query has completed and conversation is null,
-  // It means either the conversation doesn't exist or user doesn't have access
-  if (!userLoading && conversation === null) {
+  if (userLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (conversation === null) {
     return <NotFoundPage />;
   }
 
   return (
-    <UnifiedChatView
-      conversationId={conversationId as ConversationId}
-      messages={messages}
-      isLoading={isLoading}
-      isLoadingMessages={isLoadingMessages || userLoading}
-      isStreaming={isStreaming}
-      currentPersonaId={currentPersonaId}
-      canSavePrivateChat={canSavePrivateChat}
-      hasApiKeys={hasApiKeys ?? true}
-      isArchived={conversation?.isArchived ?? false}
-      onSendMessage={sendMessage}
-      onSendMessageToNewConversation={sendMessageToNewConversation}
-      onDeleteMessage={deleteMessage}
-      onEditMessage={editMessage}
-      onStopGeneration={stopGeneration}
-      onRetryUserMessage={retryUserMessage}
-      onRetryAssistantMessage={retryAssistantMessage}
-    />
+    <>
+      <PrivateToggle />
+      <UnifiedChatView
+        conversationId={conversationId as ConversationId}
+        isArchived={conversation?.isArchived}
+        messages={messages}
+        isLoading={isLoading}
+        isStreaming={isStreaming}
+        currentPersonaId={currentPersonaId}
+        canSavePrivateChat={false}
+        hasApiKeys={hasApiKeys ?? false}
+        onSendMessage={sendMessage}
+        onDeleteMessage={deleteMessage}
+        onEditMessage={editMessage}
+        onStopGeneration={stopGeneration}
+        onRetryUserMessage={retryUserMessage}
+        onRetryAssistantMessage={retryAssistantMessage}
+      />
+    </>
   );
 }

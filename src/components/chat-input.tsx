@@ -10,10 +10,8 @@ import React, {
 } from "react";
 
 import { useQuery } from "convex/react";
-import { useLocation } from "react-router";
 
 import { AttachmentList } from "@/components/chat-input/attachment-list";
-import { PrivateModeToggle } from "@/components/chat-input/private-mode-toggle";
 import { InputControls } from "@/components/chat-input/input-controls";
 import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { NotificationDialog } from "@/components/ui/notification-dialog";
@@ -73,14 +71,11 @@ export type ChatInputRef = {
 
 export const ChatInput = React.memo(
   forwardRef<ChatInputRef, ChatInputProps>((props, ref) => {
-    // Core state and refs
     const [input, setInput] = useState("");
     const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const inputControlsRef = useRef<{ handleSubmit: () => void } | null>(null);
-    const location = useLocation();
 
-    // User and model data
     const {
       canSendMessage,
       hasMessageLimit,
@@ -92,7 +87,6 @@ export const ChatInput = React.memo(
     const { selectedModel } = useSelectedModel();
     const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-    // Check if Polly model is selected and monthly limit is reached
     const isPollyLimitReached = useMemo(() => {
       return (
         selectedModel?.free &&
@@ -102,10 +96,8 @@ export const ChatInput = React.memo(
       );
     }, [selectedModel, monthlyUsage, hasUnlimitedCalls]);
 
-    // Override canSendMessage if Polly limit is reached
     const effectiveCanSendMessage = canSendMessage && !isPollyLimitReached;
 
-    // Use our new hooks
     const visualMode = useChatVisualMode();
     const warnings = useChatWarnings();
     const defaultPlaceholder = useChatPlaceholder({
@@ -123,13 +115,11 @@ export const ChatInput = React.memo(
       return defaultPlaceholder;
     }, [isPollyLimitReached, defaultPlaceholder]);
 
-    // Submit logic via hook
     const { submit, submitToNewConversation } = useChatSubmit({
       conversationId: props.conversationId,
       onSendMessage: props.onSendMessage,
       onSendMessageToNewConversation: props.onSendMessageToNewConversation,
       onAfterSubmit: () => {
-        // Refocus the textarea after sending message
         setTimeout(() => {
           textareaRef.current?.focus();
         }, 0);
@@ -161,7 +151,6 @@ export const ChatInput = React.memo(
 
     const hasEnabledModels = useQuery(api.userModels.hasUserModels, {});
 
-    // Get Convex file URL if the preview file has a storage ID
     const previewFileUrl = useQuery(
       api.fileStorage.getFileUrl,
       previewFile?.storageId
@@ -169,33 +158,27 @@ export const ChatInput = React.memo(
         : "skip"
     );
 
-    // Determine the actual preview URL
     const previewImageUrl = useMemo(() => {
       if (!previewFile) return undefined;
 
-      // If we have a storageId, use the Convex URL
       if (previewFile.storageId) {
         return previewFileUrl || undefined;
       }
 
-      // For private mode files with Base64 content
       if (previewFile.content && previewFile.mimeType) {
         return `data:${previewFile.mimeType};base64,${previewFile.content}`;
       }
 
-      // Fallback to regular URL
       return previewFile.url;
     }, [previewFile, previewFileUrl]);
 
     const clearInput = useCallback(() => {
       setInput("");
-      // Ensure textarea maintains focus after clearing
       setTimeout(() => {
         textareaRef.current?.focus();
       }, 0);
     }, []);
 
-    // Handle sending to a new conversation
     const handleSendAsNewConversation = useCallback(
       async (navigate: boolean) => {
         if (!input.trim() && attachments.length === 0) {
@@ -214,7 +197,6 @@ export const ChatInput = React.memo(
         clearInput();
         clearAttachments();
 
-        // Return the new conversation ID in case it's needed by the caller
         return newConversationId;
       },
       [
@@ -275,13 +257,6 @@ export const ChatInput = React.memo(
       }
     }, []);
 
-    const handlePrivateModeToggle = useCallback(() => {
-      visualMode.toggleMode();
-      requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-      });
-    }, [visualMode]);
-
     useImperativeHandle(
       ref,
       () => ({
@@ -299,10 +274,8 @@ export const ChatInput = React.memo(
       }
     }, [input]);
 
-    // Refocus textarea when streaming stops
     useEffect(() => {
       if (!props.isStreaming && !props.isLoading) {
-        // Small delay to ensure DOM has settled
         const timeoutId = setTimeout(() => {
           textareaRef.current?.focus();
         }, 100);
@@ -310,48 +283,41 @@ export const ChatInput = React.memo(
       }
     }, [props.isStreaming, props.isLoading]);
 
-    // Memoize form classes
     const formClasses = useMemo(
       () =>
         cn(
-          "rounded-xl p-2.5 sm:p-3 transition-all duration-200",
+          "rounded-xl p-2.5 sm:p-3 transition-all duration-700 ease-in-out",
           effectiveCanSendMessage
             ? visualMode.isPrivateMode
-              ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/30 dark:via-purple-900/20 dark:to-amber-950/10 shadow-lg shadow-purple-500/20 dark:shadow-purple-500/10"
+              ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10 dark:border-purple-400/50"
               : "chat-input-container"
             : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
         ),
       [effectiveCanSendMessage, visualMode.isPrivateMode]
     );
 
-    // Memoize textarea classes
     const textareaClasses = useMemo(
       () =>
         cn(
           "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0 text-base sm:text-sm leading-relaxed transition-opacity duration-200 min-h-[24px] max-h-[100px] overflow-y-auto py-1",
           effectiveCanSendMessage
             ? "placeholder:text-muted-foreground/60"
-            : "placeholder:text-muted-foreground cursor-not-allowed",
-          // Add right padding when private mode toggle is shown
-          location.pathname !== "/private" && !props.conversationId && "pr-14"
+            : "placeholder:text-muted-foreground cursor-not-allowed"
         ),
-      [effectiveCanSendMessage, location.pathname, props.conversationId]
+      [effectiveCanSendMessage]
     );
 
     return (
       <div
         className={cn(
           "relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3",
-          // Add padding for floating warnings in conversations
           props.hasExistingMessages &&
             (warnings.showLimitWarning || warnings.showLimitReached) &&
             "pt-6 sm:pt-7"
         )}
       >
         <div className="mx-auto w-full max-w-3xl">
-          {/* Use stable layout for home page, floating for conversations */}
           {!props.hasExistingMessages ? (
-            // Home page: stable warning container that always reserves space
             <StableWarningContainer
               hasWarning={
                 warnings.showLimitWarning || warnings.showLimitReached
@@ -375,7 +341,6 @@ export const ChatInput = React.memo(
               )}
             </StableWarningContainer>
           ) : (
-            // Conversation page: floating warnings
             <>
               {warnings.showLimitWarning && !warnings.showLimitReached && (
                 <ChatWarningBanner
@@ -398,14 +363,6 @@ export const ChatInput = React.memo(
 
           <form onSubmit={handleFormSubmit}>
             <div className={cn(formClasses, "relative overflow-hidden")}>
-              {/* Private Mode Toggle - only show when not on /private route and not in a conversation */}
-              {location.pathname !== "/private" && !props.conversationId && (
-                <PrivateModeToggle
-                  isPrivateMode={visualMode.isPrivateMode}
-                  onToggle={handlePrivateModeToggle}
-                />
-              )}
-
               <AttachmentList
                 attachments={attachments}
                 canChat={effectiveCanSendMessage}
