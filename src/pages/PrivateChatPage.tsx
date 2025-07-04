@@ -79,6 +79,7 @@ export default function PrivateChatPage() {
     editMessage,
     retryUserMessage,
     retryAssistantMessage,
+    isLoadingMessages,
   } = useUnifiedChat({
     onConversationCreate: (conversationId: ConversationId) => {
       navigate(ROUTES.CHAT_CONVERSATION(conversationId));
@@ -104,6 +105,7 @@ export default function PrivateChatPage() {
       <UnifiedChatView
         messages={messages}
         isLoading={isLoading}
+        isLoadingMessages={isLoadingMessages}
         isStreaming={isStreaming}
         currentPersonaId={currentPersonaId}
         canSavePrivateChat={canSavePrivateChat}

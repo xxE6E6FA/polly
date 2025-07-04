@@ -8,7 +8,6 @@ import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { useUnifiedChat } from "@/hooks/use-unified-chat";
 import { usePrivateMode } from "@/contexts/private-mode-context";
-import { useUser } from "@/hooks/use-user";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
 import { type ConversationId } from "@/types";
@@ -18,7 +17,6 @@ import { api } from "../../convex/_generated/api";
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const { isLoading: userLoading } = useUser();
   const queryUserId = useQueryUserId();
   const { setPrivateMode } = usePrivateMode();
 
@@ -55,14 +53,11 @@ export default function ConversationRoute() {
     editMessage,
     retryUserMessage,
     retryAssistantMessage,
+    isLoadingMessages,
   } = useUnifiedChat({
     conversationId: conversationId as ConversationId,
     onConversationCreate: handleConversationCreate,
   });
-
-  if (userLoading) {
-    return <div>Loading...</div>;
-  }
 
   if (conversation === null) {
     return <NotFoundPage />;
@@ -76,6 +71,7 @@ export default function ConversationRoute() {
         isArchived={conversation?.isArchived}
         messages={messages}
         isLoading={isLoading}
+        isLoadingMessages={isLoadingMessages}
         isStreaming={isStreaming}
         currentPersonaId={currentPersonaId}
         canSavePrivateChat={false}

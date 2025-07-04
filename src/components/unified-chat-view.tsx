@@ -289,8 +289,11 @@ export const UnifiedChatView = memo(
                     )
                   ) : isEmpty && !isPrivateMode && !conversationId ? (
                     <ChatZeroState />
-                  ) : isEmpty ? (
+                  ) : isEmpty && isPrivateMode ? (
                     <ConversationZeroState />
+                  ) : isEmpty ? (
+                    // For regular conversations that are empty (after loading), show blank
+                    <div className="h-full" />
                   ) : (
                     <VirtualizedChatMessages
                       ref={virtualizedMessagesRef}
