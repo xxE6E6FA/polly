@@ -130,8 +130,7 @@ export const Sidebar = () => {
       <div
         suppressHydrationWarning
         className={cn(
-          "bg-background flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40",
-          "shadow-xl dark:shadow-2xl",
+          "bg-background dark:bg-card dark:border-r dark:border-border flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40 shadow-xl",
           isSidebarVisible ? "w-80 opacity-100" : "w-0 opacity-0"
         )}
         style={{
