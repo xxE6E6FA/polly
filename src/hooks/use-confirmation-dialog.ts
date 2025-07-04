@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 
 type ConfirmationOptions = {
   title: string;
@@ -14,12 +14,10 @@ export function useConfirmationDialog() {
     title: "",
     description: "",
   });
-  const [onConfirmCallback, setOnConfirmCallback] = useState<
-    (() => void) | null
-  >(null);
-  const [onCancelCallback, setOnCancelCallback] = useState<(() => void) | null>(
-    null
-  );
+
+  // Use refs to store callbacks instead of state
+  const onConfirmRef = useRef<(() => void) | null>(null);
+  const onCancelRef = useRef<(() => void) | null>(null);
 
   const confirm = useCallback(
     (
@@ -28,32 +26,29 @@ export function useConfirmationDialog() {
       onCancel?: () => void
     ) => {
       setOptions(opts);
-      setOnConfirmCallback(() => onConfirm);
-      setOnCancelCallback(() => onCancel);
+      onConfirmRef.current = onConfirm;
+      onCancelRef.current = onCancel || null;
       setIsOpen(true);
     },
     []
   );
 
   const handleConfirm = useCallback(() => {
-    onConfirmCallback?.();
+    onConfirmRef.current?.();
     setIsOpen(false);
-  }, [onConfirmCallback]);
+  }, []);
 
   const handleCancel = useCallback(() => {
-    onCancelCallback?.();
+    onCancelRef.current?.();
     setIsOpen(false);
-  }, [onCancelCallback]);
+  }, []);
 
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        onCancelCallback?.();
-      }
-      setIsOpen(open);
-    },
-    [onCancelCallback]
-  );
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      onCancelRef.current?.();
+    }
+    setIsOpen(open);
+  }, []);
 
   return {
     isOpen,

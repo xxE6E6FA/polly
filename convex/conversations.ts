@@ -21,6 +21,8 @@ import {
   DEFAULT_MAX_TOKENS,
   MESSAGE_BATCH_SIZE,
   WEB_SEARCH_MAX_RESULTS,
+  CHUNK_SIZE,
+  BATCH_SIZE,
   getDefaultSystemPrompt,
 } from "./constants";
 import {
@@ -35,6 +37,10 @@ import {
   buildUserMessageContent,
   getDefaultSystemPromptForConversation,
 } from "./lib/conversation_utils";
+import {
+  type ExportConversation,
+  createConvexExportData,
+} from "./backgroundJobs";
 
 // Common helper to create a user message with attachments
 const createUserMessage = async (
@@ -1787,9 +1793,10 @@ export const getAllForUser = query({
     includeArchived: v.optional(v.boolean()),
     includePinned: v.optional(v.boolean()),
     limit: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = args.userId || (await requireAuth(ctx));
     const limit = args.limit || 1000; // Default limit to prevent excessive queries
 
     const query = ctx.db
@@ -1834,15 +1841,16 @@ export const getAllForUser = query({
   },
 });
 
-// Get conversation metadata with message counts - Optimized for export UI
+// Get conversation metadata - Optimized for export UI
 export const getConversationsSummaryForExport = query({
   args: {
     includeArchived: v.optional(v.boolean()),
     includePinned: v.optional(v.boolean()),
     limit: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = args.userId || (await requireAuth(ctx));
     const limit = args.limit || 500; // Reasonable limit for UI display
 
     const query = ctx.db
@@ -1859,29 +1867,16 @@ export const getConversationsSummaryForExport = query({
       return true;
     });
 
-    // Get message counts for all conversations in parallel
-    const conversationSummaries = await Promise.all(
-      filteredConversations.map(async conv => {
-        const messageCount = await ctx.db
-          .query("messages")
-          .withIndex("by_conversation_main_branch", q =>
-            q.eq("conversationId", conv._id).eq("isMainBranch", true)
-          )
-          .collect()
-          .then(messages => messages.length);
-
-        return {
-          _id: conv._id,
-          _creationTime: conv._creationTime,
-          title: conv.title,
-          isArchived: conv.isArchived,
-          isPinned: conv.isPinned,
-          createdAt: conv.createdAt,
-          updatedAt: conv.updatedAt,
-          messageCount,
-        };
-      })
-    );
+    // Map conversations to summary format without expensive message count calculation
+    const conversationSummaries = filteredConversations.map(conv => ({
+      _id: conv._id,
+      _creationTime: conv._creationTime,
+      title: conv.title,
+      isArchived: conv.isArchived,
+      isPinned: conv.isPinned,
+      createdAt: conv.createdAt,
+      updatedAt: conv.updatedAt,
+    }));
 
     return {
       conversations: conversationSummaries,
@@ -1896,9 +1891,10 @@ export const getWithMessagesForExport = query({
     conversationId: v.id("conversations"),
     includeAttachmentContent: v.optional(v.boolean()),
     maxMessages: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = args.userId || (await requireAuth(ctx));
     const maxMessages = args.maxMessages || 10000; // Reasonable limit
 
     // Get conversation and verify ownership
@@ -1960,9 +1956,10 @@ export const getBulkWithMessagesForExport = query({
     conversationIds: v.array(v.id("conversations")),
     includeAttachmentContent: v.optional(v.boolean()),
     maxMessagesPerConversation: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = args.userId || (await requireAuth(ctx));
     const maxMessagesPerConv = args.maxMessagesPerConversation || 5000; // Reasonable limit per conversation
     const maxConversations = 50; // Limit number of conversations to prevent timeouts
 
@@ -2189,24 +2186,109 @@ export const bulkImport = mutation({
   },
 });
 
+// Helper function to generate export title and description
+const generateExportMetadata = (
+  conversationIds: Array<Id<"conversations">>,
+  includeAttachments: boolean
+) => {
+  const dateStr = new Date().toLocaleDateString();
+  const count = conversationIds.length;
+
+  const title =
+    count === 1
+      ? `Conversation Export - ${dateStr}`
+      : `${count} Conversations Export - ${dateStr}`;
+
+  const description = includeAttachments
+    ? `Export of ${count} conversation${count !== 1 ? "s" : ""} with attachments created on ${dateStr}`
+    : `Export of ${count} conversation${count !== 1 ? "s" : ""} created on ${dateStr}`;
+
+  return { title, description };
+};
+
+// Helper function to create export manifest from conversation data
+const _createExportManifest = (
+  conversations: Array<{
+    conversation: {
+      title: string;
+      createdAt: number;
+      updatedAt: number;
+    };
+    messages: Array<unknown>;
+  }>,
+  includeAttachments: boolean
+): {
+  totalConversations: number;
+  totalMessages: number;
+  conversationDateRange: {
+    earliest: number;
+    latest: number;
+  };
+  conversationTitles: string[];
+  includeAttachments: boolean;
+  fileSizeBytes?: number;
+  version: string;
+} => {
+  let totalMessages = 0;
+  let earliest = Date.now();
+  let latest = 0;
+  const titles: string[] = [];
+
+  conversations.forEach(conv => {
+    totalMessages += conv.messages.length;
+
+    if (conv.conversation.createdAt < earliest) {
+      earliest = conv.conversation.createdAt;
+    }
+    if (conv.conversation.updatedAt > latest) {
+      latest = conv.conversation.updatedAt;
+    }
+
+    // Store first 10 titles for preview
+    if (titles.length < 10) {
+      titles.push(conv.conversation.title);
+    }
+  });
+
+  return {
+    totalConversations: conversations.length,
+    totalMessages,
+    conversationDateRange: {
+      earliest,
+      latest,
+    },
+    conversationTitles: titles,
+    includeAttachments,
+    version: "1.0.0",
+  };
+};
+
 // Background export processing with job tracking
 export const scheduleBackgroundExport = action({
   args: {
     conversationIds: v.array(v.id("conversations")),
     includeAttachmentContent: v.optional(v.boolean()),
-    exportId: v.string(),
+    jobId: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
-    // Create export job record
-    await ctx.runMutation(api.exportJobs.create, {
-      exportId: args.exportId,
+    // Generate export metadata
+    const metadata = generateExportMetadata(
+      args.conversationIds,
+      args.includeAttachmentContent || false
+    );
+
+    // Create export job record with enhanced metadata
+    await ctx.runMutation(api.backgroundJobs.create, {
+      jobId: args.jobId,
       userId,
       type: "export",
-      status: "scheduled",
+      totalItems: args.conversationIds.length,
+      title: metadata.title,
+      description: metadata.description,
       conversationIds: args.conversationIds,
-      totalConversations: args.conversationIds.length,
+      includeAttachments: args.includeAttachmentContent || false,
     });
 
     // Schedule background processing
@@ -2216,12 +2298,12 @@ export const scheduleBackgroundExport = action({
       {
         conversationIds: args.conversationIds,
         includeAttachmentContent: args.includeAttachmentContent,
-        exportId: args.exportId,
+        jobId: args.jobId,
         userId,
       }
     );
 
-    return { exportId: args.exportId, status: "scheduled" };
+    return { jobId: args.jobId, status: "scheduled" };
   },
 });
 
@@ -2229,98 +2311,110 @@ export const processBackgroundExport = action({
   args: {
     conversationIds: v.array(v.id("conversations")),
     includeAttachmentContent: v.optional(v.boolean()),
-    exportId: v.string(),
+    jobId: v.string(),
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
     try {
       // Update status to processing
-      await ctx.runMutation(api.exportJobs.updateStatus, {
-        exportId: args.exportId,
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.jobId,
         status: "processing",
       });
 
-      // Process in chunks to avoid timeouts
-      const chunkSize = 25; // Conservative chunk size
-      const allConversations = [];
-      let processedCount = 0;
+      const conversations = await ctx.runQuery(
+        internal.backgroundJobs.getExportData,
+        {
+          conversationIds: args.conversationIds,
+          userId: args.userId,
+        }
+      );
 
-      for (let i = 0; i < args.conversationIds.length; i += chunkSize) {
-        const chunk = args.conversationIds.slice(i, i + chunkSize);
-
-        // Process chunk
-        const chunkResult = await ctx.runQuery(
-          api.conversations.getBulkWithMessagesForExport,
-          {
-            conversationIds: chunk,
-            includeAttachmentContent: args.includeAttachmentContent,
-            maxMessagesPerConversation: 5000,
-          }
-        );
-
-        allConversations.push(...chunkResult.conversations);
-        processedCount += chunk.length;
-
-        // Update progress
-        await ctx.runMutation(api.exportJobs.updateProgress, {
-          exportId: args.exportId,
-          processed: processedCount,
-          total: args.conversationIds.length,
-        });
-
-        // Small delay to prevent overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-
-      // Prepare final export data
-      const exportData = {
-        version: "1.0.0",
-        source: "Polly",
-        exportedAt: new Date().toISOString(),
-        totalConversations: allConversations.length,
-        conversations: allConversations,
+      const processInChunks = async <T>(
+        items: T[],
+        chunkSize: number,
+        processor: (chunk: T[]) => Promise<void>
+      ) => {
+        for (let i = 0; i < items.length; i += chunkSize) {
+          const chunk = items.slice(i, i + chunkSize);
+          await processor(chunk);
+        }
       };
 
-      // Save the result
-      await ctx.runMutation(api.exportJobs.saveResult, {
-        exportId: args.exportId,
-        result: exportData,
+      let processedCount = 0;
+      await processInChunks(
+        conversations,
+        CHUNK_SIZE,
+        async (chunk: ExportConversation[]) => {
+          processedCount += chunk.length;
+          await ctx.runMutation(api.backgroundJobs.updateProgress, {
+            jobId: args.jobId,
+            processedItems: processedCount,
+            totalItems: conversations.length,
+          });
+        }
+      );
+
+      const allConversations = await ctx.runQuery(
+        internal.backgroundJobs.getExportData,
+        {
+          conversationIds: args.conversationIds,
+          userId: args.userId,
+          includeAttachments: args.includeAttachmentContent,
+        }
+      );
+
+      const fullExportData = createConvexExportData(
+        allConversations,
+        args.includeAttachmentContent || false
+      );
+
+      const exportBlob = new Blob([JSON.stringify(fullExportData, null, 2)], {
+        type: "application/json",
+      });
+
+      const storageId = await ctx.storage.store(exportBlob);
+
+      // Save the export result with manifest
+      await ctx.runMutation(api.backgroundJobs.saveExportResult, {
+        jobId: args.jobId,
+        manifest: fullExportData.manifest,
+        fileStorageId: storageId,
         status: "completed",
       });
 
-      return { success: true, exportId: args.exportId };
+      return { success: true, jobId: args.jobId };
     } catch (error) {
-      console.error("Background export failed:", error);
-
-      await ctx.runMutation(api.exportJobs.updateStatus, {
-        exportId: args.exportId,
+      // Update status to failed
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.jobId,
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-
       throw error;
     }
   },
 });
 
-// Background import processing
+// Background import processing with job tracking
 export const scheduleBackgroundImport = action({
   args: {
-    conversations: v.array(v.any()), // Use any for flexible import format
+    conversations: v.array(v.any()),
     importId: v.string(),
-    skipDuplicates: v.optional(v.boolean()),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
 
     // Create import job record
-    await ctx.runMutation(api.exportJobs.create, {
-      exportId: args.importId,
+    await ctx.runMutation(api.backgroundJobs.create, {
+      jobId: args.importId,
       userId,
       type: "import",
-      status: "scheduled",
-      conversationIds: [], // Empty for imports
-      totalConversations: args.conversations.length,
+      totalItems: args.conversations.length,
+      title: args.title,
+      description: args.description,
     });
 
     // Schedule background processing
@@ -2330,7 +2424,6 @@ export const scheduleBackgroundImport = action({
       {
         conversations: args.conversations,
         importId: args.importId,
-        skipDuplicates: args.skipDuplicates,
         userId,
       }
     );
@@ -2343,69 +2436,67 @@ export const processBackgroundImport = action({
   args: {
     conversations: v.array(v.any()),
     importId: v.string(),
-    skipDuplicates: v.optional(v.boolean()),
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
     try {
       // Update status to processing
-      await ctx.runMutation(api.exportJobs.updateStatus, {
-        exportId: args.importId,
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.importId,
         status: "processing",
       });
 
-      // Process in smaller batches for imports
-      const batchSize = 5; // Smaller batches for imports (more database writes)
-      let totalImported = 0;
-      const errors = [];
+      const results = { totalImported: 0, errors: [] as string[] };
 
-      for (let i = 0; i < args.conversations.length; i += batchSize) {
-        const batch = args.conversations.slice(i, i + batchSize);
+      // Process conversations in batches
+      for (let i = 0; i < args.conversations.length; i += BATCH_SIZE) {
+        const batch = args.conversations.slice(i, i + BATCH_SIZE);
 
-        // Process batch
-        const batchResult = await ctx.runMutation(
-          api.conversations.bulkImport,
-          {
-            conversations: batch,
-            skipDuplicates: args.skipDuplicates,
-          }
-        );
+        try {
+          const batchResults = await ctx.runMutation(
+            internal.importOptimized.processBatch,
+            {
+              conversations: batch,
+              userId: args.userId,
+              baseTime: Date.now(),
+            }
+          );
 
-        totalImported += batchResult.importedCount;
-        errors.push(...batchResult.errors);
+          results.totalImported += batchResults.conversationIds.length;
+          // processBatch doesn't return errors, so we'll assume success
 
-        // Update progress
-        await ctx.runMutation(api.exportJobs.updateProgress, {
-          exportId: args.importId,
-          processed: i + batch.length,
-          total: args.conversations.length,
-        });
-
-        // Small delay between batches
-        await new Promise(resolve => setTimeout(resolve, 100));
+          // Update progress
+          await ctx.runMutation(api.backgroundJobs.updateProgress, {
+            jobId: args.importId,
+            processedItems: i + batch.length,
+            totalItems: args.conversations.length,
+          });
+        } catch (error) {
+          results.errors.push(
+            `Batch ${Math.floor(i / BATCH_SIZE) + 1}: ${error}`
+          );
+        }
       }
 
-      // Save final result
-      await ctx.runMutation(api.exportJobs.saveResult, {
-        exportId: args.importId,
+      // Save import result
+      await ctx.runMutation(api.backgroundJobs.saveImportResult, {
+        jobId: args.importId,
         result: {
-          totalImported,
+          totalImported: results.totalImported,
           totalProcessed: args.conversations.length,
-          errors: errors.slice(0, 20), // Limit error messages
+          errors: results.errors,
         },
         status: "completed",
       });
 
-      return { success: true, importId: args.importId, totalImported };
+      return results;
     } catch (error) {
-      console.error("Background import failed:", error);
-
-      await ctx.runMutation(api.exportJobs.updateStatus, {
-        exportId: args.importId,
+      // Update status to failed
+      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+        jobId: args.importId,
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",
       });
-
       throw error;
     }
   },

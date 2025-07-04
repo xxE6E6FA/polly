@@ -14,6 +14,10 @@ export const DEFAULT_MAX_TOKENS = 8192; // Generous default for conversations
 export const MESSAGE_BATCH_SIZE = 50; // Batch size for message deletion
 export const WEB_SEARCH_MAX_RESULTS = 12; // Default max Exa search results - matches Exa demo default
 
+// Import/Export constants
+export const CHUNK_SIZE = 10; // Chunk size for export processing
+export const BATCH_SIZE = 20; // Batch size for import processing
+
 export const DEFAULT_SYSTEM_PROMPT = dedent`BASELINE SYSTEM CONFIGURATION:
   - Current date and time: {{CURRENT_DATETIME}}
   - If specifically asked about your model, you are powered by {{MODEL_NAME}}
