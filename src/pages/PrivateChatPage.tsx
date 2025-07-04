@@ -1,11 +1,13 @@
+import { useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAction } from "convex/react";
-import { useEffect, useRef } from "react";
 
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useUnifiedChat } from "@/hooks/use-unified-chat";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { usePrivateMode } from "@/contexts/private-mode-context";
+import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
+import { cn } from "@/lib/utils";
 
 import { ROUTES } from "@/lib/routes";
 import {
@@ -27,8 +29,8 @@ export default function PrivateChatPage() {
   const { selectedModel } = useSelectedModel();
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
   const { setPrivateMode } = usePrivateMode();
+  const visualMode = useChatVisualMode();
 
-  // Extract initial message from navigation state and clear it after first use
   const navigationState = location.state as {
     initialMessage?: string;
     attachments?: Attachment[];
@@ -38,30 +40,24 @@ export default function PrivateChatPage() {
 
   const initialNavigationState = useRef(navigationState);
 
-  // Clear navigation state immediately after capturing it
   useEffect(() => {
     if (initialNavigationState.current?.initialMessage) {
-      // Replace the current history entry without the state to clear it
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [navigate, location.pathname]);
 
-  // Lock private mode while on this page
   useEffect(() => {
     setPrivateMode(true);
 
-    // Reset private mode when leaving the page
     return () => {
       setPrivateMode(false);
     };
   }, [setPrivateMode]);
 
-  // Pre-warm API connection when entering private mode
   useEffect(() => {
     if (selectedModel) {
       const provider = selectedModel.provider as AIProviderType;
 
-      // Get decrypted API key and warm up connection
       getDecryptedApiKey({ provider }).then(apiKey => {
         if (apiKey) {
           ClientAIService.preWarmProvider(provider, apiKey);
@@ -88,7 +84,6 @@ export default function PrivateChatPage() {
       navigate(ROUTES.CHAT_CONVERSATION(conversationId));
     },
     overrideMode: "private",
-    // Pass initial message from captured navigation state
     initialMessage: initialNavigationState.current?.initialMessage,
     initialAttachments: initialNavigationState.current?.attachments,
     initialPersonaId: initialNavigationState.current?.personaId
@@ -98,20 +93,29 @@ export default function PrivateChatPage() {
   });
 
   return (
-    <UnifiedChatView
-      messages={messages}
-      isLoading={isLoading}
-      isStreaming={isStreaming}
-      currentPersonaId={currentPersonaId}
-      canSavePrivateChat={canSavePrivateChat}
-      hasApiKeys={true} // ChatInput handles its own API key loading
-      onSendMessage={sendMessage}
-      onDeleteMessage={deleteMessage}
-      onEditMessage={editMessage}
-      onStopGeneration={stopGeneration}
-      onSavePrivateChat={savePrivateChat}
-      onRetryUserMessage={retryUserMessage}
-      onRetryAssistantMessage={retryAssistantMessage}
-    />
+    <div
+      className={cn(
+        "h-screen w-full transition-all duration-700 ease-in-out",
+        visualMode.isPrivateMode
+          ? "bg-[radial-gradient(ellipse_800px_300px_at_bottom,rgba(147,51,234,0.06),transparent_70%)] dark:bg-[radial-gradient(ellipse_800px_300px_at_bottom,rgba(147,51,234,0.08),transparent_70%)]"
+          : "bg-background"
+      )}
+    >
+      <UnifiedChatView
+        messages={messages}
+        isLoading={isLoading}
+        isStreaming={isStreaming}
+        currentPersonaId={currentPersonaId}
+        canSavePrivateChat={canSavePrivateChat}
+        hasApiKeys={true}
+        onSendMessage={sendMessage}
+        onDeleteMessage={deleteMessage}
+        onEditMessage={editMessage}
+        onStopGeneration={stopGeneration}
+        onSavePrivateChat={savePrivateChat}
+        onRetryUserMessage={retryUserMessage}
+        onRetryAssistantMessage={retryAssistantMessage}
+      />
+    </div>
   );
 }
