@@ -54,3 +54,24 @@ export function generateHeadingId(text: string, messageId: string): string {
 
   return `${messageId}-heading-${cleanedText}`;
 }
+
+/**
+ * Strips citation markers like [1], [2], [3] from text to provide clean copy behavior
+ * @param text - The text to clean
+ * @returns The text with citations removed
+ */
+export function stripCitations(text: string): string {
+  if (!text) return text;
+
+  // Remove citation groups like [1][2][3] or [1], [2], [3]
+  const groupPattern = /(\[\d+\](?:\s*,?\s*\[\d+\])+)/g;
+
+  // Remove single citations like [1]
+  const singlePattern = /\[\d+\]/g;
+
+  return text
+    .replace(groupPattern, "")
+    .replace(singlePattern, "")
+    .replace(/\s+/g, " ") // Clean up extra spaces
+    .trim();
+}

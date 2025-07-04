@@ -258,42 +258,27 @@ pre {
 
 /* Prevent text selection during drag */
 .no-select {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
   user-select: none;
 }
 
 /* Allow text selection for content that should be selectable */
 .selectable-text {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
   user-select: text !important;
 }
 
 /* Allow text selection for all content (includes images, etc.) */
 .selectable-all {
-  -webkit-user-select: all !important;
-  -moz-user-select: all !important;
-  -ms-user-select: all !important;
   user-select: all !important;
 }
 
 /* Auto selection for inputs and form elements */
 .selectable-auto {
-  -webkit-user-select: auto !important;
-  -moz-user-select: auto !important;
-  -ms-user-select: auto !important;
   user-select: auto !important;
 }
 
 /* Ensure all children of selectable elements are also selectable */
 .selectable-text *,
 .prose * {
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
   user-select: text !important;
 }
 
@@ -960,27 +945,10 @@ pre {
   animation: spin-reverse 1s linear infinite;
 }
 
-/* Citation wrapper styles for proper grouping */
-.citation-wrapper {
-  display: inline-flex;
-  position: relative;
-  vertical-align: super;
-  font-size: 0;
-  line-height: 0;
-  margin: 0 0.5px;
-  transition: all 0.2s ease;
-  z-index: 10;
-}
-
 /* Keep citation groups together */
 .prose .citation-group {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  align-items: baseline;
+  display: inline;
   white-space: nowrap;
-  vertical-align: super;
-  font-size: 0;
-  line-height: 0;
   position: relative;
   /* Prevent line breaks within citation groups */
   word-break: keep-all;
@@ -997,7 +965,7 @@ pre {
 }
 
 /* Stack citations in a group by default */
-.citation-group .citation-wrapper:not(:first-child) {
+.citation-group .citation-link:not(:first-child) {
   margin-left: -6px;
   z-index: 9;
 }
@@ -1008,19 +976,14 @@ pre {
   z-index: 50;
 }
 
-.citation-group.expanded .citation-wrapper:not(:first-child) {
+.citation-group.expanded .citation-link:not(:first-child) {
   /* Use transform instead of margin to prevent reflow */
   transform: translateX(8px);
   margin-left: -6px; /* Keep original margin */
 }
 
-/* Citation link hover effects */
-.citation-wrapper:hover a {
-  transform: scale(1.1);
-}
-
-/* Citation anchor styles - circular, opaque, smaller */
-.citation-wrapper a {
+/* Citation link styles - circular, opaque, smaller with superscript positioning */
+.citation-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1032,28 +995,34 @@ pre {
   border-radius: 50%;
   text-decoration: none !important;
   transition: all 0.2s ease;
+  vertical-align: super;
+  position: relative;
+  margin: 0 2px;
+  z-index: 10;
+  user-select: none !important;
 }
 
 /* Light mode citation colors */
-.citation-wrapper a {
+.citation-link {
   color: hsl(var(--primary));
   background: hsl(var(--accent));
   border: 1px solid hsl(var(--primary) / 0.3);
 }
 
-.citation-wrapper:hover a {
+.citation-link:hover {
   background: hsl(var(--primary) / 0.2);
   border-color: hsl(var(--primary) / 0.5);
+  transform: scale(1.1);
 }
 
 /* Dark mode citation colors */
-.dark .citation-wrapper a {
+.dark .citation-link {
   color: hsl(var(--primary));
   background: hsl(var(--accent));
   border: 1px solid hsl(var(--primary) / 0.4);
 }
 
-.dark .citation-wrapper:hover a {
+.dark .citation-link:hover {
   background: hsl(var(--primary) / 0.3);
   border-color: hsl(var(--primary) / 0.6);
 }
@@ -1068,9 +1037,6 @@ pre {
   --tw-prose-quotes: hsl(var(--muted-foreground));
   --tw-prose-counters: hsl(var(--muted-foreground));
   --tw-prose-bullets: hsl(var(--muted-foreground));
-  -webkit-user-select: text !important;
-  -moz-user-select: text !important;
-  -ms-user-select: text !important;
   user-select: text !important;
 }
 

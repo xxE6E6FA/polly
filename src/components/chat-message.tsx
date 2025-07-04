@@ -20,7 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn, stripCitations } from "@/lib/utils";
 import { type ChatMessage as ChatMessageType, type Attachment } from "@/types";
 
 type ChatMessageProps = {
@@ -214,7 +214,8 @@ const ChatMessageComponent = ({
   const displayContent = message.content;
 
   const copyToClipboard = useCallback(async () => {
-    await navigator.clipboard.writeText(message.content);
+    const cleanText = stripCitations(message.content);
+    await navigator.clipboard.writeText(cleanText);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   }, [message.content]);

@@ -1,4 +1,5 @@
 import { type ExportData } from "@/types";
+import { stripCitations } from "./utils";
 
 export function exportAsJSON(data: ExportData): string {
   return JSON.stringify(
@@ -10,8 +11,10 @@ export function exportAsJSON(data: ExportData): string {
       },
       messages: data.messages.map(message => ({
         role: message.role,
-        content: message.content,
-        reasoning: message.reasoning,
+        content: stripCitations(message.content),
+        reasoning: message.reasoning
+          ? stripCitations(message.reasoning)
+          : undefined,
         model: message.model,
         provider: message.provider,
         useWebSearch: message.useWebSearch,
@@ -64,10 +67,10 @@ export function exportAsMarkdown(data: ExportData): string {
 
     if (message.reasoning) {
       markdown += `### Reasoning\n\n`;
-      markdown += `${message.reasoning}\n\n`;
+      markdown += `${stripCitations(message.reasoning)}\n\n`;
     }
 
-    markdown += `${message.content}\n\n`;
+    markdown += `${stripCitations(message.content)}\n\n`;
 
     if (message.citations && message.citations.length > 0) {
       markdown += `**Sources:**\n`;
