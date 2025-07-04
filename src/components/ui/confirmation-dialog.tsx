@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type ConfirmationDialogProps = {
+interface ConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -18,7 +19,8 @@ type ConfirmationDialogProps = {
   onConfirm: () => void;
   onCancel?: () => void;
   variant?: "default" | "destructive";
-};
+  autoFocusConfirm?: boolean;
+}
 
 export const ConfirmationDialog = ({
   open,
@@ -30,16 +32,19 @@ export const ConfirmationDialog = ({
   onConfirm,
   onCancel,
   variant = "default",
+  autoFocusConfirm = true,
 }: ConfirmationDialogProps) => {
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     onConfirm();
     onOpenChange(false);
-  };
+  }, [onConfirm, onOpenChange]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     onCancel?.();
     onOpenChange(false);
-  };
+  }, [onCancel, onOpenChange]);
+
+  const buttonVariant = variant === "destructive" ? "destructive" : "default";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,12 +54,14 @@ export const ConfirmationDialog = ({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
+          <Button variant="outline" onClick={handleCancel} type="button">
             {cancelText}
           </Button>
           <Button
-            variant={variant === "destructive" ? "destructive" : "default"}
+            variant={buttonVariant}
             onClick={handleConfirm}
+            autoFocus={autoFocusConfirm}
+            type="button"
           >
             {confirmText}
           </Button>
