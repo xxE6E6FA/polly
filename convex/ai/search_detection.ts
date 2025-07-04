@@ -26,7 +26,7 @@ export interface SearchDecisionContext {
   }>;
 }
 
-export interface SelfAssessmentResult {
+export interface SearchNeedAssessment {
   canAnswerConfidently: boolean;
   reasoning: string;
   confidence: number;
@@ -36,35 +36,32 @@ export interface SelfAssessmentResult {
 
 import dedent from "dedent";
 
-export const generateSelfAssessmentPrompt = (
+export const generateSearchNeedAssessment = (
   context: SearchDecisionContext
 ): string => {
   return dedent`
-    You are an AI assistant evaluating whether you can answer a user's question confidently using only your training data, without needing to search the web.
+    You are determining whether you can answer a user's query confidently using only your training data, or if it would benefit from external sources.
 
-    Consider these factors:
-    1. **Knowledge Coverage**: Do you have sufficient information about this topic?
-    2. **Temporal Relevance**: Is this asking about current events, latest versions, or dynamic data that changes frequently?
-    3. **Answer Quality**: Would your answer be comprehensive and satisfactory without external sources?
-    4. **Confidence Level**: How certain are you about the accuracy of your knowledge on this topic?
+    Ask yourself: "Can I answer this query confidently with my training data, or would it benefit from current information/web search?"
 
-    Examples of questions you CAN answer confidently:
-    - "explain how react hooks work"
-    - "what is the difference between let and const in javascript"
-    - "how does machine learning work"
-    - "explain the concept of recursion"
+    Most queries can be answered confidently with your training data and do NOT need external sources:
+    - Conversational messages, greetings, thanks
+    - Explanations of established concepts, definitions, how-to questions
+    - Code help, debugging, programming explanations
+    - Educational content about well-established topics
 
-    Examples of questions you CANNOT answer confidently:
-    - "what's the latest version of react"
-    - "who is the current CEO of OpenAI"
-    - "what are the best javascript tutorials in 2024"
-    - "what happened in the news today"
+    Only queries that would genuinely benefit from external sources need search:
+    - Current events, news, recent developments
+    - Real-time data (prices, weather, etc.)
+    - Specific recent information or updates
+    - Questions about people, companies, or events requiring current facts
 
     OUTPUT (JSON only):
     {
       "canAnswerConfidently": boolean,
-      "reasoning": "brief explanation of why you can/cannot answer confidently",
+      "reasoning": "brief explanation of why you can/cannot answer confidently without external sources",
       "confidence": 0.0-1.0,
+      "queryType": "conversational" | "factual" | "instructional" | "current_events" | "unclear",
       "knowledgeGaps": ["specific areas where you lack information"] (optional),
       "temporalConcerns": boolean (true if the question involves current/dynamic data)
     }
@@ -75,7 +72,7 @@ export const generateSelfAssessmentPrompt = (
   `;
 };
 
-export const generateSearchDecisionPromptWithContext = (
+export const generateSearchStrategy = (
   context: SearchDecisionContext
 ): string => {
   let prompt = dedent`
@@ -126,14 +123,14 @@ export const generateSearchDecisionPromptWithContext = (
   return prompt;
 };
 
-export const parseSelfAssessment = (
+export const parseSearchNeedAssessment = (
   llmResponse: string
-): SelfAssessmentResult => {
+): SearchNeedAssessment => {
   try {
     // Extract JSON from the response
     const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      throw new Error("No JSON found in self-assessment response");
+      throw new Error("No JSON found in search need assessment response");
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
@@ -146,19 +143,19 @@ export const parseSelfAssessment = (
       temporalConcerns: Boolean(parsed.temporalConcerns),
     };
   } catch (error) {
-    console.error("Failed to parse self-assessment response:", error);
+    console.error("Failed to parse search need assessment response:", error);
 
     // Conservative fallback: assume we cannot answer confidently
     return {
       canAnswerConfidently: false,
-      reasoning: "Failed to parse self-assessment, defaulting to search",
+      reasoning: "Failed to parse search need assessment, defaulting to search",
       confidence: 0.3,
       temporalConcerns: true,
     };
   }
 };
 
-export const parseSearchDecision = (
+export const parseSearchStrategy = (
   llmResponse: string,
   userQuery: string
 ): SearchDecision => {
@@ -181,7 +178,7 @@ export const parseSearchDecision = (
       suggestedQuery: parsed.suggestedQuery || userQuery,
     };
   } catch (error) {
-    console.error("Failed to parse LLM response:", error);
+    console.error("Failed to parse search strategy response:", error);
 
     // If we can't parse the response, default to basic search
     return {
@@ -193,44 +190,4 @@ export const parseSearchDecision = (
       suggestedQuery: userQuery,
     };
   }
-};
-
-// Combined function that handles the two-step process
-export const generateSearchDecisionWithSelfAssessment = (
-  context: SearchDecisionContext
-): {
-  selfAssessmentPrompt: string;
-  searchDecisionPrompt: string;
-} => {
-  return {
-    selfAssessmentPrompt: generateSelfAssessmentPrompt(context),
-    searchDecisionPrompt: generateSearchDecisionPromptWithContext(context),
-  };
-};
-
-// Helper function to make the final decision based on self-assessment
-export const makeFinalSearchDecision = (
-  selfAssessment: SelfAssessmentResult,
-  searchDecision: SearchDecision,
-  userQuery: string
-): SearchDecision => {
-  // If the LLM can answer confidently, don't search
-  if (selfAssessment.canAnswerConfidently && selfAssessment.confidence > 0.6) {
-    return {
-      shouldSearch: false,
-      searchType: "search",
-      reasoning: `LLM can answer confidently: ${selfAssessment.reasoning}`,
-      confidence: selfAssessment.confidence,
-      suggestedSources: 0,
-      suggestedQuery: userQuery,
-    };
-  }
-
-  // If the LLM cannot answer confidently, use the search decision
-  // The search decision already has shouldSearch: true, so we just enhance the reasoning
-  return {
-    ...searchDecision,
-    reasoning: `Self-assessment: ${selfAssessment.reasoning}. Search strategy: ${searchDecision.reasoning}`,
-    confidence: selfAssessment.confidence, // Use self-assessment confidence as the primary confidence
-  };
 };
