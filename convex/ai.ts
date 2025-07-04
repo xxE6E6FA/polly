@@ -20,14 +20,13 @@ import { StreamInterruptor } from "./ai/stream_interruptor";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import { getExaApiKey, performWebSearch, extractSearchContext } from "./ai/exa";
 import {
-  generateSearchDecisionPromptWithContext,
-  generateSelfAssessmentPrompt,
-  parseSearchDecision,
-  parseSelfAssessment,
-  makeFinalSearchDecision,
+  generateSearchNeedAssessment,
+  generateSearchStrategy,
+  parseSearchNeedAssessment,
+  parseSearchStrategy,
   type SearchDecision,
   type SearchDecisionContext,
-  type SelfAssessmentResult,
+  type SearchNeedAssessment,
 } from "./ai/search_detection";
 import { type Citation, type ProviderType, type StreamMessage } from "./types";
 import { WEB_SEARCH_MAX_RESULTS } from "./constants";
@@ -308,59 +307,55 @@ export const streamResponse = action({
             }
           }
 
-          // STEP 1: Self-assessment - Can the LLM answer confidently?
-          const selfAssessmentPrompt =
-            generateSelfAssessmentPrompt(searchContext);
+          const searchNeedPrompt = generateSearchNeedAssessment(searchContext);
 
-          const { text: selfAssessmentText } = await generateText({
+          const { text: searchNeedText } = await generateText({
             model: classificationModel,
-            prompt: selfAssessmentPrompt,
+            prompt: searchNeedPrompt,
             temperature: 0.1, // Low temperature for consistent classification
             maxTokens: 300,
           });
 
-          const selfAssessment: SelfAssessmentResult =
-            parseSelfAssessment(selfAssessmentText);
+          const searchNeedAssessment: SearchNeedAssessment =
+            parseSearchNeedAssessment(searchNeedText);
 
-          // STEP 2: If LLM cannot answer confidently, determine HOW to search
           let searchDecisionResult: SearchDecision;
 
+          // If LLM can answer confidently, skip search entirely
           if (
-            selfAssessment.canAnswerConfidently &&
-            selfAssessment.confidence > 0.6
+            searchNeedAssessment.canAnswerConfidently &&
+            searchNeedAssessment.confidence > 0.6
           ) {
-            // LLM can answer confidently, no need to search
             searchDecisionResult = {
               shouldSearch: false,
               searchType: "search",
-              reasoning: `LLM can answer confidently: ${selfAssessment.reasoning}`,
-              confidence: selfAssessment.confidence,
+              reasoning: `Search need assessment: ${searchNeedAssessment.reasoning}`,
+              confidence: searchNeedAssessment.confidence,
               suggestedSources: 0,
               suggestedQuery: userQuery,
             };
           } else {
-            // LLM cannot answer confidently, determine HOW to search (type, category, query optimization)
-            const searchDecisionPrompt =
-              generateSearchDecisionPromptWithContext(searchContext);
+            // STEP 2: If LLM cannot answer confidently, determine HOW to search
+            const searchStrategyPrompt = generateSearchStrategy(searchContext);
 
-            const { text: searchDecisionText } = await generateText({
+            const { text: searchStrategyText } = await generateText({
               model: classificationModel,
-              prompt: searchDecisionPrompt,
+              prompt: searchStrategyPrompt,
               temperature: 0.1,
               maxTokens: 300,
             });
 
-            const preliminarySearchDecision = parseSearchDecision(
-              searchDecisionText,
+            const preliminarySearchDecision = parseSearchStrategy(
+              searchStrategyText,
               userQuery
             );
 
             // Combine both assessments for final decision
-            searchDecisionResult = makeFinalSearchDecision(
-              selfAssessment,
-              preliminarySearchDecision,
-              userQuery
-            );
+            searchDecisionResult = {
+              ...preliminarySearchDecision,
+              reasoning: `Search need assessment: ${searchNeedAssessment.reasoning}. Search strategy: ${preliminarySearchDecision.reasoning}`,
+              confidence: searchNeedAssessment.confidence, // Use search need assessment confidence as the primary confidence
+            };
           }
 
           searchDecision = searchDecisionResult;
