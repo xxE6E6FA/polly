@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAction } from "convex/react";
 
@@ -30,6 +30,10 @@ export default function PrivateChatPage() {
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
   const { setPrivateMode } = usePrivateMode();
   const visualMode = useChatVisualMode();
+  const [isExiting, setIsExiting] = useState(false);
+  const [, startTransition] = useTransition();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const prevPrivateMode = useRef(visualMode.isPrivateMode);
 
   const navigationState = location.state as {
     initialMessage?: string;
@@ -53,6 +57,39 @@ export default function PrivateChatPage() {
       setPrivateMode(false);
     };
   }, [setPrivateMode]);
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle private mode transitions
+  useEffect(() => {
+    // Only trigger exit animation when transitioning from true to false
+    if (prevPrivateMode.current && !visualMode.isPrivateMode) {
+      setIsExiting(true);
+
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Use transition for smooth state updates
+      startTransition(() => {
+        timeoutRef.current = setTimeout(() => {
+          setIsExiting(false);
+          timeoutRef.current = null;
+        }, 700); // Match the CSS animation duration
+      });
+    }
+
+    // Update the ref for next comparison
+    prevPrivateMode.current = visualMode.isPrivateMode;
+  }, [visualMode.isPrivateMode, startTransition]);
 
   useEffect(() => {
     if (selectedModel) {
@@ -93,13 +130,15 @@ export default function PrivateChatPage() {
     initialReasoningConfig: initialNavigationState.current?.reasoningConfig,
   });
 
+  // Show background when in private mode or during exit animation
+  const showPrivateBackground = visualMode.isPrivateMode || isExiting;
+
   return (
     <div
       className={cn(
         "h-screen w-full transition-all duration-700 ease-in-out",
-        visualMode.isPrivateMode
-          ? "bg-[radial-gradient(ellipse_800px_300px_at_bottom,rgba(147,51,234,0.06),transparent_70%)] dark:bg-[radial-gradient(ellipse_800px_300px_at_bottom,rgba(147,51,234,0.08),transparent_70%)]"
-          : "bg-background"
+        showPrivateBackground && "private-mode-background",
+        isExiting && "exiting"
       )}
     >
       <UnifiedChatView
