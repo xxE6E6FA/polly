@@ -1,10 +1,9 @@
-import { memo, useCallback, useMemo, useState } from "react";
-
 import { UserIcon } from "@phosphor-icons/react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 import { useSidebar } from "@/hooks/use-sidebar";
 import { cn, generateHeadingId } from "@/lib/utils";
-import { type ChatMessage as ChatMessageType } from "@/types";
+import type { ChatMessage as ChatMessageType } from "@/types";
 
 // Constants used multiple times
 const MAX_VISIBLE_ITEMS = 15;
@@ -44,7 +43,9 @@ type ChatOutlineProps = {
 
 // Utility function to remove markdown syntax
 const removeMarkdown = (text: string): string => {
-  if (!text) return "";
+  if (!text) {
+    return "";
+  }
 
   return text
     .replace(MARKDOWN_PATTERNS.headers, "")

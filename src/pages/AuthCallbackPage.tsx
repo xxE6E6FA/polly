@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-
-import { useNavigate } from "react-router";
-
 import { useAuthToken } from "@convex-dev/auth/react";
+import { api } from "convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
-
-import { api } from "convex/_generated/api";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   getAnonymousUserIdFromCookie,
   removeAnonymousUserIdCookie,
 } from "@/lib/cookies";
 import { ROUTES } from "@/lib/routes";
-import { type UserId } from "@/types";
+import type { UserId } from "@/types";
 
 type GraduationState = "pending" | "processing" | "success" | "error";
 

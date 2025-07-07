@@ -1,23 +1,18 @@
-import { useCallback } from "react";
-
-import { useNavigate } from "react-router";
-
+import { api } from "@convex/_generated/api";
 import { ArchiveIcon, ArrowsClockwise, EyeIcon } from "@phosphor-icons/react";
-
+import type { PaginatedQueryReference } from "convex/react";
+import { useCallback } from "react";
+import { useNavigate } from "react-router";
+import { SettingsHeader } from "@/components/settings/settings-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
-import { SettingsHeader } from "@/components/settings/settings-header";
-import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
+import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
+import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
-import { type PaginatedQueryReference } from "convex/react";
-
 import { ROUTES } from "@/lib/routes";
-import { type ConversationId } from "@/types";
-
-import { api } from "../../../convex/_generated/api";
+import type { ConversationId } from "@/types";
 
 type ArchivedConversation = {
   _id: ConversationId;
@@ -33,15 +28,7 @@ export const ArchivedConversationsPage = () => {
 
   // Use optimized mutations with optimistic updates
   const { mutateAsync: unarchive, isLoading: isUnarchiving } =
-    useConvexMutationOptimized(api.conversations.unarchive, {
-      queryKey: "archivedConversations",
-      optimisticUpdate: (_variables: { id: ConversationId }, currentData) => {
-        if (!Array.isArray(currentData)) return currentData;
-        // Remove the conversation from archived list optimistically
-        return currentData.filter(
-          (conv: ArchivedConversation) => conv._id !== _variables.id
-        );
-      },
+    useConvexMutationWithCache(api.conversations.unarchive, {
       onSuccess: () => {
         import("sonner").then(module => {
           module.toast.success("Conversation restored", {
@@ -59,21 +46,13 @@ export const ArchivedConversationsPage = () => {
         });
       },
       invalidateQueries: ["conversations", "archivedConversations"],
-      dispatchEvents: ["conversation-unarchived"],
+      invalidationEvents: ["conversation-unarchived"],
     });
 
   const {
     mutateAsync: deleteConversation,
     isLoading: _isDeletingConversation,
-  } = useConvexMutationOptimized(api.conversations.remove, {
-    queryKey: "archivedConversations",
-    optimisticUpdate: (variables: { id: ConversationId }, currentData) => {
-      if (!Array.isArray(currentData)) return currentData;
-      // Remove the conversation from archived list optimistically
-      return currentData.filter(
-        (conv: ArchivedConversation) => conv._id !== variables.id
-      );
-    },
+  } = useConvexMutationWithCache(api.conversations.remove, {
     onSuccess: () => {
       import("sonner").then(module => {
         module.toast.success("Conversation deleted", {
@@ -90,7 +69,7 @@ export const ArchivedConversationsPage = () => {
       });
     },
     invalidateQueries: ["conversations", "archivedConversations"],
-    dispatchEvents: ["conversation-deleted"],
+    invalidationEvents: ["conversation-deleted"],
   });
 
   const handleView = useCallback(

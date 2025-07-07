@@ -3,15 +3,13 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type LanguageModel } from "ai";
-
-import { type ProviderType, type ProviderStreamOptions } from "../types";
-import { applyOpenRouterSorting } from "./utils";
 import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
-import { getCapabilityFromPatterns } from "../lib/model_capabilities_config";
+import { getProviderReasoningConfig } from "../../shared/reasoning-config";
+import { type ProviderStreamOptions, type ProviderType } from "../types";
 import { isReasoningModelEnhanced } from "./reasoning_detection";
-import { getProviderReasoningConfig } from "../lib/provider_reasoning_config";
+import { applyOpenRouterSorting } from "./utils";
 
 // Provider factory map
 const createProviderModel = {
@@ -78,31 +76,59 @@ export const createLanguageModel = async (
 };
 
 export const getProviderStreamOptions = async (
+  ctx: ActionCtx,
   provider: ProviderType,
   model: string,
-  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number }
+  reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number },
+  userId?: Id<"users">
 ): Promise<ProviderStreamOptions> => {
-  // Check reasoning support with enhanced detection
-  const supportsReasoning = await isReasoningModelEnhanced(provider, model);
+  // Get model capabilities from database (the source of truth)
+  let modelWithCapabilities: {
+    modelId: string;
+    provider: string;
+    supportsReasoning?: boolean;
+  } = {
+    modelId: model,
+    provider,
+    supportsReasoning: false,
+  };
 
-  if (!supportsReasoning) {
-    return {};
+  if (userId) {
+    // Look up the model in user's configured models (preferred source)
+    try {
+      const userModels = await ctx.runQuery(api.userModels.getUserModels, {
+        userId,
+      });
+      const userModel = userModels.find((m) => m.modelId === model);
+
+      if (userModel) {
+        modelWithCapabilities = {
+          modelId: userModel.modelId,
+          provider: userModel.provider,
+          supportsReasoning: userModel.supportsReasoning,
+        };
+      }
+    } catch (error) {
+      console.warn("Failed to get user models for reasoning detection:", error);
+    }
   }
 
-  // OpenAI reasoning configuration
-  if (provider === "openai") {
-    return {
-      openai: {
-        reasoning: true,
-      },
-    };
+  // Fallback for anonymous users or models not in user's list
+  if (!modelWithCapabilities.supportsReasoning) {
+    // Check if it's the anonymous default model (gemini-2.5-flash-lite-preview-06-17)
+    if (
+      model === "gemini-2.5-flash-lite-preview-06-17" &&
+      process.env.GEMINI_API_KEY
+    ) {
+      modelWithCapabilities.supportsReasoning = true;
+    } else {
+      // Final fallback to enhanced detection for edge cases
+      modelWithCapabilities.supportsReasoning = await isReasoningModelEnhanced(provider, model);
+    }
   }
 
-  // Use shared reasoning configuration to ensure consistency
-  // with client-side streaming for all providers
-  return getProviderReasoningConfig(provider, model, reasoningConfig);
+  // Use shared reasoning configuration logic
+  return getProviderReasoningConfig(modelWithCapabilities, reasoningConfig);
 };
 
-export const isReasoningModel = (provider: string, model: string): boolean => {
-  return getCapabilityFromPatterns("supportsReasoning", provider, model);
-};
+

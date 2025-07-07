@@ -1,7 +1,4 @@
-import { memo, useCallback, useMemo, useState } from "react";
-
-import { useNavigate } from "react-router";
-
+import { api } from "@convex/_generated/api";
 import { useAuthToken } from "@convex-dev/auth/react";
 import {
   CaretDownIcon,
@@ -12,8 +9,9 @@ import {
   WarningIcon,
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { toast } from "sonner";
-
 import { ProviderIcon } from "@/components/provider-icons";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Badge } from "@/components/ui/badge";
@@ -33,15 +31,13 @@ import {
 } from "@/components/ui/popover";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { useUserModels } from "@/hooks/use-user-models";
 import { useUser } from "@/hooks/use-user";
+import { useUserModels } from "@/hooks/use-user-models";
 import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { type AIModel } from "@/types";
-
-import { api } from "../../convex/_generated/api";
+import type { AIModel } from "@/types";
 
 // Provider mapping with titles and icons
 const PROVIDER_CONFIG = {
@@ -217,25 +213,18 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   // Check if user is authenticated
   const isAuthenticated = Boolean(token);
 
-  // Check if user has reached Polly model limit
-  const hasReachedPollyLimit = useMemo(() => {
-    return (
-      user &&
-      !user.isAnonymous &&
-      monthlyUsage &&
-      monthlyUsage.remainingMessages === 0 &&
-      !hasUnlimitedCalls
-    );
-  }, [user, monthlyUsage, hasUnlimitedCalls]);
+  // Check if user has reached Polly model limit - simple boolean computation
+  const hasReachedPollyLimit =
+    user &&
+    !user.isAnonymous &&
+    monthlyUsage &&
+    monthlyUsage.remainingMessages === 0 &&
+    !hasUnlimitedCalls;
 
-  // Display name getter
-  const displayName = useMemo(() => {
-    if (!isAuthenticated) {
-      return "Gemini 2.5 Flash Lite";
-    }
-
-    return selectedModel?.name || "Select model";
-  }, [selectedModel, isAuthenticated]);
+  // Display name getter - simple conditional
+  const displayName = isAuthenticated
+    ? selectedModel?.name || "Select model"
+    : "Gemini 2.5 Flash Lite";
 
   // Handle model selection
   const handleSelect = useCallback(
@@ -275,8 +264,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
 
   // Show loading state - only if both selectedModel and hasUserModels are still loading
   if (
-    !selectedModel &&
-    !userModelsByProvider &&
+    !(selectedModel || userModelsByProvider) &&
     hasUserModels === undefined &&
     isAuthenticated
   ) {

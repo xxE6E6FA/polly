@@ -22,10 +22,4 @@ export const CONFIG = {
     google: "GEMINI_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
   },
-  REASONING_PATTERNS: [
-    /<thinking>([\S\s]*?)<\/thinking>/,
-    /<reasoning>([\S\s]*?)<\/reasoning>/,
-    /^Thinking:\s*([\S\s]*?)(?:\n\n|$)/,
-    /\[reasoning]([\S\s]*?)\[\/reasoning]/i,
-  ],
 } as const;

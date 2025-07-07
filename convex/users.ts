@@ -1,9 +1,9 @@
 import { v } from "convex/values";
 
-import { mutation, query, internalMutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { ANONYMOUS_MESSAGE_LIMIT, MONTHLY_MESSAGE_LIMIT } from "./constants";
 import { getCurrentUserId } from "./lib/auth";
-import { withCache, cacheKeys, LONG_CACHE_TTL } from "./lib/cache_utils";
+import { cacheKeys, LONG_CACHE_TTL, withCache } from "./lib/cache_utils";
 
 export const current = query({
   args: {},
@@ -47,7 +47,7 @@ export const createAnonymous = mutation({
   handler: async ctx => {
     const now = Date.now();
     return await ctx.db.insert("users", {
-      name: `Anonymous User`,
+      name: "Anonymous User",
       email: `anonymous-${now}@temp.local`,
       isAnonymous: true,
       messagesSent: 0,
@@ -304,7 +304,7 @@ export const enforceMessageLimit = mutation({
           `Message limit reached (${ANONYMOUS_MESSAGE_LIMIT} messages). Authentication is not available - you cannot send more messages.`
         );
       }
-    } else {
+    } else if (!user.isAnonymous) {
       // Authenticated users: only enforce limits for Polly-provided models
       // Use explicit flag if provided, otherwise assume Polly-provided for backward compatibility
 
@@ -566,7 +566,7 @@ export const graduateOrMergeAnonymousUser = mutation({
     const anonymousUser = await ctx.db.get(args.anonymousUserId);
     const authenticatedUser = await ctx.db.get(args.authenticatedUserId);
 
-    if (!anonymousUser || !authenticatedUser) {
+    if (!(anonymousUser && authenticatedUser)) {
       throw new Error("User not found");
     }
 

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMutation as useConvexMutation } from "convex/react";
-import { type FunctionReference } from "convex/server";
+import type { FunctionReference } from "convex/server";
+import { useCallback } from "react";
 
 interface OptimisticUpdateOptions<TData, TVariables, TContext = unknown> {
   // The Convex mutation to call
@@ -80,7 +81,9 @@ export function useOptimisticUpdate<
 
         // Optimistically update the cache
         queryClient.setQueryData(normalizedKey, (currentData: TData) => {
-          if (!currentData) return currentData;
+          if (!currentData) {
+            return currentData;
+          }
           return optimisticUpdate(variables, currentData);
         });
       });
@@ -182,7 +185,9 @@ export function useOptimisticToggle<TItem extends Record<string, unknown>>({
     convexMutation,
     queryKey,
     optimisticUpdate: (_variables, currentData) => {
-      if (!Array.isArray(currentData)) return currentData;
+      if (!Array.isArray(currentData)) {
+        return currentData;
+      }
 
       return currentData.map(item => {
         if (item._id === itemId || item.id === itemId) {
@@ -220,7 +225,9 @@ export function useOptimisticItemUpdate<TItem extends Record<string, unknown>>({
     convexMutation,
     queryKey,
     optimisticUpdate: (variables, currentData) => {
-      if (!Array.isArray(currentData)) return currentData;
+      if (!Array.isArray(currentData)) {
+        return currentData;
+      }
 
       return currentData.map(item => {
         if (item._id === itemId || item.id === itemId) {
@@ -236,6 +243,55 @@ export function useOptimisticItemUpdate<TItem extends Record<string, unknown>>({
     onSuccess: onSuccess ? data => onSuccess(data) : undefined,
     invalidateQueries,
   });
+}
+
+// Create a custom hook factory for common patterns
+export function createOptimisticListHook<TItem extends Record<string, unknown>>(
+  defaultQueryKey: string
+) {
+  return function useOptimisticList() {
+    const addItem = useCallback(
+      (convexMutation: FunctionReference<"mutation">) =>
+        useOptimisticUpdate<TItem[], TItem>({
+          convexMutation,
+          queryKey: defaultQueryKey,
+          optimisticUpdate: (newItem, currentData) => {
+            if (!Array.isArray(currentData)) {
+              return currentData;
+            }
+            return [...currentData, newItem];
+          },
+        }),
+      [defaultQueryKey]
+    );
+
+    const removeItem = useCallback(
+      (convexMutation: FunctionReference<"mutation">) =>
+        useOptimisticUpdate<TItem[], { id: string }>({
+          convexMutation,
+          queryKey: defaultQueryKey,
+          optimisticUpdate: (variables, currentData) => {
+            if (!Array.isArray(currentData)) {
+              return currentData;
+            }
+            return currentData.filter(item => item._id !== variables.id);
+          },
+        }),
+      [defaultQueryKey]
+    );
+
+    const updateItem = useCallback(
+      (convexMutation: FunctionReference<"mutation">, itemId: string) =>
+        useOptimisticItemUpdate<TItem>({
+          convexMutation,
+          queryKey: defaultQueryKey,
+          itemId,
+        }),
+      [defaultQueryKey]
+    );
+
+    return { addItem, removeItem, updateItem };
+  };
 }
 
 // Backward compatibility export

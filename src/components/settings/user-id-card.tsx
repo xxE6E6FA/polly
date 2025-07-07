@@ -48,7 +48,7 @@ export const UserIdCard = () => {
         <div
           className="relative w-full border border-border/60 shadow-md"
           style={{
-            background: `hsl(var(--surface-primary))`,
+            background: "hsl(var(--surface-primary))",
             borderRadius: "0.75rem",
             overflow: "hidden",
           }}
@@ -183,8 +183,7 @@ export const UserIdCard = () => {
                 <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
                   <span>{monthlyUsage.remainingMessages} remaining</span>
                   <span>
-                    resets on{" "}
-                    {(() => {
+                    resets on {(() => {
                       if (!userStats?.joinedAt) {
                         return "unknown";
                       }
@@ -266,8 +265,7 @@ export const UserIdCard = () => {
                 {monthlyUsage.remainingMessages} remaining
               </span>
               <span>
-                resets on{" "}
-                {(() => {
+                resets on {(() => {
                   if (!userStats?.joinedAt) {
                     return "unknown";
                   }

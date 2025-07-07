@@ -4,4 +4,4 @@ export {
   extractMarkdownCitations,
 } from "../../../convex/lib/shared/citations";
 
-export { type Citation } from "../../../convex/types";
+export type { Citation } from "../../../convex/types";

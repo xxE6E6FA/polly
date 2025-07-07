@@ -1,13 +1,10 @@
+import { useAuthToken } from "@convex-dev/auth/react";
 import { type ReactNode, Suspense, useEffect } from "react";
-
 import { useNavigate } from "react-router";
 
-import { useAuthToken } from "@convex-dev/auth/react";
-
 import { Spinner } from "@/components/spinner";
+import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
-
-import { useUser } from "../../hooks/use-user";
 
 export const ProtectedSuspense = ({
   children,
@@ -24,7 +21,7 @@ export const ProtectedSuspense = ({
 
   // Handle redirection
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!(isLoading || isAuthenticated)) {
       navigate(ROUTES.AUTH, { replace: true });
     }
   }, [isLoading, isAuthenticated, navigate]);

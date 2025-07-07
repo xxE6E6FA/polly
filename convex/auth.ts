@@ -4,16 +4,16 @@ import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 
-import { type Id } from "./_generated/dataModel";
-import { type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
 import { MONTHLY_MESSAGE_LIMIT } from "./constants";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     // Google OAuth provider
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
+      clientId: process.env.AUTH_GOOGLE_ID ?? "",
+      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
       authorization: {
         params: {
           prompt: "consent",

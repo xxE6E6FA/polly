@@ -12,14 +12,7 @@ export const generateTitle = action({
     const apiKey = process.env.GEMINI_API_KEY;
     let generatedTitle: string;
 
-    if (!apiKey) {
-      // Fallback to simple title generation if no API key
-      const clean = args.message.replace(/[#*`]/g, "").trim();
-      generatedTitle =
-        clean.length > 60
-          ? `${clean.substring(0, 57)}...`
-          : clean || "New conversation";
-    } else {
+    if (apiKey) {
       try {
         const response = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${apiKey}`,
@@ -67,6 +60,13 @@ export const generateTitle = action({
             ? `${clean.substring(0, 57)}...`
             : clean || "New conversation";
       }
+    } else {
+      // Fallback to simple title generation if no API key
+      const clean = args.message.replace(/[#*`]/g, "").trim();
+      generatedTitle =
+        clean.length > 60
+          ? `${clean.substring(0, 57)}...`
+          : clean || "New conversation";
     }
 
     // Update the conversation title if conversationId is provided
@@ -105,7 +105,7 @@ export const generateTitleBackground = action({
 
       // Retry with exponential backoff
       if (retryCount < maxRetries) {
-        const delayMs = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        const delayMs = 2 ** retryCount * 1000; // 1s, 2s, 4s
         await ctx.scheduler.runAfter(
           delayMs,
           api.titleGeneration.generateTitleBackground,

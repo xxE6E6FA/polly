@@ -1,4 +1,4 @@
-import { type ExportData } from "@/types";
+import type { ExportData } from "@/types";
 import { stripCitations } from "./utils";
 
 export function exportAsJSON(data: ExportData): string {
@@ -35,7 +35,7 @@ export function exportAsMarkdown(data: ExportData): string {
   let markdown = `# ${conversation.title}\n\n`;
   markdown += `**Created:** ${new Date(conversation.createdAt).toLocaleString()}\n`;
   markdown += `**Updated:** ${new Date(conversation.updatedAt).toLocaleString()}\n\n`;
-  markdown += `---\n\n`;
+  markdown += "---\n\n";
 
   for (const message of messages) {
     if (message.role === "system" || message.role === "context") {
@@ -54,26 +54,26 @@ export function exportAsMarkdown(data: ExportData): string {
       if (message.provider) {
         markdown += ` (${message.provider})`;
       }
-      markdown += `\n\n`;
+      markdown += "\n\n";
     }
 
     if (message.attachments && message.attachments.length > 0) {
-      markdown += `**Attachments:**\n`;
+      markdown += "**Attachments:**\n";
       for (const attachment of message.attachments) {
         markdown += `- ${attachment.name} (${attachment.type})\n`;
       }
-      markdown += `\n`;
+      markdown += "\n";
     }
 
     if (message.reasoning) {
-      markdown += `### Reasoning\n\n`;
+      markdown += "### Reasoning\n\n";
       markdown += `${stripCitations(message.reasoning)}\n\n`;
     }
 
     markdown += `${stripCitations(message.content)}\n\n`;
 
     if (message.citations && message.citations.length > 0) {
-      markdown += `**Sources:**\n`;
+      markdown += "**Sources:**\n";
       for (let i = 0; i < message.citations.length; i++) {
         const citation = message.citations[i];
         markdown += `${i + 1}. [${citation.title}](${citation.url})\n`;
@@ -81,10 +81,10 @@ export function exportAsMarkdown(data: ExportData): string {
           markdown += `   > ${citation.snippet}\n`;
         }
       }
-      markdown += `\n`;
+      markdown += "\n";
     }
 
-    markdown += `---\n\n`;
+    markdown += "---\n\n";
   }
 
   return markdown;

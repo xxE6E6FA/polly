@@ -1,17 +1,14 @@
-import { useState } from "react";
-
-import { useNavigate } from "react-router";
-
-import { type EmojiClickData } from "emoji-picker-react";
-
 import { api } from "convex/_generated/api";
+import type { EmojiClickData } from "emoji-picker-react";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   PersonaForm,
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { Button } from "@/components/ui/button";
-import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
+import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
 import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
@@ -27,22 +24,22 @@ export default function NewPersonaPage() {
   });
 
   // Use optimized mutation hook
-  const { mutateAsync: createPersona, isLoading } = useConvexMutationOptimized(
+  const { mutateAsync: createPersona, isLoading } = useConvexMutationWithCache(
     api.personas.create,
     {
       onSuccess: () => {
         navigate(ROUTES.SETTINGS.PERSONAS);
       },
-      onError: error => {
+      onError: (error: Error) => {
         console.error("Failed to create persona:", error);
       },
       invalidateQueries: ["personas"],
-      dispatchEvents: ["personas-changed"],
+      invalidationEvents: ["personas-changed"],
     }
   );
 
   const handleCreatePersona = async () => {
-    if (!formData.name.trim() || !formData.prompt.trim()) {
+    if (!(formData.name.trim() && formData.prompt.trim())) {
       return;
     }
 

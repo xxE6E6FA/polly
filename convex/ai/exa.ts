@@ -1,9 +1,7 @@
+import { type Infer, v } from "convex/values";
 import Exa from "exa-js";
-import { v } from "convex/values";
-import { type Infer } from "convex/values";
-
-import { type Citation, type WebSource } from "../types";
 import { WEB_SEARCH_MAX_RESULTS } from "../constants";
+import { type Citation, type WebSource } from "../types";
 
 export const exaSearchArgs = v.object({
   query: v.string(),

@@ -1,16 +1,16 @@
-import { useCallback, useRef, useEffect } from "react";
-
-import { api } from "../../convex/_generated/api";
-import { type Doc } from "../../convex/_generated/dataModel";
+import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
+import { useCallback, useEffect } from "react";
 import {
   clearUserCache,
   getCachedSelectedModel,
   setCachedSelectedModel,
 } from "../lib/user-cache";
-import { useConvexWithOptimizedCache } from "./use-convex-cache";
+import { useConvexWithCache } from "./use-convex-cache";
+import { useOptimisticTimeout } from "./use-timeout-management";
 
 // Configuration constants
-const DEFAULT_OPTIMISTIC_TIMEOUT = 10000; // Increased from 5 seconds to 10 seconds
+const DEFAULT_OPTIMISTIC_TIMEOUT = 10000; // 10 seconds
 
 interface OptimisticUpdateConfig {
   timeoutDuration?: number;
@@ -18,7 +18,8 @@ interface OptimisticUpdateConfig {
 
 export function useSelectedModel(config: OptimisticUpdateConfig = {}) {
   const { timeoutDuration = DEFAULT_OPTIMISTIC_TIMEOUT } = config;
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { setOptimisticTimeout, clearOptimisticTimeout } =
+    useOptimisticTimeout();
 
   const {
     data: selectedModel,
@@ -27,7 +28,7 @@ export function useSelectedModel(config: OptimisticUpdateConfig = {}) {
     clearOptimisticUpdate,
     isOptimistic,
     refetch,
-  } = useConvexWithOptimizedCache(
+  } = useConvexWithCache(
     api.userModels.getUserSelectedModel,
     {},
     {
@@ -40,19 +41,11 @@ export function useSelectedModel(config: OptimisticUpdateConfig = {}) {
     }
   );
 
-  // Clear existing timeout when component unmounts or when clearing optimistic update
-  const clearExistingTimeout = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  }, []);
-
   // Enhanced clear function that also clears timeout
   const clearOptimisticUpdateWithTimeout = useCallback(() => {
-    clearExistingTimeout();
+    clearOptimisticTimeout();
     clearOptimisticUpdate();
-  }, [clearExistingTimeout, clearOptimisticUpdate]);
+  }, [clearOptimisticTimeout, clearOptimisticUpdate]);
 
   // Function to trigger optimistic model selection
   const selectModelOptimistically = useCallback(
@@ -70,13 +63,9 @@ export function useSelectedModel(config: OptimisticUpdateConfig = {}) {
 
         setOptimisticUpdate(optimisticModel);
 
-        // Clear any existing timeout
-        clearExistingTimeout();
-
         // Set up fallback timeout with configurable duration
-        timeoutRef.current = setTimeout(() => {
+        setOptimisticTimeout(() => {
           clearOptimisticUpdate();
-          timeoutRef.current = null;
         }, timeoutDuration);
 
         // Listen for successful mutation completion to clear optimistic update early
@@ -95,18 +84,18 @@ export function useSelectedModel(config: OptimisticUpdateConfig = {}) {
     [
       setOptimisticUpdate,
       clearOptimisticUpdate,
-      clearExistingTimeout,
       clearOptimisticUpdateWithTimeout,
       timeoutDuration,
+      setOptimisticTimeout,
     ]
   );
 
   // Cleanup effect to clear timeout on unmount
   useEffect(() => {
     return () => {
-      clearExistingTimeout();
+      clearOptimisticTimeout();
     };
-  }, [clearExistingTimeout]);
+  }, [clearOptimisticTimeout]);
 
   return {
     selectedModel,

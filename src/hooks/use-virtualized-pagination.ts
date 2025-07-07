@@ -1,6 +1,6 @@
-import { usePaginatedQuery, type PaginatedQueryReference } from "convex/react";
-import { useCallback, useEffect, useRef, useMemo } from "react";
-import { type VListHandle } from "virtua";
+import { type PaginatedQueryReference, usePaginatedQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { VListHandle } from "virtua";
 import { useDebouncedCallback } from "./use-debounce";
 
 interface UseVirtualizedPaginationOptions {
@@ -56,12 +56,14 @@ export function useVirtualizedPagination(
 
   // Handle infinite scroll
   const handleScroll = useCallback(() => {
-    if (!autoLoadMore || !canLoadMore || isLoadingMore) {
+    if (!(autoLoadMore && canLoadMore) || isLoadingMore) {
       return;
     }
 
     const scrollElement = getScrollContainer();
-    if (!scrollElement) return;
+    if (!scrollElement) {
+      return;
+    }
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
 
@@ -79,10 +81,14 @@ export function useVirtualizedPagination(
 
   // Set up scroll listener
   useEffect(() => {
-    if (!autoLoadMore) return;
+    if (!autoLoadMore) {
+      return;
+    }
 
     const scrollElement = getScrollContainer();
-    if (!scrollElement) return;
+    if (!scrollElement) {
+      return;
+    }
 
     scrollElement.addEventListener("scroll", handleScroll, { passive: true });
 

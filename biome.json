@@ -1,0 +1,572 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "src/**/*.{js,jsx,ts,tsx}",
+      "convex/*.{js,jsx,ts,tsx}",
+      "convex/!(_generated)/**/*.{js,jsx,ts,tsx}",
+      "scripts/**/*.{js,jsx,ts,tsx}",
+      "*.{js,jsx,ts,tsx,json,jsonc}"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": false,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineEnding": "lf",
+    "lineWidth": 80,
+    "attributePosition": "auto",
+    "bracketSameLine": false,
+    "bracketSpacing": true,
+    "expand": "auto",
+    "useEditorconfig": true
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": false,
+      "complexity": {
+        "noExtraBooleanCast": "error",
+        "noUselessCatch": "error",
+        "noUselessEscapeInRegex": "error",
+        "noUselessFragments": "error",
+        "noUselessRename": "error",
+        "noUselessTernary": "error",
+        "useOptionalChain": "error",
+        "useSimplifiedLogicExpression": "error"
+      },
+      "correctness": {
+        "noConstAssign": "error",
+        "noConstantCondition": "error",
+        "noEmptyCharacterClassInRegex": "error",
+        "noEmptyPattern": "error",
+        "noGlobalObjectCalls": "error",
+        "noInvalidBuiltinInstantiation": "error",
+        "noInvalidConstructorSuper": "error",
+        "noNonoctalDecimalEscape": "error",
+        "noPrecisionLoss": "error",
+        "noSelfAssign": "error",
+        "noSetterReturn": "error",
+        "noSwitchDeclarations": "error",
+        "noUndeclaredVariables": "error",
+        "noUnreachable": "error",
+        "noUnreachableSuper": "error",
+        "noUnsafeFinally": "error",
+        "noUnsafeOptionalChaining": "error",
+        "noUnusedLabels": "error",
+        "noUnusedPrivateClassMembers": "error",
+        "noUnusedVariables": "error",
+        "noVoidElementsWithChildren": "error",
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error",
+        "useIsNan": "error",
+        "useJsxKeyInIterable": "error",
+        "useValidForDirection": "error",
+        "useValidTypeof": "error",
+        "useYield": "error"
+      },
+
+      "performance": {
+        "noAccumulatingSpread": "error",
+        "noDelete": "error"
+      },
+      "security": {
+        "noGlobalEval": "error"
+      },
+      "style": {
+        "noInferrableTypes": "error",
+        "noNamespace": "error",
+        "noNegationElse": "error",
+        "noNonNullAssertion": "warn",
+        "noParameterAssign": "error",
+        "noShoutyConstants": "error",
+        "noUnusedTemplateLiteral": "error",
+        "noUselessElse": "error",
+        "useAsConstAssertion": "error",
+        "useBlockStatements": "error",
+        "useCollapsedElseIf": "error",
+        "useConst": "error",
+        "useDefaultSwitchClause": "error",
+        "useExponentiationOperator": "error",
+        "useFragmentSyntax": "error",
+        "useNamingConvention": {
+          "level": "error",
+          "options": {
+            "strictCase": false,
+            "conventions": [
+              {
+                "selector": { "kind": "function" },
+                "formats": ["camelCase", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "variable" },
+                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
+              },
+              {
+                "selector": { "kind": "typeLike" },
+                "formats": ["PascalCase"]
+              }
+            ]
+          }
+        },
+        "useSelfClosingElements": "error",
+        "useShorthandAssign": "error",
+        "useSingleVarDeclarator": "error",
+        "useTemplate": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "error",
+        "noAssignInExpressions": "error",
+        "noAsyncPromiseExecutor": "error",
+        "noCatchAssign": "error",
+        "noClassAssign": "error",
+        "noCommentText": "error",
+        "noCompareNegZero": "error",
+        "noConfusingLabels": "error",
+        "noConsole": {
+          "level": "warn",
+          "options": { "allow": ["warn", "error"] }
+        },
+        "noControlCharactersInRegex": "error",
+        "noDebugger": "error",
+        "noDoubleEquals": "error",
+        "noDuplicateCase": "error",
+        "noDuplicateClassMembers": "error",
+        "noDuplicateElseIf": "error",
+        "noDuplicateJsxProps": "error",
+        "noDuplicateObjectKeys": "error",
+        "noDuplicateParameters": "error",
+        "noEmptyBlockStatements": "error",
+        "noEmptyInterface": "error",
+        "noExplicitAny": "error",
+        "noExtraNonNullAssertion": "error",
+        "noFallthroughSwitchClause": "error",
+        "noFunctionAssign": "error",
+        "noGlobalAssign": "error",
+        "noImportAssign": "error",
+        "noIrregularWhitespace": "error",
+        "noMisleadingCharacterClass": "error",
+        "noMisleadingInstantiator": "error",
+        "noPrototypeBuiltins": "error",
+        "noRedeclare": "error",
+        "noSelfCompare": "error",
+        "noShadowRestrictedNames": "error",
+        "noSparseArray": "error",
+        "noUnsafeDeclarationMerging": "error",
+        "noUnsafeNegation": "error",
+        "useAwait": "error",
+        "useGetterReturn": "error",
+        "useNamespaceKeyword": "error"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "es5",
+      "semicolons": "always",
+      "arrowParentheses": "asNeeded",
+      "bracketSameLine": false,
+      "quoteStyle": "double",
+      "attributePosition": "auto",
+      "bracketSpacing": true
+    }
+  },
+  "html": { "formatter": { "selfCloseVoidElements": "always" } },
+  "overrides": [
+    {
+      "includes": ["**/*.{ts,tsx}"],
+      "javascript": { "globals": [] },
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noUselessTypeConstraint": "error"
+          },
+          "correctness": {
+            "noUndeclaredVariables": "off",
+            "noUnusedVariables": "error"
+          },
+          "style": {
+            "noCommonJs": "error",
+            "noNamespace": "error",
+            "useArrayLiterals": "error",
+            "useAsConstAssertion": "error",
+            "useConst": "error",
+            "useEnumInitializers": "error",
+            "useExportType": "error",
+            "useImportType": "error",
+            "useShorthandFunctionType": "error"
+          },
+          "suspicious": {
+            "noAsyncPromiseExecutor": "error",
+            "noConsole": {
+              "level": "warn",
+              "options": { "allow": ["warn", "error"] }
+            },
+            "noDebugger": "error",
+            "noDoubleEquals": "error",
+            "noExplicitAny": "error",
+            "noExtraNonNullAssertion": "error",
+            "noMisleadingInstantiator": "error",
+            "noUnsafeDeclarationMerging": "error",
+            "useAwait": "error",
+            "useNamespaceKeyword": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.{jsx,tsx}"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noAccessKey": "error",
+            "noAriaHiddenOnFocusable": "error",
+            "noAriaUnsupportedElements": "error",
+            "noAutofocus": "error",
+            "noDistractingElements": "error",
+            "noHeaderScope": "error",
+            "noInteractiveElementToNoninteractiveRole": "error",
+            "noNoninteractiveElementToInteractiveRole": "error",
+            "noNoninteractiveTabindex": "error",
+            "noPositiveTabindex": "error",
+            "noRedundantAlt": "error",
+            "noRedundantRoles": "error",
+            "useFocusableInteractive": "error",
+            "useGenericFontNames": "error",
+            "useHeadingContent": "error",
+            "useHtmlLang": "error",
+            "useIframeTitle": "error",
+            "useKeyWithClickEvents": "error",
+            "useKeyWithMouseEvents": "error",
+            "useMediaCaption": "error",
+            "useSemanticElements": "error",
+            "useValidAnchor": "error",
+            "useValidAriaProps": "error",
+            "useValidAriaRole": "error",
+            "useValidAriaValues": "error",
+            "useValidLang": "error"
+          },
+          "correctness": {
+            "noChildrenProp": "error",
+            "noRenderReturnValue": "error",
+            "noUndeclaredVariables": "off",
+            "noUnusedVariables": "error",
+            "noVoidElementsWithChildren": "error",
+            "useExhaustiveDependencies": "error",
+            "useHookAtTopLevel": "error",
+            "useJsxKeyInIterable": "error"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "error",
+            "noCommentText": "error",
+            "noDuplicateJsxProps": "error"
+          },
+          "style": {
+            "useFragmentSyntax": "error",
+            "useSelfClosingElements": "error"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/**/*.{ts,tsx}"],
+      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+    },
+    {
+      "includes": ["convex/ai/messages.ts", "convex/ai/providers.ts"],
+      "linter": { "rules": { "suspicious": { "useAwait": "off" } } }
+    },
+    {
+      "includes": ["convex/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "conventions": [
+                  {
+                    "selector": { "kind": "function" },
+                    "formats": ["camelCase"]
+                  },
+                  {
+                    "selector": { "kind": "variable" },
+                    "formats": ["camelCase", "CONSTANT_CASE"]
+                  },
+                  {
+                    "selector": { "kind": "typeLike" },
+                    "formats": ["PascalCase"]
+                  }
+                ]
+              }
+            }
+          },
+          "suspicious": {
+            "noConsole": {
+              "level": "warn",
+              "options": { "allow": ["warn", "error", "log"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/hooks/**/*.{ts,tsx}"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useExhaustiveDependencies": "error",
+            "useHookAtTopLevel": "error"
+          },
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "conventions": [
+                  {
+                    "selector": { "kind": "function" },
+                    "formats": ["camelCase"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/**/*.{tsx}"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "conventions": [
+                  {
+                    "selector": { "kind": "function" },
+                    "formats": ["PascalCase", "camelCase"]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/auth.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/ai.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/schema.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/types/index.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["tailwind.config.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/backgroundJobs.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/models.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/types.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/conversations.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/sidebar.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/routes.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/markdown-block.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/ai/anthropic-client.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/import-parsers.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/lib/file-constants.ts", "src/lib/ai/error-messages.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/model-picker.tsx",
+        "src/components/persona-picker.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/pages/AuthCallbackPage.tsx"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/components/chat-input/attachment-display.tsx",
+        "src/components/file-display.tsx",
+        "src/components/settings/conversation-selection-list.tsx",
+        "src/components/virtualized-model-list.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useSemanticElements": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/components/ui/code-block.tsx"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noArrayIndexKey": "off"
+          }
+        }
+      }
+    }
+  ],
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "convex/react";
 import { api } from "convex/_generated/api";
 import type { Id } from "convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { useCallback, useMemo, useState } from "react";
 
 export function useConversationSelection() {
   const [selectedConversations, setSelectedConversations] = useState<
@@ -62,7 +62,9 @@ export function useConversationSelection() {
   );
 
   const handleSelectAll = useCallback(() => {
-    if (conversations.length === 0) return;
+    if (conversations.length === 0) {
+      return;
+    }
 
     const allSelected = conversations.every(conv =>
       selectedConversations.has(conv._id as Id<"conversations">)
@@ -79,7 +81,9 @@ export function useConversationSelection() {
 
   const handleBulkSelect = useCallback(
     (conversationIds: Id<"conversations">[]) => {
-      if (conversationIds.length === 0) return;
+      if (conversationIds.length === 0) {
+        return;
+      }
 
       const allSelected = conversationIds.every(id =>
         selectedConversations.has(id)

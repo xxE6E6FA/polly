@@ -1,8 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-
-import { Link, useParams } from "react-router";
-
 import { GearIcon, SidebarIcon } from "@phosphor-icons/react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router";
 
 import { ConversationList } from "@/components/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/sidebar/search";
@@ -19,7 +17,7 @@ import { useSidebar } from "@/hooks/use-sidebar";
 import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { type ConversationId } from "@/types";
+import type { ConversationId } from "@/types";
 
 export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");

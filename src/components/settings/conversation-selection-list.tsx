@@ -1,24 +1,22 @@
-import { useCallback, useMemo, useState } from "react";
-import { useQuery, useMutation } from "convex/react";
 import {
+  ArchiveIcon,
   CheckIcon,
   MagnifyingGlassIcon,
   PushPinIcon,
-  ArchiveIcon,
 } from "@phosphor-icons/react";
-
 import { api } from "convex/_generated/api";
 import type { Id } from "convex/_generated/dataModel";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation, useQuery } from "convex/react";
+import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { toast } from "sonner";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { cn } from "@/lib/utils";
 
 type ConversationSummary = {
   _id: Id<"conversations">;
@@ -129,9 +127,9 @@ export function ConversationSelectionList({
     setIsDeleting(true);
     try {
       const ids = Array.from(selectedConversations) as Id<"conversations">[];
-      const BACKGROUND_THRESHOLD = 10; // Use background jobs for more than 10 conversations
+      const BackgroundThreshold = 10; // Use background jobs for more than 10 conversations
 
-      if (ids.length > BACKGROUND_THRESHOLD) {
+      if (ids.length > BackgroundThreshold) {
         // Use background job for large deletions
         await backgroundJobs.startBulkDelete(ids);
         toast.success(
@@ -141,7 +139,9 @@ export function ConversationSelectionList({
         // Use synchronous deletion for small batches
         const result = await bulkRemove({ ids });
         toast.success(
-          `Deleted ${result.filter(r => r.status === "deleted").length} conversations`
+          `Deleted ${
+            result.filter(r => r.status === "deleted").length
+          } conversations`
         );
       }
 
@@ -158,8 +158,7 @@ export function ConversationSelectionList({
   const renderItem = useCallback(
     (conversation: ConversationSummary, index: number) => {
       const isSelected = selectedConversations.has(conversation._id);
-      const isRecentlyImported =
-        recentlyImportedIds?.has(conversation._id) || false;
+      const isRecentlyImported = recentlyImportedIds?.has(conversation._id);
       const isEven = index % 2 === 0;
 
       const fullDate = new Date(conversation.updatedAt).toLocaleDateString(
@@ -184,6 +183,14 @@ export function ConversationSelectionList({
             "hover:bg-muted/50"
           )}
           onClick={e => handleItemClick(conversation._id, index, e.shiftKey)}
+          onKeyDown={e => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleItemClick(conversation._id, index, e.shiftKey);
+            }
+          }}
+          role="button"
+          tabIndex={0}
         >
           {/* Selection indicator */}
           <div
@@ -255,7 +262,7 @@ export function ConversationSelectionList({
         </CardHeader>
         <CardContent>
           <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
           </div>
         </CardContent>
       </Card>

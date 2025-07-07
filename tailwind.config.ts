@@ -458,9 +458,9 @@ const config: Config = {
     },
   },
   plugins: [
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // biome-ignore lint/style/noCommonJs: Tailwind config requires CommonJS imports
     require("tailwindcss-animate"),
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // biome-ignore lint/style/noCommonJs: Tailwind config requires CommonJS imports
     require("@tailwindcss/typography"),
   ],
 } satisfies Config;

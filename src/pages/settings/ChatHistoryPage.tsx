@@ -1,10 +1,10 @@
-import { SettingsHeader } from "@/components/settings/settings-header";
+import { ActivitySection } from "@/components/settings/activity-section";
 import { ConversationSelectionList } from "@/components/settings/conversation-selection-list";
 import { ImportExportActions } from "@/components/settings/import-export-actions";
-import { ActivitySection } from "@/components/settings/activity-section";
+import { SettingsHeader } from "@/components/settings/settings-header";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { useJobManagement } from "@/hooks/use-job-management";
 import { useConversationSelection } from "@/hooks/use-conversation-selection";
+import { useJobManagement } from "@/hooks/use-job-management";
 
 export default function ChatHistoryPage() {
   const conversationSelection = useConversationSelection();

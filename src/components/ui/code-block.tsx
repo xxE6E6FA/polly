@@ -1,5 +1,3 @@
-import { memo, useRef, useState } from "react";
-
 import {
   CheckIcon,
   CopyIcon,
@@ -7,6 +5,7 @@ import {
   TextAlignJustifyIcon,
 } from "@phosphor-icons/react";
 import { Highlight } from "prism-react-renderer";
+import { memo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -196,9 +195,12 @@ const CodeBlockComponent = ({
               }}
             >
               {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line })}>
+                <div key={`line-${i}`} {...getLineProps({ line })}>
                   {line.map((token, key) => (
-                    <span key={key} {...getTokenProps({ token })} />
+                    <span
+                      key={`token-${i}-${key}`}
+                      {...getTokenProps({ token })}
+                    />
                   ))}
                 </div>
               ))}

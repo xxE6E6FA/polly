@@ -1,11 +1,9 @@
-import { useCallback } from "react";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
-
-import { type Attachment, type FileUploadProgress } from "@/types";
-
-import { api } from "../../convex/_generated/api";
-import { type Id } from "../../convex/_generated/dataModel";
+import { useCallback } from "react";
+import { generateThumbnail } from "@/lib/file-utils";
+import type { Attachment, FileUploadProgress } from "@/types";
 
 export function useConvexFileUpload() {
   const generateUploadUrl = useMutation(api.fileStorage.generateUploadUrl);
@@ -48,7 +46,7 @@ export function useConvexFileUpload() {
         const { storageId } = await uploadResponse.json();
 
         // Step 3: Create attachment object with storage ID
-        // URL will be resolved by ConvexFileDisplay component using the getFileUrl query
+        // URL will be resolved by FileDisplay component using the getFileUrl query
         fileProgress.status = "processing";
         fileProgress.progress = 80;
         onProgress?.(fileProgress);
@@ -108,46 +106,6 @@ export function useConvexFileUpload() {
   );
 
   return { uploadFile };
-}
-
-// Utility function to generate thumbnail from image file
-
-function generateThumbnail(file: File, maxSize = 80): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-
-    img.onload = () => {
-      // Calculate thumbnail dimensions while maintaining aspect ratio
-      let { width, height } = img;
-
-      if (width > height) {
-        if (width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        }
-      } else {
-        if (height > maxSize) {
-          width = (width * maxSize) / height;
-          height = maxSize;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      // Draw the image on canvas with new dimensions
-      ctx?.drawImage(img, 0, 0, width, height);
-
-      // Convert to base64
-      const thumbnail = canvas.toDataURL("image/jpeg", 0.8);
-      resolve(thumbnail);
-    };
-
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
-  });
 }
 
 // Utility function to read text file content

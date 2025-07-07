@@ -1,18 +1,16 @@
-import { useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
-
-import { UnifiedChatView } from "@/components/unified-chat-view";
+import { useCallback, useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
-import { useUnifiedChat } from "@/hooks/use-unified-chat";
+import { UnifiedChatView } from "@/components/unified-chat-view";
 import { usePrivateMode } from "@/contexts/private-mode-context";
+import { useChatService } from "@/hooks/use-chat-service";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
-import { type ConversationId } from "@/types";
-
-import { api } from "../../convex/_generated/api";
+import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
@@ -42,22 +40,34 @@ export default function ConversationRoute() {
     [navigate]
   );
 
-  const {
-    messages,
-    isLoading,
-    isStreaming,
-    currentPersonaId,
-    sendMessage,
-    stopGeneration,
-    deleteMessage,
-    editMessage,
-    retryUserMessage,
-    retryAssistantMessage,
-    isLoadingMessages,
-  } = useUnifiedChat({
+  const chatService = useChatService({
     conversationId: conversationId as ConversationId,
     onConversationCreate: handleConversationCreate,
   });
+
+  // Handle sending message as new conversation
+  const handleSendAsNewConversation = useCallback(
+    async (
+      content: string,
+      navigate: boolean,
+      attachments?: Attachment[],
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig
+    ) => {
+      if (chatService.sendMessageToNewConversation) {
+        await chatService.sendMessageToNewConversation(
+          content,
+          navigate,
+          attachments,
+          undefined, // contextSummary - could be added later
+          conversationId as ConversationId, // sourceConversationId
+          personaId,
+          reasoningConfig
+        );
+      }
+    },
+    [chatService.sendMessageToNewConversation, conversationId]
+  );
 
   if (conversation === null) {
     return <NotFoundPage />;
@@ -69,19 +79,20 @@ export default function ConversationRoute() {
       <UnifiedChatView
         conversationId={conversationId as ConversationId}
         isArchived={conversation?.isArchived}
-        messages={messages}
-        isLoading={isLoading}
-        isLoadingMessages={isLoadingMessages}
-        isStreaming={isStreaming}
-        currentPersonaId={currentPersonaId}
+        messages={chatService.messages}
+        isLoading={chatService.isLoading}
+        isLoadingMessages={chatService.isLoadingMessages}
+        isStreaming={chatService.isStreaming}
+        currentPersonaId={chatService.currentPersonaId}
         canSavePrivateChat={false}
         hasApiKeys={hasApiKeys ?? false}
-        onSendMessage={sendMessage}
-        onDeleteMessage={deleteMessage}
-        onEditMessage={editMessage}
-        onStopGeneration={stopGeneration}
-        onRetryUserMessage={retryUserMessage}
-        onRetryAssistantMessage={retryAssistantMessage}
+        onSendMessage={chatService.sendMessage}
+        onSendAsNewConversation={handleSendAsNewConversation}
+        onDeleteMessage={chatService.deleteMessage}
+        onEditMessage={chatService.editMessage}
+        onStopGeneration={chatService.stopGeneration}
+        onRetryUserMessage={chatService.retryUserMessage}
+        onRetryAssistantMessage={chatService.retryAssistantMessage}
       />
     </>
   );

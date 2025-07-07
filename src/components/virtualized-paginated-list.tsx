@@ -1,7 +1,7 @@
-import { VList } from "virtua";
 import { ArrowsClockwise } from "@phosphor-icons/react";
+import type { PaginatedQueryReference } from "convex/react";
+import { VList } from "virtua";
 import { useVirtualizedPagination } from "@/hooks/use-virtualized-pagination";
-import { type PaginatedQueryReference } from "convex/react";
 
 interface VirtualizedPaginatedListProps<T> {
   query: PaginatedQueryReference;

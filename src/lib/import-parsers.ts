@@ -256,7 +256,7 @@ export function detectAndParseImportData(jsonContent: string): ImportResult {
 function parsePollyFormat(data: UnknownJsonData): ImportResult {
   const errors: string[] = [];
 
-  if (!data.conversations || !Array.isArray(data.conversations)) {
+  if (!(data.conversations && Array.isArray(data.conversations))) {
     return {
       conversations: [],
       source: "Polly",
@@ -407,7 +407,9 @@ function extractOpenAIMessages(
   // Convert nodes to messages
   for (const node of messageChain) {
     const message = node.message;
-    if (!message || !message.content) continue;
+    if (!message?.content) {
+      continue;
+    }
 
     const content = message.content;
     const author = message.author;
@@ -422,7 +424,9 @@ function extractOpenAIMessages(
     }
 
     const textContent = content.parts.join("\n").trim();
-    if (!textContent) continue;
+    if (!textContent) {
+      continue;
+    }
 
     // Map OpenAI roles to our format
     let role: "user" | "assistant" | "system" = "user";
@@ -490,7 +494,9 @@ function parseClaudeFormat(data: UnknownJsonData): ImportResult {
         : [claudeData.chats];
 
       for (const [index, chat] of chats.entries()) {
-        if (!chat) continue;
+        if (!chat) {
+          continue;
+        }
 
         try {
           const messages: ParsedConversation["messages"] = [];

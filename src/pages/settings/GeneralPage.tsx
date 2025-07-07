@@ -1,9 +1,8 @@
 import { GithubLogoIcon } from "@phosphor-icons/react";
-
+import { UserIdCard } from "@/components/settings/user-id-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -11,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { UserIdCard } from "@/components/settings/user-id-card";
+import { Switch } from "@/components/ui/switch";
 import {
   useUserSettings,
   useUserSettingsMutations,

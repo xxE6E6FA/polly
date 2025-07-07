@@ -1,8 +1,9 @@
-import React, { createContext, useContext } from "react";
+import type React from "react";
+import { createContext, useContext } from "react";
 
-import { useUserData } from "../hooks/use-user";
+import { useUser as useUserHook } from "@/hooks/use-user";
 
-import type { User } from "../types";
+import type { User } from "@/types";
 
 type UserContextType = {
   user: User | null;
@@ -31,7 +32,7 @@ type UserProviderProps = {
 
 export const UserProvider = ({ children }: UserProviderProps) => {
   // Call useUser hook only once at the provider level
-  const userData = useUserData();
+  const userData = useUserHook();
 
   return (
     <UserContext.Provider value={userData}>{children}</UserContext.Provider>

@@ -1,15 +1,20 @@
 import {
   ArchiveIcon,
   DotsThreeVerticalIcon,
+  FileCodeIcon,
+  FileTextIcon,
   PencilSimpleIcon,
   PushPinIcon,
-  TrashIcon,
   ShareNetworkIcon,
-  FileTextIcon,
-  FileCodeIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu";
 import {
   Popover,
   PopoverContent,
@@ -20,13 +25,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { type Conversation } from "@/types";
+import type { Conversation } from "@/types";
 
 type ConversationActionsProps = {
   conversation: Conversation;

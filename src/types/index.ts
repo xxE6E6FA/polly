@@ -1,4 +1,4 @@
-import { type Doc, type Id } from "../../convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 
 // ============================================================================
 // CONVEX GENERATED TYPES RE-EXPORTS
@@ -25,6 +25,20 @@ export type UserId = Id<"users">;
 
 export type AIModel = Doc<"userModels">;
 export type AIProviderType = "openai" | "anthropic" | "google" | "openrouter";
+
+// Extended model type for capability detection
+export type ModelForCapabilities = {
+  modelId: string;
+  provider: string;
+  name?: string;
+  contextLength?: number;
+  contextWindow?: number;
+  supportsReasoning?: boolean;
+  supportsImages?: boolean;
+  supportsTools?: boolean;
+  supportsFiles?: boolean;
+  inputModalities?: string[];
+} & Partial<AIModel>;
 
 export type AIProvider = {
   id: string;
@@ -145,10 +159,8 @@ export type Attachment = {
 export interface SendMessageParams {
   content: string;
   attachments?: Attachment[];
-  useWebSearch?: boolean;
   personaId?: Id<"personas"> | null;
   reasoningConfig?: ReasoningConfig;
-  personaPrompt?: string | null;
 }
 
 export interface ChatStrategy {
@@ -171,7 +183,6 @@ export interface ChatStrategyOptions {
   onStreamingStateChange?: (isStreaming: boolean) => void;
   initialMessage?: string;
   initialAttachments?: Attachment[];
-  initialUseWebSearch?: boolean;
   initialPersonaId?: Id<"personas">;
   initialReasoningConfig?: ReasoningConfig;
 }
@@ -184,8 +195,6 @@ export type CreateConversationParams = {
   personaId?: Id<"personas"> | null;
   userId?: Id<"users">;
   attachments?: Attachment[];
-  useWebSearch?: boolean;
-  personaPrompt?: string | null;
   generateTitle?: boolean;
   reasoningConfig?: ReasoningConfig;
   contextSummary?: string;
@@ -218,8 +227,7 @@ export type ChatStreamRequest = {
     content: string;
     attachments?: Attachment[];
   }>;
-  model: string;
-  provider: AIProviderType;
+  model: ModelForCapabilities;
   apiKeys: APIKeys;
   options?: StreamOptions;
   callbacks: StreamCallbacks;
@@ -363,7 +371,6 @@ export type CreateConversationArgs = {
     storageId?: Id<"_storage">;
     mimeType?: string;
   }>;
-  useWebSearch?: boolean;
   generateTitle?: boolean;
   reasoningConfig?: {
     enabled: boolean;

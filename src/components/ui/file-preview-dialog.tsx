@@ -1,10 +1,10 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { XIcon } from "@phosphor-icons/react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 import { Backdrop } from "@/components/ui/backdrop";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
-import { type Attachment } from "@/types";
+import type { Attachment } from "@/types";
 
 type FilePreviewDialogProps = {
   attachment: Attachment | null;
@@ -37,7 +37,9 @@ export const FilePreviewDialog = ({
   onOpenChange,
   imageUrl,
 }: FilePreviewDialogProps) => {
-  if (!attachment) return null;
+  if (!attachment) {
+    return null;
+  }
 
   const fileUrl =
     imageUrl ||
@@ -49,7 +51,9 @@ export const FilePreviewDialog = ({
   const renderContent = () => {
     switch (attachment.type) {
       case "pdf":
-        if (!fileUrl) return null;
+        if (!fileUrl) {
+          return null;
+        }
         return (
           <div className="flex h-[90vh] flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
             <DialogHeader
@@ -67,7 +71,9 @@ export const FilePreviewDialog = ({
         );
 
       case "image":
-        if (!fileUrl) return null;
+        if (!fileUrl) {
+          return null;
+        }
         return (
           <div className="relative overflow-hidden rounded-xl bg-background/95 shadow-2xl backdrop-blur-sm">
             <button
@@ -87,7 +93,9 @@ export const FilePreviewDialog = ({
         );
 
       case "text":
-        if (!attachment.content) return null;
+        if (!attachment.content) {
+          return null;
+        }
         return (
           <div className="flex h-full max-h-[85vh] flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
             <DialogHeader
@@ -110,7 +118,9 @@ export const FilePreviewDialog = ({
   };
 
   const content = renderContent();
-  if (!content) return null;
+  if (!content) {
+    return null;
+  }
 
   const contentClassNames = {
     pdf: "fixed left-[50%] top-[50%] z-50 max-h-[95vh] w-[95vw] max-w-6xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",

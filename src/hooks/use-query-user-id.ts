@@ -1,8 +1,7 @@
 import { useMemo } from "react";
-
-import { useUser } from "./use-user";
 import { getStoredAnonymousUserId } from "@/lib/auth-utils";
-import { type UserId } from "@/types";
+import type { UserId } from "@/types";
+import { useUser } from "./use-user";
 
 /**
  * Hook to get the user ID for Convex queries.

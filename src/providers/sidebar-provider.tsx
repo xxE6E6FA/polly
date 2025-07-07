@@ -22,8 +22,12 @@ type SidebarProviderProps = {
 
 const SidebarContext = React.createContext<SidebarContextValue>({
   isSidebarVisible: false,
-  setSidebarVisible: () => {},
-  toggleSidebar: () => {},
+  setSidebarVisible: () => {
+    // Default no-op
+  },
+  toggleSidebar: () => {
+    // Default no-op
+  },
   isMobile: false,
   mounted: false,
 });

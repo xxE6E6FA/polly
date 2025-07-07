@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useQuery, useAction } from "convex/react";
-import { toast } from "sonner";
 import { api } from "convex/_generated/api";
-import { type Id } from "convex/_generated/dataModel";
-import { type ParsedConversation } from "../lib/import-parsers";
+import type { Id } from "convex/_generated/dataModel";
+import { useAction, useQuery } from "convex/react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import type { ParsedConversation } from "@/lib/import-parsers";
 
 export type JobType =
   | "export"
@@ -71,7 +71,9 @@ export function useBackgroundJobs() {
   const previousJobStatuses = useRef<typeof jobStatuses>(null);
 
   const activeJobs = useMemo(() => {
-    if (!jobStatuses) return new Map<string, BackgroundJob>();
+    if (!jobStatuses) {
+      return new Map<string, BackgroundJob>();
+    }
 
     const transformedJobs = new Map<string, BackgroundJob>();
 
@@ -117,7 +119,7 @@ export function useBackgroundJobs() {
   }, [jobStatuses, localJobs]);
 
   useEffect(() => {
-    if (!jobStatuses || !previousJobStatuses.current) {
+    if (!(jobStatuses && previousJobStatuses.current)) {
       previousJobStatuses.current = jobStatuses;
       return;
     }
@@ -169,7 +171,7 @@ export function useBackgroundJobs() {
     try {
       await scheduleBackgroundExport({
         conversationIds,
-        includeAttachmentContent: options.includeAttachmentContent || false,
+        includeAttachmentContent: options.includeAttachmentContent,
         jobId: jobId,
       });
 
@@ -252,7 +254,9 @@ export function useBackgroundJobs() {
         processed: 0,
         total: conversationIds.length,
         title: `Delete ${conversationIds.length} Conversations`,
-        description: `Background deletion of ${conversationIds.length} conversation${conversationIds.length !== 1 ? "s" : ""}`,
+        description: `Background deletion of ${
+          conversationIds.length
+        } conversation${conversationIds.length !== 1 ? "s" : ""}`,
         createdAt: Date.now(),
       };
 

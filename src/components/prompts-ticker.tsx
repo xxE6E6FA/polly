@@ -30,6 +30,8 @@ type PromptsProps = {
   hasReachedLimit?: boolean;
   className?: string;
   hasWarning?: boolean;
+  isAnonymous: boolean;
+  userLoading: boolean;
 };
 
 export const SimplePrompts = ({
@@ -37,12 +39,24 @@ export const SimplePrompts = ({
   hasReachedLimit = false,
   className,
   hasWarning = false,
+  isAnonymous,
+  userLoading,
 }: PromptsProps) => {
   // Select 4 random prompts, but keep them stable during the component lifecycle
   const selectedPrompts = useMemo(() => {
     const shuffled = [...allPrompts].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 4);
   }, []);
+
+  // Don't render anything until we know the user state
+  if (userLoading) {
+    return null;
+  }
+
+  // Only show for anonymous users
+  if (!isAnonymous) {
+    return null;
+  }
 
   return (
     <>
@@ -126,38 +140,5 @@ export const SimplePrompts = ({
   );
 };
 
-export const PromptsTickerWrapper = ({
-  onQuickPrompt,
-  hasReachedLimit = false,
-  isAnonymous,
-  userLoading,
-  className,
-  hasWarning = false,
-}: {
-  onQuickPrompt: (prompt: string) => void;
-  hasReachedLimit?: boolean;
-  remainingMessages?: number;
-  isAnonymous: boolean;
-  userLoading: boolean;
-  className?: string;
-  hasWarning?: boolean;
-}) => {
-  // Don't render anything until we know the user state
-  if (userLoading) {
-    return null;
-  }
-
-  // Only show for anonymous users
-  if (!isAnonymous) {
-    return null;
-  }
-
-  return (
-    <SimplePrompts
-      className={className}
-      hasReachedLimit={hasReachedLimit}
-      hasWarning={hasWarning}
-      onQuickPrompt={onQuickPrompt}
-    />
-  );
-};
+// For backwards compatibility, export the same component with old name
+export const PromptsTickerWrapper = SimplePrompts;

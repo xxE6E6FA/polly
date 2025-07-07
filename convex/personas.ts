@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 
 import { action, mutation, query } from "./_generated/server";
-import { getCurrentUserId, getOptionalUserId } from "./lib/auth";
+import { getCurrentUserId } from "./lib/auth";
 
 export const list = query({
   args: { userId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       // Return only built-in personas for anonymous users
@@ -150,7 +150,7 @@ export const listAllBuiltIn = query({
 export const getUserPersonaSettings = query({
   args: { userId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
     if (!userId) {
       return [];
     }
@@ -175,7 +175,7 @@ export const toggleBuiltInPersona = mutation({
 
     // Verify this is a built-in persona
     const persona = await ctx.db.get(args.personaId);
-    if (!persona || !persona.isBuiltIn) {
+    if (!persona?.isBuiltIn) {
       throw new Error("Can only toggle built-in personas");
     }
 

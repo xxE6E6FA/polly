@@ -1,17 +1,16 @@
-import { type ChatMessage as ChatMessageType } from "@/types";
-import { VList, type VListHandle } from "virtua";
 import {
+  forwardRef,
   memo,
   useCallback,
   useEffect,
-  forwardRef,
   useImperativeHandle,
   useMemo,
   useRef,
 } from "react";
-
+import { VList, type VListHandle } from "virtua";
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
+import type { ChatMessage as ChatMessageType } from "@/types";
 
 type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
@@ -149,7 +148,9 @@ export const VirtualizedChatMessages = memo(
       // New method to scroll just enough to show the start of assistant message
       const scrollToShowAssistantStart = useCallback(() => {
         const container = getScrollContainer();
-        if (!container) return;
+        if (!container) {
+          return;
+        }
 
         // Calculate the amount to scroll to show first 2-3 lines of assistant message
         const currentScrollTop = container.scrollTop;
@@ -266,12 +267,16 @@ export const VirtualizedChatMessages = memo(
 
       // Modified auto-scroll logic for streaming
       useEffect(() => {
-        if (!shouldScrollToBottom || processedMessages.length === 0) return;
+        if (!shouldScrollToBottom || processedMessages.length === 0) {
+          return;
+        }
 
         const lastMessage = processedMessages[processedMessages.length - 1];
         const container = getScrollContainer();
 
-        if (!container) return;
+        if (!container) {
+          return;
+        }
 
         // For assistant messages, only do initial partial scroll
         if (lastMessage.role === "assistant") {
@@ -330,7 +335,7 @@ export const VirtualizedChatMessages = memo(
             smooth: false,
           });
         }
-      }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Only run once on mount
+      }, [processedMessages.length]);
 
       if (processedMessages.length === 0) {
         return (

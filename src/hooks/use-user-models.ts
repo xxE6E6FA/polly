@@ -1,17 +1,17 @@
-import { api } from "../../convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import {
+  clearUserModelsCache,
   getCachedUserModels,
   setCachedUserModels,
-  clearUserModelsCache,
 } from "../lib/user-cache";
-import { useConvexWithOptimizedCache } from "./use-convex-cache";
+import { useConvexWithCache } from "./use-convex-cache";
 
 export function useUserModels() {
   const {
     data: userModelsByProvider,
     isLoading: isLoadingModels,
     refetch: refetchModels,
-  } = useConvexWithOptimizedCache(
+  } = useConvexWithCache(
     api.userModels.getUserModelsByProvider,
     {},
     {
@@ -34,7 +34,7 @@ export function useUserModels() {
     data: hasUserModels,
     isLoading: isLoadingHasModels,
     refetch: refetchHasModels,
-  } = useConvexWithOptimizedCache(
+  } = useConvexWithCache(
     api.userModels.hasUserModels,
     {},
     {

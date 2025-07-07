@@ -1,17 +1,15 @@
+import { api } from "@convex/_generated/api";
+import { useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WindowVirtualizer } from "virtua";
-import { useQuery } from "convex/react";
-
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
-import { useOptimisticModelToggle } from "@/hooks/use-optimistic-toggles";
+import { useOptimisticModelToggle } from "@/hooks/use-optimistic-model-toggle";
 import { getModelCapabilities } from "@/lib/model-capabilities";
-
-import { api } from "../../convex/_generated/api";
 
 type BaseModel = {
   modelId: string;
@@ -44,20 +42,23 @@ const ModelCard = memo(
   }) => {
     const capabilities = useMemo(() => getModelCapabilities(model), [model]);
 
-    const contextDisplay = useMemo(() => {
-      const contextLength = model.contextLength || model.contextWindow || 0;
-      if (contextLength >= 1000000) {
-        const value = contextLength / 1000000;
-        return {
-          short: `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}M`,
-          long: `${value % 1 === 0 ? value.toFixed(0) : value.toFixed(1)}M tokens`,
-        };
-      }
-      return {
-        short: `${(contextLength / 1000).toFixed(0)}K`,
-        long: `${(contextLength / 1000).toFixed(0)}K tokens`,
-      };
-    }, [model.contextLength, model.contextWindow]);
+    // Simple context display calculation
+    const contextLength = model.contextLength || model.contextWindow || 0;
+    const contextDisplay =
+      contextLength >= 1000000
+        ? (() => {
+            const value = contextLength / 1000000;
+            const formatted =
+              value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+            return {
+              short: `${formatted}M`,
+              long: `${formatted}M tokens`,
+            };
+          })()
+        : {
+            short: `${(contextLength / 1000).toFixed(0)}K`,
+            long: `${(contextLength / 1000).toFixed(0)}K tokens`,
+          };
 
     const handleClick = useCallback(() => {
       onToggle(model);
@@ -75,6 +76,14 @@ const ModelCard = memo(
             : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
         }`}
         onClick={handleClick}
+        onKeyDown={e => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleClick();
+          }
+        }}
+        role="button"
+        tabIndex={0}
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-2">
@@ -183,12 +192,9 @@ export const VirtualizedModelList = memo(
     const { mutate: toggleModelOptimistic } = useOptimisticModelToggle();
 
     // Memoize enabled models lookup for better performance
-    const enabledModelsLookup = useMemo(() => {
-      if (!enabledModels) {
-        return new Set();
-      }
-      return new Set(enabledModels.map(m => m.modelId));
-    }, [enabledModels]);
+    const enabledModelsLookup = enabledModels
+      ? new Set(enabledModels.map(m => m.modelId))
+      : new Set();
 
     const onToggleModel = useCallback(
       (model: BaseModel) => {
@@ -199,9 +205,9 @@ export const VirtualizedModelList = memo(
           provider: model.provider,
           contextLength: model.contextLength || model.contextWindow || 0,
           maxOutputTokens: model.maxOutputTokens,
-          supportsImages: model.supportsImages || false,
-          supportsTools: model.supportsTools || false,
-          supportsReasoning: model.supportsReasoning || false,
+          supportsImages: model.supportsImages,
+          supportsTools: model.supportsTools,
+          supportsReasoning: model.supportsReasoning,
           inputModalities: model.inputModalities,
         };
 
@@ -263,20 +269,52 @@ export const VirtualizedModelList = memo(
       );
     }
 
+    // For small lists, don't use virtualization to avoid overhead
+    if (rows.length <= 20) {
+      return (
+        <TooltipProvider>
+          <div className="space-y-3">
+            {rows.map((rowModels, rowIndex) => (
+              <div
+                key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+                className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                {rowModels
+                  .filter(model => model)
+                  .map(model => (
+                    <ModelCard
+                      key={`${model.provider}-${model.modelId}`}
+                      isEnabled={enabledModelsLookup.has(model.modelId)}
+                      model={model}
+                      onToggle={onToggleModel}
+                    />
+                  ))}
+              </div>
+            ))}
+          </div>
+        </TooltipProvider>
+      );
+    }
+
     return (
       <TooltipProvider>
         <WindowVirtualizer>
           {rows.map((rowModels, rowIndex) => (
-            <div key={rowIndex} className="pb-3">
+            <div
+              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+              className="pb-3"
+            >
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {rowModels.map(model => (
-                  <ModelCard
-                    key={`${model.provider}-${model.modelId}`}
-                    isEnabled={enabledModelsLookup.has(model.modelId)}
-                    model={model}
-                    onToggle={onToggleModel}
-                  />
-                ))}
+                {rowModels
+                  .filter(model => model)
+                  .map(model => (
+                    <ModelCard
+                      key={`${model.provider}-${model.modelId}`}
+                      isEnabled={enabledModelsLookup.has(model.modelId)}
+                      model={model}
+                      onToggle={onToggleModel}
+                    />
+                  ))}
               </div>
             </div>
           ))}

@@ -1,7 +1,5 @@
-import { useCallback, useState } from "react";
-
-import { Link } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   FileTextIcon,
   PencilSimpleLineIcon,
@@ -10,7 +8,8 @@ import {
   UserIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-
+import { useCallback, useState } from "react";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -28,20 +27,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUser } from "@/hooks/use-user";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUserSettings } from "@/hooks/use-user-settings";
-import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
+import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
 import {
-  useOptimisticPersonaToggle,
   useOptimisticPersonasGlobalToggle,
+  useOptimisticPersonaToggle,
 } from "@/hooks/use-optimistic-toggles";
+import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useUser } from "@/hooks/use-user";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
 import { SettingsHeader } from "./settings-header";
-import { api } from "../../../convex/_generated/api";
-import { type Id } from "../../../convex/_generated/dataModel";
 
 export const PersonasTab = () => {
   const userInfo = useUser();
@@ -64,17 +60,17 @@ export const PersonasTab = () => {
     useOptimisticPersonasGlobalToggle();
 
   // Use optimized mutation for delete operation
-  const { mutateAsync: removePersona } = useConvexMutationOptimized(
+  const { mutateAsync: removePersona } = useConvexMutationWithCache(
     api.personas.remove,
     {
       onSuccess: () => {
         // Success handling is automatic via optimistic updates
       },
-      onError: error => {
+      onError: (error: Error) => {
         console.error("Failed to delete persona:", error);
       },
       invalidateQueries: ["personas"],
-      dispatchEvents: ["personas-changed"],
+      invalidationEvents: ["personas-changed"],
     }
   );
 
@@ -105,10 +101,8 @@ export const PersonasTab = () => {
 
   const isPersonaDisabled = useCallback(
     (personaId: Id<"personas">) => {
-      return (
-        userPersonaSettings?.some(
-          setting => setting.personaId === personaId && setting.isDisabled
-        ) || false
+      return userPersonaSettings?.some(
+        setting => setting.personaId === personaId && setting.isDisabled
       );
     },
     [userPersonaSettings]
@@ -206,7 +200,7 @@ export const PersonasTab = () => {
             )}
 
             {/* User Custom Personas */}
-            {personas && personas.some(p => !p.isBuiltIn) && (
+            {personas?.some(p => !p.isBuiltIn) && (
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold">Custom Personas</h3>

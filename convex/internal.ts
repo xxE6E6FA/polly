@@ -88,6 +88,36 @@ export const clearUserModels = mutation({
   },
 });
 
+export const migrateUserModelsCapabilities = mutation({
+  args: {},
+  handler: async ctx => {
+    const models = await ctx.db.query("userModels").collect();
+    let updatedCount = 0;
+
+    for (const model of models) {
+      // Check if model is missing the supportsFiles capability field
+      if (model.supportsFiles === undefined) {
+        const contextWindow = model.contextLength;
+
+        // Conservative default: assume file support for most modern models
+        const supportsFiles =
+          contextWindow >= 32000 ||
+          model.provider === "anthropic" ||
+          model.provider === "openrouter";
+
+        const updates: Record<string, boolean> = {
+          supportsFiles,
+        };
+
+        await ctx.db.patch(model._id, updates);
+        updatedCount++;
+      }
+    }
+
+    return { total: models.length, updated: updatedCount };
+  },
+});
+
 export const clearUserPersonaSettings = mutation({
   args: {},
   handler: async ctx => {

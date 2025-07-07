@@ -1,30 +1,29 @@
+import { api } from "@convex/_generated/api";
 import { useEffect, useState } from "react";
-
 import { useNavigate } from "react-router";
-
 import { Spinner } from "@/components/spinner";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useCreateConversation } from "@/hooks/use-conversations";
-import { useTextSelection } from "@/hooks/use-text-selection";
+import { useChatService } from "@/hooks/use-chat-service";
+import { useConvexActionWithCache } from "@/hooks/use-convex-cache";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useConvexActionOptimized } from "@/hooks/use-convex-cache";
+import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-import { api } from "../../../convex/_generated/api";
 
 // Simple hash function to create stable keys from prompt content
 const hashString = (str: string): string => {
   let hash = 0;
-  if (str.length === 0) return hash.toString();
+  if (str.length === 0) {
+    return hash.toString();
+  }
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
     hash = (hash << 5) - hash + char;
-    hash = hash & hash; // Convert to 32-bit integer
+    hash &= hash; // Convert to 32-bit integer
   }
   return Math.abs(hash).toString();
 };
@@ -54,13 +53,15 @@ export const ConversationStarterPopover = ({
   const [prompts, setPrompts] = useState<string[]>([]);
 
   const queryUserId = useQueryUserId();
-  const { createConversation } = useCreateConversation();
+  const chatService = useChatService({
+    overrideMode: "regular", // Always use regular mode for conversation starters
+  });
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
 
   // Use optimized action hook for generating starters
   const { executeAsync: generateStarters, isLoading } =
-    useConvexActionOptimized<string[], { selectedText: string }>(
+    useConvexActionWithCache<string[], { selectedText: string }>(
       api.conversationStarters.generateConversationStarters,
       {
         onSuccess: generatedPrompts => {
@@ -104,7 +105,7 @@ export const ConversationStarterPopover = ({
     }
 
     try {
-      const conversationId = await createConversation({
+      const conversationId = await chatService.createConversation({
         firstMessage: prompt,
         userId: queryUserId,
         generateTitle: true,

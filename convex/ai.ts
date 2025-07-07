@@ -1,24 +1,22 @@
-import { streamText, generateText } from "ai";
+import { generateText, streamText } from "ai";
 import { v } from "convex/values";
 import dedent from "dedent";
 
 import { api, internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { action } from "./_generated/server";
-import { type Doc } from "./_generated/dataModel";
+import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/errors";
+import { extractSearchContext, getExaApiKey, performWebSearch } from "./ai/exa";
 import {
   clearConversationStreaming,
   convertMessages,
   updateMessage,
 } from "./ai/messages";
 import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
-import { ResourceManager } from "./ai/resource_manager";
 import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
-import { StreamHandler } from "./ai/streaming";
-import { StreamInterruptor } from "./ai/stream_interruptor";
-import { AnthropicNativeHandler } from "./ai/anthropic_native";
-import { getExaApiKey, performWebSearch, extractSearchContext } from "./ai/exa";
+import { ResourceManager } from "./ai/resource_manager";
 import {
   generateSearchNeedAssessment,
   generateSearchStrategy,
@@ -28,8 +26,10 @@ import {
   type SearchDecisionContext,
   type SearchNeedAssessment,
 } from "./ai/search_detection";
-import { type Citation, type ProviderType, type StreamMessage } from "./types";
+import { StreamInterruptor } from "./ai/stream_interruptor";
+import { StreamHandler } from "./ai/streaming";
 import { WEB_SEARCH_MAX_RESULTS } from "./constants";
+import type { Citation, ProviderType, StreamMessage } from "./types";
 
 // Main streaming action
 export const streamResponse = action({
@@ -213,7 +213,9 @@ export const streamResponse = action({
           // Context messages are system messages that provide background from previous conversations
           const contextMessages = args.messages
             .filter(msg => {
-              if (msg.role !== "system") return false;
+              if (msg.role !== "system") {
+                return false;
+              }
               const contentStr =
                 typeof msg.content === "string"
                   ? msg.content
@@ -291,12 +293,12 @@ export const streamResponse = action({
               const previousSearches = recentMessages
                 .filter(
                   (m: Doc<"messages">) =>
-                    m && m.metadata?.searchQuery && m._id !== args.messageId
+                    m?.metadata?.searchQuery && m._id !== args.messageId
                 )
                 .slice(-2) // Last 2 searches
                 .map((m: Doc<"messages">) => ({
-                  query: (m.metadata!.searchQuery as string) || "",
-                  searchType: (m.metadata!.searchFeature as string) || "search",
+                  query: (m.metadata?.searchQuery as string) || "",
+                  searchType: (m.metadata?.searchFeature as string) || "search",
                   category: m.metadata?.searchCategory as string | undefined,
                   resultCount: m.citations?.length || 0,
                 }));
@@ -455,7 +457,9 @@ export const streamResponse = action({
           ${searchContext}
 
           SOURCES:
-          ${exaCitations.map((c, i) => `[${i + 1}] ${c.title || "Web Source"} - ${c.url}`).join("\n")}
+          ${exaCitations
+            .map((c, i) => `[${i + 1}] ${c.title || "Web Source"} - ${c.url}`)
+            .join("\n")}
 
           Respond naturally using this information where relevant.
         `;
@@ -497,13 +501,34 @@ export const streamResponse = action({
       interruptor.setAbortController(abortController);
 
       const providerOptions = await getProviderStreamOptions(
+        ctx,
         args.provider as ProviderType,
         args.model,
-        args.reasoningConfig
+        args.reasoningConfig,
+        args.userId
       );
 
+      // Check if model supports reasoning for debugging
+      const modelSupportsReasoning = await isReasoningModelEnhanced(
+        args.provider,
+        args.model
+      );
+
+      // Add debugging for Google provider models before DLLF call
+      if (args.provider === "google") {
+        console.log("🔍 [AI-ACTION] Google DLLF call debug:", {
+          model: args.model,
+          providerOptions,
+          reasoningConfig: args.reasoningConfig,
+          hasReasoningSupport: modelSupportsReasoning,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       const truncateContent = (content: string, maxLength: number): string => {
-        if (content.length <= maxLength) return content;
+        if (content.length <= maxLength) {
+          return content;
+        }
 
         const truncateAt =
           content.lastIndexOf("\n", maxLength - 100) || maxLength - 100;
@@ -554,6 +579,19 @@ export const streamResponse = action({
         abortSignal: abortController.signal,
         providerOptions,
         onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
+          // Add debugging for Google provider models in onFinish
+          if (args.provider === "google") {
+            console.log("🔍 [AI-ACTION] Google onFinish debug:", {
+              model: args.model,
+              finishReason,
+              hasReasoning: !!reasoning,
+              reasoningLength: reasoning?.length || 0,
+              hasProviderMetadata: !!providerMetadata,
+              providerMetadata,
+              timestamp: new Date().toISOString(),
+            });
+          }
+
           streamHandler.setFinishData({
             text,
             finishReason,

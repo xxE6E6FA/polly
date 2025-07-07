@@ -1,22 +1,30 @@
-import { useCallback, useState } from "react";
-
-import { Link } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import { useMutation, useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
+import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { useEventDispatcher } from "@/hooks/use-convex-cache";
+import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { useSidebar } from "@/hooks/use-sidebar";
-import { useConversationActions } from "@/hooks/use-conversation-actions";
+import {
+  downloadFile,
+  exportAsJSON,
+  exportAsMarkdown,
+  generateFilename,
+} from "@/lib/export";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { type Conversation, type ConversationId } from "@/types";
-
-import { EditableConversationTitle } from "./editable-conversation-title";
+import type { Conversation, ConversationId } from "@/types";
 import {
   ConversationActions,
   ConversationContextMenu,
 } from "./conversation-actions";
+import { EditableConversationTitle } from "./editable-conversation-title";
 
 type ConversationItemProps = {
   conversation: Conversation;
@@ -32,11 +40,101 @@ export const ConversationItem = ({
   const [isMobilePopoverOpen, setIsMobilePopoverOpen] = useState(false);
   const [isDesktopPopoverOpen, setIsDesktopPopoverOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
+    null
+  );
+
   const { isMobile, setSidebarVisible } = useSidebar();
+  const navigate = useNavigate();
+  const confirmationDialog = useConfirmationDialog();
+  const backgroundJobs = useBackgroundJobs();
+  const { dispatch } = useEventDispatcher();
 
   const isCurrentConversation = currentConversationId === conversation._id;
 
-  const actions = useConversationActions(conversation, isCurrentConversation);
+  // Mutations
+  const archiveConversation = useMutation(api.conversations.archive);
+  const deleteConversation = useMutation(api.conversations.remove);
+  const updateConversationTitle = useMutation(api.conversations.updateTitle);
+  const setPinned = useMutation(api.conversations.setPinned);
+
+  // Check if there are any active delete jobs
+  const activeDeleteJobs = backgroundJobs
+    .getActiveJobs()
+    .filter(job => job.type === "bulk_delete");
+  const isDeleteJobInProgress = activeDeleteJobs.length > 0;
+
+  const exportData = useQuery(
+    api.conversations.getForExport,
+    exportingFormat && conversation._id ? { id: conversation._id } : "skip"
+  );
+
+  // Handle export when data is ready
+  useEffect(() => {
+    if (exportData && exportingFormat) {
+      try {
+        let content: string;
+        let mimeType: string;
+
+        if (exportingFormat === "json") {
+          content = exportAsJSON(exportData);
+          mimeType = "application/json";
+        } else {
+          content = exportAsMarkdown(exportData);
+          mimeType = "text/markdown";
+        }
+
+        const filename = generateFilename(conversation.title, exportingFormat);
+        downloadFile(content, filename, mimeType);
+
+        toast.success("Export successful", {
+          description: `Conversation exported as ${filename}`,
+        });
+      } catch (_error) {
+        toast.error("Export failed", {
+          description: "An error occurred while exporting the conversation",
+        });
+      } finally {
+        setExportingFormat(null);
+      }
+    }
+  }, [exportData, exportingFormat, conversation.title]);
+
+  // Error handlers
+  const handleError = useMemo(
+    () => ({
+      async delete(operation: () => Promise<unknown>) {
+        try {
+          const result = await operation();
+          toast.success("Conversation deleted", {
+            description: "The conversation has been permanently removed.",
+          });
+          return result;
+        } catch (error) {
+          toast.error("Failed to delete conversation", {
+            description: "Unable to delete conversation. Please try again.",
+          });
+          throw error;
+        }
+      },
+
+      async archive(operation: () => Promise<unknown>) {
+        try {
+          const result = await operation();
+          toast.success("Conversation archived", {
+            description: "The conversation has been moved to archive.",
+          });
+          return result;
+        } catch (error) {
+          toast.error("Failed to archive conversation", {
+            description: "Unable to archive conversation. Please try again.",
+          });
+          throw error;
+        }
+      },
+    }),
+    []
+  );
 
   const handleStartEdit = useCallback(() => {
     setIsEditing(true);
@@ -46,10 +144,15 @@ export const ConversationItem = ({
 
   const handleSaveEdit = useCallback(
     async (newTitle: string) => {
-      await actions.handleTitleUpdate(newTitle);
+      await updateConversationTitle({
+        id: conversation._id,
+        title: newTitle,
+      });
+      // Trigger cache invalidation via event
+      dispatch("conversations-changed");
       setIsEditing(false);
     },
-    [actions]
+    [conversation, updateConversationTitle, dispatch]
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -59,20 +162,109 @@ export const ConversationItem = ({
   const handleArchiveClick = useCallback(() => {
     setIsMobilePopoverOpen(false);
     setIsDesktopPopoverOpen(false);
-    actions.handleArchive();
-  }, [actions]);
+
+    confirmationDialog.confirm(
+      {
+        title: "Archive Conversation",
+        description: `Are you sure you want to archive "${conversation.title}"? You can restore it later from the archived conversations.`,
+        confirmText: "Archive",
+        cancelText: "Cancel",
+        variant: "default",
+      },
+      async () => {
+        if (isCurrentConversation) {
+          navigate(ROUTES.HOME);
+        }
+
+        if (isCurrentConversation) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        await handleError.archive(async () => {
+          await archiveConversation({ id: conversation._id });
+          // Trigger cache invalidation via event
+          dispatch("conversations-changed");
+        });
+      }
+    );
+  }, [
+    confirmationDialog,
+    conversation.title,
+    conversation._id,
+    archiveConversation,
+    isCurrentConversation,
+    navigate,
+    handleError,
+    dispatch,
+  ]);
 
   const handleDeleteClick = useCallback(() => {
     setIsMobilePopoverOpen(false);
     setIsDesktopPopoverOpen(false);
-    actions.handleDelete();
-  }, [actions]);
 
-  const handlePinToggle = useCallback(() => {
-    setIsMobilePopoverOpen(false);
-    setIsDesktopPopoverOpen(false);
-    actions.handlePinToggle();
-  }, [actions]);
+    confirmationDialog.confirm(
+      {
+        title: "Delete Conversation",
+        description: `Are you sure you want to permanently delete "${conversation.title}"? This action cannot be undone.`,
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        variant: "destructive",
+      },
+      async () => {
+        if (isCurrentConversation) {
+          navigate(ROUTES.HOME);
+        }
+
+        if (isCurrentConversation) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        await handleError.delete(async () => {
+          await deleteConversation({ id: conversation._id });
+          // Trigger cache invalidation via event
+          dispatch("conversations-changed");
+        });
+      }
+    );
+  }, [
+    confirmationDialog,
+    conversation.title,
+    conversation._id,
+    deleteConversation,
+    isCurrentConversation,
+    navigate,
+    handleError,
+    dispatch,
+  ]);
+
+  const handlePinToggle = useCallback(
+    async (e?: React.MouseEvent) => {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      setIsMobilePopoverOpen(false);
+      setIsDesktopPopoverOpen(false);
+
+      await setPinned({
+        id: conversation._id,
+        isPinned: !conversation.isPinned,
+      });
+      // Trigger cache invalidation via event
+      dispatch("conversations-changed");
+    },
+    [conversation, setPinned, dispatch]
+  );
+
+  const handleExport = useCallback(
+    (format: "json" | "md") => {
+      if (exportingFormat || isDeleteJobInProgress) {
+        return;
+      }
+      setExportingFormat(format);
+    },
+    [exportingFormat, isDeleteJobInProgress]
+  );
 
   const handleShareClick = useCallback(() => {
     setIsMobilePopoverOpen(false);
@@ -137,15 +329,15 @@ export const ConversationItem = ({
               isMobile={isMobile}
               isMobilePopoverOpen={isMobilePopoverOpen}
               isDesktopPopoverOpen={isDesktopPopoverOpen}
-              exportingFormat={actions.exportingFormat}
-              isDeleteJobInProgress={actions.isDeleteJobInProgress}
+              exportingFormat={exportingFormat}
+              isDeleteJobInProgress={isDeleteJobInProgress}
               onMobilePopoverChange={setIsMobilePopoverOpen}
               onDesktopPopoverChange={setIsDesktopPopoverOpen}
               onStartEdit={handleStartEdit}
               onArchive={handleArchiveClick}
               onDelete={handleDeleteClick}
               onPinToggle={handlePinToggle}
-              onExport={actions.handleExport}
+              onExport={handleExport}
               onShare={handleShareClick}
             />
           </div>
@@ -153,27 +345,27 @@ export const ConversationItem = ({
 
         <ConversationContextMenu
           conversation={conversation}
-          exportingFormat={actions.exportingFormat}
-          isDeleteJobInProgress={actions.isDeleteJobInProgress}
+          exportingFormat={exportingFormat}
+          isDeleteJobInProgress={isDeleteJobInProgress}
           onPinToggle={handlePinToggle}
           onStartEdit={handleStartEdit}
           onShare={handleShareClick}
-          onExport={actions.handleExport}
+          onExport={handleExport}
           onArchive={handleArchiveClick}
           onDelete={handleDeleteClick}
         />
       </ContextMenu>
 
       <ConfirmationDialog
-        cancelText={actions.confirmationDialog.options.cancelText}
-        confirmText={actions.confirmationDialog.options.confirmText}
-        description={actions.confirmationDialog.options.description}
-        open={actions.confirmationDialog.isOpen}
-        title={actions.confirmationDialog.options.title}
-        variant={actions.confirmationDialog.options.variant}
-        onCancel={actions.confirmationDialog.handleCancel}
-        onConfirm={actions.confirmationDialog.handleConfirm}
-        onOpenChange={actions.confirmationDialog.handleOpenChange}
+        cancelText={confirmationDialog.options.cancelText}
+        confirmText={confirmationDialog.options.confirmText}
+        description={confirmationDialog.options.description}
+        open={confirmationDialog.isOpen}
+        title={confirmationDialog.options.title}
+        variant={confirmationDialog.options.variant}
+        onCancel={confirmationDialog.handleCancel}
+        onConfirm={confirmationDialog.handleConfirm}
+        onOpenChange={confirmationDialog.handleOpenChange}
       />
 
       <ControlledShareConversationDialog

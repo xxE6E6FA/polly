@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-
+import type { UserId } from "@/types";
 import { useUser } from "./use-user";
-import { type UserId } from "@/types";
 
 /**
  * Hook to get the user ID only for authenticated (non-anonymous) users.

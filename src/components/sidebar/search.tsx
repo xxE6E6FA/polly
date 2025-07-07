@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef } from "react";
-
 import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

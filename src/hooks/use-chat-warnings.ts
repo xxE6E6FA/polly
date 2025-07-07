@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useSet } from "./use-state-management";
 import { useUser } from "./use-user";
 
 export function useChatWarnings() {
@@ -13,22 +14,20 @@ export function useChatWarnings() {
     hasUnlimitedCalls,
   } = useUser();
 
-  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(
-    new Set()
-  );
+  const { has: isDismissed, add: dismissWarning } = useSet<string>();
 
   // Create a key based on messageCount for warning dismissal
   const warningDismissalKey = `warning-${messageCount}`;
 
   // Calculate warning states with improved logic
   const showLimitWarning = useMemo(() => {
-    if (!hasMessageLimit || !canSendMessage || hasUnlimitedCalls) {
+    if (!(hasMessageLimit && canSendMessage) || hasUnlimitedCalls) {
       return false;
     }
 
     // For anonymous users: show warning if they have sent any messages
     if (isAnonymous) {
-      return messageCount > 0 && !dismissedWarnings.has(warningDismissalKey);
+      return messageCount > 0 && !isDismissed(warningDismissalKey);
     }
 
     // For signed-in users: only show warning when they have less than 10 messages remaining
@@ -37,7 +36,7 @@ export function useChatWarnings() {
     return (
       effectiveRemainingMessages < 10 &&
       effectiveRemainingMessages > 0 &&
-      !dismissedWarnings.has(warningDismissalKey)
+      !isDismissed(warningDismissalKey)
     );
   }, [
     hasMessageLimit,
@@ -45,37 +44,36 @@ export function useChatWarnings() {
     hasUnlimitedCalls,
     isAnonymous,
     messageCount,
-    dismissedWarnings,
+    isDismissed,
     warningDismissalKey,
     monthlyUsage?.remainingMessages,
     remainingMessages,
   ]);
 
-  const showLimitReached = useMemo(
-    () => hasMessageLimit && !canSendMessage && !hasUnlimitedCalls,
-    [hasMessageLimit, canSendMessage, hasUnlimitedCalls]
-  );
+  const showLimitReached =
+    hasMessageLimit && !canSendMessage && !hasUnlimitedCalls;
 
   // Generate warning messages
   const limitWarningMessage = useMemo(() => {
     if (isAnonymous) {
       return {
-        text: `${remainingMessages} message${remainingMessages === 1 ? "" : "s"} remaining`,
+        text: `${remainingMessages} message${
+          remainingMessages === 1 ? "" : "s"
+        } remaining`,
         link: { text: "Sign in", href: "/auth" },
         suffix: "for unlimited chats",
       };
     }
-    if (hasUnlimitedCalls) {
-      return { text: "You have unlimited messages" };
+    if (!hasUnlimitedCalls) {
+      return {
+        text: `${monthlyUsage?.remainingMessages || 0} monthly message${
+          monthlyUsage?.remainingMessages === 1 ? "" : "s"
+        } remaining. `,
+        suffix: hasUserApiKeys
+          ? "Use BYOK models for unlimited chats"
+          : "Add API keys for unlimited chats",
+      };
     }
-    return {
-      text: `${monthlyUsage?.remainingMessages || 0} monthly message${
-        monthlyUsage?.remainingMessages === 1 ? "" : "s"
-      } remaining. `,
-      suffix: hasUserApiKeys
-        ? "Use BYOK models for unlimited chats"
-        : "Add API keys for unlimited chats",
-    };
   }, [
     isAnonymous,
     remainingMessages,
@@ -100,9 +98,9 @@ export function useChatWarnings() {
     };
   }, [isAnonymous, hasUserApiKeys]);
 
-  const dismissWarning = useCallback(() => {
-    setDismissedWarnings(prev => new Set([...prev, warningDismissalKey]));
-  }, [warningDismissalKey]);
+  const handleDismissWarning = useCallback(() => {
+    dismissWarning(warningDismissalKey);
+  }, [dismissWarning, warningDismissalKey]);
 
   return {
     // State
@@ -114,7 +112,7 @@ export function useChatWarnings() {
     limitReachedMessage,
 
     // Actions
-    dismissWarning,
+    dismissWarning: handleDismissWarning,
 
     // User state (for convenience)
     canSendMessage,

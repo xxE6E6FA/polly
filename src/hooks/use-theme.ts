@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { withDisabledAnimations } from "../lib/theme-utils";
-import { useServerTheme } from "../providers/theme-provider";
+import { withDisabledAnimations } from "@/lib/theme-utils";
+import { useServerTheme } from "@/providers/theme-provider";
 
 export function useTheme() {
   const serverTheme = useServerTheme();

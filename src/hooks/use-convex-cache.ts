@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  useQuery as useConvexQuery,
-  useMutation as useConvexMutation,
   useAction as useConvexAction,
+  useMutation as useConvexMutation,
+  useQuery as useConvexQuery,
 } from "convex/react";
-import { type FunctionReference } from "convex/server";
+import type { FunctionReference } from "convex/server";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Hook that combines Convex queries with React Query caching patterns
@@ -17,6 +17,7 @@ interface ConvexCacheOptions<TData> {
   clearCachedData?: () => void;
   invalidationEvents?: string[];
   enableOptimisticUpdates?: boolean;
+  onCacheInvalidation?: () => void;
 }
 
 // Helper function to normalize query keys
@@ -39,6 +40,7 @@ export function useConvexWithCache<
     clearCachedData,
     invalidationEvents = [],
     enableOptimisticUpdates = false,
+    onCacheInvalidation,
   } = options;
 
   // Local cache for instant rendering
@@ -57,6 +59,28 @@ export function useConvexWithCache<
 
   // Query client for cache management
   const queryClient = useQueryClient();
+
+  const handleCacheInvalidation = useCallback(() => {
+    const key = normalizeQueryKey(queryKey);
+    queryClient.invalidateQueries({ queryKey: key });
+
+    if (clearCachedData) {
+      clearCachedData();
+      setLocalCache(null);
+    }
+
+    if (enableOptimisticUpdates) {
+      setOptimisticData(null);
+    }
+
+    onCacheInvalidation?.();
+  }, [
+    queryKey,
+    queryClient,
+    clearCachedData,
+    enableOptimisticUpdates,
+    onCacheInvalidation,
+  ]);
 
   // Update caches when fresh data arrives
   useEffect(() => {
@@ -87,22 +111,8 @@ export function useConvexWithCache<
       return;
     }
 
-    const handleInvalidation = () => {
-      const key = normalizeQueryKey(queryKey);
-      queryClient.invalidateQueries({ queryKey: key });
-
-      if (clearCachedData) {
-        clearCachedData();
-        setLocalCache(null);
-      }
-
-      if (enableOptimisticUpdates) {
-        setOptimisticData(null);
-      }
-    };
-
     const eventHandlers = invalidationEvents.map(eventName => {
-      const handler = () => handleInvalidation();
+      const handler = () => handleCacheInvalidation();
       window.addEventListener(eventName, handler);
       return { eventName, handler };
     });
@@ -112,13 +122,7 @@ export function useConvexWithCache<
         window.removeEventListener(eventName, handler);
       });
     };
-  }, [
-    invalidationEvents,
-    queryKey,
-    queryClient,
-    clearCachedData,
-    enableOptimisticUpdates,
-  ]);
+  }, [invalidationEvents, handleCacheInvalidation]);
 
   // Optimistic update helpers
   const setOptimisticUpdate = useCallback(
@@ -141,6 +145,8 @@ export function useConvexWithCache<
 
   return {
     data: finalData,
+    freshData: convexData,
+    cachedData: localCache,
     isLoading: convexData === undefined,
     refetch: () => {
       const key = normalizeQueryKey(queryKey);
@@ -149,67 +155,40 @@ export function useConvexWithCache<
     setOptimisticUpdate,
     clearOptimisticUpdate,
     isOptimistic: Boolean(optimisticData),
+    invalidateCache: handleCacheInvalidation,
   };
 }
 
 /**
  * Enhanced mutation hook with React Query optimistic updates
  */
-interface ConvexMutationOptions<TData, TVariables> {
-  queryKey?: string | string[];
-  optimisticUpdate?: (variables: TVariables, currentData: TData) => TData;
-  onSuccess?: (data: unknown, variables: TVariables) => void;
-  onError?: (error: Error, variables: TVariables) => void;
+interface MutationOptions<TArgs, TResult> {
+  onSuccess?: (result: TResult, args: TArgs) => void;
+  onError?: (error: Error, args: TArgs) => void;
+  invalidationEvents?: string[];
   invalidateQueries?: string[];
-  dispatchEvents?: string[];
 }
 
 export function useConvexMutationWithCache<
-  TData = unknown,
-  TVariables = unknown,
+  TArgs = Record<string, unknown>,
+  TResult = unknown,
 >(
   convexMutation: FunctionReference<"mutation">,
-  options: ConvexMutationOptions<TData, TVariables> = {}
+  options: MutationOptions<TArgs, TResult> = {}
 ) {
   const {
-    queryKey,
-    optimisticUpdate,
     onSuccess,
     onError,
+    invalidationEvents = [],
     invalidateQueries = [],
-    dispatchEvents = [],
   } = options;
 
   const queryClient = useQueryClient();
   const convexMutationFn = useConvexMutation(convexMutation);
 
   const mutation = useMutation({
-    mutationFn: async (variables: TVariables) => {
+    mutationFn: async (variables: TArgs) => {
       return await convexMutationFn(variables as Record<string, unknown>);
-    },
-
-    onMutate: async (variables: TVariables) => {
-      if (!queryKey || !optimisticUpdate) return;
-
-      const key = normalizeQueryKey(queryKey);
-      await queryClient.cancelQueries({ queryKey: key });
-
-      const previousData = queryClient.getQueryData(key);
-
-      queryClient.setQueryData(key, (currentData: TData) => {
-        if (!currentData) return currentData;
-        return optimisticUpdate(variables, currentData);
-      });
-
-      return { previousData };
-    },
-
-    onError: (error: Error, variables: TVariables, context) => {
-      if (context?.previousData && queryKey) {
-        const key = normalizeQueryKey(queryKey);
-        queryClient.setQueryData(key, context.previousData);
-      }
-      onError?.(error, variables);
     },
 
     onSuccess: (data, variables) => {
@@ -219,7 +198,7 @@ export function useConvexMutationWithCache<
       });
 
       if (typeof window !== "undefined") {
-        dispatchEvents.forEach(eventName => {
+        invalidationEvents.forEach(eventName => {
           window.dispatchEvent(new CustomEvent(eventName));
         });
       }
@@ -227,12 +206,11 @@ export function useConvexMutationWithCache<
       onSuccess?.(data, variables);
     },
 
-    onSettled: () => {
-      if (queryKey) {
-        const key = normalizeQueryKey(queryKey);
-        queryClient.invalidateQueries({ queryKey: key });
-      }
-    },
+    onError: onError
+      ? (error: Error, variables: TArgs) => {
+          onError(error, variables);
+        }
+      : undefined,
   });
 
   return {
@@ -249,11 +227,11 @@ export function useConvexMutationWithCache<
 /**
  * Enhanced action hook with loading states
  */
-interface ConvexActionOptions<TResult, TVariables> {
+interface ActionOptions<TResult, TVariables> {
   onSuccess?: (data: TResult, variables: TVariables) => void;
   onError?: (error: Error, variables: TVariables) => void;
   invalidateQueries?: string[];
-  dispatchEvents?: string[];
+  invalidationEvents?: string[];
 }
 
 export function useConvexActionWithCache<
@@ -261,13 +239,13 @@ export function useConvexActionWithCache<
   TVariables = unknown,
 >(
   convexAction: FunctionReference<"action">,
-  options: ConvexActionOptions<TResult, TVariables> = {}
+  options: ActionOptions<TResult, TVariables> = {}
 ) {
   const {
     onSuccess,
     onError,
     invalidateQueries = [],
-    dispatchEvents = [],
+    invalidationEvents = [],
   } = options;
 
   const queryClient = useQueryClient();
@@ -285,7 +263,7 @@ export function useConvexActionWithCache<
       });
 
       if (typeof window !== "undefined") {
-        dispatchEvents.forEach(eventName => {
+        invalidationEvents.forEach(eventName => {
           window.dispatchEvent(new CustomEvent(eventName));
         });
       }
@@ -306,6 +284,33 @@ export function useConvexActionWithCache<
     error: mutation.error,
     isSuccess: mutation.isSuccess,
     reset: mutation.reset,
+  };
+}
+
+export function useLoadingState() {
+  const [isLoading, setIsLoading] = useState(false);
+  const operationCount = useRef(0);
+
+  const withLoadingState = useCallback(
+    async <T>(operation: () => Promise<T>): Promise<T> => {
+      operationCount.current++;
+      setIsLoading(true);
+
+      try {
+        return await operation();
+      } finally {
+        operationCount.current--;
+        if (operationCount.current === 0) {
+          setIsLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  return {
+    isLoading,
+    withLoadingState,
   };
 }
 
@@ -352,7 +357,31 @@ export function useQueryInvalidation() {
   };
 }
 
-// Aliases for backward compatibility
-export const useConvexWithOptimizedCache = useConvexWithCache;
-export const useConvexMutationOptimized = useConvexMutationWithCache;
-export const useConvexActionOptimized = useConvexActionWithCache;
+export function useEventDispatcher() {
+  const dispatch = useCallback((eventName: string, detail?: unknown) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(eventName, { detail }));
+    }
+  }, []);
+
+  const subscribe = useCallback(
+    (eventName: string, handler: (event: CustomEvent) => void) => {
+      if (typeof window === "undefined") {
+        return () => {
+          // No-op for server-side rendering
+        };
+      }
+
+      window.addEventListener(eventName, handler as EventListener);
+      return () => {
+        window.removeEventListener(eventName, handler as EventListener);
+      };
+    },
+    []
+  );
+
+  return {
+    dispatch,
+    subscribe,
+  };
+}

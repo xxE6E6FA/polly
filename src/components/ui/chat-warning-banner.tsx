@@ -1,6 +1,5 @@
-import React from "react";
-import { Link } from "react-router";
 import { XIcon } from "@phosphor-icons/react";
+import { Link } from "react-router";
 import { cn } from "@/lib/utils";
 
 // Constants for shared styles
@@ -9,10 +8,6 @@ const WARNING_BANNER_CLASSES =
 const WARNING_CONTENT_CLASSES =
   "inline-flex items-center gap-2 p-1.5 rounded-md transition-all duration-200 text-xs shadow-lg h-7 whitespace-nowrap";
 const WARNING_BUTTON_CLASSES = "p-0.5 rounded transition-colors duration-150";
-
-// Stable layout classes for home page
-const STABLE_WARNING_CONTAINER_CLASSES =
-  "flex justify-center h-7 mb-3 transition-opacity duration-200";
 
 type WarningMessage = {
   text: string;
@@ -27,101 +22,74 @@ type ChatWarningBannerProps = {
   variant?: "floating" | "stable";
 };
 
-export const ChatWarningBanner = React.memo<ChatWarningBannerProps>(
-  ({ type, message, onDismiss, variant = "floating" }) => {
-    const isWarning = type === "warning";
-    const colorClasses = isWarning
-      ? "bg-amber-50 dark:bg-amber-950/90 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 backdrop-blur-sm"
-      : "bg-red-50 dark:bg-red-950/90 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 backdrop-blur-sm";
+export const ChatWarningBanner = ({
+  type,
+  message,
+  onDismiss,
+  variant = "floating",
+}: ChatWarningBannerProps) => {
+  const isWarning = type === "warning";
+  const isStable = variant === "stable";
 
-    const buttonHoverClasses = isWarning
-      ? "hover:bg-amber-100 dark:hover:bg-amber-900/50"
-      : "hover:bg-red-100 dark:hover:bg-red-900/50";
+  const contentClasses = cn(
+    WARNING_CONTENT_CLASSES,
+    isWarning
+      ? "bg-warning-bg text-warning-foreground border border-warning-border"
+      : "bg-danger-bg text-danger border border-danger-border"
+  );
 
-    if (variant === "stable") {
-      return (
-        <div className={STABLE_WARNING_CONTAINER_CLASSES}>
-          <div className={cn(WARNING_CONTENT_CLASSES, colorClasses)}>
-            <div>
-              {message.text}
-              {message.link && (
-                <>
-                  {" "}
-                  <Link
-                    className="font-medium underline underline-offset-2 hover:no-underline"
-                    to={message.link.href}
-                  >
-                    {message.link.text}
-                  </Link>{" "}
-                </>
-              )}
-              {message.suffix && <> {message.suffix}</>}
-            </div>
-            {onDismiss && (
-              <button
-                aria-label="Dismiss"
-                className={cn(WARNING_BUTTON_CLASSES, buttonHoverClasses)}
-                onClick={onDismiss}
-              >
-                <XIcon className="h-3.5 w-3.5 hover:opacity-80" />
-              </button>
-            )}
-          </div>
-        </div>
-      );
-    }
+  const buttonClasses = cn(
+    WARNING_BUTTON_CLASSES,
+    isWarning
+      ? "hover:bg-warning-foreground/10 text-warning-foreground"
+      : "hover:bg-danger/10 text-danger"
+  );
 
-    return (
-      <div className={WARNING_BANNER_CLASSES}>
-        <div className={cn(WARNING_CONTENT_CLASSES, colorClasses)}>
-          <div>
-            {message.text}
-            {message.link && (
-              <>
-                {" "}
-                <Link
-                  className="font-medium underline underline-offset-2 hover:no-underline"
-                  to={message.link.href}
-                >
-                  {message.link.text}
-                </Link>{" "}
-              </>
-            )}
-            {message.suffix && <> {message.suffix}</>}
-          </div>
-          {onDismiss && (
-            <button
-              aria-label="Dismiss"
-              className={cn(WARNING_BUTTON_CLASSES, buttonHoverClasses)}
-              onClick={onDismiss}
-            >
-              <XIcon className="h-3.5 w-3.5 hover:opacity-80" />
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  }
-);
+  const containerClasses = isStable
+    ? "flex justify-center"
+    : WARNING_BANNER_CLASSES;
 
-ChatWarningBanner.displayName = "ChatWarningBanner";
-
-// Stable warning container that always reserves space
-export const StableWarningContainer = ({
-  children,
-  hasWarning,
-}: {
-  children?: React.ReactNode;
-  hasWarning: boolean;
-}) => {
   return (
-    <div
-      className={cn(
-        STABLE_WARNING_CONTAINER_CLASSES,
-        !hasWarning && "opacity-0"
-      )}
-    >
-      {children || <div className="h-7" />}
+    <div className={containerClasses}>
+      <div className={contentClasses}>
+        <span className="select-none">
+          {message.text}
+          {message.link && (
+            <>
+              {" "}
+              <Link
+                to={message.link.href}
+                className={cn(
+                  "underline underline-offset-2 transition-all duration-150",
+                  isWarning
+                    ? "hover:text-warning-foreground/80"
+                    : "hover:text-danger/80"
+                )}
+              >
+                {message.link.text}
+              </Link>
+            </>
+          )}
+          {message.suffix && (
+            <>
+              {" "}
+              <span>{message.suffix}</span>
+            </>
+          )}
+        </span>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className={buttonClasses}
+            aria-label="Dismiss warning"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
+
+ChatWarningBanner.displayName = "ChatWarningBanner";

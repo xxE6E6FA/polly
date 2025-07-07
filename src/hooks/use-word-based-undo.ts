@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-
 import useUndo from "use-undo";
+import { useDebounceTimeout } from "./use-timeout-management";
 
 type UseWordBasedUndoOptions = {
   debounceMs?: number;
@@ -8,7 +8,6 @@ type UseWordBasedUndoOptions = {
 };
 
 // Helper function to count words
-
 function countWords(text: string): number {
   return text
     .trim()
@@ -31,8 +30,8 @@ export function useWordBasedUndo({
 
   // Refs to track word boundaries and debouncing
   const lastWordCount = useRef(countWords(initialValue));
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const isUndoRedoAction = useRef(false);
+  const { debounce, clearDebounce } = useDebounceTimeout();
 
   // Helper function to check if we should save to history
   const shouldSaveToHistory = useCallback(
@@ -80,9 +79,7 @@ export function useWordBasedUndo({
       setLocalValue(newValue);
 
       // Clear existing debounce timeout
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
+      clearDebounce();
 
       // Check if we should save immediately (word boundary)
       if (shouldSaveToHistory(newValue, oldValue)) {
@@ -90,7 +87,7 @@ export function useWordBasedUndo({
         lastWordCount.current = countWords(newValue);
       } else {
         // Set debounced save for continuous typing
-        debounceTimeout.current = setTimeout(() => {
+        debounce(() => {
           if (newValue !== undoState.present) {
             setUndoValue(newValue);
             lastWordCount.current = countWords(newValue);
@@ -104,6 +101,8 @@ export function useWordBasedUndo({
       setUndoValue,
       undoState.present,
       debounceMs,
+      clearDebounce,
+      debounce,
     ]
   );
 
@@ -136,19 +135,15 @@ export function useWordBasedUndo({
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
+      clearDebounce();
     };
-  }, []);
+  }, [clearDebounce]);
 
   // Reset function wrapper that also updates local state
   const resetValue = useCallback(
     (newInitialValue: string) => {
       // Clear any pending debounce
-      if (debounceTimeout.current) {
-        clearTimeout(debounceTimeout.current);
-      }
+      clearDebounce();
 
       // Update local state
       setLocalValue(newInitialValue);
@@ -158,7 +153,7 @@ export function useWordBasedUndo({
       // This clears past and future arrays and sets the new value as present
       reset(newInitialValue);
     },
-    [reset]
+    [reset, clearDebounce]
   );
 
   return {

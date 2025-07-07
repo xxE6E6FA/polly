@@ -71,17 +71,6 @@ export const messageMetadataSchema = v.object({
   searchQuery: v.optional(v.string()),
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
-  // Deprecated: This field is being removed. Use citations instead.
-  // Will be removed after migration
-  searchResults: v.optional(
-    v.array(
-      v.object({
-        title: v.string(),
-        url: v.string(),
-        snippet: v.optional(v.string()),
-      })
-    )
-  ),
 });
 
 // Common args for model and provider

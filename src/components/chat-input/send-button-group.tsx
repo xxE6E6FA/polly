@@ -1,3 +1,4 @@
+import type { Id } from "@convex/_generated/dataModel";
 import {
   CaretDownIcon,
   ChatCircleIcon,
@@ -5,8 +6,7 @@ import {
   PaperPlaneTiltIcon,
   SquareIcon,
 } from "@phosphor-icons/react";
-import { useState, useEffect } from "react";
-
+import { useEffect, useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { cn } from "@/lib/utils";
-import { type ConversationId } from "@/types";
+import type { ConversationId, ReasoningConfig } from "@/types";
 
 type SendButtonGroupProps = {
   canSend: boolean;
@@ -24,11 +24,18 @@ type SendButtonGroupProps = {
   isSummarizing: boolean;
   hasExistingMessages: boolean;
   conversationId?: ConversationId;
+  hasInputText: boolean;
   onSend: () => void;
   onStop?: () => void;
-  onSendAsNewConversation?: (navigate: boolean) => void;
+  onSendAsNewConversation?: (
+    navigate: boolean,
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig
+  ) => void;
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
+  personaId?: Id<"personas"> | null;
+  reasoningConfig?: ReasoningConfig;
 };
 
 export const SendButtonGroup = ({
@@ -38,11 +45,14 @@ export const SendButtonGroup = ({
   isSummarizing,
   hasExistingMessages,
   conversationId,
+  hasInputText,
   onSend,
   onStop,
   onSendAsNewConversation,
   hasApiKeys,
   hasEnabledModels,
+  personaId,
+  reasoningConfig,
 }: SendButtonGroupProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -53,7 +63,8 @@ export const SendButtonGroup = ({
     hasExistingMessages &&
     conversationId &&
     onSendAsNewConversation &&
-    !isStreaming;
+    !isStreaming &&
+    hasInputText;
 
   useEffect(() => {
     const shouldExpand = canSend && shouldShowDropdown;
@@ -86,8 +97,8 @@ export const SendButtonGroup = ({
           "h-9",
           "transition-all",
           isCollapsing
-            ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
-            : "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+            ? "ease-&lsqb;cubic-bezier(0.5,0,0.75,0)&rsqb;"
+            : "ease-&lsqb;cubic-bezier(0.34,1.56,0.64,1)&rsqb;",
           isExpanded
             ? "w-[72px] rounded-full duration-500"
             : "w-9 rounded-full duration-300",
@@ -126,7 +137,7 @@ export const SendButtonGroup = ({
                   "inline-flex items-center justify-center",
                   "transition-all",
                   isExpanded && !isCollapsing
-                    ? "opacity-100 scale-100 duration-500 delay-100 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]"
+                    ? "opacity-100 scale-100 duration-500 delay-100 ease-&lsqb;cubic-bezier(0.68,-0.55,0.265,1.55)&rsqb;"
                     : isCollapsing
                       ? "opacity-0 scale-90 duration-200 ease-out"
                       : "opacity-0 scale-75 duration-300 ease-out",
@@ -163,7 +174,9 @@ export const SendButtonGroup = ({
                 "transition-all duration-200",
                 "hover:translate-x-0.5"
               )}
-              onClick={() => onSendAsNewConversation?.(true)}
+              onClick={() =>
+                onSendAsNewConversation?.(true, personaId, reasoningConfig)
+              }
             >
               <div className="mt-0.5 flex-shrink-0">
                 <ChatCircleIcon className="h-4 w-4 text-primary" />
@@ -187,7 +200,9 @@ export const SendButtonGroup = ({
                 "transition-all duration-200",
                 "hover:translate-x-0.5"
               )}
-              onClick={() => onSendAsNewConversation?.(false)}
+              onClick={() =>
+                onSendAsNewConversation?.(false, personaId, reasoningConfig)
+              }
             >
               <div className="mt-0.5 flex-shrink-0">
                 <GitBranchIcon className="h-4 w-4 text-primary" />
@@ -246,7 +261,7 @@ export const SendButtonGroup = ({
               "transition-all",
               isCollapsing || !canSend
                 ? "ease-out duration-300"
-                : "ease-[cubic-bezier(0.34,1.56,0.64,1)] duration-500",
+                : "ease-&lsqb;cubic-bezier(0.34,1.56,0.64,1)&rsqb; duration-500",
               canSend && !isCollapsing
                 ? "scale-100 rotate-0"
                 : "scale-90 rotate-0"

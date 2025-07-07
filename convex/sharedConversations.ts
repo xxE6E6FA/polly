@@ -1,7 +1,7 @@
-import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import { ConvexError, v } from "convex/values";
 
-import { type Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";

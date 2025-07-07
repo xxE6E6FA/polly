@@ -1,17 +1,16 @@
-import * as React from "react";
 import {
   CheckCircleIcon,
-  XCircleIcon,
   ClockIcon,
   DownloadIcon,
-  UploadIcon,
-  XIcon,
   TrashIcon,
+  UploadIcon,
+  XCircleIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-
-import { cn } from "@/lib/utils";
+import * as React from "react";
 import { Spinner } from "@/components/spinner";
-import { type BackgroundJob } from "@/hooks/use-background-jobs";
+import type { BackgroundJob } from "@/hooks/use-background-jobs";
+import { cn } from "@/lib/utils";
 
 type ProgressProps = {
   value?: number;
@@ -83,13 +82,14 @@ const JobProgressCard = React.forwardRef<HTMLDivElement, JobProgressCardProps>(
     const getTypeIcon = () => {
       if (job.type === "export") {
         return <DownloadIcon className="h-3.5 w-3.5" />;
-      } else if (job.type === "import") {
-        return <UploadIcon className="h-3.5 w-3.5" />;
-      } else if (job.type === "bulk_delete") {
-        return <TrashIcon className="h-3.5 w-3.5" />;
-      } else {
+      }
+      if (job.type === "import") {
         return <UploadIcon className="h-3.5 w-3.5" />;
       }
+      if (job.type === "bulk_delete") {
+        return <TrashIcon className="h-3.5 w-3.5" />;
+      }
+      return <UploadIcon className="h-3.5 w-3.5" />;
     };
 
     const getStatusText = () => {
@@ -109,9 +109,13 @@ const JobProgressCard = React.forwardRef<HTMLDivElement, JobProgressCardProps>(
 
     const getActivityText = () => {
       let action = "Processing";
-      if (job.type === "export") action = "Exporting";
-      else if (job.type === "import") action = "Importing";
-      else if (job.type === "bulk_delete") action = "Deleting";
+      if (job.type === "export") {
+        action = "Exporting";
+      } else if (job.type === "import") {
+        action = "Importing";
+      } else if (job.type === "bulk_delete") {
+        action = "Deleting";
+      }
 
       const itemText = job.total === 1 ? "conversation" : "conversations";
       return `${action} ${job.total} ${itemText}`;
@@ -213,7 +217,9 @@ const MultiJobProgress = React.forwardRef<
   HTMLDivElement,
   MultiJobProgressProps
 >(({ jobs, onRemoveJob, className }, ref) => {
-  if (jobs.length === 0) return null;
+  if (jobs.length === 0) {
+    return null;
+  }
 
   return (
     <div ref={ref} className={cn("space-y-2", className)}>

@@ -1,21 +1,21 @@
 import { v } from "convex/values";
-
-import { type Id } from "./_generated/dataModel";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
-  internalQuery,
 } from "./_generated/server";
-import { internal } from "./_generated/api";
+import { withRetry } from "./ai/error_handlers";
+import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 import {
   attachmentSchema,
-  messageRoleSchema,
-  webCitationSchema,
   messageMetadataSchema,
+  messageRoleSchema,
+  reasoningConfigSchema,
+  webCitationSchema,
 } from "./lib/schemas";
-import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
-import { withRetry } from "./ai/error_handlers";
 
 export const create = mutation({
   args: {
@@ -24,6 +24,7 @@ export const create = mutation({
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
     parentId: v.optional(v.id("messages")),
     isMainBranch: v.optional(v.boolean()),
     reasoning: v.optional(v.string()),
@@ -190,7 +191,7 @@ export const internalUpdate = internalMutation({
         ) {
           retries++;
           await new Promise(resolve =>
-            setTimeout(resolve, 10 * Math.pow(2, retries - 1))
+            setTimeout(resolve, 10 * 2 ** (retries - 1))
           );
           continue;
         }
@@ -256,7 +257,9 @@ export const remove = mutation({
               .runMutation(internal.users.decrementTotalMessageCountAtomic, {
                 userId: conversation.userId,
               })
-              .then(() => {})
+              .then(() => {
+                // Fire-and-forget background job
+              })
           );
         }
       }
@@ -348,7 +351,9 @@ export const removeMultiple = mutation({
             userId,
             decrement: messageCount,
           })
-          .then(() => {})
+          .then(() => {
+            // Fire-and-forget background job
+          })
       );
     }
 
@@ -427,7 +432,7 @@ export const internalAtomicUpdate = internalMutation({
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
 
-    if (!appendContent && !appendReasoning) {
+    if (!(appendContent || appendReasoning)) {
       if (Object.keys(filteredUpdates).length === 0) {
         return;
       }
@@ -482,26 +487,6 @@ export const internalGetAllInConversation = internalMutation({
       )
       .order("asc")
       .collect();
-  },
-});
-
-export const runSearchResultsMigration = mutation({
-  args: {},
-  handler: async ctx => {
-    const messages = await ctx.db.query("messages").collect();
-    let migratedCount = 0;
-
-    for (const message of messages) {
-      if (message.metadata?.searchResults) {
-        const { searchResults: _unused, ...cleanMetadata } = message.metadata;
-        await ctx.db.patch(message._id, {
-          metadata: cleanMetadata,
-        });
-        migratedCount++;
-      }
-    }
-
-    return { migratedCount, totalMessages: messages.length };
   },
 });
 

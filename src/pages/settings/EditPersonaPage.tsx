@@ -1,19 +1,17 @@
-import { useEffect, useState } from "react";
-
-import { useNavigate, useParams } from "react-router";
+import { api } from "convex/_generated/api";
+import type { Id } from "convex/_generated/dataModel";
 
 import { useQuery } from "convex/react";
-import { type EmojiClickData } from "emoji-picker-react";
-
-import { api } from "convex/_generated/api";
-import { type Id } from "convex/_generated/dataModel";
+import type { EmojiClickData } from "emoji-picker-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 
 import {
   PersonaForm,
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { Button } from "@/components/ui/button";
-import { useConvexMutationOptimized } from "@/hooks/use-convex-cache";
+import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
 import { ROUTES } from "@/lib/routes";
 
 export default function EditPersonaPage() {
@@ -31,27 +29,27 @@ export default function EditPersonaPage() {
 
   // Use optimized mutation hooks
   const { mutateAsync: updatePersona, isLoading: isUpdating } =
-    useConvexMutationOptimized(api.personas.update, {
+    useConvexMutationWithCache(api.personas.update, {
       onSuccess: () => {
         navigate(ROUTES.SETTINGS.PERSONAS);
       },
-      onError: error => {
+      onError: (error: Error) => {
         console.error("Failed to update persona:", error);
       },
       invalidateQueries: ["personas"],
-      dispatchEvents: ["personas-changed"],
+      invalidationEvents: ["personas-changed"],
     });
 
   const { mutateAsync: deletePersona, isLoading: isDeleting } =
-    useConvexMutationOptimized(api.personas.remove, {
+    useConvexMutationWithCache(api.personas.remove, {
       onSuccess: () => {
         navigate(ROUTES.SETTINGS.PERSONAS);
       },
-      onError: error => {
+      onError: (error: Error) => {
         console.error("Failed to delete persona:", error);
       },
       invalidateQueries: ["personas"],
-      dispatchEvents: ["personas-changed"],
+      invalidationEvents: ["personas-changed"],
     });
 
   const isLoading = isUpdating || isDeleting;
@@ -69,7 +67,7 @@ export default function EditPersonaPage() {
   }, [persona]);
 
   const handleUpdatePersona = async () => {
-    if (!formData?.name.trim() || !formData?.prompt.trim() || !personaId) {
+    if (!(formData?.name.trim() && formData?.prompt.trim() && personaId)) {
       return;
     }
 
@@ -114,7 +112,7 @@ export default function EditPersonaPage() {
     );
   }
 
-  if (!persona || !formData) {
+  if (!(persona && formData)) {
     return null;
   }
 

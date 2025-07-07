@@ -2,17 +2,17 @@ import Anthropic from "@anthropic-ai/sdk";
 import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
+import {
+  type AnthropicStreamEvent,
+  calculateAnthropicMaxTokens,
+  convertToAnthropicMessages,
+  processAnthropicStream,
+} from "../lib/shared/anthropic_stream";
+import { type StreamMessage } from "../types";
 import { handleStreamOperation } from "./error_handlers";
 import { ResourceManager } from "./resource_manager";
-import { type StreamMessage } from "../types";
-import { StreamHandler } from "./streaming";
 import { StreamInterruptor } from "./stream_interruptor";
-import {
-  processAnthropicStream,
-  convertToAnthropicMessages,
-  calculateAnthropicMaxTokens,
-  type AnthropicStreamEvent,
-} from "../lib/shared/anthropic_stream";
+import { StreamHandler } from "./streaming";
 
 export class AnthropicNativeHandler {
   private anthropic: Anthropic;

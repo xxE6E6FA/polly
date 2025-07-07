@@ -1,67 +1,17 @@
-import { useOptimisticUpdate } from "./use-optimistic-updates";
-import { api } from "../../convex/_generated/api";
-import { type Doc, type Id } from "../../convex/_generated/dataModel";
+import { api } from "@convex/_generated/api";
+import type { Doc, Id } from "@convex/_generated/dataModel";
+import {
+  useOptimisticItemUpdate,
+  useOptimisticToggle,
+  useOptimisticUpdate,
+} from "./use-optimistic-updates";
 import { useQueryUserId } from "./use-query-user-id";
 
-// Utility function to generate temporary IDs using the same pattern as the codebase
 const generateTempId = (prefix: string): string => {
-  return `temp-${prefix}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+  return `temp-${prefix}-${Math.random()
+    .toString(36)
+    .substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
 };
-
-/**
- * Optimistic hook for toggling model enabled/disabled state
- */
-export function useOptimisticModelToggle() {
-  const userId = useQueryUserId();
-
-  return useOptimisticUpdate<
-    Doc<"userModels">[],
-    { modelId: string; modelData?: Record<string, unknown> }
-  >({
-    convexMutation: api.userModels.toggleModel,
-    queryKey: "userModels",
-    optimisticUpdate: (variables, currentData) => {
-      if (!Array.isArray(currentData)) return currentData;
-
-      const existingModel = currentData.find(
-        model => model.modelId === variables.modelId
-      );
-
-      if (existingModel) {
-        // Remove the model (toggle off)
-        return currentData.filter(model => model.modelId !== variables.modelId);
-      } else if (variables.modelData && userId) {
-        // Add the model (toggle on) - ensure all required fields are present
-        const newModel: Doc<"userModels"> = {
-          _id: generateTempId("usermodel") as Id<"userModels">,
-          _creationTime: Date.now(),
-          userId,
-          modelId: variables.modelData.modelId as string,
-          name: variables.modelData.name as string,
-          provider: variables.modelData.provider as string,
-          contextLength: variables.modelData.contextLength as number,
-          maxOutputTokens: variables.modelData.maxOutputTokens as
-            | number
-            | undefined,
-          supportsImages: variables.modelData.supportsImages as boolean,
-          supportsTools: variables.modelData.supportsTools as boolean,
-          supportsReasoning: variables.modelData.supportsReasoning as boolean,
-          inputModalities: variables.modelData.inputModalities as
-            | string[]
-            | undefined,
-          selected: false,
-          free: variables.modelData.free as boolean | undefined,
-          createdAt: Date.now(),
-        };
-
-        return [...currentData, newModel];
-      }
-
-      return currentData;
-    },
-    invalidateQueries: ["userModels", "userModelsByProvider"],
-  });
-}
 
 /**
  * Optimistic hook for toggling built-in persona enabled/disabled state
@@ -76,7 +26,9 @@ export function useOptimisticPersonaToggle() {
     convexMutation: api.personas.toggleBuiltInPersona,
     queryKey: "userPersonaSettings",
     optimisticUpdate: (variables, currentData) => {
-      if (!Array.isArray(currentData) || !userId) return currentData;
+      if (!(Array.isArray(currentData) && userId)) {
+        return currentData;
+      }
 
       const existingSetting = currentData.find(
         setting => setting.personaId === variables.personaId
@@ -93,20 +45,19 @@ export function useOptimisticPersonaToggle() {
               }
             : setting
         );
-      } else {
-        // Create new setting with all required fields
-        const newSetting: Doc<"userPersonaSettings"> = {
-          _id: generateTempId("persona-setting") as Id<"userPersonaSettings">,
-          _creationTime: Date.now(),
-          userId,
-          personaId: variables.personaId,
-          isDisabled: variables.isDisabled,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-
-        return [...currentData, newSetting];
       }
+      // Create new setting with all required fields
+      const newSetting: Doc<"userPersonaSettings"> = {
+        _id: generateTempId("persona-setting") as Id<"userPersonaSettings">,
+        _creationTime: Date.now(),
+        userId,
+        personaId: variables.personaId,
+        isDisabled: variables.isDisabled,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      return [...currentData, newSetting];
     },
     invalidateQueries: ["userPersonaSettings"],
   });
@@ -114,6 +65,7 @@ export function useOptimisticPersonaToggle() {
 
 /**
  * Optimistic hook for toggling personas globally enabled/disabled
+ * Uses the simplified toggle pattern
  */
 export function useOptimisticPersonasGlobalToggle() {
   const userId = useQueryUserId();
@@ -122,7 +74,9 @@ export function useOptimisticPersonasGlobalToggle() {
     convexMutation: api.userSettings.togglePersonasEnabled,
     queryKey: "userSettings",
     optimisticUpdate: (variables, currentData) => {
-      if (!userId) return currentData;
+      if (!userId) {
+        return currentData;
+      }
 
       if (!currentData) {
         // Create new settings if none exist with all required fields
@@ -148,6 +102,7 @@ export function useOptimisticPersonasGlobalToggle() {
 
 /**
  * Optimistic hook for updating user settings
+ * Uses the simplified item update pattern
  */
 export function useOptimisticUserSettingsUpdate() {
   const userId = useQueryUserId();
@@ -165,7 +120,9 @@ export function useOptimisticUserSettingsUpdate() {
     convexMutation: api.userSettings.updateUserSettings,
     queryKey: "userSettings",
     optimisticUpdate: (variables, currentData) => {
-      if (!userId) return currentData;
+      if (!userId) {
+        return currentData;
+      }
 
       if (!currentData) {
         // Create new settings if none exist with all required fields
@@ -186,5 +143,40 @@ export function useOptimisticUserSettingsUpdate() {
       };
     },
     invalidateQueries: ["userSettings"],
+  });
+}
+
+// Convenience hooks using the new patterns
+export function useOptimisticBooleanToggle<
+  TItem extends Record<string, unknown>,
+>(
+  convexMutation: Parameters<typeof useOptimisticToggle>[0]["convexMutation"],
+  queryKey: string,
+  itemId: string,
+  toggleProperty: keyof TItem
+) {
+  return useOptimisticToggle<TItem>({
+    convexMutation,
+    queryKey,
+    itemId,
+    toggleProperty,
+    invalidateQueries: [queryKey],
+  });
+}
+
+export function useOptimisticSettingsUpdate<
+  TItem extends Record<string, unknown>,
+>(
+  convexMutation: Parameters<
+    typeof useOptimisticItemUpdate
+  >[0]["convexMutation"],
+  queryKey: string,
+  itemId: string
+) {
+  return useOptimisticItemUpdate<TItem>({
+    convexMutation,
+    queryKey,
+    itemId,
+    invalidateQueries: [queryKey],
   });
 }

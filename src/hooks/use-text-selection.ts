@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useDebounceTimeout } from "./use-timeout-management";
 
 type SelectionInfo = {
   text: string;
@@ -18,16 +19,14 @@ type UseTextSelectionReturn = {
 export function useTextSelection(): UseTextSelectionReturn {
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-  const selectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { debounce, clearDebounce } = useDebounceTimeout();
 
   const handleSelectionChange = useCallback(() => {
-    // Clear existing timeout
-    if (selectionTimeoutRef.current) {
-      clearTimeout(selectionTimeoutRef.current);
-    }
+    // Clear existing timeout and set new one
+    clearDebounce();
 
     // Small delay to let the selection settle
-    selectionTimeoutRef.current = setTimeout(() => {
+    debounce(() => {
       const windowSelection = window.getSelection();
 
       if (!windowSelection || windowSelection.rangeCount === 0) {
@@ -80,7 +79,7 @@ export function useTextSelection(): UseTextSelectionReturn {
         isInAssistantMessage,
       });
     }, 100);
-  }, []);
+  }, [debounce, clearDebounce]);
 
   const clearSelection = useCallback(() => {
     if (isLocked) {
@@ -121,11 +120,9 @@ export function useTextSelection(): UseTextSelectionReturn {
 
     return () => {
       document.removeEventListener("selectionchange", handleSelectionChange);
-      if (selectionTimeoutRef.current) {
-        clearTimeout(selectionTimeoutRef.current);
-      }
+      clearDebounce();
     };
-  }, [handleSelectionChange]);
+  }, [handleSelectionChange, clearDebounce]);
 
   // Clear selection when clicking outside
   useEffect(() => {

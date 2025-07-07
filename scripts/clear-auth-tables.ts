@@ -1,6 +1,5 @@
 import { ConvexHttpClient } from "convex/browser";
 import * as dotenv from "dotenv";
-
 import { api } from "../convex/_generated/api";
 
 // Load environment variables

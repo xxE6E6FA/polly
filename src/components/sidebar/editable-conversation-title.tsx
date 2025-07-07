@@ -133,8 +133,7 @@ export const EditableConversationTitle = ({
         isMobile ? "text-xs" : "text-xs",
         "border-0 bg-transparent p-0",
         !isEditing && "cursor-default",
-        !isEditing &&
-          !isMobile &&
+        !(isEditing || isMobile) &&
           isCurrentConversation &&
           "cursor-text hover:opacity-80",
         // Enable text selection when editing
