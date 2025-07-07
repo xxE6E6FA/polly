@@ -2,7 +2,7 @@ import { v } from "convex/values";
 
 import { api, internal } from "./_generated/api";
 import { action, internalQuery, mutation, query } from "./_generated/server";
-import { getOptionalUserId, requireAuth } from "./lib/auth";
+import { getCurrentUserId, requireAuth } from "./lib/auth";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -181,7 +181,7 @@ export const storeClientEncryptedApiKey = mutation({
 export const getUserApiKeys = query({
   args: {},
   handler: async ctx => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       return [];
@@ -261,7 +261,7 @@ export const validateApiKey = mutation({
 export const hasAnyApiKey = query({
   args: {},
   handler: async ctx => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       // For anonymous users, check if any environment API keys are available
@@ -322,11 +322,7 @@ export const getDecryptedApiKey = action({
       }
     );
 
-    if (
-      !apiKeyRecord ||
-      !apiKeyRecord.encryptedKey ||
-      !apiKeyRecord.initializationVector
-    ) {
+    if (!(apiKeyRecord?.encryptedKey && apiKeyRecord.initializationVector)) {
       return getEnvironmentApiKey(args.provider);
     }
 
@@ -373,7 +369,7 @@ export const getClientEncryptedApiKey = query({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       return null;

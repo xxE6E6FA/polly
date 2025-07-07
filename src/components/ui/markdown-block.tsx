@@ -1,14 +1,13 @@
-import React, {
-  useMemo,
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
-
-import { type LLMOutputComponent } from "@llm-ui/react";
-import Markdown from "markdown-to-jsx";
+import type { LLMOutputComponent } from "@llm-ui/react";
 import katex from "katex";
+import Markdown from "markdown-to-jsx";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import "katex/dist/katex.min.css";
 
 import { generateHeadingId } from "@/lib/utils";
@@ -52,7 +51,9 @@ function bufferIncompleteEntities(text: string): string {
 
 // Function to clean up unwanted escape characters
 function cleanupEscapes(text: string): string {
-  if (!text) return text;
+  if (!text) {
+    return text;
+  }
 
   return text
     .replace(/\\(\[|\])/g, "$1") // Remove backslashes before citation brackets
@@ -170,7 +171,9 @@ function preprocessLaTeX(markdown: string): string {
 
 // Preprocess citations to styled links
 function preprocessCitations(text: string): string {
-  if (!text) return text;
+  if (!text) {
+    return text;
+  }
 
   let processed = cleanupEscapes(text);
 
@@ -180,7 +183,9 @@ function preprocessCitations(text: string): string {
     (match, citationGroup) => {
       // Extract all citation numbers from the group
       const citations = citationGroup.match(/\[\d+\]/g);
-      if (!citations || citations.length <= 1) return match;
+      if (!citations || citations.length <= 1) {
+        return match;
+      }
 
       // Build the wrapped group (no whitespace around or between citations)
       const wrappedCitations = citations
@@ -198,9 +203,12 @@ function preprocessCitations(text: string): string {
   // Fix: Use a more robust approach to avoid indexOf issues
   const citationMatches: Array<{ match: string; num: string; index: number }> =
     [];
-  let match;
 
-  while ((match = SINGLE_CITATION_PATTERN.exec(processed)) !== null) {
+  // Reset the regex lastIndex to ensure proper iteration
+  SINGLE_CITATION_PATTERN.lastIndex = 0;
+
+  let match = SINGLE_CITATION_PATTERN.exec(processed);
+  while (match !== null) {
     // Check if this citation is inside a code block
     const beforeMatch = processed.substring(0, match.index);
     const codeBlockCount = (beforeMatch.match(/```/g) || []).length;
@@ -217,6 +225,8 @@ function preprocessCitations(text: string): string {
         index: match.index,
       });
     }
+
+    match = SINGLE_CITATION_PATTERN.exec(processed);
   }
 
   // Process matches in reverse order to maintain correct indices
@@ -264,7 +274,11 @@ const createHeadingOverride = (
     });
   }
 
-  return headingOverrideCache.get(key)!;
+  const cachedOverride = headingOverrideCache.get(key);
+  if (!cachedOverride) {
+    throw new Error(`Heading override not found for key: ${key}`);
+  }
+  return cachedOverride;
 };
 
 // Citation Group component with stable hover state
@@ -369,7 +383,9 @@ EmphasisOverride.displayName = "EmphasisOverride";
 
 // Function to remove parentheses around italic text
 function removeParenthesesAroundItalics(text: string): string {
-  if (!text) return text;
+  if (!text) {
+    return text;
+  }
 
   // Helper function to process italic patterns
   const processItalicPattern =

@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { ANTHROPIC_BUDGET_MAP } from "@shared/reasoning-config";
+import type { AnthropicStreamOptions } from "@/types";
 import {
-  processAnthropicStream,
-  convertToAnthropicMessages,
-  calculateAnthropicMaxTokens,
   type AnthropicStreamEvent,
+  calculateAnthropicMaxTokens,
+  convertToAnthropicMessages,
+  processAnthropicStream,
 } from "../../../convex/lib/shared/anthropic_stream";
-import { ANTHROPIC_BUDGET_MAP } from "../../../convex/lib/shared/reasoning_config";
-import { type AnthropicStreamOptions } from "@/types";
 
 /**
  * Client-side Anthropic native streaming for reasoning models

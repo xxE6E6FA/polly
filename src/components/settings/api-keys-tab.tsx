@@ -1,7 +1,7 @@
+import { api } from "@convex/_generated/api";
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,14 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useOptimisticUserSettingsUpdate } from "@/hooks/use-optimistic-toggles";
 import { useUser } from "@/hooks/use-user";
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { useOptimisticUserSettingsUpdate } from "@/hooks/use-optimistic-toggles";
 import { validateApiKey } from "@/lib/validation";
-
-import { SettingsHeader } from "./settings-header";
-import { api } from "../../../convex/_generated/api";
 import { Badge } from "../ui/badge";
+import { SettingsHeader } from "./settings-header";
 
 type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
 
@@ -179,12 +177,14 @@ export const ApiKeysTab = () => {
           >
         ).map(([provider, info]) => {
           const keyInfo = apiKeys.find(key => key.provider === provider);
-          const isConnected = keyInfo?.hasKey || false;
+          const isConnected = keyInfo?.hasKey;
 
           return (
             <div
               key={provider}
-              className={`${getProviderCardStyle(isConnected)} flex h-full flex-col justify-between`}
+              className={`${getProviderCardStyle(
+                Boolean(isConnected)
+              )} flex h-full flex-col justify-between`}
             >
               <div className="mb-4 flex flex-shrink-0 items-start justify-between">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -240,7 +240,10 @@ export const ApiKeysTab = () => {
                         disabled
                         className="border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
                         id={provider}
-                        placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
+                        placeholder={`Current: ${
+                          keyInfo?.partialKey ||
+                          info.placeholder.replace(/\./g, "•")
+                        }`}
                         type="text"
                       />
                     </div>

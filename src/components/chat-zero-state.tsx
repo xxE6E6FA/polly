@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-import { Link, useNavigate } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   CheckCircleIcon,
   KeyIcon,
@@ -9,16 +7,17 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { useCreateConversation } from "@/hooks/use-conversations";
-import { useUser } from "@/hooks/use-user";
+import { usePrivateMode } from "@/contexts/private-mode-context";
+import { useChatService } from "@/hooks/use-chat-service";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useUser } from "@/hooks/use-user";
 import { ROUTES } from "@/lib/routes";
-
+import type { Attachment, ReasoningConfig } from "@/types";
 import { ChatInput, type ChatInputRef } from "./chat-input";
 import { PromptsTickerWrapper } from "./prompts-ticker";
-import { api } from "../../convex/_generated/api";
 
 const SetupChecklist = ({
   hasApiKeys,
@@ -39,7 +38,7 @@ const SetupChecklist = ({
     setIsDismissed(true);
   };
 
-  const needsSetup = !hasApiKeys || !hasEnabledModels;
+  const needsSetup = !(hasApiKeys && hasEnabledModels);
 
   if (!needsSetup || isDismissed) {
     return null;
@@ -176,7 +175,7 @@ const ConditionalSetupChecklist = ({
   if (
     hasApiKeys !== undefined &&
     hasEnabledModels !== undefined &&
-    (!hasApiKeys || !hasEnabledModels)
+    !(hasApiKeys && hasEnabledModels)
   ) {
     return (
       <SetupChecklist
@@ -194,7 +193,6 @@ export const ChatZeroState = () => {
     user,
     isLoading: userLoading,
     canSendMessage,
-    remainingMessages,
     messageCount,
     hasMessageLimit,
     hasUnlimitedCalls,
@@ -202,21 +200,11 @@ export const ChatZeroState = () => {
   const queryUserId = useQueryUserId();
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
-  const { createConversation } = useCreateConversation();
+  const chatService = useChatService({
+    overrideMode: "regular",
+  });
   const navigate = useNavigate();
-
-  // Track if we're on mobile
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640); // Sm breakpoint
-    };
-
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
+  const { isPrivateMode } = usePrivateMode();
 
   const hasEnabledModels = useQuery(
     api.userModels.hasUserModels,
@@ -227,36 +215,65 @@ export const ChatZeroState = () => {
     user && !user.isAnonymous ? {} : "skip"
   );
 
-  const handleQuickPrompt = useCallback(
-    async (prompt: string) => {
-      // Use the appropriate input based on current viewport
-      const targetInput = isMobile
-        ? mobileChatInputRef.current
-        : chatInputRef.current;
-
-      if (targetInput) {
-        targetInput.setInput(prompt);
-        targetInput.focus();
-      } else {
-        // Fallback: create conversation directly
-        const conversationId = await createConversation({
-          firstMessage: prompt,
-          userId: queryUserId || undefined,
-          generateTitle: true,
+  const handleSendMessage = useCallback(
+    async (
+      content: string,
+      attachments?: Attachment[],
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig
+    ) => {
+      // biome-ignore lint/suspicious/noConsole: Debugging
+      console.log(
+        "handleSendMessage",
+        content,
+        attachments,
+        personaId,
+        reasoningConfig
+      );
+      if (isPrivateMode) {
+        navigate(ROUTES.PRIVATE_CHAT, {
+          state: {
+            initialMessage: content,
+            attachments,
+            personaId,
+            reasoningConfig,
+          },
         });
-        if (conversationId) {
-          navigate(ROUTES.CHAT_CONVERSATION(conversationId));
-        }
+        return;
+      }
+
+      // Create new conversation
+      const conversationId = await chatService.createConversation({
+        firstMessage: content,
+        userId: queryUserId || undefined,
+        generateTitle: true,
+        attachments,
+        personaId,
+        reasoningConfig,
+      });
+
+      if (conversationId) {
+        navigate(ROUTES.CHAT_CONVERSATION(conversationId));
       }
     },
-    [isMobile, createConversation, queryUserId, navigate]
+    [chatService.createConversation, queryUserId, navigate, isPrivateMode]
+  );
+
+  const handleQuickPrompt = useCallback(
+    (prompt: string) => {
+      handleSendMessage(prompt);
+    },
+    [handleSendMessage]
   );
 
   const chatInputProps = {
     hasExistingMessages: false,
     isLoading: false,
     isStreaming: false,
-    onStop: () => {},
+    onStop: () => {
+      // No-op for zero state
+    },
+    onSendMessage: handleSendMessage,
   };
 
   // Only show as anonymous after we've loaded user data
@@ -302,7 +319,6 @@ export const ChatZeroState = () => {
               hasReachedLimit={!canSendMessage}
               hasWarning={hasWarning}
               isAnonymous={isAnonymous}
-              remainingMessages={remainingMessages}
               userLoading={userLoading}
               onQuickPrompt={handleQuickPrompt}
             />
@@ -331,7 +347,6 @@ export const ChatZeroState = () => {
               hasReachedLimit={!canSendMessage}
               hasWarning={hasWarning}
               isAnonymous={isAnonymous}
-              remainingMessages={remainingMessages}
               userLoading={userLoading}
               onQuickPrompt={handleQuickPrompt}
             />

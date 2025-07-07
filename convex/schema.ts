@@ -3,10 +3,11 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
   attachmentSchema,
-  messageRoleSchema,
-  webCitationSchema,
   messageMetadataSchema,
+  messageRoleSchema,
   providerSchema,
+  reasoningConfigSchema,
+  webCitationSchema,
 } from "./lib/schemas";
 
 export default defineSchema({
@@ -87,6 +88,7 @@ export default defineSchema({
     reasoning: v.optional(v.string()),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
     parentId: v.optional(v.id("messages")),
     isMainBranch: v.boolean(),
     sourceConversationId: v.optional(v.id("conversations")),
@@ -135,6 +137,7 @@ export default defineSchema({
     supportsImages: v.boolean(),
     supportsTools: v.boolean(),
     supportsReasoning: v.boolean(),
+    supportsFiles: v.optional(v.boolean()),
     inputModalities: v.optional(v.array(v.string())),
     selected: v.optional(v.boolean()),
     free: v.optional(v.boolean()),

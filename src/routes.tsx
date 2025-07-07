@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 
-import { type RouteObject, Navigate } from "react-router";
+import { Navigate, type RouteObject } from "react-router";
 
 import ChatLayout from "./components/layouts/ChatLayout";
 import RootLayout from "./components/layouts/RootLayout";
@@ -36,10 +36,20 @@ const SettingsLayout = lazy(
 const SettingsStandaloneLayout = lazy(
   () => import("./components/layouts/SettingsStandaloneLayout")
 );
-const SettingsApiKeysPage = lazy(() => import("./pages/settings/ApiKeysPage"));
-const SettingsModelsPage = lazy(() => import("./pages/settings/ModelsPage"));
-const SettingsPersonasPage = lazy(
-  () => import("./pages/settings/PersonasPage")
+const SettingsApiKeysPage = lazy(() =>
+  import("./components/settings/api-keys-tab").then(m => ({
+    default: m.ApiKeysTab,
+  }))
+);
+const SettingsModelsPage = lazy(() =>
+  import("./components/settings/models-tab").then(m => ({
+    default: m.ModelsTab,
+  }))
+);
+const SettingsPersonasPage = lazy(() =>
+  import("./components/settings/personas-tab").then(m => ({
+    default: m.PersonasTab,
+  }))
 );
 const SettingsSharedConversationsPage = lazy(
   () => import("./pages/settings/SharedConversationsPage")

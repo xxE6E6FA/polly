@@ -1,5 +1,4 @@
-import { useCallback, useState } from "react";
-
+import { api } from "@convex/_generated/api";
 import {
   ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
@@ -9,8 +8,8 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,10 +21,8 @@ import {
 } from "@/components/ui/popover";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Textarea } from "@/components/ui/textarea";
+import { useConvexActionWithCache } from "@/hooks/use-convex-cache";
 import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
-import { useConvexActionOptimized } from "@/hooks/use-convex-cache";
-
-import { api } from "../../../convex/_generated/api";
 
 export type PersonaFormData = {
   name: string;
@@ -53,7 +50,7 @@ export const PersonaForm = ({
 
   // Use optimized action hook for prompt improvement
   const { executeAsync: improvePrompt, isLoading: isImprovingPrompt } =
-    useConvexActionOptimized<string, { prompt: string }>(
+    useConvexActionWithCache<string, { prompt: string }>(
       api.personas.improvePrompt,
       {
         onSuccess: improvedPrompt => {

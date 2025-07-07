@@ -1,6 +1,5 @@
+import type { LLMOutputComponent } from "@llm-ui/react";
 import { lazy, Suspense } from "react";
-
-import { type LLMOutputComponent } from "@llm-ui/react";
 
 import { extractFirstCodeBlock } from "./nested-code-block-parser";
 

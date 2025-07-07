@@ -1,8 +1,8 @@
 "use client";
 
-import * as React from "react";
+import { CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
-import { CheckIcon, CaretRightIcon, CircleIcon } from "@phosphor-icons/react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 

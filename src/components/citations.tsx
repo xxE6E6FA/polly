@@ -1,11 +1,11 @@
+import { CaretRightIcon, LinkIcon } from "@phosphor-icons/react";
 import {
-  useState,
-  useEffect,
-  useRef,
   useCallback,
+  useEffect,
   useLayoutEffect,
+  useRef,
+  useState,
 } from "react";
-import { LinkIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import type { WebSearchCitation } from "@/types";
 
@@ -29,7 +29,6 @@ export const Citations = ({
   citations,
   className,
   messageId,
-  content,
   activeDuration = 3000,
 }: CitationsProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -44,7 +43,9 @@ export const Citations = ({
 
   // Scan for citation links
   const scanForCitations = useCallback(() => {
-    if (!messageId) return;
+    if (!messageId) {
+      return;
+    }
 
     const messageContainer = document.querySelector(
       `[data-message-id="${messageId}"]`
@@ -83,7 +84,9 @@ export const Citations = ({
 
   // Set up citation detection
   useLayoutEffect(() => {
-    if (!messageId) return;
+    if (!messageId) {
+      return;
+    }
 
     // Immediate scan if content exists
     scanForCitations();
@@ -118,12 +121,14 @@ export const Citations = ({
         observerRef.current.disconnect();
       }
     };
-  }, [messageId, content, scheduleScanning, scanForCitations]);
+  }, [messageId, scheduleScanning, scanForCitations]);
 
   // Handle citation scrolling with IntersectionObserver
   const scrollToCitation = useCallback((citationNumber: number) => {
     const element = citationRefs.current[citationNumber - 1];
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     // Check if element is already in view
     const rect = element.getBoundingClientRect();
@@ -152,7 +157,9 @@ export const Citations = ({
         const clickedMessageId =
           messageContainer?.getAttribute("data-message-id");
 
-        if (clickedMessageId !== messageId) return;
+        if (clickedMessageId !== messageId) {
+          return;
+        }
 
         const href = citationLink.getAttribute("href");
         const citationNumber = href

@@ -7,11 +7,14 @@
     "dev": "vite",
     "build": "convex deploy && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "lint:fix": "eslint . --ext ts,tsx --fix",
-    "check": "pnpm format:check && pnpm lint && pnpm build",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check . && pnpm build",
+    "check:write": "biome check --write .",
+    "imports:organize": "biome check --write --organize-imports-enabled=true .",
+    "check:ci": "biome ci .",
     "prepare": "husky",
     "clear-db": "tsx scripts/clear-database.ts",
     "clear-auth": "tsx scripts/clear-auth-tables.ts"
@@ -78,29 +81,17 @@
     "virtua": "^0.41.5"
   },
   "devDependencies": {
-    "@eslint/compat": "^1.2.3",
-    "@eslint/eslintrc": "^3",
-    "@eslint/js": "^9.17.0",
+    "@biomejs/biome": "2.0.6",
     "@types/glob": "^8.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.20.0",
-    "@typescript-eslint/parser": "^8.20.0",
     "@vercel/react-router": "^1.1.2",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "dotenv": "^16.5.0",
-    "eslint": "^9",
-    "eslint-config-prettier": "^10.1.5",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-react": "^7.33.0",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-tailwindcss": "^3.18.0",
     "glob": "^11.0.3",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
-    "prettier": "^3.5.3",
     "tsx": "^4.20.3",
     "typescript": "^5",
     "vite": "^5.1.0",
@@ -108,11 +99,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md}": [
-      "prettier --write",
-      "git add"
-    ],
-    "*.{js,jsx,ts,tsx}": [
-      "eslint --fix",
+      "biome check --write --files-ignore-unknown=true",
       "git add"
     ]
   }

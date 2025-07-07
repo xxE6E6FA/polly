@@ -1,15 +1,14 @@
-import { type Doc } from "../../convex/_generated/dataModel";
-import { type User } from "../types";
+import type { Doc } from "@convex/_generated/dataModel";
+import type { User } from "../types";
+import {
+  createLocalStorageCache,
+  createMultiKeyCache,
+} from "./localStorage-utils";
 
-const USER_CACHE_KEY = "polly_user_cache";
-const SELECTED_MODEL_CACHE_KEY = "polly_selected_model_cache";
-const USER_MODELS_CACHE_KEY = "polly_user_models_cache";
 const CACHE_VERSION = 1;
 const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 
 type CachedUserData = {
-  version: number;
-  timestamp: number;
   user: User | null;
   messageCount?: number;
   monthlyUsage?: {
@@ -23,12 +22,6 @@ type CachedUserData = {
   hasUserModels?: boolean;
 };
 
-type CachedModelData = {
-  version: number;
-  timestamp: number;
-  model: Doc<"userModels"> | null;
-};
-
 type UserModelsByProvider = {
   id: string;
   name: string;
@@ -36,83 +29,44 @@ type UserModelsByProvider = {
 }[];
 
 type CachedUserModelsData = {
-  version: number;
-  timestamp: number;
   userModelsByProvider: UserModelsByProvider;
   hasUserModels: boolean;
 };
 
+// Create cache instances
+const userCache = createLocalStorageCache<CachedUserData>({
+  key: "polly_user_cache",
+  version: CACHE_VERSION,
+  expiryMs: CACHE_EXPIRY,
+});
+
+const selectedModelCache = createLocalStorageCache<Doc<"userModels"> | null>({
+  key: "polly_selected_model_cache",
+  version: CACHE_VERSION,
+  expiryMs: CACHE_EXPIRY,
+});
+
+const userModelsCache = createLocalStorageCache<CachedUserModelsData>({
+  key: "polly_user_models_cache",
+  version: CACHE_VERSION,
+  expiryMs: CACHE_EXPIRY,
+});
+
+const multiCache = createMultiKeyCache([
+  "polly_user_cache",
+  "polly_selected_model_cache",
+  "polly_user_models_cache",
+]);
+
 export function getCachedUser(): CachedUserData["user"] | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const cached = localStorage.getItem(USER_CACHE_KEY);
-    if (!cached) {
-      return null;
-    }
-
-    const data: CachedUserData = JSON.parse(cached);
-
-    if (data.version !== CACHE_VERSION) {
-      localStorage.removeItem(USER_CACHE_KEY);
-      return null;
-    }
-
-    const isExpired = Date.now() - data.timestamp > CACHE_EXPIRY;
-    if (isExpired) {
-      localStorage.removeItem(USER_CACHE_KEY);
-      return null;
-    }
-
-    return data.user;
-  } catch (error) {
-    console.error("Error reading user cache:", error);
-    localStorage.removeItem(USER_CACHE_KEY);
-    return null;
-  }
+  const data = userCache.get();
+  return data?.user || null;
 }
 
-export function getCachedUserData(): Omit<
-  CachedUserData,
-  "version" | "timestamp"
-> | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const cached = localStorage.getItem(USER_CACHE_KEY);
-    if (!cached) {
-      return null;
-    }
-
-    const data: CachedUserData = JSON.parse(cached);
-
-    if (data.version !== CACHE_VERSION) {
-      localStorage.removeItem(USER_CACHE_KEY);
-      return null;
-    }
-
-    const isExpired = Date.now() - data.timestamp > CACHE_EXPIRY;
-    if (isExpired) {
-      localStorage.removeItem(USER_CACHE_KEY);
-      return null;
-    }
-
-    return {
-      user: data.user,
-      messageCount: data.messageCount,
-      monthlyUsage: data.monthlyUsage,
-      hasUserApiKeys: data.hasUserApiKeys,
-      hasUserModels: data.hasUserModels,
-    };
-  } catch (error) {
-    console.error("Error reading user cache:", error);
-    localStorage.removeItem(USER_CACHE_KEY);
-    return null;
-  }
+export function getCachedUserData():
+  | (Omit<CachedUserData, "user"> & { user: User | null })
+  | null {
+  return userCache.get();
 }
 
 export function setCachedUser(
@@ -121,158 +75,45 @@ export function setCachedUser(
   monthlyUsage?: CachedUserData["monthlyUsage"],
   hasUserApiKeys?: boolean
 ) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const cacheData: CachedUserData = {
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-      user,
-      messageCount,
-      monthlyUsage,
-      hasUserApiKeys,
-    };
-
-    localStorage.setItem(USER_CACHE_KEY, JSON.stringify(cacheData));
-  } catch (error) {
-    console.error("Error setting user cache:", error);
-  }
+  const cacheData: CachedUserData = {
+    user,
+    messageCount,
+    monthlyUsage,
+    hasUserApiKeys,
+  };
+  userCache.set(cacheData);
 }
 
 export function getCachedSelectedModel(): Doc<"userModels"> | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const cached = localStorage.getItem(SELECTED_MODEL_CACHE_KEY);
-    if (!cached) {
-      return null;
-    }
-
-    const data: CachedModelData = JSON.parse(cached);
-
-    if (data.version !== CACHE_VERSION) {
-      localStorage.removeItem(SELECTED_MODEL_CACHE_KEY);
-      return null;
-    }
-
-    const isExpired = Date.now() - data.timestamp > CACHE_EXPIRY;
-    if (isExpired) {
-      localStorage.removeItem(SELECTED_MODEL_CACHE_KEY);
-      return null;
-    }
-
-    return data.model;
-  } catch (error) {
-    console.error("Error reading selected model cache:", error);
-    localStorage.removeItem(SELECTED_MODEL_CACHE_KEY);
-    return null;
-  }
+  return selectedModelCache.get();
 }
 
 export function setCachedSelectedModel(model: Doc<"userModels"> | null) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const cacheData: CachedModelData = {
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-      model,
-    };
-
-    localStorage.setItem(SELECTED_MODEL_CACHE_KEY, JSON.stringify(cacheData));
-  } catch (error) {
-    console.error("Error setting selected model cache:", error);
-  }
+  selectedModelCache.set(model);
 }
 
 export function getCachedUserModels(): {
   userModelsByProvider: UserModelsByProvider;
   hasUserModels: boolean;
 } | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const cached = localStorage.getItem(USER_MODELS_CACHE_KEY);
-    if (!cached) {
-      return null;
-    }
-
-    const data: CachedUserModelsData = JSON.parse(cached);
-
-    if (data.version !== CACHE_VERSION) {
-      localStorage.removeItem(USER_MODELS_CACHE_KEY);
-      return null;
-    }
-
-    const isExpired = Date.now() - data.timestamp > CACHE_EXPIRY;
-    if (isExpired) {
-      localStorage.removeItem(USER_MODELS_CACHE_KEY);
-      return null;
-    }
-
-    return {
-      userModelsByProvider: data.userModelsByProvider,
-      hasUserModels: data.hasUserModels,
-    };
-  } catch (error) {
-    console.error("Error reading user models cache:", error);
-    localStorage.removeItem(USER_MODELS_CACHE_KEY);
-    return null;
-  }
+  return userModelsCache.get();
 }
 
 export function setCachedUserModels(
   userModelsByProvider: UserModelsByProvider,
   hasUserModels: boolean
 ) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const cacheData: CachedUserModelsData = {
-      version: CACHE_VERSION,
-      timestamp: Date.now(),
-      userModelsByProvider,
-      hasUserModels,
-    };
-
-    localStorage.setItem(USER_MODELS_CACHE_KEY, JSON.stringify(cacheData));
-  } catch (error) {
-    console.error("Error setting user models cache:", error);
-  }
+  const cacheData: CachedUserModelsData = {
+    userModelsByProvider,
+    hasUserModels,
+  };
+  userModelsCache.set(cacheData);
 }
 
 export function clearUserModelsCache() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    localStorage.removeItem(USER_MODELS_CACHE_KEY);
-  } catch (error) {
-    console.error("Error clearing user models cache:", error);
-  }
+  userModelsCache.clear();
 }
 
 export function clearUserCache() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    localStorage.removeItem(USER_CACHE_KEY);
-    localStorage.removeItem(SELECTED_MODEL_CACHE_KEY);
-    localStorage.removeItem(USER_MODELS_CACHE_KEY);
-  } catch (error) {
-    console.error("Error clearing user cache:", error);
-  }
+  multiCache.clearAll();
 }

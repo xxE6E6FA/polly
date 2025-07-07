@@ -1,3 +1,5 @@
+import { markdownLookBack } from "@llm-ui/markdown";
+import { throttleBasic, useLLMOutput } from "@llm-ui/react";
 import {
   createContext,
   memo,
@@ -7,9 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { markdownLookBack } from "@llm-ui/markdown";
-import { throttleBasic, useLLMOutput } from "@llm-ui/react";
 
 import { CodeBlockWrapperLLM } from "./code-block-wrapper";
 import { MarkdownBlock } from "./markdown-block";
@@ -112,12 +111,13 @@ const StreamingMarkdownComponent = ({
 
   return (
     <StreamingMarkdownInner
-      children={contentToRender}
       key={`${messageId}-${streamKey}`}
       className={className}
       isStreaming={isStreaming && frozenContent === null}
       messageId={messageId}
-    />
+    >
+      {contentToRender}
+    </StreamingMarkdownInner>
   );
 };
 

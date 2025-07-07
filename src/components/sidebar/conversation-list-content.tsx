@@ -1,13 +1,10 @@
-import { useMemo } from "react";
-
+import type { Doc } from "@convex/_generated/dataModel";
 import { ChatCircleIcon } from "@phosphor-icons/react";
-
+import { useMemo } from "react";
 import { useConversationSearch } from "@/hooks/use-conversation-search";
-import { type ConversationId } from "@/types";
-
+import type { ConversationId } from "@/types";
 import { ConversationGroup } from "./conversation-group";
 import { ConversationItem } from "./conversation-item";
-import { type Doc } from "../../../convex/_generated/dataModel";
 
 type ConversationListContentProps = {
   conversations: Doc<"conversations">[] | undefined;

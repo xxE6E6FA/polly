@@ -1,8 +1,7 @@
 import { v } from "convex/values";
-
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
-import { getCapabilityFromPatterns } from "./lib/model_capabilities_config";
+import { hasMandatoryReasoning } from "./lib/model_capabilities_config";
 
 // OpenAI API Types - Public API structure
 
@@ -77,27 +76,27 @@ async function fetchOpenAIModels(apiKey: string) {
         const groups = model.groups || [];
         const hasEnhancedData = features.length > 0 || groups.length > 0;
 
-        // Capability detection: use enhanced data if available, otherwise use pattern matching
+        // Capability detection: use enhanced data if available, otherwise use shared patterns
         const supportsReasoning = hasEnhancedData
           ? groups.includes("reasoning") ||
             features.includes("reasoning_effort") ||
             features.includes("detailed_reasoning_summary")
-          : getCapabilityFromPatterns("supportsReasoning", "openai", modelId);
+          : hasMandatoryReasoning("openai", modelId); // Use shared reasoning detection
 
         const supportsTools = hasEnhancedData
           ? features.includes("function_calling") ||
             features.includes("parallel_tool_calls")
-          : getCapabilityFromPatterns("supportsTools", "openai", modelId);
+          : modelId.startsWith("gpt-"); // Most GPT models support tools
 
         const supportsImages = hasEnhancedData
           ? features.includes("image_content")
-          : getCapabilityFromPatterns("supportsImages", "openai", modelId);
+          : modelId.includes("vision") || modelId.startsWith("gpt-4"); // Well-known vision models
 
         const supportsFiles = hasEnhancedData
           ? features.includes("file_content") ||
             features.includes("file_search") ||
             supportsImages
-          : getCapabilityFromPatterns("supportsFiles", "openai", modelId);
+          : supportsImages || modelId.startsWith("gpt-4"); // File support correlates with image support
 
         // Use max_tokens from enhanced API, with fallbacks for public API
         const contextWindow =
@@ -186,33 +185,19 @@ async function fetchAnthropicModels(apiKey: string) {
         const modelId = model.id;
         const displayName = model.display_name || model.id;
 
-        // Use pattern matching for capability detection
-        const supportsImages = getCapabilityFromPatterns(
-          "supportsImages",
-          "anthropic",
-          modelId
-        );
-        const supportsTools = getCapabilityFromPatterns(
-          "supportsTools",
-          "anthropic",
-          modelId
-        );
-        const supportsFiles = getCapabilityFromPatterns(
-          "supportsFiles",
-          "anthropic",
-          modelId
-        );
-        const supportsReasoning = getCapabilityFromPatterns(
-          "supportsReasoning",
-          "anthropic",
-          modelId
-        );
+        // Conservative capability defaults - Anthropic API doesn't provide capability details
+        const supportsImages = true; // All modern Claude models support images
+        const supportsTools = true; // All modern Claude models support tools
+        const supportsFiles = true; // All modern Claude models support files
+        const supportsReasoning = hasMandatoryReasoning("anthropic", modelId); // Use shared reasoning detection
+
+        const contextWindow = getAnthropicContextWindow(modelId);
 
         return {
           modelId,
           name: displayName,
           provider: "anthropic",
-          contextWindow: getAnthropicContextWindow(modelId),
+          contextWindow,
           supportsReasoning,
           supportsTools,
           supportsImages,
@@ -270,34 +255,25 @@ async function fetchGoogleModels(apiKey: string) {
         const modelId = model.name.split("/").pop() || model.name;
         const displayName = model.displayName || modelId;
 
-        const supportsReasoning = getCapabilityFromPatterns(
-          "supportsReasoning",
-          "google",
-          modelId
-        );
-        const supportsTools = getCapabilityFromPatterns(
-          "supportsTools",
-          "google",
-          modelId
-        );
-        const supportsImages = getCapabilityFromPatterns(
-          "supportsImages",
-          "google",
-          modelId
-        );
-        const supportsFiles = getCapabilityFromPatterns(
-          "supportsFiles",
-          "google",
-          modelId,
-          model.inputTokenLimit
-        );
+        // Use Google API data where possible, conservative defaults otherwise
+        const supportsReasoning = hasMandatoryReasoning("google", modelId); // Use shared reasoning detection
+        const supportsTools =
+          modelId.includes("pro") || modelId.includes("gemini-1.5"); // Pro models support tools
+        const supportsImages =
+          modelId.includes("pro") || modelId.includes("vision"); // Pro and vision models
+        const supportsFiles =
+          (model.inputTokenLimit && model.inputTokenLimit >= 32000) ||
+          modelId.includes("pro") ||
+          modelId.includes("gemini-1.5"); // Large context or pro models
+
+        const contextWindow =
+          model.inputTokenLimit || getGoogleContextWindow(model.name);
 
         return {
           modelId,
           name: displayName,
           provider: "google",
-          contextWindow:
-            model.inputTokenLimit || getGoogleContextWindow(model.name),
+          contextWindow,
           supportsReasoning,
           supportsTools,
           supportsImages,
@@ -380,10 +356,30 @@ async function fetchOpenRouterModels(apiKey: string) {
 
     const mappedModels = data.data.map((model: OpenRouterModel) => {
       // Determine capabilities based on OpenRouter API schema
-      const supportsReasoning =
+      // Check for reasoning support via multiple methods:
+      // 1. New reasoning parameter system
+      // 2. Legacy include_reasoning parameter
+      // 3. Internal reasoning pricing (not "0" means reasoning is available)
+      // 4. Pattern matching for known reasoning models
+      const supportsReasoningViaParams =
         model.supported_parameters?.includes("reasoning") ||
-        model.supported_parameters?.includes("include_reasoning") ||
-        model.pricing?.internal_reasoning !== "0";
+        model.supported_parameters?.includes("include_reasoning");
+
+      const supportsReasoningViaPricing =
+        model.pricing?.internal_reasoning !== "0" &&
+        model.pricing?.internal_reasoning !== undefined;
+
+      const supportsReasoningViaPatterns =
+        model.id.includes("gemini-2.5-pro") || // Specifically Gemini 2.5 Pro models
+        model.id.includes("deepseek-r1") ||
+        model.id.includes("o1-") ||
+        model.id.includes("o3-") ||
+        model.id.includes("thinking");
+
+      const supportsReasoning =
+        supportsReasoningViaParams ||
+        supportsReasoningViaPricing ||
+        supportsReasoningViaPatterns;
 
       const supportsTools =
         model.supported_parameters?.includes("tools") ||
@@ -397,11 +393,13 @@ async function fetchOpenRouterModels(apiKey: string) {
         model.architecture?.input_modalities?.includes("file") ||
         model.context_length >= 32000; // Large context models typically support files
 
+      const contextWindow = model.context_length || 4096;
+
       return {
         modelId: model.id,
         name: model.name || model.id,
         provider: "openrouter",
-        contextWindow: model.context_length || 4096,
+        contextWindow,
         supportsReasoning,
         supportsTools,
         supportsImages,
@@ -518,6 +516,10 @@ export const fetchAllModels = action({
             break;
           case "openrouter":
             models = await fetchOpenRouterModels(decryptedKey);
+            break;
+          default:
+            console.warn(`Unknown provider: ${keyInfo.provider}`);
+            models = [];
             break;
         }
 

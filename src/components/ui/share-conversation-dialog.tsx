@@ -1,5 +1,4 @@
-import { useState } from "react";
-
+import { api } from "@convex/_generated/api";
 import {
   ArrowCounterClockwiseIcon,
   ArrowSquareOutIcon,
@@ -10,8 +9,8 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,10 +28,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { type ConversationId } from "@/types";
-
+import type { ConversationId } from "@/types";
 import { Alert, AlertDescription, AlertIcon } from "./alert";
-import { api } from "../../../convex/_generated/api";
 
 type ShareConversationDialogProps = {
   conversationId: ConversationId;
@@ -188,7 +185,10 @@ export const ControlledShareConversationDialog = ({
           </DialogTitle>
           <DialogDescription className="text-base">
             {isShared
-              ? `This conversation is publicly accessible. Shared ${formatDistanceToNow(new Date(sharedStatus?.sharedAt || Date.now()), { addSuffix: true })}.`
+              ? `This conversation is publicly accessible. Shared ${formatDistanceToNow(
+                  new Date(sharedStatus?.sharedAt || Date.now()),
+                  { addSuffix: true }
+                )}.`
               : "Share this conversation with others. They'll see the conversation as it appears when you share or update it."}
           </DialogDescription>
         </DialogHeader>

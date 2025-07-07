@@ -1,16 +1,16 @@
 import { v } from "convex/values";
 
-import { type Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getOptionalUserId, requireAuth } from "./lib/auth";
-import { withCache, cacheKeys, CACHE_TTL } from "./lib/cache_utils";
+import { getCurrentUserId, requireAuth } from "./lib/auth";
+import { CACHE_TTL, cacheKeys, withCache } from "./lib/cache_utils";
 
 export const getUserModels = query({
   args: {
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return [];
@@ -28,7 +28,7 @@ export const getUserModelsCached = query({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return [];
@@ -50,7 +50,7 @@ export const getUserModelsCached = query({
 export const getUserSelectedModel = query({
   args: {},
   handler: async ctx => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       return getAnonymousDefaultModel();
@@ -92,7 +92,7 @@ export const getUserSelectedModel = query({
 export const getUserModelsByProvider = query({
   args: {},
   handler: async ctx => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       const defaultModel = getAnonymousDefaultModel();
@@ -153,7 +153,7 @@ export const getUserModelsByProvider = query({
 export const hasUserModels = query({
   args: {},
   handler: async ctx => {
-    const userId = await getOptionalUserId(ctx);
+    const userId = await getCurrentUserId(ctx);
 
     if (!userId) {
       return Boolean(process.env.GEMINI_API_KEY);
@@ -185,6 +185,7 @@ export const toggleModel = mutation({
         supportsImages: v.boolean(),
         supportsTools: v.boolean(),
         supportsReasoning: v.boolean(),
+        supportsFiles: v.optional(v.boolean()),
         inputModalities: v.optional(v.array(v.string())),
       })
     ),

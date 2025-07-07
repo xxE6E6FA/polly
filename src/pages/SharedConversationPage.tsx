@@ -1,14 +1,11 @@
-import { Link, useParams } from "react-router";
-
+import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
-
+import { Link, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
 import { ROUTES } from "@/lib/routes";
-
-import { api } from "../../convex/_generated/api";
 
 export default function SharedConversationRoute() {
   const { shareId } = useParams();
@@ -45,7 +42,7 @@ export default function SharedConversationRoute() {
     parentId: msg.parentId || undefined,
     isMainBranch: msg.isMainBranch,
     sourceConversationId: msg.sourceConversationId || undefined,
-    useWebSearch: msg.useWebSearch || false,
+    useWebSearch: msg.useWebSearch,
     attachments: undefined, // Remove attachments for privacy
     createdAt: msg._creationTime,
     metadata: msg.metadata || undefined,

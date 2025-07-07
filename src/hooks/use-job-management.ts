@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { toast } from "sonner";
 import { api } from "convex/_generated/api";
-import { useConfirmationDialog } from "./use-confirmation-dialog";
 import type { Id } from "convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { useConfirmationDialog } from "./use-dialog-management";
 
 export interface JobManagementOptions {
   showActiveOnly?: boolean;
@@ -33,8 +33,9 @@ export function useJobManagement(options: JobManagementOptions = {}) {
 
   // Filter and categorize jobs
   const { activeJobs, completedJobs, filteredJobs } = useMemo(() => {
-    if (!allJobs)
+    if (!allJobs) {
       return { activeJobs: [], completedJobs: [], filteredJobs: [] };
+    }
 
     const active = allJobs
       .filter(job => job.status === "processing" || job.status === "scheduled")
@@ -136,7 +137,9 @@ export function useJobManagement(options: JobManagementOptions = {}) {
     (jobId: string) => {
       const job = allJobs?.find(j => j.jobId === jobId);
 
-      if (!job) return;
+      if (!job) {
+        return;
+      }
 
       const isExport = job.type === "export";
 

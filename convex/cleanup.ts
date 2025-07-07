@@ -1,7 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, mutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { type Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
+import { internalMutation, mutation } from "./_generated/server";
 import { getCurrentUserId } from "./lib/auth";
 
 export const archiveOldConversations = internalMutation({
@@ -64,7 +64,7 @@ export const cleanupOrphanedMessages = internalMutation({
       if (!conversationIdGroups.has(conversationId)) {
         conversationIdGroups.set(conversationId, []);
       }
-      conversationIdGroups.get(conversationId)!.push(message);
+      conversationIdGroups.get(conversationId)?.push(message);
     }
 
     for (const [conversationId, messagesGroup] of conversationIdGroups) {

@@ -1,6 +1,5 @@
-import { type ReactNode } from "react";
-
 import { PushPinIcon } from "@phosphor-icons/react";
+import type { ReactNode } from "react";
 
 type ConversationGroupProps = {
   title: string;

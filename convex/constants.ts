@@ -52,7 +52,7 @@ export const DEFAULT_SYSTEM_PROMPT = dedent`BASELINE SYSTEM CONFIGURATION:
 // Helper function to populate the system prompt with dynamic values
 export const getDefaultSystemPrompt = (
   modelName: string,
-  timezone: string = "UTC"
+  timezone = "UTC"
 ): string => {
   const now = new Date();
   const currentDateTime = now.toLocaleString("en-US", {

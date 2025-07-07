@@ -1,6 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   ArrowSquareOutIcon,
   CopyIcon,
@@ -8,26 +7,24 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
+import { useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
-
 import { SettingsHeader } from "@/components/settings/settings-header";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useConfirmationDialog } from "@/hooks/use-confirmation-dialog";
+import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
+import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-import { api } from "../../../convex/_generated/api";
-import { type Id } from "../../../convex/_generated/dataModel";
 
 type SharedConversation = {
   _id: string;
@@ -68,7 +65,9 @@ export default function SharedConversationsPage() {
     confirmDialog.confirm(
       {
         title: "Stop sharing conversation?",
-        description: `Are you sure you want to stop sharing "${title || "this conversation"}"? The share link will no longer work.`,
+        description: `Are you sure you want to stop sharing "${
+          title || "this conversation"
+        }"? The share link will no longer work.`,
         confirmText: "Stop sharing",
         variant: "destructive",
       },

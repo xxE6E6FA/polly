@@ -1,20 +1,20 @@
+import { useAuthActions } from "@convex-dev/auth/react";
 import { useNavigate } from "react-router";
 
-import { useAuthActions } from "@convex-dev/auth/react";
-
-import { clearConversationCache } from "../lib/conversation-cache";
-import { clearUserCache } from "../lib/user-cache";
+import { clearUserCache } from "@/lib/user-cache";
+import { useEventDispatcher } from "./use-convex-cache";
 
 export function useAuthWithCache() {
   const originalAuthActions = useAuthActions();
   const navigate = useNavigate();
+  const { dispatch } = useEventDispatcher();
 
   return {
     ...originalAuthActions,
     signOut: async () => {
-      // Clear all caches before signing out
+      // Clear user cache and trigger conversation cache invalidation
       clearUserCache();
-      clearConversationCache();
+      dispatch("user-graduated");
 
       // Then perform the actual sign out
       await originalAuthActions.signOut();

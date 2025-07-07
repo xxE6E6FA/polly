@@ -1,16 +1,12 @@
-import { useCallback, useMemo } from "react";
-
-import { useNavigate } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-
-import { removeCachedConversation } from "@/lib/conversation-cache";
+import { useCallback, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { ROUTES } from "@/lib/routes";
-import { type ChatMessage, type ConversationId } from "@/types";
-
+import type { ChatMessage, ConversationId } from "@/types";
+import { useEventDispatcher } from "./use-convex-cache";
 import { useUser } from "./use-user";
-import { api } from "../../convex/_generated/api";
-import { type Id } from "../../convex/_generated/dataModel";
 
 type UseChatMessagesOptions = {
   conversationId?: ConversationId;
@@ -23,6 +19,7 @@ export function useChatMessages({
 }: UseChatMessagesOptions) {
   const { user } = useUser();
   const navigate = useNavigate();
+  const { dispatch } = useEventDispatcher();
 
   const convexMessages = useQuery(
     api.messages.list,
@@ -35,7 +32,9 @@ export function useChatMessages({
 
   // Convert Convex messages to ChatMessage format with memoization
   const messages: ChatMessage[] = useMemo(() => {
-    if (!convexMessages) return [];
+    if (!convexMessages) {
+      return [];
+    }
 
     const messagesArray = Array.isArray(convexMessages)
       ? convexMessages
@@ -61,7 +60,9 @@ export function useChatMessages({
 
   // Cache streaming state computation to avoid recalculation
   const streamingMessageInfo = useMemo(() => {
-    if (!convexMessages) return null;
+    if (!convexMessages) {
+      return null;
+    }
 
     const messagesArray = Array.isArray(convexMessages)
       ? convexMessages
@@ -96,7 +97,7 @@ export function useChatMessages({
 
   const editMessage = useCallback(
     async (messageId: string, newContent: string) => {
-      if (!user?._id || !conversationId) {
+      if (!(user?._id && conversationId)) {
         return;
       }
 
@@ -114,7 +115,7 @@ export function useChatMessages({
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
-      if (!user?._id || !conversationId) {
+      if (!(user?._id && conversationId)) {
         return;
       }
 
@@ -148,7 +149,8 @@ export function useChatMessages({
 
           // Then delete the conversation
           await deleteConversation({ id: conversationId });
-          removeCachedConversation(conversationId);
+          // Trigger cache invalidation via event
+          dispatch("conversations-changed");
         } else {
           // Just delete the message
           await deleteMessagesByIds({ ids: [messageId as Id<"messages">] });
@@ -164,13 +166,16 @@ export function useChatMessages({
       deleteConversation,
       messages,
       navigate,
-      onError,
+      onError, // Trigger cache invalidation via event
+      dispatch,
     ]
   );
 
   const isMessageStreaming = useCallback(
     (messageId: string, isGenerating: boolean) => {
-      if (!convexMessages) return false;
+      if (!convexMessages) {
+        return false;
+      }
 
       // Use cached streaming info if available
       if (streamingMessageInfo && streamingMessageInfo.id === messageId) {

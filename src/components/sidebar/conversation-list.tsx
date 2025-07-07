@@ -1,23 +1,15 @@
-import { useEffect, useState } from "react";
-
-import { useQuery } from "convex/react";
-
 import { api } from "convex/_generated/api";
-import { type Doc } from "convex/_generated/dataModel";
-
-import { useUser } from "@/hooks/use-user";
+import type { Doc } from "convex/_generated/dataModel";
+import { useEffect, useState } from "react";
+import { useConvexWithCache } from "@/hooks/use-convex-cache";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useUser } from "@/hooks/use-user";
 import {
   getStoredAnonymousUserId,
   onStoredUserIdChange,
 } from "@/lib/auth-utils";
-import {
-  clearConversationCache,
-  getCachedConversations,
-  setCachedConversations,
-  updateCachedConversation,
-} from "@/lib/conversation-cache";
-import { type ConversationId } from "@/types";
+import { createLocalStorageCache } from "@/lib/localStorage-utils";
+import type { ConversationId } from "@/types";
 
 import { ConversationListContent } from "./conversation-list-content";
 
@@ -25,6 +17,47 @@ type ConversationListProps = {
   searchQuery: string;
   currentConversationId?: ConversationId;
 };
+
+const CACHE_VERSION = 1;
+const MAX_CACHED_CONVERSATIONS = 50;
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+
+// Create conversation cache instance
+const conversationsCache = createLocalStorageCache<Doc<"conversations">[]>({
+  key: "polly_conversations_cache",
+  version: CACHE_VERSION,
+  expiryMs: CACHE_EXPIRY,
+  transform: {
+    serialize: conversations => {
+      // Apply business logic during serialization
+      return [...conversations]
+        .filter(conv => !conv.isArchived)
+        .sort((a, b) => {
+          if (a.isPinned && !b.isPinned) {
+            return -1;
+          }
+          if (!a.isPinned && b.isPinned) {
+            return 1;
+          }
+          return b.updatedAt - a.updatedAt;
+        })
+        .slice(0, MAX_CACHED_CONVERSATIONS);
+    },
+    deserialize: data => data as Doc<"conversations">[],
+  },
+});
+
+function getCachedConversationsData(): Doc<"conversations">[] | null {
+  return conversationsCache.get();
+}
+
+function setCachedConversationsData(conversations: Doc<"conversations">[]) {
+  conversationsCache.set(conversations);
+}
+
+function clearCachedConversationsData() {
+  conversationsCache.clear();
+}
 
 export const ConversationList = ({
   searchQuery,
@@ -43,63 +76,67 @@ export const ConversationList = ({
     return onStoredUserIdChange(setHasStoredUserId);
   }, []);
 
-  // Initialize with cached data immediately for instant rendering
-  const [cachedConversations] = useState<Doc<"conversations">[] | null>(() => {
-    if (typeof window !== "undefined") {
-      return getCachedConversations();
-    }
-    return null;
-  });
-
-  // Only fetch conversations if we have a user ID (either from user object or storage)
-  const conversations = useQuery(
+  // Use the consolidated caching system for conversations
+  const {
+    data: conversations,
+    isLoading: isLoadingConversations,
+    invalidateCache: invalidateConversationsCache,
+  } = useConvexWithCache(
     api.conversations.list,
-    queryUserId ? { userId: queryUserId } : "skip"
+    queryUserId ? { userId: queryUserId } : "skip",
+    {
+      queryKey: ["conversations", queryUserId || ""],
+      getCachedData: getCachedConversationsData,
+      setCachedData: setCachedConversationsData,
+      clearCachedData: clearCachedConversationsData,
+      invalidationEvents: ["conversations-changed", "user-graduated"],
+      onCacheInvalidation: () => {
+        // Additional cleanup if needed
+      },
+    }
   );
 
-  // Get the current conversation if available to update cache when it changes
-  const currentConversation = useQuery(
+  // Use the consolidated caching system for current conversation
+  useConvexWithCache(
     api.conversations.get,
     currentConversationId && queryUserId
       ? { id: currentConversationId }
-      : "skip"
+      : "skip",
+    {
+      queryKey: ["conversation", currentConversationId || ""],
+      getCachedData: () => null, // Don't cache individual conversations here
+      setCachedData: () => {
+        // No-op for individual conversation caching
+      },
+      clearCachedData: () => {
+        // No-op for individual conversation caching
+      },
+      invalidationEvents: ["conversation-updated"],
+      onCacheInvalidation: () => {
+        // When current conversation changes, invalidate the conversations list
+        invalidateConversationsCache();
+      },
+    }
   );
 
+  // Clear cache when user logs out
   useEffect(() => {
-    if (!user && !hasStoredUserId) {
-      clearConversationCache();
+    if (!(user || hasStoredUserId)) {
+      clearCachedConversationsData();
     }
   }, [user, hasStoredUserId]);
-
-  // Update cache when conversations list changes
-  useEffect(() => {
-    if (
-      conversations &&
-      Array.isArray(conversations) &&
-      conversations.length > 0
-    ) {
-      setCachedConversations(conversations);
-    }
-  }, [conversations]);
-
-  // Update cache when current conversation changes (e.g., title update, new message)
-  useEffect(() => {
-    if (currentConversation) {
-      updateCachedConversation(currentConversation);
-    }
-  }, [currentConversation]);
 
   // Determine what data to display
   const conversationsToDisplay = Array.isArray(conversations)
     ? conversations
-    : cachedConversations || [];
+    : [];
 
-  // Check if we're loading fresh data
-  const isLoadingFreshData =
-    Boolean(queryUserId) && Boolean(user) && conversations === undefined;
-
-  // Show skeleton only if we have no data at all (no cache and loading)
-  const showSkeleton = isLoadingFreshData && !cachedConversations;
+  // Show skeleton only if we have no data at all and are loading
+  const showSkeleton =
+    Boolean(queryUserId) &&
+    Boolean(user) &&
+    isLoadingConversations &&
+    conversationsToDisplay.length === 0;
 
   return (
     <ConversationListContent

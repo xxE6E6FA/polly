@@ -1,9 +1,9 @@
-import { type UserId } from "@/types";
+import type { UserId } from "@/types";
 
 import {
   getAnonymousUserIdFromCookie,
-  setAnonymousUserIdCookie,
   removeAnonymousUserIdCookie,
+  setAnonymousUserIdCookie,
 } from "./cookies";
 
 const ANONYMOUS_USER_ID_KEY = "anonymous-user-id";
@@ -75,7 +75,9 @@ export function onAnonymousUserCreated(
   callback: (userId: UserId) => void
 ): () => void {
   if (typeof window === "undefined") {
-    return () => {};
+    return () => {
+      // No-op for server-side rendering
+    };
   }
 
   const handler = (event: Event) => {
@@ -96,7 +98,9 @@ export function onStoredUserIdChange(
   callback: (hasUserId: boolean) => void
 ): () => void {
   if (typeof window === "undefined") {
-    return () => {};
+    return () => {
+      // No-op for server-side rendering
+    };
   }
 
   const checkAndNotify = () => {

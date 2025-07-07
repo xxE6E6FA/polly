@@ -1,4 +1,4 @@
-import { type UserId } from "@/types";
+import type { UserId } from "@/types";
 
 const ANONYMOUS_USER_COOKIE = "anonymous-user-id";
 const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds

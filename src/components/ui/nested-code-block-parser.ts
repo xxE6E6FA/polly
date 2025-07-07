@@ -6,7 +6,7 @@
  * This parser properly handles nesting by tracking opening/closing pairs.
  */
 
-import { type CodeBlockMatch } from "@/types";
+import type { CodeBlockMatch } from "@/types";
 
 /**
  * Parse nested code blocks from markdown text
@@ -23,14 +23,18 @@ export function parseNestedCodeBlocks(
   while (i < len) {
     // Fast scan for next ```
     const openPos = text.indexOf("```", i);
-    if (openPos === -1) break;
+    if (openPos === -1) {
+      break;
+    }
 
     // Find end of opening line
     let openLineEnd = openPos + 3;
     while (openLineEnd < len && text[openLineEnd] !== "\n") {
       openLineEnd++;
     }
-    if (openLineEnd >= len) break;
+    if (openLineEnd >= len) {
+      break;
+    }
 
     // Extract language (avoid substring until needed)
     const language = text.slice(openPos + 3, openLineEnd).trim();
@@ -43,7 +47,9 @@ export function parseNestedCodeBlocks(
     while (pos < len && nestingLevel > 0) {
       // Fast scan to next ```
       const nextTriple = text.indexOf("```", pos);
-      if (nextTriple === -1) break;
+      if (nextTriple === -1) {
+        break;
+      }
 
       // Check if it's at line start (avoid lastIndexOf)
       let lineStart = nextTriple;
@@ -116,7 +122,9 @@ export function parseNestedCodeBlocks(
     }
 
     // Early termination for performance when only first block needed
-    if (firstOnly) break;
+    if (firstOnly) {
+      break;
+    }
   }
 
   return result;
@@ -159,7 +167,9 @@ type MaybeLLMOutputMatch = LLMOutputMatch | undefined;
 export function findCompleteNestedCodeBlock() {
   return (text: string): MaybeLLMOutputMatch => {
     const blocks = parseNestedCodeBlocks(text, true); // firstOnly = true
-    if (blocks.length === 0) return undefined;
+    if (blocks.length === 0) {
+      return undefined;
+    }
 
     const firstBlock = blocks[0];
     return {
@@ -178,7 +188,9 @@ export function findPartialNestedCodeBlock() {
   return (text: string): MaybeLLMOutputMatch => {
     // Look for opening ``` that might not be closed yet
     const openPos = text.indexOf("```");
-    if (openPos === -1) return undefined;
+    if (openPos === -1) {
+      return undefined;
+    }
 
     // Check if we have a complete block first (optimized)
     const completeBlocks = parseNestedCodeBlocks(text, true); // firstOnly = true

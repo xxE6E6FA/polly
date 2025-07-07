@@ -1,5 +1,3 @@
-import React, { memo, useCallback, useState } from "react";
-
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
@@ -7,21 +5,23 @@ import {
   NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import type React from "react";
+import { memo, useCallback, useState } from "react";
 
 import { Citations } from "@/components/citations";
-import { ConvexFileDisplay } from "@/components/convex-file-display";
+import { FileDisplay } from "@/components/file-display";
 import { Reasoning } from "@/components/reasoning";
 import { SearchQuery } from "@/components/search-query";
 import { Button } from "@/components/ui/button";
-import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
+import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn, stripCitations } from "@/lib/utils";
-import { type ChatMessage as ChatMessageType, type Attachment } from "@/types";
+import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 
 type ChatMessageProps = {
   message: ChatMessageType;
@@ -170,24 +170,21 @@ const MessageActions = memo(
           )}
         </div>
 
-        {!isUser && (
-          <>
-            {model && provider === "openrouter" ? (
-              <a
-                className="text-xs text-muted-foreground/70 underline underline-offset-2 transition-colors hover:text-foreground"
-                href={`https://openrouter.ai/${model}`}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {model}
-              </a>
-            ) : (
-              <span className="text-xs text-muted-foreground/70">
-                {model || "Assistant"}
-              </span>
-            )}
-          </>
-        )}
+        {!isUser &&
+          (model && provider === "openrouter" ? (
+            <a
+              className="text-xs text-muted-foreground/70 underline underline-offset-2 transition-colors hover:text-foreground"
+              href={`https://openrouter.ai/${model}`}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              {model}
+            </a>
+          ) : (
+            <span className="text-xs text-muted-foreground/70">
+              {model || "Assistant"}
+            </span>
+          ))}
       </div>
     );
   }
@@ -278,7 +275,7 @@ const ChatMessageComponent = ({
         return (
           <div className="mt-2 space-y-2">
             {attachments.map((attachment, index) => (
-              <ConvexFileDisplay
+              <FileDisplay
                 key={attachment.name || attachment.url || `attachment-${index}`}
                 attachment={attachment}
                 className="mb-2"
@@ -307,7 +304,7 @@ const ChatMessageComponent = ({
         </div>
       );
     },
-    [message]
+    []
   );
 
   return (
@@ -341,7 +338,6 @@ const ChatMessageComponent = ({
                 {isEditing ? (
                   <div className="space-y-4">
                     <textarea
-                      autoFocus
                       className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base selectable-auto"
                       placeholder="Edit your message..."
                       value={editContent}

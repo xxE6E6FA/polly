@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { Attachment } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -29,7 +30,7 @@ export function resizeGoogleImageUrl(url: string, size: number): string {
   }
 
   // Check if it's a Google image URL
-  if (!url.includes("googleusercontent.com") && !url.includes("ggpht.com")) {
+  if (!(url.includes("googleusercontent.com") || url.includes("ggpht.com"))) {
     return url;
   }
 
@@ -61,7 +62,9 @@ export function generateHeadingId(text: string, messageId: string): string {
  * @returns The text with citations removed
  */
 export function stripCitations(text: string): string {
-  if (!text) return text;
+  if (!text) {
+    return text;
+  }
 
   // Remove citation groups like [1][2][3] or [1], [2], [3]
   const groupPattern = /(\[\d+\](?:\s*,?\s*\[\d+\])+)/g;
@@ -74,4 +77,19 @@ export function stripCitations(text: string): string {
     .replace(singlePattern, "")
     .replace(/\s+/g, " ") // Clean up extra spaces
     .trim();
+}
+
+/**
+ * Cleans attachments for Convex by removing client-side fields not in the schema
+ * This ensures compatibility with the Convex attachment schema
+ */
+export function cleanAttachmentsForConvex(attachments?: Attachment[]) {
+  if (!attachments) {
+    return undefined;
+  }
+
+  return attachments.map(attachment => {
+    const { mimeType: _mimeType, ...cleanAttachment } = attachment;
+    return cleanAttachment;
+  });
 }

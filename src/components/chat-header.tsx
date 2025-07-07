@@ -1,5 +1,5 @@
-import { Link } from "react-router";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
 import {
   DotsThreeVerticalIcon,
@@ -10,9 +10,9 @@ import {
   StackPlusIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,9 +27,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUser } from "@/hooks/use-user";
-import { useSidebar } from "@/hooks/use-sidebar";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useSidebar } from "@/hooks/use-sidebar";
+import { useUser } from "@/hooks/use-user";
 import {
   downloadFile,
   exportAsJSON,
@@ -38,11 +38,8 @@ import {
 } from "@/lib/export";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { type ConversationId, type ChatMessage } from "@/types";
-
+import type { ChatMessage, ConversationId } from "@/types";
 import { Skeleton } from "./ui/skeleton";
-import { api } from "../../convex/_generated/api";
-import { type Id } from "../../convex/_generated/dataModel";
 
 type ChatHeaderProps = {
   conversationId?: ConversationId;

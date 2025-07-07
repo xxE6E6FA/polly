@@ -1,5 +1,5 @@
 {
-  "include": ["./**/*"],
+  "include": ["./**/*", "../shared/**/*"],
   "exclude": ["./_generated"],
   "compilerOptions": {
     "target": "esnext",
@@ -8,6 +8,12 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["src/*"],
+      "@convex/*": ["convex/*"],
+      "@shared/*": ["shared/*"]
+    }
   }
 }

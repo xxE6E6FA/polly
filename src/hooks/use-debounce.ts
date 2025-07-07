@@ -3,13 +3,7 @@ import { useEffect, useRef, useState } from "react";
 export function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const valueRef = useRef<T>(value);
 
-  // Update the value ref
-  valueRef.current = value;
-
-  // Use a ref-based approach with shallow comparison for primitives
-  // And skip deep comparison for objects to improve performance
   useEffect(() => {
     // Clear existing timeout
     if (timeoutRef.current) {
@@ -18,7 +12,7 @@ export function useDebounce<T>(value: T, delay: number): T {
 
     // Set new timeout
     timeoutRef.current = setTimeout(() => {
-      setDebouncedValue(valueRef.current);
+      setDebouncedValue(value);
     }, delay);
 
     // Cleanup function

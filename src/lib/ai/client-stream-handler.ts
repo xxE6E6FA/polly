@@ -1,15 +1,13 @@
-import { type CoreMessage } from "ai";
-
-import { type Attachment, type StreamCallbacks } from "@/types";
-
-import { extractCitations, extractMarkdownCitations } from "./citations";
-import { removeDuplicateSourceSections } from "./utils";
+import { removeDuplicateSourceSections } from "@shared/text-utils";
+import type { CoreMessage } from "ai";
+import type { Attachment, StreamCallbacks } from "@/types";
 import {
-  isReasoningPart,
   extractReasoningContent,
   humanizeReasoningText,
+  isReasoningPart,
   type StreamPart,
 } from "../../../convex/lib/shared/stream_utils";
+import { extractCitations, extractMarkdownCitations } from "./citations";
 
 export type { StreamCallbacks };
 
@@ -145,7 +143,9 @@ export class ClientStreamHandler {
   }
 
   private processFinishData() {
-    if (!this.finishData || this.finishProcessed) return;
+    if (!this.finishData || this.finishProcessed) {
+      return;
+    }
 
     this.finishProcessed = true;
     const { text, finishReason, reasoning, providerMetadata } = this.finishData;
@@ -175,7 +175,9 @@ export class ClientStreamHandler {
 export function convertAttachmentsToContent(
   attachments?: Attachment[]
 ): Array<{ type: "text" | "image"; text?: string; image?: string }> {
-  if (!attachments || attachments.length === 0) return [];
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
 
   return attachments.map(attachment => {
     if (attachment.type === "image") {

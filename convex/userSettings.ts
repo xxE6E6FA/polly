@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 
 import { mutation, query } from "./_generated/server";
-import { getCurrentUserId, getOptionalUserId } from "./lib/auth";
+import { getCurrentUserId } from "./lib/auth";
 
 export const getUserSettings = query({
   args: { userId: v.optional(v.id("users")) },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
     if (!userId) {
       return null;
     }

@@ -1,5 +1,4 @@
-import { Ghost } from "@phosphor-icons/react";
-import { cn } from "@/lib/utils";
+import { GhostIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -7,6 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
+import { cn } from "@/lib/utils";
 
 export const PrivateToggle = () => {
   const visualMode = useChatVisualMode();
@@ -32,7 +32,7 @@ export const PrivateToggle = () => {
                 : "Enable private mode"
             }
           >
-            <Ghost
+            <GhostIcon
               className={cn(
                 "h-3.5 w-3.5 transition-colors",
                 visualMode.isPrivateMode

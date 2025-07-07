@@ -69,28 +69,7 @@ export const DEFAULT_STREAM_CONFIG: StreamConfig = {
   STOP_CHECK_INTERVAL_MS: 250,
 };
 
-/**
- * Common reasoning patterns for extraction
- */
-export const REASONING_PATTERNS = [
-  /<thinking>([\S\s]*?)<\/thinking>/,
-  /<reasoning>([\S\s]*?)<\/reasoning>/,
-  /^Thinking:\s*([\S\s]*?)(?:\n\n|$)/,
-  /\[reasoning]([\S\s]*?)\[\/reasoning]/i,
-];
 
-/**
- * Extract reasoning from text using common patterns
- */
-export function extractReasoningFromText(text: string): string | null {
-  for (const pattern of REASONING_PATTERNS) {
-    const match = text.match(pattern);
-    if (match?.[1]) {
-      return match[1].trim();
-    }
-  }
-  return null;
-}
 
 /**
  * Humanize reasoning text by removing technical artifacts

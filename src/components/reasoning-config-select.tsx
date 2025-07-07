@@ -1,11 +1,11 @@
 import {
-  SparkleIcon,
-  LightningIcon,
   CompassIcon,
   LightbulbIcon,
+  LightningIcon,
+  SparkleIcon,
 } from "@phosphor-icons/react";
-import { useState, useCallback } from "react";
-
+import { hasMandatoryReasoning } from "@shared/model-capabilities-config";
+import { useCallback, useEffect, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -13,16 +13,8 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import {
-  hasReasoningCapabilities,
-  hasMandatoryReasoning,
-} from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
-import {
-  type AIModel,
-  type ReasoningConfig,
-  type ReasoningEffortLevel,
-} from "@/types";
+import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
 
 type ReasoningConfigProps = {
   model?: AIModel | null;
@@ -113,7 +105,21 @@ export const ReasoningConfigSelect = ({
 }: ReasoningConfigProps) => {
   const [selectOpen, setSelectOpen] = useState(false);
 
-  // Handle change callback
+  // Handle mandatory reasoning when model changes
+  useEffect(() => {
+    if (model) {
+      const isMandatory = hasMandatoryReasoning(model.provider, model.modelId);
+      if (isMandatory && !config.enabled) {
+        const newConfig = {
+          enabled: true,
+          effort: config.effort || "medium",
+          maxTokens: config.maxTokens,
+        };
+        onConfigChange(newConfig);
+      }
+    }
+  }, [model, config.enabled, config.effort, config.maxTokens, onConfigChange]);
+
   const handleChange = useCallback(
     (value: string) => {
       if (value === "off") {
@@ -132,20 +138,21 @@ export const ReasoningConfigSelect = ({
     [config, onConfigChange]
   );
 
-  const supportsReasoning = hasReasoningCapabilities(model as AIModel);
-
-  if (!supportsReasoning || !model) {
+  if (!model?.supportsReasoning) {
     return null;
   }
 
-  const isMandatory = hasMandatoryReasoning(model);
+  const isMandatory = hasMandatoryReasoning(model.provider, model.modelId);
   const theme = getProviderTheme(model.provider);
   const Icon = theme.icon;
 
-  // Get current value for the select
-  const currentValue = config.enabled ? config.effort || "medium" : "off";
+  let currentValue = "medium";
+  if (!(isMandatory || config.enabled)) {
+    currentValue = "off";
+  } else if (config.enabled && config.effort) {
+    currentValue = config.effort;
+  }
 
-  // Filter options based on whether reasoning is mandatory
   const availableOptions = isMandatory
     ? REASONING_OPTIONS.filter(opt => opt.value !== "off")
     : REASONING_OPTIONS;
@@ -153,27 +160,6 @@ export const ReasoningConfigSelect = ({
   const selectedOption = availableOptions.find(
     opt => opt.value === currentValue
   );
-  const SelectedIcon = selectedOption?.icon;
-
-  // For mandatory reasoning models that can't be configured
-  if (isMandatory && availableOptions.length === 1) {
-    return (
-      <TooltipWrapper content={`Thinking is always enabled for ${model.name}`}>
-        <div
-          className={cn(
-            "flex items-center gap-1.5 h-auto px-2.5 py-1 rounded-md",
-            "text-xs font-medium transition-all duration-200",
-            theme.bgColor,
-            theme.color,
-            className
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" weight="duotone" />
-          <span>Thinking</span>
-        </div>
-      </TooltipWrapper>
-    );
-  }
 
   return (
     <TooltipWrapper
@@ -184,14 +170,18 @@ export const ReasoningConfigSelect = ({
       content={
         <div className="space-y-1">
           <p className="font-medium">
-            {currentValue === "off"
-              ? "Enable thinking"
-              : `Thinking: ${selectedOption?.label}`}
+            {isMandatory
+              ? `Thinking: ${selectedOption?.label || "Balanced"}`
+              : currentValue === "off"
+                ? "Enable thinking"
+                : `Thinking: ${selectedOption?.label}`}
           </p>
           <p className="text-xs text-muted-foreground">
-            {currentValue === "off"
-              ? "Click to enable step-by-step thinking"
-              : selectedOption?.description}
+            {isMandatory
+              ? `Thinking is always enabled for ${model.name}. Configure effort level.`
+              : currentValue === "off"
+                ? "Click to enable step-by-step thinking"
+                : selectedOption?.description}
           </p>
         </div>
       }
@@ -221,8 +211,8 @@ export const ReasoningConfigSelect = ({
             <span className="hidden sm:inline">
               {currentValue === "off" ? "Thinking" : selectedOption?.label}
             </span>
-            {SelectedIcon && (
-              <SelectedIcon
+            {selectedOption?.icon && (
+              <selectedOption.icon
                 className="h-3 w-3 inline sm:hidden"
                 weight="bold"
               />

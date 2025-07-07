@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-
 import Markdown from "markdown-to-jsx";
+import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "@/components/spinner";
 
@@ -31,7 +30,7 @@ export const Reasoning = ({
   // Simplified scroll effect
   useEffect(() => {
     const element = contentRef.current;
-    if (!element || !isExpanded) {
+    if (!(element && isExpanded)) {
       return;
     }
 
@@ -48,10 +47,10 @@ export const Reasoning = ({
         clearInterval(interval);
       };
     }
-  }, [reasoning, isExpanded, isLoading]);
+  }, [isExpanded, isLoading]);
 
   // Only render if we have actual reasoning content or if we're loading
-  if (!reasoning || !reasoning.trim()) {
+  if (!reasoning?.trim()) {
     // If search is happening, don't show the initial loading state
     // Let SearchQuery show first
     if (isLoading && !hasSearch) {

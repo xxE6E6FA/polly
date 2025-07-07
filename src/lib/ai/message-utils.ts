@@ -1,4 +1,4 @@
-import { type ChatMessage, type Attachment } from "@/types";
+import type { Attachment, ChatMessage } from "@/types";
 
 /**
  * Utility functions for message state management

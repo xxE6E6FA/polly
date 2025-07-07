@@ -1,46 +1,52 @@
-import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator } from "convex/server";
+import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { type Id } from "./_generated/dataModel";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { type ActionCtx } from "./_generated/server";
-import { getOptionalUserId, requireAuth } from "./lib/auth";
+import type { Id } from "./_generated/dataModel";
 import {
-  attachmentSchema,
-  reasoningConfigSchema,
-  messageRoleSchema,
-  webCitationSchema,
-} from "./lib/schemas";
+  type ActionCtx,
+  action,
+  internalMutation,
+  mutation,
+  query,
+} from "./_generated/server";
 import {
-  paginationOptsSchema,
+  createConvexExportData,
+  type ExportConversation,
+} from "./backgroundJobs";
+import {
+  BATCH_SIZE,
+  CHUNK_SIZE,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_TEMPERATURE,
+  getDefaultSystemPrompt,
+  MESSAGE_BATCH_SIZE,
+  WEB_SEARCH_MAX_RESULTS,
+} from "./constants";
+import { getCurrentUserId, requireAuth } from "./lib/auth";
+import {
+  buildUserMessageContent,
+  type ConversationDoc,
+  deleteMessagesAfterIndex,
+  ensureStreamingCleared,
+  findStreamingMessage,
+  getDefaultSystemPromptForConversation,
+  type MessageActionArgs,
+  type MessageDoc,
+  resolveAttachmentUrls,
+  type StreamingActionResult,
+} from "./lib/conversation_utils";
+import {
   createEmptyPaginationResult,
+  paginationOptsSchema,
   validatePaginationOpts,
 } from "./lib/pagination";
 import {
-  DEFAULT_TEMPERATURE,
-  DEFAULT_MAX_TOKENS,
-  MESSAGE_BATCH_SIZE,
-  WEB_SEARCH_MAX_RESULTS,
-  CHUNK_SIZE,
-  BATCH_SIZE,
-  getDefaultSystemPrompt,
-} from "./constants";
-import {
-  type StreamingActionResult,
-  type MessageActionArgs,
-  type ConversationDoc,
-  type MessageDoc,
-  findStreamingMessage,
-  ensureStreamingCleared,
-  deleteMessagesAfterIndex,
-  resolveAttachmentUrls,
-  buildUserMessageContent,
-  getDefaultSystemPromptForConversation,
-} from "./lib/conversation_utils";
-import {
-  type ExportConversation,
-  createConvexExportData,
-} from "./backgroundJobs";
+  attachmentSchema,
+  attachmentWithMimeTypeSchema,
+  messageRoleSchema,
+  reasoningConfigSchema,
+  webCitationSchema,
+} from "./lib/schemas";
 
 // Common helper to create a user message with attachments
 const createUserMessage = async (
@@ -62,6 +68,11 @@ const createUserMessage = async (
     userId: Id<"users">;
     provider: string;
     isPollyProvided?: boolean;
+    reasoningConfig?: {
+      enabled: boolean;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
+    };
   }
 ): Promise<Id<"messages">> => {
   // Process attachments if provided
@@ -80,6 +91,7 @@ const createUserMessage = async (
     content: args.content,
     attachments: processedAttachments,
     useWebSearch: args.useWebSearch,
+    reasoningConfig: args.reasoningConfig,
     isMainBranch: true,
   });
 
@@ -238,14 +250,14 @@ const processAttachmentsForStorage = async (
             error
           );
           // Fall back to original attachment (without mimeType for schema compatibility)
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          // biome-ignore lint/correctness/noUnusedVariables: Intentionally destructuring to remove mimeType
           const { mimeType, ...cleanAttachment } = attachment;
           return cleanAttachment;
         }
       }
 
       // Return as-is if no upload needed (but remove mimeType for schema compatibility)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // biome-ignore lint/correctness/noUnusedVariables: Intentionally destructuring to remove mimeType
       const { mimeType, ...cleanAttachment } = attachment;
       return cleanAttachment;
     })
@@ -555,6 +567,7 @@ export const createWithMessages = internalMutation({
     useWebSearch: v.optional(v.boolean()),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -596,6 +609,7 @@ export const createWithMessages = internalMutation({
       content: args.firstMessage,
       attachments: args.attachments,
       useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
       isMainBranch: true,
       createdAt: now,
     });
@@ -644,7 +658,7 @@ export const list = query({
   },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return args.paginationOpts ? createEmptyPaginationResult() : [];
@@ -671,7 +685,7 @@ export const listOptimized = query({
   },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return args.paginationOpts ? createEmptyPaginationResult() : [];
@@ -734,7 +748,7 @@ export const getAuthorized = query({
       }
 
       // Use provided userId or fall back to server-side auth
-      const userId = args.userId || (await getOptionalUserId(ctx));
+      const userId = args.userId || (await getCurrentUserId(ctx));
 
       // If no user is found (neither provided nor authenticated), deny access
       if (!userId) {
@@ -765,7 +779,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     try {
       const conversationId = args.id as Id<"conversations">;
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // biome-ignore lint/correctness/noUnusedVariables: Intentionally destructuring to remove id
       const { id, ...updates } = args;
       return await ctx.db.patch(conversationId, {
         ...updates,
@@ -908,7 +922,7 @@ export const listArchived = query({
   },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return args.paginationOpts ? createEmptyPaginationResult() : [];
@@ -939,7 +953,7 @@ export const listPaginated = query({
   },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
-    const userId = args.userId || (await getOptionalUserId(ctx));
+    const userId = args.userId || (await getCurrentUserId(ctx));
 
     if (!userId) {
       return createEmptyPaginationResult();
@@ -962,7 +976,7 @@ export const listArchivedPaginated = query({
   },
   handler: async (ctx, args) => {
     // Use provided userId or fall back to server-side auth
-    const resolvedUserId = args.userId || (await getOptionalUserId(ctx));
+    const resolvedUserId = args.userId || (await getCurrentUserId(ctx));
 
     if (!resolvedUserId) {
       return createEmptyPaginationResult();
@@ -1123,9 +1137,9 @@ export const createNewConversation = action({
     isNewUser: boolean;
   }> => {
     // Create user if needed
-    const actualUserId: Id<"users"> = !args.userId
-      ? await ctx.runMutation(api.users.createAnonymous)
-      : args.userId;
+    const actualUserId: Id<"users"> = args.userId
+      ? args.userId
+      : await ctx.runMutation(api.users.createAnonymous);
 
     // Get user's selected model
     const selectedModel = await ctx.runQuery(
@@ -1178,6 +1192,7 @@ export const createNewConversation = action({
       useWebSearch: args.useWebSearch,
       model: selectedModel.modelId,
       provider: selectedModel.provider,
+      reasoningConfig: args.reasoningConfig,
     });
 
     // Create context message if contextSummary is provided
@@ -1342,6 +1357,7 @@ export const sendFollowUpMessage = action({
       userId: conversation.userId,
       provider: args.provider,
       isPollyProvided,
+      reasoningConfig: args.reasoningConfig,
     });
 
     // Build context messages
@@ -1376,6 +1392,7 @@ export const retryFromMessage = action({
     retryType: v.union(v.literal("user"), v.literal("assistant")),
     model: v.string(),
     provider: v.string(),
+    reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
     ctx,
@@ -1445,6 +1462,7 @@ export const retryFromMessage = action({
       conversation,
       contextMessages,
       useWebSearch,
+      reasoningConfig: args.reasoningConfig,
     });
 
     return {
@@ -1460,6 +1478,7 @@ export const editMessage = action({
     newContent: v.string(),
     model: v.string(),
     provider: v.string(),
+    reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
     ctx,
@@ -1518,6 +1537,7 @@ export const editMessage = action({
       conversation,
       contextMessages,
       useWebSearch,
+      reasoningConfig: args.reasoningConfig,
     });
 
     return {
@@ -1633,7 +1653,7 @@ export const resumeConversation = action({
       model: userModel.modelId,
       provider: userModel.provider,
       userId: conversation.userId,
-      useWebSearch: lastMessage.useWebSearch || false,
+      useWebSearch: lastMessage.useWebSearch,
     });
 
     return { resumed: true };
@@ -1652,7 +1672,7 @@ export const savePrivateConversation = action({
         model: v.optional(v.string()),
         provider: v.optional(v.string()),
         reasoning: v.optional(v.string()),
-        attachments: v.optional(v.array(attachmentSchema)),
+        attachments: v.optional(v.array(attachmentWithMimeTypeSchema)),
         citations: v.optional(v.array(webCitationSchema)),
         metadata: v.optional(
           v.object({
@@ -1828,8 +1848,12 @@ export const getAllForUser = query({
     // Filter efficiently - only if we need to exclude certain types
     if (args.includeArchived === false || args.includePinned === false) {
       const filtered = conversations.filter(conv => {
-        if (args.includeArchived === false && conv.isArchived) return false;
-        if (args.includePinned === false && conv.isPinned) return false;
+        if (args.includeArchived === false && conv.isArchived) {
+          return false;
+        }
+        if (args.includePinned === false && conv.isPinned) {
+          return false;
+        }
         return true;
       });
 
@@ -1880,8 +1904,12 @@ export const getConversationsSummaryForExport = query({
 
     // Filter efficiently - only if we need to exclude certain types
     const filteredConversations = conversations.filter(conv => {
-      if (args.includeArchived === false && conv.isArchived) return false;
-      if (args.includePinned === false && conv.isPinned) return false;
+      if (args.includeArchived === false && conv.isArchived) {
+        return false;
+      }
+      if (args.includePinned === false && conv.isPinned) {
+        return false;
+      }
       return true;
     });
 
@@ -2145,8 +2173,8 @@ export const bulkImport = mutation({
             userId,
             createdAt: convData.createdAt || now,
             updatedAt: convData.updatedAt || now,
-            isArchived: convData.isArchived || false,
-            isPinned: convData.isPinned || false,
+            isArchived: convData.isArchived,
+            isPinned: convData.isPinned,
           });
 
           // Create messages with proper ordering
@@ -2218,8 +2246,12 @@ const generateExportMetadata = (
       : `${count} Conversations Export - ${dateStr}`;
 
   const description = includeAttachments
-    ? `Export of ${count} conversation${count !== 1 ? "s" : ""} with attachments created on ${dateStr}`
-    : `Export of ${count} conversation${count !== 1 ? "s" : ""} created on ${dateStr}`;
+    ? `Export of ${count} conversation${
+        count !== 1 ? "s" : ""
+      } with attachments created on ${dateStr}`
+    : `Export of ${count} conversation${
+        count !== 1 ? "s" : ""
+      } created on ${dateStr}`;
 
   return { title, description };
 };
@@ -2237,7 +2269,7 @@ export const scheduleBackgroundExport = action({
     // Generate export metadata
     const metadata = generateExportMetadata(
       args.conversationIds,
-      args.includeAttachmentContent || false
+      args.includeAttachmentContent ?? false
     );
 
     // Create export job record with enhanced metadata
@@ -2249,7 +2281,7 @@ export const scheduleBackgroundExport = action({
       title: metadata.title,
       description: metadata.description,
       conversationIds: args.conversationIds,
-      includeAttachments: args.includeAttachmentContent || false,
+      includeAttachments: args.includeAttachmentContent,
     });
 
     // Schedule background processing
@@ -2327,7 +2359,7 @@ export const processBackgroundExport = action({
 
       const fullExportData = createConvexExportData(
         allConversations,
-        args.includeAttachmentContent || false
+        args.includeAttachmentContent ?? false
       );
 
       const exportBlob = new Blob([JSON.stringify(fullExportData, null, 2)], {
@@ -2499,7 +2531,9 @@ export const scheduleBackgroundBulkDelete = action({
       count === 1
         ? `Delete Conversation - ${dateStr}`
         : `Delete ${count} Conversations - ${dateStr}`;
-    const description = `Background deletion of ${count} conversation${count !== 1 ? "s" : ""} on ${dateStr}`;
+    const description = `Background deletion of ${count} conversation${
+      count !== 1 ? "s" : ""
+    } on ${dateStr}`;
 
     // Create bulk delete job record
     await ctx.runMutation(api.backgroundJobs.create, {

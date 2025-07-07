@@ -1,10 +1,5 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-} from "react";
+import type React from "react";
+import { createContext, useContext, useState } from "react";
 
 type ThinkingContextType = {
   isThinking: boolean;
@@ -22,14 +17,7 @@ export const ThinkingProvider = ({
 }) => {
   const [isThinking, setIsThinking] = useState(false);
 
-  const memoizedSetIsThinking = useCallback((thinking: boolean) => {
-    setIsThinking(thinking);
-  }, []);
-
-  const value = useMemo(
-    () => ({ isThinking, setIsThinking: memoizedSetIsThinking }),
-    [isThinking, memoizedSetIsThinking]
-  );
+  const value = { isThinking, setIsThinking };
 
   return (
     <ThinkingContext.Provider value={value}>

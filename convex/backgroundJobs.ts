@@ -1,9 +1,9 @@
 import { ConvexError, v } from "convex/values";
 import {
+  internalMutation,
+  internalQuery,
   mutation,
   query,
-  internalQuery,
-  internalMutation,
 } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
 
@@ -161,7 +161,7 @@ export const create = mutation({
       retryCount: 0,
       maxRetries: 3,
       conversationIds: args.conversationIds,
-      includeAttachments: args.includeAttachments || false,
+      includeAttachments: args.includeAttachments,
     });
 
     return jobId;

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { type Conversation } from "@/types";
+import type { Conversation } from "@/types";
 
 export function useConversationSearch(
   conversations: Conversation[],

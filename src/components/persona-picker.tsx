@@ -1,8 +1,8 @@
-import { useState } from "react";
-
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { CaretDownIcon, CheckIcon, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-
+import { useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,12 +19,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { useUser } from "@/hooks/use-user";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
+import { useUser } from "@/hooks/use-user";
 import { cn } from "@/lib/utils";
-
-import { api } from "../../convex/_generated/api";
-import { type Id } from "../../convex/_generated/dataModel";
 
 type PersonaPickerProps = {
   compact?: boolean;

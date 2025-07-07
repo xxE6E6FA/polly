@@ -1,7 +1,6 @@
-import React from "react";
-
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
+import type React from "react";
 
 type ConvexProviderProps = {
   children: React.ReactNode;

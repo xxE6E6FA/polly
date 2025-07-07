@@ -1,26 +1,23 @@
-import { extractCitations } from "./citations";
+import { api, internal } from "../_generated/api";
+import { type Id } from "../_generated/dataModel";
+import { type ActionCtx } from "../_generated/server";
 import { extractMarkdownCitations } from "../lib/shared/citations";
-import { CONFIG } from "./config";
-import { handleStreamOperation } from "./error_handlers";
-import { clearConversationStreaming } from "./messages";
+import {
+  extractReasoningContent,
+  humanizeReasoningText,
+  isReasoningPart,
+} from "../lib/shared/stream_utils";
 import {
   type FinishData,
   type ProviderMetadata,
   type StreamPart,
 } from "../types";
-import {
-  extractReasoning,
-  humanizeText,
-  removeDuplicateSourceSections,
-} from "./utils";
-import {
-  isReasoningPart,
-  extractReasoningContent,
-  humanizeReasoningText,
-} from "../lib/shared/stream_utils";
-import { api, internal } from "../_generated/api";
-import { type Id } from "../_generated/dataModel";
-import { type ActionCtx } from "../_generated/server";
+import { extractCitations } from "./citations";
+import { CONFIG } from "./config";
+import { handleStreamOperation } from "./error_handlers";
+import { clearConversationStreaming } from "./messages";
+import { removeDuplicateSourceSections } from "../../shared/text-utils";
+import { humanizeText } from "./utils";
 
 export class StreamHandler {
   private contentBuffer = "";
@@ -41,10 +38,7 @@ export class StreamHandler {
   private cacheValidUntil = 0;
   private static readonly CACHE_DURATION_MS = 1000; // Cache for 1 second
 
-  constructor(
-    private ctx: ActionCtx,
-    private messageId: Id<"messages">
-  ) {}
+  constructor(private ctx: ActionCtx, private messageId: Id<"messages">) {}
 
   get messageIdValue() {
     return this.messageId;
@@ -311,8 +305,8 @@ export class StreamHandler {
     // Clean the text to remove duplicate source sections
     const cleanedText = removeDuplicateSourceSections(text);
 
-    // Extract reasoning if embedded in content
-    const extractedReasoning = reasoning || extractReasoning(cleanedText);
+    // Use reasoning provided by AI SDK
+    const extractedReasoning = reasoning;
     const humanizedReasoning = extractedReasoning
       ? humanizeReasoningText(extractedReasoning)
       : undefined;
@@ -462,6 +456,32 @@ export class StreamHandler {
   }
 
   private async handleFullStreamPart(part: StreamPart): Promise<void> {
+    // Add debugging for Google provider models to track stream parts
+    if (this.messageId && part.type) {
+      try {
+        const message = await this.ctx.runQuery(api.messages.getById, {
+          id: this.messageId,
+        });
+        if (
+          message?.provider === "google" ||
+          message?.model?.includes("gemini")
+        ) {
+          console.log("🔍 [STREAM-HANDLER] Google stream part debug:", {
+            partType: part.type,
+            hasTextDelta: "textDelta" in part,
+            hasText: "text" in part,
+            textDeltaLength: part.textDelta?.length || 0,
+            isReasoningPart: isReasoningPart(part),
+            messageProvider: message.provider,
+            messageModel: message.model,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        // Ignore errors in debugging code
+      }
+    }
+
     if (this.messageDeleted) {
       return;
     }
@@ -472,7 +492,7 @@ export class StreamHandler {
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
     } else if (part.type === "error") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: Error part type is dynamic from AI SDK
       const errorPart = part as any;
       console.error("Stream error part received:", {
         messageId: this.messageId,

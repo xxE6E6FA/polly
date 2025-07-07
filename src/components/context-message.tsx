@@ -1,11 +1,10 @@
-import { Link } from "react-router";
-
 import { ArrowSquareOutIcon } from "@phosphor-icons/react";
+import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { type ChatMessage } from "@/types";
+import type { ChatMessage } from "@/types";
 
 type ContextMessageProps = {
   message: ChatMessage;

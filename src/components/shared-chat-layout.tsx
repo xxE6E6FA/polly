@@ -1,7 +1,7 @@
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef, useTransition } from "react";
 
 type SharedChatLayoutProps = {
   children: React.ReactNode;
@@ -45,7 +45,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
 
     // Update the ref for next comparison
     prevPrivateMode.current = visualMode.isPrivateMode;
-  }, [visualMode.isPrivateMode, startTransition]);
+  }, [visualMode.isPrivateMode]);
 
   // Show background when in private mode or during exit animation
   const showPrivateBackground = visualMode.isPrivateMode || isExiting;

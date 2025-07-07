@@ -1,14 +1,12 @@
+import { SignInIcon, UserIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
-import { SignInIcon, UserIcon } from "@phosphor-icons/react";
-
 import { Button } from "@/components/ui/button";
+import { useUser } from "@/hooks/use-user";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
-import { preloadSettings } from "@/routes";
 import { cn } from "@/lib/utils";
-
-import { useUser } from "../../hooks/use-user";
-import { useUserSettings } from "../../hooks/use-user-settings";
+import { preloadSettings } from "@/routes";
 
 type UserSectionContentProps = {
   user:

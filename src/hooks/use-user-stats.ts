@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useEffect } from "react";
 import { useAuthenticatedUserId } from "./use-authenticated-user-id";
 
 export const useUserStats = () => {

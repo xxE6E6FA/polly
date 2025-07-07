@@ -1,5 +1,3 @@
-import React from "react";
-
 import {
   ArrowCounterClockwiseIcon,
   CaretDownIcon,
@@ -7,6 +5,7 @@ import {
   CheckIcon,
   CopyIcon,
 } from "@phosphor-icons/react";
+import React from "react";
 
 import { cn } from "@/lib/utils";
 

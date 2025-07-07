@@ -239,10 +239,4 @@ export async function requireNonAnonymousUser(ctx: QueryCtx | MutationCtx) {
   return user;
 }
 
-// Legacy function for backward compatibility
 
-export async function getOptionalUserId(
-  ctx: QueryCtx | MutationCtx
-): Promise<Id<"users"> | null> {
-  return await getCurrentUserId(ctx);
-}

@@ -1,11 +1,11 @@
 import { ConvexError, v } from "convex/values";
+import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { requireAuth } from "./lib/auth";
-import { api, internal } from "./_generated/api";
 import {
   attachmentSchema,
-  messageRoleSchema,
   messageMetadataSchema,
+  messageRoleSchema,
   webCitationSchema,
 } from "./lib/schemas";
 
@@ -164,8 +164,8 @@ export const processBatch = internalMutation({
         userId: args.userId,
         createdAt: convData.createdAt || convTimestamp,
         updatedAt: convData.updatedAt || convTimestamp,
-        isArchived: convData.isArchived || false,
-        isPinned: convData.isPinned || false,
+        isArchived: convData.isArchived,
+        isPinned: convData.isPinned,
         personaId: convData.personaId,
         isStreaming: false,
       });
@@ -243,7 +243,7 @@ export const scheduleImport = action({
     await ctx.scheduler.runAfter(100, api.conversationImport.processImport, {
       conversations: limitedConversations,
       importId: args.importId,
-      skipDuplicates: args.skipDuplicates || true,
+      skipDuplicates: true,
       userId,
     });
 
@@ -381,7 +381,7 @@ export const cleanupImportData = mutation({
   handler: async (ctx, args) => {
     const userId = await requireAuth(ctx);
     const daysOld = args.olderThanDays || 7;
-    const dryRun = args.dryRun || false;
+    const dryRun = args.dryRun;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
     // Find old import jobs
@@ -525,7 +525,7 @@ export const validateImportData = mutation({
           continue;
         }
 
-        if (!conv.messages || !Array.isArray(conv.messages)) {
+        if (!(conv.messages && Array.isArray(conv.messages))) {
           validation.errors.push(
             `Conversation ${index + 1}: Missing or invalid messages array`
           );
@@ -554,8 +554,7 @@ export const validateImportData = mutation({
           }
 
           if (
-            !msg.role ||
-            !["user", "assistant", "system"].includes(msg.role)
+            !(msg.role && ["user", "assistant", "system"].includes(msg.role))
           ) {
             validation.errors.push(
               `Conversation ${index + 1}, Message ${msgIndex + 1}: Invalid role`
