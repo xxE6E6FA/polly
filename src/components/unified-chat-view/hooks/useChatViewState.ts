@@ -140,7 +140,12 @@ export function useChatViewState({
   const handleQuoteSelection = useCallback(() => {
     if (selection?.text && chatInputRef.current) {
       lockSelection();
-      chatInputRef.current.addQuote(selection.text);
+      // Always format as markdown quote
+      const quoted = selection.text
+        .split("\n")
+        .map(line => `> ${line}`)
+        .join("\n");
+      chatInputRef.current.addQuote(quoted);
     }
   }, [selection?.text, lockSelection]);
 
