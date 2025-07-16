@@ -1,10 +1,11 @@
-import { memo, useEffect, useState } from "react";
+import { memo } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { SearchQuery } from "@/components/search-query";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
+import { Spinner } from "../spinner";
 import { AttachmentStrip } from "./AttachmentStrip";
 import { MessageActions } from "./MessageActions";
 
@@ -32,18 +33,8 @@ export const AssistantBubble = memo(
     onDeleteMessage,
     onPreviewFile,
   }: AssistantBubbleProps) => {
-    const [showStreamingIndicator, setShowStreamingIndicator] = useState(false);
     const reasoning = message.reasoning;
     const displayContent = message.content;
-
-    // 400ms debounce for showing streaming indicator
-    useEffect(() => {
-      if (isStreaming) {
-        const timer = setTimeout(() => setShowStreamingIndicator(true), 400);
-        return () => clearTimeout(timer);
-      }
-      setShowStreamingIndicator(false);
-    }, [isStreaming]);
 
     return (
       <div className="w-full">
@@ -77,8 +68,7 @@ export const AssistantBubble = memo(
               {displayContent}
             </StreamingMarkdown>
 
-            {/* Ghost typing indicator for streaming messages with minimal content */}
-            {showStreamingIndicator &&
+            {isStreaming &&
               (!displayContent || displayContent.length === 0) && (
                 <div
                   className={cn(
@@ -87,20 +77,7 @@ export const AssistantBubble = memo(
                   )}
                   aria-label="AI is thinking"
                 >
-                  <div className="flex gap-1">
-                    <div
-                      className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-pulse"
-                      style={{ animationDelay: "0ms" }}
-                    />
-                    <div
-                      className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-pulse"
-                      style={{ animationDelay: "150ms" }}
-                    />
-                    <div
-                      className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-pulse"
-                      style={{ animationDelay: "300ms" }}
-                    />
-                  </div>
+                  <Spinner size="sm" />
                   <span className="text-xs text-muted-foreground/70 ml-2">
                     Thinking...
                   </span>
@@ -108,7 +85,6 @@ export const AssistantBubble = memo(
               )}
           </div>
 
-          {/* Show interrupted indicator */}
           {message.metadata?.stopped && !isStreaming && (
             <div className="mt-3 flex items-center gap-2">
               <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50 px-3 py-1.5 text-amber-700 dark:border-amber-400/30 dark:bg-amber-950/50 dark:text-amber-400">
@@ -129,7 +105,6 @@ export const AssistantBubble = memo(
             </div>
           )}
 
-          {/* Only show citations after reasoning is complete and content has started */}
           {message.citations &&
             message.citations.length > 0 &&
             (!isStreaming || message.content.length > 0) && (
