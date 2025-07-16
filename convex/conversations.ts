@@ -1086,7 +1086,6 @@ export const createNewConversation = action({
     useWebSearch: v.optional(v.boolean()),
     generateTitle: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
-    contextSummary: v.optional(v.string()),
   },
   handler: async (
     ctx,
@@ -1146,18 +1145,26 @@ export const createNewConversation = action({
       reasoningConfig: args.reasoningConfig,
     });
 
-    // Create context message if contextSummary is provided
-    if (args.sourceConversationId && args.contextSummary) {
-      await ctx.runMutation(api.messages.create, {
-        conversationId: result.conversationId,
-        role: "context",
-        content: `Context from previous conversation: ${args.contextSummary}`,
-        sourceConversationId: args.sourceConversationId,
-        isMainBranch: true,
-      });
+    if (args.sourceConversationId) {
+      const content = await ctx.runAction(
+        api.conversationSummary.generateConversationSummary,
+        {
+          conversationId: args.sourceConversationId,
+          maxTokens: 250,
+        }
+      );
+
+      if (content) {
+        await ctx.runMutation(api.messages.create, {
+          conversationId: result.conversationId,
+          role: "context",
+          content,
+          sourceConversationId: args.sourceConversationId,
+          isMainBranch: true,
+        });
+      }
     }
 
-    // Build context messages for AI response
     const contextMessages: Array<{
       role: "user" | "assistant" | "system";
       content:

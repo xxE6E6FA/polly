@@ -102,7 +102,6 @@ export function useServerChat({
       attachments,
       generateTitle = true,
       reasoningConfig,
-      contextSummary,
     }: CreateConversationParams): Promise<ConversationId | undefined> => {
       const result = await createNewConversation({
         userId,
@@ -119,7 +118,6 @@ export function useServerChat({
                 maxTokens: reasoningConfig.maxTokens,
               }
             : undefined,
-        contextSummary,
       });
 
       return result?.conversationId;
@@ -349,7 +347,6 @@ export function useServerChat({
       content: string,
       shouldNavigate = true,
       attachments?: Attachment[],
-      contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
@@ -386,7 +383,6 @@ export function useServerChat({
             personaId,
             userId: user?._id,
             attachments,
-            contextSummary,
             reasoningConfig,
           });
           if (!conversationId) {

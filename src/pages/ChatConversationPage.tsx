@@ -69,8 +69,7 @@ export default function ConversationRoute() {
           content,
           navigate,
           attachments,
-          undefined, // contextSummary - could be added later
-          conversationId as ConversationId, // sourceConversationId
+          conversationId as ConversationId,
           personaId,
           reasoningConfig
         );
