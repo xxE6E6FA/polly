@@ -3,6 +3,7 @@ import {
   FunnelIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
+import { PROVIDER_NAMES } from "@shared/provider-constants";
 import { memo, useCallback } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { getAllCapabilities } from "@/lib/model-capabilities";
-import { PROVIDER_NAMES } from "@/lib/provider-constants";
 import { cn } from "@/lib/utils";
 import type { FilterState } from "./";
 
@@ -98,9 +98,7 @@ export const ModelFilters = memo(
                 size="sm"
                 variant="outline"
               >
-                <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                  <ProviderIcon provider="openai" />
-                </div>
+                <ProviderIcon provider="openai" className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline">Providers</span>
                 <span className="sm:hidden">Prov</span>
                 {filterState.selectedProviders.length > 0 && (
@@ -121,9 +119,10 @@ export const ModelFilters = memo(
                   className="flex items-center gap-3"
                   onCheckedChange={() => onProviderToggle(provider)}
                 >
-                  <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                    <ProviderIcon provider={provider} />
-                  </div>
+                  <ProviderIcon
+                    provider={provider}
+                    className="h-4 w-4 shrink-0"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">
                       {PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}

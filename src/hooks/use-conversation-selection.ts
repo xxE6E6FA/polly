@@ -1,7 +1,22 @@
 import { api } from "convex/_generated/api";
 import type { Id } from "convex/_generated/dataModel";
-import { useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { usePersistentConvexQuery } from "./use-persistent-convex-query";
+
+type ConversationSummary = {
+  _id: Id<"conversations">;
+  _creationTime: number;
+  title?: string;
+  isArchived?: boolean;
+  isPinned?: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type ConversationSummaryResponse = {
+  conversations: ConversationSummary[];
+  totalCount: number;
+};
 
 export function useConversationSelection() {
   const [selectedConversations, setSelectedConversations] = useState<
@@ -12,18 +27,20 @@ export function useConversationSelection() {
   );
   const [includeAttachments, setIncludeAttachments] = useState(false);
 
-  const conversationData = useQuery(
-    api.conversations.getConversationsSummaryForExport,
-    {
-      includeArchived: true,
-      includePinned: true,
-      limit: 1000,
-    }
-  );
+  const conversationData =
+    usePersistentConvexQuery<ConversationSummaryResponse | null>(
+      "conversation-list",
+      api.conversations.getConversationsSummaryForExport,
+      {
+        includeArchived: true,
+        includePinned: true,
+        limit: 1000,
+      }
+    );
 
-  const conversations = useMemo(() => {
-    return conversationData?.conversations || [];
-  }, [conversationData?.conversations]);
+  const conversations: ConversationSummary[] = useMemo(() => {
+    return conversationData?.conversations ?? [];
+  }, [conversationData]);
 
   const handleConversationSelect = useCallback(
     (
@@ -44,7 +61,7 @@ export function useConversationSelection() {
 
           for (let i = start; i <= end; i++) {
             if (i < conversations.length) {
-              newSelected.add(conversations[i]._id as Id<"conversations">);
+              newSelected.add(conversations[i]._id);
             }
           }
         } else if (newSelected.has(conversationId)) {
@@ -66,15 +83,15 @@ export function useConversationSelection() {
       return;
     }
 
-    const allSelected = conversations.every(conv =>
-      selectedConversations.has(conv._id as Id<"conversations">)
+    const allSelected = conversations.every((conv: ConversationSummary) =>
+      selectedConversations.has(conv._id)
     );
 
     if (allSelected) {
       setSelectedConversations(new Set());
     } else {
       setSelectedConversations(
-        new Set(conversations.map(conv => conv._id as Id<"conversations">))
+        new Set(conversations.map((conv: ConversationSummary) => conv._id))
       );
     }
   }, [conversations, selectedConversations]);
@@ -107,13 +124,10 @@ export function useConversationSelection() {
   );
 
   return {
-    // Data
     conversations,
     selectedConversations,
     includeAttachments,
     isLoading: conversationData === undefined,
-
-    // Actions
     handleConversationSelect,
     handleSelectAll,
     handleBulkSelect,

@@ -45,6 +45,7 @@ import type * as http from "../http.js";
 import type * as internal_ from "../internal.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_cache_utils from "../lib/cache_utils.js";
+import type * as lib_constants from "../lib/constants.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
 import type * as lib_model_capabilities_config from "../lib/model_capabilities_config.js";
 import type * as lib_pagination from "../lib/pagination.js";
@@ -105,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   internal: typeof internal_;
   "lib/auth": typeof lib_auth;
   "lib/cache_utils": typeof lib_cache_utils;
+  "lib/constants": typeof lib_constants;
   "lib/conversation_utils": typeof lib_conversation_utils;
   "lib/model_capabilities_config": typeof lib_model_capabilities_config;
   "lib/pagination": typeof lib_pagination;

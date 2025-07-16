@@ -1,10 +1,13 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { memo, useCallback } from "react";
 import { ChatHeader } from "@/components/chat-header";
-
 import { ChatOutline } from "@/components/chat-outline";
+import { ChatZeroState } from "@/components/chat-zero-state";
+import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
+import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
+import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
 import type {
   Attachment,
@@ -12,10 +15,9 @@ import type {
   ConversationId,
   ReasoningConfig,
 } from "@/types";
+import { ChatInput } from "../chat-input";
 import { ArchivedBanner } from "./ArchivedBanner";
-import { ChatControls } from "./ChatControls";
 import { useChatViewState } from "./hooks/useChatViewState";
-import { MessageArea } from "./MessageArea";
 
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
@@ -75,6 +77,7 @@ export const UnifiedChatView = memo(
     onRetryUserMessage,
     onRetryAssistantMessage,
   }: UnifiedChatViewProps) => {
+    const { isPrivateMode } = usePrivateMode();
     const {
       // Refs
       virtualizedMessagesRef,
@@ -100,26 +103,80 @@ export const UnifiedChatView = memo(
       conversationId,
       messages,
       isLoadingMessages,
-      onSendMessage,
       onDeleteMessage,
+      onSendMessage,
     });
 
-    // Create wrapper handlers that get the current reasoning config
+    // Create wrapper handlers for retry functions
     const handleRetryUserMessage = useCallback(
       (messageId: string) => {
-        const currentReasoningConfig = getCurrentReasoningConfig();
-        onRetryUserMessage?.(messageId, currentReasoningConfig);
+        onRetryUserMessage?.(messageId);
       },
-      [onRetryUserMessage, getCurrentReasoningConfig]
+      [onRetryUserMessage]
     );
 
     const handleRetryAssistantMessage = useCallback(
       (messageId: string) => {
-        const currentReasoningConfig = getCurrentReasoningConfig();
-        onRetryAssistantMessage?.(messageId, currentReasoningConfig);
+        onRetryAssistantMessage?.(messageId);
       },
-      [onRetryAssistantMessage, getCurrentReasoningConfig]
+      [onRetryAssistantMessage]
     );
+
+    const ConversationZeroState = () => {
+      return (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="text-center space-y-1 max-w-md px-4">
+            <p className="text-base font-medium text-foreground">
+              Start a conversation
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Send a message to begin chatting
+            </p>
+          </div>
+        </div>
+      );
+    };
+
+    const renderMessageArea = () => {
+      if (isLoadingConversation) {
+        return (
+          <div className="flex h-full items-center justify-center">
+            <Spinner size="lg" />
+          </div>
+        );
+      }
+
+      if (isEmpty) {
+        if (!(isPrivateMode || conversationId)) {
+          return <ChatZeroState />;
+        }
+        if (isPrivateMode) {
+          return <ConversationZeroState />;
+        }
+        // For regular conversations that are empty (after loading), show blank
+        return <div className="h-full" />;
+      }
+
+      return (
+        <VirtualizedChatMessages
+          ref={virtualizedMessagesRef}
+          messages={messages}
+          isStreaming={isStreaming}
+          onDeleteMessage={
+            isPrivateMode || isArchived ? undefined : handleDeleteMessage
+          }
+          onEditMessage={
+            isPrivateMode || isArchived ? undefined : onEditMessage
+          }
+          onRetryUserMessage={isArchived ? undefined : handleRetryUserMessage}
+          onRetryAssistantMessage={
+            isArchived ? undefined : handleRetryAssistantMessage
+          }
+          scrollElement={null}
+          shouldScrollToBottom={isStreaming}
+        />
+      );
+    };
 
     return (
       <div className="flex h-full">
@@ -152,19 +209,7 @@ export const UnifiedChatView = memo(
                     isEmpty && "overflow-y-auto"
                   )}
                 >
-                  <MessageArea
-                    ref={virtualizedMessagesRef}
-                    conversationId={conversationId}
-                    messages={messages}
-                    isEmpty={isEmpty}
-                    isLoadingConversation={isLoadingConversation}
-                    isStreaming={isStreaming}
-                    isArchived={isArchived}
-                    onDeleteMessage={handleDeleteMessage}
-                    onEditMessage={onEditMessage}
-                    onRetryUserMessage={handleRetryUserMessage}
-                    onRetryAssistantMessage={handleRetryAssistantMessage}
-                  />
+                  {renderMessageArea()}
                 </div>
 
                 {/* Archived conversation banner */}
@@ -175,19 +220,26 @@ export const UnifiedChatView = memo(
                 />
 
                 {/* Chat input and controls */}
-                <ChatControls
-                  ref={chatInputRef}
-                  conversationId={conversationId}
-                  messages={messages}
-                  isLoading={isLoading}
-                  isStreaming={isStreaming}
-                  hasApiKeys={hasApiKeys}
-                  isArchived={isArchived}
-                  onSendMessage={handleSendMessage}
-                  onSendAsNewConversation={onSendAsNewConversation}
-                  onStopGeneration={onStopGeneration}
-                  currentReasoningConfig={getCurrentReasoningConfig()}
-                />
+                {hasApiKeys && !isArchived && (
+                  <div className="relative flex-shrink-0">
+                    <ChatInput
+                      ref={chatInputRef}
+                      conversationId={conversationId}
+                      hasExistingMessages={messages.length > 0}
+                      isLoading={isLoading}
+                      isStreaming={isStreaming}
+                      placeholder={
+                        isPrivateMode
+                          ? "Private mode: messages won't be saved..."
+                          : "Ask me anything..."
+                      }
+                      onSendMessage={handleSendMessage}
+                      onStop={onStopGeneration}
+                      onSendAsNewConversation={onSendAsNewConversation}
+                      currentReasoningConfig={getCurrentReasoningConfig()}
+                    />
+                  </div>
+                )}
 
                 {/* Quote button overlay */}
                 {selection?.text && (

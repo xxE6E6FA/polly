@@ -1,8 +1,8 @@
+import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
 import { useCallback, useState } from "react";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-import { FILE_LIMITS } from "@/lib/file-constants";
 import {
   convertImageToWebP,
   getFileLanguage,

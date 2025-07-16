@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
+import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
 
 type SharedChatLayoutProps = {
@@ -8,11 +8,11 @@ type SharedChatLayoutProps = {
 };
 
 export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
-  const visualMode = useChatVisualMode();
+  const { isPrivateMode } = usePrivateMode();
   const [isExiting, setIsExiting] = useState(false);
   const [, startTransition] = useTransition();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prevPrivateMode = useRef(visualMode.isPrivateMode);
+  const prevPrivateMode = useRef(isPrivateMode);
 
   // Clean up timeout on unmount
   useEffect(() => {
@@ -26,7 +26,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
   // Handle private mode transitions
   useEffect(() => {
     // Only trigger exit animation when transitioning from true to false
-    if (prevPrivateMode.current && !visualMode.isPrivateMode) {
+    if (prevPrivateMode.current && !isPrivateMode) {
       setIsExiting(true);
 
       // Clear any existing timeout
@@ -44,11 +44,11 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
     }
 
     // Update the ref for next comparison
-    prevPrivateMode.current = visualMode.isPrivateMode;
-  }, [visualMode.isPrivateMode]);
+    prevPrivateMode.current = isPrivateMode;
+  }, [isPrivateMode]);
 
   // Show background when in private mode or during exit animation
-  const showPrivateBackground = visualMode.isPrivateMode || isExiting;
+  const showPrivateBackground = isPrivateMode || isExiting;
 
   return (
     <div className="flex h-screen w-full">

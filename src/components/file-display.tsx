@@ -7,6 +7,7 @@ import {
   PaperclipIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
+import { Spinner } from "@/components/spinner";
 import type { Attachment } from "@/types";
 
 function getFileIcon(
@@ -85,7 +86,7 @@ export const FileDisplay = ({
       <div
         className={`flex items-center justify-center bg-muted/20 ${className}`}
       >
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
+        <Spinner size="sm" className="opacity-60" />
       </div>
     );
   }
@@ -188,7 +189,7 @@ export const ImageThumbnail = ({
       <div
         className={`flex flex-shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-800 ${className}`}
       >
-        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent opacity-60" />
+        <Spinner size="sm" className="h-3 w-3 opacity-60" />
       </div>
     );
   }

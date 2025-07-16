@@ -27,7 +27,7 @@ export const convertStorageToData = async (
   for (let i = 0; i < uint8Array.length; i++) {
     binaryString += String.fromCharCode(uint8Array[i]);
   }
-  const base64 = btoa(binaryString);
+  const base64 = Buffer.from(uint8Array).toString('base64');
 
   const mimeType =
     blob.type ||

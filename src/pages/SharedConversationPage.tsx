@@ -1,56 +1,67 @@
 import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
-import { Link, useParams } from "react-router";
+import type { Doc } from "@convex/_generated/dataModel";
+import { Link, useParams } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
+import type { ChatMessage, ConversationId } from "@/types";
 
-export default function SharedConversationRoute() {
+type SharedConversationData = {
+  conversation: Doc<"conversations"> & { title: string };
+  messages: (Doc<"messages"> & { attachments: undefined })[];
+  sharedAt: number;
+  lastUpdated: number;
+};
+
+export default function SharedConversationPage() {
   const { shareId } = useParams();
 
+  const sharedData = usePersistentConvexQuery<SharedConversationData | null>(
+    "shared-conversation-data",
+    api.sharedConversations.getSharedConversation,
+    shareId ? { shareId } : "skip"
+  );
+
   if (!shareId) {
-    throw new Error("Share ID is required");
+    return <NotFoundPage />;
   }
 
-  // Fetch the shared conversation data
-  const sharedData = useQuery(api.sharedConversations.getSharedConversation, {
-    shareId,
-  });
-
-  // Loading state
   if (sharedData === undefined) {
-    return null; // Let the route-level Suspense handle the loading state
+    return null;
   }
 
-  // Not found state
   if (sharedData === null) {
     return <NotFoundPage />;
   }
 
   const { conversation, messages } = sharedData;
 
-  // Transform messages to match ChatMessage type and filter out sensitive data
-  const chatMessages = messages.map(msg => ({
-    id: msg._id,
-    role: msg.role,
-    content: msg.content,
-    reasoning: undefined, // Remove reasoning for shared conversations
-    model: msg.model,
-    provider: msg.provider,
-    parentId: msg.parentId || undefined,
-    isMainBranch: msg.isMainBranch,
-    sourceConversationId: msg.sourceConversationId || undefined,
-    useWebSearch: msg.useWebSearch,
-    attachments: undefined, // Remove attachments for privacy
-    createdAt: msg._creationTime,
-    metadata: msg.metadata || undefined,
-    citations: msg.citations || undefined,
-  }));
+  const chatMessages: ChatMessage[] = messages.map(
+    (msg): ChatMessage => ({
+      id: msg._id,
+      role: msg.role as ChatMessage["role"],
+      content: msg.content,
+      reasoning: msg.reasoning,
+      model: msg.model,
+      provider: msg.provider,
+      parentId: msg.parentId,
+      isMainBranch: msg.isMainBranch,
+      sourceConversationId: msg.sourceConversationId as
+        | ConversationId
+        | undefined,
+      useWebSearch: msg.useWebSearch,
+      attachments: undefined,
+      createdAt: msg._creationTime,
+      metadata: msg.metadata,
+      citations: msg.citations,
+    })
+  );
 
-  // Add a notification as a context message - these are shown at the top and scroll with content
-  const notificationMessage = {
+  const notificationMessage: ChatMessage = {
     id: "shared-notification",
     role: "context" as const,
     content: "This is a shared copy of a conversation from Polly",
@@ -59,19 +70,14 @@ export default function SharedConversationRoute() {
     sourceConversationId: undefined,
   };
 
-  // Combine notification with messages
   const allMessages = [notificationMessage, ...chatMessages];
 
-  // Render the shared conversation view with minimal UI
   return (
     <div className="flex h-screen w-full flex-col bg-background">
-      {/* Header with branding */}
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <div className="flex h-16 items-center justify-between">
-            {/* Left side - Polly branding and conversation title */}
             <div className="flex items-center gap-3">
-              {/* Polly logo */}
               <Link to={ROUTES.HOME} className="flex items-center gap-2">
                 <img
                   src="/polly-mascot.png"
@@ -83,16 +89,13 @@ export default function SharedConversationRoute() {
                 </span>
               </Link>
 
-              {/* Separator */}
               <div className="h-5 w-px bg-border" />
 
-              {/* Conversation title */}
               <h1 className="truncate text-sm font-medium text-foreground">
                 {conversation.title || "Shared Conversation"}
               </h1>
             </div>
 
-            {/* Right side - Actions */}
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <Button asChild size="sm" variant="primary">
@@ -103,7 +106,6 @@ export default function SharedConversationRoute() {
         </div>
       </div>
 
-      {/* Messages container */}
       <div className="flex-1 overflow-hidden">
         {chatMessages.length === 0 ? (
           <div className="flex h-full items-center justify-center">

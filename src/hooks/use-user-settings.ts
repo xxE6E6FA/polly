@@ -1,9 +1,18 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
-import { useMutation, useQuery } from "convex/react";
+import type { Doc, Id } from "@convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import { usePersistentConvexQuery } from "./use-persistent-convex-query";
 
-export function useUserSettings(userId?: Id<"users">) {
-  return useQuery(api.userSettings.getUserSettings, { userId });
+export type UserSettings = Doc<"userSettings"> | null;
+
+export function useUserSettings(
+  userId?: Id<"users">
+): UserSettings | undefined {
+  return usePersistentConvexQuery<UserSettings>(
+    "user-settings",
+    api.userSettings.getUserSettings,
+    { userId }
+  );
 }
 
 export function useUserSettingsMutations() {

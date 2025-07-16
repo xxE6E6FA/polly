@@ -1,7 +1,9 @@
+import {
+  ANONYMOUS_MESSAGE_LIMIT,
+  MONTHLY_MESSAGE_LIMIT,
+} from "@shared/constants";
 import { v } from "convex/values";
-
 import { internalMutation, mutation, query } from "./_generated/server";
-import { ANONYMOUS_MESSAGE_LIMIT, MONTHLY_MESSAGE_LIMIT } from "./constants";
 import { getCurrentUserId } from "./lib/auth";
 import { cacheKeys, LONG_CACHE_TTL, withCache } from "./lib/cache_utils";
 
@@ -154,8 +156,8 @@ export const hasUserApiKeys = query({
 
     const apiKeys = await ctx.db
       .query("userApiKeys")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
+      .take(20); // Reasonable limit for user API keys check
 
     return apiKeys.length > 0;
   },
@@ -461,7 +463,7 @@ export const getUserStats = query({
     if (conversationCount === undefined || totalMessages === undefined) {
       const conversations = await ctx.db
         .query("conversations")
-        .withIndex("by_user", q => q.eq("userId", userId))
+        .withIndex("by_user_recent", q => q.eq("userId", userId))
         .collect();
 
       conversationCount = conversations.length;
@@ -577,7 +579,9 @@ export const graduateOrMergeAnonymousUser = mutation({
     // Check if authenticated user has any existing conversations
     const existingConversations = await ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", args.authenticatedUserId))
+      .withIndex("by_user_recent", q =>
+        q.eq("userId", args.authenticatedUserId)
+      )
       .collect();
 
     if (existingConversations.length === 0) {
@@ -587,7 +591,7 @@ export const graduateOrMergeAnonymousUser = mutation({
       // Update all conversations from anonymous to authenticated user
       const anonymousConversations = await ctx.db
         .query("conversations")
-        .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
+        .withIndex("by_user_recent", q => q.eq("userId", args.anonymousUserId))
         .collect();
 
       for (const conversation of anonymousConversations) {
@@ -617,7 +621,7 @@ export const graduateOrMergeAnonymousUser = mutation({
     // Transfer all conversations from anonymous to authenticated user
     const anonymousConversations = await ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", args.anonymousUserId))
+      .withIndex("by_user_recent", q => q.eq("userId", args.anonymousUserId))
       .collect();
 
     for (const conversation of anonymousConversations) {

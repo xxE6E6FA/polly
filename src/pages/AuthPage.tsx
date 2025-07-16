@@ -1,7 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { getStoredAnonymousUserId } from "@/lib/auth-utils";
 
@@ -59,7 +59,7 @@ export default function AuthPage() {
             onClick={handleSignIn}
           >
             {isLoading ? (
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              <Spinner size="sm" />
             ) : (
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path

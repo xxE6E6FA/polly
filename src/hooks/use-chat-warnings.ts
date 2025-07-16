@@ -1,8 +1,9 @@
 import { useCallback, useMemo } from "react";
+import { useUserData } from "@/hooks/use-user-data";
 import { useSet } from "./use-state-management";
-import { useUser } from "./use-user";
 
 export function useChatWarnings() {
+  const userData = useUserData();
   const {
     messageCount,
     remainingMessages,
@@ -12,7 +13,16 @@ export function useChatWarnings() {
     monthlyUsage,
     hasUserApiKeys,
     hasUnlimitedCalls,
-  } = useUser();
+  } = userData || {
+    messageCount: 0,
+    remainingMessages: 0,
+    hasMessageLimit: true,
+    canSendMessage: false,
+    isAnonymous: true,
+    monthlyUsage: undefined,
+    hasUserApiKeys: false,
+    hasUnlimitedCalls: false,
+  };
 
   const { has: isDismissed, add: dismissWarning } = useSet<string>();
 
@@ -25,9 +35,13 @@ export function useChatWarnings() {
       return false;
     }
 
-    // For anonymous users: show warning if they have sent any messages
+    // For anonymous users: only show warning if they have sent messages and have few remaining
     if (isAnonymous) {
-      return messageCount > 0 && !isDismissed(warningDismissalKey);
+      return (
+        messageCount > 0 &&
+        remainingMessages <= 5 &&
+        !isDismissed(warningDismissalKey)
+      );
     }
 
     // For signed-in users: only show warning when they have less than 10 messages remaining
@@ -44,10 +58,10 @@ export function useChatWarnings() {
     hasUnlimitedCalls,
     isAnonymous,
     messageCount,
+    remainingMessages,
     isDismissed,
     warningDismissalKey,
     monthlyUsage?.remainingMessages,
-    remainingMessages,
   ]);
 
   const showLimitReached =

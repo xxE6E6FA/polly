@@ -1,190 +1,150 @@
-import type { PrismTheme } from "prism-react-renderer";
-
-export const lightSyntaxTheme: PrismTheme = {
+// Light theme for syntax highlighting
+export const lightSyntaxTheme = {
   plain: {
-    color: "hsl(0 0% 9%)", // Darker for better contrast
+    color: "#24292e",
     backgroundColor: "transparent",
   },
   styles: [
     {
-      types: ["comment", "prolog", "cdata"],
+      types: ["comment", "prolog", "doctype", "cdata"],
       style: {
-        color: "hsl(0 0% 40%)", // Darker comment color
-        fontStyle: "italic",
-      },
-    },
-    {
-      types: ["doctype", "punctuation", "entity"],
-      style: {
-        color: "hsl(0 0% 35%)", // Darker punctuation
-      },
-    },
-    {
-      types: [
-        "attr-name",
-        "class-name",
-        "boolean",
-        "constant",
-        "number",
-        "atrule",
-      ],
-      style: {
-        color: "hsl(280 70% 45%)", // Darker purple
-        fontWeight: "500",
-      },
-    },
-    {
-      types: ["keyword", "property", "tag", "symbol", "deleted", "important"],
-      style: {
-        color: "hsl(158 65% 35%)", // Darker green
-        fontWeight: "600",
-      },
-    },
-    {
-      types: [
-        "selector",
-        "string",
-        "char",
-        "builtin",
-        "inserted",
-        "regex",
-        "attr-value",
-      ],
-      style: {
-        color: "hsl(200 85% 45%)", // Darker blue
-      },
-    },
-    {
-      types: ["variable", "operator", "function"],
-      style: {
-        color: "hsl(35 90% 45%)", // Darker orange
-      },
-    },
-    {
-      types: ["url"],
-      style: {
-        color: "hsl(10 75% 50%)", // Darker coral
-        textDecorationLine: "underline",
+        color: "#6a737d",
+        fontStyle: "italic" as const,
       },
     },
     {
       types: ["namespace"],
       style: {
-        color: "hsl(55 85% 45%)", // Darker yellow
+        opacity: 0.7,
       },
     },
     {
-      types: ["bracket", "delimiter"],
+      types: ["string", "attr-value"],
       style: {
-        color: "hsl(0 0% 9%)", // Darker for better contrast
+        color: "#032f62",
       },
     },
     {
-      types: ["title"],
+      types: ["punctuation", "operator"],
       style: {
-        color: "hsl(158 65% 35%)", // Darker green
-        fontWeight: "bold",
+        color: "#24292e",
       },
     },
     {
-      types: ["generic"],
+      types: [
+        "entity",
+        "url",
+        "symbol",
+        "number",
+        "boolean",
+        "variable",
+        "constant",
+        "property",
+        "regex",
+        "inserted",
+      ],
       style: {
-        color: "hsl(0 0% 40%)", // Darker muted color
+        color: "#005cc5",
+      },
+    },
+    {
+      types: ["atrule", "keyword", "attr-name", "selector"],
+      style: {
+        color: "#d73a49",
+      },
+    },
+    {
+      types: ["function", "deleted", "tag"],
+      style: {
+        color: "#6f42c1",
+      },
+    },
+    {
+      types: ["function-variable"],
+      style: {
+        color: "#6f42c1",
+      },
+    },
+    {
+      types: ["tag", "selector", "keyword"],
+      style: {
+        color: "#d73a49",
       },
     },
   ],
 };
 
-export const darkSyntaxTheme: PrismTheme = {
+// Dark theme for syntax highlighting
+export const darkSyntaxTheme = {
   plain: {
-    color: "hsl(210 40% 96%)", // Slightly dimmer for less harsh contrast
+    color: "#f8f8f2",
     backgroundColor: "transparent",
   },
   styles: [
     {
-      types: ["comment", "prolog", "cdata"],
+      types: ["comment", "prolog", "doctype", "cdata"],
       style: {
-        color: "hsl(217.9 10.6% 60%)", // Slightly dimmer
-        fontStyle: "italic",
-      },
-    },
-    {
-      types: ["doctype", "punctuation", "entity"],
-      style: {
-        color: "hsl(217.9 10.6% 65%)", // Brighter for better visibility
-      },
-    },
-    {
-      types: [
-        "attr-name",
-        "class-name",
-        "boolean",
-        "constant",
-        "number",
-        "atrule",
-      ],
-      style: {
-        color: "hsl(280 75% 70%)", // Brighter purple
-        fontWeight: "500",
-      },
-    },
-    {
-      types: ["keyword", "property", "tag", "symbol", "deleted", "important"],
-      style: {
-        color: "hsl(158 70% 55%)", // Brighter green
-        fontWeight: "600",
-      },
-    },
-    {
-      types: [
-        "selector",
-        "string",
-        "char",
-        "builtin",
-        "inserted",
-        "regex",
-        "attr-value",
-      ],
-      style: {
-        color: "hsl(200 90% 70%)", // Brighter blue
-      },
-    },
-    {
-      types: ["variable", "operator", "function"],
-      style: {
-        color: "hsl(35 95% 65%)", // Brighter orange
-      },
-    },
-    {
-      types: ["url"],
-      style: {
-        color: "hsl(10 80% 75%)", // Brighter coral
-        textDecorationLine: "underline",
+        color: "#8292a2",
+        fontStyle: "italic" as const,
       },
     },
     {
       types: ["namespace"],
       style: {
-        color: "hsl(55 90% 75%)", // Brighter yellow
+        opacity: 0.7,
       },
     },
     {
-      types: ["bracket", "delimiter"],
+      types: ["string", "attr-value"],
       style: {
-        color: "hsl(210 40% 96%)", // Slightly dimmer
+        color: "#a3be8c",
       },
     },
     {
-      types: ["title"],
+      types: ["punctuation", "operator"],
       style: {
-        color: "hsl(158 70% 55%)", // Brighter green
-        fontWeight: "bold",
+        color: "#81a1c1",
       },
     },
     {
-      types: ["generic"],
+      types: [
+        "entity",
+        "url",
+        "symbol",
+        "number",
+        "boolean",
+        "variable",
+        "constant",
+        "property",
+        "regex",
+        "inserted",
+      ],
       style: {
-        color: "hsl(217.9 10.6% 60%)", // Slightly dimmer
+        color: "#b48ead",
+      },
+    },
+    {
+      types: ["atrule", "keyword", "attr-name", "selector"],
+      style: {
+        color: "#81a1c1",
+      },
+    },
+    {
+      types: ["function", "deleted", "tag"],
+      style: {
+        color: "#88c0d0",
+      },
+    },
+    {
+      types: ["function-variable"],
+      style: {
+        color: "#88c0d0",
+      },
+    },
+    {
+      types: ["tag", "selector", "keyword"],
+      style: {
+        color: "#81a1c1",
       },
     },
   ],

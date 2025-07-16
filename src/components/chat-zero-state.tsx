@@ -1,20 +1,22 @@
-import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useAuthToken } from "@convex-dev/auth/react";
 import {
   CheckCircleIcon,
+  CircleIcon,
   KeyIcon,
   LightningIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useChatService } from "@/hooks/use-chat-service";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
+import { get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
+import { cn } from "@/lib/utils";
 import type { Attachment, ReasoningConfig } from "@/types";
 import { ChatInput, type ChatInputRef } from "./chat-input";
 import { PromptsTickerWrapper } from "./prompts-ticker";
@@ -22,32 +24,43 @@ import { PromptsTickerWrapper } from "./prompts-ticker";
 const SetupChecklist = ({
   hasApiKeys,
   hasEnabledModels,
+  isAnonymous,
+  isHydrated,
 }: {
-  hasApiKeys: boolean;
-  hasEnabledModels: boolean;
+  hasApiKeys: boolean | undefined;
+  hasEnabledModels: boolean | undefined;
+  isAnonymous: boolean;
+  isHydrated: boolean;
 }) => {
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    const dismissed = localStorage.getItem("setup-checklist-dismissed");
-    setIsDismissed(dismissed === "true");
+    const dismissed = getLS<boolean>("setup-checklist/dismissed/v1", false);
+    setIsDismissed(dismissed);
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem("setup-checklist-dismissed", "true");
+    setLS<boolean>("setup-checklist/dismissed/v1", true);
     setIsDismissed(true);
   };
 
-  const needsSetup = !(hasApiKeys && hasEnabledModels);
-
-  if (!needsSetup || isDismissed) {
+  if (
+    isAnonymous ||
+    isDismissed ||
+    !isHydrated ||
+    (hasApiKeys && hasEnabledModels)
+  ) {
     return null;
   }
 
   return (
     <div className="mx-auto mt-2 max-w-sm sm:mt-4 sm:max-w-md">
-      <div className="relative rounded-md border border-border/30 bg-muted/20 p-2.5">
+      <div
+        aria-live="polite"
+        className="relative rounded-md border border-border/30 bg-muted/20 p-2.5"
+      >
         <Button
+          aria-label="Dismiss checklist"
           className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/50"
           size="sm"
           variant="ghost"
@@ -56,22 +69,21 @@ const SetupChecklist = ({
           <XIcon className="h-2.5 w-2.5" />
         </Button>
         <div className="pr-6">
-          <h3 className="mb-3 flex items-center gap-1.5 text-xs font-medium">
+          <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
             Next Steps
           </h3>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs">
+          <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasApiKeys ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
-                <div className="h-3 w-3 shrink-0 rounded-full border border-muted-foreground/30" />
+                <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
               )}
               <span
-                className={
-                  hasApiKeys
-                    ? "flex-1 text-muted-foreground line-through"
-                    : "flex-1 text-muted-foreground"
-                }
+                className={cn(
+                  "flex-1 text-muted-foreground transition-colors text-left",
+                  hasApiKeys && "opacity-60"
+                )}
               >
                 Add your API keys
               </span>
@@ -88,18 +100,17 @@ const SetupChecklist = ({
                 </Link>
               )}
             </div>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasEnabledModels ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
-                <div className="h-3 w-3 shrink-0 rounded-full border border-muted-foreground/30" />
+                <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
               )}
               <span
-                className={
-                  hasEnabledModels
-                    ? "flex-1 text-muted-foreground line-through"
-                    : "flex-1 text-muted-foreground"
-                }
+                className={cn(
+                  "flex-1 text-muted-foreground transition-colors text-left",
+                  hasEnabledModels && "opacity-60"
+                )}
               >
                 Enable AI models
               </span>
@@ -150,53 +161,15 @@ const Heading = ({ isMobile }: { isMobile: boolean }) => {
   return <h1 className={titleClasses}>What&apos;s on your mind?</h1>;
 };
 
-const ConditionalSetupChecklist = ({
-  isAnonymous,
-  hasApiKeys,
-  hasEnabledModels,
-  isLoadingStatus,
-}: {
-  isAnonymous: boolean;
-  hasApiKeys: boolean | undefined;
-  hasEnabledModels: boolean | undefined;
-  isLoadingStatus: boolean;
-}) => {
-  // For anonymous users, don't show anything
-  if (isAnonymous) {
-    return null;
-  }
-
-  // Don't show anything while loading
-  if (isLoadingStatus) {
-    return null;
-  }
-
-  // Once loaded, show checklist if needed
-  if (
-    hasApiKeys !== undefined &&
-    hasEnabledModels !== undefined &&
-    !(hasApiKeys && hasEnabledModels)
-  ) {
-    return (
-      <SetupChecklist
-        hasApiKeys={Boolean(hasApiKeys)}
-        hasEnabledModels={Boolean(hasEnabledModels)}
-      />
-    );
-  }
-
-  return null;
-};
-
 export const ChatZeroState = () => {
-  const {
-    user,
-    isLoading: userLoading,
-    canSendMessage,
-    messageCount,
-    hasMessageLimit,
-    hasUnlimitedCalls,
-  } = useUser();
+  const userData = useUserData();
+  const user = userData?.user;
+  const isLoading = !userData;
+  const canSendMessage = userData?.canSendMessage ?? false;
+  const messageCount = userData?.messageCount ?? 0;
+  const hasMessageLimit = userData?.hasMessageLimit ?? false;
+  const hasUnlimitedCalls = userData?.hasUnlimitedCalls ?? false;
+  const authToken = useAuthToken();
   const queryUserId = useQueryUserId();
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
@@ -206,14 +179,10 @@ export const ChatZeroState = () => {
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
 
-  const hasEnabledModels = useQuery(
-    api.userModels.hasUserModels,
-    user && !user.isAnonymous ? {} : "skip"
-  );
-  const hasApiKeys = useQuery(
-    api.apiKeys.hasAnyApiKey,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  // Use cached user data instead of duplicate queries
+  const hasUserApiKeys = userData?.hasUserApiKeys ?? false;
+  const hasUserModels = userData?.hasUserModels ?? false;
+  const isHydrated = userData?.isHydrated ?? false;
 
   const handleSendMessage = useCallback(
     async (
@@ -222,14 +191,6 @@ export const ChatZeroState = () => {
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
     ) => {
-      // biome-ignore lint/suspicious/noConsole: Debugging
-      console.log(
-        "handleSendMessage",
-        content,
-        attachments,
-        personaId,
-        reasoningConfig
-      );
       if (isPrivateMode) {
         navigate(ROUTES.PRIVATE_CHAT, {
           state: {
@@ -276,13 +237,9 @@ export const ChatZeroState = () => {
     onSendMessage: handleSendMessage,
   };
 
-  // Only show as anonymous after we've loaded user data
-  const isAnonymous = userLoading ? false : (user?.isAnonymous ?? true);
-
-  // Check if we're loading API/model status for authenticated users
-  const isLoadingStatus =
-    !isAnonymous &&
-    (hasApiKeys === undefined || hasEnabledModels === undefined);
+  // Determine authentication state considering both cached user data and live auth token
+  // If we have an auth token, the user is definitely authenticated (even if cached data is stale)
+  const isAnonymous = !(isLoading || authToken) && (user?.isAnonymous ?? true);
 
   // Calculate if a warning will be shown
   const hasWarning = useMemo(() => {
@@ -319,27 +276,27 @@ export const ChatZeroState = () => {
               hasReachedLimit={!canSendMessage}
               hasWarning={hasWarning}
               isAnonymous={isAnonymous}
-              userLoading={userLoading}
+              userLoading={isLoading}
               onQuickPrompt={handleQuickPrompt}
             />
             <ChatInput ref={chatInputRef} {...chatInputProps} />
           </div>
 
-          <ConditionalSetupChecklist
-            hasApiKeys={hasApiKeys}
-            hasEnabledModels={hasEnabledModels}
+          <SetupChecklist
+            hasApiKeys={hasUserApiKeys}
+            hasEnabledModels={hasUserModels}
             isAnonymous={isAnonymous}
-            isLoadingStatus={isLoadingStatus}
+            isHydrated={isHydrated}
           />
         </div>
 
         {/* Mobile: Bottom section with checklist and chat input */}
         <div className="flex-shrink-0 space-y-4 sm:hidden">
-          <ConditionalSetupChecklist
-            hasApiKeys={hasApiKeys}
-            hasEnabledModels={hasEnabledModels}
+          <SetupChecklist
+            hasApiKeys={hasUserApiKeys}
+            hasEnabledModels={hasUserModels}
             isAnonymous={isAnonymous}
-            isLoadingStatus={isLoadingStatus}
+            isHydrated={isHydrated}
           />
 
           <div className="relative">
@@ -347,7 +304,7 @@ export const ChatZeroState = () => {
               hasReachedLimit={!canSendMessage}
               hasWarning={hasWarning}
               isAnonymous={isAnonymous}
-              userLoading={userLoading}
+              userLoading={isLoading}
               onQuickPrompt={handleQuickPrompt}
             />
             <ChatInput ref={mobileChatInputRef} {...chatInputProps} />

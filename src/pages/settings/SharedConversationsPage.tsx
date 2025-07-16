@@ -11,6 +11,10 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import {
+  SettingsPageLayout,
+  SettingsZeroState,
+} from "@/components/settings/ui";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -197,7 +201,7 @@ export default function SharedConversationsPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <SettingsPageLayout>
       <SettingsHeader
         title="Shared Conversations"
         description="Manage your publicly shared conversations"
@@ -215,23 +219,17 @@ export default function SharedConversationsPage() {
         queryArgs={{}}
         renderItem={renderSharedConversation}
         getItemKey={item => item._id}
-        emptyState={
-          <Card className="p-12">
-            <div className="flex flex-col items-center text-center">
-              <div className="mb-4 rounded-full bg-muted p-3">
-                <ShareNetworkIcon className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="mb-2 text-lg font-medium">
-                No shared conversations
-              </h3>
-              <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-                Share a conversation to make it publicly accessible via a link
-              </p>
+        zeroState={
+          <SettingsZeroState
+            icon={<ShareNetworkIcon className="h-12 w-12" />}
+            title="No shared conversations"
+            description="Share a conversation to make it publicly accessible via a link"
+            cta={
               <Button asChild variant="outline">
                 <Link to={ROUTES.HOME}>Go to conversations</Link>
               </Button>
-            </div>
-          </Card>
+            }
+          />
         }
         className="h-96"
         itemHeight={200}
@@ -249,6 +247,6 @@ export default function SharedConversationsPage() {
         onCancel={confirmDialog.handleCancel}
         variant={confirmDialog.options.variant}
       />
-    </div>
+    </SettingsPageLayout>
   );
 }

@@ -5,7 +5,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { requireAuth } from "./lib/auth";
+import { getCurrentUserId, requireAuth } from "./lib/auth";
 
 // Export conversation type definition
 export type ExportConversation = {
@@ -476,7 +476,11 @@ export const listUserJobs = query({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    // Allow anonymous users; if no authenticated user, return an empty list instead of throwing an error
+    const userId = await getCurrentUserId(ctx);
+    if (!userId) {
+      return [];
+    }
     const limit = args.limit || 50;
 
     let query = ctx.db
@@ -496,31 +500,12 @@ export const listUserJobs = query({
       query = query.filter(q => q.eq(q.field("status"), args.status));
     }
 
-    const jobs = await query.take(limit);
+    // Fetch the job documents. Returning the raw documents keeps the Convex `_id` field
+    // which the client relies on for reactivity and type-guards. Any large or sensitive
+    // fields (e.g. `payload`, `fileStorageId`) remain omitted from the UI by the
+    // frontend transformers, so sending the full doc is fine here.
 
-    return jobs.map(job => ({
-      jobId: job.jobId,
-      type: job.type,
-      category: job.category,
-      status: job.status,
-      processedItems: job.processedItems,
-      totalItems: job.totalItems,
-      progress:
-        job.totalItems > 0
-          ? Math.round((job.processedItems / job.totalItems) * 100)
-          : 0,
-      error: job.error,
-      title: job.title,
-      description: job.description,
-      priority: job.priority,
-      includeAttachments: job.includeAttachments,
-      manifest: job.manifest,
-      hasFile: !!job.fileStorageId,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-      startedAt: job.startedAt,
-      completedAt: job.completedAt,
-    }));
+    return await query.take(limit);
   },
 });
 
@@ -594,7 +579,7 @@ export const cleanupOldJobs = mutation({
       query = query.filter(q => q.eq(q.field("category"), args.category));
     }
 
-    const oldJobs = await query.collect();
+    const oldJobs = await query.take(1000); // Reasonable limit for cleanup operations
 
     let deletedCount = 0;
     let filesDeleted = 0;
@@ -649,7 +634,7 @@ export const getActiveJobsCount = query({
       query = query.filter(q => q.eq(q.field("category"), args.category));
     }
 
-    const activeJobs = await query.collect();
+    const activeJobs = await query.take(100); // Reasonable limit for active job count
     return activeJobs.length;
   },
 });

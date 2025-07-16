@@ -13,10 +13,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useSidebar } from "@/hooks/use-sidebar";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useUI } from "@/providers/ui-provider";
 import type { ConversationId } from "@/types";
 
 export const Sidebar = () => {
@@ -27,10 +27,11 @@ export const Sidebar = () => {
     isMobile,
     setSidebarVisible,
     mounted,
-  } = useSidebar();
+  } = useUI();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
-  const { user } = useUser();
+  const userData = useUserData();
+  const user = userData?.user;
   const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {

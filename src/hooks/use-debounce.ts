@@ -26,15 +26,6 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-// Enhanced debounce hook with immediate first call and leading edge support
-/**
- *
- * @param callback
- * @param delay
- * @param options
- * @param options.leading
- * @param options.trailing
- */
 export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
   callback: T,
   delay: number,

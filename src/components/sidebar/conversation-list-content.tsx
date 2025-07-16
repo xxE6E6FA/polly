@@ -1,7 +1,6 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
-import { useConversationSearch } from "@/hooks/use-conversation-search";
 import type { ConversationId } from "@/types";
 import { ConversationGroup } from "./conversation-group";
 import { ConversationItem } from "./conversation-item";
@@ -19,10 +18,18 @@ export const ConversationListContent = ({
   currentConversationId,
   isLoading = false,
 }: ConversationListContentProps) => {
-  const filteredConversations = useConversationSearch(
-    conversations || [],
-    searchQuery
-  );
+  const filteredConversations = useMemo(() => {
+    const convs = conversations || [];
+    if (!searchQuery.trim()) {
+      return convs;
+    }
+
+    const query = searchQuery.toLowerCase();
+    return convs.filter(
+      conv =>
+        conv.title?.toLowerCase().includes(query) || conv._id.includes(query)
+    );
+  }, [conversations, searchQuery]);
 
   const groupedConversations = useMemo(() => {
     if (!conversations) {

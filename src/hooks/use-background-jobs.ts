@@ -1,8 +1,9 @@
-import { api } from "convex/_generated/api";
-import type { Id } from "convex/_generated/dataModel";
-import { useAction, useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Doc, Id } from "@convex/_generated/dataModel";
+import { useAction } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import type { ParsedConversation } from "@/lib/import-parsers";
 
 export type JobType =
@@ -54,9 +55,11 @@ export function useBackgroundJobs() {
     new Map()
   );
 
-  const jobStatuses = useQuery(api.backgroundJobs.listUserJobs, {
-    limit: 100,
-  });
+  const jobStatuses = usePersistentConvexQuery(
+    "background-jobs",
+    api.backgroundJobs.listUserJobs,
+    { limit: 100 }
+  );
 
   const scheduleBackgroundExport = useAction(
     api.conversations.scheduleBackgroundExport
@@ -71,47 +74,44 @@ export function useBackgroundJobs() {
   const previousJobStatuses = useRef<typeof jobStatuses>(null);
 
   const activeJobs = useMemo(() => {
-    if (!jobStatuses) {
+    if (!(jobStatuses && Array.isArray(jobStatuses))) {
       return new Map<string, BackgroundJob>();
     }
 
     const transformedJobs = new Map<string, BackgroundJob>();
 
-    jobStatuses.forEach(job => {
-      // Type assertion for jobs that may have result field
-      const jobWithResult = job as typeof job & {
-        result?: {
-          totalImported: number;
-          totalProcessed: number;
-          errors: string[];
-          conversationIds?: string[];
-        };
-      };
-
-      const backgroundJob: BackgroundJob = {
-        id: job.jobId,
+    jobStatuses.forEach((job: Doc<"backgroundJobs">) => {
+      const transformedJob: BackgroundJob = {
+        id: job.jobId || job._id,
         type: job.type as JobType,
-        status: job.status as BackgroundJob["status"],
-        progress: job.progress,
-        processed: job.processedItems,
-        total: job.totalItems,
+        status: job.status,
+        progress:
+          job.processedItems && job.totalItems
+            ? Math.round((job.processedItems / job.totalItems) * 100)
+            : 0,
+        processed: job.processedItems || 0,
+        total: job.totalItems || 0,
         error: job.error,
         title: job.title,
         description: job.description,
         includeAttachments: job.includeAttachments,
         manifest: job.manifest,
-        hasFile: job.hasFile,
-        result: jobWithResult.result,
-        createdAt: job.createdAt,
+        hasFile:
+          job.type === "export" &&
+          job.status === "completed" &&
+          Boolean(job.fileStorageId),
+        result: job.result,
+        createdAt: job._creationTime,
         completedAt: job.completedAt,
       };
 
-      transformedJobs.set(job.jobId, backgroundJob);
+      transformedJobs.set(transformedJob.id, transformedJob);
     });
 
-    localJobs.forEach((localJob, jobId) => {
-      if (!transformedJobs.has(jobId)) {
-        transformedJobs.set(jobId, localJob);
+    // Merge with local jobs
+    localJobs.forEach((localJob: BackgroundJob) => {
+      if (!transformedJobs.has(localJob.id)) {
+        transformedJobs.set(localJob.id, localJob);
       }
     });
 
@@ -119,17 +119,27 @@ export function useBackgroundJobs() {
   }, [jobStatuses, localJobs]);
 
   useEffect(() => {
-    if (!(jobStatuses && previousJobStatuses.current)) {
+    if (
+      !(
+        jobStatuses &&
+        Array.isArray(jobStatuses) &&
+        previousJobStatuses.current &&
+        Array.isArray(previousJobStatuses.current)
+      )
+    ) {
       previousJobStatuses.current = jobStatuses;
       return;
     }
 
     const previousMap = new Map(
-      previousJobStatuses.current.map(job => [job.jobId, job])
+      previousJobStatuses.current.map((job: Doc<"backgroundJobs">) => [
+        job._id,
+        job,
+      ])
     );
 
-    jobStatuses.forEach(job => {
-      const previousJob = previousMap.get(job.jobId);
+    jobStatuses.forEach((job: Doc<"backgroundJobs">) => {
+      const previousJob = previousMap.get(job._id);
       if (previousJob && previousJob.status !== job.status) {
         if (job.status === "completed") {
           let message = "";

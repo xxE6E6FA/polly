@@ -1,33 +1,36 @@
 import { type PaginatedQueryReference, usePaginatedQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VListHandle } from "virtua";
-import { useDebouncedCallback } from "./use-debounce";
 
 interface UseVirtualizedPaginationOptions {
   initialNumItems?: number;
-  loadMoreThreshold?: number; // Distance from bottom in pixels
+  loadMoreThreshold?: number; // Distance from bottom in pixels when using scroll method
   autoLoadMore?: boolean; // Whether to automatically load more when scrolling
-  debounceDelay?: number; // Debounce delay for load more calls
+  throttleDelay?: number; // Throttle delay for load more calls
+  useIntersectionObserver?: boolean; // Use IntersectionObserver instead of scroll events
 }
 
-export function useVirtualizedPagination(
+export function useVirtualizedPagination<TArgs extends Record<string, unknown>>(
   query: PaginatedQueryReference,
-  args: Record<string, unknown> | "skip",
+  args: TArgs | "skip",
   options: UseVirtualizedPaginationOptions = {}
 ) {
   const {
     initialNumItems = 20,
     loadMoreThreshold = 200,
     autoLoadMore = true,
-    debounceDelay = 100,
+    throttleDelay = 200,
+    useIntersectionObserver = true,
   } = options;
 
   const vlistRef = useRef<VListHandle>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLoadingMoreRef = useRef(false);
 
-  // Generate a unique ID for this VList instance
-  const vlistId = useMemo(
-    () => `vlist-${Math.random().toString(36).substr(2, 9)}`,
-    []
+  // Track container element for cleanup
+  const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(
+    null
   );
 
   const paginatedResult = usePaginatedQuery(query, args, { initialNumItems });
@@ -35,32 +38,55 @@ export function useVirtualizedPagination(
   const isLoading = paginatedResult.status === "LoadingFirstPage";
   const isLoadingMore = paginatedResult.status === "LoadingMore";
   const canLoadMore = paginatedResult.status === "CanLoadMore";
+  const hasNextPage = canLoadMore; // Alias for better ergonomics
 
-  // Helper function to get the scroll container
+  // Update loading ref when status changes
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore]);
+
+  // Get scroll container from virtua ref
   const getScrollContainer = useCallback(() => {
-    // Use the unique data attribute to reliably find the scroll container
-    const vlistElement = document.querySelector(`[data-vlist-id="${vlistId}"]`);
-    return vlistElement as HTMLElement | null;
-  }, [vlistId]);
+    if (!vlistRef.current) {
+      return null;
+    }
 
-  // Debounced load more function to prevent race conditions
-  const debouncedLoadMore = useDebouncedCallback(
-    () => {
-      if (canLoadMore && !isLoadingMore) {
-        paginatedResult.loadMore(initialNumItems);
+    // For virtua, the scroll container is the VList element itself
+    // We need to find the actual DOM element that virtua creates
+    const ref = vlistRef.current as unknown as {
+      _container?: HTMLElement;
+      scrollElement?: HTMLElement;
+    };
+    const vlistElement = ref?._container || ref?.scrollElement || null;
+
+    return vlistElement as HTMLElement | null;
+  }, []);
+
+  // Throttled load more function to prevent excessive calls
+  const throttledLoadMore = useCallback(
+    (count = initialNumItems) => {
+      if (throttleTimerRef.current) {
+        return;
+      }
+
+      if (canLoadMore && !isLoadingMoreRef.current) {
+        paginatedResult.loadMore(count);
+
+        throttleTimerRef.current = setTimeout(() => {
+          throttleTimerRef.current = null;
+        }, throttleDelay);
       }
     },
-    debounceDelay,
-    { trailing: true }
+    [canLoadMore, paginatedResult, initialNumItems, throttleDelay]
   );
 
-  // Handle infinite scroll
+  // Handle infinite scroll with scroll events (fallback)
   const handleScroll = useCallback(() => {
-    if (!(autoLoadMore && canLoadMore) || isLoadingMore) {
+    if (!(autoLoadMore && canLoadMore) || isLoadingMoreRef.current) {
       return;
     }
 
-    const scrollElement = getScrollContainer();
+    const scrollElement = scrollContainer;
     if (!scrollElement) {
       return;
     }
@@ -68,43 +94,104 @@ export function useVirtualizedPagination(
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
 
     if (scrollTop + clientHeight >= scrollHeight - loadMoreThreshold) {
-      debouncedLoadMore();
+      throttledLoadMore();
     }
   }, [
     autoLoadMore,
     canLoadMore,
-    isLoadingMore,
-    getScrollContainer,
+    scrollContainer,
     loadMoreThreshold,
-    debouncedLoadMore,
+    throttledLoadMore,
   ]);
 
-  // Set up scroll listener
+  // Set up IntersectionObserver for more efficient infinite scroll
   useEffect(() => {
-    if (!autoLoadMore) {
+    if (!(autoLoadMore && useIntersectionObserver && sentinelRef.current)) {
       return;
     }
 
-    const scrollElement = getScrollContainer();
-    if (!scrollElement) {
-      return;
-    }
+    const sentinel = sentinelRef.current;
 
-    scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && canLoadMore && !isLoadingMoreRef.current) {
+          throttledLoadMore();
+        }
+      },
+      {
+        // Use the scroll container as root if available, otherwise viewport
+        root: scrollContainer,
+        rootMargin: `${loadMoreThreshold}px`,
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
 
     return () => {
-      scrollElement.removeEventListener("scroll", handleScroll);
+      observer.disconnect();
     };
-  }, [handleScroll, autoLoadMore, getScrollContainer]);
+  }, [
+    autoLoadMore,
+    useIntersectionObserver,
+    canLoadMore,
+    scrollContainer,
+    loadMoreThreshold,
+    throttledLoadMore,
+  ]);
+
+  // Set up scroll listener as fallback when IntersectionObserver is disabled
+  useEffect(() => {
+    if (!autoLoadMore || useIntersectionObserver || !scrollContainer) {
+      return;
+    }
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+    };
+  }, [handleScroll, autoLoadMore, useIntersectionObserver, scrollContainer]);
+
+  // Update scroll container when VList mounts/unmounts
+  useEffect(() => {
+    const updateContainer = () => {
+      const container = getScrollContainer();
+      setScrollContainer(container);
+    };
+
+    // Try to get container immediately
+    updateContainer();
+
+    // Also try after a short delay in case virtua hasn't fully initialized
+    const timeoutId = setTimeout(updateContainer, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      setScrollContainer(null);
+    };
+  }, [getScrollContainer]);
+
+  useEffect(() => {
+    return () => {
+      if (throttleTimerRef.current) {
+        clearTimeout(throttleTimerRef.current);
+      }
+    };
+  }, []);
+
+  const shouldUseSentinel = autoLoadMore && useIntersectionObserver;
 
   return {
     ...paginatedResult,
     vlistRef,
-    vlistId,
+    sentinelRef: shouldUseSentinel ? sentinelRef : null,
     isLoading,
     isLoadingMore,
     canLoadMore,
-    // Manual load more function
-    loadMore: () => paginatedResult.loadMore(initialNumItems),
+    hasNextPage,
+    scrollContainer,
+    loadMore: throttledLoadMore,
   };
 }

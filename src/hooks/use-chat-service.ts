@@ -1,9 +1,12 @@
+import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { usePrivateMode } from "@/contexts/private-mode-context";
 import { ROUTES } from "@/lib/routes";
-import { useThinking } from "@/providers/thinking-provider";
+import { isUserModel } from "@/lib/type-guards";
+import { useUI } from "@/providers/ui-provider";
 import type {
   Attachment,
   ChatMessage,
@@ -12,7 +15,8 @@ import type {
   CreateConversationParams,
   ReasoningConfig,
 } from "@/types";
-import { useChatStateMachine } from "./use-chat-state-machine";
+import { type ChatStatus, useChatStateMachine } from "./use-chat-state-machine";
+import { usePersistentConvexQuery } from "./use-persistent-convex-query";
 import { usePrivateChat } from "./use-private-chat";
 import { useServerChat } from "./use-server-chat";
 
@@ -33,6 +37,7 @@ interface ChatService {
   currentReasoningConfig?: ReasoningConfig;
 
   // State machine properties
+  chatStatus: ChatStatus;
   isIdle: boolean;
   isSending: boolean;
   isStreaming: boolean;
@@ -63,7 +68,7 @@ interface ChatService {
   ) => Promise<ConversationId | undefined>;
   createConversation: (
     params: CreateConversationParams
-  ) => Promise<ConversationId>;
+  ) => Promise<ConversationId | undefined>;
   stopGeneration: () => void;
   deleteMessage: (messageId: string) => Promise<void>;
   editMessage: (messageId: string, content: string) => Promise<void>;
@@ -90,8 +95,14 @@ export function useChatService({
   overrideMode,
 }: ChatServiceOptions): ChatService {
   const navigate = useNavigate();
-  const { setIsThinking } = useThinking();
+  const { setIsThinking } = useUI();
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();
+  const selectedModelRaw = usePersistentConvexQuery(
+    "selected-model",
+    api.userModels.getUserSelectedModel,
+    {}
+  );
+  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
 
   // Use override mode if provided, otherwise use context
   const mode: ChatMode =
@@ -141,6 +152,31 @@ export function useChatService({
             reasoningConfig,
           });
         } else {
+          // Regular server mode - add optimistic message first
+          if (!selectedModel) {
+            toast.error("Cannot send message", {
+              description:
+                "A conversation must be active and a model selected to send messages.",
+            });
+            chatStateMachine.actions.setError(
+              new Error("Cannot send message without model")
+            );
+            return;
+          }
+
+          // Create optimistic message that will be replaced by server response
+          const optimisticMessage: ChatMessage = {
+            id: messageId as Id<"messages">,
+            role: "user",
+            content,
+            attachments,
+            createdAt: Date.now(),
+            isMainBranch: true,
+            metadata: { status: "pending" },
+          };
+          serverChat.addOptimisticMessage(optimisticMessage);
+
+          // Send to server - this will trigger fresh data from Convex that should replace optimistic
           await serverChat.sendMessage(
             content,
             attachments,
@@ -155,7 +191,7 @@ export function useChatService({
         throw error;
       }
     },
-    [mode, privateChat, serverChat, chatStateMachine.actions]
+    [mode, privateChat, serverChat, chatStateMachine.actions, selectedModel]
   );
 
   // Unified stop generation
@@ -263,6 +299,7 @@ export function useChatService({
         mode === "private" ? privateChat.currentReasoningConfig : undefined,
 
       // State machine properties
+      chatStatus: chatStateMachine.chatStatus,
       isIdle: chatStateMachine.isIdle,
       isSending: chatStateMachine.isSending,
       isStreaming:
@@ -318,6 +355,7 @@ export function useChatService({
       retryAssistantMessage,
       toggleMode,
       conversationId,
+      chatStateMachine.chatStatus,
     ]
   );
 }

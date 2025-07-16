@@ -1,6 +1,6 @@
-import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { PaginatedQueryReference } from "convex/react";
 import { VList } from "virtua";
+import { Spinner } from "@/components/spinner";
 import { useVirtualizedPagination } from "@/hooks/use-virtualized-pagination";
 
 interface VirtualizedPaginatedListProps<T> {
@@ -9,6 +9,7 @@ interface VirtualizedPaginatedListProps<T> {
   renderItem: (item: T, index: number) => React.ReactNode;
   getItemKey?: (item: T, index: number) => string;
   emptyState?: React.ReactNode;
+  zeroState?: React.ReactNode;
   className?: string;
   itemHeight?: number;
   initialNumItems?: number;
@@ -20,11 +21,12 @@ export function VirtualizedPaginatedList<T>({
   renderItem,
   getItemKey,
   emptyState,
+  zeroState,
   className = "min-h-0 flex-1",
   itemHeight = 100,
   initialNumItems = 20,
 }: VirtualizedPaginatedListProps<T>) {
-  const { results, vlistRef, vlistId, isLoading, isLoadingMore } =
+  const { results, vlistRef, sentinelRef, isLoading, isLoadingMore } =
     useVirtualizedPagination(query, queryArgs, {
       initialNumItems,
       autoLoadMore: true,
@@ -34,15 +36,15 @@ export function VirtualizedPaginatedList<T>({
     return (
       <div className="flex h-32 items-center justify-center">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ArrowsClockwise className="h-4 w-4 animate-spin" />
+          <Spinner size="sm" />
           Loading...
         </div>
       </div>
     );
   }
 
-  if (results.length === 0 && emptyState) {
-    return <>{emptyState}</>;
+  if (results.length === 0 && (zeroState || emptyState)) {
+    return <>{zeroState || emptyState}</>;
   }
 
   if (results.length === 0) {
@@ -63,7 +65,6 @@ export function VirtualizedPaginatedList<T>({
           overflow: "auto",
         }}
         className="overscroll-contain"
-        data-vlist-id={vlistId}
       >
         {results.map((item: T, index: number) => {
           const key = getItemKey ? getItemKey(item, index) : `item-${index}`;
@@ -74,11 +75,24 @@ export function VirtualizedPaginatedList<T>({
           );
         })}
 
+        {/* IntersectionObserver sentinel for infinite scroll */}
+        {sentinelRef && (
+          <div
+            ref={sentinelRef}
+            style={{
+              height: 1,
+              width: "100%",
+              pointerEvents: "none",
+            }}
+            aria-hidden
+          />
+        )}
+
         {/* Loading indicator at the bottom */}
         {isLoadingMore && (
           <div className="flex justify-center py-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <ArrowsClockwise className="h-4 w-4 animate-spin" />
+              <Spinner size="sm" />
               Loading more...
             </div>
           </div>

@@ -1,7 +1,6 @@
+import { PROVIDER_NAMES } from "@shared/provider-constants";
 import { memo } from "react";
-
 import { ProviderIcon } from "@/components/provider-icons";
-import { PROVIDER_NAMES } from "@/lib/provider-constants";
 
 const ProviderSummaryCard = memo(
   ({
@@ -26,9 +25,7 @@ const ProviderSummaryCard = memo(
     >
       <div className="flex items-center justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center">
-            <ProviderIcon provider={provider} />
-          </div>
+          <ProviderIcon provider={provider} className="h-8 w-8 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
               <h3 className="truncate text-base font-medium">

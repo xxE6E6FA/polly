@@ -1,7 +1,7 @@
 import { useMemo } from "react";
+import { useUserData } from "@/hooks/use-user-data";
 import { getStoredAnonymousUserId } from "@/lib/auth-utils";
 import type { UserId } from "@/types";
-import { useUser } from "./use-user";
 
 /**
  * Hook to get the user ID for Convex queries.
@@ -9,7 +9,8 @@ import { useUser } from "./use-user";
  * Returns null if no user ID is available.
  */
 export function useQueryUserId(): UserId | null {
-  const { user } = useUser();
+  const userData = useUserData();
+  const user = userData?.user;
 
   return useMemo(() => {
     // Prefer authenticated user ID

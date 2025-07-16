@@ -91,3 +91,96 @@ export const messageCreationArgs = {
   attachments: v.optional(v.array(attachmentSchema)),
   useWebSearch: v.optional(v.boolean()),
 };
+
+// Background job payload schemas
+const exportPayload = v.object({ 
+  includeAttachments: v.boolean(),
+  conversationIds: v.optional(v.array(v.id("conversations")))
+});
+
+const importPayload = v.object({ 
+  fileUrl: v.string(),
+  fileName: v.optional(v.string()),
+  originalFormat: v.optional(v.string())
+});
+
+const bulkArchivePayload = v.object({
+  conversationIds: v.array(v.id("conversations"))
+});
+
+const bulkDeletePayload = v.object({
+  conversationIds: v.array(v.id("conversations")),
+  permanentDelete: v.optional(v.boolean())
+});
+
+const conversationSummaryPayload = v.object({
+  conversationId: v.id("conversations"),
+  messageRange: v.optional(v.object({
+    startMessageId: v.optional(v.id("messages")),
+    endMessageId: v.optional(v.id("messages"))
+  }))
+});
+
+const migrationPayload = v.object({
+  migrationVersion: v.string(),
+  batchSize: v.optional(v.number())
+});
+
+// Discriminated union for payloads
+export const jobPayloadSchema = v.union(
+  v.object({ type: v.literal("export"), data: exportPayload }),
+  v.object({ type: v.literal("import"), data: importPayload }),
+  v.object({ type: v.literal("bulk_archive"), data: bulkArchivePayload }),
+  v.object({ type: v.literal("bulk_delete"), data: bulkDeletePayload }),
+  v.object({ type: v.literal("conversation_summary"), data: conversationSummaryPayload }),
+  v.object({ type: v.literal("data_migration"), data: migrationPayload }),
+  v.object({ type: v.literal("model_migration"), data: migrationPayload }),
+  v.object({ type: v.literal("backup"), data: v.object({}) })
+);
+
+// Background job result schemas
+const exportResult = v.object({
+  fileStorageId: v.id("_storage"),
+  fileSizeBytes: v.number(),
+  totalConversations: v.number(),
+  totalMessages: v.number()
+});
+
+const importResult = v.object({
+  totalImported: v.number(),
+  totalProcessed: v.number(),
+  errors: v.array(v.string()),
+  conversationIds: v.array(v.string())
+});
+
+const bulkOperationResult = v.object({
+  totalProcessed: v.number(),
+  successCount: v.number(),
+  errorCount: v.number(),
+  errors: v.array(v.string())
+});
+
+const summaryResult = v.object({
+  summary: v.string(),
+  tokenCount: v.optional(v.number()),
+  model: v.optional(v.string())
+});
+
+const migrationResult = v.object({
+  migratedCount: v.number(),
+  skippedCount: v.number(),
+  errorCount: v.number(),
+  errors: v.array(v.string())
+});
+
+// Discriminated union for results
+export const jobResultSchema = v.union(
+  v.object({ type: v.literal("export"), data: exportResult }),
+  v.object({ type: v.literal("import"), data: importResult }),
+  v.object({ type: v.literal("bulk_archive"), data: bulkOperationResult }),
+  v.object({ type: v.literal("bulk_delete"), data: bulkOperationResult }),
+  v.object({ type: v.literal("conversation_summary"), data: summaryResult }),
+  v.object({ type: v.literal("data_migration"), data: migrationResult }),
+  v.object({ type: v.literal("model_migration"), data: migrationResult }),
+  v.object({ type: v.literal("backup"), data: exportResult })
+);

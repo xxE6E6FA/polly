@@ -1,57 +1,45 @@
-import { api } from "convex/_generated/api";
-import type { Id } from "convex/_generated/dataModel";
-
-import { useQuery } from "convex/react";
-import type { EmojiClickData } from "emoji-picker-react";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
+import { useMutation } from "convex/react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-
-import {
-  PersonaForm,
-  type PersonaFormData,
-} from "@/components/settings/persona-form";
+import { useNavigate, useParams } from "react-router-dom";
+import { PersonaForm } from "@/components/settings/persona-form";
+import { SettingsPageLayout } from "@/components/settings/ui";
 import { Button } from "@/components/ui/button";
-import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
+import { NotFoundPage } from "@/components/ui/not-found-page";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
+import { isPersona } from "@/lib/type-guards";
+
+type PersonaFormData = {
+  name: string;
+  description: string;
+  prompt: string;
+  icon: string;
+};
+
+type EmojiClickData = {
+  emoji: string;
+};
 
 export default function EditPersonaPage() {
+  const { personaId } = useParams();
   const navigate = useNavigate();
-  const params = useParams();
-  const personaId = params.id;
-
-  const persona = useQuery(
-    api.personas.get,
-    personaId ? { id: personaId as Id<"personas"> } : "skip"
-  );
-
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Use optimized mutation hooks
-  const { mutateAsync: updatePersona, isLoading: isUpdating } =
-    useConvexMutationWithCache(api.personas.update, {
-      onSuccess: () => {
-        navigate(ROUTES.SETTINGS.PERSONAS);
-      },
-      onError: (error: Error) => {
-        console.error("Failed to update persona:", error);
-      },
-      invalidateQueries: ["personas"],
-      invalidationEvents: ["personas-changed"],
-    });
+  const updatePersonaMutation = useMutation(api.personas.update);
+  const deletePersonaMutation = useMutation(api.personas.remove);
 
-  const { mutateAsync: deletePersona, isLoading: isDeleting } =
-    useConvexMutationWithCache(api.personas.remove, {
-      onSuccess: () => {
-        navigate(ROUTES.SETTINGS.PERSONAS);
-      },
-      onError: (error: Error) => {
-        console.error("Failed to delete persona:", error);
-      },
-      invalidateQueries: ["personas"],
-      invalidationEvents: ["personas-changed"],
-    });
+  const personaRaw = usePersistentConvexQuery(
+    "edit-persona-data",
+    api.personas.get,
+    personaId ? { id: personaId } : "skip"
+  );
 
+  const persona = isPersona(personaRaw) ? personaRaw : null;
   const isLoading = isUpdating || isDeleting;
 
   useEffect(() => {
@@ -66,18 +54,30 @@ export default function EditPersonaPage() {
     }
   }, [persona]);
 
+  if (!personaId) {
+    return <NotFoundPage />;
+  }
+
   const handleUpdatePersona = async () => {
     if (!(formData?.name.trim() && formData?.prompt.trim() && personaId)) {
       return;
     }
 
-    await updatePersona({
-      id: personaId as Id<"personas">,
-      name: formData.name,
-      description: formData.description,
-      prompt: formData.prompt,
-      icon: formData.icon,
-    });
+    setIsUpdating(true);
+    try {
+      await updatePersonaMutation({
+        id: personaId as Id<"personas">,
+        name: formData.name,
+        description: formData.description,
+        prompt: formData.prompt,
+        icon: formData.icon,
+      });
+      navigate(ROUTES.SETTINGS.PERSONAS);
+    } catch (error) {
+      console.error("Failed to update persona:", error);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleDeletePersona = async () => {
@@ -93,7 +93,15 @@ export default function EditPersonaPage() {
       return;
     }
 
-    await deletePersona({ id: personaId as Id<"personas"> });
+    setIsDeleting(true);
+    try {
+      await deletePersonaMutation({ id: personaId as Id<"personas"> });
+      navigate(ROUTES.SETTINGS.PERSONAS);
+    } catch (error) {
+      console.error("Failed to delete persona:", error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -103,12 +111,14 @@ export default function EditPersonaPage() {
 
   if (!persona && persona !== undefined) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Persona not found</h1>
-        <Button onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}>
-          Back to Personas
-        </Button>
-      </div>
+      <SettingsPageLayout>
+        <div className="space-y-6">
+          <h1 className="text-2xl font-semibold">Persona not found</h1>
+          <Button onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}>
+            Back to Personas
+          </Button>
+        </div>
+      </SettingsPageLayout>
     );
   }
 
@@ -119,7 +129,7 @@ export default function EditPersonaPage() {
   const isFormValid = formData.name.trim() && formData.prompt.trim();
 
   return (
-    <div className="space-y-8">
+    <SettingsPageLayout>
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">Edit Persona</h1>
         <p className="text-muted-foreground">
@@ -163,6 +173,6 @@ export default function EditPersonaPage() {
           </Button>
         </div>
       </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

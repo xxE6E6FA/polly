@@ -1,4 +1,5 @@
 import { api } from "convex/_generated/api";
+import { useMutation } from "convex/react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -7,13 +8,13 @@ import {
   PersonaForm,
   type PersonaFormData,
 } from "@/components/settings/persona-form";
+import { SettingsPageLayout } from "@/components/settings/ui";
 import { Button } from "@/components/ui/button";
-import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
 import { ROUTES } from "@/lib/routes";
 
 export default function NewPersonaPage() {
   const navigate = useNavigate();
-
+  const [isLoading, setIsLoading] = useState(false);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
@@ -23,32 +24,27 @@ export default function NewPersonaPage() {
     icon: "🤖",
   });
 
-  // Use optimized mutation hook
-  const { mutateAsync: createPersona, isLoading } = useConvexMutationWithCache(
-    api.personas.create,
-    {
-      onSuccess: () => {
-        navigate(ROUTES.SETTINGS.PERSONAS);
-      },
-      onError: (error: Error) => {
-        console.error("Failed to create persona:", error);
-      },
-      invalidateQueries: ["personas"],
-      invalidationEvents: ["personas-changed"],
-    }
-  );
+  const createPersonaMutation = useMutation(api.personas.create);
 
   const handleCreatePersona = async () => {
     if (!(formData.name.trim() && formData.prompt.trim())) {
       return;
     }
 
-    await createPersona({
-      name: formData.name,
-      description: formData.description,
-      prompt: formData.prompt,
-      icon: formData.icon,
-    });
+    setIsLoading(true);
+    try {
+      await createPersonaMutation({
+        name: formData.name,
+        description: formData.description,
+        prompt: formData.prompt,
+        icon: formData.icon,
+      });
+      navigate(ROUTES.SETTINGS.PERSONAS);
+    } catch (error) {
+      console.error("Failed to create persona:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEmojiClick = (emojiData: EmojiClickData) => {
@@ -59,7 +55,7 @@ export default function NewPersonaPage() {
   const isFormValid = formData.name.trim() && formData.prompt.trim();
 
   return (
-    <div className="space-y-8">
+    <SettingsPageLayout>
       <div className="space-y-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           Create New Persona
@@ -100,6 +96,6 @@ export default function NewPersonaPage() {
           {isLoading ? "Creating..." : "Create Persona"}
         </Button>
       </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

@@ -149,10 +149,6 @@ export function createDialogHook<TState extends BaseDialogState>(
 }
 
 // Common dialog patterns
-export function useDeleteConfirmation() {
-  return useConfirmationDialog();
-}
-
 export function useUnsavedChangesDialog() {
   const dialog = useConfirmationDialog();
 

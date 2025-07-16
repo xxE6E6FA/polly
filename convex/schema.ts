@@ -3,9 +3,6 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 import {
   attachmentSchema,
-  messageMetadataSchema,
-  messageRoleSchema,
-  providerSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -61,7 +58,6 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
     .index("by_user_recent", ["userId", "updatedAt"])
     .index("by_user_pinned", ["userId", "isPinned", "updatedAt"])
     .index("by_user_archived", ["userId", "isArchived", "updatedAt"])
@@ -83,7 +79,7 @@ export default defineSchema({
 
   messages: defineTable({
     conversationId: v.id("conversations"),
-    role: messageRoleSchema,
+    role: v.string(),
     content: v.string(),
     reasoning: v.optional(v.string()),
     model: v.optional(v.string()),
@@ -95,7 +91,19 @@ export default defineSchema({
     useWebSearch: v.optional(v.boolean()),
     attachments: v.optional(v.array(attachmentSchema)),
     citations: v.optional(v.array(webCitationSchema)),
-    metadata: v.optional(messageMetadataSchema),
+    metadata: v.optional(
+      v.object({
+        tokenCount: v.optional(v.number()),
+        reasoningTokenCount: v.optional(v.number()),
+        finishReason: v.optional(v.string()),
+        duration: v.optional(v.number()),
+        stopped: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
+        searchFeature: v.optional(v.string()),
+        searchCategory: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
+      })
+    ),
     createdAt: v.number(),
   })
     .index("by_conversation", ["conversationId", "createdAt"])
@@ -115,7 +123,7 @@ export default defineSchema({
 
   userApiKeys: defineTable({
     userId: v.id("users"),
-    provider: providerSchema,
+    provider: v.string(),
     encryptedKey: v.optional(v.array(v.number())),
     initializationVector: v.optional(v.array(v.number())),
     clientEncryptedKey: v.optional(v.string()),
@@ -123,9 +131,7 @@ export default defineSchema({
     isValid: v.boolean(),
     createdAt: v.number(),
     lastValidated: v.optional(v.number()),
-  })
-    .index("by_user", ["userId"])
-    .index("by_user_provider", ["userId", "provider"]),
+  }).index("by_user_provider", ["userId", "provider"]),
 
   userModels: defineTable({
     userId: v.id("users"),
@@ -143,7 +149,6 @@ export default defineSchema({
     free: v.optional(v.boolean()),
     createdAt: v.number(),
   })
-    .index("by_user", ["userId"])
     .index("by_user_provider", ["userId", "provider"])
     .index("by_user_model_id", ["userId", "modelId"])
     .index("by_user_selected", ["userId", "selected"]),
@@ -160,7 +165,6 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user", ["userId"])
     .index("by_user_active", ["userId", "isActive"])
     .index("by_built_in", ["isBuiltIn"]),
 
@@ -170,9 +174,7 @@ export default defineSchema({
     isDisabled: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_user_persona", ["userId", "personaId"]),
+  }).index("by_user_persona", ["userId", "personaId"]),
 
   userSettings: defineTable({
     userId: v.id("users"),

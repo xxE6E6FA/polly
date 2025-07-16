@@ -7,7 +7,7 @@ import {
   TrashIcon,
   UserIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -27,81 +27,93 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
-import {
-  useOptimisticPersonasGlobalToggle,
-  useOptimisticPersonaToggle,
-} from "@/hooks/use-optimistic-toggles";
+// removed optimistic toggle hooks
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
+import { isPersonaArray, isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { SettingsHeader } from "./settings-header";
+import { SettingsPageLayout } from "./ui";
+import { SectionHeader } from "./ui/SectionHeader";
 
 export const PersonasTab = () => {
-  const userInfo = useUser();
+  const userData = useUserData();
+  const user = userData?.user;
   const queryUserId = useQueryUserId();
-  const personas = useQuery(
+  const personasRaw = usePersistentConvexQuery(
+    "user-personas",
     api.personas.list,
     queryUserId ? { userId: queryUserId } : "skip"
   );
-  const allBuiltInPersonas = useQuery(api.personas.listAllBuiltIn);
-  const userPersonaSettings = useQuery(
+  const allBuiltInPersonasRaw = usePersistentConvexQuery(
+    "builtin-personas",
+    api.personas.listAllBuiltIn,
+    {}
+  );
+  const userPersonaSettingsRaw = usePersistentConvexQuery(
+    "user-persona-settings",
     api.personas.getUserPersonaSettings,
     queryUserId ? { userId: queryUserId } : "skip"
   );
-  const userSettings = useUserSettings(userInfo.user?._id);
+  const userSettingsRaw = useUserSettings(user?._id);
 
-  // Use optimized mutations for immediate feedback
-  const { mutate: toggleBuiltInPersonaOptimistic } =
-    useOptimisticPersonaToggle();
-  const { mutate: togglePersonasGloballyOptimistic } =
-    useOptimisticPersonasGlobalToggle();
+  // Apply type guards
+  const personas = isPersonaArray(personasRaw) ? personasRaw : [];
+  const allBuiltInPersonas = isPersonaArray(allBuiltInPersonasRaw)
+    ? allBuiltInPersonasRaw
+    : [];
+  const userPersonaSettings = Array.isArray(userPersonaSettingsRaw)
+    ? userPersonaSettingsRaw
+    : [];
+  const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
 
-  // Use optimized mutation for delete operation
-  const { mutateAsync: removePersona } = useConvexMutationWithCache(
-    api.personas.remove,
-    {
-      onSuccess: () => {
-        // Success handling is automatic via optimistic updates
-      },
-      onError: (error: Error) => {
-        console.error("Failed to delete persona:", error);
-      },
-      invalidateQueries: ["personas"],
-      invalidationEvents: ["personas-changed"],
-    }
+  // Direct Convex mutations for toggling
+  const toggleBuiltInPersonaMutation = useMutation(
+    api.personas.toggleBuiltInPersona
   );
+  const togglePersonasGloballyMutation = useMutation(
+    api.userSettings.togglePersonasEnabled
+  );
+
+  const removePersonaMutation = useMutation(api.personas.remove);
 
   const [deletingPersona, setDeletingPersona] = useState<Id<"personas"> | null>(
     null
   );
 
-  const handleDeletePersona = useCallback(async () => {
-    if (!deletingPersona) {
-      return;
-    }
-
-    try {
-      await removePersona({ id: deletingPersona });
-      setDeletingPersona(null);
-    } catch (error) {
-      console.error("Failed to delete persona:", error);
-    }
-  }, [deletingPersona, removePersona]);
+  const handleDeletePersona = useCallback(
+    async (personaId: Id<"personas">) => {
+      setDeletingPersona(personaId);
+      try {
+        await removePersonaMutation({ id: personaId });
+      } catch (error) {
+        console.error("Failed to delete persona:", error);
+      } finally {
+        setDeletingPersona(null);
+      }
+    },
+    [removePersonaMutation]
+  );
 
   const handleToggleBuiltInPersona = useCallback(
-    (personaId: Id<"personas">, isDisabled: boolean) => {
-      // Use optimistic mutation for immediate feedback
-      toggleBuiltInPersonaOptimistic({ personaId, isDisabled });
+    ({
+      personaId,
+      isDisabled,
+    }: {
+      personaId: Id<"personas">;
+      isDisabled: boolean;
+    }) => {
+      toggleBuiltInPersonaMutation({ personaId, isDisabled });
     },
-    [toggleBuiltInPersonaOptimistic]
+    [toggleBuiltInPersonaMutation]
   );
 
   const isPersonaDisabled = useCallback(
     (personaId: Id<"personas">) => {
-      return userPersonaSettings?.some(
+      return userPersonaSettings.some(
         setting => setting.personaId === personaId && setting.isDisabled
       );
     },
@@ -110,29 +122,18 @@ export const PersonasTab = () => {
 
   const handleTogglePersonasGlobally = useCallback(
     (enabled: boolean) => {
-      // Use optimistic mutation for immediate feedback
-      togglePersonasGloballyOptimistic({ enabled });
+      togglePersonasGloballyMutation({ enabled });
     },
-    [togglePersonasGloballyOptimistic]
+    [togglePersonasGloballyMutation]
   );
 
   return (
     <TooltipProvider>
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-start justify-between">
-          <SettingsHeader
-            description="Manage custom system prompts for different conversation styles"
-            title="Personas"
-          />
-          <div className="flex shrink-0 gap-2">
-            <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
-              <Button size="sm" variant="default">
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Create Persona
-              </Button>
-            </Link>
-          </div>
-        </div>
+      <SettingsPageLayout>
+        <SettingsHeader
+          description="Manage custom system prompts for different conversation styles"
+          title="Personas"
+        />
 
         {/* Global Personas Toggle */}
         <div className="rounded-lg border bg-muted/20 p-4">
@@ -188,7 +189,10 @@ export const PersonasTab = () => {
                           <Switch
                             checked={!disabled}
                             onCheckedChange={checked =>
-                              handleToggleBuiltInPersona(persona._id, !checked)
+                              handleToggleBuiltInPersona({
+                                personaId: persona._id,
+                                isDisabled: !checked,
+                              })
                             }
                           />
                         </div>
@@ -202,12 +206,17 @@ export const PersonasTab = () => {
             {/* User Custom Personas */}
             {personas?.some(p => !p.isBuiltIn) && (
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold">Custom Personas</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Your custom system prompts for different conversation styles
-                  </p>
-                </div>
+                <SectionHeader title="Custom Personas">
+                  <Button asChild size="sm" variant="default">
+                    <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                      <PlusIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Create Persona</span>
+                    </Link>
+                  </Button>
+                </SectionHeader>
+                <p className="text-sm text-muted-foreground">
+                  Your custom system prompts for different conversation styles
+                </p>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                   {personas
                     .filter(persona => !persona.isBuiltIn)
@@ -283,7 +292,7 @@ export const PersonasTab = () => {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() =>
-                                    setDeletingPersona(persona._id)
+                                    handleDeletePersona(persona._id)
                                   }
                                 >
                                   <TrashIcon className="h-3 w-3" />
@@ -310,6 +319,12 @@ export const PersonasTab = () => {
                   Create your first custom persona to define specialized AI
                   behavior
                 </p>
+                <Button asChild variant="default">
+                  <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Create Persona
+                  </Link>
+                </Button>
               </div>
             )}
           </>
@@ -322,10 +337,12 @@ export const PersonasTab = () => {
           description="Are you sure you want to delete this persona? This action cannot be undone."
           open={Boolean(deletingPersona)}
           title="Delete Persona"
-          onConfirm={handleDeletePersona}
+          onConfirm={() =>
+            deletingPersona && handleDeletePersona(deletingPersona)
+          }
           onOpenChange={open => !open && setDeletingPersona(null)}
         />
-      </div>
+      </SettingsPageLayout>
     </TooltipProvider>
   );
 };

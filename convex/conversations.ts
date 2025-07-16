@@ -1,3 +1,11 @@
+import {
+  BATCH_SIZE,
+  CHUNK_SIZE,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_TEMPERATURE,
+  MESSAGE_BATCH_SIZE,
+  WEB_SEARCH_MAX_RESULTS,
+} from "@shared/constants";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
@@ -13,15 +21,7 @@ import {
   createConvexExportData,
   type ExportConversation,
 } from "./backgroundJobs";
-import {
-  BATCH_SIZE,
-  CHUNK_SIZE,
-  DEFAULT_MAX_TOKENS,
-  DEFAULT_TEMPERATURE,
-  getDefaultSystemPrompt,
-  MESSAGE_BATCH_SIZE,
-  WEB_SEARCH_MAX_RESULTS,
-} from "./constants";
+import { getDefaultSystemPrompt } from "./constants";
 import { getCurrentUserId, requireAuth } from "./lib/auth";
 import {
   buildUserMessageContent,
@@ -47,62 +47,6 @@ import {
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
-
-// Common helper to create a user message with attachments
-const createUserMessage = async (
-  ctx: ActionCtx,
-  args: {
-    conversationId: Id<"conversations">;
-    content: string;
-    attachments?: Array<{
-      type: "image" | "pdf" | "text";
-      url: string;
-      name: string;
-      size: number;
-      content?: string;
-      thumbnail?: string;
-      storageId?: Id<"_storage">;
-      mimeType?: string;
-    }>;
-    useWebSearch?: boolean;
-    userId: Id<"users">;
-    provider: string;
-    isPollyProvided?: boolean;
-    reasoningConfig?: {
-      enabled: boolean;
-      effort: "low" | "medium" | "high";
-      maxTokens?: number;
-    };
-  }
-): Promise<Id<"messages">> => {
-  // Process attachments if provided
-  let processedAttachments = args.attachments;
-  if (args.attachments && args.attachments.length > 0) {
-    processedAttachments = await processAttachmentsForStorage(
-      ctx,
-      args.attachments
-    );
-  }
-
-  // Create user message
-  const userMessageId = await ctx.runMutation(api.messages.create, {
-    conversationId: args.conversationId,
-    role: "user",
-    content: args.content,
-    attachments: processedAttachments,
-    useWebSearch: args.useWebSearch,
-    reasoningConfig: args.reasoningConfig,
-    isMainBranch: true,
-  });
-
-  // Increment user's message count for limit tracking (only for Polly-provided models)
-  await ctx.runMutation(api.users.incrementMessageCountAtomic, {
-    userId: args.userId,
-    isPollyProvided: args.isPollyProvided,
-  });
-
-  return userMessageId;
-};
 
 // Common helper for streaming action execution
 const executeStreamingAction = async (
@@ -397,7 +341,7 @@ const buildContextMessages = async (
 
   const contextMessagesWithNulls = await Promise.all(contextMessagesPromises);
   const contextMessages = contextMessagesWithNulls.filter(
-    msg => msg !== undefined
+    (msg): msg is Exclude<typeof msg, undefined> => msg !== undefined
   );
 
   // Always add default system prompt as foundation
@@ -541,6 +485,8 @@ export const create = mutation({
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
       isStreaming: true,
+      isArchived: false,
+      isPinned: false,
       createdAt: now,
       updatedAt: now,
     });
@@ -579,6 +525,8 @@ export const createWithMessages = internalMutation({
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
       isStreaming: true,
+      isArchived: false,
+      isPinned: false,
       createdAt: now,
       updatedAt: now,
     });
@@ -666,14 +614,15 @@ export const list = query({
 
     const query = ctx.db
       .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .filter(q => q.neq(q.field("isArchived"), true))
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userId).eq("isArchived", false)
+      )
       .order("desc");
 
     const validatedOpts = validatePaginationOpts(args.paginationOpts);
     return validatedOpts
       ? await query.paginate(validatedOpts)
-      : await query.collect();
+      : await query.take(100); // Limit unbounded queries to 100 conversations
   },
 });
 
@@ -693,14 +642,15 @@ export const listOptimized = query({
 
     const query = ctx.db
       .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .filter(q => q.neq(q.field("isArchived"), true))
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userId).eq("isArchived", false)
+      )
       .order("desc");
 
     const validatedOpts = validatePaginationOpts(args.paginationOpts);
     const results = validatedOpts
       ? await query.paginate(validatedOpts)
-      : await query.collect();
+      : await query.take(100); // Limit unbounded queries to 100 conversations
 
     // Return only essential fields for list display
     const optimizeConversation = (conv: ConversationDoc) => ({
@@ -938,7 +888,7 @@ export const listArchived = query({
     const validatedOpts = validatePaginationOpts(args.paginationOpts);
     return validatedOpts
       ? await query.paginate(validatedOpts)
-      : await query.collect();
+      : await query.take(100); // Limit unbounded queries to 100 conversations
   },
 });
 
@@ -961,8 +911,9 @@ export const listPaginated = query({
 
     const query = ctx.db
       .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .filter(q => q.neq(q.field("isArchived"), true))
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userId).eq("isArchived", false)
+      )
       .order("desc");
 
     return await query.paginate(args.paginationOpts);
@@ -1348,16 +1299,28 @@ export const sendFollowUpMessage = action({
     );
     const isPollyProvided = selectedModel?.free === true;
 
-    // Create user message
-    const userMessageId = await createUserMessage(ctx, {
-      conversationId: args.conversationId,
-      content: args.content,
-      attachments: args.attachments,
-      useWebSearch: args.useWebSearch,
+    // Process attachments if provided
+    const processedAttachments =
+      args.attachments && args.attachments.length > 0
+        ? await processAttachmentsForStorage(ctx, args.attachments)
+        : undefined;
+
+    // Create user message and increment count in a single batch
+    const userMessageId = await ctx.runMutation(
+      api.messages.createUserMessageBatched,
+      {
+        conversationId: args.conversationId,
+        content: args.content,
+        attachments: processedAttachments,
+        useWebSearch: args.useWebSearch,
+        reasoningConfig: args.reasoningConfig,
+      }
+    );
+
+    // Enforce message limit for users (only for Polly-provided models)
+    await ctx.runMutation(api.users.enforceMessageLimit, {
       userId: conversation.userId,
-      provider: args.provider,
       isPollyProvided,
-      reasoningConfig: args.reasoningConfig,
     });
 
     // Build context messages
@@ -1839,7 +1802,7 @@ export const getAllForUser = query({
 
     const query = ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
       .order("desc");
 
     // Apply limit
@@ -1897,7 +1860,7 @@ export const getConversationsSummaryForExport = query({
 
     const query = ctx.db
       .query("conversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
       .order("desc");
 
     const conversations = await query.take(limit);
@@ -2143,8 +2106,8 @@ export const bulkImport = mutation({
     if (args.skipDuplicates) {
       const existingConversations = await ctx.db
         .query("conversations")
-        .withIndex("by_user", q => q.eq("userId", userId))
-        .collect();
+        .withIndex("by_user_recent", q => q.eq("userId", userId))
+        .take(1000); // Limit for duplicate check
       existingTitles = new Set(existingConversations.map(c => c.title));
     }
 
@@ -2731,5 +2694,44 @@ export const bulkRemove = mutation({
     throw new ConvexError(
       "Too many conversations to delete at once. Please use the background deletion feature."
     );
+  },
+});
+
+// Internal mutation that batches user message creation with count increment
+export const createUserMessageBatched = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    attachments: v.optional(v.array(attachmentSchema)),
+    useWebSearch: v.optional(v.boolean()),
+    userId: v.id("users"),
+    isPollyProvided: v.optional(v.boolean()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+  },
+  handler: async (ctx, args) => {
+    // Create user message
+    const userMessageId = await ctx.db.insert("messages", {
+      conversationId: args.conversationId,
+      role: "user",
+      content: args.content,
+      attachments: args.attachments,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+      isMainBranch: true,
+      createdAt: Date.now(),
+    });
+
+    // Increment user's message count for limit tracking (only for Polly-provided models)
+    if (args.isPollyProvided) {
+      const user = await ctx.db.get(args.userId);
+      if (user) {
+        await ctx.db.patch(args.userId, {
+          messagesSent: (user.messagesSent || 0) + 1,
+          totalMessageCount: (user.totalMessageCount || 0) + 1,
+        });
+      }
+    }
+
+    return userMessageId;
   },
 });

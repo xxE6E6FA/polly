@@ -1,26 +1,23 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
-import { useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import type { Doc, Id } from "@convex/_generated/dataModel";
+import { useAction, useMutation } from "convex/react";
+import type { FunctionReference } from "convex/server";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { useUserData } from "@/hooks/use-user-data";
+import { storeAnonymousUserId } from "@/lib/auth-utils";
+import { isUserModel } from "@/lib/type-guards";
 import { cleanAttachmentsForConvex } from "@/lib/utils";
-import { useThinking } from "@/providers/thinking-provider";
+import { useUI } from "@/providers/ui-provider";
 import type {
   Attachment,
   ChatMessage,
   ConversationId,
-  CreateConversationArgs,
   CreateConversationParams,
-  CreateConversationResult,
   ReasoningConfig,
 } from "@/types";
 import { useChatMessages } from "./use-chat-messages";
-import {
-  useConvexActionWithCache,
-  useEventDispatcher,
-} from "./use-convex-cache";
-import { useSelectedModel } from "./use-selected-model";
-import { storeAnonymousUserId, useUser } from "./use-user";
 
 type UseServerChatOptions = {
   conversationId?: ConversationId;
@@ -29,39 +26,80 @@ type UseServerChatOptions = {
   onConversationCreate?: (conversationId: ConversationId) => void;
 };
 
+// A helper hook to wrap a Convex action with manual loading state
+function useActionWithLoading<Action extends FunctionReference<"action">>(
+  action: Action,
+  options?: {
+    onSuccess?: (result: Action["_returnType"]) => void;
+    onError?: (error: Error) => void;
+  }
+): {
+  execute: (
+    args: Action["_args"]
+  ) => Promise<Action["_returnType"] | undefined>;
+  isLoading: boolean;
+} {
+  const [isLoading, setIsLoading] = useState(false);
+  const actionFn = useAction(action);
+
+  const execute = useCallback(
+    async (args: Action["_args"]) => {
+      setIsLoading(true);
+      try {
+        const result = await actionFn(args);
+        options?.onSuccess?.(result);
+        return result;
+      } catch (error) {
+        options?.onError?.(error as Error);
+        throw error; // Re-throw so call sites can also handle it
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [actionFn, options]
+  );
+
+  return { execute, isLoading };
+}
+
 export function useServerChat({
   conversationId,
   onError,
   onConversationCreate,
 }: UseServerChatOptions) {
-  const { user, isLoading: userLoading, canSendMessage } = useUser();
-  const { setIsThinking } = useThinking();
-  const { selectedModel } = useSelectedModel();
-  const { dispatch } = useEventDispatcher();
+  const userData = useUserData();
+  const user = userData?.user;
+  const userLoading = userData === null;
+  const canSendMessage = userData?.canSendMessage ?? false;
+  const { setIsThinking } = useUI();
+  const selectedModelRaw = usePersistentConvexQuery(
+    "selected-model",
+    api.userModels.getUserSelectedModel,
+    {}
+  );
+  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
+  const dispatch = useCallback((eventName: string) => {
+    window.dispatchEvent(new CustomEvent(eventName));
+  }, []);
 
-  // Create conversation functionality (moved from use-conversations.ts)
-  const { executeAsync: createNewConversation } = useConvexActionWithCache<
-    CreateConversationResult,
-    CreateConversationArgs
-  >(api.conversations.createNewConversation, {
-    invalidateQueries: ["conversations"],
-    onSuccess: result => {
-      // If a new user was created, store the ID in localStorage
-      if (result.isNewUser) {
-        storeAnonymousUserId(result.userId);
-      }
-
-      // Trigger cache invalidation via event
-      dispatch("conversations-changed");
-    },
-    onError: async error => {
-      console.error("Failed to create conversation:", error);
-      const { toast } = await import("sonner");
-      toast.error("Failed to create conversation", {
-        description: "Unable to create new conversation. Please try again.",
-      });
-    },
-  });
+  // Create conversation functionality
+  const { execute: createNewConversation } = useActionWithLoading(
+    api.conversations.createNewConversation,
+    {
+      onSuccess: result => {
+        if (result?.isNewUser) {
+          storeAnonymousUserId(result.userId);
+        }
+        dispatch("conversations-changed");
+      },
+      onError: (error: Error) => {
+        console.error("Failed to create conversation:", error);
+        toast.error("Failed to create conversation", {
+          description: "Unable to create new conversation. Please try again.",
+        });
+      },
+    }
+  );
 
   const createConversation = useCallback(
     async ({
@@ -73,7 +111,7 @@ export function useServerChat({
       generateTitle = true,
       reasoningConfig,
       contextSummary,
-    }: CreateConversationParams): Promise<ConversationId> => {
+    }: CreateConversationParams): Promise<ConversationId | undefined> => {
       const result = await createNewConversation({
         userId,
         firstMessage,
@@ -92,7 +130,7 @@ export function useServerChat({
         contextSummary,
       });
 
-      return result.conversationId;
+      return result?.conversationId;
     },
     [createNewConversation]
   );
@@ -104,55 +142,53 @@ export function useServerChat({
   });
 
   // Query conversation to get isStreaming state
-  const conversation = useQuery(
+  const conversation = usePersistentConvexQuery<Doc<"conversations"> | null>(
+    "server-chat-conversation",
     api.conversations.get,
     conversationId ? { id: conversationId } : "skip"
   );
 
-  // Use optimized action hooks for better error handling and consistency
-  const { executeAsync: sendFollowUpMessage, isLoading: isSendingFollowUp } =
-    useConvexActionWithCache(api.conversations.sendFollowUpMessage, {
+  // Use action hooks with manual loading state
+  const { execute: sendFollowUpMessage, isLoading: isSendingFollowUp } =
+    useActionWithLoading(api.conversations.sendFollowUpMessage, {
       onError: (error: Error) => {
         console.error("Failed to send follow-up message:", error);
         onError?.(error);
       },
-      invalidateQueries: ["messages", "conversations"],
     });
 
-  const { executeAsync: retryFromMessage, isLoading: isRetrying } =
-    useConvexActionWithCache(api.conversations.retryFromMessage, {
+  const { execute: retryFromMessage, isLoading: isRetrying } =
+    useActionWithLoading(api.conversations.retryFromMessage, {
       onError: (error: Error) => {
         console.error("Failed to retry message:", error);
         onError?.(error);
       },
-      invalidateQueries: ["messages"],
     });
 
-  const { executeAsync: editMessage, isLoading: isEditing } =
-    useConvexActionWithCache(api.conversations.editMessage, {
+  const { execute: editMessage, isLoading: isEditing } = useActionWithLoading(
+    api.conversations.editMessage,
+    {
       onError: (error: Error) => {
         console.error("Failed to edit message:", error);
         onError?.(error);
       },
-      invalidateQueries: ["messages"],
-    });
+    }
+  );
 
-  const { executeAsync: stopGeneration, isLoading: isStopping } =
-    useConvexActionWithCache(api.conversations.stopGeneration, {
+  const { execute: stopGeneration, isLoading: isStopping } =
+    useActionWithLoading(api.conversations.stopGeneration, {
       onError: (error: Error) => {
         console.error("Failed to stop generation:", error);
         onError?.(error);
       },
-      invalidateQueries: ["conversations"],
     });
 
-  const { executeAsync: resumeConversation, isLoading: isResuming } =
-    useConvexActionWithCache(api.conversations.resumeConversation, {
+  const { execute: resumeConversation, isLoading: isResuming } =
+    useActionWithLoading(api.conversations.resumeConversation, {
       onError: (error: Error) => {
         console.error("Failed to resume conversation:", error);
         onError?.(error);
       },
-      invalidateQueries: ["messages", "conversations"],
     });
 
   // Use regular mutation for message deletion
@@ -279,7 +315,7 @@ export function useServerChat({
               reasoningConfig: reasoningConfig
                 ? {
                     enabled: reasoningConfig.enabled,
-                    effort: reasoningConfig.effort,
+                    effort: reasoningConfig.effort || "medium",
                     maxTokens: reasoningConfig.maxTokens,
                   }
                 : undefined,
@@ -405,14 +441,14 @@ export function useServerChat({
         await withLoadingState(() =>
           retryFromMessage({
             conversationId,
-            messageId,
+            messageId: messageId as Id<"messages">,
             retryType: "user",
             model: selectedModel.modelId,
             provider: selectedModel.provider,
             reasoningConfig: reasoningConfig
               ? {
                   enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort,
+                  effort: reasoningConfig.effort || "medium",
                   maxTokens: reasoningConfig.maxTokens,
                 }
               : undefined,
@@ -440,14 +476,14 @@ export function useServerChat({
         await withLoadingState(() =>
           retryFromMessage({
             conversationId,
-            messageId,
+            messageId: messageId as Id<"messages">,
             retryType: "assistant",
             model: selectedModel.modelId,
             provider: selectedModel.provider,
             reasoningConfig: reasoningConfig
               ? {
                   enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort,
+                  effort: reasoningConfig.effort || "medium",
                   maxTokens: reasoningConfig.maxTokens,
                 }
               : undefined,
@@ -479,14 +515,14 @@ export function useServerChat({
         await withLoadingState(() =>
           editMessage({
             conversationId,
-            messageId,
+            messageId: messageId as Id<"messages">,
             newContent,
             model: selectedModel.modelId,
             provider: selectedModel.provider,
             reasoningConfig: reasoningConfig
               ? {
                   enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort,
+                  effort: reasoningConfig.effort || "medium",
                   maxTokens: reasoningConfig.maxTokens,
                 }
               : undefined,
@@ -549,6 +585,8 @@ export function useServerChat({
 
   return {
     messages: chatMessages.messages,
+    addOptimisticMessage: chatMessages.addOptimisticMessage,
+    clearOptimisticMessages: chatMessages.clearOptimisticMessages,
     isLoading: chatMessages.isLoadingMessages,
     isGenerating,
     isStreaming,

@@ -11,6 +11,7 @@ import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -284,7 +285,7 @@ export const ControlledShareConversationDialog = ({
                   onClick={handleUpdate}
                 >
                   {isUpdating ? (
-                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner size="sm" className="mr-2 h-4 w-4" />
                   ) : (
                     <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4" />
                   )}
@@ -297,7 +298,7 @@ export const ControlledShareConversationDialog = ({
                   onClick={handleUnshare}
                 >
                   {isUnsharing ? (
-                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner size="sm" className="mr-2 h-4 w-4" />
                   ) : (
                     <XIcon className="mr-2 h-4 w-4" />
                   )}
@@ -314,7 +315,7 @@ export const ControlledShareConversationDialog = ({
               >
                 {isSharing ? (
                   <>
-                    <ArrowCounterClockwiseIcon className="mr-2 h-4 w-4 animate-spin" />
+                    <Spinner size="sm" className="mr-2 h-4 w-4" />
                     Creating share link...
                   </>
                 ) : (
