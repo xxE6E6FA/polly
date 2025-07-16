@@ -1,12 +1,11 @@
 import { ChatCircleIcon, KeyIcon, LightningIcon } from "@phosphor-icons/react";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { memo } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 const AnonymousUserUpsellComponent = () => {
-  const navigate = useNavigate();
   return (
     <div className="relative p-6">
       <h3 className="mb-2 text-center text-base font-semibold text-foreground">
@@ -49,17 +48,8 @@ const AnonymousUserUpsellComponent = () => {
         </div>
       </div>
 
-      <Button
-        className="w-full"
-        size="sm"
-        variant="default"
-        onClick={e => {
-          e.preventDefault();
-          e.stopPropagation();
-          navigate(ROUTES.AUTH);
-        }}
-      >
-        Sign In
+      <Button asChild className="w-full" size="sm" variant="default">
+        <Link to={ROUTES.AUTH}>Sign In</Link>
       </Button>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">

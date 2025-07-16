@@ -10,13 +10,12 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useChatService } from "@/hooks/use-chat-service";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUserData } from "@/hooks/use-user-data";
 import { get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ReasoningConfig } from "@/types";
 import { ChatInput, type ChatInputRef } from "./chat-input";
 import { PromptsTickerWrapper } from "./prompts-ticker";
@@ -25,12 +24,10 @@ const SetupChecklist = ({
   hasApiKeys,
   hasEnabledModels,
   isAnonymous,
-  isHydrated,
 }: {
   hasApiKeys: boolean | undefined;
   hasEnabledModels: boolean | undefined;
   isAnonymous: boolean;
-  isHydrated: boolean;
 }) => {
   const [isDismissed, setIsDismissed] = useState(false);
 
@@ -44,12 +41,7 @@ const SetupChecklist = ({
     setIsDismissed(true);
   };
 
-  if (
-    isAnonymous ||
-    isDismissed ||
-    !isHydrated ||
-    (hasApiKeys && hasEnabledModels)
-  ) {
+  if (isAnonymous || isDismissed || (hasApiKeys && hasEnabledModels)) {
     return null;
   }
 
@@ -162,15 +154,18 @@ const Heading = ({ isMobile }: { isMobile: boolean }) => {
 };
 
 export const ChatZeroState = () => {
-  const userData = useUserData();
-  const user = userData?.user;
-  const isLoading = !userData;
-  const canSendMessage = userData?.canSendMessage ?? false;
-  const messageCount = userData?.messageCount ?? 0;
-  const hasMessageLimit = userData?.hasMessageLimit ?? false;
-  const hasUnlimitedCalls = userData?.hasUnlimitedCalls ?? false;
+  const {
+    canSendMessage,
+    hasMessageLimit,
+    hasUnlimitedCalls,
+    monthlyUsage,
+    hasUserApiKeys,
+    hasUserModels,
+    user,
+  } = useUserDataContext();
+  const isLoading = !user;
   const authToken = useAuthToken();
-  const queryUserId = useQueryUserId();
+  const queryUserId = user?._id || null;
   const chatInputRef = useRef<ChatInputRef>(null);
   const mobileChatInputRef = useRef<ChatInputRef>(null);
   const chatService = useChatService({
@@ -178,11 +173,6 @@ export const ChatZeroState = () => {
   });
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
-
-  // Use cached user data instead of duplicate queries
-  const hasUserApiKeys = userData?.hasUserApiKeys ?? false;
-  const hasUserModels = userData?.hasUserModels ?? false;
-  const isHydrated = userData?.isHydrated ?? false;
 
   const handleSendMessage = useCallback(
     async (
@@ -231,28 +221,27 @@ export const ChatZeroState = () => {
     hasExistingMessages: false,
     isLoading: false,
     isStreaming: false,
-    onStop: () => {
-      // No-op for zero state
-    },
+    onStop: () => undefined,
     onSendMessage: handleSendMessage,
   };
 
   // Determine authentication state considering both cached user data and live auth token
-  // If we have an auth token, the user is definitely authenticated (even if cached data is stale)
   const isAnonymous = !(isLoading || authToken) && (user?.isAnonymous ?? true);
 
   // Calculate if a warning will be shown
   const hasWarning = useMemo(() => {
+    const remaining = monthlyUsage?.remainingMessages ?? 0;
     const showLimitWarning =
-      hasMessageLimit &&
-      messageCount > 0 &&
-      canSendMessage &&
-      !hasUnlimitedCalls;
+      hasMessageLimit && remaining > 0 && canSendMessage && !hasUnlimitedCalls;
     const showLimitReached =
       hasMessageLimit && !canSendMessage && !hasUnlimitedCalls;
-
     return showLimitWarning || showLimitReached;
-  }, [hasMessageLimit, messageCount, canSendMessage, hasUnlimitedCalls]);
+  }, [
+    hasMessageLimit,
+    canSendMessage,
+    hasUnlimitedCalls,
+    monthlyUsage?.remainingMessages,
+  ]);
 
   return (
     <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
@@ -286,7 +275,6 @@ export const ChatZeroState = () => {
             hasApiKeys={hasUserApiKeys}
             hasEnabledModels={hasUserModels}
             isAnonymous={isAnonymous}
-            isHydrated={isHydrated}
           />
         </div>
 
@@ -296,7 +284,6 @@ export const ChatZeroState = () => {
             hasApiKeys={hasUserApiKeys}
             hasEnabledModels={hasUserModels}
             isAnonymous={isAnonymous}
-            isHydrated={isHydrated}
           />
 
           <div className="relative">

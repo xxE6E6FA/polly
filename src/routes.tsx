@@ -11,7 +11,6 @@ import PrivateChatPage from "./pages/PrivateChatPage";
 
 // Lazy load everything except HomePage, ChatConversationPage, and ChatLayout
 const AuthPage = lazy(() => import("./pages/AuthPage"));
-const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
 const NotFoundPage = lazy(() =>
   import("./components/ui/not-found-page").then(m => ({
     default: m.NotFoundPage,
@@ -67,6 +66,7 @@ const SettingsNewPersonaPage = lazy(
 const SettingsEditPersonaPage = lazy(
   () => import("./pages/settings/EditPersonaPage")
 );
+const SignOutPage = lazy(() => import("./pages/SignOutPage"));
 
 // Unified page loader component
 const PageLoader = ({
@@ -113,18 +113,18 @@ export const routes: RouteObject[] = [
         element: <HomePage />,
       },
       {
-        path: "auth",
+        path: "signout",
         element: (
           <Suspense fallback={<PageLoader size="full" />}>
-            <AuthPage />
+            <SignOutPage />
           </Suspense>
         ),
       },
       {
-        path: "auth/callback",
+        path: "auth",
         element: (
           <Suspense fallback={<PageLoader size="full" />}>
-            <AuthCallbackPage />
+            <AuthPage />
           </Suspense>
         ),
       },

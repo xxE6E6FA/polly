@@ -1,7 +1,6 @@
 export const ROUTES = {
   HOME: "/",
   AUTH: "/auth",
-  AUTH_CALLBACK: "/auth/callback",
   CHAT: "/chat",
   CHAT_CONVERSATION: (conversationId: string) => `/chat/${conversationId}`,
   PRIVATE_CHAT: "/private",

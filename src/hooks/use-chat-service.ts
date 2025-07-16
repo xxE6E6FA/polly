@@ -3,9 +3,9 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { ROUTES } from "@/lib/routes";
 import { isUserModel } from "@/lib/type-guards";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUI } from "@/providers/ui-provider";
 import type {
   Attachment,

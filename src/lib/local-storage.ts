@@ -79,3 +79,24 @@ function storageHandler(e: StorageEvent) {
   }
   notify(e.key);
 }
+
+function clearAllPollyKeys() {
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(KEY_PREFIX) && !POLLY_KEYS_TO_EXCLUDE.includes(key)) {
+      keysToRemove.push(key);
+    }
+  }
+  for (const key of keysToRemove) {
+    localStorage.removeItem(key);
+  }
+}
+
+export { clearAllPollyKeys };
+
+export const POLLY_KEYS_TO_EXCLUDE = [
+  buildKey("sidebar/v1"),
+  buildKey("theme/v1"),
+];
+export { buildKey };

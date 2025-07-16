@@ -1,4 +1,3 @@
-import { api } from "@convex/_generated/api";
 import {
   CalendarBlankIcon,
   ChatCircleIcon,
@@ -8,12 +7,11 @@ import {
   SparkleIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 function getInitials(name?: string | null) {
   if (!name) {
@@ -28,40 +26,8 @@ function getInitials(name?: string | null) {
 }
 
 export const UserIdCard = () => {
-  const userData = useUserData();
-  const user = userData?.user;
-  const monthlyUsage = userData?.monthlyUsage ?? 0;
-  const hasUnlimitedCalls = userData?.hasUnlimitedCalls ?? false;
+  const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const userSettings = useUserSettings(user?._id);
-  const userStatsRaw = useQuery(
-    api.users.getUserStatsCached,
-    user?._id ? { userId: user._id } : "skip"
-  );
-
-  // Inline type guard for user stats (only used in this component)
-  const isValidUserStats = (
-    x: unknown
-  ): x is {
-    userId: string;
-    conversationCount: number;
-    totalMessages: number;
-    messagesSent: number;
-  } => {
-    return (
-      !!x &&
-      typeof x === "object" &&
-      "userId" in x &&
-      "conversationCount" in x &&
-      "totalMessages" in x &&
-      "messagesSent" in x &&
-      typeof (x as Record<string, unknown>).userId === "string" &&
-      typeof (x as Record<string, unknown>).conversationCount === "number" &&
-      typeof (x as Record<string, unknown>).totalMessages === "number" &&
-      typeof (x as Record<string, unknown>).messagesSent === "number"
-    );
-  };
-
-  const userStats = isValidUserStats(userStatsRaw) ? userStatsRaw : null;
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
@@ -98,7 +64,7 @@ export const UserIdCard = () => {
               <div className="flex items-center space-x-1">
                 <HashIcon className="h-3 w-3 text-muted-foreground" />
                 <span className="font-mono text-xs text-muted-foreground">
-                  {userStats?.userId?.slice(-6).toUpperCase() || "LOAD"}
+                  {user?._id?.slice(-6).toUpperCase() || "LOAD"}
                 </span>
               </div>
             </div>
@@ -159,9 +125,7 @@ export const UserIdCard = () => {
                   />
                   <span className="text-xs text-foreground">Conversations</span>
                 </div>
-                <span className="font-mono text-sm text-foreground">
-                  {userStats?.conversationCount || 0}
-                </span>
+                <span className="font-mono text-sm text-foreground">{0}</span>
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
@@ -174,9 +138,7 @@ export const UserIdCard = () => {
                     Total Messages
                   </span>
                 </div>
-                <span className="font-mono text-sm text-foreground">
-                  {userStats?.totalMessages || 0}
-                </span>
+                <span className="font-mono text-sm text-foreground">{0}</span>
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
@@ -188,9 +150,7 @@ export const UserIdCard = () => {
                   <span className="text-xs text-foreground">This Month</span>
                 </div>
                 <span className="font-mono text-sm text-foreground">
-                  {(typeof monthlyUsage === "object" &&
-                    monthlyUsage?.monthlyMessagesSent) ||
-                    0}
+                  {monthlyUsage?.monthlyMessagesSent || 0}
                 </span>
               </div>
             </div>

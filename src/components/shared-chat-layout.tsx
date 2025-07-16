@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Sidebar } from "@/components/sidebar";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
 
 type SharedChatLayoutProps = {
   children: React.ReactNode;

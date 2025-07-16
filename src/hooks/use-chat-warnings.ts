@@ -1,78 +1,66 @@
 import { useCallback, useMemo } from "react";
-import { useUserData } from "@/hooks/use-user-data";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { useSet } from "./use-state-management";
 
 export function useChatWarnings() {
-  const userData = useUserData();
   const {
-    messageCount,
-    remainingMessages,
     hasMessageLimit,
     canSendMessage,
     isAnonymous,
     monthlyUsage,
     hasUserApiKeys,
     hasUnlimitedCalls,
-  } = userData || {
-    messageCount: 0,
-    remainingMessages: 0,
-    hasMessageLimit: true,
-    canSendMessage: false,
-    isAnonymous: true,
-    monthlyUsage: undefined,
-    hasUserApiKeys: false,
-    hasUnlimitedCalls: false,
-  };
+    user,
+  } = useUserDataContext();
+  const isNoUser = user === null;
 
   const { has: isDismissed, add: dismissWarning } = useSet<string>();
+  const warningDismissalKey = `warning-${monthlyUsage?.monthlyMessagesSent ?? 0}`;
 
-  // Create a key based on messageCount for warning dismissal
-  const warningDismissalKey = `warning-${messageCount}`;
-
-  // Calculate warning states with improved logic
   const showLimitWarning = useMemo(() => {
+    if (isNoUser) {
+      return false;
+    }
     if (!(hasMessageLimit && canSendMessage) || hasUnlimitedCalls) {
       return false;
     }
-
-    // For anonymous users: only show warning if they have sent messages and have few remaining
     if (isAnonymous) {
       return (
-        messageCount > 0 &&
-        remainingMessages <= 5 &&
+        (monthlyUsage?.monthlyMessagesSent ?? 0) > 0 &&
+        (monthlyUsage?.remainingMessages ?? 0) <= 5 &&
         !isDismissed(warningDismissalKey)
       );
     }
-
-    // For signed-in users: only show warning when they have less than 10 messages remaining
-    const effectiveRemainingMessages =
-      monthlyUsage?.remainingMessages ?? remainingMessages;
+    const effectiveRemainingMessages = monthlyUsage?.remainingMessages ?? 0;
     return (
       effectiveRemainingMessages < 10 &&
       effectiveRemainingMessages > 0 &&
       !isDismissed(warningDismissalKey)
     );
   }, [
+    isNoUser,
     hasMessageLimit,
     canSendMessage,
     hasUnlimitedCalls,
     isAnonymous,
-    messageCount,
-    remainingMessages,
+    monthlyUsage?.monthlyMessagesSent,
+    monthlyUsage?.remainingMessages,
     isDismissed,
     warningDismissalKey,
-    monthlyUsage?.remainingMessages,
   ]);
 
-  const showLimitReached =
-    hasMessageLimit && !canSendMessage && !hasUnlimitedCalls;
+  const showLimitReached = isNoUser
+    ? false
+    : hasMessageLimit && !canSendMessage && !hasUnlimitedCalls;
 
-  // Generate warning messages
   const limitWarningMessage = useMemo(() => {
+    if (isNoUser) {
+      return { text: "" };
+    }
     if (isAnonymous) {
       return {
-        text: `${remainingMessages} message${
-          remainingMessages === 1 ? "" : "s"
+        text: `${monthlyUsage?.remainingMessages ?? 0} message${
+          monthlyUsage?.remainingMessages === 1 ? "" : "s"
         } remaining`,
         link: { text: "Sign in", href: "/auth" },
         suffix: "for unlimited chats",
@@ -88,15 +76,19 @@ export function useChatWarnings() {
           : "Add API keys for unlimited chats",
       };
     }
+    return { text: "" };
   }, [
+    isNoUser,
     isAnonymous,
-    remainingMessages,
-    hasUnlimitedCalls,
     monthlyUsage?.remainingMessages,
+    hasUnlimitedCalls,
     hasUserApiKeys,
   ]);
 
   const limitReachedMessage = useMemo(() => {
+    if (isNoUser) {
+      return { text: "" };
+    }
     if (isAnonymous) {
       return {
         text: "Message limit reached.",
@@ -110,25 +102,18 @@ export function useChatWarnings() {
         ? "Use your BYOK models to continue chatting."
         : "Add API keys to access BYOK models.",
     };
-  }, [isAnonymous, hasUserApiKeys]);
+  }, [isNoUser, isAnonymous, hasUserApiKeys]);
 
   const handleDismissWarning = useCallback(() => {
     dismissWarning(warningDismissalKey);
   }, [dismissWarning, warningDismissalKey]);
 
   return {
-    // State
     showLimitWarning,
     showLimitReached,
-
-    // Messages
     limitWarningMessage,
     limitReachedMessage,
-
-    // Actions
     dismissWarning: handleDismissWarning,
-
-    // User state (for convenience)
     canSendMessage,
     hasMessageLimit,
   };

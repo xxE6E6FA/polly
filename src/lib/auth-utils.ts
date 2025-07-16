@@ -1,74 +1,30 @@
+import type { Doc } from "@convex/_generated/dataModel";
 import type { UserId } from "@/types";
 
 import {
-  getAnonymousUserIdFromCookie,
   removeAnonymousUserIdCookie,
   setAnonymousUserIdCookie,
 } from "./cookies";
 
-const ANONYMOUS_USER_ID_KEY = "anonymous-user-id";
 const ANONYMOUS_USER_CREATED_EVENT = "anonymous-user-created";
+const AUTHENTICATED_USER_UPDATED_EVENT = "authenticated-user-updated";
 
-/**
- * Get stored anonymous user ID from cookies first, then migrate from localStorage
- */
-export function getStoredAnonymousUserId(): UserId | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  // First try cookies (new approach)
-  const userId = getAnonymousUserIdFromCookie();
-
-  return userId;
-}
-
-/**
- * Store anonymous user ID and notify listeners
- * @param userId
- */
 export function storeAnonymousUserId(userId: UserId) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
   setAnonymousUserIdCookie(userId);
 
-  // Dispatch custom event to notify other components
   const event = new CustomEvent(ANONYMOUS_USER_CREATED_EVENT, {
     detail: { userId },
   });
   window.dispatchEvent(event);
 }
 
-/**
- * Clean up anonymous user ID after successful authentication
- * This should be called when a user successfully graduates from anonymous to authenticated
- */
 export function cleanupAnonymousUserId() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  // Remove from cookie
   removeAnonymousUserIdCookie();
-
-  // Remove from localStorage if it exists
 }
 
-/**
- * Subscribe to anonymous user creation events
- * @param callback
- */
 export function onAnonymousUserCreated(
   callback: (userId: UserId) => void
 ): () => void {
-  if (typeof window === "undefined") {
-    return () => {
-      // No-op for server-side rendering
-    };
-  }
-
   const handler = (event: Event) => {
     const customEvent = event as CustomEvent<{ userId: UserId }>;
     callback(customEvent.detail.userId);
@@ -79,51 +35,27 @@ export function onAnonymousUserCreated(
     window.removeEventListener(ANONYMOUS_USER_CREATED_EVENT, handler);
 }
 
-/**
- * Subscribe to changes in stored user ID (from any source)
- * @param callback
- */
-export function onStoredUserIdChange(
-  callback: (hasUserId: boolean) => void
-): () => void {
-  if (typeof window === "undefined") {
-    return () => {
-      // No-op for server-side rendering
-    };
+export function storeAuthenticatedUser(user: Doc<"users">) {
+  localStorage.setItem("authenticated-user", JSON.stringify(user));
+  window.dispatchEvent(new Event(AUTHENTICATED_USER_UPDATED_EVENT));
+}
+
+export function getStoredAuthenticatedUser() {
+  const raw = localStorage.getItem("authenticated-user");
+  if (!raw) {
+    return null;
   }
+  try {
+    const user = JSON.parse(raw);
+    return user;
+  } catch {
+    return null;
+  }
+}
 
-  const checkAndNotify = () => {
-    const hasUserId = Boolean(getStoredAnonymousUserId());
-    callback(hasUserId);
-  };
-
-  // Check when the window receives focus (in case cookie was set in another tab)
-  const handleFocus = () => checkAndNotify();
-
-  // Listen for storage events from other tabs
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === ANONYMOUS_USER_ID_KEY) {
-      checkAndNotify();
-    }
-  };
-
-  // Listen for custom event when anonymous user is created
-  const handleUserCreated = () => {
-    // Small delay to ensure cookie is set
-    setTimeout(checkAndNotify, 100);
-  };
-
-  window.addEventListener("focus", handleFocus);
-  window.addEventListener("storage", handleStorageChange);
-  window.addEventListener(ANONYMOUS_USER_CREATED_EVENT, handleUserCreated);
-
-  // Also check periodically for cookie changes (since cookies don't trigger storage events)
-  const interval = setInterval(checkAndNotify, 1000);
-
-  return () => {
-    window.removeEventListener("focus", handleFocus);
-    window.removeEventListener("storage", handleStorageChange);
-    window.removeEventListener(ANONYMOUS_USER_CREATED_EVENT, handleUserCreated);
-    clearInterval(interval);
-  };
+export function cleanupAuthenticatedUser() {
+  // biome-ignore lint/suspicious/noConsole: debug
+  console.log("[auth-utils] cleanupAuthenticatedUser called");
+  localStorage.removeItem("authenticated-user");
+  window.dispatchEvent(new Event(AUTHENTICATED_USER_UPDATED_EVENT));
 }

@@ -48,9 +48,6 @@ export const ConversationItem = ({
   const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
   const backgroundJobs = useBackgroundJobs();
-  const dispatch = useCallback((eventName: string) => {
-    window.dispatchEvent(new CustomEvent(eventName));
-  }, []);
 
   const isCurrentConversation = currentConversationId === conversation._id;
 
@@ -150,11 +147,9 @@ export const ConversationItem = ({
         id: conversation._id,
         title: newTitle,
       });
-      // Trigger cache invalidation via event
-      dispatch("conversations-changed");
       setIsEditing(false);
     },
-    [conversation, updateConversationTitle, dispatch]
+    [conversation, updateConversationTitle]
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -184,8 +179,6 @@ export const ConversationItem = ({
 
         await handleError.archive(async () => {
           await archiveConversation({ id: conversation._id });
-          // Trigger cache invalidation via event
-          dispatch("conversations-changed");
         });
       }
     );
@@ -197,7 +190,6 @@ export const ConversationItem = ({
     isCurrentConversation,
     navigate,
     handleError,
-    dispatch,
   ]);
 
   const handleDeleteClick = useCallback(() => {
@@ -223,8 +215,6 @@ export const ConversationItem = ({
 
         await handleError.delete(async () => {
           await deleteConversation({ id: conversation._id });
-          // Trigger cache invalidation via event
-          dispatch("conversations-changed");
         });
       }
     );
@@ -236,7 +226,6 @@ export const ConversationItem = ({
     isCurrentConversation,
     navigate,
     handleError,
-    dispatch,
   ]);
 
   const handlePinToggle = useCallback(
@@ -252,10 +241,8 @@ export const ConversationItem = ({
         id: conversation._id,
         isPinned: !conversation.isPinned,
       });
-      // Trigger cache invalidation via event
-      dispatch("conversations-changed");
     },
-    [conversation, setPinned, dispatch]
+    [conversation, setPinned]
   );
 
   const handleExport = useCallback(

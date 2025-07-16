@@ -20,17 +20,11 @@ const THEME_STORAGE_KEY = "theme/v1";
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") {
-      return "light";
-    }
-
-    // Check localStorage first
     const stored = getLS<Theme>(THEME_STORAGE_KEY, "light");
     if (stored === "light" || stored === "dark") {
       return stored;
     }
 
-    // Check system preference
     const prefersDark = window.matchMedia(
       "(prefers-color-scheme: dark)"
     ).matches;
@@ -43,7 +37,6 @@ export function useTheme() {
     setMounted(true);
   }, []);
 
-  // Keep HTML class in sync
   useEffect(() => {
     if (!mounted) {
       return;
@@ -54,7 +47,6 @@ export function useTheme() {
     root.classList.add(theme);
   }, [theme, mounted]);
 
-  // Persist to storage & notify
   const setTheme = useCallback((newTheme: Theme) => {
     withDisabledAnimations(() => {
       setThemeState(newTheme);

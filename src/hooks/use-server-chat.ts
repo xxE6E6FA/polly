@@ -5,11 +5,11 @@ import type { FunctionReference } from "convex/server";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import { storeAnonymousUserId } from "@/lib/auth-utils";
 import { isUserModel } from "@/lib/type-guards";
 import { cleanAttachmentsForConvex } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   Attachment,
   ChatMessage,
@@ -67,10 +67,7 @@ export function useServerChat({
   onError,
   onConversationCreate,
 }: UseServerChatOptions) {
-  const userData = useUserData();
-  const user = userData?.user;
-  const userLoading = userData === null;
-  const canSendMessage = userData?.canSendMessage ?? false;
+  const { canSendMessage, user } = useUserDataContext();
   const { setIsThinking } = useUI();
   const selectedModelRaw = usePersistentConvexQuery(
     "selected-model",
@@ -78,9 +75,6 @@ export function useServerChat({
     {}
   );
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-  const dispatch = useCallback((eventName: string) => {
-    window.dispatchEvent(new CustomEvent(eventName));
-  }, []);
 
   // Create conversation functionality
   const { execute: createNewConversation } = useActionWithLoading(
@@ -90,10 +84,8 @@ export function useServerChat({
         if (result?.isNewUser) {
           storeAnonymousUserId(result.userId);
         }
-        dispatch("conversations-changed");
       },
-      onError: (error: Error) => {
-        console.error("Failed to create conversation:", error);
+      onError: () => {
         toast.error("Failed to create conversation", {
           description: "Unable to create new conversation. Please try again.",
         });
@@ -245,7 +237,7 @@ export function useServerChat({
   }, [conversation, conversationId, resumeConversation]);
 
   // Simple user readiness check
-  const isUserReady = user !== null && !userLoading;
+  const isUserReady = user !== null;
 
   const sendMessage = useCallback(
     async (

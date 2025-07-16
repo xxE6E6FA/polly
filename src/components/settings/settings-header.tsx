@@ -1,6 +1,5 @@
-import { useAuthActions } from "@convex-dev/auth/react";
 import { ArrowLeftIcon, SignOutIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -26,7 +25,11 @@ const NavigationHeader = ({
   backLink: string;
   backText: string;
 }) => {
-  const { signOut } = useAuthActions();
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    navigate("/signout");
+  };
 
   return (
     <div className="flex-shrink-0 border-b border-border/40">
@@ -46,7 +49,7 @@ const NavigationHeader = ({
               className="h-8 px-2 sm:h-8 sm:px-2"
               size="sm"
               variant="ghost"
-              onClick={signOut}
+              onClick={handleSignOut}
             >
               <SignOutIcon className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>

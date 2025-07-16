@@ -9,31 +9,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useChatService } from "@/hooks/use-chat-service";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-
-// Simple hash function to create stable keys from prompt content
-const hashString = (str: string): string => {
-  let hash = 0;
-  if (str.length === 0) {
-    return hash.toString();
-  }
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash &= hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString();
-};
-
-// Generate a stable key for each prompt
-const generatePromptKey = (prompt: string, index: number): string => {
-  // Use content hash as primary key, with index as fallback for empty strings
-  const contentHash = hashString(prompt.trim());
-  return contentHash || `fallback-${index}`;
-};
+import { useUserDataContext } from "@/providers/user-data-context";
 
 type ConversationStarterPopoverProps = {
   selectedText: string;
@@ -56,7 +35,8 @@ export const ConversationStarterPopover = ({
     api.conversationStarters.generateConversationStarters
   );
 
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
   const chatService = useChatService({
     overrideMode: "regular", // Always use regular mode for conversation starters
   });
@@ -158,7 +138,8 @@ export const ConversationStarterPopover = ({
             <div className="space-y-2">
               {prompts.map((prompt, index) => (
                 <button
-                  key={generatePromptKey(prompt, index)}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: we don't need a stable key for this
+                  key={index}
                   className={cn(
                     "w-full rounded-lg border bg-background p-3 text-left text-sm transition-colors",
                     "hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring"

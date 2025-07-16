@@ -2,7 +2,7 @@ import { api } from "convex/_generated/api";
 import { useMutation } from "convex/react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   PersonaForm,
@@ -79,13 +79,8 @@ export default function NewPersonaPage() {
       />
 
       <div className="flex justify-end gap-3 border-t pt-4">
-        <Button
-          disabled={isLoading}
-          size="default"
-          variant="outline"
-          onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
-        >
-          Cancel
+        <Button asChild disabled={isLoading} size="default" variant="outline">
+          <Link to={ROUTES.SETTINGS.PERSONAS}>Cancel</Link>
         </Button>
         <Button
           disabled={!isFormValid || isLoading}

@@ -14,13 +14,7 @@ export function setAnonymousUserIdCookie(userId: UserId) {
   }
 }
 
-// Client-side: Get anonymous user ID from cookie
-
 export function getAnonymousUserIdFromCookie(): UserId | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
   const cookies = document.cookie.split(";");
   const cookie = cookies.find(c =>
     c.trim().startsWith(`${ANONYMOUS_USER_COOKIE}=`)
@@ -29,10 +23,6 @@ export function getAnonymousUserIdFromCookie(): UserId | null {
   return cookie ? (cookie.split("=")[1].trim() as UserId) : null;
 }
 
-// Client-side: Remove anonymous user ID cookie
-
 export function removeAnonymousUserIdCookie() {
-  if (typeof window !== "undefined") {
-    document.cookie = `${ANONYMOUS_USER_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-  }
+  document.cookie = `${ANONYMOUS_USER_COOKIE}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
 }

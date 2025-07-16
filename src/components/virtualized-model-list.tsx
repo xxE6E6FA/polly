@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { useUserData } from "@/hooks/use-user-data";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 type BaseModel = {
   modelId: string;
@@ -179,8 +179,8 @@ export const VirtualizedModelList = memo(
   ({ models }: VirtualizedModelListProps) => {
     const [columnsPerRow, setColumnsPerRow] = useState(4);
 
-    const userData = useUserData();
-    const authenticatedUserId = userData?.user?._id;
+    const { user } = useUserDataContext();
+    const authenticatedUserId = user?._id;
     const enabledModels = useQuery(
       api.userModels.getUserModels,
       authenticatedUserId ? { userId: authenticatedUserId } : {}

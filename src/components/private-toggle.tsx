@@ -5,8 +5,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
 
 export const PrivateToggle = () => {
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();

@@ -1,6 +1,7 @@
 import type React from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { PrivateModeProvider } from "@/contexts/private-mode-context";
+import { PrivateModeProvider } from "@/providers/private-mode-context";
+import { UserDataProvider } from "@/providers/user-data-context";
 import { ConvexProvider } from "./convex-provider";
 import { UIProvider } from "./ui-provider";
 
@@ -13,7 +14,9 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     <ErrorBoundary>
       <ConvexProvider>
         <UIProvider>
-          <PrivateModeProvider>{children}</PrivateModeProvider>
+          <UserDataProvider>
+            <PrivateModeProvider>{children}</PrivateModeProvider>
+          </UserDataProvider>
         </UIProvider>
       </ConvexProvider>
     </ErrorBoundary>

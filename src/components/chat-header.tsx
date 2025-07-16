@@ -11,7 +11,6 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import {
   downloadFile,
   exportAsJSON,
@@ -20,6 +19,7 @@ import {
 } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId, ExportData } from "@/types";
 
 const isExportData = (x: unknown): x is ExportData => {
@@ -64,8 +64,7 @@ export const ChatHeader = ({
   privateMessages,
   privatePersonaId,
 }: ChatHeaderProps) => {
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const { isSidebarVisible } = useUI();
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
