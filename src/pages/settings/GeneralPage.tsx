@@ -1,7 +1,7 @@
 import { GithubLogoIcon } from "@phosphor-icons/react";
+import { SettingsPageLayout, SettingsSection } from "@/components/settings/ui";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -11,14 +11,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useUserData } from "@/hooks/use-user-data";
 import {
   useUserSettings,
   useUserSettingsMutations,
 } from "@/hooks/use-user-settings";
 
 export default function GeneralPage() {
-  const userSettings = useUserSettings();
+  const userData = useUserData();
+  const user = userData?.user;
+  const userSettings = useUserSettings(user?._id);
   const { updateUserSettings } = useUserSettingsMutations();
+
+  if (!userSettings) {
+    return null;
+  }
 
   const handleAnonymizeToggle = async (checked: boolean) => {
     await updateUserSettings({ anonymizeForDemo: checked });
@@ -41,7 +48,7 @@ export default function GeneralPage() {
   ];
 
   return (
-    <div className="flex gap-6 max-w-4xl mx-auto">
+    <SettingsPageLayout className="flex gap-6">
       {/* Left Side - User ID Card */}
       <div className="hidden lg:block w-64 flex-shrink-0">
         <UserIdCard />
@@ -49,11 +56,8 @@ export default function GeneralPage() {
 
       {/* Main Content */}
       <div className="flex-1 space-y-6">
-        <Card>
-          <CardHeader className="pb-6">
-            <CardTitle className="text-lg sm:text-xl">Auto-Archive</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <SettingsSection title="Auto-Archive">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label
@@ -68,16 +72,16 @@ export default function GeneralPage() {
               </div>
               <Switch
                 id="auto-archive-toggle"
-                checked={userSettings?.autoArchiveEnabled ?? false}
+                checked={userSettings.autoArchiveEnabled ?? false}
                 onCheckedChange={handleAutoArchiveToggle}
               />
             </div>
 
-            {userSettings?.autoArchiveEnabled && (
+            {userSettings.autoArchiveEnabled && (
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Archive After</Label>
                 <Select
-                  value={String(userSettings?.autoArchiveDays ?? 30)}
+                  value={String(userSettings.autoArchiveDays ?? 30)}
                   onValueChange={handleAutoArchiveDaysChange}
                 >
                   <SelectTrigger className="w-full">
@@ -98,40 +102,32 @@ export default function GeneralPage() {
                 </p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
 
-        <Card>
-          <CardHeader className="pb-6">
-            <CardTitle className="text-lg sm:text-xl">Privacy</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label
-                  htmlFor="anonymize-toggle"
-                  className="text-base font-normal"
-                >
-                  Anonymize User Data
-                </Label>
-                <p className="text-sm text-muted-foreground">
-                  Blur your name, email, and avatar in the UI
-                </p>
-              </div>
-              <Switch
-                id="anonymize-toggle"
-                checked={userSettings?.anonymizeForDemo ?? false}
-                onCheckedChange={handleAnonymizeToggle}
-              />
+        <SettingsSection title="Privacy">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label
+                htmlFor="anonymize-toggle"
+                className="text-base font-normal"
+              >
+                Anonymize User Data
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Blur your name, email, and avatar in the UI
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <Switch
+              id="anonymize-toggle"
+              checked={userSettings.anonymizeForDemo ?? false}
+              onCheckedChange={handleAnonymizeToggle}
+            />
+          </div>
+        </SettingsSection>
 
-        <Card>
-          <CardHeader className="pb-6">
-            <CardTitle className="text-lg sm:text-xl">About</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <SettingsSection title="About">
+          <div>
             <p className="mb-4 text-sm text-muted-foreground">
               Polly is an open source AI chat application. Found a bug or have a
               feature request? Contributions and feedback are welcome.
@@ -152,9 +148,9 @@ export default function GeneralPage() {
                 View on GitHub
               </a>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </SettingsSection>
       </div>
-    </div>
+    </SettingsPageLayout>
   );
 }

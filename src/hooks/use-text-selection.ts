@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useDebounceTimeout } from "./use-timeout-management";
+import { useDebouncedCallback } from "./use-debounce";
 
 type SelectionInfo = {
   text: string;
@@ -19,72 +19,69 @@ type UseTextSelectionReturn = {
 export function useTextSelection(): UseTextSelectionReturn {
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
   const [isLocked, setIsLocked] = useState(false);
-  const { debounce, clearDebounce } = useDebounceTimeout();
+
+  const debouncedSelectionHandler = useDebouncedCallback(() => {
+    const windowSelection = window.getSelection();
+
+    if (!windowSelection || windowSelection.rangeCount === 0) {
+      setSelection(null);
+      return;
+    }
+
+    const range = windowSelection.getRangeAt(0);
+    const text = windowSelection.toString().trim();
+
+    if (!text) {
+      setSelection(null);
+      return;
+    }
+
+    // Count words (split by whitespace and filter empty strings)
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    const wordCount = words.length;
+
+    // Only show for selections with more than one word
+    if (wordCount <= 1) {
+      setSelection(null);
+      return;
+    }
+
+    // Check if selection is within an assistant message
+    const container = range.commonAncestorContainer;
+    const element =
+      container.nodeType === Node.TEXT_NODE
+        ? container.parentElement
+        : (container as Element);
+
+    // Find the closest message container
+    const messageContainer = element?.closest("[data-message-role]");
+    const isInAssistantMessage =
+      messageContainer?.getAttribute("data-message-role") === "assistant";
+
+    if (!isInAssistantMessage) {
+      setSelection(null);
+      return;
+    }
+
+    // Get the bounding rect for positioning
+    const rect = range.getBoundingClientRect();
+
+    setSelection({
+      text,
+      wordCount,
+      rect,
+      isInAssistantMessage,
+    });
+  }, 100);
 
   const handleSelectionChange = useCallback(() => {
-    // Clear existing timeout and set new one
-    clearDebounce();
-
-    // Small delay to let the selection settle
-    debounce(() => {
-      const windowSelection = window.getSelection();
-
-      if (!windowSelection || windowSelection.rangeCount === 0) {
-        setSelection(null);
-        return;
-      }
-
-      const range = windowSelection.getRangeAt(0);
-      const text = windowSelection.toString().trim();
-
-      if (!text) {
-        setSelection(null);
-        return;
-      }
-
-      // Count words (split by whitespace and filter empty strings)
-      const words = text.split(/\s+/).filter(word => word.length > 0);
-      const wordCount = words.length;
-
-      // Only show for selections with more than one word
-      if (wordCount <= 1) {
-        setSelection(null);
-        return;
-      }
-
-      // Check if selection is within an assistant message
-      const container = range.commonAncestorContainer;
-      const element =
-        container.nodeType === Node.TEXT_NODE
-          ? container.parentElement
-          : (container as Element);
-
-      // Find the closest message container
-      const messageContainer = element?.closest("[data-message-role]");
-      const isInAssistantMessage =
-        messageContainer?.getAttribute("data-message-role") === "assistant";
-
-      if (!isInAssistantMessage) {
-        setSelection(null);
-        return;
-      }
-
-      // Get the bounding rect for positioning
-      const rect = range.getBoundingClientRect();
-
-      setSelection({
-        text,
-        wordCount,
-        rect,
-        isInAssistantMessage,
-      });
-    }, 100);
-  }, [debounce, clearDebounce]);
+    debouncedSelectionHandler();
+  }, [debouncedSelectionHandler]);
 
   const clearSelection = useCallback(() => {
     if (isLocked) {
       return;
-    } // Don't clear if locked
+    }
     setSelection(null);
     window.getSelection()?.removeAllRanges();
   }, [isLocked]);
@@ -120,9 +117,8 @@ export function useTextSelection(): UseTextSelectionReturn {
 
     return () => {
       document.removeEventListener("selectionchange", handleSelectionChange);
-      clearDebounce();
     };
-  }, [handleSelectionChange, clearDebounce]);
+  }, [handleSelectionChange]);
 
   // Clear selection when clicking outside
   useEffect(() => {

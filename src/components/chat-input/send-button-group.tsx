@@ -7,6 +7,7 @@ import {
   SquareIcon,
 } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/spinner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -278,12 +279,13 @@ export const SendButtonGroup = ({
                 className={cn("h-3.5 w-3.5 fill-current", "text-white")}
               />
             ) : isLoading || isSummarizing ? (
-              <div
+              <Spinner
+                size="sm"
                 className={cn(
-                  "h-3.5 w-3.5 animate-spin rounded-full border-2 border-t-transparent",
+                  "h-3.5 w-3.5",
                   canSend
-                    ? "border-primary-foreground"
-                    : "border-primary dark:border-primary/70"
+                    ? "text-primary-foreground"
+                    : "text-primary dark:text-primary/70"
                 )}
               />
             ) : (

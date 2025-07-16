@@ -19,6 +19,7 @@ export const getUserSettings = query({
     // Return defaults if no settings exist
     if (!settings) {
       return {
+        userId,
         personasEnabled: true, // Default to enabled
         openRouterSorting: "default" as const, // Default to OpenRouter's load balancing
         anonymizeForDemo: false, // Default to disabled
@@ -28,6 +29,7 @@ export const getUserSettings = query({
     }
 
     return {
+      userId,
       personasEnabled: settings.personasEnabled ?? true, // Default to enabled if null/undefined
       openRouterSorting: settings.openRouterSorting ?? ("default" as const), // Default to load balancing
       anonymizeForDemo: settings.anonymizeForDemo ?? false, // Default to disabled

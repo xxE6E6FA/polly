@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WindowVirtualizer } from "virtua";
 import { ProviderIcon } from "@/components/provider-icons";
@@ -7,8 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
-import { useOptimisticModelToggle } from "@/hooks/use-optimistic-model-toggle";
+import { useUserData } from "@/hooks/use-user-data";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 
 type BaseModel = {
@@ -101,9 +100,7 @@ const ModelCard = memo(
               )}
             </div>
             <div className="mt-1 flex items-center">
-              <div className="flex h-4 w-4 items-center justify-center">
-                <ProviderIcon provider={model.provider} />
-              </div>
+              <ProviderIcon provider={model.provider} className="h-4 w-4" />
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -182,14 +179,14 @@ export const VirtualizedModelList = memo(
   ({ models }: VirtualizedModelListProps) => {
     const [columnsPerRow, setColumnsPerRow] = useState(4);
 
-    const authenticatedUserId = useAuthenticatedUserId();
+    const userData = useUserData();
+    const authenticatedUserId = userData?.user?._id;
     const enabledModels = useQuery(
       api.userModels.getUserModels,
       authenticatedUserId ? { userId: authenticatedUserId } : {}
     );
 
-    // Use optimistic toggle for immediate UI feedback
-    const { mutate: toggleModelOptimistic } = useOptimisticModelToggle();
+    const toggleModel = useMutation(api.userModels.toggleModel);
 
     // Memoize enabled models lookup for better performance
     const enabledModelsLookup = enabledModels
@@ -204,22 +201,19 @@ export const VirtualizedModelList = memo(
           name: model.name,
           provider: model.provider,
           contextLength: model.contextLength || model.contextWindow || 0,
-          maxOutputTokens: model.maxOutputTokens,
-          supportsImages: model.supportsImages,
-          supportsTools: model.supportsTools,
-          supportsReasoning: model.supportsReasoning,
-          inputModalities: model.inputModalities,
+          maxOutputTokens: model.maxOutputTokens ?? undefined,
+          supportsImages: Boolean(model.supportsImages),
+          supportsTools: Boolean(model.supportsTools),
+          supportsReasoning: Boolean(model.supportsReasoning),
+          inputModalities: model.inputModalities ?? undefined,
         };
 
-        // Use optimistic mutation for immediate feedback
-        toggleModelOptimistic({ modelId: model.modelId, modelData });
+        toggleModel({ modelId: model.modelId, modelData });
 
         // Dispatch event to notify hooks to refresh
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("user-models-changed"));
-        }
+        window.dispatchEvent(new CustomEvent("user-models-changed"));
       },
-      [toggleModelOptimistic]
+      [toggleModel]
     );
 
     // Calculate columns based on screen size with debounced updates

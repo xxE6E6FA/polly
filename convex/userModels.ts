@@ -18,8 +18,8 @@ export const getUserModels = query({
 
     return await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
+      .take(200); // Reasonable limit for user models
   },
 });
 
@@ -39,8 +39,8 @@ export const getUserModelsCached = query({
       async () => {
         return await ctx.db
           .query("userModels")
-          .withIndex("by_user", q => q.eq("userId", userId))
-          .collect();
+          .withIndex("by_user_provider", q => q.eq("userId", userId))
+          .take(200); // Reasonable limit for user models
       },
       CACHE_TTL
     );
@@ -78,7 +78,7 @@ export const getUserSelectedModel = query({
 
     const userHasModels = await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
       .first();
 
     if (!userHasModels) {
@@ -111,7 +111,7 @@ export const getUserModelsByProvider = query({
 
     const models = await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
       .collect();
 
     const defaultModel = getAnonymousDefaultModel();
@@ -161,7 +161,7 @@ export const hasUserModels = query({
 
     const count = await ctx.db
       .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
       .collect();
 
     if (count.length > 0) {

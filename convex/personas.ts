@@ -15,7 +15,7 @@ export const list = query({
         .withIndex("by_built_in", q => q.eq("isBuiltIn", true))
         .filter(q => q.eq(q.field("isActive"), true))
         .order("asc")
-        .collect();
+        .take(50); // Reasonable limit for personas
     }
 
     // Get both built-in and user personas
@@ -23,20 +23,20 @@ export const list = query({
       .query("personas")
       .withIndex("by_built_in", q => q.eq("isBuiltIn", true))
       .filter(q => q.eq(q.field("isActive"), true))
-      .collect();
+      .take(50); // Reasonable limit for built-in personas
 
     const userPersonas = await ctx.db
       .query("personas")
       .withIndex("by_user_active", q =>
         q.eq("userId", userId).eq("isActive", true)
       )
-      .collect();
+      .take(100); // Reasonable limit for user personas
 
     // Get user's persona settings to filter out disabled built-in personas
     const userPersonaSettings = await ctx.db
       .query("userPersonaSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_persona", q => q.eq("userId", userId))
+      .take(100); // Reasonable limit for user persona settings
 
     const disabledPersonaIds = new Set(
       userPersonaSettings
@@ -157,7 +157,7 @@ export const getUserPersonaSettings = query({
 
     return await ctx.db
       .query("userPersonaSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_persona", q => q.eq("userId", userId))
       .collect();
   },
 });

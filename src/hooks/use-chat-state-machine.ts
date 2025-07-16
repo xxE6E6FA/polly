@@ -60,6 +60,8 @@ function chatStateReducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
+export type ChatStatus = ChatState["status"];
+
 // Hook to use the chat state machine
 export function useChatStateMachine() {
   const [state, dispatch] = useReducer(chatStateReducer, initialState);
@@ -102,6 +104,7 @@ export function useChatStateMachine() {
 
   return {
     state,
+    chatStatus: state.status as ChatStatus,
     actions: {
       sendMessage,
       startStreaming,

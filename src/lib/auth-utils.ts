@@ -18,17 +18,7 @@ export function getStoredAnonymousUserId(): UserId | null {
   }
 
   // First try cookies (new approach)
-  let userId = getAnonymousUserIdFromCookie();
-
-  // If not in cookies, try localStorage (old approach) and migrate
-  if (!userId) {
-    userId = localStorage.getItem(ANONYMOUS_USER_ID_KEY) as UserId | null;
-    if (userId) {
-      // Migrate to cookie
-      setAnonymousUserIdCookie(userId);
-      localStorage.removeItem(ANONYMOUS_USER_ID_KEY);
-    }
-  }
+  const userId = getAnonymousUserIdFromCookie();
 
   return userId;
 }
@@ -64,7 +54,6 @@ export function cleanupAnonymousUserId() {
   removeAnonymousUserIdCookie();
 
   // Remove from localStorage if it exists
-  localStorage.removeItem(ANONYMOUS_USER_ID_KEY);
 }
 
 /**

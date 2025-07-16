@@ -1,61 +1,116 @@
-import { ActivitySection } from "@/components/settings/activity-section";
-import { ConversationSelectionList } from "@/components/settings/conversation-selection-list";
-import { ImportExportActions } from "@/components/settings/import-export-actions";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { ActivitySection } from "@/components/settings/chat-history-tab/ActivitySection";
+import { ConversationSelectionList } from "@/components/settings/chat-history-tab/ConversationSelectionList";
+import { ImportExportActions } from "@/components/settings/chat-history-tab/ImportExportActions";
 import { SettingsHeader } from "@/components/settings/settings-header";
-import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { SettingsPageLayout } from "@/components/settings/ui";
+import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConversationSelection } from "@/hooks/use-conversation-selection";
-import { useJobManagement } from "@/hooks/use-job-management";
 
 export default function ChatHistoryPage() {
   const conversationSelection = useConversationSelection();
-  const jobManagement = useJobManagement({ limit: 20 });
+  const backgroundJobs = useBackgroundJobs();
+  const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
+
+  const downloadData = useQuery(
+    api.backgroundJobs.getExportDownloadUrl,
+    downloadingJobId ? { jobId: downloadingJobId } : "skip"
+  );
+
+  const handleDownload = (jobId: string) => {
+    setDownloadingJobId(jobId);
+  };
+
+  useEffect(() => {
+    if (!(downloadData && downloadingJobId)) {
+      return;
+    }
+
+    try {
+      if (downloadData.downloadUrl) {
+        const link = document.createElement("a");
+        link.href = downloadData.downloadUrl;
+
+        let filename = "export.json";
+        if (downloadData.manifest) {
+          const timestamp = new Date().toISOString().split("T")[0];
+          const conversationCount = downloadData.manifest.totalConversations;
+          filename = `polly-export-${conversationCount}-conversations-${timestamp}.json`;
+        }
+
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("Download started", {
+          description: `Export file downloaded as ${filename}`,
+        });
+      } else {
+        toast.error("Download failed", {
+          description: "Export file is not available for download",
+        });
+      }
+    } catch {
+      toast.error("Download failed", {
+        description: "An error occurred while downloading the file",
+      });
+    }
+
+    setDownloadingJobId(null);
+  }, [downloadData, downloadingJobId]);
+
+  const handleRemove = (jobId: string) => {
+    backgroundJobs.removeJob(jobId);
+  };
+
+  const jobs = backgroundJobs.activeJobs;
+  const recentlyImportedIds = jobs
+    .filter(
+      job =>
+        job.type === "import" &&
+        job.status === "completed" &&
+        job.result?.conversationIds
+    )
+    .flatMap(job => job.result?.conversationIds || []);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <SettingsPageLayout>
       <SettingsHeader
         title="Chat History"
         description="Manage your conversation history - import, export, and organize your chats"
       />
 
       <ActivitySection
-        jobs={jobManagement.allJobs}
-        onDownload={jobManagement.handleDownload}
-        onRemove={jobManagement.handleRemoveJob}
-        isDownloading={jobManagement.isDownloading}
-        downloadingJobId={jobManagement.downloadingJobId}
+        jobs={jobs}
+        onDownload={handleDownload}
+        onRemove={handleRemove}
+        isDownloading={downloadingJobId !== null}
+        downloadingJobId={downloadingJobId}
         showDetailed={true}
         title="Import & Export Activity"
         description="Track your recent imports and exports. Files are automatically deleted after 30 days."
       />
 
-      <ImportExportActions
-        selectedConversations={conversationSelection.selectedConversations}
-        includeAttachments={conversationSelection.includeAttachments}
-        onIncludeAttachmentsChange={conversationSelection.setIncludeAttachments}
-      />
+      <ImportExportActions />
 
       <ConversationSelectionList
         selectedConversations={conversationSelection.selectedConversations}
         onConversationSelect={conversationSelection.handleConversationSelect}
         onSelectAll={conversationSelection.handleSelectAll}
-        onBulkSelect={conversationSelection.handleBulkSelect}
         clearSelection={conversationSelection.clearSelection}
         includeArchived={true}
         includePinned={true}
-        recentlyImportedIds={jobManagement.recentlyImportedIds}
+        recentlyImportedIds={
+          new Set(recentlyImportedIds as Array<Id<"conversations">>)
+        }
+        includeAttachments={conversationSelection.includeAttachments}
+        onIncludeAttachmentsChange={conversationSelection.setIncludeAttachments}
       />
-
-      <ConfirmationDialog
-        open={jobManagement.confirmDialog.isOpen}
-        onOpenChange={jobManagement.confirmDialog.handleOpenChange}
-        title={jobManagement.confirmDialog.options.title}
-        description={jobManagement.confirmDialog.options.description}
-        confirmText={jobManagement.confirmDialog.options.confirmText}
-        cancelText={jobManagement.confirmDialog.options.cancelText}
-        variant={jobManagement.confirmDialog.options.variant}
-        onConfirm={jobManagement.confirmDialog.handleConfirm}
-        onCancel={jobManagement.confirmDialog.handleCancel}
-      />
-    </div>
+    </SettingsPageLayout>
   );
 }

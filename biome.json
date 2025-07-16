@@ -513,10 +513,7 @@
       }
     },
     {
-      "includes": [
-        "src/components/model-picker.tsx",
-        "src/components/persona-picker.tsx"
-      ],
+      "includes": ["src/components/persona-picker.tsx"],
       "linter": {
         "rules": {
           "a11y": {

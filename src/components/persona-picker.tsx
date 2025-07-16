@@ -1,9 +1,9 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CaretDownIcon, CheckIcon, UserIcon } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -18,9 +18,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
+import { isPersonaArray } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 
 type PersonaPickerProps = {
@@ -38,190 +44,187 @@ export const PersonaPicker = ({
   onPersonaSelect,
   tooltip,
 }: PersonaPickerProps) => {
-  const userInfo = useUser();
+  const userData = useUserData();
+  const user = userData?.user;
   const queryUserId = useQueryUserId();
-  const personas = useQuery(
+
+  const personasRaw = usePersistentConvexQuery(
+    "persona-picker-personas",
     api.personas.list,
     queryUserId ? { userId: queryUserId } : "skip"
   );
-  const userPersonaSettings = useQuery(
+
+  const userPersonaSettingsRaw = usePersistentConvexQuery(
+    "persona-picker-settings",
     api.personas.getUserPersonaSettings,
     queryUserId ? { userId: queryUserId } : "skip"
   );
 
   const [open, setOpen] = useState(false);
 
+  // Use type guards to ensure we have proper arrays
+  const personas = isPersonaArray(personasRaw) ? personasRaw : [];
+  const userPersonaSettings = Array.isArray(userPersonaSettingsRaw)
+    ? userPersonaSettingsRaw
+    : [];
+
   // Filter out disabled personas
-  const availablePersonas = personas?.filter(persona => {
-    const isDisabled = userPersonaSettings?.some(
-      setting => setting.personaId === persona._id && setting.isDisabled
-    );
-    return !isDisabled;
-  });
+  const availablePersonas = useMemo(() => {
+    return personas.filter(persona => {
+      const isDisabled = userPersonaSettings.some(
+        setting => setting.personaId === persona._id && setting.isDisabled
+      );
+      return !isDisabled;
+    });
+  }, [personas, userPersonaSettings]);
 
   const handlePersonaSelect = (personaId: Id<"personas"> | null) => {
     onPersonaSelect?.(personaId);
     setOpen(false);
   };
 
-  if (!userInfo.user) {
+  if (!user) {
     return null;
   }
 
   // Find the current persona from the list
   const currentPersona = selectedPersonaId
-    ? availablePersonas?.find(p => p._id === selectedPersonaId) || null
+    ? availablePersonas.find(p => p._id === selectedPersonaId) || null
     : null;
 
   if (compact) {
     const TriggerButton = (
       <Button
-        size="sm"
         variant="ghost"
+        size="sm"
         className={cn(
-          "h-7 w-7 p-0 relative group picker-trigger",
+          "h-7 w-auto gap-1 px-2 py-1 text-xs font-medium sm:h-8 sm:gap-2 sm:px-3 sm:text-sm",
+          "text-muted-foreground/80 hover:text-foreground",
           "hover:bg-accent/50 dark:hover:bg-accent/30",
           "transition-all duration-200",
-          open && "bg-accent/50 dark:bg-accent/30",
           className
         )}
       >
-        {currentPersona ? (
-          <span className="text-base">{currentPersona.icon}</span>
-        ) : (
-          <UserIcon className="h-3.5 w-3.5 text-muted-foreground transition-colors group-hover:text-foreground" />
-        )}
+        <div className="flex items-center gap-1">
+          {currentPersona?.icon ? (
+            <span className="text-xs sm:text-sm">{currentPersona.icon}</span>
+          ) : (
+            <UserIcon className="h-3.5 w-3.5" />
+          )}
+          <span className="max-w-[120px] truncate font-medium">
+            {currentPersona?.name || "Persona"}
+          </span>
+          <CaretDownIcon className="h-3 w-3 opacity-50" />
+        </div>
       </Button>
     );
 
-    return (
+    const content = (
       <>
-        {/* Backdrop blur overlay */}
-        {open && (
-          <Backdrop
-            blur="sm"
-            className="z-40 duration-200 animate-in fade-in-0"
-            variant="default"
-          />
-        )}
-
-        <TooltipWrapper content={tooltip} open={!open}>
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-            <PopoverContent
-              avoidCollisions
-              className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
-              collisionPadding={16}
-              side="top"
-              sideOffset={4}
-            >
-              <PersonaList
-                currentPersona={currentPersona}
-                personas={availablePersonas}
-                onPersonaSelect={handlePersonaSelect}
-              />
-            </PopoverContent>
-          </Popover>
-        </TooltipWrapper>
-      </>
-    );
-  }
-
-  const TriggerButton = (
-    <Button
-      aria-expanded={open}
-      role="combobox"
-      variant="outline"
-      className={cn(
-        "w-full justify-between group picker-trigger",
-        "hover:bg-accent/30 dark:hover:bg-accent/20",
-        "hover:border-primary/30 dark:hover:border-primary/30",
-        "transition-all duration-200",
-        open &&
-          "bg-accent/30 dark:bg-accent/20 border-primary/30 dark:border-primary/30",
-        className
-      )}
-    >
-      <div className="flex items-center gap-3">
-        {currentPersona ? (
-          <>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/50 dark:bg-accent/30">
-              <span className="text-lg">{currentPersona.icon}</span>
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-medium">{currentPersona.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {currentPersona.description}
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/50 bg-muted/50 dark:bg-muted/30">
-              <UserIcon className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-medium">Default</div>
-              <div className="text-xs text-muted-foreground">
-                Standard AI assistant behavior
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-      <CaretDownIcon
-        className={cn(
-          "h-4 w-4 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200",
-          open && "rotate-180 text-foreground"
-        )}
-      />
-    </Button>
-  );
-
-  return (
-    <>
-      {/* Backdrop blur overlay */}
-      {open && (
-        <Backdrop
-          blur="sm"
-          className="z-40 duration-200 animate-in fade-in-0"
-          variant="default"
-        />
-      )}
-
-      <TooltipWrapper content={tooltip} open={!open}>
+        {open && <Backdrop className="z-40" />}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
           <PopoverContent
             avoidCollisions
-            className="w-[min(calc(100vw-2rem),380px)] border-border/50 p-0 shadow-lg data-[side=top]:animate-in data-[side=top]:slide-in-from-bottom-4 dark:shadow-xl dark:shadow-black/20"
-            collisionPadding={16}
+            className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
             side="top"
             sideOffset={4}
           >
             <PersonaList
-              currentPersona={currentPersona}
               personas={availablePersonas}
+              currentPersona={currentPersona}
               onPersonaSelect={handlePersonaSelect}
             />
           </PopoverContent>
         </Popover>
-      </TooltipWrapper>
-    </>
+      </>
+    );
+
+    if (tooltip) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>{content}</TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">{tooltip}</div>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return content;
+  }
+
+  // Regular (non-compact) view
+  return (
+    <div className={cn("space-y-3", className)}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium">AI Personas</h3>
+        <Badge variant="secondary" className="text-xs">
+          {availablePersonas.length} available
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Default option */}
+        <button
+          type="button"
+          onClick={() => handlePersonaSelect(null)}
+          className={cn(
+            "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+            !selectedPersonaId && "border-primary bg-primary/5"
+          )}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm">
+            🤖
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">Default</div>
+            <div className="text-xs text-muted-foreground">
+              Standard AI assistant
+            </div>
+          </div>
+          {!selectedPersonaId && <CheckIcon className="h-4 w-4 text-primary" />}
+        </button>
+
+        {/* Available personas */}
+        {availablePersonas.map(persona => (
+          <button
+            key={persona._id}
+            type="button"
+            onClick={() => handlePersonaSelect(persona._id)}
+            className={cn(
+              "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+              selectedPersonaId === persona._id && "border-primary bg-primary/5"
+            )}
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm">
+              {persona.icon || "🤖"}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">{persona.name}</div>
+              <div className="text-xs text-muted-foreground">
+                {persona.description}
+              </div>
+            </div>
+            {selectedPersonaId === persona._id && (
+              <CheckIcon className="h-4 w-4 text-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 };
 
 type PersonaListProps = {
-  personas:
-    | Array<{
-        _id: Id<"personas">;
-        name: string;
-        description: string;
-        prompt: string;
-        icon?: string;
-        isBuiltIn: boolean;
-      }>
-    | undefined;
+  personas: Array<{
+    _id: Id<"personas">;
+    name: string;
+    description: string;
+    prompt: string;
+    icon?: string;
+    isBuiltIn: boolean;
+  }>;
   currentPersona: {
     _id: Id<"personas">;
     name: string;
@@ -238,115 +241,94 @@ const PersonaList = ({
   currentPersona,
   onPersonaSelect,
 }: PersonaListProps) => {
-  // Group personas by built-in vs custom
-  const builtInPersonas = personas?.filter(p => p.isBuiltIn) || [];
-  const customPersonas = personas?.filter(p => !p.isBuiltIn) || [];
+  // Separate built-in and user-defined personas
+  const builtInPersonas = personas.filter(persona => persona.isBuiltIn);
+  const userPersonas = personas.filter(persona => !persona.isBuiltIn);
 
   return (
     <Command className="pt-2">
-      <CommandInput placeholder="Search personas..." />
+      <CommandInput className="h-9" placeholder="Search personas..." />
       <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
-          <div className="flex flex-col items-center gap-2 py-4">
-            <UserIcon className="h-8 w-8 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-sm font-medium">No personas found</p>
-              <p className="text-xs text-muted-foreground">
-                Try searching or create a custom persona
-              </p>
-            </div>
+          <div className="p-4 text-center">
+            <p className="mb-1 text-sm text-muted-foreground">
+              No personas found
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Try adjusting your search terms
+            </p>
           </div>
         </CommandEmpty>
 
         {/* Default option */}
         <CommandGroup>
-          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            Default
-          </div>
           <CommandItem
-            className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
             value="default"
             onSelect={() => onPersonaSelect(null)}
+            className="flex items-center justify-between"
           >
-            <span className="text-lg">🤖</span>
-            <div className="flex-1">
-              <div className="font-medium">Default</div>
-              <div className="text-xs text-muted-foreground">
-                Standard AI assistant behavior
+            <div className="flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-sm">
+                🤖
               </div>
+              <span>Default</span>
             </div>
-            {!currentPersona && <CheckIcon className="h-4 w-4 text-primary" />}
+            {!currentPersona && <CheckIcon className="h-4 w-4" />}
           </CommandItem>
         </CommandGroup>
 
         {/* Built-in personas */}
         {builtInPersonas.length > 0 && (
-          <>
-            <div className="mx-2 my-1.5 h-px bg-border/50" />
-            <CommandGroup>
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                Built-in
-                <span className="ml-2 text-xs text-muted-foreground/60">
-                  ({builtInPersonas.length} persona
-                  {builtInPersonas.length === 1 ? "" : "s"})
-                </span>
-              </div>
-              {builtInPersonas.map(persona => (
-                <CommandItem
-                  key={persona._id}
-                  className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
-                  value={persona.name}
-                  onSelect={() => onPersonaSelect(persona._id)}
-                >
-                  <span className="text-lg">{persona.icon || "🤖"}</span>
-                  <div className="flex-1">
+          <CommandGroup heading="Built-in Personas">
+            {builtInPersonas.map(persona => (
+              <CommandItem
+                key={persona._id}
+                value={persona.name}
+                onSelect={() => onPersonaSelect(persona._id)}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{persona.icon || "🤖"}</span>
+                  <div>
                     <div className="font-medium">{persona.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {persona.description}
                     </div>
                   </div>
-                  {currentPersona?._id === persona._id && (
-                    <CheckIcon className="h-4 w-4 text-primary" />
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
+                </div>
+                {currentPersona?._id === persona._id && (
+                  <CheckIcon className="h-4 w-4" />
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
         )}
 
-        {/* Custom personas */}
-        {customPersonas.length > 0 && (
-          <>
-            <div className="mx-2 my-1.5 h-px bg-border/50" />
-            <CommandGroup>
-              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-                Custom
-                <span className="ml-2 text-xs text-muted-foreground/60">
-                  ({customPersonas.length} persona
-                  {customPersonas.length === 1 ? "" : "s"})
-                </span>
-              </div>
-              {customPersonas.map(persona => (
-                <CommandItem
-                  key={persona._id}
-                  className="flex min-h-[44px] items-center gap-2 px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2"
-                  value={persona.name}
-                  onSelect={() => onPersonaSelect(persona._id)}
-                >
-                  <span className="text-lg">{persona.icon || "🤖"}</span>
-                  <div className="flex-1">
+        {/* User-defined personas */}
+        {userPersonas.length > 0 && (
+          <CommandGroup heading="Custom Personas">
+            {userPersonas.map(persona => (
+              <CommandItem
+                key={persona._id}
+                value={persona.name}
+                onSelect={() => onPersonaSelect(persona._id)}
+                className="flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{persona.icon || "🤖"}</span>
+                  <div>
                     <div className="font-medium">{persona.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {persona.description}
                     </div>
                   </div>
-                  {currentPersona?._id === persona._id && (
-                    <CheckIcon className="h-4 w-4 text-primary" />
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </>
+                </div>
+                {currentPersona?._id === persona._id && (
+                  <CheckIcon className="h-4 w-4" />
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
         )}
       </CommandList>
     </Command>

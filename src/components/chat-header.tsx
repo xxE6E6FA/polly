@@ -1,45 +1,49 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
+  ArchiveIcon,
   DotsThreeVerticalIcon,
+  DownloadIcon,
   FileCodeIcon,
-  FileTextIcon,
   FloppyDiskIcon,
   ShareNetworkIcon,
-  StackPlusIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ShareConversationDialog } from "@/components/ui/share-conversation-dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useSidebar } from "@/hooks/use-sidebar";
-import { useUser } from "@/hooks/use-user";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { useUserData } from "@/hooks/use-user-data";
 import {
   downloadFile,
   exportAsJSON,
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
-import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import type { ChatMessage, ConversationId } from "@/types";
+import { useUI } from "@/providers/ui-provider";
+import type { ChatMessage, ConversationId, ExportData } from "@/types";
+
+const isExportData = (x: unknown): x is ExportData => {
+  return (
+    !!x &&
+    typeof x === "object" &&
+    "conversation" in x &&
+    "messages" in x &&
+    Array.isArray((x as Record<string, unknown>).messages)
+  );
+};
+
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { ControlledShareConversationDialog } from "./ui/share-conversation-dialog";
 import { Skeleton } from "./ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type ChatHeaderProps = {
   conversationId?: ConversationId;
@@ -47,8 +51,7 @@ type ChatHeaderProps = {
   isArchived?: boolean;
   onSavePrivateChat?: () => void;
   canSavePrivateChat?: boolean;
-  privateMessages?: ChatMessage[]; // For private chat export
-  // For private mode persona display
+  privateMessages?: ChatMessage[];
   privatePersonaId?: Id<"personas">;
 };
 
@@ -61,31 +64,31 @@ export const ChatHeader = ({
   privateMessages,
   privatePersonaId,
 }: ChatHeaderProps) => {
-  const { user } = useUser();
-  const queryUserId = useQueryUserId();
-  const { isSidebarVisible } = useSidebar();
-  const token = useAuthToken();
-  const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
+  const userData = useUserData();
+  const user = userData?.user;
+  const { isSidebarVisible } = useUI();
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
   );
+  const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
-  // Check if user is authenticated (not anonymous)
-  const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
-
-  const conversation = useQuery(
-    api.conversations.getAuthorized,
-    conversationId && queryUserId
-      ? { id: conversationId, userId: queryUserId }
-      : "skip"
+  const conversation = usePersistentConvexQuery<Doc<"conversations"> | null>(
+    "chat-header-conversation",
+    api.conversations.get,
+    conversationId ? { id: conversationId } : "skip"
   );
 
-  const exportData = useQuery(
+  const exportDataRaw = usePersistentConvexQuery(
+    "chat-header-export",
     api.conversations.getForExport,
     conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
   );
 
-  const persona = useQuery(
+  const exportData = isExportData(exportDataRaw) ? exportDataRaw : null;
+
+  const persona = usePersistentConvexQuery<Doc<"personas"> | null>(
+    "chat-header-persona",
     api.personas.get,
     conversation?.personaId
       ? { id: conversation.personaId }
@@ -119,7 +122,7 @@ export const ChatHeader = ({
           mimeType = "application/json";
         } else {
           content = privateMessages
-            .filter(msg => msg.content) // Only include messages with content
+            .filter(msg => msg.content)
             .map(msg => {
               const timestamp = new Date(msg.createdAt).toLocaleString();
               const role = msg.role === "user" ? "You" : "Assistant";
@@ -198,22 +201,16 @@ export const ChatHeader = ({
     <div
       className={cn(
         "relative flex min-h-[2rem] w-full items-center justify-between gap-2 bg-background py-3 sm:gap-4",
-        // Add left padding only when sidebar is collapsed
         !isSidebarVisible && "pl-12 sm:pl-14",
-        // Add transition for smooth animation (matching sidebar transition)
         isSidebarVisible && "transition-[padding] duration-300 ease-out",
-        // Add z-index to ensure header is above content
         "z-10",
-        // Add bottom fade effect
         "after:pointer-events-none after:absolute after:-bottom-6 after:left-0 after:right-0 after:h-6 after:bg-gradient-to-b after:from-background after:to-transparent"
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {isPrivateMode ? (
-          // Hide title in private mode
           <div className="h-4" />
         ) : conversation === undefined ? (
-          // Loading state for title
           <Skeleton className="h-4 w-[120px] sm:w-[200px]" />
         ) : conversation?.title ? (
           <h1 className="truncate text-xs font-medium text-foreground sm:text-sm">
@@ -245,113 +242,83 @@ export const ChatHeader = ({
       </div>
 
       {/* Only show actions for authenticated users */}
-      {(conversationId || isPrivateMode) && isAuthenticated && (
-        <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2">
-          {/* New chat button - only show when not in private mode */}
-          {!isPrivateMode && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  asChild
-                  className="sm:w-auto sm:gap-2 sm:px-3"
-                  size="icon-sm"
-                  variant="action"
-                >
-                  <Link to={ROUTES.HOME}>
-                    <StackPlusIcon className="h-4 w-4" />
-                    <span className="hidden text-xs sm:inline">New</span>
-                    <span className="sr-only sm:hidden">New chat</span>
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>New chat</p>
-              </TooltipContent>
-            </Tooltip>
+      {user && !user.isAnonymous && (
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Save private chat button */}
+          {isPrivateMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSavePrivateChat}
+              disabled={!canSavePrivateChat}
+              className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+            >
+              <FloppyDiskIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Save</span>
+            </Button>
           )}
 
-          {/* Save Private Chat button - show outside dropdown in private mode */}
-          {isPrivateMode && onSavePrivateChat && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="sm:w-auto sm:gap-2 sm:px-3"
-                  size="icon-sm"
-                  variant="action"
-                  disabled={!canSavePrivateChat}
-                  onClick={onSavePrivateChat}
-                >
-                  <FloppyDiskIcon className="h-4 w-4" />
-                  <span className="hidden text-xs sm:inline">Save</span>
-                  <span className="sr-only sm:hidden">Save chat</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="sm:hidden">
-                <p>Save private chat</p>
-              </TooltipContent>
-            </Tooltip>
+          {/* Share button - only for regular conversations */}
+          {!isPrivateMode && conversationId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsShareDialogOpen(true)}
+              className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+            >
+              <ShareNetworkIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span className="hidden sm:inline">Share</span>
+            </Button>
           )}
 
-          {/* Only show share button for saved conversations and not archived */}
-          {conversationId && !isArchived && (
-            <ShareConversationDialog conversationId={conversationId}>
-              <Button
-                className="sm:w-auto sm:gap-2 sm:px-3"
-                disabled={!conversation}
-                size="icon-sm"
-                title={conversation ? "Share conversation" : "Loading..."}
-                variant="action"
-              >
-                <ShareNetworkIcon className="h-4 w-4" />
-                <span className="hidden text-xs sm:inline">Share</span>
-                <span className="sr-only sm:hidden">Share conversation</span>
-              </Button>
-            </ShareConversationDialog>
-          )}
-
+          {/* More actions dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon-sm" title="More options" variant="action">
-                <DotsThreeVerticalIcon className="h-4 w-4" weight="bold" />
-                <span className="sr-only">More options</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 sm:h-8 sm:w-8"
+              >
+                <DotsThreeVerticalIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="sr-only">More actions</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem
-                className="cursor-pointer"
-                disabled={
-                  isPrivateMode
-                    ? !privateMessages?.length
-                    : !conversationId || exportingFormat !== null
-                }
-                onClick={() => handleExport("md")}
-              >
-                <FileTextIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span>
-                  {exportingFormat === "md"
-                    ? "Exporting..."
-                    : "Export as Markdown"}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="cursor-pointer"
-                disabled={
-                  isPrivateMode
-                    ? !privateMessages?.length
-                    : !conversationId || exportingFormat !== null
-                }
                 onClick={() => handleExport("json")}
+                disabled={exportingFormat !== null}
               >
-                <FileCodeIcon className="mr-2 h-4 w-4 flex-shrink-0" />
-                <span>
-                  {exportingFormat === "json"
-                    ? "Exporting..."
-                    : "Export as JSON"}
-                </span>
+                <FileCodeIcon className="mr-2 h-4 w-4" />
+                Export as JSON
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExport("md")}
+                disabled={exportingFormat !== null}
+              >
+                <DownloadIcon className="mr-2 h-4 w-4" />
+                Export as Markdown
+              </DropdownMenuItem>
+              {!isPrivateMode && conversation && !isArchived && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <ArchiveIcon className="mr-2 h-4 w-4" />
+                    Archive
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+      )}
+
+      {/* Share dialog */}
+      {conversationId && (
+        <ControlledShareConversationDialog
+          conversationId={conversationId}
+          open={isShareDialogOpen}
+          onOpenChange={setIsShareDialogOpen}
+        />
       )}
     </div>
   );

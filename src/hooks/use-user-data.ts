@@ -1,238 +1,307 @@
 import { api } from "@convex/_generated/api";
-import { useMemo } from "react";
-import { MONTHLY_MESSAGE_LIMIT } from "@/lib/constants";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
-  clearUserCache,
-  getCachedUserData,
-  setCachedUser,
-} from "@/lib/user-cache";
-import type { User, UserId } from "@/types";
-import { useConvexWithCache } from "./use-convex-cache";
+  ANONYMOUS_MESSAGE_LIMIT,
+  MONTHLY_MESSAGE_LIMIT,
+} from "@shared/constants";
+import { useMemo } from "react";
+import {
+  isApiKeysArray,
+  isMonthlyUsage,
+  isUser,
+  isUserSettings,
+} from "@/lib/type-guards";
+import { usePersistentConvexQuery } from "./use-persistent-convex-query";
 
-const ANONYMOUS_MESSAGE_LIMIT = 10;
-
-interface UserDataReturn {
-  user: User | null;
-  isLoading: boolean;
-  isAuthenticated: boolean;
+interface UserData {
+  user: Doc<"users">;
   isAnonymous: boolean;
+  isAuthenticated: boolean;
+  messageCount: number;
+  remainingMessages: number;
+  hasMessageLimit: boolean;
+  canSendMessage: boolean;
+  isLoading: boolean;
+  monthlyUsage?: {
+    monthlyMessagesSent: number;
+    monthlyLimit: number;
+    remainingMessages: number;
+    resetDate?: number;
+    needsReset?: boolean;
+  };
+  hasUserApiKeys: boolean;
+  hasUserModels: boolean;
+  hasUnlimitedCalls: boolean;
+  isHydrated: boolean;
 }
 
-// Core user data hook - focused only on user entity
-export function useUserData(): UserDataReturn {
-  const { data: user, isLoading } = useConvexWithCache(
-    api.users.current,
-    {},
-    {
-      queryKey: "currentUser",
-      getCachedData: () => getCachedUserData()?.user || null,
-      setCachedData: user => {
-        if (user) {
-          const cached = getCachedUserData();
-          setCachedUser(
-            user,
-            cached?.messageCount,
-            cached?.monthlyUsage,
-            cached?.hasUserApiKeys
-          );
-        }
-      },
-      clearCachedData: clearUserCache,
-      invalidationEvents: ["user-graduated"],
-    }
-  );
+interface MonthlyUsage {
+  monthlyLimit: number;
+  monthlyMessagesSent: number;
+  resetDate?: number;
+  needsReset?: boolean;
+}
 
-  const isAuthenticated = Boolean(user && !user.isAnonymous);
-  const isAnonymous = Boolean(user?.isAnonymous);
+// ---------------------------------------------------------------------------
+// Helper builders
+// ---------------------------------------------------------------------------
+
+type BuildAnonymousParams = {
+  user: Doc<"users">;
+  messageCount: number;
+};
+
+function buildAnonymousUserData({
+  user,
+  messageCount,
+}: BuildAnonymousParams): UserData {
+  const remainingMessages = Math.max(0, ANONYMOUS_MESSAGE_LIMIT - messageCount);
 
   return {
     user,
-    isLoading,
-    isAuthenticated,
-    isAnonymous,
+    isAnonymous: true,
+    isAuthenticated: false,
+    messageCount,
+    remainingMessages,
+    hasMessageLimit: true,
+    canSendMessage: remainingMessages > 0,
+    isLoading: false,
+    hasUserApiKeys: false,
+    hasUserModels: false,
+    hasUnlimitedCalls: false,
+    isHydrated: true,
   };
 }
 
-// Message count hook
-export function useUserMessageCount(userId: UserId | null) {
-  return useConvexWithCache(
+type BuildAuthenticatedParams = {
+  user: Doc<"users">;
+  messageCount: number;
+  monthlyUsageData: MonthlyUsage | null;
+  hasUserApiKeys: boolean;
+  hasUserModelsData: boolean;
+};
+
+function buildAuthenticatedUserData({
+  user,
+  messageCount,
+  monthlyUsageData,
+  hasUserApiKeys,
+  hasUserModelsData,
+}: BuildAuthenticatedParams): UserData {
+  const hasUnlimitedCalls = !!user.hasUnlimitedCalls;
+
+  const monthlyLimit = monthlyUsageData?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+  const monthlyMessagesSent = monthlyUsageData?.monthlyMessagesSent ?? 0;
+
+  const remainingMessages = hasUnlimitedCalls
+    ? Number.MAX_SAFE_INTEGER
+    : Math.max(0, monthlyLimit - monthlyMessagesSent);
+
+  const result: UserData = {
+    user,
+    isAnonymous: false,
+    isAuthenticated: true,
+    messageCount,
+    remainingMessages,
+    hasMessageLimit: !hasUnlimitedCalls,
+    canSendMessage:
+      hasUnlimitedCalls || remainingMessages > 0 || hasUserModelsData,
+    isLoading: false,
+    monthlyUsage: monthlyUsageData
+      ? {
+          monthlyMessagesSent,
+          monthlyLimit,
+          remainingMessages,
+          resetDate: monthlyUsageData.resetDate,
+          needsReset: monthlyUsageData.needsReset,
+        }
+      : undefined,
+    hasUserApiKeys,
+    hasUserModels: hasUserModelsData,
+    hasUnlimitedCalls,
+    isHydrated: true,
+  };
+
+  return result;
+}
+
+export function useUserData(): UserData | null {
+  const userRaw = usePersistentConvexQuery(
+    "current-user",
+    api.users.current,
+    {}
+  );
+
+  const user = isUser(userRaw) ? userRaw : null;
+
+  const messageCountRaw = usePersistentConvexQuery(
+    "user-message-count",
     api.users.getMessageCount,
-    userId ? { userId } : "skip",
-    {
-      queryKey: ["messageCount", userId || ""],
-      getCachedData: () => getCachedUserData()?.messageCount ?? null,
-      setCachedData: count => {
-        const cached = getCachedUserData();
-        if (cached?.user && typeof count === "number") {
-          setCachedUser(
-            cached.user,
-            count,
-            cached.monthlyUsage,
-            cached.hasUserApiKeys
-          );
-        }
-      },
-      clearCachedData: clearUserCache,
-      invalidationEvents: ["user-graduated"],
-    }
+    user?._id ? { userId: user._id } : "skip"
   );
-}
 
-// Monthly usage hook for authenticated users
-export function useUserMonthlyUsage(
-  userId: UserId | null,
-  isAnonymous: boolean
-) {
-  return useConvexWithCache(
+  const monthlyUsageRaw = usePersistentConvexQuery(
+    "monthly-usage",
     api.users.getMonthlyUsage,
-    !isAnonymous && userId ? { userId } : "skip",
-    {
-      queryKey: ["monthlyUsage", userId || ""],
-      getCachedData: () => getCachedUserData()?.monthlyUsage ?? null,
-      setCachedData: usage => {
-        const cached = getCachedUserData();
-        if (cached?.user && usage) {
-          setCachedUser(
-            cached.user,
-            cached.messageCount,
-            usage,
-            cached.hasUserApiKeys
-          );
-        }
-      },
-      clearCachedData: clearUserCache,
-      invalidationEvents: ["user-graduated"],
-    }
+    user && !user.isAnonymous ? { userId: user._id } : "skip"
   );
-}
 
-// API keys hook
-export function useUserApiKeys(isAnonymous: boolean) {
-  return useConvexWithCache(
-    api.users.hasUserApiKeys,
-    isAnonymous ? "skip" : {},
-    {
-      queryKey: "hasUserApiKeys",
-      getCachedData: () => getCachedUserData()?.hasUserApiKeys ?? null,
-      setCachedData: hasKeys => {
-        const cached = getCachedUserData();
-        if (cached?.user && typeof hasKeys === "boolean") {
-          setCachedUser(
-            cached.user,
-            cached.messageCount,
-            cached.monthlyUsage,
-            hasKeys
-          );
-        }
-      },
-      clearCachedData: clearUserCache,
-      invalidationEvents: ["user-graduated"],
-    }
+  const apiKeysRaw = usePersistentConvexQuery(
+    "api-keys",
+    api.apiKeys.getUserApiKeys,
+    user?.isAnonymous ? "skip" : {}
   );
-}
 
-// User models hook
-export function useUserModels(isAnonymous: boolean) {
-  return useConvexWithCache(
-    api.userModels.hasUserModels,
-    isAnonymous ? "skip" : {},
-    {
-      queryKey: "hasUserModels",
-      getCachedData: () => getCachedUserData()?.hasUserModels ?? null,
-      setCachedData: hasModels => {
-        const cached = getCachedUserData();
-        if (cached?.user && typeof hasModels === "boolean") {
-          setCachedUser(
-            cached.user,
-            cached.messageCount,
-            cached.monthlyUsage,
-            cached.hasUserApiKeys
-          );
-        }
-      },
-      clearCachedData: clearUserCache,
-      invalidationEvents: ["user-graduated"],
-    }
+  // Fetch actual user models so we can determine if the user has **any** models
+  const userModelsRaw = usePersistentConvexQuery(
+    "user-models",
+    api.userModels.getUserModels,
+    user?._id ? { userId: user._id } : "skip"
   );
-}
-
-// Computed user permissions and limits
-export function useUserPermissions() {
-  const { user, isAnonymous } = useUserData();
-  const { data: messageCount } = useUserMessageCount(user?._id || null);
-  const { data: monthlyUsage } = useUserMonthlyUsage(
-    user?._id || null,
-    isAnonymous
-  );
-  const { data: hasUserApiKeys } = useUserApiKeys(isAnonymous);
-  const { data: hasUserModels } = useUserModels(isAnonymous);
 
   return useMemo(() => {
-    const effectiveMessageCount = messageCount ?? 0;
-    const hasUnlimitedCalls = Boolean(user?.hasUnlimitedCalls);
-
-    if (isAnonymous) {
-      const remainingMessages = Math.max(
-        0,
-        ANONYMOUS_MESSAGE_LIMIT - effectiveMessageCount
-      );
-      return {
-        messageCount: effectiveMessageCount,
-        remainingMessages,
-        hasMessageLimit: true,
-        canSendMessage: remainingMessages > 0,
-        hasUnlimitedCalls: false,
-        hasUserApiKeys: false,
-        hasUserModels: false,
-        monthlyUsage: undefined,
-      };
+    if (!user) {
+      return null;
     }
 
-    // For authenticated users
-    const monthlyLimit = monthlyUsage?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-    const monthlyMessagesSent = monthlyUsage?.monthlyMessagesSent ?? 0;
-    const remainingMessages = hasUnlimitedCalls
-      ? Number.MAX_SAFE_INTEGER
-      : Math.max(0, monthlyLimit - monthlyMessagesSent);
+    const isAnonymous = !!user.isAnonymous;
+    const messageCount =
+      typeof messageCountRaw === "number" ? messageCountRaw : 0;
+    const apiKeysData = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
+    const monthlyUsageData: MonthlyUsage | null = isMonthlyUsage(
+      monthlyUsageRaw
+    )
+      ? (monthlyUsageRaw as MonthlyUsage)
+      : null;
+    const hasUserApiKeys = apiKeysData.length > 0;
+    const hasUserModelsData = Array.isArray(userModelsRaw)
+      ? userModelsRaw.length > 0
+      : false;
 
-    return {
-      messageCount: effectiveMessageCount,
-      remainingMessages,
-      hasMessageLimit: !hasUnlimitedCalls,
-      canSendMessage:
-        hasUnlimitedCalls || remainingMessages > 0 || Boolean(hasUserModels),
-      hasUnlimitedCalls,
-      hasUserApiKeys: Boolean(hasUserApiKeys),
-      hasUserModels: Boolean(hasUserModels),
-      monthlyUsage: monthlyUsage
-        ? {
-            monthlyMessagesSent,
-            monthlyLimit,
-            remainingMessages,
-            resetDate: monthlyUsage.resetDate,
-            needsReset: monthlyUsage.needsReset,
-          }
-        : undefined,
-    };
-  }, [
-    user,
-    isAnonymous,
-    messageCount,
-    monthlyUsage,
-    hasUserApiKeys,
-    hasUserModels,
-  ]);
+    if (isAnonymous) {
+      return buildAnonymousUserData({ user, messageCount });
+    }
+
+    return buildAuthenticatedUserData({
+      user,
+      messageCount,
+      monthlyUsageData,
+      hasUserApiKeys,
+      hasUserModelsData,
+    });
+  }, [user, messageCountRaw, monthlyUsageRaw, apiKeysRaw, userModelsRaw]);
 }
 
-// Main composite hook for backward compatibility
-export function useUser() {
-  const userData = useUserData();
-  const permissions = useUserPermissions();
+export function useUserSettingsData(
+  userId?: Id<"users">
+): Doc<"userSettings"> | null {
+  const settings = usePersistentConvexQuery<Doc<"userSettings"> | null>(
+    "userSettings",
+    api.userSettings.getUserSettings,
+    userId ? { userId } : "skip"
+  );
 
-  return {
-    ...userData,
-    ...permissions,
-    // Computed properties
-    isHydrated: !userData.isLoading,
-  };
+  return settings ?? null;
+}
+
+export function useUserMonthlyUsage(
+  isAnonymous: boolean,
+  userId?: Id<"users">
+): {
+  monthlyMessagesSent: number;
+  monthlyLimit: number;
+  remainingMessages: number;
+  resetDate?: number;
+  needsReset?: boolean;
+} {
+  const monthlyUsage = usePersistentConvexQuery(
+    "monthlyUsage",
+    api.users.getMonthlyUsage,
+    !isAnonymous && userId ? { userId } : "skip"
+  );
+
+  return isMonthlyUsage(monthlyUsage)
+    ? monthlyUsage
+    : {
+        monthlyMessagesSent: 0,
+        monthlyLimit: MONTHLY_MESSAGE_LIMIT,
+        remainingMessages: MONTHLY_MESSAGE_LIMIT,
+      };
+}
+
+export function useUserApiKeys(isAnonymous: boolean) {
+  const apiKeys = usePersistentConvexQuery(
+    "apiKeys",
+    api.apiKeys.getUserApiKeys,
+    isAnonymous ? "skip" : {}
+  );
+
+  return isApiKeysArray(apiKeys) ? apiKeys : [];
+}
+
+export function useUserDataWithContext() {
+  const userData = useUserData();
+
+  // Always call hooks unconditionally
+  const userSettings = usePersistentConvexQuery(
+    "userSettings",
+    api.userSettings.getUserSettings,
+    userData?.user._id ? { userId: userData.user._id } : "skip"
+  );
+
+  const apiKeysRaw = usePersistentConvexQuery(
+    "apiKeys",
+    api.apiKeys.getUserApiKeys,
+    userData?.isAnonymous ? "skip" : {}
+  );
+
+  const monthlyUsageRaw = usePersistentConvexQuery(
+    "monthlyUsage",
+    api.users.getMonthlyUsage,
+    userData && !userData.isAnonymous && userData.user._id
+      ? { userId: userData.user._id }
+      : "skip"
+  );
+
+  return useMemo(() => {
+    if (!userData) {
+      return null;
+    }
+
+    const safeUserSettings = isUserSettings(userSettings) ? userSettings : null;
+    const apiKeysData = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
+    const monthlyUsageData = isMonthlyUsage(monthlyUsageRaw)
+      ? monthlyUsageRaw
+      : null;
+
+    const hasUserApiKeys = apiKeysData.length > 0;
+    const hasUnlimitedCalls = !userData.isAnonymous || hasUserApiKeys;
+
+    const monthlyLimit =
+      monthlyUsageData?.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+    const monthlyMessagesSent = monthlyUsageData?.monthlyMessagesSent ?? 0;
+    const hasMessageLimit = userData.isAnonymous && !hasUserApiKeys;
+
+    const remainingMessages = hasMessageLimit
+      ? Math.max(0, monthlyLimit - monthlyMessagesSent)
+      : Number.POSITIVE_INFINITY;
+
+    return {
+      userData,
+      userSettings: safeUserSettings,
+      hasUserApiKeys,
+      hasUnlimitedCalls,
+      monthlyUsage: {
+        monthlyLimit,
+        monthlyMessagesSent,
+        remainingMessages,
+        resetDate: monthlyUsageData?.resetDate,
+        needsReset: monthlyUsageData?.needsReset,
+      },
+      hasMessageLimit,
+      remainingMessages,
+      apiKeysData,
+      isLoading: false,
+    };
+  }, [userData, userSettings, apiKeysRaw, monthlyUsageRaw]);
 }

@@ -1,9 +1,9 @@
+import { useAuthActions } from "@convex-dev/auth/react";
 import { ArrowLeftIcon, SignOutIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { useAuthWithCache } from "@/hooks/use-auth-with-cache";
 import { cn } from "@/lib/utils";
 
 type SettingsHeaderProps = {
@@ -26,7 +26,7 @@ const NavigationHeader = ({
   backLink: string;
   backText: string;
 }) => {
-  const authActions = useAuthWithCache();
+  const { signOut } = useAuthActions();
 
   return (
     <div className="flex-shrink-0 border-b border-border/40">
@@ -46,7 +46,7 @@ const NavigationHeader = ({
               className="h-8 px-2 sm:h-8 sm:px-2"
               size="sm"
               variant="ghost"
-              onClick={authActions.signOut}
+              onClick={signOut}
             >
               <SignOutIcon className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Sign Out</span>

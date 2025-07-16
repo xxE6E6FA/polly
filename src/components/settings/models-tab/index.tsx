@@ -1,6 +1,10 @@
 import { api } from "@convex/_generated/api";
-import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
+import {
+  ArrowCounterClockwiseIcon,
+  KeyIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
+import { useAction } from "convex/react";
 import {
   useCallback,
   useDeferredValue,
@@ -12,17 +16,19 @@ import {
 } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
-import { useAuthenticatedUserId } from "@/hooks/use-authenticated-user-id";
-import { useConvexActionWithCache } from "@/hooks/use-convex-cache";
 import { useDebounce } from "@/hooks/use-debounce";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { useUserData } from "@/hooks/use-user-data";
 import {
   generateCapabilityCounts,
   matchesCapabilityFilters,
 } from "@/lib/model-capabilities";
+import { isApiKeysArray, isUserModelsArray } from "@/lib/type-guards";
 import type { FetchedModel } from "@/types";
 import { Alert, AlertDescription, AlertIcon } from "../../ui/alert";
 import { VirtualizedModelList } from "../../virtualized-model-list";
 import { SettingsHeader } from "../settings-header";
+import { SectionHeader, SettingsPageLayout, SettingsZeroState } from "../ui";
 import { ActiveFilters } from "./ActiveFilters";
 import { ModelFilters } from "./ModelFilters";
 import { ProviderSummary } from "./ProviderSummary";
@@ -58,7 +64,7 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
       return {
         ...state,
         selectedProviders: state.selectedProviders.includes(action.payload)
-          ? state.selectedProviders.filter((p: string) => p !== action.payload)
+          ? state.selectedProviders.filter(p => p !== action.payload)
           : [...state.selectedProviders, action.payload],
       };
     case "TOGGLE_CAPABILITY":
@@ -67,9 +73,7 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
         selectedCapabilities: state.selectedCapabilities.includes(
           action.payload
         )
-          ? state.selectedCapabilities.filter(
-              (c: string) => c !== action.payload
-            )
+          ? state.selectedCapabilities.filter(c => c !== action.payload)
           : [...state.selectedCapabilities, action.payload],
       };
     case "TOGGLE_SHOW_SELECTED":
@@ -85,17 +89,6 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
   }
 }
 
-const LoadingState = ({ message }: { message: string }) => {
-  return (
-    <div className="flex items-center justify-center py-20">
-      <div className="space-y-4 text-center">
-        <Spinner className="mx-auto text-blue-500" size="lg" />
-        <p className="text-sm text-muted-foreground">{message}</p>
-      </div>
-    </div>
-  );
-};
-
 export const ModelsTab = () => {
   const [filterState, dispatch] = useReducer(filterReducer, initialFilterState);
   const [isPending, startTransition] = useTransition();
@@ -109,41 +102,76 @@ export const ModelsTab = () => {
     300
   );
 
-  const authenticatedUserId = useAuthenticatedUserId();
-  const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
-  const enabledModels = useQuery(
+  const userData = useUserData();
+  const authenticatedUserId = userData?.user?._id;
+  const apiKeysRaw = usePersistentConvexQuery(
+    "models-tab-api-keys",
+    api.apiKeys.getUserApiKeys,
+    {}
+  );
+  const enabledModelsRaw = usePersistentConvexQuery(
+    "user-enabled-models",
     api.userModels.getUserModels,
     authenticatedUserId ? { userId: authenticatedUserId } : {}
   );
 
-  const availableProviders = useMemo(
-    () => apiKeys?.filter(key => key.hasKey).map(key => key.provider) || [],
-    [apiKeys]
-  );
+  // Apply type guards
+  const apiKeys = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
+  const enabledModels = isUserModelsArray(enabledModelsRaw)
+    ? enabledModelsRaw
+    : [];
+
+  const availableProviders = useMemo(() => {
+    const hasKey = (
+      k: unknown
+    ): k is {
+      provider: string;
+      hasKey?: boolean;
+      encryptedKey?: unknown;
+      clientEncryptedKey?: unknown;
+    } => {
+      if (k && typeof k === "object") {
+        const obj = k as {
+          hasKey?: boolean;
+          encryptedKey?: unknown;
+          clientEncryptedKey?: unknown;
+        };
+        if (typeof obj.hasKey === "boolean") {
+          return obj.hasKey;
+        }
+        return Boolean(obj.encryptedKey || obj.clientEncryptedKey);
+      }
+      return false;
+    };
+
+    return apiKeys.filter(hasKey).map(key => key.provider);
+  }, [apiKeys]);
 
   const enabledModelIds = useMemo(
-    () => enabledModels?.map(model => model.modelId) || [],
+    () => enabledModels.map(model => model.modelId),
     [enabledModels]
   );
 
-  const { executeAsync: fetchAllModels, isLoading } = useConvexActionWithCache<
-    FetchedModel[],
-    Record<string, never>
-  >(api.models.fetchAllModels, {
-    onSuccess: models => {
-      setUnfilteredModels(models);
-      setIsInitialLoad(false);
-      setError(null);
-    },
-    onError: error => {
-      console.error("Failed to fetch models:", error);
-      setError(error);
-    },
-  });
-
+  const [isLoading, setIsLoading] = useState(true);
   const [unfilteredModels, setUnfilteredModels] = useState<FetchedModel[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const fetchAllModelsAction = useAction(api.models.fetchAllModels);
+
+  const fetchAllModels = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const models = await fetchAllModelsAction({});
+      setUnfilteredModels(models);
+      setIsInitialLoad(false);
+      setError(null);
+    } catch (e) {
+      console.error("Failed to fetch models:", e);
+      setError(e as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchAllModelsAction]);
 
   // Client-side filtering with pagination support
   const filteredModels = useMemo(() => {
@@ -236,7 +264,7 @@ export const ModelsTab = () => {
       return;
     }
 
-    await fetchAllModels({});
+    await fetchAllModels();
   }, [fetchAllModels, availableProviders]);
 
   useEffect(() => {
@@ -245,38 +273,31 @@ export const ModelsTab = () => {
         return;
       }
 
-      await fetchAllModels({});
+      await fetchAllModels();
     };
 
     loadModels();
   }, [fetchAllModels, availableProviders]);
 
-  if (apiKeys === undefined) {
-    return <LoadingState message="Loading API keys..." />;
-  }
-
   if (availableProviders.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
+      <SettingsPageLayout>
         <SettingsHeader
           description="Configure your API keys to use different AI providers. Once you add API keys, models will be automatically fetched and displayed here."
           title="Models"
         />
 
-        <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-muted">
-          <div className="space-y-3 text-center">
-            <div className="text-4xl text-muted-foreground/50">🧠</div>
-            <p className="text-sm text-muted-foreground">
-              No API keys configured. Add your API keys to see available models.
-            </p>
-          </div>
-        </div>
-      </div>
+        <SettingsZeroState
+          icon={<KeyIcon className="h-12 w-12" />}
+          title="No API keys configured"
+          description="Add your API keys to see available models."
+        />
+      </SettingsPageLayout>
     );
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <SettingsPageLayout>
       <div className="flex items-start justify-between">
         <SettingsHeader
           description="Browse and explore AI models from your configured providers. Enable models to use them in conversations."
@@ -304,6 +325,7 @@ export const ModelsTab = () => {
         </Alert>
       )}
 
+      <SectionHeader title="Providers" />
       <ProviderSummary
         availableProviders={availableProviders}
         selectedProviders={filterState.selectedProviders}
@@ -322,7 +344,7 @@ export const ModelsTab = () => {
           onShowSelectedToggle={handleShowSelectedToggle}
           availableProviders={availableProviders}
           stats={stats}
-          enabledModelsCount={enabledModels?.length}
+          enabledModelsCount={enabledModels.length}
           isPending={isPending}
         />
 
@@ -359,31 +381,28 @@ export const ModelsTab = () => {
         ) : filteredModels.length > 0 ? (
           <VirtualizedModelList models={filteredModels} />
         ) : (
-          <div className="flex items-center justify-center py-20">
-            <div className="max-w-md space-y-4 text-center">
-              <div className="mb-4 text-6xl opacity-20">🔍</div>
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold">No models found</h3>
-                <p className="text-sm text-muted-foreground">
-                  {hasActiveFilters
-                    ? "Try adjusting your search terms or filters to find what you're looking for."
-                    : "No models are available from your configured providers."}
-                </p>
-              </div>
-              {hasActiveFilters && (
+          <SettingsZeroState
+            icon={<MagnifyingGlassIcon className="h-12 w-12" />}
+            title="No models found"
+            description={
+              hasActiveFilters
+                ? "Try adjusting your search terms or filters to find what you're looking for."
+                : "No models are available from your configured providers."
+            }
+            cta={
+              hasActiveFilters ? (
                 <Button
-                  className="mt-4"
                   disabled={isPending}
                   variant="outline"
                   onClick={clearAllFilters}
                 >
                   Clear all filters
                 </Button>
-              )}
-            </div>
-          </div>
+              ) : undefined
+            }
+          />
         )}
       </div>
-    </div>
+    </SettingsPageLayout>
   );
 };

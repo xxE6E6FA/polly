@@ -56,7 +56,7 @@ export const bulkImport = mutation({
     if (args.skipDuplicates) {
       const existingConversations = await ctx.db
         .query("conversations")
-        .withIndex("by_user", q => q.eq("userId", userId))
+        .withIndex("by_user_recent", q => q.eq("userId", userId))
         .collect();
       existingTitles = new Set(existingConversations.map(c => c.title));
     }

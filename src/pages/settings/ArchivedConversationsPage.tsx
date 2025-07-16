@@ -1,14 +1,20 @@
 import { api } from "@convex/_generated/api";
 import { ArchiveIcon, ArrowsClockwise, EyeIcon } from "@phosphor-icons/react";
 import type { PaginatedQueryReference } from "convex/react";
-import { useCallback } from "react";
+import { useMutation } from "convex/react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
+import {
+  SettingsPageLayout,
+  SettingsZeroState,
+} from "@/components/settings/ui";
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
-import { useConvexMutationWithCache } from "@/hooks/use-convex-cache";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
@@ -25,52 +31,11 @@ export const ArchivedConversationsPage = () => {
   const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
   const queryUserId = useQueryUserId();
+  const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  // Use optimized mutations with optimistic updates
-  const { mutateAsync: unarchive, isLoading: isUnarchiving } =
-    useConvexMutationWithCache(api.conversations.unarchive, {
-      onSuccess: () => {
-        import("sonner").then(module => {
-          module.toast.success("Conversation restored", {
-            description:
-              "Conversation has been restored to your conversations.",
-          });
-        });
-      },
-      onError: (error: Error) => {
-        console.error("Failed to restore conversation:", error);
-        import("sonner").then(module => {
-          module.toast.error("Failed to restore conversation", {
-            description: "Unable to restore conversation. Please try again.",
-          });
-        });
-      },
-      invalidateQueries: ["conversations", "archivedConversations"],
-      invalidationEvents: ["conversation-unarchived"],
-    });
-
-  const {
-    mutateAsync: deleteConversation,
-    isLoading: _isDeletingConversation,
-  } = useConvexMutationWithCache(api.conversations.remove, {
-    onSuccess: () => {
-      import("sonner").then(module => {
-        module.toast.success("Conversation deleted", {
-          description: "The conversation has been permanently removed.",
-        });
-      });
-    },
-    onError: (error: Error) => {
-      console.error("Failed to delete conversation:", error);
-      import("sonner").then(module => {
-        module.toast.error("Failed to delete conversation", {
-          description: "Unable to delete conversation. Please try again.",
-        });
-      });
-    },
-    invalidateQueries: ["conversations", "archivedConversations"],
-    invalidationEvents: ["conversation-deleted"],
-  });
+  const unarchiveMutation = useMutation(api.conversations.unarchive);
+  const deleteConversationMutation = useMutation(api.conversations.remove);
 
   const handleView = useCallback(
     (conversationId: ConversationId) => {
@@ -81,13 +46,22 @@ export const ArchivedConversationsPage = () => {
 
   const handleRestore = useCallback(
     async (conversationId: ConversationId) => {
+      setIsUnarchiving(conversationId);
       try {
-        await unarchive({ id: conversationId });
-      } catch {
-        // Error handling is done in the optimized hook
+        await unarchiveMutation({ id: conversationId });
+        toast.success("Conversation restored", {
+          description: "Conversation has been restored to your conversations.",
+        });
+      } catch (error) {
+        console.error("Failed to restore conversation:", error);
+        toast.error("Failed to restore conversation", {
+          description: "Unable to restore conversation. Please try again.",
+        });
+      } finally {
+        setIsUnarchiving(null);
       }
     },
-    [unarchive]
+    [unarchiveMutation]
   );
 
   const handlePermanentDelete = useCallback(
@@ -101,22 +75,31 @@ export const ArchivedConversationsPage = () => {
           variant: "destructive",
         },
         async () => {
+          setIsDeleting(conversationId);
           try {
-            await deleteConversation({ id: conversationId });
-          } catch {
-            // Error handling is done in the optimized hook
+            await deleteConversationMutation({ id: conversationId });
+            toast.success("Conversation deleted", {
+              description: "The conversation has been permanently removed.",
+            });
+          } catch (error) {
+            console.error("Failed to delete conversation:", error);
+            toast.error("Failed to delete conversation", {
+              description: "Unable to delete conversation. Please try again.",
+            });
+          } finally {
+            setIsDeleting(null);
           }
         }
       );
     },
-    [confirmationDialog, deleteConversation]
+    [confirmationDialog, deleteConversationMutation]
   );
 
   // Render function for each archived conversation
   const renderArchivedConversation = useCallback(
     (conversation: ArchivedConversation) => {
-      const isRestoring = isUnarchiving;
-      const isDeleting = false;
+      const isRestoring = isUnarchiving === conversation._id;
+      const isDeletingConversation = isDeleting === conversation._id;
 
       return (
         <Card className="flex items-center justify-between p-4">
@@ -143,7 +126,7 @@ export const ArchivedConversationsPage = () => {
             >
               {isRestoring ? (
                 <>
-                  <ArrowsClockwise className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  <Spinner size="sm" className="mr-2 h-3.5 w-3.5" />
                   Restoring...
                 </>
               ) : (
@@ -160,19 +143,25 @@ export const ArchivedConversationsPage = () => {
               onClick={() =>
                 handlePermanentDelete(conversation._id, conversation.title)
               }
-              disabled={isDeleting}
+              disabled={isDeletingConversation}
             >
-              {isDeleting ? "Deleting..." : "Delete"}
+              {isDeletingConversation ? "Deleting..." : "Delete"}
             </Button>
           </div>
         </Card>
       );
     },
-    [handleView, handleRestore, handlePermanentDelete, isUnarchiving]
+    [
+      handleView,
+      handleRestore,
+      handlePermanentDelete,
+      isUnarchiving,
+      isDeleting,
+    ]
   );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <SettingsPageLayout>
       <SettingsHeader
         title="Archived Conversations"
         description="Manage your archived conversations"
@@ -186,14 +175,12 @@ export const ArchivedConversationsPage = () => {
         queryArgs={queryUserId ? { userId: queryUserId } : "skip"}
         renderItem={renderArchivedConversation}
         getItemKey={item => item._id}
-        emptyState={
-          <Card className="p-12 text-center">
-            <ArchiveIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No archived conversations</p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Conversations you archive will appear here
-            </p>
-          </Card>
+        zeroState={
+          <SettingsZeroState
+            icon={<ArchiveIcon className="h-12 w-12" />}
+            title="No archived conversations"
+            description="Conversations you archive will appear here"
+          />
         }
         className="h-96"
         itemHeight={120}
@@ -211,7 +198,7 @@ export const ArchivedConversationsPage = () => {
         onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
       />
-    </div>
+    </SettingsPageLayout>
   );
 };
 

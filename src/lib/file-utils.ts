@@ -1,5 +1,5 @@
 // Shared file processing utilities
-import { FILE_LIMITS } from "./file-constants";
+import { FILE_LIMITS } from "@shared/file-constants";
 
 export function convertImageToWebP(
   file: File,

@@ -1,3 +1,4 @@
+import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   forwardRef,
@@ -9,14 +10,14 @@ import {
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningConfigSelect } from "@/components/reasoning-config-select";
 import { usePrivateMode } from "@/contexts/private-mode-context";
-import { useChatPermissions } from "@/hooks/use-chat-permissions";
-import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
 import { useChatWarnings } from "@/hooks/use-chat-warnings";
-import { useSelectedModel } from "@/hooks/use-selected-model";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { useUserData } from "@/hooks/use-user-data";
 import {
   getDefaultReasoningConfig,
   useLastMessageReasoningConfig,
 } from "@/lib/message-reasoning-utils";
+import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 import { AttachmentDisplay } from "./attachment-display";
@@ -74,7 +75,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { chatInputState, setChatInputState, clearChatInputState } =
       usePrivateMode();
-    const { selectedModel } = useSelectedModel();
+    const selectedModel = usePersistentConvexQuery(
+      "selected-model",
+      api.userModels.getUserSelectedModel,
+      {}
+    );
 
     const shouldUsePreservedState = !(conversationId || hasExistingMessages);
 
@@ -146,8 +151,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [currentReasoningConfig, shouldUsePreservedState]);
 
-    const { canSendMessage } = useChatPermissions();
-    const visualMode = useChatVisualMode();
+    const userData = useUserData();
+    const canSendMessage = userData?.canSendMessage ?? false;
+    const { isPrivateMode } = usePrivateMode();
     const warnings = useChatWarnings();
 
     const hasWarnings = warnings.showLimitWarning || warnings.showLimitReached;
@@ -255,40 +261,28 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     };
 
-    const showWarnings = warnings.showLimitWarning || warnings.showLimitReached;
-    const hasExistingAndWarnings = hasExistingMessages && hasWarnings;
-    const isStreamingBool = Boolean(isStreaming);
-    const isLoadingBool = Boolean(isLoading);
-    const hasExistingMessagesBool = Boolean(hasExistingMessages);
-
     return (
       <div
         className={cn(
           "relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3",
-          hasExistingAndWarnings && "pt-6 sm:pt-7"
+          hasExistingMessages && hasWarnings && "pt-6 sm:pt-7"
         )}
       >
         <div className="mx-auto w-full max-w-3xl">
-          {showWarnings && (
-            <WarningBanners
-              warnings={{
-                ...warnings,
-                limitWarningMessage: warnings.limitWarningMessage || {
-                  text: "",
-                },
-                limitReachedMessage: warnings.limitReachedMessage || {
-                  text: "",
-                },
-              }}
-              hasExistingMessages={hasExistingMessages}
-            />
-          )}
+          <WarningBanners
+            warnings={{
+              ...warnings,
+              limitWarningMessage: warnings.limitWarningMessage || { text: "" },
+              limitReachedMessage: warnings.limitReachedMessage || { text: "" },
+            }}
+            hasExistingMessages={hasExistingMessages}
+          />
 
           <div
             className={cn(
               "rounded-xl p-2.5 sm:p-3 transition-all duration-700",
               canSendMessage
-                ? visualMode.isPrivateMode
+                ? isPrivateMode
                   ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
                   : "chat-input-container"
                 : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
@@ -321,13 +315,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onPersonaSelect={setSelectedPersonaId}
                 />
                 {canSendMessage && <ModelPicker />}
-                {canSendMessage && selectedModel && (
+                {canSendMessage &&
+                selectedModel &&
+                isUserModel(selectedModel) ? (
                   <ReasoningConfigSelect
                     model={selectedModel}
                     config={reasoningConfig}
                     onConfigChange={setReasoningConfig}
                   />
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2">
@@ -340,10 +336,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 )}
                 <SendButtonGroup
                   canSend={canSendMessage && !isSubmitting}
-                  isStreaming={isStreamingBool}
-                  isLoading={isLoadingBool}
+                  isStreaming={Boolean(isStreaming)}
+                  isLoading={Boolean(isLoading)}
                   isSummarizing={isSubmitting}
-                  hasExistingMessages={hasExistingMessagesBool}
+                  hasExistingMessages={Boolean(hasExistingMessages)}
                   conversationId={conversationId}
                   hasInputText={
                     input.trim().length > 0 || attachments.length > 0

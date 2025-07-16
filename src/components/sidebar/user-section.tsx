@@ -2,9 +2,10 @@ import { SignInIcon, UserIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
 
 import { Button } from "@/components/ui/button";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
+import { isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { preloadSettings } from "@/routes";
 
@@ -99,8 +100,13 @@ const UserSectionContent = ({
 };
 
 export const UserSection = () => {
-  const { user, isLoading } = useUser();
-  const userSettings = useUserSettings();
+  const userData = useUserData();
+  const user = userData?.user;
+  const isLoading = !userData;
+  const userSettingsRaw = useUserSettings();
+
+  // Apply type guard
+  const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
 
   const isAuthenticated = user && !user.isAnonymous;
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;

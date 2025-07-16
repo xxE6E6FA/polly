@@ -1,8 +1,7 @@
 import { UserIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useMemo, useState } from "react";
-
-import { useSidebar } from "@/hooks/use-sidebar";
 import { cn, generateHeadingId } from "@/lib/utils";
+import { useUI } from "@/providers/ui-provider";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 // Constants used multiple times
@@ -68,7 +67,7 @@ const ChatOutlineComponent = ({
   className,
 }: ChatOutlineProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { isSidebarVisible, isMobile } = useSidebar();
+  const { isSidebarVisible, isMobile } = useUI();
 
   // Memoized function to strip markdown and truncate
   const stripAndTruncate = useCallback(

@@ -456,31 +456,7 @@ export class StreamHandler {
   }
 
   private async handleFullStreamPart(part: StreamPart): Promise<void> {
-    // Add debugging for Google provider models to track stream parts
-    if (this.messageId && part.type) {
-      try {
-        const message = await this.ctx.runQuery(api.messages.getById, {
-          id: this.messageId,
-        });
-        if (
-          message?.provider === "google" ||
-          message?.model?.includes("gemini")
-        ) {
-          console.log("🔍 [STREAM-HANDLER] Google stream part debug:", {
-            partType: part.type,
-            hasTextDelta: "textDelta" in part,
-            hasText: "text" in part,
-            textDeltaLength: part.textDelta?.length || 0,
-            isReasoningPart: isReasoningPart(part),
-            messageProvider: message.provider,
-            messageModel: message.model,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      } catch (error) {
-        // Ignore errors in debugging code
-      }
-    }
+
 
     if (this.messageDeleted) {
       return;
@@ -492,16 +468,15 @@ export class StreamHandler {
     if (part.type === "text-delta") {
       await this.appendToBuffer(part.textDelta || "");
     } else if (part.type === "error") {
-      // biome-ignore lint/suspicious/noExplicitAny: Error part type is dynamic from AI SDK
-      const errorPart = part as any;
+      const errorPart = part as { type: "error"; error: unknown };
       console.error("Stream error part received:", {
         messageId: this.messageId,
         error: errorPart.error,
       });
       // Handle error parts by throwing an error to stop the stream
-      const errorObj = errorPart.error;
+      const errorObj = errorPart.error as { message?: string; toString?: () => string } | null;
       const errorMessage =
-        errorObj?.message || errorObj?.toString() || "Unknown stream error";
+        errorObj?.message || errorObj?.toString?.() || "Unknown stream error";
       throw new Error(`Stream error: ${errorMessage}`);
     } else if (isReasoningPart(part)) {
       // Check if we should stop before processing reasoning

@@ -1,16 +1,18 @@
+import { api } from "@convex/_generated/api";
 import { PaperclipIcon } from "@phosphor-icons/react";
+import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-import { useSelectedModel } from "@/hooks/use-selected-model";
-import { FILE_LIMITS } from "@/lib/file-constants";
+import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import {
   convertImageToWebP,
   getFileLanguage,
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
+import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
@@ -26,97 +28,117 @@ export function FileUploadButton({
   isSubmitting,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { selectedModel } = useSelectedModel();
+  const selectedModelRaw = usePersistentConvexQuery(
+    "selected-model",
+    api.userModels.getUserSelectedModel,
+    {}
+  );
+  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const notificationDialog = useNotificationDialog();
+
+  const handleFileSelect = useCallback(async () => {
+    const input = fileInputRef.current;
+    if (!input?.files || input.files.length === 0) {
+      return;
+    }
+
+    const files = Array.from(input.files);
+    const newAttachments: Attachment[] = [];
+
+    // Check if model is properly selected and typed
+    const validModel =
+      isUserModel(selectedModel) &&
+      selectedModel.provider &&
+      selectedModel.modelId
+        ? selectedModel
+        : null;
+
+    for (const file of files) {
+      // Check file size
+      if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+        notificationDialog.notify({
+          title: "File Too Large",
+          description: `File ${file.name} exceeds the ${Math.round(FILE_LIMITS.MAX_SIZE_BYTES / (1024 * 1024))}MB limit.`,
+          type: "error",
+        });
+        continue;
+      }
+
+      // Check if we have a valid model for file type checking
+      if (!validModel) {
+        notificationDialog.notify({
+          title: "No Model Selected",
+          description: "Please select a model to upload files.",
+          type: "error",
+        });
+        continue;
+      }
+
+      const fileSupport = isFileTypeSupported(file.type, validModel);
+      if (!fileSupport.supported) {
+        notificationDialog.notify({
+          title: "Unsupported File Type",
+          description: `File ${file.name} is not supported by the current model.`,
+          type: "error",
+        });
+        continue;
+      }
+
+      try {
+        if (fileSupport.category === "text") {
+          const textContent = await readFileAsText(file);
+          newAttachments.push({
+            type: "text",
+            url: "",
+            name: file.name,
+            size: file.size,
+            content: textContent,
+            language: getFileLanguage(file.name),
+          });
+        } else {
+          let base64Content: string;
+          let mimeType = file.type;
+
+          if (fileSupport.category === "image") {
+            try {
+              const converted = await convertImageToWebP(file);
+              base64Content = converted.base64;
+              mimeType = converted.mimeType;
+            } catch {
+              base64Content = await readFileAsBase64(file);
+            }
+          } else {
+            base64Content = await readFileAsBase64(file);
+          }
+
+          newAttachments.push({
+            type: fileSupport.category as "image" | "pdf" | "text",
+            url: "",
+            name: file.name,
+            size: file.size,
+            content: base64Content,
+            mimeType,
+          });
+        }
+      } catch {
+        notificationDialog.notify({
+          title: "File Upload Failed",
+          description: `Failed to process ${file.name}`,
+          type: "error",
+        });
+      }
+    }
+
+    if (newAttachments.length > 0) {
+      onAddAttachments(newAttachments);
+    }
+
+    input.value = "";
+  }, [selectedModel, notificationDialog, onAddAttachments]);
 
   const handleClick = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
-
-  const handleFileInputChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (!files) {
-        return;
-      }
-
-      const newAttachments: Attachment[] = [];
-
-      for (const file of [...files]) {
-        if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
-          notificationDialog.notify({
-            title: "File Too Large",
-            description: `File ${file.name} is too large. Maximum size is ${
-              FILE_LIMITS.MAX_SIZE_BYTES / (1024 * 1024)
-            }MB.`,
-            type: "error",
-          });
-          continue;
-        }
-
-        const fileSupport = isFileTypeSupported(file.type, selectedModel);
-        if (!fileSupport.supported) {
-          notificationDialog.notify({
-            title: "Unsupported File Type",
-            description: `File ${file.name} is not supported by the current model.`,
-            type: "error",
-          });
-          continue;
-        }
-
-        try {
-          if (fileSupport.category === "text") {
-            const textContent = await readFileAsText(file);
-            newAttachments.push({
-              type: "text",
-              url: "",
-              name: file.name,
-              size: file.size,
-              content: textContent,
-              language: getFileLanguage(file.name),
-            });
-          } else {
-            let base64Content: string;
-            let mimeType = file.type;
-
-            if (fileSupport.category === "image") {
-              try {
-                const converted = await convertImageToWebP(file);
-                base64Content = converted.base64;
-                mimeType = converted.mimeType;
-              } catch {
-                base64Content = await readFileAsBase64(file);
-              }
-            } else {
-              base64Content = await readFileAsBase64(file);
-            }
-
-            newAttachments.push({
-              type: fileSupport.category as "image" | "pdf" | "text",
-              url: "",
-              name: file.name,
-              size: file.size,
-              content: base64Content,
-              mimeType,
-            });
-          }
-        } catch {
-          notificationDialog.notify({
-            title: "File Upload Failed",
-            description: `Failed to process ${file.name}`,
-            type: "error",
-          });
-        }
-      }
-
-      if (newAttachments.length > 0) {
-        onAddAttachments(newAttachments);
-      }
-
-      e.target.value = "";
-    },
-    [selectedModel, notificationDialog, onAddAttachments]
-  );
 
   return (
     <>
@@ -126,7 +148,7 @@ export function FileUploadButton({
         className="hidden"
         multiple
         type="file"
-        onChange={handleFileInputChange}
+        onChange={handleFileSelect}
       />
       <Button
         aria-label="Upload files"

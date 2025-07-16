@@ -87,6 +87,13 @@ function getProviderTheme(provider?: string) {
         bgColor: "bg-purple-500/10",
         hoverBgColor: "hover:bg-purple-500/20",
       };
+    case "polly":
+      return {
+        icon: SparkleIcon,
+        color: "text-amber-500",
+        bgColor: "bg-gradient-to-r from-amber-500/10 to-orange-500/10",
+        hoverBgColor: "hover:from-amber-500/15 hover:to-orange-500/15",
+      };
     default:
       return {
         icon: SparkleIcon,
@@ -194,18 +201,20 @@ export const ReasoningConfigSelect = ({
       >
         <SelectTrigger
           className={cn(
-            "h-auto w-auto border-0 px-2.5 py-1",
-            "text-xs font-medium focus:ring-0 gap-1.5",
-            "transition-all duration-200 rounded-md",
+            "h-7 w-auto gap-1 px-2 py-1 text-xs font-medium sm:h-8 sm:gap-2 sm:px-3 sm:text-sm",
+            "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
             currentValue !== "off"
               ? cn(theme.bgColor, theme.color, theme.hoverBgColor)
-              : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent/50",
+              : "bg-transparent text-muted-foreground/80 hover:text-foreground hover:bg-accent/50 dark:hover:bg-accent/30",
             className
           )}
         >
           <div className="flex items-center gap-1.5">
             <Icon
-              className="h-3.5 w-3.5"
+              className={cn(
+                "h-3.5 w-3.5",
+                currentValue !== "off" ? theme.color : "text-muted-foreground"
+              )}
               weight={currentValue !== "off" ? "duotone" : "regular"}
             />
             <span className="hidden sm:inline">
@@ -213,7 +222,10 @@ export const ReasoningConfigSelect = ({
             </span>
             {selectedOption?.icon && (
               <selectedOption.icon
-                className="h-3 w-3 inline sm:hidden"
+                className={cn(
+                  "h-3 w-3 inline sm:hidden",
+                  currentValue !== "off" ? theme.color : "text-muted-foreground"
+                )}
                 weight="bold"
               />
             )}

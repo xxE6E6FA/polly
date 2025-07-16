@@ -1,7 +1,7 @@
+import { WEB_SEARCH_MAX_RESULTS } from "@shared/constants";
 import { generateText, streamText } from "ai";
 import { v } from "convex/values";
 import dedent from "dedent";
-
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { action } from "./_generated/server";
@@ -28,7 +28,6 @@ import {
 } from "./ai/search_detection";
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { StreamHandler } from "./ai/streaming";
-import { WEB_SEARCH_MAX_RESULTS } from "./constants";
 import type { Citation, ProviderType, StreamMessage } from "./types";
 
 // Main streaming action
@@ -508,23 +507,6 @@ export const streamResponse = action({
         args.userId
       );
 
-      // Check if model supports reasoning for debugging
-      const modelSupportsReasoning = await isReasoningModelEnhanced(
-        args.provider,
-        args.model
-      );
-
-      // Add debugging for Google provider models before DLLF call
-      if (args.provider === "google") {
-        console.log("🔍 [AI-ACTION] Google DLLF call debug:", {
-          model: args.model,
-          providerOptions,
-          reasoningConfig: args.reasoningConfig,
-          hasReasoningSupport: modelSupportsReasoning,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
       const truncateContent = (content: string, maxLength: number): string => {
         if (content.length <= maxLength) {
           return content;
@@ -579,19 +561,6 @@ export const streamResponse = action({
         abortSignal: abortController.signal,
         providerOptions,
         onFinish: ({ text, finishReason, reasoning, providerMetadata }) => {
-          // Add debugging for Google provider models in onFinish
-          if (args.provider === "google") {
-            console.log("🔍 [AI-ACTION] Google onFinish debug:", {
-              model: args.model,
-              finishReason,
-              hasReasoning: !!reasoning,
-              reasoningLength: reasoning?.length || 0,
-              hasProviderMetadata: !!providerMetadata,
-              providerMetadata,
-              timestamp: new Date().toISOString(),
-            });
-          }
-
           streamHandler.setFinishData({
             text,
             finishReason,

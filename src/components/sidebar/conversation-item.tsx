@@ -8,9 +8,8 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
-import { useEventDispatcher } from "@/hooks/use-convex-cache";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
-import { useSidebar } from "@/hooks/use-sidebar";
+
 import {
   downloadFile,
   exportAsJSON,
@@ -19,6 +18,7 @@ import {
 } from "@/lib/export";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useUI } from "@/providers/ui-provider";
 import type { Conversation, ConversationId } from "@/types";
 import {
   ConversationActions,
@@ -44,11 +44,13 @@ export const ConversationItem = ({
     null
   );
 
-  const { isMobile, setSidebarVisible } = useSidebar();
+  const { isMobile, setSidebarVisible } = useUI();
   const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
   const backgroundJobs = useBackgroundJobs();
-  const { dispatch } = useEventDispatcher();
+  const dispatch = useCallback((eventName: string) => {
+    window.dispatchEvent(new CustomEvent(eventName));
+  }, []);
 
   const isCurrentConversation = currentConversationId === conversation._id;
 

@@ -26,6 +26,14 @@ export type UserId = Id<"users">;
 export type AIModel = Doc<"userModels">;
 export type AIProviderType = "openai" | "anthropic" | "google" | "openrouter";
 
+// ============================================================================
+// TYPE SAFETY HELPERS
+// ============================================================================
+
+export function assertUnreachable(x: never): never {
+  throw new Error(`Unexpected value: ${JSON.stringify(x)}`);
+}
+
 // Extended model type for capability detection
 export type ModelForCapabilities = {
   modelId: string;
@@ -136,6 +144,7 @@ export type ChatMessage = {
     searchQuery?: string;
     searchFeature?: string;
     searchCategory?: string;
+    status?: "pending" | "error";
   };
   createdAt: number;
 };

@@ -13,9 +13,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useOptimisticUserSettingsUpdate } from "@/hooks/use-optimistic-toggles";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
 import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
@@ -55,25 +55,43 @@ function getProviderCardStyle(isConnected: boolean) {
   return `${baseStyle} border-border bg-background hover:bg-muted/50`;
 }
 
+// Helper to detect stored key
+const hasStoredKey = (k: unknown): boolean => {
+  if (k && typeof k === "object") {
+    const obj = k as {
+      hasKey?: boolean;
+      encryptedKey?: unknown;
+      clientEncryptedKey?: unknown;
+    };
+    if (typeof obj.hasKey === "boolean") {
+      return obj.hasKey;
+    }
+    return Boolean(obj.encryptedKey || obj.clientEncryptedKey);
+  }
+  return false;
+};
+
 export const ApiKeysTab = () => {
-  const { user } = useUser();
-  const userSettings = useUserSettings(user?._id);
+  const userData = useUserData();
+  const user = userData?.user;
+  const userSettingsRaw = useUserSettings(user?._id);
   const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
   const storeKeyMutation = useMutation(api.apiKeys.storeApiKey);
   const removeKeyMutation = useMutation(api.apiKeys.removeApiKey);
 
-  // Use optimistic updates for immediate feedback
-  const { mutate: updateUserSettingsOptimistic } =
-    useOptimisticUserSettingsUpdate();
+  const updateUserSettingsMutation = useMutation(
+    api.userSettings.updateUserSettings
+  );
 
-  // Check if user has OpenRouter API key
+  // Apply type guard to ensure proper typing
+  const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
+
   const hasOpenRouterKey = apiKeys?.some(
-    key => key.provider === "openrouter" && key.hasKey
+    key => key.provider === "openrouter" && hasStoredKey(key)
   );
 
   const handleOpenRouterSortingChange = (value: string) => {
-    // Use optimistic mutation for immediate feedback
-    updateUserSettingsOptimistic({
+    updateUserSettingsMutation({
       openRouterSorting: value as
         | "default"
         | "price"
@@ -92,39 +110,35 @@ export const ApiKeysTab = () => {
   ) => {
     const key = formData.get(`${provider}-key`) as string;
 
-    if (key?.trim()) {
-      // Validate on client side first
-      if (!validateApiKey(provider, key.trim())) {
-        toast.error("Invalid API Key", {
-          description: `Please enter a valid ${API_KEY_INFO[provider].name} API key.`,
-        });
-        return;
-      }
+    if (!key?.trim()) {
+      return;
+    }
 
-      try {
-        await storeKeyMutation({
-          provider,
-          rawKey: key.trim(),
-        });
+    if (!validateApiKey(provider, key.trim())) {
+      toast.error("Invalid API Key", {
+        description: `Please enter a valid ${API_KEY_INFO[provider].name} API key.`,
+      });
+      return;
+    }
 
-        toast.success("API Key Saved", {
-          description: `Your ${API_KEY_INFO[provider].name} API key has been securely stored.`,
-        });
-      } catch (error) {
-        toast.error("Error", {
-          description:
-            error instanceof Error
-              ? error.message
-              : "Failed to save API key. Please try again.",
-        });
-      }
+    try {
+      await storeKeyMutation({ provider, rawKey: key.trim() });
+      toast.success("API Key Saved", {
+        description: `Your ${API_KEY_INFO[provider].name} API key has been securely stored.`,
+      });
+    } catch (error) {
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to save API key. Please try again.",
+      });
     }
   };
 
   const handleApiKeyRemove = async (provider: ApiProvider) => {
     try {
       await removeKeyMutation({ provider });
-
       toast.success("API Key Removed", {
         description: `Your ${API_KEY_INFO[provider].name} API key has been removed.`,
       });
@@ -135,13 +149,12 @@ export const ApiKeysTab = () => {
     }
   };
 
-  // Show loading state
   if (apiKeys === undefined) {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6">
         <SettingsHeader
-          description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
           title="API Keys"
+          description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
         />
 
         <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
@@ -164,10 +177,10 @@ export const ApiKeysTab = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <SettingsHeader
-        description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
         title="API Keys"
+        description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
       />
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
@@ -176,37 +189,35 @@ export const ApiKeysTab = () => {
             [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
           >
         ).map(([provider, info]) => {
-          const keyInfo = apiKeys.find(key => key.provider === provider);
-          const isConnected = keyInfo?.hasKey;
+          const keyInfo = apiKeys.find(k => k.provider === provider);
+          const isConnected = hasStoredKey(keyInfo);
 
           return (
             <div
               key={provider}
-              className={`${getProviderCardStyle(
-                Boolean(isConnected)
-              )} flex h-full flex-col justify-between`}
+              className={`${getProviderCardStyle(isConnected)} flex h-full flex-col justify-between`}
             >
               <div className="mb-4 flex flex-shrink-0 items-start justify-between">
                 <div className="flex min-w-0 flex-1 items-start gap-3">
-                  <div className="flex h-8 w-8 shrink-0 justify-center">
-                    <ProviderIcon provider={provider} />
-                  </div>
+                  <ProviderIcon
+                    provider={provider}
+                    className="h-8 w-8 shrink-0"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <Label
-                        className="text-base font-medium"
                         htmlFor={provider}
+                        className="text-base font-medium"
                       >
                         {info.name}
                       </Label>
                       {isConnected && (
                         <Badge
-                          className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
-                          size="sm"
                           variant="secondary"
+                          size="sm"
+                          className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
                         >
-                          <CheckCircleIcon className="mr-1 h-3 w-3" />
-                          Connected
+                          <CheckCircleIcon className="mr-1 h-3 w-3" /> Connected
                         </Badge>
                       )}
                     </div>
@@ -215,18 +226,17 @@ export const ApiKeysTab = () => {
                 {!isConnected && (
                   <Button
                     asChild
-                    className="ml-3 h-8 shrink-0 px-3 text-xs"
                     size="sm"
                     variant="ghost"
+                    className="ml-3 h-8 shrink-0 px-3 text-xs"
                   >
                     <a
-                      className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                       href={info.url}
-                      rel="noopener noreferrer"
                       target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                     >
-                      Get API key
-                      <ArrowSquareOutIcon className="h-3 w-3" />
+                      Get API key <ArrowSquareOutIcon className="h-3 w-3" />
                     </a>
                   </Button>
                 )}
@@ -235,22 +245,17 @@ export const ApiKeysTab = () => {
               <div className="mt-auto">
                 {isConnected ? (
                   <div className="flex flex-shrink-0 gap-2">
-                    <div className="flex-1">
-                      <Input
-                        disabled
-                        className="border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
-                        id={provider}
-                        placeholder={`Current: ${
-                          keyInfo?.partialKey ||
-                          info.placeholder.replace(/\./g, "•")
-                        }`}
-                        type="text"
-                      />
-                    </div>
+                    <Input
+                      disabled
+                      id={provider}
+                      type="text"
+                      className="flex-1 border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
+                      placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
+                    />
                     <Button
-                      className="px-4"
                       size="sm"
                       variant="destructive"
+                      className="px-4"
                       onClick={() =>
                         handleApiKeyRemove(provider as ApiProvider)
                       }
@@ -265,17 +270,15 @@ export const ApiKeysTab = () => {
                       handleApiKeySubmit(provider as ApiProvider, formData)
                     }
                   >
-                    <div className="flex-1">
-                      <Input
-                        required
-                        className="font-mono text-sm"
-                        id={provider}
-                        name={`${provider}-key`}
-                        placeholder={info.placeholder}
-                        type="password"
-                      />
-                    </div>
-                    <Button size="sm" type="submit" variant="default">
+                    <Input
+                      required
+                      id={provider}
+                      name={`${provider}-key`}
+                      type="password"
+                      placeholder={info.placeholder}
+                      className="flex-1 font-mono text-sm"
+                    />
+                    <Button size="sm" type="submit">
                       Save
                     </Button>
                   </form>
@@ -286,13 +289,10 @@ export const ApiKeysTab = () => {
         })}
       </div>
 
-      {/* OpenRouter Provider Settings */}
       {hasOpenRouterKey && (
         <div className="rounded-lg border border-border bg-background p-4">
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-6 w-6 shrink-0 justify-center">
-              <ProviderIcon provider="openrouter" />
-            </div>
+            <ProviderIcon provider="openrouter" className="h-6 w-6 shrink-0" />
             <h3 className="text-sm font-medium">OpenRouter Provider Sorting</h3>
           </div>
 
@@ -300,25 +300,24 @@ export const ApiKeysTab = () => {
             <p className="text-sm text-muted-foreground">
               Choose how OpenRouter routes your requests across providers.{" "}
               <a
-                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
                 href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
-                rel="noopener noreferrer"
                 target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
               >
-                View documentation
-                <ArrowSquareOutIcon className="h-3 w-3" />
+                View documentation <ArrowSquareOutIcon className="h-3 w-3" />
               </a>
             </p>
 
             <div className="space-y-2">
-              <Label className="text-sm" htmlFor="openrouter-sorting">
+              <Label htmlFor="openrouter-sorting" className="text-sm">
                 Sorting Strategy
               </Label>
               <Select
                 value={userSettings?.openRouterSorting || "default"}
                 onValueChange={handleOpenRouterSortingChange}
               >
-                <SelectTrigger className="w-full" id="openrouter-sorting">
+                <SelectTrigger id="openrouter-sorting" className="w-full">
                   <SelectValue placeholder="Select a sorting strategy" />
                 </SelectTrigger>
                 <SelectContent>

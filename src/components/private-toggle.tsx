@@ -5,50 +5,44 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useChatVisualMode } from "@/hooks/use-chat-visual-mode";
+import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
 
 export const PrivateToggle = () => {
-  const visualMode = useChatVisualMode();
+  const { isPrivateMode, togglePrivateMode } = usePrivateMode();
 
   return (
     <div className="absolute top-4 right-4 z-10">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
-            onClick={visualMode.toggleMode}
-            variant={visualMode.isPrivateMode ? "purple" : "ghost"}
+            onClick={togglePrivateMode}
+            variant={isPrivateMode ? "purple" : "ghost"}
             size="sm"
             className={cn(
               "rounded-full px-3 py-1.5 text-xs backdrop-blur-sm",
-              visualMode.isPrivateMode
+              isPrivateMode
                 ? "shadow-lg"
                 : "border border-border/40 bg-background/80 shadow-sm"
             )}
             type="button"
             aria-label={
-              visualMode.isPrivateMode
-                ? "Disable private mode"
-                : "Enable private mode"
+              isPrivateMode ? "Disable private mode" : "Enable private mode"
             }
           >
             <GhostIcon
               className={cn(
                 "h-3.5 w-3.5 transition-colors",
-                visualMode.isPrivateMode
-                  ? "text-white"
-                  : "text-muted-foreground"
+                isPrivateMode ? "text-white" : "text-muted-foreground"
               )}
-              weight={visualMode.isPrivateMode ? "fill" : "regular"}
+              weight={isPrivateMode ? "fill" : "regular"}
             />
             <span>Private</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={8}>
           <p className="text-xs">
-            {visualMode.isPrivateMode
-              ? "Private mode active"
-              : "Enable private mode"}
+            {isPrivateMode ? "Private mode active" : "Enable private mode"}
           </p>
         </TooltipContent>
       </Tooltip>

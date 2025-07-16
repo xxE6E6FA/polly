@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/spinner";
@@ -8,7 +9,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useChatService } from "@/hooks/use-chat-service";
-import { useConvexActionWithCache } from "@/hooks/use-convex-cache";
 import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
@@ -51,6 +51,10 @@ export const ConversationStarterPopover = ({
   className,
 }: ConversationStarterPopoverProps) => {
   const [prompts, setPrompts] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const generateStartersAction = useAction(
+    api.conversationStarters.generateConversationStarters
+  );
 
   const queryUserId = useQueryUserId();
   const chatService = useChatService({
@@ -59,37 +63,31 @@ export const ConversationStarterPopover = ({
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
 
-  // Use optimized action hook for generating starters
-  const { executeAsync: generateStarters, isLoading } =
-    useConvexActionWithCache<string[], { selectedText: string }>(
-      api.conversationStarters.generateConversationStarters,
-      {
-        onSuccess: generatedPrompts => {
-          setPrompts(generatedPrompts);
-        },
-        onError: error => {
-          if (process.env.NODE_ENV === "development") {
-            console.error("Failed to generate conversation starters:", error);
-          }
-          // Use fallback prompts on error
-          setPrompts([
-            "Can you explain this in more detail?",
-            "What are the implications of this?",
-            "How does this relate to other concepts?",
-            "Can you give me a practical example?",
-            "What are the pros and cons of this approach?",
-          ]);
-        },
-      }
-    );
-
   useEffect(() => {
     async function fetchPrompts() {
-      await generateStarters({ selectedText });
+      setIsLoading(true);
+      try {
+        const generatedPrompts = await generateStartersAction({ selectedText });
+        setPrompts(generatedPrompts);
+      } catch (error) {
+        if (process.env.NODE_ENV === "development") {
+          console.error("Failed to generate conversation starters:", error);
+        }
+        // Use fallback prompts on error
+        setPrompts([
+          "Can you explain this in more detail?",
+          "What are the implications of this?",
+          "How does this relate to other concepts?",
+          "Can you give me a practical example?",
+          "What are the pros and cons of this approach?",
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
     }
 
     fetchPrompts();
-  }, [selectedText, generateStarters]);
+  }, [selectedText, generateStartersAction]);
 
   useEffect(() => {
     if (open) {

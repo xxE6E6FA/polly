@@ -7,6 +7,7 @@ import {
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { useAction } from "convex/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
@@ -21,8 +22,7 @@ import {
 } from "@/components/ui/popover";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Textarea } from "@/components/ui/textarea";
-import { useConvexActionWithCache } from "@/hooks/use-convex-cache";
-import { useWordBasedUndo } from "@/hooks/use-word-based-undo";
+import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {
   name: string;
@@ -47,26 +47,8 @@ export const PersonaForm = ({
   handleEmojiClick,
 }: PersonaFormProps) => {
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
-
-  // Use optimized action hook for prompt improvement
-  const { executeAsync: improvePrompt, isLoading: isImprovingPrompt } =
-    useConvexActionWithCache<string, { prompt: string }>(
-      api.personas.improvePrompt,
-      {
-        onSuccess: improvedPrompt => {
-          handlePromptChange(improvedPrompt);
-          toast.success("Prompt improved!", {
-            description: "Your prompt has been enhanced with AI suggestions.",
-          });
-        },
-        onError: error => {
-          console.error("Failed to improve prompt:", error);
-          toast.error("Failed to improve prompt", {
-            description: "Unable to improve the prompt. Please try again.",
-          });
-        },
-      }
-    );
+  const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
+  const improvePromptAction = useAction(api.personas.improvePrompt);
 
   const updateFormField = useCallback(
     (field: keyof PersonaFormData, value: string) => {
@@ -103,8 +85,24 @@ export const PersonaForm = ({
       return;
     }
 
-    await improvePrompt({ prompt: promptValue });
-  }, [promptValue, improvePrompt]);
+    setIsImprovingPrompt(true);
+    try {
+      const result = await improvePromptAction({ prompt: promptValue });
+      if (result.improvedPrompt) {
+        handlePromptChange(result.improvedPrompt);
+        toast.success("Prompt improved!", {
+          description: "Your prompt has been enhanced with AI suggestions.",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to improve prompt:", error);
+      toast.error("Failed to improve prompt", {
+        description: "Unable to improve the prompt. Please try again.",
+      });
+    } finally {
+      setIsImprovingPrompt(false);
+    }
+  }, [promptValue, improvePromptAction, handlePromptChange]);
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">

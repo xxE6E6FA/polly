@@ -4,22 +4,59 @@ import { getDefaultSystemPrompt } from "convex/constants";
 import { useAction, useConvex } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useUserData } from "@/hooks/use-user-data";
 import { type AIProviderType, streamChat } from "@/lib/ai/client-ai-service";
-import { messageUtils } from "@/lib/ai/message-utils";
+import { isUserModel } from "@/lib/type-guards";
 import type {
   APIKeys,
+  Attachment,
   ChatMessage,
   ReasoningConfig,
   SendMessageParams,
   WebSearchCitation,
 } from "@/types";
-import { useSelectedModel } from "./use-selected-model";
-import { useUser } from "./use-user";
+import { usePersistentConvexQuery } from "./use-persistent-convex-query";
 
 // Memory management constants
 const MAX_PRIVATE_MESSAGES = 100;
 const CLEANUP_THRESHOLD = 150;
 const MEMORY_CLEANUP_INTERVAL = 5000; // 5 seconds
+
+// Message utility functions (inlined from deleted file)
+const messageUtils = {
+  addMessage: (
+    messages: ChatMessage[],
+    message: ChatMessage
+  ): ChatMessage[] => [...messages, message],
+  updateMessage: (
+    messages: ChatMessage[],
+    messageId: string,
+    updates: Partial<ChatMessage>
+  ): ChatMessage[] =>
+    messages.map(msg => (msg.id === messageId ? { ...msg, ...updates } : msg)),
+  removeMessage: (messages: ChatMessage[], messageId: string): ChatMessage[] =>
+    messages.filter(msg => msg.id !== messageId),
+  createUserMessage: (
+    content: string,
+    attachments?: Attachment[]
+  ): ChatMessage => ({
+    id: `private_user_${Date.now()}`,
+    role: "user",
+    content,
+    isMainBranch: true,
+    attachments,
+    createdAt: Date.now(),
+  }),
+  createAssistantMessage: (model?: string, provider?: string): ChatMessage => ({
+    id: `private_assistant_${Date.now()}`,
+    role: "assistant",
+    content: "",
+    isMainBranch: true,
+    createdAt: Date.now(),
+    model,
+    provider,
+  }),
+};
 
 interface UsePrivateChatOptions {
   onError?: (error: Error) => void;
@@ -50,8 +87,14 @@ export function usePrivateChat({
 
   // Call hooks directly - no dependency injection
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
-  const { selectedModel } = useSelectedModel();
-  const { canSendMessage } = useUser();
+  const selectedModelRaw = usePersistentConvexQuery(
+    "selected-model",
+    api.userModels.getUserSelectedModel,
+    {}
+  );
+  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
+  const userData = useUserData();
+  const canSendMessage = userData?.canSendMessage ?? false;
   const convex = useConvex();
 
   const abortControllerRef = useRef<AbortController | null>(null);

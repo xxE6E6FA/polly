@@ -30,23 +30,35 @@ export interface VirtualizedChatMessagesRef {
 }
 
 interface MessageItemProps {
-  message: ChatMessageType;
+  messageId: string;
   isStreaming: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (messageId: string) => void;
   onRetryAssistantMessage?: (messageId: string) => void;
   onDeleteMessage?: (messageId: string) => void;
+  // Message selector for efficient re-renders
+  messageSelector: (messageId: string) => ChatMessageType | undefined;
 }
 
 const MessageItem = memo(
   ({
-    message,
+    messageId,
     isStreaming,
     onEditMessage,
     onRetryUserMessage,
     onRetryAssistantMessage,
     onDeleteMessage,
+    messageSelector,
   }: MessageItemProps) => {
+    const message = useMemo(
+      () => messageSelector(messageId),
+      [messageSelector, messageId]
+    );
+
+    if (!message) {
+      return null;
+    }
+
     return (
       <div className="px-4 sm:px-8">
         <div
@@ -100,6 +112,14 @@ export const VirtualizedChatMessages = memo(
       const prevMessagesLengthRef = useRef(messages.length);
       const hasScrolledForCurrentAssistant = useRef(false);
       const lastAssistantMessageId = useRef<string | null>(null);
+
+      // Create a memoized message selector for efficient lookups
+      const _messageSelector = useCallback(
+        (messageId: string) => {
+          return messages.find(msg => msg.id === messageId);
+        },
+        [messages]
+      );
 
       // Generate a unique ID for this VList instance
       const vlistId = useMemo(
@@ -371,12 +391,13 @@ export const VirtualizedChatMessages = memo(
             return (
               <MessageItem
                 key={message.id}
-                message={message}
+                messageId={message.id}
                 isStreaming={!!isMessageStreaming}
                 onEditMessage={onEditMessage}
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}
                 onDeleteMessage={onDeleteMessage}
+                messageSelector={_messageSelector}
               />
             );
           })}

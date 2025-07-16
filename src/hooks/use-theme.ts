@@ -1,77 +1,77 @@
 import { useCallback, useEffect, useState } from "react";
+import { get as getLS, set as setLS, subscribe } from "../lib/local-storage";
 
-import { withDisabledAnimations } from "@/lib/theme-utils";
-import { useServerTheme } from "@/providers/theme-provider";
+function withDisabledAnimations(fn: () => void) {
+  const style = document.createElement("style");
+  style.textContent = `
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  `;
+  document.head.appendChild(style);
+  fn();
+  document.head.removeChild(style);
+}
+
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "theme/v1";
 
 export function useTheme() {
-  const serverTheme = useServerTheme();
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+
+    // Check localStorage first
+    const stored = getLS<Theme>(THEME_STORAGE_KEY, "light");
+    if (stored === "light" || stored === "dark") {
+      return stored;
+    }
+
+    // Check system preference
+    const prefersDark = window.matchMedia(
+      "(prefers-color-scheme: dark)"
+    ).matches;
+    return prefersDark ? "dark" : "light";
+  });
+
   const [mounted, setMounted] = useState(false);
-  const [clientTheme, setClientTheme] = useState<"light" | "dark">(serverTheme);
 
   useEffect(() => {
     setMounted(true);
-
-    try {
-      // First try to read from localStorage
-      const storedTheme = localStorage.getItem("theme") as
-        | "light"
-        | "dark"
-        | null;
-
-      if (storedTheme && (storedTheme === "light" || storedTheme === "dark")) {
-        // Apply stored theme to HTML
-        const htmlElement = document.documentElement;
-        htmlElement.classList.remove("light", "dark");
-        htmlElement.classList.add(storedTheme);
-        setClientTheme(storedTheme);
-      } else {
-        // Fallback: Read current theme from HTML class
-        const htmlElement = document.documentElement;
-        const currentTheme = htmlElement.classList.contains("dark")
-          ? "dark"
-          : "light";
-        setClientTheme(currentTheme);
-      }
-    } catch (error) {
-      console.error("Error reading theme from localStorage:", error);
-      // Fallback: Read current theme from HTML class
-      const htmlElement = document.documentElement;
-      const currentTheme = htmlElement.classList.contains("dark")
-        ? "dark"
-        : "light";
-      setClientTheme(currentTheme);
-    }
   }, []);
 
-  const theme = mounted ? clientTheme : serverTheme;
+  // Keep HTML class in sync
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
 
-  const setTheme = useCallback((newTheme: "light" | "dark") => {
+    const root = document.documentElement;
+    root.classList.remove("light", "dark");
+    root.classList.add(theme);
+  }, [theme, mounted]);
+
+  // Persist to storage & notify
+  const setTheme = useCallback((newTheme: Theme) => {
     withDisabledAnimations(() => {
-      // Update HTML class immediately
-      const htmlElement = document.documentElement;
-      htmlElement.classList.remove("light", "dark");
-      htmlElement.classList.add(newTheme);
-
-      // Update state
-      setClientTheme(newTheme);
-
-      // Update localStorage instead of cookie
-      try {
-        localStorage.setItem("theme", newTheme);
-      } catch (error) {
-        console.error("Error saving theme to localStorage:", error);
-      }
+      setThemeState(newTheme);
+      setLS<Theme>(THEME_STORAGE_KEY, newTheme);
     });
   }, []);
 
   const toggleTheme = useCallback(() => {
-    const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
+    setTheme(theme === "light" ? "dark" : "light");
   }, [theme, setTheme]);
 
-  return {
-    theme,
-    setTheme,
-    toggleTheme,
-  };
+  // Sync with other tabs
+  useEffect(() => {
+    return subscribe(THEME_STORAGE_KEY, () => {
+      setThemeState(getLS<Theme>(THEME_STORAGE_KEY, "light"));
+    });
+  }, []);
+
+  return { theme, setTheme, toggleTheme, mounted } as const;
 }

@@ -1,3 +1,4 @@
+import { api } from "@convex/_generated/api";
 import {
   CalendarBlankIcon,
   ChatCircleIcon,
@@ -7,11 +8,11 @@ import {
   SparkleIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { useUserStats } from "@/hooks/use-user-stats";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
 
 function getInitials(name?: string | null) {
@@ -27,9 +28,40 @@ function getInitials(name?: string | null) {
 }
 
 export const UserIdCard = () => {
-  const { user, monthlyUsage, hasUnlimitedCalls } = useUser();
-  const userSettings = useUserSettings();
-  const userStats = useUserStats();
+  const userData = useUserData();
+  const user = userData?.user;
+  const monthlyUsage = userData?.monthlyUsage ?? 0;
+  const hasUnlimitedCalls = userData?.hasUnlimitedCalls ?? false;
+  const userSettings = useUserSettings(user?._id);
+  const userStatsRaw = useQuery(
+    api.users.getUserStatsCached,
+    user?._id ? { userId: user._id } : "skip"
+  );
+
+  // Inline type guard for user stats (only used in this component)
+  const isValidUserStats = (
+    x: unknown
+  ): x is {
+    userId: string;
+    conversationCount: number;
+    totalMessages: number;
+    messagesSent: number;
+  } => {
+    return (
+      !!x &&
+      typeof x === "object" &&
+      "userId" in x &&
+      "conversationCount" in x &&
+      "totalMessages" in x &&
+      "messagesSent" in x &&
+      typeof (x as Record<string, unknown>).userId === "string" &&
+      typeof (x as Record<string, unknown>).conversationCount === "number" &&
+      typeof (x as Record<string, unknown>).totalMessages === "number" &&
+      typeof (x as Record<string, unknown>).messagesSent === "number"
+    );
+  };
+
+  const userStats = isValidUserStats(userStatsRaw) ? userStatsRaw : null;
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
@@ -107,8 +139,8 @@ export const UserIdCard = () => {
               <div className="flex items-center justify-center space-x-1 text-muted-foreground">
                 <CalendarBlankIcon className="h-3 w-3" />
                 <span className="text-xs">
-                  {userStats?.joinedAt
-                    ? new Date(userStats.joinedAt).toLocaleDateString("en-US", {
+                  {user.createdAt
+                    ? new Date(user.createdAt).toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
                       })
@@ -156,7 +188,9 @@ export const UserIdCard = () => {
                   <span className="text-xs text-foreground">This Month</span>
                 </div>
                 <span className="font-mono text-sm text-foreground">
-                  {monthlyUsage?.monthlyMessagesSent || 0}
+                  {(typeof monthlyUsage === "object" &&
+                    monthlyUsage?.monthlyMessagesSent) ||
+                    0}
                 </span>
               </div>
             </div>
@@ -184,10 +218,10 @@ export const UserIdCard = () => {
                   <span>{monthlyUsage.remainingMessages} remaining</span>
                   <span>
                     resets on {(() => {
-                      if (!userStats?.joinedAt) {
+                      if (!user.createdAt) {
                         return "unknown";
                       }
-                      const joinDate = new Date(userStats.joinedAt);
+                      const joinDate = new Date(user.createdAt);
                       const now = new Date();
                       const joinDay = joinDate.getDate();
 
@@ -266,10 +300,10 @@ export const UserIdCard = () => {
               </span>
               <span>
                 resets on {(() => {
-                  if (!userStats?.joinedAt) {
+                  if (!user.createdAt) {
                     return "unknown";
                   }
-                  const joinDate = new Date(userStats.joinedAt);
+                  const joinDate = new Date(user.createdAt);
                   const now = new Date();
                   const joinDay = joinDate.getDate();
 

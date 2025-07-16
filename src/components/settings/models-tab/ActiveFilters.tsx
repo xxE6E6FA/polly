@@ -1,7 +1,7 @@
+import { PROVIDER_NAMES } from "@shared/provider-constants";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import { CAPABILITY_REGISTRY } from "@/lib/model-capabilities";
-import { PROVIDER_NAMES } from "@/lib/provider-constants";
 import { cn } from "@/lib/utils";
 import type { FilterState } from "./";
 
@@ -86,9 +86,7 @@ export const ActiveFilters = ({
             className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
             onClick={() => onRemoveProviderFilter(provider)}
           >
-            <div className="flex h-3 w-3 items-center justify-center">
-              <ProviderIcon provider={provider} />
-            </div>
+            <ProviderIcon provider={provider} className="h-3 w-3" />
             <span className="max-w-[100px] truncate">
               {PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES]}
             </span>

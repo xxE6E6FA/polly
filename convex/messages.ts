@@ -61,6 +61,49 @@ export const create = mutation({
   },
 });
 
+export const createUserMessageBatched = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    parentId: v.optional(v.id("messages")),
+    isMainBranch: v.optional(v.boolean()),
+    reasoning: v.optional(v.string()),
+    sourceConversationId: v.optional(v.id("conversations")),
+    useWebSearch: v.optional(v.boolean()),
+    attachments: v.optional(v.array(attachmentSchema)),
+    metadata: v.optional(
+      v.object({
+        tokenCount: v.optional(v.number()),
+        reasoningTokenCount: v.optional(v.number()),
+        finishReason: v.optional(v.string()),
+        duration: v.optional(v.number()),
+        stopped: v.optional(v.boolean()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Note: this is for user messages only
+    const messageId = await ctx.db.insert("messages", {
+      ...args,
+      role: "user",
+      isMainBranch: args.isMainBranch ?? true,
+      createdAt: Date.now(),
+    });
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (conversation) {
+      await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
+        userId: conversation.userId,
+      });
+    }
+
+    return messageId;
+  },
+});
+
 export const list = query({
   args: {
     conversationId: v.id("conversations"),
@@ -89,7 +132,7 @@ export const list = query({
     const validatedOpts = validatePaginationOpts(args.paginationOpts);
     const messages = validatedOpts
       ? await query.paginate(validatedOpts)
-      : await query.collect();
+      : await query.take(500); // Limit unbounded queries to 500 messages
 
     if (args.resolveAttachments !== false && !args.paginationOpts) {
       return await Promise.all(

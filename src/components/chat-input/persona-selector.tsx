@@ -1,9 +1,9 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { PersonaPicker } from "@/components/persona-picker";
 import { usePrivateMode } from "@/contexts/private-mode-context";
-import { useChatPermissions } from "@/hooks/use-chat-permissions";
-import { useUser } from "@/hooks/use-user";
+import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { isUserSettings } from "@/lib/type-guards";
 import type { ConversationId } from "@/types";
 
 interface PersonaSelectorProps {
@@ -19,11 +19,12 @@ export function PersonaSelector({
   selectedPersonaId = null,
   onPersonaSelect,
 }: PersonaSelectorProps) {
-  const { canSendMessage } = useChatPermissions();
-  const userInfo = useUser();
-  const userSettings = useUserSettings(userInfo.user?._id);
+  const userData = useUserData();
+  const canSendMessage = userData?.canSendMessage ?? false;
+  const userSettingsRaw = useUserSettings(userData?.user?._id);
   const { isPrivateMode } = usePrivateMode();
 
+  const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
   const personasEnabled = userSettings?.personasEnabled !== false;
 
   // Show persona selector only when starting a new conversation
@@ -42,17 +43,8 @@ export function PersonaSelector({
 
   return (
     <PersonaPicker
-      compact
+      compact={true}
       selectedPersonaId={selectedPersonaId}
-      tooltip={
-        <div className="text-xs">
-          <div className="mb-1 font-medium">AI Personas</div>
-          <p>
-            Choose a specialized AI assistant with a unique personality and
-            expertise
-          </p>
-        </div>
-      }
       onPersonaSelect={onPersonaSelect}
     />
   );

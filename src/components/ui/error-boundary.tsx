@@ -6,7 +6,7 @@ import {
   CopyIcon,
 } from "@phosphor-icons/react";
 import React from "react";
-
+import { get as getLS } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
 
 import { Button } from "./button";
@@ -47,18 +47,12 @@ export class ErrorBoundary extends React.Component<
 
   applyThemeFromLocalStorage = () => {
     try {
-      const storedTheme = localStorage.getItem("theme") as
-        | "light"
-        | "dark"
-        | null;
-      if (storedTheme && (storedTheme === "light" || storedTheme === "dark")) {
-        // Apply stored theme to HTML element
-        const htmlElement = document.documentElement;
-        htmlElement.classList.remove("light", "dark");
-        htmlElement.classList.add(storedTheme);
-      }
+      const storedTheme = getLS<"light" | "dark">("theme/v1", "light");
+
+      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.add(storedTheme);
     } catch (error) {
-      console.error("Error reading theme from localStorage:", error);
+      console.error("Error reading theme from storage:", error);
     }
   };
 

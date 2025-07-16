@@ -189,8 +189,8 @@ export const getUserApiKeys = query({
 
     const apiKeys = await ctx.db
       .query("userApiKeys")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
+      .take(20); // Reasonable limit for user API keys
 
     // Return display info without exposing any encrypted data
     return apiKeys.map(key => ({
@@ -270,7 +270,7 @@ export const hasAnyApiKey = query({
 
     const apiKeys = await ctx.db
       .query("userApiKeys")
-      .withIndex("by_user", q => q.eq("userId", userId))
+      .withIndex("by_user_provider", q => q.eq("userId", userId))
       .collect();
 
     // If user has stored API keys, return true
