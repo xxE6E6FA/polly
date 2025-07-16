@@ -5,17 +5,18 @@ import { useNavigate, useParams } from "react-router";
 import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useChatService } from "@/hooks/use-chat-service";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
+import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
   const { setPrivateMode } = usePrivateMode();
 
   useEffect(() => {

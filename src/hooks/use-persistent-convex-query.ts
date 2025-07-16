@@ -46,7 +46,6 @@ export function usePersistentConvexQuery<T = unknown>(
 ): T | undefined {
   const cacheKey = args === "skip" ? null : createCacheKey(identifier, args);
 
-  // SSR safety: only read snapshot on client and when not skipping
   const initial = cacheKey ? getSnapshot<T>(cacheKey) : undefined;
 
   const [value, setValue] = useState<T | undefined>(initial);
@@ -56,17 +55,13 @@ export function usePersistentConvexQuery<T = unknown>(
   useEffect(() => {
     if (live !== undefined && live !== prevLive.current) {
       setValue(live);
-
-      // Only save to cache if we have a valid cache key (not skipping)
       if (cacheKey) {
         saveSnapshot(cacheKey, live);
       }
-
       prevLive.current = live;
     }
   }, [live, cacheKey]);
 
-  // Return undefined immediately if skipping (after all hooks are called)
   if (args === "skip") {
     return undefined;
   }

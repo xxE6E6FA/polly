@@ -3,8 +3,8 @@ import { type ReactNode, Suspense, useEffect } from "react";
 import { useNavigate } from "react-router";
 
 import { Spinner } from "@/components/spinner";
-import { useUserData } from "@/hooks/use-user-data";
 import { ROUTES } from "@/lib/routes";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 export const ProtectedSuspense = ({
   children,
@@ -15,9 +15,8 @@ export const ProtectedSuspense = ({
 }) => {
   const token = useAuthToken();
   const navigate = useNavigate();
-  const userData = useUserData();
-  const user = userData?.user;
-  const isLoading = !userData;
+  const { user } = useUserDataContext();
+  const isLoading = !user;
 
   const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
 

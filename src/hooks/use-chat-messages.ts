@@ -6,9 +6,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import { ROUTES } from "@/lib/routes";
 import { hasPageArray } from "@/lib/type-guards";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 
 type UseChatMessagesOptions = {
@@ -35,12 +35,9 @@ export function useChatMessages({
   conversationId,
   onError,
 }: UseChatMessagesOptions) {
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const navigate = useNavigate();
-  const dispatch = useCallback((eventName: string) => {
-    window.dispatchEvent(new CustomEvent(eventName));
-  }, []);
+
   const [pendingMessages, setPendingMessages] = useState<
     Map<string, ChatMessage>
   >(() => new Map());
@@ -192,7 +189,6 @@ export function useChatMessages({
           navigate(ROUTES.HOME);
           await new Promise(resolve => setTimeout(resolve, 100));
           await deleteConversation({ id: conversationId });
-          dispatch("conversations-changed");
         } else {
           await deleteMessagesByIds({ ids: [messageId as Id<"messages">] });
         }
@@ -208,7 +204,6 @@ export function useChatMessages({
       messages,
       navigate,
       onError,
-      dispatch,
     ]
   );
 

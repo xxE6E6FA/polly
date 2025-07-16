@@ -11,15 +11,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useUserData } from "@/hooks/use-user-data";
 import {
   useUserSettings,
   useUserSettingsMutations,
 } from "@/hooks/use-user-settings";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 export default function GeneralPage() {
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const userSettings = useUserSettings(user?._id);
   const { updateUserSettings } = useUserSettingsMutations();
 

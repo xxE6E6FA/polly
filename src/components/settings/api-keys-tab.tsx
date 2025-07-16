@@ -13,10 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
 
@@ -72,8 +72,7 @@ const hasStoredKey = (k: unknown): boolean => {
 };
 
 export const ApiKeysTab = () => {
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const userSettingsRaw = useUserSettings(user?._id);
   const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
   const storeKeyMutation = useMutation(api.apiKeys.storeApiKey);

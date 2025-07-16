@@ -10,10 +10,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import { useUserModels } from "@/hooks/use-user-models";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { AnonymousUserUpsell } from "./AnonymousUserUpsell";
 import { ModelList } from "./ModelList";
 import { ModelPickerTrigger } from "./ModelPickerTrigger";
@@ -26,10 +26,7 @@ type ModelPickerProps = {
 const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const token = useAuthToken();
-  const userData = useUserData();
-  const user = userData?.user;
-  const monthlyUsage = userData?.monthlyUsage ?? 0;
-  const hasUnlimitedCalls = userData?.hasUnlimitedCalls ?? false;
+  const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { userModelsByProvider, hasUserModels } = useUserModels();
   const selectedModelRaw = usePersistentConvexQuery(
     "selected-model",

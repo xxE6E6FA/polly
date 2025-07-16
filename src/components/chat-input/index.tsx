@@ -2,6 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -9,16 +10,16 @@ import {
 } from "react";
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningConfigSelect } from "@/components/reasoning-config-select";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useChatWarnings } from "@/hooks/use-chat-warnings";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import {
   getDefaultReasoningConfig,
   useLastMessageReasoningConfig,
 } from "@/lib/message-reasoning-utils";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 import { AttachmentDisplay } from "./attachment-display";
 import { ChatInputField } from "./chat-input-field";
@@ -57,6 +58,10 @@ export type ChatInputRef = {
   getCurrentReasoningConfig: () => ReasoningConfig;
 };
 
+const getNewQuotedValue = (currentValue: string, quote: string) => {
+  return currentValue ? `${currentValue}\n\n${quote}\n\n` : `${quote}\n\n`;
+};
+
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   (
     {
@@ -72,6 +77,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     },
     ref
   ) => {
+    const { user, canSendMessage } = useUserDataContext();
+    const warnings = useChatWarnings();
+    const hasWarnings = warnings.showLimitWarning || warnings.showLimitReached;
+
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { chatInputState, setChatInputState, clearChatInputState } =
       usePrivateMode();
@@ -80,9 +89,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       api.userModels.getUserSelectedModel,
       {}
     );
-
     const shouldUsePreservedState = !(conversationId || hasExistingMessages);
-
     const [input, setInputState] = useState(() =>
       shouldUsePreservedState ? chatInputState.input : ""
     );
@@ -93,173 +100,182 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       useState<Id<"personas"> | null>(() =>
         shouldUsePreservedState ? chatInputState.selectedPersonaId : null
       );
-    // Get reasoning config from last user message in conversation
     const lastMessageReasoningConfig =
       useLastMessageReasoningConfig(conversationId);
-
     const [reasoningConfig, setReasoningConfigState] =
       useState<ReasoningConfig>(() => {
-        // For existing conversations, use last message config
         if (conversationId && lastMessageReasoningConfig) {
           return lastMessageReasoningConfig;
         }
-
-        // For new conversations (private mode), use preserved state
         if (shouldUsePreservedState) {
           return chatInputState.reasoningConfig;
         }
-
-        // Default config
         return getDefaultReasoningConfig();
       });
 
-    const [prevShouldUsePreservedState, setPrevShouldUsePreservedState] =
-      useState(shouldUsePreservedState);
-
-    if (prevShouldUsePreservedState !== shouldUsePreservedState) {
-      setPrevShouldUsePreservedState(shouldUsePreservedState);
-
+    useEffect(() => {
       if (shouldUsePreservedState) {
         setInputState(chatInputState.input);
         setAttachmentsState(chatInputState.attachments);
         setSelectedPersonaIdState(chatInputState.selectedPersonaId);
         setReasoningConfigState(chatInputState.reasoningConfig);
       } else if (conversationId && lastMessageReasoningConfig) {
-        // When switching to an existing conversation, load its last message reasoning config
         setReasoningConfigState(lastMessageReasoningConfig);
       }
-    }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      shouldUsePreservedState,
+      chatInputState.selectedPersonaId,
+      chatInputState.input,
+      conversationId,
+      lastMessageReasoningConfig,
+      chatInputState.reasoningConfig,
+      chatInputState.attachments,
+    ]);
 
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    // Handle conversation ID changes to load reasoning config from last message
     useEffect(() => {
       if (conversationId && !shouldUsePreservedState) {
         if (lastMessageReasoningConfig) {
           setReasoningConfigState(lastMessageReasoningConfig);
         } else {
-          // Reset to default if no reasoning config exists in conversation
           setReasoningConfigState(getDefaultReasoningConfig());
         }
-      }
-    }, [conversationId, shouldUsePreservedState, lastMessageReasoningConfig]);
-
-    // Sync with current reasoning config from chat service (for private chat)
-    useEffect(() => {
-      if (currentReasoningConfig && shouldUsePreservedState) {
+      } else if (currentReasoningConfig && shouldUsePreservedState) {
         setReasoningConfigState(currentReasoningConfig);
       }
-    }, [currentReasoningConfig, shouldUsePreservedState]);
+    }, [
+      conversationId,
+      shouldUsePreservedState,
+      lastMessageReasoningConfig,
+      currentReasoningConfig,
+    ]);
 
-    const userData = useUserData();
-    const canSendMessage = userData?.canSendMessage ?? false;
-    const { isPrivateMode } = usePrivateMode();
-    const warnings = useChatWarnings();
+    const setInput = useCallback(
+      (value: string) => {
+        setInputState(value);
+        if (shouldUsePreservedState) {
+          setChatInputState({ input: value });
+        }
+      },
+      [shouldUsePreservedState, setChatInputState]
+    );
 
-    const hasWarnings = warnings.showLimitWarning || warnings.showLimitReached;
+    const setAttachments = useCallback(
+      (value: Attachment[] | ((prev: Attachment[]) => Attachment[])) => {
+        setAttachmentsState(prev => {
+          const newValue = typeof value === "function" ? value(prev) : value;
+          if (shouldUsePreservedState) {
+            setChatInputState({ attachments: newValue });
+          }
+          return newValue;
+        });
+      },
+      [shouldUsePreservedState, setChatInputState]
+    );
 
-    const setInput = (value: string) => {
-      setInputState(value);
-      if (shouldUsePreservedState) {
-        setChatInputState({ input: value });
-      }
-    };
+    const setSelectedPersonaId = useCallback(
+      (value: Id<"personas"> | null) => {
+        setSelectedPersonaIdState(value);
+        if (shouldUsePreservedState) {
+          setChatInputState({ selectedPersonaId: value });
+        }
+      },
+      [shouldUsePreservedState, setChatInputState]
+    );
 
-    const setAttachments = (
-      value: Attachment[] | ((prev: Attachment[]) => Attachment[])
-    ) => {
-      const newValue = typeof value === "function" ? value(attachments) : value;
-      setAttachmentsState(newValue);
-      if (shouldUsePreservedState) {
-        setChatInputState({ attachments: newValue });
-      }
-    };
+    const setReasoningConfig = useCallback(
+      (value: ReasoningConfig) => {
+        setReasoningConfigState(value);
+        if (shouldUsePreservedState) {
+          setChatInputState({ reasoningConfig: value });
+        }
+      },
+      [shouldUsePreservedState, setChatInputState]
+    );
 
-    const setSelectedPersonaId = (value: Id<"personas"> | null) => {
-      setSelectedPersonaIdState(value);
-      if (shouldUsePreservedState) {
-        setChatInputState({ selectedPersonaId: value });
-      }
-    };
+    const addAttachments = useCallback(
+      (newAttachments: Attachment[]) => {
+        setAttachments(prev => [...prev, ...newAttachments]);
+      },
+      [setAttachments]
+    );
 
-    const setReasoningConfig = (value: ReasoningConfig) => {
-      setReasoningConfigState(value);
+    const removeAttachment = useCallback(
+      (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+      },
+      [setAttachments]
+    );
 
-      // Save to private mode state if needed (for new conversations)
-      if (shouldUsePreservedState) {
-        setChatInputState({ reasoningConfig: value });
-      }
-    };
+    const canSend = canSendMessage;
 
-    const addAttachments = (newAttachments: Attachment[]) => {
-      setAttachments(prev => [...prev, ...newAttachments]);
-    };
-
-    const removeAttachment = (index: number) => {
-      setAttachments(prev => prev.filter((_, i) => i !== index));
-    };
-
-    const submit = () => {
-      if (
-        (input.trim().length === 0 && attachments.length === 0) ||
-        isSubmitting
-      ) {
+    const submit = useCallback(() => {
+      if (input.trim().length === 0 && attachments.length === 0) {
         return;
       }
-
-      setIsSubmitting(true);
-      try {
-        onSendMessage(
-          input.trim(),
-          attachments,
-          selectedPersonaId,
-          reasoningConfig.enabled ? reasoningConfig : undefined
-        );
-
-        setInput("");
-        setAttachments([]);
-        textareaRef.current?.focus();
-
-        if (shouldUsePreservedState) {
-          clearChatInputState();
-        }
-      } catch (error) {
-        console.error("Failed to submit message:", error);
-      } finally {
-        setIsSubmitting(false);
+      onSendMessage(
+        input.trim(),
+        attachments,
+        selectedPersonaId,
+        reasoningConfig.enabled ? reasoningConfig : undefined
+      );
+      setInput("");
+      setAttachments([]);
+      textareaRef.current?.focus();
+      if (shouldUsePreservedState) {
+        clearChatInputState();
       }
-    };
-
-    useImperativeHandle(ref, () => ({
-      focus: () => textareaRef.current?.focus(),
-      addQuote: (quote: string) => {
-        const currentValue = textareaRef.current?.value.trim() || "";
-        const newValue = currentValue
-          ? `${currentValue}\n\n${quote}\n\n`
-          : `${quote}\n\n`;
-        setInput(newValue);
-        setTimeout(() => textareaRef.current?.focus(), 0);
-      },
+    }, [
+      input,
+      attachments,
+      selectedPersonaId,
+      reasoningConfig,
+      onSendMessage,
       setInput,
-      getCurrentReasoningConfig: () => reasoningConfig,
-    }));
+      setAttachments,
+      shouldUsePreservedState,
+      clearChatInputState,
+    ]);
 
-    const handleSendAsNewConversation = (
-      navigate: boolean,
-      personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
-    ) => {
-      if (onSendAsNewConversation) {
-        const currentInput = textareaRef.current?.value || "";
-        onSendAsNewConversation(
-          currentInput,
-          navigate,
-          attachments,
-          personaId,
-          reasoningConfig
-        );
-      }
-    };
+    const handleSendAsNewConversation = useCallback(
+      (
+        navigate: boolean,
+        personaId?: Id<"personas"> | null,
+        reasoningConfig?: ReasoningConfig
+      ) => {
+        if (onSendAsNewConversation) {
+          const currentInput = textareaRef.current?.value || "";
+          onSendAsNewConversation(
+            currentInput,
+            navigate,
+            attachments,
+            personaId,
+            reasoningConfig
+          );
+        }
+      },
+      [onSendAsNewConversation, attachments]
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => textareaRef.current?.focus(),
+        addQuote: (quote: string) => {
+          const currentValue = textareaRef.current?.value.trim() || "";
+          const newValue = getNewQuotedValue(currentValue, quote);
+          setInput(newValue);
+          setTimeout(() => textareaRef.current?.focus(), 0);
+        },
+        setInput,
+        getCurrentReasoningConfig: () => reasoningConfig,
+      }),
+      [setInput, reasoningConfig]
+    );
+
+    if (user === undefined) {
+      return null;
+    }
 
     return (
       <div
@@ -281,10 +297,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           <div
             className={cn(
               "rounded-xl p-2.5 sm:p-3 transition-all duration-700",
-              canSendMessage
-                ? isPrivateMode
-                  ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
-                  : "chat-input-container"
+              canSend
+                ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
                 : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
             )}
           >
@@ -301,7 +315,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onSubmit={submit}
                   textareaRef={textareaRef}
                   placeholder={placeholder}
-                  disabled={isLoading || isStreaming || !canSendMessage}
+                  disabled={isLoading || isStreaming || !canSend}
                 />
               </div>
             </div>
@@ -314,10 +328,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   selectedPersonaId={selectedPersonaId}
                   onPersonaSelect={setSelectedPersonaId}
                 />
-                {canSendMessage && <ModelPicker />}
-                {canSendMessage &&
-                selectedModel &&
-                isUserModel(selectedModel) ? (
+                {canSend && <ModelPicker />}
+                {canSend && selectedModel && isUserModel(selectedModel) ? (
                   <ReasoningConfigSelect
                     model={selectedModel}
                     config={reasoningConfig}
@@ -327,18 +339,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               </div>
 
               <div className="flex items-center gap-2">
-                {canSendMessage && (
+                {canSend && (
                   <FileUploadButton
                     disabled={isLoading || isStreaming}
                     onAddAttachments={addAttachments}
-                    isSubmitting={isSubmitting}
+                    isSubmitting={false}
                   />
                 )}
                 <SendButtonGroup
-                  canSend={canSendMessage && !isSubmitting}
+                  canSend={canSend}
                   isStreaming={Boolean(isStreaming)}
                   isLoading={Boolean(isLoading)}
-                  isSummarizing={isSubmitting}
+                  isSummarizing={false}
                   hasExistingMessages={Boolean(hasExistingMessages)}
                   conversationId={conversationId}
                   hasInputText={
@@ -351,8 +363,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                       ? handleSendAsNewConversation
                       : undefined
                   }
-                  hasApiKeys={canSendMessage}
-                  hasEnabledModels={canSendMessage}
+                  hasApiKeys={canSend}
+                  hasEnabledModels={canSend}
                   personaId={selectedPersonaId}
                   reasoningConfig={reasoningConfig}
                 />

@@ -4,6 +4,7 @@ import {
   DEFAULT_MAX_TOKENS,
   DEFAULT_TEMPERATURE,
   MESSAGE_BATCH_SIZE,
+  MONTHLY_MESSAGE_LIMIT,
   WEB_SEARCH_MAX_RESULTS,
 } from "@shared/constants";
 import { paginationOptsValidator } from "convex/server";
@@ -224,17 +225,6 @@ const validateConversationAndAuth = async (
   if (!conversation) {
     throw new Error("Conversation not found");
   }
-
-  // Get the selected model to check if it's Polly-provided
-  const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
-  const isPollyProvided = selectedModel?.free === true;
-
-  // Enforce message limit for users (only for Polly-provided models)
-  await ctx.runMutation(api.users.enforceMessageLimit, {
-    userId: conversation.userId,
-    modelProvider: args.provider,
-    isPollyProvided,
-  });
 
   // Get API key for the provider
   const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
@@ -479,6 +469,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    const user = await ctx.db.get(args.userId);
     const conversationId = await ctx.db.insert("conversations", {
       title: args.title,
       userId: args.userId,
@@ -491,10 +482,11 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // Use atomic increment instead of read-modify-write
-    await ctx.runMutation(internal.users.incrementConversationCountAtomic, {
-      userId: args.userId,
-    });
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        conversationCount: (user.conversationCount || 0) + 1,
+      });
+    }
 
     return conversationId;
   },
@@ -516,7 +508,24 @@ export const createWithMessages = internalMutation({
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
-    const now = Date.now();
+    const user = await ctx.db.get(args.userId);
+    // Check if this is a Polly free model and enforce limits
+    const userModel = await ctx.db
+      .query("userModels")
+      .withIndex("by_user_model_id", q =>
+        q.eq("userId", args.userId).eq("modelId", args?.model ?? "")
+      )
+      .unique();
+
+    const isPollyFree = !!userModel?.free;
+
+    if (isPollyFree && user && !user.hasUnlimitedCalls) {
+      const monthlyLimit = user.monthlyLimit ?? 500;
+      const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+      if (monthlyMessagesSent >= monthlyLimit) {
+        throw new ConvexError("Monthly Polly model message limit reached.");
+      }
+    }
 
     // Create conversation
     const conversationId = await ctx.db.insert("conversations", {
@@ -527,14 +536,16 @@ export const createWithMessages = internalMutation({
       isStreaming: true,
       isArchived: false,
       isPinned: false,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
 
     // Use atomic increment for conversation count
-    await ctx.runMutation(internal.users.incrementConversationCountAtomic, {
-      userId: args.userId,
-    });
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        conversationCount: (user.conversationCount || 0) + 1,
+      });
+    }
 
     // Count user messages we'll create for total message count tracking
     let userMessageCount = 0;
@@ -546,7 +557,7 @@ export const createWithMessages = internalMutation({
         role: "system",
         content: args.personaPrompt,
         isMainBranch: true,
-        createdAt: now,
+        createdAt: Date.now(),
       });
     }
 
@@ -559,20 +570,17 @@ export const createWithMessages = internalMutation({
       useWebSearch: args.useWebSearch,
       reasoningConfig: args.reasoningConfig,
       isMainBranch: true,
-      createdAt: now,
+      createdAt: Date.now(),
     });
     userMessageCount++;
 
-    // Get whether this is a Polly-provided model based on the provider
-    const isPollyProvided =
-      args.provider === "google" &&
-      args.model?.includes("gemini-2.5-flash-lite");
-
-    // Use atomic increment for message count (only for Polly-provided models)
-    await ctx.runMutation(api.users.incrementMessageCountAtomic, {
-      userId: args.userId,
-      isPollyProvided,
-    });
+    // Use atomic increment for message count (only for Polly-free models)
+    if (user && isPollyFree) {
+      await ctx.db.patch(args.userId, {
+        messagesSent: (user.messagesSent || 0) + 1,
+        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
+      });
+    }
 
     // Create empty assistant message for streaming (don't count assistant messages)
     const assistantMessageId = await ctx.db.insert("messages", {
@@ -582,14 +590,15 @@ export const createWithMessages = internalMutation({
       model: args.model,
       provider: args.provider,
       isMainBranch: true,
-      createdAt: now,
+      createdAt: Date.now(),
     });
 
     // Use atomic increment for total message count (only count user messages)
-    await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
-      userId: args.userId,
-      increment: userMessageCount,
-    });
+    if (user) {
+      await ctx.db.patch(args.userId, {
+        totalMessageCount: (user.totalMessageCount || 0) + userMessageCount,
+      });
+    }
 
     return {
       conversationId,
@@ -812,20 +821,20 @@ export const remove = mutation({
     // Delete the conversation
     const result = await ctx.db.delete(args.id);
 
-    // Use atomic decrement operations to avoid race conditions
-    // Only count user messages for totalMessageCount
     const userMessageCount = messages.filter(m => m.role === "user").length;
+    const user = await ctx.db.get(conversation.userId);
 
     // Use atomic decrement for conversation count
-    await ctx.runMutation(internal.users.decrementConversationCountAtomic, {
-      userId: conversation.userId,
-    });
+    if (user) {
+      await ctx.db.patch(user._id, {
+        conversationCount: (user.conversationCount || 0) - 1,
+      });
+    }
 
     // Use atomic decrement for total message count if there are user messages
-    if (userMessageCount > 0) {
-      await ctx.runMutation(internal.users.decrementTotalMessageCountAtomic, {
-        userId: conversation.userId,
-        decrement: userMessageCount,
+    if (user && userMessageCount > 0) {
+      await ctx.db.patch(user._id, {
+        totalMessageCount: (user.totalMessageCount || 0) - userMessageCount,
       });
     }
 
@@ -1100,15 +1109,6 @@ export const createNewConversation = action({
       throw new Error("No model selected. Please select a model in Settings.");
     }
 
-    // Check if it's a Polly-provided model
-    const isPollyProvided = selectedModel.free === true;
-
-    // Enforce message limit for users (only for Polly-provided models)
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: actualUserId,
-      isPollyProvided,
-    });
-
     // Fetch persona prompt if personaId is provided but personaPrompt is not
     let finalPersonaPrompt = args.personaPrompt;
     if (args.personaId && !finalPersonaPrompt) {
@@ -1293,12 +1293,6 @@ export const sendFollowUpMessage = action({
       provider: args.provider,
     });
 
-    // Get the selected model to check if it's Polly-provided
-    const selectedModel = await ctx.runQuery(
-      api.userModels.getUserSelectedModel
-    );
-    const isPollyProvided = selectedModel?.free === true;
-
     // Process attachments if provided
     const processedAttachments =
       args.attachments && args.attachments.length > 0
@@ -1316,12 +1310,6 @@ export const sendFollowUpMessage = action({
         reasoningConfig: args.reasoningConfig,
       }
     );
-
-    // Enforce message limit for users (only for Polly-provided models)
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: conversation.userId,
-      isPollyProvided,
-    });
 
     // Build context messages
     const { contextMessages } = await buildContextMessages(ctx, {
@@ -1652,18 +1640,6 @@ export const savePrivateConversation = action({
     personaId: v.optional(v.id("personas")),
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
-    // Get user's selected model to check if it's Polly-provided
-    const selectedModel = await ctx.runQuery(
-      api.userModels.getUserSelectedModel
-    );
-    const isPollyProvided = selectedModel?.free === true;
-
-    // Enforce message limit for users (only for Polly-provided models)
-    await ctx.runMutation(api.users.enforceMessageLimit, {
-      userId: args.userId,
-      isPollyProvided,
-    });
-
     // Generate a title from the first user message or use provided title
     const firstUserMessage = args.messages.find(msg => msg.role === "user");
     const conversationTitle =
@@ -2671,19 +2647,18 @@ export const bulkRemove = mutation({
         const userMessageCount = messages.filter(m => m.role === "user").length;
 
         // Use atomic decrement for conversation count
-        await ctx.runMutation(internal.users.decrementConversationCountAtomic, {
-          userId: conversation.userId,
-        });
+        const user = await ctx.db.get(conversation.userId);
+        if (user) {
+          await ctx.db.patch(user._id, {
+            conversationCount: (user.conversationCount || 0) - 1,
+          });
+        }
 
         // Use atomic decrement for total message count if there are user messages
-        if (userMessageCount > 0) {
-          await ctx.runMutation(
-            internal.users.decrementTotalMessageCountAtomic,
-            {
-              userId: conversation.userId,
-              decrement: userMessageCount,
-            }
-          );
+        if (user && userMessageCount > 0) {
+          await ctx.db.patch(user._id, {
+            totalMessageCount: (user.totalMessageCount || 0) - userMessageCount,
+          });
         }
         results.push({ id, status: "deleted" });
       }
@@ -2722,14 +2697,27 @@ export const createUserMessageBatched = internalMutation({
     });
 
     // Increment user's message count for limit tracking (only for Polly-provided models)
-    if (args.isPollyProvided) {
-      const user = await ctx.db.get(args.userId);
-      if (user) {
-        await ctx.db.patch(args.userId, {
+    const conversation = await ctx.db.get(args.conversationId);
+    const user = await ctx.db.get(conversation?.userId as Id<"users">);
+    if (conversation && user) {
+      if (args.isPollyProvided && !user.hasUnlimitedCalls) {
+        const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+        const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+
+        if (monthlyMessagesSent >= monthlyLimit) {
+          throw new ConvexError("Monthly Polly model message limit reached.");
+        }
+
+        await ctx.db.patch(conversation.userId, {
           messagesSent: (user.messagesSent || 0) + 1,
+          monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
           totalMessageCount: (user.totalMessageCount || 0) + 1,
         });
       }
+
+      await ctx.db.patch(conversation.userId, {
+        totalMessageCount: (user.totalMessageCount || 0) + 1,
+      });
     }
 
     return userMessageId;

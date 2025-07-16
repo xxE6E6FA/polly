@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
@@ -51,9 +50,12 @@ export const create = mutation({
     if (args.role === "user") {
       const conversation = await ctx.db.get(args.conversationId);
       if (conversation) {
-        await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
-          userId: conversation.userId,
-        });
+        const user = await ctx.db.get(conversation.userId);
+        if (user) {
+          await ctx.db.patch(conversation.userId, {
+            totalMessageCount: (user.totalMessageCount || 0) + 1,
+          });
+        }
       }
     }
 
@@ -66,7 +68,6 @@ export const createUserMessageBatched = mutation({
     conversationId: v.id("conversations"),
     content: v.string(),
     model: v.optional(v.string()),
-    provider: v.optional(v.string()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     parentId: v.optional(v.id("messages")),
     isMainBranch: v.optional(v.boolean()),
@@ -85,7 +86,45 @@ export const createUserMessageBatched = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    // Note: this is for user messages only
+    let user: {
+      hasUnlimitedCalls?: boolean;
+      monthlyLimit?: number;
+      monthlyMessagesSent?: number;
+      messagesSent?: number;
+      totalMessageCount?: number;
+    } | null = null;
+    let conversation: { userId: Id<"users"> } | undefined = undefined;
+    if (args.conversationId) {
+      const conv = await ctx.db.get(args.conversationId);
+      if (conv) {
+        conversation = { userId: conv.userId };
+        user = await ctx.db.get(conv.userId);
+      }
+    }
+
+    let isFreeModel = false;
+    if (args.model && conversation?.userId) {
+      const userModel = await ctx.db
+        .query("userModels")
+        .withIndex("by_user_model_id", q =>
+          q.eq("userId", conversation.userId).eq("modelId", args.model ?? "")
+        )
+        .unique();
+      isFreeModel = !!userModel?.free;
+    }
+    if (conversation && user && isFreeModel && !user.hasUnlimitedCalls) {
+      const monthlyLimit = user.monthlyLimit ?? 500;
+      const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+      if (monthlyMessagesSent >= monthlyLimit) {
+        throw new Error("Monthly Polly model message limit reached.");
+      }
+
+      await ctx.db.patch(conversation.userId, {
+        messagesSent: (user.messagesSent || 0) + 1,
+        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
+      });
+    }
+
     const messageId = await ctx.db.insert("messages", {
       ...args,
       role: "user",
@@ -93,10 +132,9 @@ export const createUserMessageBatched = mutation({
       createdAt: Date.now(),
     });
 
-    const conversation = await ctx.db.get(args.conversationId);
-    if (conversation) {
-      await ctx.runMutation(internal.users.incrementTotalMessageCountAtomic, {
-        userId: conversation.userId,
+    if (conversation && user) {
+      await ctx.db.patch(conversation.userId, {
+        totalMessageCount: (user.totalMessageCount || 0) + 1,
       });
     }
 
@@ -295,15 +333,14 @@ export const remove = mutation({
       if (message.role === "user") {
         const conversation = await ctx.db.get(message.conversationId);
         if (conversation) {
-          operations.push(
-            ctx
-              .runMutation(internal.users.decrementTotalMessageCountAtomic, {
-                userId: conversation.userId,
+          const user = await ctx.db.get(conversation.userId);
+          if (user) {
+            operations.push(
+              ctx.db.patch(conversation.userId, {
+                totalMessageCount: (user.totalMessageCount || 0) - 1,
               })
-              .then(() => {
-                // Fire-and-forget background job
-              })
-          );
+            );
+          }
         }
       }
     }
@@ -346,9 +383,12 @@ export const removeMultiple = mutation({
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
-              const currentCount =
-                userMessageCounts.get(conversation.userId) || 0;
-              userMessageCounts.set(conversation.userId, currentCount + 1);
+              const user = await ctx.db.get(conversation.userId);
+              if (user) {
+                const currentCount =
+                  userMessageCounts.get(conversation.userId) || 0;
+                userMessageCounts.set(conversation.userId, currentCount + 1);
+              }
             }
           }
         }
@@ -389,14 +429,10 @@ export const removeMultiple = mutation({
 
     for (const [userId, messageCount] of userMessageCounts) {
       operations.push(
-        ctx
-          .runMutation(internal.users.decrementTotalMessageCountAtomic, {
-            userId,
-            decrement: messageCount,
-          })
-          .then(() => {
-            // Fire-and-forget background job
-          })
+        ctx.db.patch(userId, {
+          totalMessageCount:
+            (userMessageCounts.get(userId) || 0) - messageCount,
+        })
       );
     }
 

@@ -51,11 +51,6 @@ export const QuoteButton = ({
     onUnlockSelection?.();
   };
 
-  // Only render on client side
-  if (typeof window === "undefined") {
-    return null;
-  }
-
   return (
     <>
       {createPortal(

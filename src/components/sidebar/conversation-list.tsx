@@ -1,12 +1,7 @@
 import { api } from "convex/_generated/api";
-import { useEffect, useState } from "react";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import {
-  getStoredAnonymousUserId,
-  onStoredUserIdChange,
-} from "@/lib/auth-utils";
-import type { ConversationId } from "@/types";
+import { useUserDataContext } from "@/providers/user-data-context";
+import type { Conversation, ConversationId } from "@/types";
 import { ConversationListContent } from "./conversation-list-content";
 
 type ConversationListProps = {
@@ -18,39 +13,24 @@ export const ConversationList = ({
   searchQuery,
   currentConversationId,
 }: ConversationListProps) => {
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
 
-  const [_hasStoredUserId, setHasStoredUserId] = useState(() => {
-    return Boolean(getStoredAnonymousUserId());
-  });
+  // biome-ignore lint/suspicious/noConsole: debug sidebar conversation list
+  console.log("[sidebar-conversation-list] user:", user);
+  // biome-ignore lint/suspicious/noConsole: debug sidebar conversation list
+  console.log("[sidebar-conversation-list] queryUserId:", queryUserId);
 
-  useEffect(() => {
-    return onStoredUserIdChange(setHasStoredUserId);
-  }, []);
-
-  const conversations = usePersistentConvexQuery(
-    "conversation-list",
-    api.conversations.list,
-    queryUserId ? { userId: queryUserId } : "skip"
-  );
-
-  // This second query ensures that when a conversation is updated (e.g., title change),
-  // this component re-renders to reflect the change in the list.
-  usePersistentConvexQuery(
-    "current-conversation",
-    api.conversations.get,
-    currentConversationId && queryUserId
-      ? { id: currentConversationId }
-      : "skip"
-  );
-
-  const conversationsToDisplay = Array.isArray(conversations)
-    ? conversations
-    : [];
+  const conversations: Array<Conversation> | undefined =
+    usePersistentConvexQuery(
+      "conversation-list",
+      api.conversations.list,
+      queryUserId ? { userId: queryUserId } : "skip"
+    );
 
   return (
     <ConversationListContent
-      conversations={conversationsToDisplay}
+      conversations={conversations}
       currentConversationId={currentConversationId}
       isLoading={false}
       searchQuery={searchQuery}

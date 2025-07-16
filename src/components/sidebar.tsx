@@ -13,10 +13,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useUserData } from "@/hooks/use-user-data";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
 
 export const Sidebar = () => {
@@ -30,8 +30,7 @@ export const Sidebar = () => {
   } = useUI();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
@@ -127,7 +126,6 @@ export const Sidebar = () => {
       </div>
 
       <div
-        suppressHydrationWarning
         className={cn(
           "bg-background dark:bg-card dark:border-r dark:border-border flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40 shadow-xl",
           isSidebarVisible ? "w-80 opacity-100" : "w-0 opacity-0"

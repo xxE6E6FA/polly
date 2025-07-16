@@ -1,30 +1,16 @@
+import type { Doc } from "@convex/types";
 import { SignInIcon, UserIcon } from "@phosphor-icons/react";
 import { Link } from "react-router";
-
 import { Button } from "@/components/ui/button";
-import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
 import { isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { preloadSettings } from "@/routes";
 
 type UserSectionContentProps = {
-  user:
-    | {
-        _id: string;
-        _creationTime: number;
-        name?: string;
-        email?: string;
-        emailVerified?: number;
-        emailVerificationTime?: number;
-        image?: string;
-        isAnonymous?: boolean;
-        messagesSent?: number;
-        createdAt?: number;
-      }
-    | null
-    | undefined;
+  user: Doc<"users"> | null | undefined;
   isAuthenticated: boolean;
   shouldAnonymize: boolean;
 };
@@ -100,21 +86,27 @@ const UserSectionContent = ({
 };
 
 export const UserSection = () => {
-  const userData = useUserData();
-  const user = userData?.user;
-  const isLoading = !userData;
+  const { user } = useUserDataContext();
   const userSettingsRaw = useUserSettings();
 
-  // Apply type guard
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
 
   const isAuthenticated = user && !user.isAnonymous;
+
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
-  // Only show skeleton if we have no user data at all (no cache and loading)
-  // With caching, user will typically have data even while isLoading is true
-  if (isLoading && !user) {
+  if (user === undefined) {
     return <UserSectionSkeleton />;
+  }
+
+  if (user === null) {
+    return (
+      <UserSectionContent
+        isAuthenticated={false}
+        user={null}
+        shouldAnonymize={false}
+      />
+    );
   }
 
   return (

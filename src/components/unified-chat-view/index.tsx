@@ -7,8 +7,8 @@ import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
   Attachment,
   ChatMessage,

@@ -29,20 +29,18 @@ import {
 } from "@/components/ui/tooltip";
 // removed optimistic toggle hooks
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUserData } from "@/hooks/use-user-data";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
 import { isPersonaArray, isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { SettingsHeader } from "./settings-header";
 import { SettingsPageLayout } from "./ui";
 import { SectionHeader } from "./ui/SectionHeader";
 
 export const PersonasTab = () => {
-  const userData = useUserData();
-  const user = userData?.user;
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
   const personasRaw = usePersistentConvexQuery(
     "user-personas",
     api.personas.list,

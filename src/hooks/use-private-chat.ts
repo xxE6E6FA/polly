@@ -4,9 +4,9 @@ import { getDefaultSystemPrompt } from "convex/constants";
 import { useAction, useConvex } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { useUserData } from "@/hooks/use-user-data";
 import { type AIProviderType, streamChat } from "@/lib/ai/client-ai-service";
 import { isUserModel } from "@/lib/type-guards";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   APIKeys,
   Attachment,
@@ -93,8 +93,7 @@ export function usePrivateChat({
     {}
   );
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-  const userData = useUserData();
-  const canSendMessage = userData?.canSendMessage ?? false;
+  const { canSendMessage } = useUserDataContext();
   const convex = useConvex();
 
   const abortControllerRef = useRef<AbortController | null>(null);

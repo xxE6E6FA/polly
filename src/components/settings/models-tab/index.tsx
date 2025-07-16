@@ -18,12 +18,12 @@ import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import {
   generateCapabilityCounts,
   matchesCapabilityFilters,
 } from "@/lib/model-capabilities";
 import { isApiKeysArray, isUserModelsArray } from "@/lib/type-guards";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { FetchedModel } from "@/types";
 import { Alert, AlertDescription, AlertIcon } from "../../ui/alert";
 import { VirtualizedModelList } from "../../virtualized-model-list";
@@ -102,8 +102,8 @@ export const ModelsTab = () => {
     300
   );
 
-  const userData = useUserData();
-  const authenticatedUserId = userData?.user?._id;
+  const { user } = useUserDataContext();
+  const authenticatedUserId = user?._id;
   const apiKeysRaw = usePersistentConvexQuery(
     "models-tab-api-keys",
     api.apiKeys.getUserApiKeys,

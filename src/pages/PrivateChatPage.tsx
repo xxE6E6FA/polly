@@ -5,12 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { UnifiedChatView } from "@/components/unified-chat-view";
-import { usePrivateMode } from "@/contexts/private-mode-context";
 import { useChatService } from "@/hooks/use-chat-service";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useUserData } from "@/hooks/use-user-data";
 import { ROUTES } from "@/lib/routes";
 import { isUserModel } from "@/lib/type-guards";
+import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function PrivateChatPage() {
@@ -22,8 +22,7 @@ export default function PrivateChatPage() {
     {}
   );
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-  const userData = useUserData();
-  const user = userData?.user;
+  const { user } = useUserDataContext();
   const savePrivateConversation = useAction(
     api.conversations.savePrivateConversation
   );

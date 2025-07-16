@@ -1,9 +1,13 @@
 import { api } from "@convex/_generated/api";
-import { ArchiveIcon, ArrowsClockwise, EyeIcon } from "@phosphor-icons/react";
+import {
+  ArchiveIcon,
+  ArrowsClockwiseIcon,
+  EyeIcon,
+} from "@phosphor-icons/react";
 import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import {
@@ -16,8 +20,8 @@ import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
 import { ROUTES } from "@/lib/routes";
+import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
 
 type ArchivedConversation = {
@@ -28,21 +32,14 @@ type ArchivedConversation = {
 };
 
 export const ArchivedConversationsPage = () => {
-  const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const unarchiveMutation = useMutation(api.conversations.unarchive);
   const deleteConversationMutation = useMutation(api.conversations.remove);
-
-  const handleView = useCallback(
-    (conversationId: ConversationId) => {
-      navigate(ROUTES.CHAT_CONVERSATION(conversationId));
-    },
-    [navigate]
-  );
 
   const handleRestore = useCallback(
     async (conversationId: ConversationId) => {
@@ -110,13 +107,11 @@ export const ArchivedConversationsPage = () => {
             </p>
           </div>
           <div className="ml-4 flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleView(conversation._id)}
-            >
-              <EyeIcon className="mr-2 h-3.5 w-3.5" />
-              View
+            <Button asChild size="sm" variant="outline">
+              <Link to={ROUTES.CHAT_CONVERSATION(conversation._id)}>
+                <EyeIcon className="mr-2 h-3.5 w-3.5" />
+                View
+              </Link>
             </Button>
             <Button
               size="sm"
@@ -131,7 +126,7 @@ export const ArchivedConversationsPage = () => {
                 </>
               ) : (
                 <>
-                  <ArrowsClockwise className="mr-2 h-3.5 w-3.5" />
+                  <ArrowsClockwiseIcon className="mr-2 h-3.5 w-3.5" />
                   Restore
                 </>
               )}
@@ -151,13 +146,7 @@ export const ArchivedConversationsPage = () => {
         </Card>
       );
     },
-    [
-      handleView,
-      handleRestore,
-      handlePermanentDelete,
-      isUnarchiving,
-      isDeleting,
-    ]
+    [handleRestore, handlePermanentDelete, isUnarchiving, isDeleting]
   );
 
   return (

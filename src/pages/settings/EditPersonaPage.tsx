@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { PersonaForm } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui";
 import { Button } from "@/components/ui/button";
@@ -23,8 +23,8 @@ type EmojiClickData = {
 };
 
 export default function EditPersonaPage() {
-  const { personaId } = useParams();
   const navigate = useNavigate();
+  const { personaId } = useParams();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -114,8 +114,8 @@ export default function EditPersonaPage() {
       <SettingsPageLayout>
         <div className="space-y-6">
           <h1 className="text-2xl font-semibold">Persona not found</h1>
-          <Button onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}>
-            Back to Personas
+          <Button asChild>
+            <Link to={ROUTES.SETTINGS.PERSONAS}>Back to Personas</Link>
           </Button>
         </div>
       </SettingsPageLayout>
@@ -155,13 +155,8 @@ export default function EditPersonaPage() {
           {isDeleting ? "Deleting..." : "Delete Persona"}
         </Button>
         <div className="flex gap-3">
-          <Button
-            disabled={isLoading}
-            size="default"
-            variant="outline"
-            onClick={() => navigate(ROUTES.SETTINGS.PERSONAS)}
-          >
-            Cancel
+          <Button asChild disabled={isLoading} size="default" variant="outline">
+            <Link to={ROUTES.SETTINGS.PERSONAS}>Cancel</Link>
           </Button>
           <Button
             disabled={!isFormValid || isLoading}

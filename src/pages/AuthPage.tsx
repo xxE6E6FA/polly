@@ -3,7 +3,8 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
-import { getStoredAnonymousUserId } from "@/lib/auth-utils";
+import { getAnonymousUserIdFromCookie } from "@/lib/cookies";
+import { ROUTES } from "@/lib/routes";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
@@ -14,13 +15,18 @@ export default function AuthPage() {
       setIsLoading(true);
 
       // Get stored anonymous user ID if it exists
-      const anonymousUserId = getStoredAnonymousUserId();
+      const anonymousUserId = getAnonymousUserIdFromCookie();
 
       // Pass the anonymous user ID in the state for graduation
       if (anonymousUserId) {
-        await signIn("google", { state: { anonymousUserId } });
+        await signIn("google", {
+          state: { anonymousUserId },
+          redirectTo: ROUTES.HOME,
+        });
       } else {
-        await signIn("google");
+        await signIn("google", {
+          redirectTo: ROUTES.HOME,
+        });
       }
     } catch (error) {
       console.error("[AuthPage] Sign in error:", error);

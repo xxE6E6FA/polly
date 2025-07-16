@@ -122,33 +122,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         return existingUserId;
       }
 
-      // Check if there are any recent anonymous users that could be candidates for graduation
-      // This is a fallback for cases where the anonymous user ID is lost
-      const recentAnonymousUsers = await ctx.db
-        .query("users")
-        .filter(q => q.eq(q.field("isAnonymous"), true))
-        .order("desc")
-        .take(10); // Check last 10 anonymous users
-
-      // If there's only one recent anonymous user, it's likely the one to graduate
-      if (recentAnonymousUsers.length === 1) {
-        const anonymousUser = recentAnonymousUsers[0];
-
-        await ctx.db.patch(anonymousUser._id, {
-          name: profileName || anonymousUser.name,
-          email: profileEmail || anonymousUser.email,
-          emailVerified: profileEmailVerified || anonymousUser.emailVerified,
-          image: profileImage || anonymousUser.image,
-          isAnonymous: false,
-          monthlyMessagesSent: anonymousUser.messagesSent || 0,
-          monthlyLimit: MONTHLY_MESSAGE_LIMIT,
-          lastMonthlyReset: Date.now(),
-          conversationCount: anonymousUser.conversationCount || 0,
-          totalMessageCount: anonymousUser.totalMessageCount || 0,
-        });
-        return anonymousUser._id;
-      }
-
       // Create new user
       const now = Date.now();
 
@@ -187,15 +160,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     async afterUserCreatedOrUpdated(ctx: MutationCtx, args) {
       const { userId, existingUserId, type } = args;
 
-      // User sign-in event
-
-      // You can add additional logic here like:
-      // - Creating default settings for new users
-      // - Sending welcome emails
-      // - Updating user activity timestamps
-      // - Creating audit logs
-
-      // Example: Create default settings for new users
       if (!existingUserId && type !== "verification") {
         const existingSettings = await ctx.db
           .query("userSettings")
@@ -217,6 +181,3 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     },
   },
 });
-
-// Export typed auth functions for use in other files
-export type { SignInAction, SignOutAction } from "@convex-dev/auth/server";

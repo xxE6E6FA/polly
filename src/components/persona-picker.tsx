@@ -24,10 +24,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { useQueryUserId } from "@/hooks/use-query-user-id";
-import { useUserData } from "@/hooks/use-user-data";
 import { isPersonaArray } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 type PersonaPickerProps = {
   compact?: boolean;
@@ -44,9 +43,8 @@ export const PersonaPicker = ({
   onPersonaSelect,
   tooltip,
 }: PersonaPickerProps) => {
-  const userData = useUserData();
-  const user = userData?.user;
-  const queryUserId = useQueryUserId();
+  const { user } = useUserDataContext();
+  const queryUserId = user?._id || null;
 
   const personasRaw = usePersistentConvexQuery(
     "persona-picker-personas",
