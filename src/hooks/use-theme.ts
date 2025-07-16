@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { get as getLS, set as setLS, subscribe } from "../lib/local-storage";
 
 function withDisabledAnimations(fn: () => void) {
-  const style = document.createElement("style");
-  style.textContent = `
-    *, *::before, *::after {
-      transition: none !important;
-      animation: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-  fn();
-  document.head.removeChild(style);
+  const root = document.documentElement;
+  root.classList.add("disable-animations");
+  flushSync(fn);
+  requestAnimationFrame(() => {
+    root.classList.remove("disable-animations");
+  });
 }
 
 type Theme = "light" | "dark";
