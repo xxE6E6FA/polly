@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
-
 import { Navigate, type RouteObject } from "react-router";
-
+import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
 import ChatLayout from "./components/layouts/ChatLayout";
 import RootLayout from "./components/layouts/RootLayout";
 import { Spinner } from "./components/spinner";
@@ -9,16 +8,10 @@ import ChatConversationPage from "./pages/ChatConversationPage";
 import HomePage from "./pages/HomePage";
 import PrivateChatPage from "./pages/PrivateChatPage";
 
-// Lazy load everything except HomePage, ChatConversationPage, and ChatLayout
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const NotFoundPage = lazy(() =>
   import("./components/ui/not-found-page").then(m => ({
     default: m.NotFoundPage,
-  }))
-);
-const ProtectedSuspense = lazy(() =>
-  import("./components/auth/ProtectedRoute").then(m => ({
-    default: m.ProtectedSuspense,
   }))
 );
 const RouteErrorBoundary = lazy(() =>
@@ -26,8 +19,6 @@ const RouteErrorBoundary = lazy(() =>
     default: m.RouteErrorBoundary,
   }))
 );
-
-// Lazy load all settings pages
 const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
   () => import("./components/layouts/SettingsMainLayout")
@@ -68,7 +59,6 @@ const SettingsEditPersonaPage = lazy(
 );
 const SignOutPage = lazy(() => import("./pages/SignOutPage"));
 
-// Unified page loader component
 const PageLoader = ({
   size = "full",
 }: {
@@ -79,7 +69,6 @@ const PageLoader = ({
     partial: "min-h-[400px]",
     compact: "min-h-[200px]",
   };
-
   return (
     <div className={`flex items-center justify-center ${sizeClasses[size]}`}>
       <Spinner />
@@ -87,13 +76,10 @@ const PageLoader = ({
   );
 };
 
-// Preload settings module when hovering over settings links
 export const preloadSettings = () => {
   import("./components/layouts/SettingsMainLayout");
-  import("./pages/settings/GeneralPage"); // Preload default settings page too
+  import("./pages/settings/GeneralPage");
 };
-
-// Preload auth pages when needed
 export const preloadAuth = () => {
   import("./pages/AuthPage");
 };
@@ -108,10 +94,7 @@ export const routes: RouteObject[] = [
       </Suspense>
     ),
     children: [
-      {
-        index: true,
-        element: <HomePage />,
-      },
+      { index: true, element: <HomePage /> },
       {
         path: "signout",
         element: (
@@ -131,19 +114,13 @@ export const routes: RouteObject[] = [
       {
         path: "private",
         element: <ChatLayout />,
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
         children: [
           {
             index: true,
-            element: <PrivateChatPage />,
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
+            element: (
+              <ProtectedSuspense fallback={<PageLoader size="full" />}>
+                <PrivateChatPage />
+              </ProtectedSuspense>
             ),
           },
         ],
@@ -184,11 +161,9 @@ export const routes: RouteObject[] = [
       {
         path: "settings",
         element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <ProtectedSuspense fallback={<PageLoader size="full" />}>
-              <SettingsLayout />
-            </ProtectedSuspense>
-          </Suspense>
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            <SettingsLayout />
+          </ProtectedSuspense>
         ),
         errorElement: (
           <Suspense fallback={<PageLoader size="full" />}>
@@ -305,11 +280,9 @@ export const routes: RouteObject[] = [
       {
         path: "settings/personas/new",
         element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <ProtectedSuspense fallback={<PageLoader size="full" />}>
-              <SettingsStandaloneLayout />
-            </ProtectedSuspense>
-          </Suspense>
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            <SettingsStandaloneLayout />
+          </ProtectedSuspense>
         ),
         errorElement: (
           <Suspense fallback={<PageLoader size="full" />}>
@@ -335,11 +308,9 @@ export const routes: RouteObject[] = [
       {
         path: "settings/personas/:id/edit",
         element: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <ProtectedSuspense fallback={<PageLoader size="full" />}>
-              <SettingsStandaloneLayout />
-            </ProtectedSuspense>
-          </Suspense>
+          <ProtectedSuspense fallback={<PageLoader size="full" />}>
+            <SettingsStandaloneLayout />
+          </ProtectedSuspense>
         ),
         errorElement: (
           <Suspense fallback={<PageLoader size="full" />}>

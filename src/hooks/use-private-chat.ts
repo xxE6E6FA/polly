@@ -93,7 +93,7 @@ export function usePrivateChat({
     {}
   );
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-  const { canSendMessage } = useUserDataContext();
+  const { canSendMessage, isAnonymous } = useUserDataContext();
   const convex = useConvex();
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -220,6 +220,13 @@ export function usePrivateChat({
 
   const sendMessage = useCallback(
     async (params: SendMessageParams): Promise<void> => {
+      if (isAnonymous) {
+        toast.error("Sign in required", {
+          description: "Sign in to use private chat.",
+        });
+        onError?.(new Error("Anonymous users cannot use private chat."));
+        return;
+      }
       const { content, attachments, personaId, reasoningConfig } = params;
 
       if (!(content.trim() || attachments?.length)) {
@@ -443,6 +450,7 @@ export function usePrivateChat({
       notifyStreamingStateChanged,
       currentPersonaId,
       currentReasoningConfig,
+      isAnonymous,
     ]
   );
 
@@ -489,6 +497,13 @@ export function usePrivateChat({
 
   const retryUserMessage = useCallback(
     async (messageId: string): Promise<void> => {
+      if (isAnonymous) {
+        toast.error("Sign in required", {
+          description: "Sign in to use private chat.",
+        });
+        onError?.(new Error("Anonymous users cannot use private chat."));
+        return;
+      }
       // Find the message index
       const messageIndex = messages.findIndex(msg => msg.id === messageId);
       if (messageIndex === -1) {
@@ -517,11 +532,18 @@ export function usePrivateChat({
         reasoningConfig: undefined,
       });
     },
-    [messages, updateMessages, sendMessage]
+    [messages, updateMessages, sendMessage, isAnonymous, onError]
   );
 
   const retryAssistantMessage = useCallback(
     async (messageId: string): Promise<void> => {
+      if (isAnonymous) {
+        toast.error("Sign in required", {
+          description: "Sign in to use private chat.",
+        });
+        onError?.(new Error("Anonymous users cannot use private chat."));
+        return;
+      }
       // Find the message index
       const messageIndex = messages.findIndex(msg => msg.id === messageId);
       if (messageIndex === -1) {
@@ -721,6 +743,7 @@ export function usePrivateChat({
       onError,
       notifyStreamingStateChanged,
       setIsThinking,
+      isAnonymous,
     ]
   );
 
