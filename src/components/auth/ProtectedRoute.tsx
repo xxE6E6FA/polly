@@ -1,7 +1,5 @@
-import { useAuthToken } from "@convex-dev/auth/react";
 import { type ReactNode, Suspense, useEffect } from "react";
 import { useNavigate } from "react-router";
-
 import { Spinner } from "@/components/spinner";
 import { ROUTES } from "@/lib/routes";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -13,21 +11,15 @@ export const ProtectedSuspense = ({
   children: ReactNode;
   fallback?: ReactNode;
 }) => {
-  const token = useAuthToken();
   const navigate = useNavigate();
-  const { user } = useUserDataContext();
-  const isLoading = !user;
+  const { isLoading, isAuthenticated } = useUserDataContext();
 
-  const isAuthenticated = Boolean(token) && Boolean(user) && !user?.isAnonymous;
-
-  // Handle redirection
   useEffect(() => {
     if (!(isLoading || isAuthenticated)) {
       navigate(ROUTES.AUTH, { replace: true });
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  // Show single loading state for both auth check and lazy loading
   if (isLoading || !isAuthenticated) {
     return fallback || <ProtectedRouteSkeleton isLoading />;
   }

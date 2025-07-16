@@ -1647,6 +1647,11 @@ export const savePrivateConversation = action({
     personaId: v.optional(v.id("personas")),
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
+    // Block anonymous users from saving private conversations
+    const user = await ctx.runQuery(api.users.getById, { id: args.userId });
+    if (!user || user.isAnonymous) {
+      throw new Error("Anonymous users cannot save private conversations.");
+    }
     // Generate a title from the first user message or use provided title
     const firstUserMessage = args.messages.find(msg => msg.role === "user");
     const conversationTitle =
