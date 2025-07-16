@@ -5,6 +5,10 @@ import {
   SparkleIcon,
 } from "@phosphor-icons/react";
 import { hasMandatoryReasoning } from "@shared/model-capabilities-config";
+import {
+  ANTHROPIC_BUDGET_MAP,
+  GOOGLE_THINKING_BUDGET_MAP,
+} from "@shared/reasoning-config";
 import { useCallback, useEffect, useState } from "react";
 import {
   Select,
@@ -135,14 +139,28 @@ export const ReasoningConfigSelect = ({
           enabled: false,
         });
       } else {
+        const effort = value as ReasoningEffortLevel;
+        let maxTokens = config.maxTokens;
+        if (!maxTokens) {
+          switch (model?.provider) {
+            case "anthropic":
+              maxTokens = ANTHROPIC_BUDGET_MAP[effort];
+              break;
+            case "google":
+              maxTokens = GOOGLE_THINKING_BUDGET_MAP[effort];
+              break;
+            default:
+              maxTokens = 8192;
+          }
+        }
         onConfigChange({
           enabled: true,
-          effort: value as ReasoningEffortLevel,
-          maxTokens: config.maxTokens,
+          effort,
+          maxTokens,
         });
       }
     },
-    [config, onConfigChange]
+    [config, onConfigChange, model]
   );
 
   if (!model?.supportsReasoning) {
