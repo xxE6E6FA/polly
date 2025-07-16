@@ -61,7 +61,6 @@ interface ChatService {
     content: string,
     shouldNavigate?: boolean,
     attachments?: Attachment[],
-    contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig

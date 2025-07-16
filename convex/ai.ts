@@ -28,7 +28,12 @@ import {
 } from "./ai/search_detection";
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { StreamHandler } from "./ai/streaming";
-import type { Citation, ProviderType, StreamMessage } from "./types";
+import type {
+  Citation,
+  MessageDoc,
+  ProviderType,
+  StreamMessage,
+} from "./types";
 
 // Main streaming action
 export const streamResponse = action({
@@ -209,33 +214,13 @@ export const streamResponse = action({
           };
 
           // Extract context messages from the current message array
-          // Context messages are system messages that provide background from previous conversations
-          const contextMessages = args.messages
-            .filter(msg => {
-              if (msg.role !== "system") {
-                return false;
-              }
-              const contentStr =
-                typeof msg.content === "string"
-                  ? msg.content
-                  : msg.content
-                      .filter(part => part.type === "text")
-                      .map(part => part.text || "")
-                      .join(" ");
-              return (
-                contentStr.includes("Context from previous conversation") ||
-                contentStr.includes("Previous conversation") ||
-                contentStr.includes("summarized the following conversation")
-              );
-            })
-            .map(msg => {
-              return typeof msg.content === "string"
-                ? msg.content
-                : msg.content
-                    .filter(part => part.type === "text")
-                    .map(part => part.text || "")
-                    .join(" ");
-            });
+          // Directly use messages with role === 'context', normalize to 'system' for LLM
+          const contextMessages = (args.messages as MessageDoc[])
+            .filter(msg => msg.role === "context")
+            .map(msg => ({
+              role: "system", // normalize for LLM compatibility
+              content: msg.content,
+            }));
 
           // Add the context summary to conversation history if available
           if (contextMessages.length > 0 && searchContext.conversationHistory) {

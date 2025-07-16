@@ -206,7 +206,6 @@ export type CreateConversationParams = {
   attachments?: Attachment[];
   generateTitle?: boolean;
   reasoningConfig?: ReasoningConfig;
-  contextSummary?: string;
 };
 
 // ============================================================================
@@ -386,5 +385,4 @@ export type CreateConversationArgs = {
     effort: "low" | "medium" | "high";
     maxTokens: number;
   };
-  contextSummary?: string;
 };
