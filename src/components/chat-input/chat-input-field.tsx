@@ -53,7 +53,7 @@ export function ChatInputField({
       className={cn(
         "w-full resize-none bg-transparent border-0 outline-none ring-0 focus:ring-0",
         "text-base sm:text-sm leading-relaxed transition-opacity duration-200",
-        "min-h-[24px] max-h-[100px] overflow-y-auto py-1",
+        "min-h-[24px] max-h-[100px] overflow-y-auto px-1.5 py-0.5 sm:px-2",
         "placeholder:text-muted-foreground/60",
         disabled && "cursor-not-allowed opacity-50",
         className

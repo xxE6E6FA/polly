@@ -18,19 +18,6 @@ export const ConversationListContent = ({
   currentConversationId,
   isLoading = false,
 }: ConversationListContentProps) => {
-  const filteredConversations = useMemo(() => {
-    const convs = conversations || [];
-    if (!searchQuery.trim()) {
-      return convs;
-    }
-
-    const query = searchQuery.toLowerCase();
-    return convs.filter(
-      conv =>
-        conv.title?.toLowerCase().includes(query) || conv._id.includes(query)
-    );
-  }, [conversations, searchQuery]);
-
   const groupedConversations = useMemo(() => {
     if (!conversations) {
       return {
@@ -62,10 +49,8 @@ export const ConversationListContent = ({
     };
 
     // Separate pinned and unpinned conversations
-    const pinnedConversations = filteredConversations.filter(c => c.isPinned);
-    const unpinnedConversations = filteredConversations.filter(
-      c => !c.isPinned
-    );
+    const pinnedConversations = conversations.filter(c => c.isPinned);
+    const unpinnedConversations = conversations.filter(c => !c.isPinned);
 
     // Sort pinned conversations by updatedAt (most recent first)
     groups.pinned = [...pinnedConversations].sort(
@@ -101,7 +86,7 @@ export const ConversationListContent = ({
     }
 
     return groups;
-  }, [conversations, filteredConversations]);
+  }, [conversations]);
 
   // Show skeleton when loading
   if (isLoading) {
@@ -109,7 +94,7 @@ export const ConversationListContent = ({
   }
 
   // If no conversations and there's a search, show no results found
-  if (filteredConversations.length === 0 && searchQuery.trim().length > 0) {
+  if ((conversations?.length ?? 0) === 0 && searchQuery.trim().length > 0) {
     return (
       <div className="flex h-32 items-center justify-center">
         <div className="space-y-1 text-center">

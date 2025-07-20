@@ -62,7 +62,11 @@ export default defineSchema({
     .index("by_user_recent", ["userId", "updatedAt"])
     .index("by_user_pinned", ["userId", "isPinned", "updatedAt"])
     .index("by_user_archived", ["userId", "isArchived", "updatedAt"])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .searchIndex("search_title", {
+      searchField: "title",
+      filterFields: ["userId", "isArchived"],
+    }),
 
   sharedConversations: defineTable({
     shareId: v.string(),
@@ -120,7 +124,11 @@ export default defineSchema({
       "role",
       "metadata.finishReason",
     ])
-    .index("by_created_at", ["createdAt"]),
+    .index("by_created_at", ["createdAt"])
+    .searchIndex("search_content", {
+      searchField: "content",
+      filterFields: ["conversationId", "isMainBranch"],
+    }),
 
   userApiKeys: defineTable({
     userId: v.id("users"),
