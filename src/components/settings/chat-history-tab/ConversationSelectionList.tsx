@@ -55,7 +55,6 @@ export function ConversationSelectionList({
   includeAttachments,
   onIncludeAttachmentsChange,
 }: ConversationSelectionListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const bulkRemove = useMutation(api.conversations.bulkRemove);
@@ -186,7 +185,7 @@ export function ConversationSelectionList({
               {conversation.title}
             </span>
 
-            <div className="shrink-0 text-xs text-muted-foreground">
+            <div className="shrink-0 text-xs text-muted-foreground mr-2">
               {new Date(conversation.createdAt).toLocaleDateString()}
             </div>
           </div>
@@ -255,16 +254,6 @@ export function ConversationSelectionList({
                 </Button>
               )}
             </div>
-          </div>
-
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="pl-9 h-8"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-            />
           </div>
 
           {someSelected && (
