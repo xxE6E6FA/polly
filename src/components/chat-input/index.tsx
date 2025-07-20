@@ -13,6 +13,7 @@ import {
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
 import { useChatWarnings } from "@/hooks/use-chat-warnings";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import {
   getDefaultReasoningConfig,
@@ -121,6 +122,49 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         return getDefaultReasoningConfig();
       });
 
+    // Initialize file upload hook
+    const { uploadFile } = useConvexFileUpload();
+
+    // Custom function to upload attachments to Convex storage
+    const uploadAttachmentsToConvex = useCallback(
+      async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
+        if (isPrivateMode) {
+          return attachmentsToUpload;
+        }
+
+        const uploadedAttachments: Attachment[] = [];
+
+        for (const attachment of attachmentsToUpload) {
+          if (attachment.type === "text" || attachment.storageId) {
+            uploadedAttachments.push(attachment);
+          } else if (attachment.content && attachment.mimeType) {
+            try {
+              // Convert Base64 back to File object for upload
+              const byteCharacters = atob(attachment.content);
+              const byteNumbers = new Array(byteCharacters.length);
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+              }
+              const byteArray = new Uint8Array(byteNumbers);
+              const file = new File([byteArray], attachment.name, {
+                type: attachment.mimeType,
+              });
+
+              const uploadedAttachment = await uploadFile(file);
+              uploadedAttachments.push(uploadedAttachment);
+            } catch {
+              uploadedAttachments.push(attachment);
+            }
+          } else {
+            uploadedAttachments.push(attachment);
+          }
+        }
+
+        return uploadedAttachments;
+      },
+      [isPrivateMode, uploadFile]
+    );
+
     useEffect(() => {
       if (shouldUsePreservedState) {
         setInputState(chatInputState.input);
@@ -219,22 +263,40 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     );
 
     const canSend = canSendMessage;
+    const [isUploading, setIsUploading] = useState(false);
 
-    const submit = useCallback(() => {
+    const submit = useCallback(async () => {
       if (input.trim().length === 0 && attachments.length === 0) {
         return;
       }
-      onSendMessage(
-        input.trim(),
-        attachments,
-        selectedPersonaId,
-        reasoningConfig.enabled ? reasoningConfig : undefined
-      );
-      setInput("");
-      setAttachments([]);
-      textareaRef.current?.focus();
-      if (shouldUsePreservedState) {
-        clearChatInputState();
+
+      setIsUploading(true);
+
+      try {
+        // Upload attachments to Convex storage if not in private mode
+        const processedAttachments =
+          await uploadAttachmentsToConvex(attachments);
+
+        // biome-ignore lint/suspicious/noConsole: Debug logging
+        console.log("Uploaded attachments:", processedAttachments);
+
+        await onSendMessage(
+          input.trim(),
+          processedAttachments,
+          selectedPersonaId,
+          reasoningConfig.enabled ? reasoningConfig : undefined
+        );
+
+        setInput("");
+        setAttachments([]);
+        textareaRef.current?.focus();
+        if (shouldUsePreservedState) {
+          clearChatInputState();
+        }
+      } catch (error) {
+        console.error("Failed to send message:", error);
+      } finally {
+        setIsUploading(false);
       }
     }, [
       input,
@@ -246,26 +308,36 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setAttachments,
       shouldUsePreservedState,
       clearChatInputState,
+      uploadAttachmentsToConvex,
     ]);
 
     const handleSendAsNewConversation = useCallback(
-      (
+      async (
         navigate: boolean,
         personaId?: Id<"personas"> | null,
         reasoningConfig?: ReasoningConfig
       ) => {
         if (onSendAsNewConversation) {
           const currentInput = textareaRef.current?.value || "";
-          onSendAsNewConversation(
-            currentInput,
-            navigate,
-            attachments,
-            personaId,
-            reasoningConfig
-          );
+
+          try {
+            // Upload attachments to Convex storage if not in private mode
+            const processedAttachments =
+              await uploadAttachmentsToConvex(attachments);
+
+            await onSendAsNewConversation(
+              currentInput,
+              navigate,
+              processedAttachments,
+              personaId,
+              reasoningConfig
+            );
+          } catch (error) {
+            console.error("Failed to send as new conversation:", error);
+          }
         }
       },
-      [onSendAsNewConversation, attachments]
+      [onSendAsNewConversation, attachments, uploadAttachmentsToConvex]
     );
 
     useImperativeHandle(
@@ -328,7 +400,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onSubmit={submit}
                   textareaRef={textareaRef}
                   placeholder={placeholder}
-                  disabled={isLoading || isStreaming || !canSend}
+                  disabled={isLoading || isStreaming || isUploading || !canSend}
                 />
               </div>
             </div>
@@ -354,7 +426,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               <div className="flex items-center gap-2">
                 {canSend && (
                   <FileUploadButton
-                    disabled={isLoading || isStreaming}
+                    disabled={isLoading || isStreaming || isUploading}
                     onAddAttachments={addAttachments}
                     isSubmitting={false}
                   />
@@ -362,7 +434,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 <SendButtonGroup
                   canSend={canSend}
                   isStreaming={Boolean(isStreaming)}
-                  isLoading={Boolean(isLoading)}
+                  isLoading={Boolean(isLoading || isUploading)}
                   isSummarizing={false}
                   hasExistingMessages={Boolean(hasExistingMessages)}
                   conversationId={conversationId}

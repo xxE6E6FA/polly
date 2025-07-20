@@ -4,9 +4,7 @@ import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action, mutation, query } from "./_generated/server";
-import type { ExportConversation } from "./backgroundJobs";
-import { createConvexExportData } from "./backgroundJobs";
-import { DEFAULT_POLLY_PERSONA, getBaselineInstructions } from "./constants";
+
 import type { MessageDoc } from "./lib/conversation_utils";
 import {
   buildContextMessages,
@@ -14,9 +12,7 @@ import {
   ensureStreamingCleared,
   executeStreamingAction,
   findStreamingMessage,
-  generateExportMetadata,
   incrementUserMessageStats,
-  mergeSystemPrompts,
   processAttachmentsForStorage,
   setupAndStartStreaming,
 } from "./lib/conversation_utils";
@@ -138,26 +134,13 @@ export const create = mutation({
 
     // Start streaming assistant response if model and provider are provided
     if (args.model && args.provider) {
-      // Get persona prompt if personaId is provided
-      let personaPrompt = undefined;
-      if (args.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: args.personaId,
-        });
-        personaPrompt = persona?.prompt;
-      }
-
-      // Merge baseline instructions with persona prompt into a single system message
-      const mergedSystemPrompt = mergeSystemPrompts(args.model, personaPrompt);
-
-      const contextMessages = [
-        { role: "system" as const, content: mergedSystemPrompt },
-        { role: "user" as const, content: args.firstMessage },
-      ];
-
       // Execute streaming action in the background
+      // The action will build context messages from the stored messages, including attachments
       await ctx.scheduler.runAfter(0, api.ai.streamResponse, {
-        messages: contextMessages,
+        messages: [
+          { role: "system" as const, content: "" }, // Placeholder - will be replaced by action
+          { role: "user" as const, content: "" }, // Placeholder - will be replaced by action
+        ],
         messageId: assistantMessageId,
         model: args.model,
         provider: args.provider,

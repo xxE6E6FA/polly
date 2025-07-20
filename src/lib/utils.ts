@@ -82,6 +82,7 @@ export function stripCitations(text: string): string {
 /**
  * Cleans attachments for Convex by removing client-side fields not in the schema
  * This ensures compatibility with the Convex attachment schema
+ * Preserves mimeType for attachments that haven't been uploaded yet
  */
 export function cleanAttachmentsForConvex(attachments?: Attachment[]) {
   if (!attachments) {
@@ -89,7 +90,13 @@ export function cleanAttachmentsForConvex(attachments?: Attachment[]) {
   }
 
   return attachments.map(attachment => {
-    const { mimeType: _mimeType, ...cleanAttachment } = attachment;
-    return cleanAttachment;
+    // If attachment has been uploaded to Convex storage, remove mimeType
+    // If not uploaded yet, preserve mimeType for server-side processing
+    if (attachment.storageId) {
+      const { mimeType: _mimeType, ...cleanAttachment } = attachment;
+      return cleanAttachment;
+    }
+    // Keep mimeType for attachments that still need to be processed
+    return attachment;
   });
 }
