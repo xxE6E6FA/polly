@@ -327,15 +327,12 @@ export const streamResponse = action({
           let searchDecisionResult: SearchDecision;
 
           // If LLM can answer confidently, skip search entirely
-          if (
-            searchNeedAssessment.canAnswerConfidently &&
-            searchNeedAssessment.confidence > 0.6
-          ) {
+          if (searchNeedAssessment.canAnswerConfidently) {
             searchDecisionResult = {
               shouldSearch: false,
               searchType: "search",
-              reasoning: `Search need assessment: ${searchNeedAssessment.reasoning}`,
-              confidence: searchNeedAssessment.confidence,
+              reasoning: "Search need assessment: Can answer confidently",
+              confidence: 0.9,
               suggestedSources: 0,
               suggestedQuery: userQuery,
             };
@@ -358,8 +355,8 @@ export const streamResponse = action({
             // Combine both assessments for final decision
             searchDecisionResult = {
               ...preliminarySearchDecision,
-              reasoning: `Search need assessment: ${searchNeedAssessment.reasoning}. Search strategy: ${preliminarySearchDecision.reasoning}`,
-              confidence: searchNeedAssessment.confidence, // Use search need assessment confidence as the primary confidence
+              reasoning: `Search need assessment: Cannot answer confidently. Search strategy: ${preliminarySearchDecision.reasoning}`,
+              confidence: 0.7, // Default confidence when search is needed
             };
           }
 
