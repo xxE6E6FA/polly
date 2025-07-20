@@ -5,6 +5,7 @@ import {
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
+import Fuse from "fuse.js";
 import {
   useCallback,
   useDeferredValue,
@@ -170,19 +171,25 @@ export const ModelsTab = () => {
     }
   }, [fetchAllModelsAction]);
 
-  // Client-side filtering with pagination support
-  const filteredModels = useMemo(() => {
-    let result = unfilteredModels;
+  // Fuzzy search for models
+  const fuse = useMemo(() => {
+    return new Fuse(unfilteredModels, {
+      keys: ["modelId", "name", "provider"],
+      threshold: 0.4,
+      distance: 100,
+      minMatchCharLength: 2,
+    });
+  }, [unfilteredModels]);
 
-    if (debouncedFilters.searchQuery) {
-      const searchLower = debouncedFilters.searchQuery.toLowerCase();
-      result = result.filter(
-        model =>
-          model.modelId.toLowerCase().includes(searchLower) ||
-          model.name.toLowerCase().includes(searchLower) ||
-          model.provider.toLowerCase().includes(searchLower)
-      );
+  const fuzzySearchResults = useMemo(() => {
+    if (!debouncedFilters.searchQuery.trim()) {
+      return unfilteredModels;
     }
+    return fuse.search(debouncedFilters.searchQuery).map(result => result.item);
+  }, [fuse, debouncedFilters.searchQuery, unfilteredModels]);
+
+  const filteredModels = useMemo(() => {
+    let result = fuzzySearchResults;
 
     if (debouncedFilters.selectedProviders.length > 0) {
       result = result.filter(model =>
@@ -190,7 +197,6 @@ export const ModelsTab = () => {
       );
     }
 
-    // Use the centralized capability filtering function
     if (debouncedFilters.selectedCapabilities.length > 0) {
       result = result.filter(model =>
         matchesCapabilityFilters(model, debouncedFilters.selectedCapabilities)
@@ -202,7 +208,7 @@ export const ModelsTab = () => {
     }
 
     return result;
-  }, [unfilteredModels, debouncedFilters, enabledModelIds]);
+  }, [fuzzySearchResults, debouncedFilters, enabledModelIds]);
 
   const stats = useMemo(() => {
     if (unfilteredModels.length === 0) {
