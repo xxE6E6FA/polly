@@ -5,6 +5,7 @@ import {
   CopyIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
+import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -22,7 +23,6 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
@@ -129,43 +129,39 @@ export default function SharedConversationsPage() {
                   value={shareUrl}
                 />
                 <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          className={cn(
-                            "h-7 w-7 p-0",
-                            isCopied && "text-primary"
-                          )}
-                          variant="ghost"
-                          onClick={() => handleCopyUrl(conversation.shareId)}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        className={cn(
+                          "h-7 w-7 p-0",
+                          isCopied && "text-primary"
+                        )}
+                        variant="ghost"
+                        onClick={() => handleCopyUrl(conversation.shareId)}
+                      >
+                        <CopyIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isCopied ? "Copied!" : "Copy link"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button asChild className="h-7 w-7 p-0" variant="ghost">
+                        <a
+                          href={shareUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
                         >
-                          <CopyIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{isCopied ? "Copied!" : "Copy link"}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button asChild className="h-7 w-7 p-0" variant="ghost">
-                          <a
-                            href={shareUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <ArrowSquareOutIcon className="h-3.5 w-3.5" />
-                          </a>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Open shared view</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                          <ArrowSquareOutIcon className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Open shared view</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
 
@@ -215,7 +211,10 @@ export default function SharedConversationsPage() {
       </Alert>
 
       <VirtualizedPaginatedList<SharedConversation>
-        query={api.sharedConversations.listUserSharedConversationsPaginated}
+        query={
+          api.sharedConversations
+            .listUserSharedConversationsPaginated as PaginatedQueryReference
+        }
         queryArgs={{}}
         renderItem={renderSharedConversation}
         getItemKey={item => item._id}
@@ -237,15 +236,15 @@ export default function SharedConversationsPage() {
       />
 
       <ConfirmationDialog
-        open={confirmDialog.isOpen}
+        open={confirmDialog.state.isOpen}
         onOpenChange={confirmDialog.handleOpenChange}
-        title={confirmDialog.options.title}
-        description={confirmDialog.options.description}
-        confirmText={confirmDialog.options.confirmText}
-        cancelText={confirmDialog.options.cancelText}
+        title={confirmDialog.state.title}
+        description={confirmDialog.state.description}
+        confirmText={confirmDialog.state.confirmText}
+        cancelText={confirmDialog.state.cancelText}
         onConfirm={confirmDialog.handleConfirm}
         onCancel={confirmDialog.handleCancel}
-        variant={confirmDialog.options.variant}
+        variant={confirmDialog.state.variant}
       />
     </SettingsPageLayout>
   );

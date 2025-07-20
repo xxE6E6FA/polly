@@ -1,4 +1,6 @@
+import { api } from "@convex/_generated/api";
 import { GithubLogoIcon } from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
 import { SettingsPageLayout, SettingsSection } from "@/components/settings/ui";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Button } from "@/components/ui/button";
@@ -11,16 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  useUserSettings,
-  useUserSettingsMutations,
-} from "@/hooks/use-user-settings";
-import { useUserDataContext } from "@/providers/user-data-context";
+import { useUserSettings } from "@/hooks/use-user-settings";
 
 export default function GeneralPage() {
-  const { user } = useUserDataContext();
-  const userSettings = useUserSettings(user?._id);
-  const { updateUserSettings } = useUserSettingsMutations();
+  const userSettings = useUserSettings();
+  const updateUserSettings = useMutation(api.userSettings.updateUserSettings);
 
   if (!userSettings) {
     return null;

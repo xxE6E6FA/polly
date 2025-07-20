@@ -1,8 +1,8 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation, mutation } from "./_generated/server";
-import { getCurrentUserId } from "./lib/auth";
 
 export const archiveOldConversations = internalMutation({
   args: {
@@ -238,7 +238,7 @@ export const scheduleCleanup = mutation({
 export const archiveMyOldConversations = mutation({
   args: {},
   handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
     }
@@ -248,7 +248,11 @@ export const archiveMyOldConversations = mutation({
       .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
-    const daysOld = userSettings?.autoArchiveDays ?? 30;
+    if (!userSettings?.autoArchiveEnabled) {
+      throw new Error("Auto-archive is not enabled");
+    }
+
+    const daysOld = userSettings.autoArchiveDays ?? 30;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
     const oldConversations = await ctx.db
@@ -261,7 +265,7 @@ export const archiveMyOldConversations = mutation({
           q.neq(q.field("isPinned"), true)
         )
       )
-      .take(100);
+      .collect();
 
     const archiveOperations = oldConversations.map(conv =>
       ctx.db.patch(conv._id, {
@@ -274,8 +278,105 @@ export const archiveMyOldConversations = mutation({
 
     return {
       archivedCount: oldConversations.length,
-      hasMore: oldConversations.length === 100,
       daysOld,
+    };
+  },
+});
+
+export const resetMonthlyUserStats = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const batchSize = args.batchSize || 100;
+    const now = Date.now();
+
+    // Get users who need monthly reset
+    const users = await ctx.db
+      .query("users")
+      .filter(q =>
+        q.and(
+          q.neq(q.field("isAnonymous"), true),
+          q.neq(q.field("hasUnlimitedCalls"), true)
+        )
+      )
+      .take(batchSize);
+
+    let resetCount = 0;
+    const results: Array<{
+      userId: string;
+      reset: boolean;
+      reason?: string;
+    }> = [];
+
+    for (const user of users) {
+      if (!user.createdAt) {
+        results.push({
+          userId: user._id,
+          reset: false,
+          reason: "no createdAt date",
+        });
+        continue;
+      }
+
+      const joinDate = new Date(user.createdAt);
+      const joinDay = joinDate.getDate();
+      const nowDate = new Date(now);
+
+      // Calculate the last reset date for this user
+      let lastResetDate = new Date(
+        nowDate.getFullYear(),
+        nowDate.getMonth(),
+        joinDay
+      );
+
+      // If the reset date for this month has already passed, move to previous month
+      if (lastResetDate > nowDate) {
+        lastResetDate = new Date(
+          nowDate.getFullYear(),
+          nowDate.getMonth() - 1,
+          joinDay
+        );
+      }
+
+      // Handle edge case where the join day doesn't exist in the target month (e.g., Jan 31 -> Feb 31)
+      if (lastResetDate.getDate() !== joinDay) {
+        lastResetDate = new Date(
+          lastResetDate.getFullYear(),
+          lastResetDate.getMonth() + 1,
+          0
+        ); // Last day of the month
+      }
+
+      // Check if we need to reset (if lastMonthlyReset is before the calculated last reset date)
+      const needsReset =
+        !user.lastMonthlyReset ||
+        user.lastMonthlyReset < lastResetDate.getTime();
+
+      if (needsReset) {
+        await ctx.db.patch(user._id, {
+          monthlyMessagesSent: 0,
+          lastMonthlyReset: now,
+        });
+        resetCount++;
+        results.push({
+          userId: user._id,
+          reset: true,
+        });
+      } else {
+        results.push({
+          userId: user._id,
+          reset: false,
+          reason: "no reset needed",
+        });
+      }
+    }
+
+    return {
+      resetCount,
+      usersProcessed: users.length,
+      hasMore: users.length === batchSize,
+      results,
     };
   },
 });
@@ -286,22 +387,26 @@ export const cleanupOldSharedConversations = internalMutation({
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const daysOld = args.daysOld || 30;
+    const daysOld = args.daysOld || 90;
     const batchSize = args.batchSize || 100;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    const oldShared = await ctx.db
+    const oldSharedConversations = await ctx.db
       .query("sharedConversations")
       .withIndex("by_last_updated", q => q.lt("lastUpdated", cutoffDate))
       .take(batchSize);
 
-    const deleteOperations = oldShared.map(shared => ctx.db.delete(shared._id));
-
-    await Promise.all(deleteOperations);
+    let deletedCount = 0;
+    for (const sharedConversation of oldSharedConversations) {
+      await ctx.db.delete(sharedConversation._id);
+      deletedCount++;
+    }
 
     return {
-      deletedCount: oldShared.length,
-      hasMore: oldShared.length === batchSize,
+      deletedCount,
+      hasMore: oldSharedConversations.length === batchSize,
+      cutoffDate,
+      daysOld,
     };
   },
 });

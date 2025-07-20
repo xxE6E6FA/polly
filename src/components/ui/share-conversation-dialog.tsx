@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -217,50 +216,46 @@ export const ControlledShareConversationDialog = ({
                     }
                   />
                   <div className="absolute right-2 top-1/2 flex -translate-y-1/2">
-                    <TooltipProvider>
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <Button
-                            disabled={isCopied}
-                            size="sm"
-                            variant="ghost"
-                            className={cn(
-                              "h-8 w-8 p-0 transition-colors",
-                              isCopied && "text-[hsl(220_95%_55%)]"
-                            )}
-                            onClick={handleCopyUrl}
-                          >
-                            {isCopied ? (
-                              <CheckIcon className="h-4 w-4" />
-                            ) : (
-                              <CopyIcon className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="px-2 py-1" side="bottom">
-                          <p className="text-xs">
-                            {isCopied ? "Copied!" : "Copy link"}
-                          </p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <Button
-                            className="h-8 w-8 p-0"
-                            size="sm"
-                            variant="ghost"
-                            onClick={handleOpenInNewTab}
-                          >
-                            <ArrowSquareOutIcon className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent className="px-2 py-1" side="bottom">
-                          <p className="text-xs">Open in new tab</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          disabled={isCopied}
+                          size="sm"
+                          variant="ghost"
+                          className={cn(
+                            "h-8 w-8 p-0 transition-colors",
+                            isCopied && "text-[hsl(220_95%_55%)]"
+                          )}
+                          onClick={handleCopyUrl}
+                        >
+                          {isCopied ? (
+                            <CheckIcon className="h-4 w-4" />
+                          ) : (
+                            <CopyIcon className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="px-2 py-1" side="bottom">
+                        <p className="text-xs">
+                          {isCopied ? "Copied!" : "Copy link"}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          className="h-8 w-8 p-0"
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleOpenInNewTab}
+                        >
+                          <ArrowSquareOutIcon className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="px-2 py-1" side="bottom">
+                        <p className="text-xs">Open in new tab</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>

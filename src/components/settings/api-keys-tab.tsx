@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
+import { useMemo } from "react";
 import { toast } from "sonner";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
@@ -14,9 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
-import { useUserDataContext } from "@/providers/user-data-context";
 import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
 
@@ -72,9 +73,8 @@ const hasStoredKey = (k: unknown): boolean => {
 };
 
 export const ApiKeysTab = () => {
-  const { user } = useUserDataContext();
-  const userSettingsRaw = useUserSettings(user?._id);
-  const apiKeys = useQuery(api.apiKeys.getUserApiKeys);
+  const userSettingsRaw = useUserSettings();
+  const apiKeysRaw = useQuery(api.apiKeys.getUserApiKeys);
   const storeKeyMutation = useMutation(api.apiKeys.storeApiKey);
   const removeKeyMutation = useMutation(api.apiKeys.removeApiKey);
 
@@ -84,6 +84,13 @@ export const ApiKeysTab = () => {
 
   // Apply type guard to ensure proper typing
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
+
+  const apiKeys = useMemo(() => {
+    if (apiKeysRaw) {
+      return apiKeysRaw;
+    }
+    return get(CACHE_KEYS.apiKeys, []);
+  }, [apiKeysRaw]);
 
   const hasOpenRouterKey = apiKeys?.some(
     key => key.provider === "openrouter" && hasStoredKey(key)
@@ -248,13 +255,12 @@ export const ApiKeysTab = () => {
                       disabled
                       id={provider}
                       type="text"
-                      className="flex-1 border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
+                      className="flex-1 h-9 border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
                       placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
                     />
                     <Button
-                      size="sm"
                       variant="destructive"
-                      className="px-4"
+                      className="px-4 h-9"
                       onClick={() =>
                         handleApiKeyRemove(provider as ApiProvider)
                       }
@@ -275,9 +281,9 @@ export const ApiKeysTab = () => {
                       name={`${provider}-key`}
                       type="password"
                       placeholder={info.placeholder}
-                      className="flex-1 font-mono text-sm"
+                      className="flex-1 h-9 font-mono text-sm"
                     />
-                    <Button size="sm" type="submit">
+                    <Button type="submit" className="h-9">
                       Save
                     </Button>
                   </form>

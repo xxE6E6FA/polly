@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { WEB_SEARCH_MAX_RESULTS } from "@shared/constants";
 import { generateText, streamText } from "ai";
 import { v } from "convex/values";
@@ -74,7 +75,7 @@ export const streamResponse = action({
     messageId: v.id("messages"),
     model: v.string(),
     provider: v.string(),
-    userId: v.optional(v.id("users")),
+
     temperature: v.optional(v.number()),
     maxTokens: v.optional(v.number()),
     topP: v.optional(v.number()),
@@ -104,17 +105,19 @@ export const streamResponse = action({
       });
 
       if (message?.conversationId) {
-        await ctx.runMutation(api.conversations.setStreamingState, {
+        await ctx.runMutation(api.conversations.patch, {
           id: message.conversationId,
-          isStreaming: true,
+          updates: { isStreaming: true },
+          setUpdatedAt: true,
         });
       }
 
       // Get API key
+      const userId = await getAuthUserId(ctx);
       const apiKey = await getApiKey(
         ctx,
         args.provider as ProviderType,
-        args.userId
+        userId || undefined
       );
 
       // Check if we should use native Anthropic handler for reasoning
@@ -171,8 +174,6 @@ export const streamResponse = action({
       // The LLM can decide how to use it based on the actual query
 
       // Determine if web search is needed
-      // Simplified approach: Only respect explicit false, otherwise use AI detection
-      // This provides backward compatibility while reducing complexity
       let shouldSearch = false;
 
       if (args.enableWebSearch === false) {
@@ -203,7 +204,7 @@ export const streamResponse = action({
             "google" as ProviderType,
             classificationModelName,
             geminiApiKey,
-            args.userId
+            userId || undefined
           );
 
           // Build context for better search decisions
@@ -423,9 +424,6 @@ export const streamResponse = action({
         args.provider
       );
 
-      // The LLM already has access to previous search results through the conversation history
-      // No need to duplicate this information
-
       if (searchContext && exaCitations.length > 0) {
         // Create citation instructions with numbered sources
         const citationInstructions = dedent`
@@ -477,7 +475,7 @@ export const streamResponse = action({
         args.provider as ProviderType,
         args.model,
         apiKey,
-        args.userId
+        userId || undefined
       );
 
       abortController = new AbortController();
@@ -489,7 +487,7 @@ export const streamResponse = action({
         args.provider as ProviderType,
         args.model,
         args.reasoningConfig,
-        args.userId
+        userId || undefined
       );
 
       const truncateContent = (content: string, maxLength: number): string => {

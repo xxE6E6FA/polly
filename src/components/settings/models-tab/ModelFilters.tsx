@@ -62,7 +62,7 @@ export const ModelFilters = memo(
         <div className="relative min-w-0 flex-1">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
           <Input
-            className="pl-10"
+            className="pl-10 h-9"
             placeholder="Search models by name, ID, or provider..."
             value={filterState.searchQuery}
             onChange={handleSearchChange}
@@ -75,7 +75,7 @@ export const ModelFilters = memo(
             size="sm"
             variant={filterState.showOnlySelected ? "secondary" : "outline"}
             className={cn(
-              "gap-2",
+              "gap-2 h-9 text-sm",
               filterState.showOnlySelected &&
                 "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
             )}
@@ -93,12 +93,11 @@ export const ModelFilters = memo(
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                className="min-w-[120px] justify-start gap-2"
+                className="min-w-[120px] justify-start gap-2 h-9"
                 disabled={isPending}
                 size="sm"
                 variant="outline"
               >
-                <ProviderIcon provider="openai" className="h-4 w-4 shrink-0" />
                 <span className="hidden sm:inline">Providers</span>
                 <span className="sm:hidden">Prov</span>
                 {filterState.selectedProviders.length > 0 && (
@@ -138,7 +137,7 @@ export const ModelFilters = memo(
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-1.5" size="sm" variant="outline">
+              <Button className="gap-1.5 h-9" size="sm" variant="outline">
                 <FunnelIcon className="h-4 w-4 shrink-0" />
                 <span className="hidden text-xs sm:inline">Capabilities</span>
                 {filterState.selectedCapabilities.length > 0 && (

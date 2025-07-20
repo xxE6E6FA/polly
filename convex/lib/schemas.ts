@@ -1,5 +1,23 @@
 import { v } from "convex/values";
 
+export const userModelSchema = v.object({
+    userId: v.id("users"),
+    modelId: v.string(),
+    name: v.string(),
+    provider: v.string(),
+    displayProvider: v.optional(v.string()),
+    contextLength: v.number(),
+    maxOutputTokens: v.optional(v.number()),
+    supportsImages: v.boolean(),
+    supportsTools: v.boolean(),
+    supportsReasoning: v.boolean(),
+    supportsFiles: v.optional(v.boolean()),
+    inputModalities: v.optional(v.array(v.string())),
+    selected: v.optional(v.boolean()),
+    free: v.optional(v.boolean()),
+    createdAt: v.number(),
+});
+
 // Common attachment schema used across messages and conversations
 export const attachmentSchema = v.object({
   type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),

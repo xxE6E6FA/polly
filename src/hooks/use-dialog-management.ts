@@ -66,9 +66,6 @@ export function useConfirmationDialog() {
     handleConfirm,
     handleCancel,
     handleOpenChange,
-    // Backward compatibility
-    isOpen: state.isOpen,
-    options: state,
   };
 }
 
@@ -106,9 +103,6 @@ export function useNotificationDialog() {
     notify,
     handleAction,
     handleOpenChange,
-    // Backward compatibility
-    isOpen: state.isOpen,
-    options: state,
   };
 }
 

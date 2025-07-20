@@ -1,125 +1,17 @@
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { action, internalMutation, mutation, query } from "./_generated/server";
-import { requireAuth } from "./lib/auth";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+} from "./_generated/server";
 import {
   attachmentSchema,
   messageMetadataSchema,
   messageRoleSchema,
   webCitationSchema,
 } from "./lib/schemas";
-
-// Bulk import conversations with duplicate detection
-export const bulkImport = mutation({
-  args: {
-    conversations: v.array(
-      v.object({
-        title: v.string(),
-        messages: v.array(
-          v.object({
-            role: messageRoleSchema,
-            content: v.string(),
-            createdAt: v.optional(v.number()),
-            model: v.optional(v.string()),
-            provider: v.optional(v.string()),
-            reasoning: v.optional(v.string()),
-            attachments: v.optional(v.array(attachmentSchema)),
-            citations: v.optional(v.array(webCitationSchema)),
-            metadata: v.optional(messageMetadataSchema),
-          })
-        ),
-        createdAt: v.optional(v.number()),
-        updatedAt: v.optional(v.number()),
-        isArchived: v.optional(v.boolean()),
-        isPinned: v.optional(v.boolean()),
-        personaId: v.optional(v.id("personas")),
-      })
-    ),
-    skipDuplicates: v.optional(v.boolean()),
-    batchSize: v.optional(v.number()),
-  },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    importedCount: number;
-    skippedCount: number;
-    errors: string[];
-    conversationIds: string[];
-  }> => {
-    const userId = await requireAuth(ctx);
-    const now = Date.now();
-    const batchSize = args.batchSize || 50;
-
-    // Get existing conversation titles for duplicate detection
-    let existingTitles = new Set<string>();
-    if (args.skipDuplicates) {
-      const existingConversations = await ctx.db
-        .query("conversations")
-        .withIndex("by_user_recent", q => q.eq("userId", userId))
-        .collect();
-      existingTitles = new Set(existingConversations.map(c => c.title));
-    }
-
-    // Filter and validate conversations
-    const validConversations = args.conversations
-      .filter(conv => {
-        // Skip duplicates
-        if (args.skipDuplicates && existingTitles.has(conv.title)) {
-          return false;
-        }
-        // Skip conversations with no messages
-        if (!conv.messages || conv.messages.length === 0) {
-          return false;
-        }
-        // Skip conversations with only empty messages
-        if (
-          conv.messages.every(msg => !msg.content || msg.content.trim() === "")
-        ) {
-          return false;
-        }
-        return true;
-      })
-      .slice(0, 1000); // Limit to prevent excessive operations
-
-    if (validConversations.length === 0) {
-      return {
-        importedCount: 0,
-        skippedCount: args.conversations.length,
-        errors: [],
-        conversationIds: [],
-      };
-    }
-
-    // Process in batches
-    const results = [];
-    const errors = [];
-
-    for (let i = 0; i < validConversations.length; i += batchSize) {
-      const batch = validConversations.slice(i, i + batchSize);
-
-      try {
-        const batchResult: { conversationIds: string[] } =
-          await ctx.runMutation(internal.conversationImport.processBatch, {
-            conversations: batch,
-            userId,
-            baseTime: now + i, // Ensure unique timestamps
-          });
-
-        results.push(...batchResult.conversationIds);
-      } catch (error) {
-        errors.push(`Batch ${i / batchSize + 1} failed: ${error}`);
-      }
-    }
-
-    return {
-      importedCount: results.length,
-      skippedCount: args.conversations.length - validConversations.length,
-      errors,
-      conversationIds: results,
-    };
-  },
-});
 
 // Internal mutation to process a batch of conversations
 export const processBatch = internalMutation({
@@ -152,6 +44,7 @@ export const processBatch = internalMutation({
   },
   handler: async (ctx, args) => {
     const conversationIds = [];
+    let totalUserMessages = 0;
 
     // Process all conversations in the batch
     for (let i = 0; i < args.conversations.length; i++) {
@@ -187,67 +80,35 @@ export const processBatch = internalMutation({
           metadata: msg.metadata,
         }));
 
-      // Insert all messages
+      // Insert all messages and count user messages
       for (const messageData of messagesToInsert) {
         await ctx.db.insert("messages", messageData);
+        if (messageData.role === "user") {
+          totalUserMessages++;
+        }
       }
 
       conversationIds.push(conversationId);
     }
 
+    // Update user stats for imported conversations and messages
+    if (conversationIds.length > 0 || totalUserMessages > 0) {
+      const user = await ctx.db.get(args.userId);
+      if (user) {
+        await ctx.db.patch(args.userId, {
+          conversationCount: Math.max(
+            0,
+            (user.conversationCount || 0) + conversationIds.length
+          ),
+          totalMessageCount: Math.max(
+            0,
+            (user.totalMessageCount || 0) + totalUserMessages
+          ),
+        });
+      }
+    }
+
     return { conversationIds };
-  },
-});
-
-// Schedule a background import job
-export const scheduleImport = action({
-  args: {
-    conversations: v.array(v.any()),
-    importId: v.string(),
-    skipDuplicates: v.optional(v.boolean()),
-    maxConversations: v.optional(v.number()),
-    title: v.optional(v.string()),
-    description: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    // Limit conversations if specified
-    const limitedConversations = args.maxConversations
-      ? args.conversations.slice(0, args.maxConversations)
-      : args.conversations;
-
-    // Generate import metadata
-    const dateStr = new Date().toLocaleDateString();
-    const count = limitedConversations.length;
-    const title =
-      args.title ||
-      (count === 1
-        ? `Import - ${dateStr}`
-        : `${count} Conversations Import - ${dateStr}`);
-    const description =
-      args.description ||
-      `Import of ${count} conversation${count !== 1 ? "s" : ""} on ${dateStr}`;
-
-    // Create import job record
-    await ctx.runMutation(api.backgroundJobs.create, {
-      jobId: args.importId,
-      userId,
-      type: "import",
-      totalItems: limitedConversations.length,
-      title,
-      description,
-    });
-
-    // Schedule the import processing
-    await ctx.scheduler.runAfter(100, api.conversationImport.processImport, {
-      conversations: limitedConversations,
-      importId: args.importId,
-      skipDuplicates: true,
-      userId,
-    });
-
-    return { importId: args.importId, status: "scheduled" };
   },
 });
 
@@ -267,36 +128,84 @@ export const processImport = action({
         status: "processing",
       });
 
+      // Get existing conversation titles for duplicate detection
+      let existingTitles = new Set<string>();
+      if (args.skipDuplicates) {
+        const existingTitlesList = await ctx.runQuery(
+          internal.conversationImport.getExistingTitles,
+          { userId: args.userId }
+        );
+        existingTitles = new Set(existingTitlesList);
+      }
+
+      // Filter and validate conversations
+      const validConversations = args.conversations
+        .filter(conv => {
+          // Skip duplicates
+          if (args.skipDuplicates && existingTitles.has(conv.title)) {
+            return false;
+          }
+          // Skip conversations with no messages
+          if (!conv.messages || conv.messages.length === 0) {
+            return false;
+          }
+          // Skip conversations with only empty messages
+          if (
+            conv.messages.every(
+              (msg: { content?: string }) =>
+                !msg.content || msg.content.trim() === ""
+            )
+          ) {
+            return false;
+          }
+          return true;
+        })
+        .slice(0, 1000); // Limit to prevent excessive operations
+
+      // Update initial progress
+      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+        jobId: args.importId,
+        processedItems: 0,
+        totalItems: validConversations.length,
+      });
+
       // Process conversations in batches
       const batchSize = 10;
       let totalImported = 0;
       const errors: string[] = [];
       const allImportedIds: string[] = [];
 
-      for (let i = 0; i < args.conversations.length; i += batchSize) {
-        const batch = args.conversations.slice(i, i + batchSize);
+      for (let i = 0; i < validConversations.length; i += batchSize) {
+        const batch = validConversations.slice(i, i + batchSize);
 
         try {
           const batchResult = await ctx.runMutation(
-            api.conversationImport.bulkImport,
+            internal.conversationImport.processBatch,
             {
               conversations: batch,
-              skipDuplicates: args.skipDuplicates,
+              userId: args.userId,
+              baseTime: Date.now() + i, // Ensure unique timestamps
             }
           );
 
-          totalImported += batchResult.importedCount;
+          totalImported += batchResult.conversationIds.length;
           allImportedIds.push(...batchResult.conversationIds);
-          errors.push(...batchResult.errors);
 
-          // Update progress
+          // Update progress based on actual processed items
           await ctx.runMutation(api.backgroundJobs.updateProgress, {
             jobId: args.importId,
-            processedItems: Math.min(i + batchSize, args.conversations.length),
-            totalItems: args.conversations.length,
+            processedItems: i + batchSize, // Update based on batch progress
+            totalItems: validConversations.length,
           });
         } catch (error) {
           errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${error}`);
+
+          // Still update progress even if batch failed
+          await ctx.runMutation(api.backgroundJobs.updateProgress, {
+            jobId: args.importId,
+            processedItems: i + batchSize,
+            totalItems: validConversations.length,
+          });
         }
       }
 
@@ -305,7 +214,7 @@ export const processImport = action({
         jobId: args.importId,
         result: {
           totalImported,
-          totalProcessed: args.conversations.length,
+          totalProcessed: validConversations.length,
           errors,
           conversationIds: allImportedIds,
         },
@@ -324,171 +233,17 @@ export const processImport = action({
   },
 });
 
-// Get import statistics
-export const getImportStats = query({
+// Internal query to get existing conversation titles for duplicate detection
+export const getExistingTitles = internalQuery({
   args: {
-    userId: v.optional(v.id("users")),
-    timeRange: v.optional(v.number()), // Hours
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const userId = args.userId || (await requireAuth(ctx));
-    const timeRange = args.timeRange || 24; // Default 24 hours
-    const cutoffTime = Date.now() - timeRange * 60 * 60 * 1000;
-
-    // Get recent import jobs
-    const recentImports = await ctx.db
-      .query("backgroundJobs")
-      .filter(q =>
-        q.and(
-          q.eq(q.field("userId"), userId),
-          q.eq(q.field("type"), "import"),
-          q.gt(q.field("createdAt"), cutoffTime)
-        )
-      )
-      .collect();
-
-    // Get recent conversations
-    const recentConversations = await ctx.db
+    const existingConversations = await ctx.db
       .query("conversations")
-      .filter(q =>
-        q.and(
-          q.eq(q.field("userId"), userId),
-          q.gt(q.field("createdAt"), cutoffTime)
-        )
-      )
+      .withIndex("by_user_recent", q => q.eq("userId", args.userId))
       .collect();
-
-    return {
-      recentImports: recentImports.length,
-      recentConversations: recentConversations.length,
-      completedImports: recentImports.filter(job => job.status === "completed")
-        .length,
-      failedImports: recentImports.filter(job => job.status === "failed")
-        .length,
-      totalImportedConversations: recentImports
-        .filter(job => job.status === "completed")
-        .reduce((sum, job) => sum + (job.result?.totalImported || 0), 0),
-    };
-  },
-});
-
-// Clean up old import data
-export const cleanupImportData = mutation({
-  args: {
-    olderThanDays: v.optional(v.number()),
-    dryRun: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-    const daysOld = args.olderThanDays || 7;
-    const dryRun = args.dryRun;
-    const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
-
-    // Find old import jobs
-    const oldJobs = await ctx.db
-      .query("backgroundJobs")
-      .filter(q =>
-        q.and(
-          q.eq(q.field("userId"), userId),
-          q.eq(q.field("type"), "import"),
-          q.or(
-            q.eq(q.field("status"), "completed"),
-            q.eq(q.field("status"), "failed")
-          ),
-          q.lt(q.field("updatedAt"), cutoffTime)
-        )
-      )
-      .collect();
-
-    if (dryRun) {
-      return {
-        wouldDelete: oldJobs.length,
-        jobs: oldJobs.map(job => ({
-          jobId: job.jobId,
-          status: job.status,
-          createdAt: job.createdAt,
-        })),
-      };
-    }
-
-    // Delete old jobs
-    let deletedCount = 0;
-    for (const job of oldJobs) {
-      await ctx.db.delete(job._id);
-      deletedCount++;
-    }
-
-    return { deletedCount };
-  },
-});
-
-// Get import status for a specific job
-export const getImportStatus = query({
-  args: {
-    importId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    const job = await ctx.db
-      .query("backgroundJobs")
-      .filter(q => q.eq(q.field("jobId"), args.importId))
-      .first();
-
-    if (!job) {
-      throw new ConvexError("Import job not found");
-    }
-
-    if (job.userId !== userId) {
-      throw new ConvexError("Access denied");
-    }
-
-    return {
-      jobId: job.jobId,
-      type: job.type,
-      status: job.status,
-      processedItems: job.processedItems,
-      totalItems: job.totalItems,
-      progress:
-        job.totalItems > 0
-          ? Math.round((job.processedItems / job.totalItems) * 100)
-          : 0,
-      error: job.error,
-      title: job.title,
-      description: job.description,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-      completedAt: job.completedAt,
-    };
-  },
-});
-
-// Get import result for a completed job
-export const getImportResult = query({
-  args: {
-    importId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    const job = await ctx.db
-      .query("backgroundJobs")
-      .filter(q => q.eq(q.field("jobId"), args.importId))
-      .first();
-
-    if (!job) {
-      throw new ConvexError("Import job not found");
-    }
-
-    if (job.userId !== userId) {
-      throw new ConvexError("Access denied");
-    }
-
-    if (job.status !== "completed") {
-      return null;
-    }
-
-    return job.result;
+    return existingConversations.map(c => c.title);
   },
 });
 
@@ -543,21 +298,20 @@ export const validateImportData = mutation({
         let validMessageCount = 0;
         for (const [msgIndex, msg] of conv.messages.entries()) {
           if (
-            !msg.content ||
-            typeof msg.content !== "string" ||
-            msg.content.trim() === ""
+            !(
+              msg.role &&
+              ["user", "assistant", "system", "context"].includes(msg.role)
+            )
           ) {
-            validation.warnings.push(
-              `Conversation ${index + 1}, Message ${msgIndex + 1}: Empty content`
+            validation.errors.push(
+              `Conversation ${index + 1}, Message ${msgIndex + 1}: Invalid role "${msg.role}"`
             );
             continue;
           }
 
-          if (
-            !(msg.role && ["user", "assistant", "system"].includes(msg.role))
-          ) {
+          if (!msg.content || typeof msg.content !== "string") {
             validation.errors.push(
-              `Conversation ${index + 1}, Message ${msgIndex + 1}: Invalid role`
+              `Conversation ${index + 1}, Message ${msgIndex + 1}: Missing or invalid content`
             );
             continue;
           }
@@ -565,26 +319,23 @@ export const validateImportData = mutation({
           validMessageCount++;
         }
 
-        if (validMessageCount > 0) {
-          validation.stats.validConversations++;
-          validation.stats.validMessages += validMessageCount;
-        }
-
+        validation.stats.validConversations++;
         validation.stats.totalMessages += conv.messages.length;
+        validation.stats.validMessages += validMessageCount;
       } catch (error) {
         validation.errors.push(
-          `Conversation ${index + 1}: Validation error - ${error}`
+          `Conversation ${index + 1}: Unexpected error - ${error}`
         );
       }
     }
 
-    validation.stats.averageMessagesPerConversation =
-      validation.stats.validConversations > 0
-        ? Math.round(
-            validation.stats.validMessages / validation.stats.validConversations
-          )
-        : 0;
+    // Calculate averages
+    if (validation.stats.validConversations > 0) {
+      validation.stats.averageMessagesPerConversation =
+        validation.stats.validMessages / validation.stats.validConversations;
+    }
 
+    // Determine overall validity
     validation.isValid = validation.errors.length === 0;
 
     return validation;

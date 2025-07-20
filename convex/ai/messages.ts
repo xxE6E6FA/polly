@@ -207,9 +207,10 @@ export const clearConversationStreaming = async (
       });
 
       if (message?.conversationId) {
-        await ctx.runMutation(api.conversations.setStreamingState, {
+        await ctx.runMutation(api.conversations.patch, {
           id: message.conversationId,
-          isStreaming: false,
+          updates: { isStreaming: false },
+          setUpdatedAt: true,
         });
       }
 

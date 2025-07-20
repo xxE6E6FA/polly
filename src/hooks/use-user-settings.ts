@@ -1,28 +1,32 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useMutation } from "convex/react";
-import { usePersistentConvexQuery } from "./use-persistent-convex-query";
+import type { Doc } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { useEffect, useMemo } from "react";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 export type UserSettings = Doc<"userSettings"> | null;
 
-export function useUserSettings(
-  userId?: Id<"users">
-): UserSettings | undefined {
-  return usePersistentConvexQuery<UserSettings>(
-    "user-settings",
-    api.userSettings.getUserSettings,
-    { userId }
-  );
+export function getInitialUserSettings(): UserSettings | null {
+  return get(CACHE_KEYS.userSettings, null);
 }
 
-export function useUserSettingsMutations() {
-  const updateUserSettings = useMutation(api.userSettings.updateUserSettings);
-  const togglePersonasEnabled = useMutation(
-    api.userSettings.togglePersonasEnabled
-  );
+export function useUserSettings(): UserSettings | undefined {
+  const userSettingsRaw = useQuery(api.userSettings.getUserSettings, {}) as
+    | UserSettings
+    | undefined;
 
-  return {
-    updateUserSettings,
-    togglePersonasEnabled,
-  };
+  const userSettings = useMemo(() => {
+    if (userSettingsRaw) {
+      return userSettingsRaw;
+    }
+    return get(CACHE_KEYS.userSettings, null);
+  }, [userSettingsRaw]);
+
+  useEffect(() => {
+    if (userSettings) {
+      set(CACHE_KEYS.userSettings, userSettings);
+    }
+  }, [userSettings]);
+
+  return userSettings;
 }

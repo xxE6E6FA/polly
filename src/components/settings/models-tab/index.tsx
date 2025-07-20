@@ -4,7 +4,7 @@ import {
   KeyIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import {
   useCallback,
   useDeferredValue,
@@ -17,7 +17,7 @@ import {
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/use-debounce";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+
 import {
   generateCapabilityCounts,
   matchesCapabilityFilters,
@@ -103,16 +103,13 @@ export const ModelsTab = () => {
   );
 
   const { user } = useUserDataContext();
-  const authenticatedUserId = user?._id;
-  const apiKeysRaw = usePersistentConvexQuery(
-    "models-tab-api-keys",
+  const apiKeysRaw = useQuery(
     api.apiKeys.getUserApiKeys,
-    {}
+    user && !user.isAnonymous ? {} : "skip"
   );
-  const enabledModelsRaw = usePersistentConvexQuery(
-    "user-enabled-models",
+  const enabledModelsRaw = useQuery(
     api.userModels.getUserModels,
-    authenticatedUserId ? { userId: authenticatedUserId } : {}
+    user?._id ? {} : "skip"
   );
 
   // Apply type guards

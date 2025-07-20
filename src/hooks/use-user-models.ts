@@ -1,21 +1,55 @@
 import { api } from "@convex/_generated/api";
-import { usePersistentConvexQuery } from "./use-persistent-convex-query";
+import { useQuery } from "convex/react";
+import { useEffect, useMemo } from "react";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import { useUserDataContext } from "@/providers/user-data-context";
+import type { AIModel } from "@/types";
 
 export function useUserModels() {
-  const userModelsByProvider = usePersistentConvexQuery(
-    "user-models-by-provider",
-    api.userModels.getUserModelsByProvider,
-    {}
-  );
-  const hasUserModels = usePersistentConvexQuery(
-    "has-user-models",
-    api.userModels.hasUserModels,
-    {}
+  const { user } = useUserDataContext();
+
+  const userModelsRaw = useQuery(
+    api.userModels.getAvailableModels,
+    user?._id ? {} : "skip"
   );
 
+  const userModels = useMemo(
+    () => userModelsRaw ?? get(CACHE_KEYS.userModels, []),
+    [userModelsRaw]
+  );
+
+  useEffect(() => {
+    if (
+      userModelsRaw &&
+      Array.isArray(userModelsRaw) &&
+      userModelsRaw.length > 0
+    ) {
+      set(CACHE_KEYS.userModels, userModelsRaw);
+    }
+  }, [userModelsRaw]);
+
+  const userModelsByProvider = useMemo(() => {
+    const grouped: Record<string, AIModel[]> = {};
+
+    userModels.forEach(model => {
+      if (!model) {
+        return;
+      }
+
+      // Use displayProvider if available, otherwise fall back to provider
+      const displayProvider = model.displayProvider || model.provider;
+
+      if (!grouped[displayProvider]) {
+        grouped[displayProvider] = [];
+      }
+      grouped[displayProvider].push(model);
+    });
+
+    return grouped;
+  }, [userModels]);
+
   return {
+    userModels,
     userModelsByProvider,
-    hasUserModels,
-    isLoading: false,
   };
 }

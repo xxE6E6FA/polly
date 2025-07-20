@@ -20,6 +20,7 @@ import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
@@ -34,23 +35,30 @@ type ArchivedConversation = {
 export const ArchivedConversationsPage = () => {
   const confirmationDialog = useConfirmationDialog();
   const { user } = useUserDataContext();
-  const queryUserId = user?._id || null;
+  const _queryUserId = user?._id || null;
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
-  const unarchiveMutation = useMutation(api.conversations.unarchive);
+  const unarchiveMutation = useMutation(api.conversations.patch);
   const deleteConversationMutation = useMutation(api.conversations.remove);
 
   const handleRestore = useCallback(
     async (conversationId: ConversationId) => {
       setIsUnarchiving(conversationId);
       try {
-        await unarchiveMutation({ id: conversationId });
-        toast.success("Conversation restored", {
-          description: "Conversation has been restored to your conversations.",
+        await unarchiveMutation({
+          id: conversationId,
+          updates: { isArchived: false },
+          setUpdatedAt: true,
         });
+        toast.success("Conversation restored", {
+          description:
+            "The conversation has been moved back to your main list.",
+        });
+        // Invalidate conversations cache to reflect unarchived conversation
+        del(CACHE_KEYS.conversations);
       } catch (error) {
-        console.error("Failed to restore conversation:", error);
+        console.error("Failed to unarchive conversation:", error);
         toast.error("Failed to restore conversation", {
           description: "Unable to restore conversation. Please try again.",
         });
@@ -78,6 +86,8 @@ export const ArchivedConversationsPage = () => {
             toast.success("Conversation deleted", {
               description: "The conversation has been permanently removed.",
             });
+            // Invalidate conversations cache to reflect deleted conversation
+            del(CACHE_KEYS.conversations);
           } catch (error) {
             console.error("Failed to delete conversation:", error);
             toast.error("Failed to delete conversation", {
@@ -157,11 +167,10 @@ export const ArchivedConversationsPage = () => {
       />
 
       <VirtualizedPaginatedList
-        query={
-          api.conversations
-            .listArchivedPaginated as unknown as PaginatedQueryReference
-        }
-        queryArgs={queryUserId ? { userId: queryUserId } : "skip"}
+        query={api.conversations.list as PaginatedQueryReference}
+        queryArgs={{
+          archivedOnly: true,
+        }}
         renderItem={renderArchivedConversation}
         getItemKey={item => item._id}
         zeroState={
@@ -177,13 +186,13 @@ export const ArchivedConversationsPage = () => {
       />
 
       <ConfirmationDialog
-        open={confirmationDialog.isOpen}
+        open={confirmationDialog.state.isOpen}
         onOpenChange={confirmationDialog.handleOpenChange}
-        title={confirmationDialog.options.title}
-        description={confirmationDialog.options.description}
-        confirmText={confirmationDialog.options.confirmText}
-        cancelText={confirmationDialog.options.cancelText}
-        variant={confirmationDialog.options.variant}
+        title={confirmationDialog.state.title}
+        description={confirmationDialog.state.description}
+        confirmText={confirmationDialog.state.confirmText}
+        cancelText={confirmationDialog.state.cancelText}
+        variant={confirmationDialog.state.variant}
         onConfirm={confirmationDialog.handleConfirm}
         onCancel={confirmationDialog.handleCancel}
       />

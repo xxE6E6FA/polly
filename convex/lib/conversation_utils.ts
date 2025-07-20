@@ -1,48 +1,17 @@
 import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
-import { type ActionCtx } from "../_generated/server";
+import { type ActionCtx, type MutationCtx } from "../_generated/server";
 import { getDefaultSystemPrompt } from "../constants";
+import { ConvexError } from "convex/values";
+import {
+  DEFAULT_TEMPERATURE,
+  DEFAULT_MAX_TOKENS,
+  WEB_SEARCH_MAX_RESULTS,
+  MONTHLY_MESSAGE_LIMIT,
+} from "@shared/constants";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
 
-/**
- * Safely converts a string to a conversation ID and retrieves the conversation.
- * Returns null if the ID is invalid or conversation doesn't exist.
- * This is the DRY solution for handling potentially invalid conversation IDs from the frontend.
- * @param ctx
- * @param ctx.db
- * @param ctx.db.get
- * @param conversationIdString
- */
-export async function getSafeConversation(
-  ctx: {
-    db: {
-      get: (
-        id: Id<"conversations">
-      ) => Promise<{ _id: Id<"conversations"> } | null>;
-    };
-  },
-  conversationIdString: string
-) {
-  try {
-    const conversationId = conversationIdString as Id<"conversations">;
-    return await ctx.db.get(conversationId);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Validator replacement for frontend-facing queries.
- * Use this pattern in queries that accept conversation IDs from the frontend:
- *
- * args: { conversationId: v.string() }
- * handler: async (ctx, args) => {
- *   const conversation = await getSafeConversation(ctx, args.conversationId);
- *   if (!conversation) return null;
- *   // ... rest of handler
- * }
- */
-
-// Types for conversation operations
 export type StreamingActionResult = {
   userMessageId?: Id<"messages">;
   assistantMessageId: Id<"messages">;
@@ -109,29 +78,30 @@ export type MessageDoc = {
 
 // Helper to find streaming assistant message
 export const findStreamingMessage = (
-  messages: Array<MessageDoc>
+  messages: Array<MessageDoc>,
 ): MessageDoc | undefined => {
   return messages
-    .filter(msg => msg.role === "assistant")
+    .filter((msg) => msg.role === "assistant")
     .reverse() // Start from the most recent
-    .find(msg => !msg.metadata?.finishReason); // No finish reason means it's still streaming
+    .find((msg) => !msg.metadata?.finishReason); // No finish reason means it's still streaming
 };
 
 // Helper to ensure conversation streaming state is cleared
 export const ensureStreamingCleared = async (
   ctx: ActionCtx,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<void> => {
   try {
-    await ctx.runMutation(api.conversations.setStreamingState, {
+    await ctx.runMutation(api.conversations.patch, {
       id: conversationId,
-      isStreaming: false,
+      updates: { isStreaming: false },
+      setUpdatedAt: true,
     });
   } catch (error) {
     // Log but don't throw - this is a cleanup operation
     console.error(
       `Failed to clear streaming state for conversation ${conversationId}:`,
-      error
+      error,
     );
   }
 };
@@ -140,7 +110,7 @@ export const ensureStreamingCleared = async (
 export const deleteMessagesAfterIndex = async (
   ctx: ActionCtx,
   messages: Array<MessageDoc>,
-  afterIndex: number
+  afterIndex: number,
 ): Promise<void> => {
   const messagesToDelete = messages.slice(afterIndex + 1);
   for (const msg of messagesToDelete) {
@@ -159,10 +129,10 @@ export const resolveAttachmentUrls = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
-  }>
+  }>,
 ) => {
   return await Promise.all(
-    attachments.map(async attachment => {
+    attachments.map(async (attachment) => {
       if (attachment.storageId) {
         const url = await ctx.storage.getUrl(attachment.storageId);
         return {
@@ -171,7 +141,7 @@ export const resolveAttachmentUrls = async (
         };
       }
       return attachment;
-    })
+    }),
   );
 };
 
@@ -187,7 +157,7 @@ export const buildUserMessageContent = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
-  }>
+  }>,
 ): Promise<
   | string
   | Array<{
@@ -262,13 +232,547 @@ export const buildUserMessageContent = async (
 
 // Helper to get a default system prompt based on conversation messages
 export const getDefaultSystemPromptForConversation = (
-  messages: Array<MessageDoc>
+  messages: Array<MessageDoc>,
 ): string => {
   // Get the model info from the last assistant message or use a default
   const lastAssistantMessage = messages
-    .filter(msg => msg.role === "assistant" && msg.model)
+    .filter((msg) => msg.role === "assistant" && msg.model)
     .pop();
 
   const modelName = lastAssistantMessage?.model || "an AI model";
   return getDefaultSystemPrompt(modelName);
+};
+
+// DRY Helper: Process attachments for storage
+export async function processAndStoreAttachments(
+  ctx: { storage: ActionCtx["storage"] },
+  attachments?: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+    mimeType?: string;
+  }>,
+): Promise<
+  | Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      storageId?: Id<"_storage">;
+      thumbnail?: string;
+      content?: undefined;
+    }>
+  | undefined
+> {
+  if (!attachments || attachments.length === 0) return undefined;
+  return await Promise.all(
+    attachments.map(async (attachment) => {
+      const needsUpload =
+        (attachment.type === "image" || attachment.type === "pdf") &&
+        !attachment.storageId &&
+        (attachment.url?.startsWith("data:") || attachment.content);
+      if (needsUpload) {
+        try {
+          let mimeType: string;
+          let base64Data: string;
+          if (attachment.url?.startsWith("data:")) {
+            const matches = attachment.url.match(/^data:([^;]+);base64,(.+)$/);
+            if (!matches) throw new ConvexError("Invalid data URL format");
+            mimeType = matches[1];
+            base64Data = matches[2];
+          } else if (attachment.content) {
+            mimeType =
+              attachment.mimeType ||
+              (attachment.type === "image" ? "image/jpeg" : "application/pdf");
+            base64Data = attachment.content;
+          } else {
+            // Remove content property if present
+            const { content, mimeType, ...rest } = attachment;
+            return { ...rest, content: undefined };
+          }
+          const byteCharacters = Buffer.from(base64Data, "base64");
+          const blob = new globalThis.Blob([byteCharacters], {
+            type: mimeType,
+          });
+          const storageId = await ctx.storage.store(blob);
+          return {
+            type: attachment.type,
+            url: "",
+            name: attachment.name,
+            size: attachment.size,
+            storageId: storageId as Id<"_storage">,
+            thumbnail: attachment.thumbnail,
+            content: undefined,
+          };
+        } catch (error) {
+          const { content, mimeType, ...rest } = attachment;
+          return { ...rest, content: undefined };
+        }
+      }
+      const { content, mimeType, ...rest } = attachment;
+      return { ...rest, content: undefined };
+    }),
+  );
+}
+
+// DRY Helper: Fetch persona prompt if needed
+export async function getPersonaPrompt(
+  ctx: { runQuery: ActionCtx["runQuery"] },
+  personaId?: Id<"personas">,
+  personaPrompt?: string,
+): Promise<string | undefined> {
+  if (personaPrompt) return personaPrompt;
+  if (personaId) {
+    const persona = await ctx.runQuery(api.personas.get, { id: personaId });
+    return persona?.prompt;
+  }
+  return undefined;
+}
+
+// DRY Helper: Create a message (works for both ActionCtx and MutationCtx)
+export async function createMessage(
+  ctx: { db: any },
+  fields: Record<string, any>,
+) {
+  return await ctx.db.insert("messages", {
+    ...fields,
+    isMainBranch: fields.isMainBranch !== false, // default true
+    createdAt: fields.createdAt ?? Date.now(),
+  });
+}
+
+// DRY Helper: Increment user message stats with model checking
+export async function incrementUserMessageStats(
+  ctx: ActionCtx | MutationCtx,
+  model?: string,
+  provider?: string,
+) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("User not found");
+  }
+
+  const user = await ctx.runQuery(api.users.getById, { id: userId });
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Check if this is a Polly model (virtual model that doesn't exist in database)
+  const isPollyModel =
+    provider === "polly" ||
+    (model === "gemini-2.5-flash-lite-preview-06-17" && provider === "google");
+
+  let userModel;
+
+  if (isPollyModel) {
+    // For Polly models, create a virtual model object
+    userModel = await ctx.runQuery(api.userModels.getVirtualPollyModel);
+  } else {
+    // Query database for real models
+    userModel = await ctx.runQuery(api.userModels.getModelByID, {
+      modelId: model ?? "",
+      provider: provider ?? "",
+    });
+
+    if (!userModel) {
+      // For private conversation imports, the model might not exist in the user's database
+      // In this case, we'll skip the stats increment rather than failing
+      console.warn(`Model not found for stats increment: ${model}/${provider} - skipping`);
+      return;
+    }
+  }
+
+  if (userModel?.free && !user.hasUnlimitedCalls) {
+    const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+    const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+    if (monthlyMessagesSent >= monthlyLimit) {
+      throw new Error("Monthly Polly model message limit reached.");
+    }
+
+    await ctx.runMutation(api.users.patch, {
+      id: userId,
+      updates: {
+        messagesSent: (user.messagesSent || 0) + 1,
+        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
+      },
+    });
+  } else {
+    await ctx.runMutation(api.users.patch, {
+      id: userId,
+      updates: {
+        messagesSent: (user.messagesSent || 0) + 1,
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
+      },
+    });
+  }
+}
+
+export async function scheduleTitleGeneration(
+  ctx: { scheduler: ActionCtx["scheduler"] },
+  conversationId: Id<"conversations">,
+  message: string,
+  force?: boolean,
+) {
+  if (force === false && (!message || message.trim().length === 0)) return;
+  await ctx.scheduler.runAfter(
+    100,
+    api.titleGeneration.generateTitleBackground,
+    {
+      conversationId,
+      message,
+    },
+  );
+}
+
+// DRY Helper: Generate export metadata
+export function generateExportMetadata(
+  conversationIds: Array<Id<"conversations">>,
+  includeAttachments: boolean,
+) {
+  const dateStr = new Date().toLocaleDateString();
+  const count = conversationIds.length;
+  const title =
+    count === 1
+      ? `Conversation Export - ${dateStr}`
+      : `${count} Conversations Export - ${dateStr}`;
+  const description = includeAttachments
+    ? `Export of ${count} conversation${count !== 1 ? "s" : ""} with attachments created on ${dateStr}`
+    : `Export of ${count} conversation${count !== 1 ? "s" : ""} created on ${dateStr}`;
+  return { title, description };
+}
+
+// DRY Helper: Merge baseline instructions with persona prompt
+export const mergeSystemPrompts = (
+  modelName: string,
+  personaPrompt?: string,
+): string => {
+  // Get baseline instructions (formatting rules, date/time, model info, etc.)
+  const baselineInstructions = getBaselineInstructions(modelName);
+
+  // Use persona prompt if provided, otherwise use default Polly persona
+  const effectivePersonaPrompt = personaPrompt || DEFAULT_POLLY_PERSONA;
+
+  // Combine baseline instructions with persona
+  return `${baselineInstructions}\n\n${effectivePersonaPrompt}`;
+};
+
+// Moved from conversations.ts
+export const executeStreamingAction = async (
+  ctx: ActionCtx,
+  args: MessageActionArgs & {
+    userMessageId?: Id<"messages">;
+    conversation: ConversationDoc;
+    contextMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content:
+        | string
+        | Array<{
+            type: "text" | "image_url" | "file";
+            text?: string;
+            image_url?: { url: string };
+            file?: { filename: string; file_data: string };
+            attachment?: {
+              storageId: Id<"_storage">;
+              type: string;
+              name: string;
+            };
+          }>;
+    }>;
+    useWebSearch?: boolean;
+    reasoningConfig?: {
+      enabled?: boolean;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
+    };
+  },
+): Promise<StreamingActionResult> => {
+  let assistantMessageId: Id<"messages"> | undefined;
+  try {
+    assistantMessageId = await setupAndStartStreaming(ctx, {
+      conversationId: args.conversationId,
+      contextMessages: args.contextMessages,
+      model: args.model,
+      provider: args.provider,
+      userId: args.conversation.userId,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+    });
+    return {
+      userMessageId: args.userMessageId,
+      assistantMessageId,
+    };
+  } catch (error) {
+    return await handleStreamingError(ctx, error, args.conversationId, {
+      userMessageId: args.userMessageId,
+      assistantMessageId,
+    });
+  }
+};
+
+export const processAttachmentsForStorage = async (
+  ctx: ActionCtx,
+  attachments?: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+    mimeType?: string;
+  }>,
+): Promise<
+  | Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+    }>
+  | undefined
+> => {
+  if (!attachments || attachments.length === 0) {
+    return undefined;
+  }
+  return await Promise.all(
+    attachments.map(async (attachment) => {
+      const needsUpload =
+        (attachment.type === "image" || attachment.type === "pdf") &&
+        !attachment.storageId &&
+        (attachment.url.startsWith("data:") || attachment.content);
+      if (needsUpload) {
+        try {
+          let mimeType: string;
+          let base64Data: string;
+          if (attachment.url.startsWith("data:")) {
+            const matches = attachment.url.match(/^data:([^;]+);base64,(.+)$/);
+            if (!matches) {
+              throw new ConvexError("Invalid data URL format");
+            }
+            mimeType = matches[1];
+            base64Data = matches[2];
+          } else if (attachment.content) {
+            mimeType =
+              attachment.mimeType ||
+              (attachment.type === "image" ? "image/jpeg" : "application/pdf");
+            base64Data = attachment.content;
+          } else {
+            return attachment;
+          }
+          const byteCharacters = Buffer.from(base64Data, "base64");
+          const blob = new globalThis.Blob([byteCharacters], {
+            type: mimeType,
+          });
+          const storageId = await ctx.storage.store(blob);
+          return {
+            type: attachment.type,
+            url: "",
+            name: attachment.name,
+            size: attachment.size,
+            storageId: storageId as Id<"_storage">,
+            thumbnail: attachment.thumbnail,
+            content: undefined,
+          };
+        } catch (error) {
+          const { content, mimeType, ...rest } = attachment;
+          return { ...rest, content: undefined };
+        }
+      }
+      const { content, mimeType, ...rest } = attachment;
+      return { ...rest, content: undefined };
+    }),
+  );
+};
+
+export const buildContextMessages = async (
+  ctx: ActionCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    personaId?: Id<"personas">;
+    includeUpToIndex?: number;
+  },
+) => {
+  // Get the conversation to find its personaId
+  const conversation = await ctx.runQuery(api.conversations.get, {
+    id: args.conversationId,
+  });
+
+  const messagesResult = await ctx.runQuery(api.messages.list, {
+    conversationId: args.conversationId,
+  });
+  const messages = Array.isArray(messagesResult)
+    ? messagesResult
+    : messagesResult.page;
+  const relevantMessages =
+    args.includeUpToIndex !== undefined
+      ? messages.slice(0, args.includeUpToIndex + 1)
+      : messages;
+
+  // Use the personaId from the conversation (or fallback to args.personaId)
+  const effectivePersonaId = conversation?.personaId || args.personaId;
+  const personaPrompt = effectivePersonaId
+    ? (await ctx.runQuery(api.personas.get, { id: effectivePersonaId }))?.prompt
+    : undefined;
+  const messagesWithResolvedUrls = await Promise.all(
+    relevantMessages.map(async (msg) => {
+      if (msg.attachments && msg.attachments.length > 0) {
+        const resolvedAttachments = await resolveAttachmentUrls(
+          ctx,
+          msg.attachments,
+        );
+        return {
+          ...msg,
+          attachments: resolvedAttachments,
+        };
+      }
+      return msg;
+    }),
+  );
+  const contextMessagesPromises = messagesWithResolvedUrls
+    .filter((msg) => msg.role !== "context")
+    .map(async (msg) => {
+      if (msg.role === "system") {
+        const isCitationInstruction =
+          msg.content.includes("🚨 CRITICAL CITATION REQUIREMENTS") ||
+          msg.content.includes("SEARCH RESULTS:") ||
+          msg.content.includes("AVAILABLE SOURCES FOR CITATION:");
+        if (isCitationInstruction) {
+          return undefined;
+        }
+        return {
+          role: "system" as const,
+          content: msg.content,
+        };
+      }
+      if (msg.role === "user") {
+        const content = await buildUserMessageContent(
+          ctx,
+          msg.content,
+          msg.attachments,
+        );
+        return {
+          role: "user" as const,
+          content,
+        };
+      }
+      if (msg.role === "assistant") {
+        return {
+          role: "assistant" as const,
+          content: msg.content,
+        };
+      }
+      return;
+    });
+  const contextMessagesWithNulls = await Promise.all(contextMessagesPromises);
+  const contextMessages = contextMessagesWithNulls.filter(
+    (msg): msg is Exclude<typeof msg, undefined> => msg !== undefined,
+  );
+
+  // Get model name from the last assistant message or use a default
+  const lastAssistantMessage = relevantMessages
+    .filter((msg) => msg.role === "assistant" && msg.model)
+    .pop();
+  const modelName = lastAssistantMessage?.model || "an AI model";
+
+  // Merge baseline instructions with persona prompt into a single system message
+  const mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
+
+  contextMessages.unshift({
+    role: "system",
+    content: mergedSystemPrompt,
+  });
+
+  return { contextMessages, messages: relevantMessages };
+};
+
+export const setupAndStartStreaming = async (
+  ctx: ActionCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    contextMessages: Array<{
+      role: "user" | "assistant" | "system";
+      content:
+        | string
+        | Array<{
+            type: "text" | "image_url" | "file";
+            text?: string;
+            image_url?: { url: string };
+            file?: { filename: string; file_data: string };
+            attachment?: {
+              storageId: Id<"_storage">;
+              type: string;
+              name: string;
+            };
+          }>;
+    }>;
+    model: string;
+    provider: string;
+    userId: Id<"users">;
+    useWebSearch?: boolean;
+    reasoningConfig?: {
+      enabled?: boolean;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
+    };
+  },
+) => {
+  await ctx.runMutation(api.conversations.patch, {
+    id: args.conversationId,
+    updates: { isStreaming: true },
+  });
+  const assistantMessageId = await ctx.runMutation(api.messages.create, {
+    conversationId: args.conversationId,
+    role: "assistant",
+    content: "",
+    model: args.model,
+    provider: args.provider,
+    isMainBranch: true,
+  });
+  await ctx.runAction(api.ai.streamResponse, {
+    messages: args.contextMessages,
+    messageId: assistantMessageId,
+    model: args.model,
+    provider: args.provider,
+    temperature: DEFAULT_TEMPERATURE,
+    maxTokens: DEFAULT_MAX_TOKENS,
+    enableWebSearch: args.useWebSearch,
+    webSearchMaxResults: WEB_SEARCH_MAX_RESULTS,
+    reasoningConfig: args.reasoningConfig?.enabled
+      ? {
+          effort: args.reasoningConfig.effort,
+          maxTokens: args.reasoningConfig.maxTokens,
+        }
+      : undefined,
+  });
+  return assistantMessageId;
+};
+
+export const handleStreamingError = async (
+  ctx: ActionCtx,
+  error: unknown,
+  conversationId: Id<"conversations">,
+  messageIds?: {
+    userMessageId?: Id<"messages">;
+    assistantMessageId?: Id<"messages">;
+  },
+) => {
+  await ctx.runMutation(api.conversations.patch, {
+    id: conversationId,
+    updates: { isStreaming: false },
+  });
+  if (error instanceof Error && error.message === "StoppedByUser") {
+    return {
+      userMessageId: messageIds?.userMessageId || ("" as Id<"messages">),
+      assistantMessageId:
+        messageIds?.assistantMessageId || ("" as Id<"messages">),
+    };
+  }
+  throw error;
 };

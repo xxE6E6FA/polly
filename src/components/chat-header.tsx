@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
   DotsThreeVerticalIcon,
@@ -8,9 +8,9 @@ import {
   FloppyDiskIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import {
   downloadFile,
   exportAsJSON,
@@ -20,18 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
-import type { ChatMessage, ConversationId, ExportData } from "@/types";
-
-const isExportData = (x: unknown): x is ExportData => {
-  return (
-    !!x &&
-    typeof x === "object" &&
-    "conversation" in x &&
-    "messages" in x &&
-    Array.isArray((x as Record<string, unknown>).messages)
-  );
-};
-
+import type { ChatMessage, ConversationId } from "@/types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -72,22 +61,17 @@ export const ChatHeader = ({
   const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
-  const conversation = usePersistentConvexQuery<Doc<"conversations"> | null>(
-    "chat-header-conversation",
+  const conversation = useQuery(
     api.conversations.get,
     conversationId ? { id: conversationId } : "skip"
   );
 
-  const exportDataRaw = usePersistentConvexQuery(
-    "chat-header-export",
+  const exportData = useQuery(
     api.conversations.getForExport,
     conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
   );
 
-  const exportData = isExportData(exportDataRaw) ? exportDataRaw : null;
-
-  const persona = usePersistentConvexQuery<Doc<"personas"> | null>(
-    "chat-header-persona",
+  const persona = useQuery(
     api.personas.get,
     conversation?.personaId
       ? { id: conversation.personaId }
@@ -159,7 +143,7 @@ export const ChatHeader = ({
 
   // Handle export data loading completion and errors
   useEffect(() => {
-    if (exportData && exportingFormat && conversation) {
+    if (exportData && exportingFormat && conversation && conversation.title) {
       try {
         let content: string;
         let mimeType: string;
@@ -209,14 +193,16 @@ export const ChatHeader = ({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {isPrivateMode ? (
           <div className="h-4" />
-        ) : conversation === undefined ? (
-          <Skeleton className="h-4 w-[120px] sm:w-[200px]" />
-        ) : conversation?.title ? (
-          <h1 className="truncate text-xs font-medium text-foreground sm:text-sm">
-            {conversation.title}
-          </h1>
+        ) : conversation ? (
+          conversation.title ? (
+            <h1 className="truncate text-xs font-medium text-foreground sm:text-sm">
+              {conversation.title}
+            </h1>
+          ) : (
+            <div className="h-4" />
+          )
         ) : (
-          <div className="h-4" />
+          <Skeleton className="h-4 w-[120px] sm:w-[200px]" />
         )}
         {persona && (
           <Tooltip>

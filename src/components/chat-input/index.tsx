@@ -1,17 +1,19 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
 import {
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import { ModelPicker } from "@/components/model-picker";
-import { ReasoningConfigSelect } from "@/components/reasoning-config-select";
+import { ReasoningPicker } from "@/components/reasoning-picker";
 import { useChatWarnings } from "@/hooks/use-chat-warnings";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { CACHE_KEYS, get } from "@/lib/local-storage";
 import {
   getDefaultReasoningConfig,
   useLastMessageReasoningConfig,
@@ -82,13 +84,19 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const hasWarnings = warnings.showLimitWarning || warnings.showLimitReached;
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const { chatInputState, setChatInputState, clearChatInputState } =
-      usePrivateMode();
-    const selectedModel = usePersistentConvexQuery(
-      "selected-model",
-      api.userModels.getUserSelectedModel,
-      {}
-    );
+    const {
+      isPrivateMode,
+      chatInputState,
+      setChatInputState,
+      clearChatInputState,
+    } = usePrivateMode();
+    const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
+    const selectedModel = useMemo(() => {
+      if (selectedModelRaw) {
+        return selectedModelRaw;
+      }
+      return get(CACHE_KEYS.selectedModel, null);
+    }, [selectedModelRaw]);
     const shouldUsePreservedState = !(conversationId || hasExistingMessages);
     const [input, setInputState] = useState(() =>
       shouldUsePreservedState ? chatInputState.input : ""
@@ -164,13 +172,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       (value: Attachment[] | ((prev: Attachment[]) => Attachment[])) => {
         setAttachmentsState(prev => {
           const newValue = typeof value === "function" ? value(prev) : value;
-          if (shouldUsePreservedState) {
-            setChatInputState({ attachments: newValue });
-          }
           return newValue;
         });
+
+        if (shouldUsePreservedState) {
+          const newValue =
+            typeof value === "function" ? value(attachments) : value;
+          setChatInputState({ attachments: newValue });
+        }
       },
-      [shouldUsePreservedState, setChatInputState]
+      [shouldUsePreservedState, setChatInputState, attachments]
     );
 
     const setSelectedPersonaId = useCallback(
@@ -298,7 +309,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             className={cn(
               "rounded-xl p-2.5 sm:p-3 transition-all duration-700",
               canSend
-                ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
+                ? isPrivateMode
+                  ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
+                  : "border border-border bg-background"
                 : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
             )}
           >
@@ -330,7 +343,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 />
                 {canSend && <ModelPicker />}
                 {canSend && selectedModel && isUserModel(selectedModel) ? (
-                  <ReasoningConfigSelect
+                  <ReasoningPicker
                     model={selectedModel}
                     config={reasoningConfig}
                     onConfigChange={setReasoningConfig}

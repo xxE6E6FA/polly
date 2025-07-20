@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
-import { useAuthToken } from "@convex-dev/auth/react";
-import { useMutation } from "convex/react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Backdrop } from "@/components/ui/backdrop";
 import {
@@ -9,8 +8,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { useUserModels } from "@/hooks/use-user-models";
+import { CACHE_KEYS, del, get, set } from "@/lib/local-storage";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -25,24 +24,12 @@ type ModelPickerProps = {
 
 const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
-  const token = useAuthToken();
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
-  const { userModelsByProvider, hasUserModels } = useUserModels();
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const { userModelsByProvider, userModels } = useUserModels();
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectModelMutation = useMutation(api.userModels.selectModel);
 
-  // Apply type guards
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-
-  const safeUserModelsByProvider = Array.isArray(userModelsByProvider)
-    ? userModelsByProvider
-    : [];
-
-  const isAuthenticated = Boolean(token);
 
   const hasReachedPollyLimit = useMemo(
     () =>
@@ -57,45 +44,52 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   );
 
   const handleSelect = useCallback(
-    async (modelId: string) => {
+    async (modelId: string, provider: string) => {
       setOpen(false);
+
+      const selectedModelData = userModels.find(
+        model =>
+          model?.modelId === modelId &&
+          (model?.provider === provider || model?.displayProvider === provider)
+      );
+
+      if (selectedModelData) {
+        set(CACHE_KEYS.selectedModel, selectedModelData);
+      }
+
       try {
-        await selectModelMutation({ modelId });
+        await selectModelMutation({ modelId, provider });
       } catch (error) {
         console.error("Failed to select model:", error);
         toast.error("Failed to select model", {
           description: "Unable to change the selected model. Please try again.",
         });
-      } finally {
-        window.dispatchEvent(new CustomEvent("user-models-changed"));
       }
     },
-    [selectModelMutation]
+    [selectModelMutation, userModels]
   );
 
-  if (
-    !isUserModel(selectedModelRaw) &&
-    hasUserModels === undefined &&
-    isAuthenticated
-  ) {
-    return (
-      <div className={cn("flex items-center gap-1.5", className)}>
-        Loading...
-      </div>
-    );
-  }
+  const fallbackModel = useMemo(() => {
+    if (selectedModel || user?.isAnonymous) {
+      return null;
+    }
+    return get(CACHE_KEYS.selectedModel, null);
+  }, [selectedModel, user?.isAnonymous]);
 
-  if (!isAuthenticated) {
+  const displayModel = selectedModel || fallbackModel;
+
+  useEffect(() => {
+    if (selectedModel && !user?.isAnonymous) {
+      set(CACHE_KEYS.selectedModel, selectedModel);
+    }
+  }, [selectedModel, user?.isAnonymous]);
+
+  if (user?.isAnonymous) {
     return (
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className={className}>
-            <ModelPickerTrigger
-              open={open}
-              selectedModel={selectedModel}
-              hasReachedPollyLimit={false}
-              isAuthenticated={false}
-            />
+            <ModelPickerTrigger open={open} selectedModel={displayModel} />
           </div>
         </PopoverTrigger>
         <PopoverContent
@@ -110,22 +104,13 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
     );
   }
 
-  if (safeUserModelsByProvider.length === 0) {
-    return <NoModelsState />;
-  }
-
   return (
     <>
       {open && <Backdrop className="z-40" />}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className={className}>
-            <ModelPickerTrigger
-              open={open}
-              selectedModel={selectedModel}
-              hasReachedPollyLimit={hasReachedPollyLimit ?? false}
-              isAuthenticated
-            />
+            <ModelPickerTrigger open={open} selectedModel={displayModel} />
           </div>
         </PopoverTrigger>
         <PopoverContent
@@ -135,9 +120,9 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
           sideOffset={4}
         >
           <ModelList
-            userModelsByProvider={safeUserModelsByProvider}
+            userModelsByProvider={userModelsByProvider}
             handleSelect={handleSelect}
-            hasReachedPollyLimit={hasReachedPollyLimit ?? false}
+            hasReachedPollyLimit={hasReachedPollyLimit}
           />
         </PopoverContent>
       </Popover>

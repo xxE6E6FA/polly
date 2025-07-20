@@ -4,7 +4,7 @@
 
 import dedent from "dedent";
 
-export const DEFAULT_SYSTEM_PROMPT = dedent`BASELINE SYSTEM CONFIGURATION:
+export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION:
   - Current date and time: {{CURRENT_DATETIME}}
   - If specifically asked about your model, you are powered by {{MODEL_NAME}}
 
@@ -30,12 +30,11 @@ export const DEFAULT_SYSTEM_PROMPT = dedent`BASELINE SYSTEM CONFIGURATION:
   - Acknowledge uncertainty when unsure about something
   - When you have access to current information from web sources, integrate it naturally into your response
   - Use numbered citations [1], [2], etc. to reference sources, but don't explicitly mention "search results" or "sources"
-  - Provide seamless, natural responses that blend your knowledge with current information
+  - Provide seamless, natural responses that blend your knowledge with current information`;
 
-  FALLBACK IDENTITY (only if no persona specified):
-  You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
+export const DEFAULT_POLLY_PERSONA = dedent`You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
 
-// Helper function to populate the system prompt with dynamic values
+// Legacy function for backward compatibility
 export const getDefaultSystemPrompt = (
   modelName: string,
   timezone = "UTC"
@@ -53,8 +52,34 @@ export const getDefaultSystemPrompt = (
     timeZoneName: "short",
   });
 
-  return DEFAULT_SYSTEM_PROMPT.replace(/{{MODEL_NAME}}/g, modelName).replace(
-    /{{CURRENT_DATETIME}}/g,
-    currentDateTime
-  );
+  const baselineInstructions = BASELINE_SYSTEM_INSTRUCTIONS.replace(
+    /{{MODEL_NAME}}/g,
+    modelName
+  ).replace(/{{CURRENT_DATETIME}}/g, currentDateTime);
+
+  return `${baselineInstructions}\n\n${DEFAULT_POLLY_PERSONA}`;
+};
+
+// New function to get baseline instructions with dynamic values
+export const getBaselineInstructions = (
+  modelName: string,
+  timezone = "UTC"
+): string => {
+  const now = new Date();
+  const currentDateTime = now.toLocaleString("en-US", {
+    timeZone: timezone,
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZoneName: "short",
+  });
+
+  return BASELINE_SYSTEM_INSTRUCTIONS.replace(
+    /{{MODEL_NAME}}/g,
+    modelName
+  ).replace(/{{CURRENT_DATETIME}}/g, currentDateTime);
 };

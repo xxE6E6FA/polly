@@ -48,12 +48,10 @@ export const SimplePrompts = ({
     return shuffled.slice(0, 4);
   }, []);
 
-  // Don't render anything until we know the user state
   if (userLoading) {
     return null;
   }
 
-  // Only show for anonymous users
   if (!isAnonymous) {
     return null;
   }
@@ -139,6 +137,3 @@ export const SimplePrompts = ({
     </>
   );
 };
-
-// For backwards compatibility, export the same component with old name
-export const PromptsTickerWrapper = SimplePrompts;

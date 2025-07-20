@@ -19,8 +19,8 @@ export function PersonaSelector({
   selectedPersonaId = null,
   onPersonaSelect,
 }: PersonaSelectorProps) {
-  const { canSendMessage, user } = useUserDataContext();
-  const userSettingsRaw = useUserSettings(user?._id);
+  const { canSendMessage } = useUserDataContext();
+  const userSettingsRaw = useUserSettings();
   const { isPrivateMode } = usePrivateMode();
 
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;

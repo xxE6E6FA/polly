@@ -1,14 +1,11 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAction, useMutation } from "convex/react";
+import type { Id } from "@convex/_generated/dataModel";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { storeAnonymousUserId } from "@/lib/auth-utils";
-import { isUserModel } from "@/lib/type-guards";
+import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { cleanAttachmentsForConvex } from "@/lib/utils";
-import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   Attachment,
@@ -68,48 +65,42 @@ export function useServerChat({
   onConversationCreate,
 }: UseServerChatOptions) {
   const { canSendMessage, user } = useUserDataContext();
-  const { setIsThinking } = useUI();
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
+
+  // Get selected model and provider
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
+  const selectedModel = useMemo(
+    () => selectedModelRaw ?? get(CACHE_KEYS.selectedModel, null),
+    [selectedModelRaw]
   );
-  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
+  const model = selectedModel?.modelId;
+  const provider = selectedModel?.provider;
 
   // Create conversation functionality
-  const { execute: createNewConversation } = useActionWithLoading(
-    api.conversations.createNewConversation,
-    {
-      onSuccess: result => {
-        if (result?.isNewUser) {
-          storeAnonymousUserId(result.userId);
-        }
-      },
-      onError: () => {
-        toast.error("Failed to create conversation", {
-          description: "Unable to create new conversation. Please try again.",
-        });
-      },
-    }
-  );
+  const createConversationAction = useMutation(api.conversations.create);
 
   const createConversation = useCallback(
     async ({
       firstMessage,
       sourceConversationId,
       personaId,
-      userId,
       attachments,
-      generateTitle = true,
       reasoningConfig,
     }: CreateConversationParams): Promise<ConversationId | undefined> => {
-      const result = await createNewConversation({
-        userId,
+      if (!(model && provider)) {
+        const errorMsg =
+          "No model selected. Please select a model in the model picker to start a conversation.";
+        toast.error("Cannot create conversation", {
+          description: errorMsg,
+        });
+        onError?.(new Error(errorMsg));
+        return undefined;
+      }
+
+      const result = await createConversationAction({
         firstMessage,
         sourceConversationId,
         personaId: personaId || undefined,
         attachments: cleanAttachmentsForConvex(attachments),
-        generateTitle,
         reasoningConfig:
           reasoningConfig?.enabled && reasoningConfig.maxTokens
             ? {
@@ -118,11 +109,18 @@ export function useServerChat({
                 maxTokens: reasoningConfig.maxTokens,
               }
             : undefined,
+        model,
+        provider,
       });
+
+      // Store user in local storage if not already present
+      if (result?.user) {
+        // User data is now managed by UserDataProvider
+      }
 
       return result?.conversationId;
     },
-    [createNewConversation]
+    [createConversationAction, onError, model, provider]
   );
 
   // Use specialized hooks
@@ -132,8 +130,7 @@ export function useServerChat({
   });
 
   // Query conversation to get isStreaming state
-  const conversation = usePersistentConvexQuery<Doc<"conversations"> | null>(
-    "server-chat-conversation",
+  const conversation = useQuery(
     api.conversations.get,
     conversationId ? { id: conversationId } : "skip"
   );
@@ -173,22 +170,13 @@ export function useServerChat({
       },
     });
 
-  const { execute: resumeConversation, isLoading: isResuming } =
-    useActionWithLoading(api.conversations.resumeConversation, {
-      onError: (error: Error) => {
-        console.error("Failed to resume conversation:", error);
-        onError?.(error);
-      },
-    });
-
   // Use regular mutation for message deletion
   const deleteMessageMutation = useMutation(api.messages.remove);
 
   // State management - combine all loading states
   const isGenerating = useMemo(
-    () =>
-      isSendingFollowUp || isRetrying || isEditing || isStopping || isResuming,
-    [isSendingFollowUp, isRetrying, isEditing, isStopping, isResuming]
+    () => isSendingFollowUp || isRetrying || isEditing || isStopping,
+    [isSendingFollowUp, isRetrying, isEditing, isStopping]
   );
 
   // Track if we've attempted to resume for each conversation
@@ -200,39 +188,6 @@ export function useServerChat({
       attemptedResumeMap.current.clear();
     }
   }, [conversationId]);
-
-  const withLoadingState = useCallback(
-    async <T>(operation: () => Promise<T>): Promise<T> => {
-      try {
-        setIsThinking(true);
-        return await operation();
-      } finally {
-        setIsThinking(false);
-      }
-    },
-    [setIsThinking]
-  );
-
-  // Auto-resume incomplete conversations
-  useEffect(() => {
-    if (
-      conversation?.isStreaming &&
-      conversationId &&
-      !attemptedResumeMap.current.get(conversationId)
-    ) {
-      attemptedResumeMap.current.set(conversationId, true);
-
-      const handleResume = async () => {
-        try {
-          await resumeConversation({ conversationId });
-        } catch {
-          // Error handling is done in the optimized hook
-        }
-      };
-
-      handleResume();
-    }
-  }, [conversation, conversationId, resumeConversation]);
 
   // Simple user readiness check
   const isUserReady = user !== null;
@@ -269,49 +224,8 @@ export function useServerChat({
       }
 
       try {
-        // Create new conversation if needed
-        if (!conversationId) {
-          await withLoadingState(async () => {
-            const newConversationId = await createConversation({
-              firstMessage: content,
-              sourceConversationId: undefined,
-              personaId,
-              userId: user?._id,
-              attachments,
-            });
-            if (!newConversationId) {
-              throw new Error("Failed to create conversation");
-            }
-
-            // For new conversations, navigate immediately - the Convex action handles the assistant response
-            if (onConversationCreate) {
-              onConversationCreate(newConversationId);
-              return;
-            }
-          });
-
-          return;
-        }
-
-        // For existing conversations, use the centralized Convex action
-        if (selectedModel) {
-          await withLoadingState(() =>
-            sendFollowUpMessage({
-              conversationId,
-              content,
-              attachments: cleanAttachmentsForConvex(attachments),
-              model: selectedModel.modelId,
-              provider: selectedModel.provider,
-              reasoningConfig: reasoningConfig
-                ? {
-                    enabled: reasoningConfig.enabled,
-                    effort: reasoningConfig.effort || "medium",
-                    maxTokens: reasoningConfig.maxTokens,
-                  }
-                : undefined,
-            })
-          );
-        } else {
+        // Validate model and provider are available
+        if (!(model && provider)) {
           const errorMsg =
             "No model selected. Please select a model in the model picker to send messages.";
           toast.error("Cannot send message", {
@@ -319,6 +233,41 @@ export function useServerChat({
           });
           throw new Error(errorMsg);
         }
+
+        // Create new conversation if needed
+        if (!conversationId) {
+          const createdConversationId = await createConversation({
+            firstMessage: content,
+            sourceConversationId: undefined,
+            personaId,
+            attachments,
+            model,
+            provider,
+          });
+          if (!createdConversationId) {
+            throw new Error("Failed to create conversation");
+          }
+
+          if (onConversationCreate && createdConversationId) {
+            onConversationCreate(createdConversationId);
+            return;
+          }
+        }
+
+        await sendFollowUpMessage({
+          conversationId: conversationId as Id<"conversations">,
+          content,
+          attachments: cleanAttachmentsForConvex(attachments),
+          model,
+          provider,
+          reasoningConfig: reasoningConfig
+            ? {
+                enabled: reasoningConfig.enabled,
+                effort: reasoningConfig.effort || "medium",
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to send message";
@@ -334,11 +283,10 @@ export function useServerChat({
       isUserReady,
       conversationId,
       createConversation,
-      withLoadingState,
       onConversationCreate,
-      selectedModel,
       sendFollowUpMessage,
-      user?._id,
+      model,
+      provider,
     ]
   );
 
@@ -376,27 +324,34 @@ export function useServerChat({
       }
 
       try {
-        const newConversationId = await withLoadingState(async () => {
-          const conversationId = await createConversation({
-            firstMessage: content,
-            sourceConversationId,
-            personaId,
-            userId: user?._id,
-            attachments,
-            reasoningConfig,
+        // Validate model and provider are available
+        if (!(model && provider)) {
+          const errorMsg =
+            "No model selected. Please select a model in the model picker to create a conversation.";
+          toast.error("Cannot create conversation", {
+            description: errorMsg,
           });
-          if (!conversationId) {
-            throw new Error("Failed to create conversation");
-          }
+          throw new Error(errorMsg);
+        }
 
-          if (shouldNavigate && onConversationCreate) {
-            onConversationCreate(conversationId);
-          }
-
-          return conversationId;
+        const createdConversationId = await createConversation({
+          firstMessage: content,
+          sourceConversationId,
+          personaId,
+          attachments,
+          reasoningConfig,
+          model,
+          provider,
         });
+        if (!createdConversationId) {
+          throw new Error("Failed to create conversation");
+        }
 
-        return newConversationId;
+        if (shouldNavigate && onConversationCreate) {
+          onConversationCreate(createdConversationId);
+        }
+
+        return createdConversationId;
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -413,35 +368,33 @@ export function useServerChat({
       onError,
       isUserReady,
       createConversation,
-      withLoadingState,
       onConversationCreate,
-      user?._id,
+      model,
+      provider,
     ]
   );
 
   const retryUserMessage = useCallback(
     async (messageId: string, reasoningConfig?: ReasoningConfig) => {
-      if (!(conversationId && selectedModel)) {
+      if (!(conversationId && model && provider)) {
         return;
       }
 
       try {
-        await withLoadingState(() =>
-          retryFromMessage({
-            conversationId,
-            messageId: messageId as Id<"messages">,
-            retryType: "user",
-            model: selectedModel.modelId,
-            provider: selectedModel.provider,
-            reasoningConfig: reasoningConfig
-              ? {
-                  enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort || "medium",
-                  maxTokens: reasoningConfig.maxTokens,
-                }
-              : undefined,
-          })
-        );
+        await retryFromMessage({
+          conversationId,
+          messageId: messageId as Id<"messages">,
+          retryType: "user",
+          model,
+          provider,
+          reasoningConfig: reasoningConfig
+            ? {
+                enabled: reasoningConfig.enabled,
+                effort: reasoningConfig.effort || "medium",
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to retry message";
@@ -451,32 +404,30 @@ export function useServerChat({
         onError?.(error as Error);
       }
     },
-    [conversationId, selectedModel, retryFromMessage, withLoadingState, onError]
+    [conversationId, retryFromMessage, onError, model, provider]
   );
 
   const retryAssistantMessage = useCallback(
     async (messageId: string, reasoningConfig?: ReasoningConfig) => {
-      if (!(conversationId && selectedModel)) {
+      if (!(conversationId && model && provider)) {
         return;
       }
 
       try {
-        await withLoadingState(() =>
-          retryFromMessage({
-            conversationId,
-            messageId: messageId as Id<"messages">,
-            retryType: "assistant",
-            model: selectedModel.modelId,
-            provider: selectedModel.provider,
-            reasoningConfig: reasoningConfig
-              ? {
-                  enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort || "medium",
-                  maxTokens: reasoningConfig.maxTokens,
-                }
-              : undefined,
-          })
-        );
+        await retryFromMessage({
+          conversationId,
+          messageId: messageId as Id<"messages">,
+          retryType: "assistant",
+          model,
+          provider,
+          reasoningConfig: reasoningConfig
+            ? {
+                enabled: reasoningConfig.enabled,
+                effort: reasoningConfig.effort || "medium",
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to retry message";
@@ -486,7 +437,7 @@ export function useServerChat({
         onError?.(error as Error);
       }
     },
-    [conversationId, selectedModel, retryFromMessage, withLoadingState, onError]
+    [conversationId, retryFromMessage, onError, model, provider]
   );
 
   const editMessageContent = useCallback(
@@ -495,27 +446,25 @@ export function useServerChat({
       newContent: string,
       reasoningConfig?: ReasoningConfig
     ) => {
-      if (!(conversationId && selectedModel)) {
+      if (!conversationId) {
         return;
       }
 
       try {
-        await withLoadingState(() =>
-          editMessage({
-            conversationId,
-            messageId: messageId as Id<"messages">,
-            newContent,
-            model: selectedModel.modelId,
-            provider: selectedModel.provider,
-            reasoningConfig: reasoningConfig
-              ? {
-                  enabled: reasoningConfig.enabled,
-                  effort: reasoningConfig.effort || "medium",
-                  maxTokens: reasoningConfig.maxTokens,
-                }
-              : undefined,
-          })
-        );
+        await editMessage({
+          conversationId,
+          messageId: messageId as Id<"messages">,
+          newContent,
+          model: model || "",
+          provider: provider || "",
+          reasoningConfig: reasoningConfig
+            ? {
+                enabled: reasoningConfig.enabled,
+                effort: reasoningConfig.effort || "medium",
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to edit message";
@@ -525,7 +474,7 @@ export function useServerChat({
         onError?.(error as Error);
       }
     },
-    [conversationId, selectedModel, editMessage, withLoadingState, onError]
+    [conversationId, editMessage, onError, model, provider]
   );
 
   const stopGenerationAction = useCallback(async () => {
@@ -548,11 +497,9 @@ export function useServerChat({
   const deleteMessageAction = useCallback(
     async (messageId: string) => {
       try {
-        await withLoadingState(() =>
-          deleteMessageMutation({
-            id: messageId as Id<"messages">,
-          })
-        );
+        await deleteMessageMutation({
+          id: messageId as Id<"messages">,
+        });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to delete message";
@@ -562,7 +509,7 @@ export function useServerChat({
         onError?.(error as Error);
       }
     },
-    [deleteMessageMutation, withLoadingState, onError]
+    [deleteMessageMutation, onError]
   );
 
   // Determine if conversation is streaming

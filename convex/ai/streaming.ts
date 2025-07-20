@@ -456,8 +456,6 @@ export class StreamHandler {
   }
 
   private async handleFullStreamPart(part: StreamPart): Promise<void> {
-
-
     if (this.messageDeleted) {
       return;
     }
@@ -478,6 +476,10 @@ export class StreamHandler {
       const errorMessage =
         errorObj?.message || errorObj?.toString?.() || "Unknown stream error";
       throw new Error(`Stream error: ${errorMessage}`);
+    } else if (part.type === "finish") {
+      // Handle finish parts - these are typically handled by the onFinish callback
+      // but we need to acknowledge them to prevent warnings
+      return;
     } else if (isReasoningPart(part)) {
       // Check if we should stop before processing reasoning
       if (await this.checkIfStopped()) {

@@ -1,8 +1,7 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-
 import { api, internal } from "./_generated/api";
 import { action, internalQuery, mutation, query } from "./_generated/server";
-import { getCurrentUserId, requireAuth } from "./lib/auth";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -100,7 +99,10 @@ export const storeApiKey = mutation({
     rawKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
 
     if (!validateApiKeyFormat(args.provider, args.rawKey)) {
       throw new Error(`Invalid API key format for ${args.provider}`);
@@ -151,7 +153,10 @@ export const storeClientEncryptedApiKey = mutation({
     partialKey: v.string(), // For display purposes
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
 
     const existing = await ctx.db
       .query("userApiKeys")
@@ -181,7 +186,7 @@ export const storeClientEncryptedApiKey = mutation({
 export const getUserApiKeys = query({
   args: {},
   handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       return [];
@@ -214,7 +219,10 @@ export const removeApiKey = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return;
+    }
 
     const apiKey = await ctx.db
       .query("userApiKeys")
@@ -240,7 +248,10 @@ export const validateApiKey = mutation({
     isValid: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return;
+    }
 
     const apiKey = await ctx.db
       .query("userApiKeys")
@@ -261,7 +272,7 @@ export const validateApiKey = mutation({
 export const hasAnyApiKey = query({
   args: {},
   handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       // For anonymous users, check if any environment API keys are available
@@ -369,7 +380,7 @@ export const getClientEncryptedApiKey = query({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       return null;
@@ -386,10 +397,9 @@ export const getClientEncryptedApiKey = query({
       return null;
     }
 
-    // Return only the client-encrypted data (server can't decrypt this)
     return {
       encryptedKey: apiKey.clientEncryptedKey,
-      provider: apiKey.provider,
+      initializationVector: apiKey.initializationVector ?? [],
     };
   },
 });

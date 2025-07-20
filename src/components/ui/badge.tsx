@@ -8,39 +8,29 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground hover:bg-primary-hover",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary-hover",
+        default: "border-transparent bg-primary text-primary-foreground",
+        secondary: "border-transparent bg-secondary text-secondary-foreground",
         destructive:
-          "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+          "border-transparent bg-destructive text-destructive-foreground",
         outline: "text-foreground",
         // Semantic variants
-        success:
-          "border-success-border bg-success-bg text-success hover:bg-success/10",
-        warning:
-          "border-warning-border bg-warning-bg text-warning-foreground hover:bg-warning/10",
-        info: "border-info-border bg-info-bg text-info hover:bg-info/10",
-        danger:
-          "border-danger-border bg-danger-bg text-danger hover:bg-danger/10",
+        success: "border-success-border bg-success-bg text-success",
+        warning: "border-warning-border bg-warning-bg text-warning-foreground",
+        info: "border-info-border bg-info-bg text-info",
+        danger: "border-danger-border bg-danger-bg text-danger",
         // Solid semantic variants
         "success-solid":
-          "border-transparent bg-success text-success-foreground hover:bg-success-hover",
+          "border-transparent bg-success text-success-foreground",
         "warning-solid":
-          "border-transparent bg-warning text-warning-foreground hover:bg-warning-hover",
-        "info-solid":
-          "border-transparent bg-info text-info-foreground hover:bg-info-hover",
-        "danger-solid":
-          "border-transparent bg-danger text-danger-foreground hover:bg-danger-hover",
+          "border-transparent bg-warning text-warning-foreground",
+        "info-solid": "border-transparent bg-info text-info-foreground",
+        "danger-solid": "border-transparent bg-danger text-danger-foreground",
         // Subtle variants
-        "success-subtle":
-          "border-transparent bg-success/10 text-success hover:bg-success/20",
+        "success-subtle": "border-transparent bg-success/10 text-success",
         "warning-subtle":
-          "border-transparent bg-warning/10 text-warning-foreground hover:bg-warning/20",
-        "info-subtle":
-          "border-transparent bg-info/10 text-info hover:bg-info/20",
-        "danger-subtle":
-          "border-transparent bg-danger/10 text-danger hover:bg-danger/20",
+          "border-transparent bg-warning/10 text-warning-foreground",
+        "info-subtle": "border-transparent bg-info/10 text-info",
+        "danger-subtle": "border-transparent bg-danger/10 text-danger",
       },
       size: {
         default: "px-2.5 py-0.5 text-xs",

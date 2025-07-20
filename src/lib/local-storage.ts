@@ -1,91 +1,90 @@
 const KEY_PREFIX = "polly:";
 
-function buildKey(key: string): string {
-  return `${KEY_PREFIX}${key}`;
+// Global version for localStorage schema changes
+export const LOCAL_STORAGE_VERSION = 1;
+
+// All cache keys used throughout the app
+export const CACHE_KEYS = {
+  apiKeys: "api-keys",
+  userModels: "user-models",
+  selectedModel: "selected-model",
+  conversations: "conversations",
+  sidebar: "sidebar",
+  theme: "theme",
+  userSettings: "user-settings",
+  setupChecklistDismissed: "setup-checklist-dismissed",
+  userData: "user-data",
+  anonymousUserGraduation: "anonymous-user-graduation",
+} as const;
+
+export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
+
+const PERSISTENT_KEYS = new Set<CacheKey>([
+  CACHE_KEYS.sidebar,
+  CACHE_KEYS.theme,
+]);
+
+export function buildKey(key: CacheKey): string {
+  return `${KEY_PREFIX}${key}/v${LOCAL_STORAGE_VERSION}`;
 }
 
-export function get<T>(key: string, fallback: T): T {
+export function get<T>(key: CacheKey, fallback: T): T {
   const namespaced = buildKey(key);
   try {
     const raw = localStorage.getItem(namespaced);
     if (raw == null) {
       return fallback;
     }
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "version" in parsed) {
+      const dataVersion = parsed.version as number;
+      if (dataVersion < LOCAL_STORAGE_VERSION) {
+        localStorage.removeItem(namespaced);
+        return fallback;
+      }
+      return parsed.data as T;
+    }
+    localStorage.removeItem(namespaced);
+    return fallback;
   } catch {
     return fallback;
   }
 }
 
-export function set<T>(key: string, value: T): void {
+export function set<T>(key: CacheKey, value: T): void {
   const namespaced = buildKey(key);
   try {
-    const serialized = JSON.stringify(value);
+    const versionedData = {
+      version: LOCAL_STORAGE_VERSION,
+      data: value,
+    };
+    const serialized = JSON.stringify(versionedData);
     localStorage.setItem(namespaced, serialized);
-    notify(namespaced);
   } catch {
     // Ignore storage errors
   }
 }
 
-export function del(key: string): void {
+export function del(key: CacheKey): void {
   const namespaced = buildKey(key);
   try {
     localStorage.removeItem(namespaced);
-    notify(namespaced);
   } catch {
     // Ignore storage errors
   }
 }
 
-type Callback = () => void;
-const listeners = new Map<string, Set<Callback>>();
-
-function notify(namespacedKey: string) {
-  const set = listeners.get(namespacedKey);
-  if (!set) {
-    return;
-  }
-  for (const cb of set) {
-    cb();
-  }
-}
-
-export function subscribe(key: string, cb: Callback): () => void {
-  const namespaced = buildKey(key);
-  let set = listeners.get(namespaced);
-  if (!set) {
-    set = new Set();
-    listeners.set(namespaced, set);
-  }
-  set.add(cb);
-
-  window.addEventListener("storage", storageHandler);
-
-  return () => {
-    set?.delete(cb);
-    if (set && set.size === 0) {
-      listeners.delete(namespaced);
-    }
-    if (listeners.size === 0) {
-      window.removeEventListener("storage", storageHandler);
-    }
-  };
-}
-
-function storageHandler(e: StorageEvent) {
-  if (e.key == null) {
-    return;
-  }
-  notify(e.key);
-}
-
-function clearAllPollyKeys() {
+export function clearAllPollyKeys() {
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key?.startsWith(KEY_PREFIX) && !POLLY_KEYS_TO_EXCLUDE.includes(key)) {
-      keysToRemove.push(key);
+    if (key?.startsWith(KEY_PREFIX)) {
+      const unprefixedKey = key
+        .slice(KEY_PREFIX.length)
+        .split("/")[0] as CacheKey;
+      if (!PERSISTENT_KEYS.has(unprefixedKey)) {
+        keysToRemove.push(key);
+      }
     }
   }
   for (const key of keysToRemove) {
@@ -93,10 +92,20 @@ function clearAllPollyKeys() {
   }
 }
 
-export { clearAllPollyKeys };
+export function clearUserData() {
+  // Clear user-specific data but preserve persistent settings
+  const userSpecificKeys: CacheKey[] = [
+    CACHE_KEYS.apiKeys,
+    CACHE_KEYS.userModels,
+    CACHE_KEYS.selectedModel,
+    CACHE_KEYS.conversations,
+    CACHE_KEYS.userSettings,
+    CACHE_KEYS.setupChecklistDismissed,
+    CACHE_KEYS.userData,
+    CACHE_KEYS.anonymousUserGraduation,
+  ];
 
-export const POLLY_KEYS_TO_EXCLUDE = [
-  buildKey("sidebar/v1"),
-  buildKey("theme/v1"),
-];
-export { buildKey };
+  userSpecificKeys.forEach(key => {
+    del(key);
+  });
+}

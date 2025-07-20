@@ -11,44 +11,14 @@ import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { detectAndParseImportData } from "@/lib/import-parsers";
 
 export function ImportExportActions() {
-  const [isImporting, setIsImporting] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const confirmDialog = useConfirmationDialog();
   const backgroundJobs = useBackgroundJobs();
-  const importTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const validateImportData = useMutation(
     api.conversationImport.validateImportData
   );
-
-  // Safety timeout management
-  const clearImportTimeout = useCallback(() => {
-    if (importTimeoutRef.current) {
-      clearTimeout(importTimeoutRef.current);
-      importTimeoutRef.current = null;
-    }
-  }, []);
-
-  const setImportTimeout = useCallback(() => {
-    clearImportTimeout();
-    importTimeoutRef.current = setTimeout(() => {
-      console.error("Import timeout reached - forcing reset");
-      setIsImporting(false);
-      toast.error("Import timed out. Please try again.");
-    }, 30000); // 30 second timeout
-  }, [clearImportTimeout]);
-
-  // Safety timeout to prevent infinite loading
-  useEffect(() => {
-    if (isImporting) {
-      setImportTimeout();
-    } else {
-      clearImportTimeout();
-    }
-
-    return clearImportTimeout;
-  }, [isImporting, setImportTimeout, clearImportTimeout]);
 
   const handleImport = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,9 +157,6 @@ export function ImportExportActions() {
     fileInputRef.current?.click();
   }, []);
 
-  const activeJobs = backgroundJobs.getActiveJobs();
-  const isImportingBackground = activeJobs.some(job => job.type === "import");
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3">
@@ -201,7 +168,7 @@ export function ImportExportActions() {
 
         <Button
           onClick={triggerFileInput}
-          disabled={isImporting || isValidating || isImportingBackground}
+          disabled={isValidating}
           variant="outline"
           className="w-fit"
         >
@@ -209,16 +176,6 @@ export function ImportExportActions() {
             <>
               <Spinner className="mr-2 h-4 w-4" />
               Validating...
-            </>
-          ) : isImporting ? (
-            <>
-              <Spinner className="mr-2 h-4 w-4" />
-              Importing...
-            </>
-          ) : isImportingBackground ? (
-            <>
-              <Spinner className="mr-2 h-4 w-4" />
-              Import in progress...
             </>
           ) : (
             <>
@@ -228,13 +185,9 @@ export function ImportExportActions() {
           )}
         </Button>
 
-        {(isImporting || isValidating || isImportingBackground) && (
+        {isValidating && (
           <p className="text-xs text-muted-foreground">
-            {isValidating
-              ? "Validating file contents..."
-              : isImporting
-                ? "Importing conversations... This may take a moment."
-                : "Import running in background..."}
+            Validating file contents...
           </p>
         )}
       </div>
@@ -248,13 +201,13 @@ export function ImportExportActions() {
       />
 
       <ConfirmationDialog
-        open={confirmDialog.isOpen}
+        open={confirmDialog.state.isOpen}
         onOpenChange={confirmDialog.handleOpenChange}
-        title={confirmDialog.options.title}
-        description={confirmDialog.options.description}
-        confirmText={confirmDialog.options.confirmText}
-        cancelText={confirmDialog.options.cancelText}
-        variant={confirmDialog.options.variant}
+        title={confirmDialog.state.title}
+        description={confirmDialog.state.description}
+        confirmText={confirmDialog.state.confirmText}
+        cancelText={confirmDialog.state.cancelText}
+        variant={confirmDialog.state.variant}
         onConfirm={confirmDialog.handleConfirm}
         onCancel={confirmDialog.handleCancel}
       />

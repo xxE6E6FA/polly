@@ -1,12 +1,11 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-
 import { action, mutation, query } from "./_generated/server";
-import { getCurrentUserId } from "./lib/auth";
 
 export const list = query({
-  args: { userId: v.optional(v.id("users")) },
-  handler: async (ctx, args) => {
-    const userId = args.userId || (await getCurrentUserId(ctx));
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       // Return only built-in personas for anonymous users
@@ -70,11 +69,15 @@ export const create = mutation({
     icon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
+
     const now = Date.now();
 
     return await ctx.db.insert("personas", {
-      ...(userId && { userId }),
+      userId,
       name: args.name,
       description: args.description,
       prompt: args.prompt,
@@ -94,25 +97,28 @@ export const update = mutation({
     description: v.optional(v.string()),
     prompt: v.optional(v.string()),
     icon: v.optional(v.string()),
-    isActive: v.optional(v.boolean()),
-    order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
-    const { id, ...updates } = args;
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
 
-    // Verify ownership (can't edit built-in personas)
-    const persona = await ctx.db.get(id);
+    const persona = await ctx.db.get(args.id);
     if (!persona) {
       throw new Error("Persona not found");
     }
 
-    if (persona.isBuiltIn || persona.userId !== userId) {
-      throw new Error("Cannot edit this persona");
+    // Only allow updating user's own personas
+    if (persona.userId && persona.userId !== userId) {
+      throw new Error("Not authorized to update this persona");
     }
 
-    return await ctx.db.patch(id, {
-      ...updates,
+    await ctx.db.patch(args.id, {
+      ...(args.name !== undefined && { name: args.name }),
+      ...(args.description !== undefined && { description: args.description }),
+      ...(args.prompt !== undefined && { prompt: args.prompt }),
+      ...(args.icon !== undefined && { icon: args.icon }),
       updatedAt: Date.now(),
     });
   },
@@ -121,19 +127,107 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("personas") },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
 
-    // Verify ownership (can't delete built-in personas)
     const persona = await ctx.db.get(args.id);
     if (!persona) {
       throw new Error("Persona not found");
     }
 
-    if (persona.isBuiltIn || persona.userId !== userId) {
-      throw new Error("Cannot delete this persona");
+    // Only allow removing user's own personas
+    if (persona.userId && persona.userId !== userId) {
+      throw new Error("Not authorized to remove this persona");
     }
 
-    return await ctx.db.delete(args.id);
+    await ctx.db.delete(args.id);
+  },
+});
+
+export const togglePersona = mutation({
+  args: {
+    id: v.id("personas"),
+    isActive: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
+
+    const persona = await ctx.db.get(args.id);
+    if (!persona) {
+      throw new Error("Persona not found");
+    }
+
+    // Only allow toggling user's own personas
+    if (persona.userId && persona.userId !== userId) {
+      throw new Error("Not authorized to toggle this persona");
+    }
+
+    await ctx.db.patch(args.id, {
+      isActive: args.isActive,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+export const listForExport = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .take(100); // Reasonable limit for export
+  },
+});
+
+export const importPersonas = mutation({
+  args: {
+    personas: v.array(
+      v.object({
+        name: v.string(),
+        description: v.string(),
+        prompt: v.string(),
+        icon: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
+
+    const now = Date.now();
+    const createdPersonas = [];
+
+    for (const persona of args.personas) {
+      const personaId = await ctx.db.insert("personas", {
+        userId,
+        name: persona.name,
+        description: persona.description,
+        prompt: persona.prompt,
+        icon: persona.icon,
+        isBuiltIn: false,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      createdPersonas.push(personaId);
+    }
+
+    return createdPersonas;
   },
 });
 
@@ -148,9 +242,9 @@ export const listAllBuiltIn = query({
 });
 
 export const getUserPersonaSettings = query({
-  args: { userId: v.optional(v.id("users")) },
-  handler: async (ctx, args) => {
-    const userId = args.userId || (await getCurrentUserId(ctx));
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       return [];
     }
@@ -168,7 +262,7 @@ export const toggleBuiltInPersona = mutation({
     isDisabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not found");
     }

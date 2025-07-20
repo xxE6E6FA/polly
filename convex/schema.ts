@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import {
   attachmentSchema,
   reasoningConfigSchema,
+  userModelSchema,
   webCitationSchema,
 } from "./lib/schemas";
 
@@ -133,25 +134,7 @@ export default defineSchema({
     lastValidated: v.optional(v.number()),
   }).index("by_user_provider", ["userId", "provider"]),
 
-  userModels: defineTable({
-    userId: v.id("users"),
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
-    contextLength: v.number(),
-    maxOutputTokens: v.optional(v.number()),
-    supportsImages: v.boolean(),
-    supportsTools: v.boolean(),
-    supportsReasoning: v.boolean(),
-    supportsFiles: v.optional(v.boolean()),
-    inputModalities: v.optional(v.array(v.string())),
-    selected: v.optional(v.boolean()),
-    free: v.optional(v.boolean()),
-    createdAt: v.number(),
-  })
-    .index("by_user_provider", ["userId", "provider"])
-    .index("by_user_model_id", ["userId", "modelId"])
-    .index("by_user_selected", ["userId", "selected"]),
+  userModels: defineTable(userModelSchema).index("by_user", ["userId"]),
 
   personas: defineTable({
     userId: v.optional(v.id("users")),
@@ -276,5 +259,7 @@ export default defineSchema({
     .index("by_user_and_category", ["userId", "category"])
     .index("by_status_and_created", ["status", "createdAt"])
     .index("by_user_updated", ["userId", "updatedAt"])
+    .index("by_user_id_and_job_id", ["userId", "jobId"])
+    .index("by_user_id", ["userId"])
     .index("by_job_id", ["jobId"]),
 });

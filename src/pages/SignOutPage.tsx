@@ -1,30 +1,36 @@
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { cleanupAuthenticatedUser } from "@/lib/auth-utils";
-import { clearAllPollyKeys } from "@/lib/local-storage";
+import { clearUserData } from "@/lib/local-storage";
 
 export default function SignOutPage() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    clearAllPollyKeys();
-    cleanupAuthenticatedUser();
-    signOut();
-    navigate("/", { replace: true });
+  const handleSignOut = useCallback(async () => {
+    try {
+      // Clear user data from local storage before signing out
+      clearUserData();
+      await signOut();
+    } catch (error) {
+      console.error("Sign out failed:", error);
+    } finally {
+      navigate("/", { replace: true });
+    }
   }, [signOut, navigate]);
 
+  useEffect(() => {
+    handleSignOut();
+  }, [handleSignOut]);
+
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100vh",
-      }}
-    >
-      <span>Signing out…</span>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="mb-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted border-t-primary mx-auto" />
+        </div>
+        <p className="text-muted-foreground">Signing out...</p>
+      </div>
     </div>
   );
 }

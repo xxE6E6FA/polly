@@ -1,12 +1,11 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChatService } from "@/hooks/use-chat-service";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
 import { isUserModel } from "@/lib/type-guards";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -16,11 +15,7 @@ import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const { user } = useUserDataContext();
   const savePrivateConversation = useAction(
@@ -102,7 +97,6 @@ export default function PrivateChatPage() {
       }));
 
       const conversationId = await savePrivateConversation({
-        userId: user._id,
         messages: messagesToSave,
         ...(chatService.currentPersonaId && {
           personaId: chatService.currentPersonaId,

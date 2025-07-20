@@ -2,6 +2,10 @@ import type { ExportData } from "@/types";
 import { stripCitations } from "./utils";
 
 export function exportAsJSON(data: ExportData): string {
+  if (!data.conversation) {
+    throw new Error("Conversation data is required for export");
+  }
+
   return JSON.stringify(
     {
       conversation: {
@@ -30,6 +34,10 @@ export function exportAsJSON(data: ExportData): string {
 }
 
 export function exportAsMarkdown(data: ExportData): string {
+  if (!data.conversation) {
+    throw new Error("Conversation data is required for export");
+  }
+
   const { conversation, messages } = data;
 
   let markdown = `# ${conversation.title}\n\n`;

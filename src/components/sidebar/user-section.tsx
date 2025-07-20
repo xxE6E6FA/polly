@@ -4,7 +4,6 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
-import { isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { preloadSettings } from "@/routes";
@@ -87,12 +86,9 @@ const UserSectionContent = ({
 
 export const UserSection = () => {
   const { user } = useUserDataContext();
-  const userSettingsRaw = useUserSettings();
-
-  const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
+  const userSettings = useUserSettings();
 
   const isAuthenticated = user && !user.isAnonymous;
-
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
   if (user === undefined) {

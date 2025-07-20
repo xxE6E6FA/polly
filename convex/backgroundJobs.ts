@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import {
   internalMutation,
@@ -5,7 +6,6 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { getCurrentUserId, requireAuth } from "./lib/auth";
 
 // Export conversation type definition
 export type ExportConversation = {
@@ -45,34 +45,6 @@ export type ExportConversation = {
   }>;
 };
 
-// Job categories for organization
-export const JOB_CATEGORIES = {
-  DATA_TRANSFER: "data_transfer",
-  BULK_OPERATIONS: "bulk_operations",
-  AI_PROCESSING: "ai_processing",
-  MAINTENANCE: "maintenance",
-} as const;
-
-// Job types
-export const JOB_TYPES = {
-  EXPORT: "export",
-  IMPORT: "import",
-  BULK_ARCHIVE: "bulk_archive",
-  BULK_DELETE: "bulk_delete",
-  CONVERSATION_SUMMARY: "conversation_summary",
-  DATA_MIGRATION: "data_migration",
-  MODEL_MIGRATION: "model_migration",
-  BACKUP: "backup",
-} as const;
-
-// Job priorities
-export const JOB_PRIORITIES = {
-  LOW: "low",
-  NORMAL: "normal",
-  HIGH: "high",
-  URGENT: "urgent",
-} as const;
-
 // Export manifest schema for lightweight storage
 const exportManifestSchema = v.object({
   totalConversations: v.number(),
@@ -91,7 +63,6 @@ const exportManifestSchema = v.object({
 export const create = mutation({
   args: {
     jobId: v.string(),
-    userId: v.id("users"),
     type: v.union(
       v.literal("export"),
       v.literal("import"),
@@ -127,6 +98,11 @@ export const create = mutation({
     includeAttachments: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
+
     // Auto-assign category based on type if not provided
     let category = args.category;
     if (!category) {
@@ -146,7 +122,7 @@ export const create = mutation({
 
     const jobId = await ctx.db.insert("backgroundJobs", {
       jobId: args.jobId,
-      userId: args.userId,
+      userId,
       type: args.type,
       category,
       status: "scheduled",
@@ -199,7 +175,6 @@ export const updateStatus = mutation({
       completedAt?: number;
     } = {
       status: args.status,
-      error: args.error,
       updatedAt: Date.now(),
     };
 
@@ -211,6 +186,10 @@ export const updateStatus = mutation({
       updates.completedAt = Date.now();
     }
 
+    if (args.error) {
+      updates.error = args.error;
+    }
+
     await ctx.db.patch(job._id, updates);
   },
 });
@@ -220,7 +199,7 @@ export const updateProgress = mutation({
   args: {
     jobId: v.string(),
     processedItems: v.number(),
-    totalItems: v.number(),
+    totalItems: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const job = await ctx.db
@@ -232,20 +211,29 @@ export const updateProgress = mutation({
       throw new ConvexError("Background job not found");
     }
 
-    await ctx.db.patch(job._id, {
+    const updates: {
+      processedItems: number;
+      updatedAt: number;
+      totalItems?: number;
+    } = {
       processedItems: args.processedItems,
-      totalItems: args.totalItems,
       updatedAt: Date.now(),
-    });
+    };
+
+    if (args.totalItems !== undefined) {
+      updates.totalItems = args.totalItems;
+    }
+
+    await ctx.db.patch(job._id, updates);
   },
 });
 
-// Save export result with manifest and file reference
+// Save export result
 export const saveExportResult = mutation({
   args: {
     jobId: v.string(),
     manifest: exportManifestSchema,
-    fileStorageId: v.optional(v.id("_storage")),
+    fileStorageId: v.id("_storage"),
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
   handler: async (ctx, args) => {
@@ -261,32 +249,6 @@ export const saveExportResult = mutation({
     await ctx.db.patch(job._id, {
       manifest: args.manifest,
       fileStorageId: args.fileStorageId,
-      status: args.status,
-      completedAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-  },
-});
-
-// Save generic job result
-export const saveResult = mutation({
-  args: {
-    jobId: v.string(),
-    result: v.any(),
-    status: v.union(v.literal("completed"), v.literal("failed")),
-  },
-  handler: async (ctx, args) => {
-    const job = await ctx.db
-      .query("backgroundJobs")
-      .filter(q => q.eq(q.field("jobId"), args.jobId))
-      .first();
-
-    if (!job) {
-      throw new ConvexError("Background job not found");
-    }
-
-    await ctx.db.patch(job._id, {
-      result: args.result,
       status: args.status,
       completedAt: Date.now(),
       updatedAt: Date.now(),
@@ -325,59 +287,16 @@ export const saveImportResult = mutation({
   },
 });
 
-// Get job status
-export const getStatus = query({
-  args: {
-    jobId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    const job = await ctx.db
-      .query("backgroundJobs")
-      .filter(q => q.eq(q.field("jobId"), args.jobId))
-      .first();
-
-    if (!job) {
-      throw new ConvexError("Background job not found");
-    }
-
-    if (job.userId !== userId) {
-      throw new ConvexError("Access denied");
-    }
-
-    return {
-      jobId: job.jobId,
-      type: job.type,
-      category: job.category,
-      status: job.status,
-      processedItems: job.processedItems,
-      totalItems: job.totalItems,
-      progress:
-        job.totalItems > 0
-          ? Math.round((job.processedItems / job.totalItems) * 100)
-          : 0,
-      error: job.error,
-      title: job.title,
-      description: job.description,
-      priority: job.priority,
-      includeAttachments: job.includeAttachments,
-      manifest: job.manifest,
-      createdAt: job.createdAt,
-      updatedAt: job.updatedAt,
-      startedAt: job.startedAt,
-      completedAt: job.completedAt,
-    };
-  },
-});
-
 // Get download URL for export files
 export const getExportDownloadUrl = query({
   args: {
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
 
     const job = await ctx.db
       .query("backgroundJobs")
@@ -385,11 +304,11 @@ export const getExportDownloadUrl = query({
       .first();
 
     if (!job) {
-      throw new ConvexError("Background job not found");
+      return null;
     }
 
     if (job.userId !== userId) {
-      throw new ConvexError("Access denied");
+      return null;
     }
 
     if (job.status !== "completed" || !job.fileStorageId) {
@@ -402,42 +321,6 @@ export const getExportDownloadUrl = query({
       downloadUrl,
       manifest: job.manifest,
     };
-  },
-});
-
-// Get import/export result
-export const getResult = query({
-  args: {
-    jobId: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    const job = await ctx.db
-      .query("backgroundJobs")
-      .filter(q => q.eq(q.field("jobId"), args.jobId))
-      .first();
-
-    if (!job) {
-      throw new ConvexError("Background job not found");
-    }
-
-    if (job.userId !== userId) {
-      throw new ConvexError("Access denied");
-    }
-
-    if (job.status !== "completed") {
-      return null;
-    }
-
-    if (job.type === "export") {
-      return {
-        manifest: job.manifest,
-        hasFile: !!job.fileStorageId,
-      };
-    }
-
-    return job.result;
   },
 });
 
@@ -457,14 +340,6 @@ export const listUserJobs = query({
         v.literal("backup")
       )
     ),
-    category: v.optional(
-      v.union(
-        v.literal("data_transfer"),
-        v.literal("bulk_operations"),
-        v.literal("ai_processing"),
-        v.literal("maintenance")
-      )
-    ),
     status: v.optional(
       v.union(
         v.literal("scheduled"),
@@ -476,12 +351,10 @@ export const listUserJobs = query({
     ),
   },
   handler: async (ctx, args) => {
-    // Allow anonymous users; if no authenticated user, return an empty list instead of throwing an error
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       return [];
     }
-    const limit = args.limit || 50;
 
     let query = ctx.db
       .query("backgroundJobs")
@@ -492,30 +365,25 @@ export const listUserJobs = query({
       query = query.filter(q => q.eq(q.field("type"), args.type));
     }
 
-    if (args.category) {
-      query = query.filter(q => q.eq(q.field("category"), args.category));
-    }
-
     if (args.status) {
       query = query.filter(q => q.eq(q.field("status"), args.status));
     }
 
-    // Fetch the job documents. Returning the raw documents keeps the Convex `_id` field
-    // which the client relies on for reactivity and type-guards. Any large or sensitive
-    // fields (e.g. `payload`, `fileStorageId`) remain omitted from the UI by the
-    // frontend transformers, so sending the full doc is fine here.
-
+    const limit = args.limit || 50;
     return await query.take(limit);
   },
 });
 
-// Delete a specific job and its file
+// Delete a background job
 export const deleteJob = mutation({
   args: {
     jobId: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
 
     const job = await ctx.db
       .query("backgroundJobs")
@@ -530,68 +398,71 @@ export const deleteJob = mutation({
       throw new ConvexError("Access denied");
     }
 
+    // Delete associated file if it exists
     if (job.fileStorageId) {
       try {
         await ctx.storage.delete(job.fileStorageId);
       } catch (error) {
-        console.warn(`Failed to delete file ${job.fileStorageId}:`, error);
+        console.warn("Failed to delete associated file:", error);
       }
     }
 
     await ctx.db.delete(job._id);
-    return { success: true };
   },
 });
 
-// Clean up old completed jobs and their associated files
+// Clean up old jobs for a user
 export const cleanupOldJobs = mutation({
   args: {
     olderThanDays: v.optional(v.number()),
-    category: v.optional(
-      v.union(
-        v.literal("data_transfer"),
-        v.literal("bulk_operations"),
-        v.literal("ai_processing"),
-        v.literal("maintenance")
-      )
-    ),
+    dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
+
     const daysOld = args.olderThanDays || 30;
+    const dryRun = args.dryRun;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    let query = ctx.db
+    // Find old completed/failed jobs
+    const oldJobs = await ctx.db
       .query("backgroundJobs")
       .filter(q =>
         q.and(
           q.eq(q.field("userId"), userId),
           q.or(
             q.eq(q.field("status"), "completed"),
-            q.eq(q.field("status"), "failed"),
-            q.eq(q.field("status"), "cancelled")
+            q.eq(q.field("status"), "failed")
           ),
           q.lt(q.field("updatedAt"), cutoffTime)
         )
-      );
+      )
+      .collect();
 
-    if (args.category) {
-      query = query.filter(q => q.eq(q.field("category"), args.category));
+    if (dryRun) {
+      return {
+        wouldDelete: oldJobs.length,
+        jobs: oldJobs.map(job => ({
+          jobId: job.jobId,
+          type: job.type,
+          status: job.status,
+          createdAt: job.createdAt,
+        })),
+      };
     }
 
-    const oldJobs = await query.take(1000); // Reasonable limit for cleanup operations
-
+    // Delete old jobs and associated files
     let deletedCount = 0;
-    let filesDeleted = 0;
-
     for (const job of oldJobs) {
-      // Delete associated file from storage if it exists
+      // Delete associated file if it exists
       if (job.fileStorageId) {
         try {
           await ctx.storage.delete(job.fileStorageId);
-          filesDeleted++;
         } catch (error) {
-          console.warn(`Failed to delete file ${job.fileStorageId}:`, error);
+          console.warn("Failed to delete associated file:", error);
         }
       }
 
@@ -599,47 +470,11 @@ export const cleanupOldJobs = mutation({
       deletedCount++;
     }
 
-    return { deletedCount, filesDeleted };
+    return { deletedCount };
   },
 });
 
-// Get active jobs count by category
-export const getActiveJobsCount = query({
-  args: {
-    category: v.optional(
-      v.union(
-        v.literal("data_transfer"),
-        v.literal("bulk_operations"),
-        v.literal("ai_processing"),
-        v.literal("maintenance")
-      )
-    ),
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
-
-    let query = ctx.db
-      .query("backgroundJobs")
-      .filter(q =>
-        q.and(
-          q.eq(q.field("userId"), userId),
-          q.or(
-            q.eq(q.field("status"), "scheduled"),
-            q.eq(q.field("status"), "processing")
-          )
-        )
-      );
-
-    if (args.category) {
-      query = query.filter(q => q.eq(q.field("category"), args.category));
-    }
-
-    const activeJobs = await query.take(100); // Reasonable limit for active job count
-    return activeJobs.length;
-  },
-});
-
-// Clean up old completed jobs for all users (used by cron job)
+// Internal mutation to clean up old jobs for all users (called by cron)
 export const cleanupOldJobsForAllUsers = internalMutation({
   args: {
     olderThanDays: v.optional(v.number()),
@@ -648,32 +483,29 @@ export const cleanupOldJobsForAllUsers = internalMutation({
     const daysOld = args.olderThanDays || 30;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 
-    // Find all old completed/failed/cancelled jobs across all users
+    // Find old completed/failed jobs for all users
     const oldJobs = await ctx.db
       .query("backgroundJobs")
       .filter(q =>
         q.and(
           q.or(
             q.eq(q.field("status"), "completed"),
-            q.eq(q.field("status"), "failed"),
-            q.eq(q.field("status"), "cancelled")
+            q.eq(q.field("status"), "failed")
           ),
           q.lt(q.field("updatedAt"), cutoffTime)
         )
       )
       .collect();
 
+    // Delete old jobs and associated files
     let deletedCount = 0;
-    let filesDeleted = 0;
-
     for (const job of oldJobs) {
-      // Delete associated file from storage if it exists
+      // Delete associated file if it exists
       if (job.fileStorageId) {
         try {
           await ctx.storage.delete(job.fileStorageId);
-          filesDeleted++;
         } catch (error) {
-          console.warn(`Failed to delete file ${job.fileStorageId}:`, error);
+          console.warn("Failed to delete associated file:", error);
         }
       }
 
@@ -681,16 +513,9 @@ export const cleanupOldJobsForAllUsers = internalMutation({
       deletedCount++;
     }
 
-    return { deletedCount, filesDeleted };
+    return { deletedCount };
   },
 });
-
-// Legacy field mapping helpers for backwards compatibility
-export const LEGACY_FIELD_MAPPING = {
-  exportId: "jobId",
-  totalConversations: "totalItems",
-  processed: "processedItems",
-} as const;
 
 // Internal function to get export data for conversations
 export const getExportData = internalQuery({

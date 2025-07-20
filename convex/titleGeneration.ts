@@ -71,9 +71,10 @@ export const generateTitle = action({
 
     // Update the conversation title if conversationId is provided
     if (args.conversationId) {
-      await ctx.runMutation(api.conversations.updateTitle, {
+      await ctx.runMutation(api.conversations.patch, {
         id: args.conversationId,
-        title: generatedTitle,
+        updates: { title: generatedTitle },
+        setUpdatedAt: false,
       });
     }
 
@@ -118,9 +119,10 @@ export const generateTitleBackground = action({
       } else {
         // Final fallback - set a simple title
         const fallbackTitle = args.message.slice(0, 60) || "New conversation";
-        await ctx.runMutation(api.conversations.updateTitle, {
+        await ctx.runMutation(api.conversations.patch, {
           id: args.conversationId,
-          title: fallbackTitle,
+          updates: { title: fallbackTitle },
+          setUpdatedAt: false,
         });
       }
     }

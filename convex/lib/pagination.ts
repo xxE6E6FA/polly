@@ -5,6 +5,7 @@ export const paginationOptsSchema = v.optional(
   v.object({
     numItems: v.number(),
     cursor: v.union(v.string(), v.null()),
+    id: v.optional(v.number()), // Handle Convex's internal id field
   })
 );
 
@@ -42,6 +43,7 @@ export function validatePaginationOpts(
   opts?: {
     numItems: number;
     cursor: string | null;
+    id?: number; // Handle Convex's internal id field
   },
   config?: PaginationConfig
 ) {
@@ -73,6 +75,7 @@ export function validatePaginationOpts(
   return {
     numItems: validatedNumItems,
     cursor: opts.cursor,
+    ...(opts.id !== undefined && { id: opts.id }), // Preserve id if present
   };
 }
 
@@ -81,6 +84,7 @@ export function validatePaginationOptsWithConfig(
   opts?: {
     numItems: number;
     cursor: string | null;
+    id?: number; // Handle Convex's internal id field
   },
   defaultPageSize?: number,
   maxPageSize?: number

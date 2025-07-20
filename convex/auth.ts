@@ -4,7 +4,6 @@ import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
@@ -57,8 +56,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     async createOrUpdateUser(ctx: MutationCtx, args) {
       const { existingUserId, profile, provider } = args;
 
-      // Process user creation/update
-
       // Extract profile fields with proper types
       const profileName =
         typeof profile.name === "string" ? profile.name : undefined;
@@ -71,34 +68,6 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           ? profile.emailVerified
           : Date.now()
         : undefined;
-
-      // Handle anonymous user graduation
-      const stateObj = (args as { state?: { anonymousUserId?: string } }).state;
-      const anonymousUserId = stateObj?.anonymousUserId as
-        | Id<"users">
-        | undefined;
-
-      if (anonymousUserId) {
-        const anonymousUser = await ctx.db.get(anonymousUserId);
-
-        if (anonymousUser?.isAnonymous) {
-          // Graduate the anonymous user by updating their record
-          await ctx.db.patch(anonymousUserId, {
-            name: profileName || anonymousUser.name,
-            email: profileEmail || anonymousUser.email,
-            emailVerified: profileEmailVerified || anonymousUser.emailVerified,
-            image: profileImage || anonymousUser.image,
-            isAnonymous: false,
-            monthlyMessagesSent: anonymousUser.messagesSent || 0,
-            monthlyLimit: MONTHLY_MESSAGE_LIMIT,
-            lastMonthlyReset: Date.now(),
-            conversationCount: anonymousUser.conversationCount || 0,
-            totalMessageCount: anonymousUser.totalMessageCount || 0,
-          });
-
-          return anonymousUserId;
-        }
-      }
 
       // Update existing user
       if (existingUserId) {
@@ -122,20 +91,30 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         return existingUserId;
       }
 
-      // Create new user
-      const now = Date.now();
-
-      // Check if email already exists (for email-based providers)
-      if (profileEmail) {
+      // Check if there's an existing user with the same email (for email-based providers)
+      if (profileEmail && provider.id !== "anonymous") {
         const existingEmailUser = await ctx.db
           .query("users")
           .withIndex("email", q => q.eq("email", profileEmail))
           .first();
 
         if (existingEmailUser) {
+          // Update existing user with latest auth data
+          await ctx.db.patch(existingEmailUser._id, {
+            name: profileName || existingEmailUser.name,
+            email: profileEmail || existingEmailUser.email,
+            emailVerified:
+              profileEmailVerified || existingEmailUser.emailVerified,
+            image: profileImage || existingEmailUser.image,
+            isAnonymous: false,
+          });
+
           return existingEmailUser._id;
         }
       }
+
+      // Create new user
+      const now = Date.now();
 
       // Create new user document
       const userId = await ctx.db.insert("users", {

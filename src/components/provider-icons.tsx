@@ -1,14 +1,11 @@
 import { cn } from "@/lib/utils";
 
 type ProviderIconProps = {
-  provider: string;
+  provider?: string;
   className?: string;
 };
 
-export const ProviderIcon = ({
-  provider,
-  className = "",
-}: ProviderIconProps) => {
+export const ProviderIcon = ({ provider, className }: ProviderIconProps) => {
   switch (provider) {
     case "openai":
       return (

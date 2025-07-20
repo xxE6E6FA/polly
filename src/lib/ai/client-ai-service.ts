@@ -245,33 +245,3 @@ export function preWarmProvider(
 ): Promise<void> {
   return warmUpProvider(provider, apiKey);
 }
-
-// Legacy class wrapper for backward compatibility
-export class ClientAIService {
-  private currentAbortController: AbortController | null = null;
-
-  async streamChat(request: ChatStreamRequest): Promise<void> {
-    const abortController = new AbortController();
-    this.currentAbortController = abortController;
-
-    try {
-      await streamChat(request, abortController);
-    } finally {
-      this.currentAbortController = null;
-    }
-  }
-
-  stopStreaming(): void {
-    if (this.currentAbortController) {
-      this.currentAbortController.abort();
-      this.currentAbortController = null;
-    }
-  }
-
-  static preWarmProvider(
-    provider: AIProviderType,
-    apiKey: string
-  ): Promise<void> {
-    return preWarmProvider(provider, apiKey);
-  }
-}

@@ -42,17 +42,14 @@ const ModelItemComponent = ({
     >
       <div className="flex w-full items-center justify-between">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {model.free &&
-            !isPollyDisabled &&
-            model.provider !== "polly" &&
-            model.modelId !== "gemini-2.5-flash-lite-preview-06-17" && (
-              <Badge
-                className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
-                variant="secondary"
-              >
-                Free
-              </Badge>
-            )}
+          {model.free && !isPollyDisabled && (
+            <Badge
+              className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
+              variant="secondary"
+            >
+              Free
+            </Badge>
+          )}
           {isPollyDisabled && (
             <Badge
               className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"

@@ -1,11 +1,10 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import type { Doc } from "convex/_generated/dataModel";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
 import { hasPageArray } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -42,8 +41,7 @@ export function useChatMessages({
     Map<string, ChatMessage>
   >(() => new Map());
 
-  const convexMessages = usePersistentConvexQuery(
-    "chat-messages",
+  const convexMessages = useQuery(
     api.messages.list,
     conversationId ? { conversationId } : "skip"
   );

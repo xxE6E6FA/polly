@@ -12,7 +12,6 @@ import { useChatService } from "@/hooks/use-chat-service";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { useUserDataContext } from "@/providers/user-data-context";
 
 type ConversationStarterPopoverProps = {
   selectedText: string;
@@ -35,8 +34,6 @@ export const ConversationStarterPopover = ({
     api.conversationStarters.generateConversationStarters
   );
 
-  const { user } = useUserDataContext();
-  const queryUserId = user?._id || null;
   const chatService = useChatService({
     overrideMode: "regular", // Always use regular mode for conversation starters
   });
@@ -78,14 +75,9 @@ export const ConversationStarterPopover = ({
   }, [open, lockSelection, unlockSelection]);
 
   const handleStartConversation = async (prompt: string) => {
-    if (!queryUserId) {
-      return;
-    }
-
     try {
       const conversationId = await chatService.createConversation({
         firstMessage: prompt,
-        userId: queryUserId,
         generateTitle: true,
       });
 

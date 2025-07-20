@@ -25,12 +25,8 @@ const ModelListComponent = ({
   handleSelect,
   hasReachedPollyLimit,
 }: {
-  userModelsByProvider: {
-    id: string;
-    name: string;
-    models: AIModel[];
-  }[];
-  handleSelect: (value: string) => void;
+  userModelsByProvider: Record<string, AIModel[]>;
+  handleSelect: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
 }) => {
   return (
@@ -49,7 +45,7 @@ const ModelListComponent = ({
           </div>
         </CommandEmpty>
 
-        {userModelsByProvider?.length === 0 ? (
+        {Object.keys(userModelsByProvider).length === 0 ? (
           <div className="p-6 text-center">
             <p className="mb-2 text-sm text-muted-foreground">
               No models available
@@ -59,41 +55,42 @@ const ModelListComponent = ({
             </p>
           </div>
         ) : (
-          userModelsByProvider?.map(
-            (
-              provider: { id: string; name: string; models: AIModel[] },
-              providerIndex: number
-            ) => {
+          Object.entries(userModelsByProvider).map(
+            ([providerId, models], providerIndex: number | undefined) => {
               const providerConfig =
-                PROVIDER_CONFIG[provider.id as keyof typeof PROVIDER_CONFIG];
-              const providerTitle = providerConfig?.title || provider.name;
+                PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+              const providerTitle = providerConfig?.title || providerId;
 
               return (
-                <CommandGroup key={provider.id}>
+                <CommandGroup key={providerId}>
                   <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
                     <ProviderIcon
-                      provider={provider.id}
+                      provider={providerId}
                       className="h-3.5 w-3.5"
                     />
                     <span className="text-xs font-medium text-muted-foreground">
                       {providerTitle}
                     </span>
                   </div>
-                  {provider.models.map((model: AIModel) => (
+                  {models.map((model: AIModel) => (
                     <ModelItem
                       key={model.modelId}
                       model={model}
-                      onSelect={handleSelect}
+                      onSelect={() =>
+                        handleSelect(model.modelId, model.provider)
+                      }
                       hasReachedPollyLimit={hasReachedPollyLimit ?? false}
                     />
                   ))}
-                  {providerIndex < userModelsByProvider.length - 1 && (
-                    <div className="mx-2 my-1.5 h-px bg-border/50" />
-                  )}
+                  {providerIndex !== undefined &&
+                    providerIndex <
+                      Object.keys(userModelsByProvider).length - 1 && (
+                      <div className="mx-2 my-1.5 h-px bg-border/50" />
+                    )}
                 </CommandGroup>
               );
             }
-          ) || []
+          )
         )}
       </CommandList>
     </Command>

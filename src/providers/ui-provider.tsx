@@ -1,16 +1,14 @@
 import * as React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { get as getLS, set as setLS } from "@/lib/local-storage";
-
-const SIDEBAR_STORAGE_KEY = "sidebar/v1";
+import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 
 function setSidebarVisibility(isVisible: boolean): void {
-  setLS<boolean>(SIDEBAR_STORAGE_KEY, isVisible);
+  setLS<boolean>(CACHE_KEYS.sidebar, isVisible);
 }
 
 function getSidebarVisibility(): boolean {
   const defaultVisible = window.innerWidth >= 768;
-  return getLS<boolean>(SIDEBAR_STORAGE_KEY, defaultVisible);
+  return getLS<boolean>(CACHE_KEYS.sidebar, defaultVisible);
 }
 
 type UIContextValue = {
@@ -19,10 +17,6 @@ type UIContextValue = {
   toggleSidebar: () => void;
   isMobile: boolean;
   mounted: boolean;
-
-  // Thinking state
-  isThinking: boolean;
-  setIsThinking: (thinking: boolean) => void;
 };
 
 type UIProviderProps = {
@@ -40,10 +34,6 @@ const UIContext = React.createContext<UIContextValue>({
   },
   isMobile: false,
   mounted: false,
-  isThinking: false,
-  setIsThinking: () => {
-    // Default no-op
-  },
 });
 
 export function useUI() {
@@ -79,7 +69,6 @@ export const UIProvider = ({
   const [isSidebarVisible, setSidebarVisible] = useState(serverSidebarVisible);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isThinking, setIsThinking] = useState(false);
 
   // Initialize sidebar state
   useEffect(() => {
@@ -130,10 +119,8 @@ export const UIProvider = ({
       toggleSidebar,
       isMobile,
       mounted,
-      isThinking,
-      setIsThinking,
     }),
-    [isSidebarVisible, toggleSidebar, isMobile, mounted, isThinking]
+    [isSidebarVisible, toggleSidebar, isMobile, mounted]
   );
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
