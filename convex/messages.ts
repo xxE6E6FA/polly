@@ -11,8 +11,6 @@ import { incrementUserMessageStats } from "./lib/conversation_utils";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 import {
   attachmentSchema,
-  messageMetadataSchema,
-  messageRoleSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -20,7 +18,7 @@ import {
 export const create = mutation({
   args: {
     conversationId: v.id("conversations"),
-    role: messageRoleSchema,
+    role: v.string(),
     content: v.string(),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
@@ -38,6 +36,10 @@ export const create = mutation({
         finishReason: v.optional(v.string()),
         duration: v.optional(v.number()),
         stopped: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
+        searchFeature: v.optional(v.string()),
+        searchCategory: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
       })
     ),
   },
@@ -53,7 +55,7 @@ export const create = mutation({
       if (conversation) {
         // Only increment stats if model and provider are provided
         if (args.model && args.provider) {
-          await incrementUserMessageStats(ctx, args.model, args.provider);
+          await incrementUserMessageStats(ctx, args.provider);
         }
       }
     }
@@ -82,6 +84,10 @@ export const createUserMessageBatched = mutation({
         finishReason: v.optional(v.string()),
         duration: v.optional(v.number()),
         stopped: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
+        searchFeature: v.optional(v.string()),
+        searchCategory: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
       })
     ),
   },
@@ -93,7 +99,7 @@ export const createUserMessageBatched = mutation({
       createdAt: Date.now(),
     });
 
-    await incrementUserMessageStats(ctx, args.model, args.provider);
+    await incrementUserMessageStats(ctx, args.provider);
 
     return messageId;
   },
@@ -207,6 +213,10 @@ export const internalUpdate = internalMutation({
         finishReason: v.optional(v.string()),
         duration: v.optional(v.number()),
         stopped: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
+        searchFeature: v.optional(v.string()),
+        searchCategory: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
         webSearchCost: v.optional(v.number()),
       })
     ),
@@ -469,7 +479,20 @@ export const internalAtomicUpdate = internalMutation({
     appendContent: v.optional(v.string()),
     appendReasoning: v.optional(v.string()),
     citations: v.optional(v.array(webCitationSchema)),
-    metadata: v.optional(messageMetadataSchema),
+    metadata: v.optional(
+      v.object({
+        tokenCount: v.optional(v.number()),
+        reasoningTokenCount: v.optional(v.number()),
+        finishReason: v.optional(v.string()),
+        duration: v.optional(v.number()),
+        stopped: v.optional(v.boolean()),
+        searchQuery: v.optional(v.string()),
+        searchFeature: v.optional(v.string()),
+        searchCategory: v.optional(v.string()),
+        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
+        webSearchCost: v.optional(v.number()),
+      })
+    ),
   },
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;

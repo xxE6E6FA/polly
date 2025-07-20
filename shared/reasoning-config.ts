@@ -1,3 +1,5 @@
+import { mapPollyModelToProvider } from "./constants";
+
 export type ReasoningEffortLevel = "low" | "medium" | "high";
 
 export type ReasoningConfig = {
@@ -52,13 +54,19 @@ export function getProviderReasoningConfig(
     return {};
   }
 
+  // Handle Polly provider mapping
+  let actualProvider = provider;
+  if (provider === "polly") {
+    actualProvider = mapPollyModelToProvider(modelId);
+  }
+
   // Special handling for Google models
-  if (provider === "google") {
+  if (actualProvider === "google") {
     // Gemini 2.5 Pro enforces reasoning - it cannot be disabled
     if (modelId.toLowerCase().includes("gemini-2.5-pro")) {
       // Always enable reasoning for 2.5 Pro, using provided config or defaults
       return getProviderReasoningOptions(
-        provider,
+        actualProvider,
         reasoningConfig || {
           effort: "medium",
         }
@@ -81,14 +89,14 @@ export function getProviderReasoningConfig(
 
   // Handle OpenAI o1 models that enforce reasoning
   if (
-    provider === "openai" &&
+    actualProvider === "openai" &&
     (modelId.toLowerCase().includes("o1-") ||
       modelId.toLowerCase().includes("o3-") ||
       modelId.toLowerCase().includes("o4"))
   ) {
     // Always enable reasoning for o1/o3/o4 models
     return getProviderReasoningOptions(
-      provider,
+      actualProvider,
       reasoningConfig || {
         effort: "medium",
       }
@@ -96,7 +104,7 @@ export function getProviderReasoningConfig(
   }
 
   // Delegate to shared implementation
-  return getProviderReasoningOptions(provider, reasoningConfig);
+  return getProviderReasoningOptions(actualProvider, reasoningConfig);
 }
 
 /**

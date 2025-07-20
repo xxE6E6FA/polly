@@ -31,7 +31,7 @@ export const ModelPickerTrigger = ({
       >
         <div className="flex items-center gap-1.5">
           <ProviderIcon
-            provider={selectedModel?.displayProvider || selectedModel?.provider}
+            provider={selectedModel?.provider}
             className="h-3.5 w-3.5"
           />
           <span className="max-w-[150px] truncate font-medium">

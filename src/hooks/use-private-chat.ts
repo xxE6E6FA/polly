@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { isPollyModel, mapPollyModelToProvider } from "@shared/constants";
 import { getDefaultSystemPrompt } from "convex/constants";
 import { useAction, useConvex, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -84,6 +85,9 @@ export function usePrivateChat({
 
   // Call hooks directly - no dependency injection
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
+  const incrementUserMessageStats = useAction(
+    api.conversations.incrementUserMessageStatsAction
+  );
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const { canSendMessage, user } = useUserDataContext();
@@ -272,6 +276,30 @@ export function usePrivateChat({
         selectedModel.provider
       );
 
+      if (isPollyModel(selectedModel.provider)) {
+        try {
+          await incrementUserMessageStats({
+            model: selectedModel.modelId,
+            provider: selectedModel.provider,
+          });
+        } catch (error) {
+          // If monthly limit is reached, show error and return
+          if (
+            error instanceof Error &&
+            error.message.includes("Monthly Polly model message limit reached")
+          ) {
+            toast.error("Monthly limit reached", {
+              description:
+                "You've used all your free messages this month. Use BYOK models for unlimited chats.",
+            });
+            onError?.(error);
+            return;
+          }
+          // For other errors, log but continue
+          console.warn("Failed to increment user message stats:", error);
+        }
+      }
+
       // Add both messages at once to reduce re-renders
       updateMessages(prevMessages => {
         const withUser = messageUtils.addMessage(prevMessages, userMessage);
@@ -285,14 +313,41 @@ export function usePrivateChat({
         setIsGenerating(true);
 
         const provider = selectedModel.provider as AIProviderType;
-        const decryptedKey = await getDecryptedApiKey({ provider });
 
-        if (!decryptedKey) {
+        // For Polly models, map to actual provider once and use env vars directly
+        let actualProvider = provider;
+        let apiKey: string | null = null;
+
+        if (provider === "polly") {
+          actualProvider = mapPollyModelToProvider(
+            selectedModel.modelId
+          ) as AIProviderType;
+          // For Polly models, we know we'll use env vars, so skip the server call
+          // and let the server handle it directly
+          apiKey = await getDecryptedApiKey({
+            provider: actualProvider as Exclude<AIProviderType, "polly">,
+            modelId: selectedModel.modelId,
+          });
+        } else {
+          // For non-Polly models, get from server (which handles user keys + env fallback)
+          apiKey = await getDecryptedApiKey({
+            provider,
+            modelId: selectedModel.modelId,
+          });
+        }
+
+        if (!apiKey) {
           throw new Error(`No valid API key found for ${provider}`);
         }
 
         const apiKeys: APIKeys = {};
-        apiKeys[provider as keyof APIKeys] = decryptedKey;
+        apiKeys[actualProvider as keyof APIKeys] = apiKey;
+
+        // Create a copy of the model with the actual provider for streaming
+        const modelForStreaming = {
+          ...selectedModel,
+          provider: actualProvider,
+        };
 
         // Get all messages except the empty assistant message we just created
         const messagesForAI = messages
@@ -335,7 +390,7 @@ export function usePrivateChat({
         await streamChat(
           {
             messages: messagesForAI,
-            model: selectedModel,
+            model: modelForStreaming,
             apiKeys,
             options: {
               reasoningConfig: effectiveReasoningConfig?.enabled
@@ -441,6 +496,7 @@ export function usePrivateChat({
       currentPersonaId,
       currentReasoningConfig,
       user?.isAnonymous,
+      incrementUserMessageStats,
     ]
   );
 
@@ -592,6 +648,33 @@ export function usePrivateChat({
         selectedModel.provider
       );
 
+      // Check if this is a Polly model and increment stats
+      const isPollyModelResult = isPollyModel(selectedModel.provider);
+
+      if (isPollyModelResult && selectedModel.free) {
+        try {
+          await incrementUserMessageStats({
+            model: selectedModel.modelId,
+            provider: selectedModel.provider,
+          });
+        } catch (error) {
+          // If monthly limit is reached, show error and return
+          if (
+            error instanceof Error &&
+            error.message.includes("Monthly Polly model message limit reached")
+          ) {
+            toast.error("Monthly limit reached", {
+              description:
+                "You've used all your free messages this month. Use BYOK models for unlimited chats.",
+            });
+            onError?.(error);
+            return;
+          }
+          // For other errors, log but continue
+          console.warn("Failed to increment user message stats:", error);
+        }
+      }
+
       updateMessages(prevMessages =>
         messageUtils.addMessage(prevMessages, assistantMessage)
       );
@@ -602,14 +685,41 @@ export function usePrivateChat({
         setIsGenerating(true);
 
         const provider = selectedModel.provider as AIProviderType;
-        const decryptedKey = await getDecryptedApiKey({ provider });
 
-        if (!decryptedKey) {
+        // For Polly models, map to actual provider once and use env vars directly
+        let actualProvider = provider;
+        let apiKey: string | null = null;
+
+        if (provider === "polly") {
+          actualProvider = mapPollyModelToProvider(
+            selectedModel.modelId
+          ) as AIProviderType;
+          // For Polly models, we know we'll use env vars, so skip the server call
+          // and let the server handle it directly
+          apiKey = await getDecryptedApiKey({
+            provider: actualProvider as Exclude<AIProviderType, "polly">,
+            modelId: selectedModel.modelId,
+          });
+        } else {
+          // For non-Polly models, get from server (which handles user keys + env fallback)
+          apiKey = await getDecryptedApiKey({
+            provider,
+            modelId: selectedModel.modelId,
+          });
+        }
+
+        if (!apiKey) {
           throw new Error(`No valid API key found for ${provider}`);
         }
 
         const apiKeys: APIKeys = {};
-        apiKeys[provider as keyof APIKeys] = decryptedKey;
+        apiKeys[actualProvider as keyof APIKeys] = apiKey;
+
+        // Create a copy of the model with the actual provider for streaming
+        const modelForStreaming = {
+          ...selectedModel,
+          provider: actualProvider,
+        };
 
         // Get all messages up to and including the previous user message
         const messagesForAI = messages
@@ -635,7 +745,7 @@ export function usePrivateChat({
         await streamChat(
           {
             messages: messagesForAI,
-            model: selectedModel,
+            model: modelForStreaming,
             apiKeys,
             options: {},
             callbacks: {
@@ -731,6 +841,7 @@ export function usePrivateChat({
       updateMessages,
       getDecryptedApiKey,
       user?.isAnonymous,
+      incrementUserMessageStats,
     ]
   );
 

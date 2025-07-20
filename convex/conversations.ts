@@ -1,5 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { MESSAGE_BATCH_SIZE, MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
+import {
+  isPollyModel,
+  MESSAGE_BATCH_SIZE,
+  MONTHLY_MESSAGE_LIMIT,
+} from "@shared/constants";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -24,7 +28,6 @@ import {
 import {
   attachmentSchema,
   attachmentWithMimeTypeSchema,
-  messageRoleSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -54,31 +57,9 @@ export const create = mutation({
     }
 
     // Check if this is a Polly free model and enforce limits
-    const isPollyModel =
-      args?.provider === "polly" ||
-      (args?.model === "gemini-2.5-flash-lite-preview-06-17" &&
-        args?.provider === "google");
+    const isPollyModelResult = isPollyModel(args?.provider);
 
-    let userModel;
-
-    if (isPollyModel) {
-      // For Polly models, create a virtual model object
-      userModel = await ctx.runQuery(api.userModels.getVirtualPollyModel);
-    } else {
-      // Query database for real models
-      userModel = await ctx.db
-        .query("userModels")
-        .withIndex("by_user", q => q.eq("userId", user._id))
-        .filter(q =>
-          q.or(
-            q.eq(q.field("modelId"), args?.model ?? ""),
-            q.eq(q.field("displayProvider"), args?.provider ?? "")
-          )
-        )
-        .unique();
-    }
-
-    if (userModel?.free && !user.hasUnlimitedCalls) {
+    if (isPollyModelResult && !user.hasUnlimitedCalls) {
       const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
       const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
       if (monthlyMessagesSent >= monthlyLimit) {
@@ -118,7 +99,7 @@ export const create = mutation({
     // Only increment stats if this is a new conversation with a first message
     // (not for private conversation imports which have pre-existing messages)
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await incrementUserMessageStats(ctx, args.model, args.provider);
+      await incrementUserMessageStats(ctx, args.provider);
     }
 
     // Create empty assistant message for streaming (don't count assistant messages)
@@ -182,7 +163,7 @@ export const savePrivateConversation = action({
   args: {
     messages: v.array(
       v.object({
-        role: messageRoleSchema,
+        role: v.string(),
         content: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string()),
@@ -231,11 +212,7 @@ export const savePrivateConversation = action({
     const firstUserMessage = args.messages.find(msg => msg.role === "user");
     if (firstUserMessage?.model && firstUserMessage?.provider) {
       try {
-        await incrementUserMessageStats(
-          ctx,
-          firstUserMessage.model,
-          firstUserMessage.provider
-        );
+        await incrementUserMessageStats(ctx, firstUserMessage.provider);
       } catch (error) {
         // If the model doesn't exist in the user's database, skip stats increment
         // This can happen when importing private conversations with models the user no longer has
@@ -247,7 +224,7 @@ export const savePrivateConversation = action({
 
     // Process and save all messages to the conversation
     for (const message of args.messages as Array<{
-      role: "user" | "assistant" | "system" | "context";
+      role: string;
       content: string;
       createdAt: number;
       model?: string;
@@ -1127,5 +1104,15 @@ export const resumeConversation = action({
     });
 
     return { resumed: true };
+  },
+});
+
+export const incrementUserMessageStatsAction = action({
+  args: {
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await incrementUserMessageStats(ctx, args.provider);
   },
 });

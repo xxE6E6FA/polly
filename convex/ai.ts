@@ -1,4 +1,9 @@
-import { WEB_SEARCH_MAX_RESULTS } from "@shared/constants";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  DEFAULT_POLLY_MODEL_ID,
+  mapPollyModelToProvider,
+  WEB_SEARCH_MAX_RESULTS,
+} from "@shared/constants";
 import { generateText, streamText } from "ai";
 import { v } from "convex/values";
 import dedent from "dedent";
@@ -113,7 +118,17 @@ export const streamResponse = action({
       }
 
       // Get API key and authenticated user
-      const apiKey = await getApiKey(ctx, args.provider as ProviderType);
+      let actualProvider = args.provider;
+      if (args.provider === "polly") {
+        // Map Polly provider to actual provider for server-side API key lookup
+        actualProvider = mapPollyModelToProvider(args.model);
+      }
+
+      const apiKey = await getApiKey(
+        ctx,
+        actualProvider as Exclude<ProviderType, "polly">,
+        args.model
+      );
 
       // Get authenticated user for provider options
       const authenticatedUser = await ctx.runQuery(api.users.current);
@@ -214,8 +229,7 @@ export const streamResponse = action({
 
           // Allow override via env var for testing different models
           const classificationModelName =
-            process.env.SEARCH_CLASSIFICATION_MODEL ||
-            "gemini-2.5-flash-lite-preview-06-17"; // Default to cheapest
+            process.env.SEARCH_CLASSIFICATION_MODEL || DEFAULT_POLLY_MODEL_ID; // Default to cheapest
 
           const classificationModel = await createLanguageModel(
             ctx,

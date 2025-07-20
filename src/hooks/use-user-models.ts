@@ -36,13 +36,10 @@ export function useUserModels() {
         return;
       }
 
-      // Use displayProvider if available, otherwise fall back to provider
-      const displayProvider = model.displayProvider || model.provider;
-
-      if (!grouped[displayProvider]) {
-        grouped[displayProvider] = [];
+      if (!grouped[model.provider]) {
+        grouped[model.provider] = [];
       }
-      grouped[displayProvider].push(model);
+      grouped[model.provider].push(model);
     });
 
     return grouped;

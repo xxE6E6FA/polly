@@ -1,3 +1,5 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -39,8 +41,15 @@ export const generateConversationSummary = action({
         return "Previous conversation (no content found)";
       }
 
-      const response: Response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${apiKey}`,
+      const promptText = `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
+
+Conversation:
+${conversationText}
+
+Summary:`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_POLLY_MODEL_ID}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {
@@ -51,19 +60,14 @@ export const generateConversationSummary = action({
               {
                 parts: [
                   {
-                    text: `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
-
-Conversation:
-${conversationText}
-
-Summary:`,
+                    text: promptText,
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: args.maxTokens || 150,
-              temperature: 0.3,
+              maxOutputTokens: 1000,
+              temperature: 0.7,
             },
           }),
         }

@@ -277,10 +277,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         const processedAttachments =
           await uploadAttachmentsToConvex(attachments);
 
-        // biome-ignore lint/suspicious/noConsole: Debug logging
-        console.log("Uploaded attachments:", processedAttachments);
-
-        await onSendMessage(
+        onSendMessage(
           input.trim(),
           processedAttachments,
           selectedPersonaId,

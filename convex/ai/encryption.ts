@@ -1,4 +1,3 @@
-import { internal } from "../_generated/api";
 import { api } from "../_generated/api";
 import { type ActionCtx } from "../_generated/server";
 import { type ProviderType } from "../types";
@@ -34,29 +33,25 @@ export const serverDecryptApiKey = async (
 
 export const getApiKey = async (
   ctx: ActionCtx,
-  provider: ProviderType
+  provider: Exclude<ProviderType, "polly">, // Remove "polly" from allowed types
+  modelId?: string
 ): Promise<string> => {
-  const authenticatedUser = await ctx.runQuery(api.users.current);
-  
-  if (authenticatedUser) {
-    const apiKeyRecord = await ctx.runQuery(
-      internal.apiKeys.getEncryptedApiKeyData,
-      { userId: authenticatedUser._id, provider }
-    );
+  const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
+    provider,
+    modelId,
+  });
 
-    if (apiKeyRecord?.encryptedKey && apiKeyRecord?.initializationVector) {
-      return serverDecryptApiKey(
-        apiKeyRecord.encryptedKey,
-        apiKeyRecord.initializationVector
-      );
-    }
+  if (apiKey) {
+    return apiKey;
   }
 
-  const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider]];
+  // Fallback to environment variables
+  const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS]];
   if (envKey) {
     return envKey;
   }
 
+  const authenticatedUser = await ctx.runQuery(api.users.current);
   const errorMessage = authenticatedUser
     ? `No API key found for ${provider}. Please add an API key in Settings.`
     : `Authentication required. Please sign in to use ${provider} models.`;

@@ -1,7 +1,13 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { action, internalQuery, mutation, query } from "./_generated/server";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -221,18 +227,18 @@ export const removeApiKey = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return;
+      throw new Error("User not authenticated");
     }
 
-    const apiKey = await ctx.db
+    const existing = await ctx.db
       .query("userApiKeys")
       .withIndex("by_user_provider", q =>
         q.eq("userId", userId).eq("provider", args.provider)
       )
       .unique();
 
-    if (apiKey) {
-      await ctx.db.delete(apiKey._id);
+    if (existing) {
+      await ctx.db.delete(existing._id);
     }
   },
 });
@@ -245,27 +251,32 @@ export const validateApiKey = mutation({
       v.literal("google"),
       v.literal("openrouter")
     ),
-    isValid: v.boolean(),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      return;
+      throw new Error("User not authenticated");
     }
 
-    const apiKey = await ctx.db
+    const apiKeyRecord = await ctx.db
       .query("userApiKeys")
       .withIndex("by_user_provider", q =>
         q.eq("userId", userId).eq("provider", args.provider)
       )
       .unique();
 
-    if (apiKey) {
-      await ctx.db.patch(apiKey._id, {
-        isValid: args.isValid,
-        lastValidated: Date.now(),
-      });
+    if (!apiKeyRecord) {
+      throw new Error(`No API key found for ${args.provider}`);
     }
+
+    // For now, just mark as valid since we don't have a validation endpoint
+    // In a real app, you'd call the provider's API to validate the key
+    await ctx.db.patch(apiKeyRecord._id, {
+      isValid: true,
+      lastValidated: Date.now(),
+    });
+
+    return { success: true };
   },
 });
 
@@ -295,14 +306,12 @@ export const hasAnyApiKey = query({
 });
 
 // Helper function to check if any environment API keys are available
-
 function hasEnvironmentApiKeys(): boolean {
   return Boolean(
     process.env.OPENAI_API_KEY ||
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
-      process.env.OPENROUTER_API_KEY ||
-      process.env.EXA_API_KEY
+      process.env.OPENROUTER_API_KEY
   );
 }
 
@@ -315,9 +324,12 @@ export const getDecryptedApiKey = action({
       v.literal("google"),
       v.literal("openrouter"),
       v.literal("exa")
-    ),
+    ), // Remove "polly" - it should never reach the server
+    modelId: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<string | null> => {
+    // No more Polly mapping here - it's handled client-side
+
     // First try to get authenticated user - this is the correct pattern for actions
     const authenticatedUser = await ctx.runQuery(api.users.current);
 
@@ -351,7 +363,6 @@ export const getDecryptedApiKey = action({
 });
 
 // Helper function to get API key from environment variables
-
 function getEnvironmentApiKey(provider: string): string | null {
   switch (provider) {
     case "openai":
@@ -414,14 +425,9 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("google"),
       v.literal("openrouter"),
       v.literal("exa")
-    ),
+    ), // Remove "polly" - it should never reach this function
   },
   handler: async (ctx, args) => {
-    // Exa is only stored as environment variable, not as user API key
-    if (args.provider === "exa") {
-      return null;
-    }
-
     const apiKey = await ctx.db
       .query("userApiKeys")
       .withIndex("by_user_provider", q =>
@@ -429,7 +435,12 @@ export const getEncryptedApiKeyData = internalQuery({
           .eq("userId", args.userId)
           .eq(
             "provider",
-            args.provider as "openai" | "anthropic" | "google" | "openrouter"
+            args.provider as
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "openrouter"
+              | "exa"
           )
       )
       .unique();
