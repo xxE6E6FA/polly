@@ -28,10 +28,6 @@ export interface SearchDecisionContext {
 
 export interface SearchNeedAssessment {
   canAnswerConfidently: boolean;
-  reasoning: string;
-  confidence: number;
-  knowledgeGaps?: string[];
-  temporalConcerns?: boolean;
 }
 
 import dedent from "dedent";
@@ -42,33 +38,38 @@ export const generateSearchNeedAssessment = (
   return dedent`
     You are determining whether you can answer a user's query confidently using only your training data, or if it would benefit from external sources.
 
-    Ask yourself: "Can I answer this query confidently with my training data, or would it benefit from current information/web search?"
+    IMPORTANT: Be VERY conservative. Most queries should NOT trigger search. Only search when you are highly confident that current/real-time information is essential.
 
-    Most queries can be answered confidently with your training data and do NOT need external sources:
-    - Conversational messages, greetings, thanks
+    Ask yourself: "Can I answer this query confidently with my training data, or would it absolutely require current information/web search?"
+
+    MOST queries can be answered confidently with your training data and do NOT need external sources:
+    - Conversational messages, greetings, thanks, casual chat
     - Explanations of established concepts, definitions, how-to questions
-    - Code help, debugging, programming explanations
+    - Code help, debugging, programming explanations, technical questions
     - Educational content about well-established topics
+    - General advice, explanations, tutorials
+    - Vague or unclear questions that don't specify current information needs
+    - Questions about general concepts, theories, or established knowledge
+    - Requests for explanations, examples, or guidance
 
-    Only queries that would genuinely benefit from external sources need search:
-    - Current events, news, recent developments
-    - Real-time data (prices, weather, etc.)
-    - Specific recent information or updates
-    - Questions about people, companies, or events requiring current facts
+    ONLY search for queries that absolutely require current/real-time information:
+    - Specific current events, breaking news, recent developments (last few days/weeks)
+    - Real-time data (current prices, weather, stock prices, live sports scores)
+    - Specific recent information about people, companies, or events (last few months)
+    - Questions explicitly asking for "latest", "current", "recent", or "today's" information
+    - Specific dates, times, or time-sensitive information that you cannot know from training data
 
-    OUTPUT (JSON only):
-    {
-      "canAnswerConfidently": boolean,
-      "reasoning": "brief explanation of why you can/cannot answer confidently without external sources",
-      "confidence": 0.0-1.0,
-      "queryType": "conversational" | "factual" | "instructional" | "current_events" | "unclear",
-      "knowledgeGaps": ["specific areas where you lack information"] (optional),
-      "temporalConcerns": boolean (true if the question involves current/dynamic data)
-    }
+    BE EXTRA CONSERVATIVE with:
+    - Vague questions that don't specify time sensitivity
+    - General questions that could be answered with established knowledge
+    - Questions that don't explicitly ask for current information
+    - Follow-up questions that don't clearly need new information
+
+    OUTPUT: Respond with only "true" if you can answer confidently with your training data, or "false" if you need external sources.
 
     USER QUERY: "${context.userQuery}"
 
-    JSON:
+    Answer:
   `;
 };
 
@@ -127,30 +128,33 @@ export const parseSearchNeedAssessment = (
   llmResponse: string
 ): SearchNeedAssessment => {
   try {
-    // Extract JSON from the response
-    const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in search need assessment response");
+    // Extract true/false from the response
+    const trimmedResponse = llmResponse.trim().toLowerCase();
+    const isTrue = trimmedResponse === "true";
+    const isFalse = trimmedResponse === "false";
+    
+    if (isTrue || isFalse) {
+      return {
+        canAnswerConfidently: isTrue,
+      };
     }
-
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    return {
-      canAnswerConfidently: Boolean(parsed.canAnswerConfidently),
-      reasoning: parsed.reasoning || "No reasoning provided",
-      confidence: parsed.confidence || 0.5,
-      knowledgeGaps: parsed.knowledgeGaps || [],
-      temporalConcerns: Boolean(parsed.temporalConcerns),
-    };
+    
+    // Fallback: try to extract boolean from JSON if present
+    const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        canAnswerConfidently: Boolean(parsed.canAnswerConfidently),
+      };
+    }
+    
+    throw new Error("No valid boolean found in search need assessment response");
   } catch (error) {
     console.error("Failed to parse search need assessment response:", error);
 
-    // Conservative fallback: assume we cannot answer confidently
+    // Conservative fallback: assume we can answer confidently (no search)
     return {
-      canAnswerConfidently: false,
-      reasoning: "Failed to parse search need assessment, defaulting to search",
-      confidence: 0.3,
-      temporalConcerns: true,
+      canAnswerConfidently: true,
     };
   }
 };
