@@ -3,9 +3,14 @@ import { cn } from "@/lib/utils";
 type SpinnerProps = {
   className?: string;
   size?: "sm" | "md" | "lg";
+  variant?: "default" | "primary" | "white";
 };
 
-export const Spinner = ({ className, size = "md" }: SpinnerProps) => {
+export const Spinner = ({
+  className,
+  size = "md",
+  variant = "default",
+}: SpinnerProps) => {
   const sizeClasses = {
     sm: "h-4 w-4",
     md: "h-5 w-5",
@@ -18,10 +23,20 @@ export const Spinner = ({ className, size = "md" }: SpinnerProps) => {
     lg: "3",
   };
 
+  const variantClasses = {
+    default: "text-primary",
+    primary: "text-primary-foreground",
+    white: "text-white",
+  };
+
   return (
     <div className={cn("inline-flex items-center justify-center", className)}>
       <svg
-        className={cn("animate-spin text-primary", sizeClasses[size])}
+        className={cn(
+          "animate-spin",
+          sizeClasses[size],
+          variantClasses[variant]
+        )}
         fill="none"
         viewBox="0 0 24 24"
         xmlns="http://www.w3.org/2000/svg"

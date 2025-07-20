@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { WEB_SEARCH_MAX_RESULTS } from "@shared/constants";
 import { generateText, streamText } from "ai";
 import { v } from "convex/values";
@@ -29,6 +28,7 @@ import {
 } from "./ai/search_detection";
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { StreamHandler } from "./ai/streaming";
+import { buildContextMessages } from "./lib/conversation_utils";
 import type {
   Citation,
   MessageDoc,
@@ -112,13 +112,31 @@ export const streamResponse = action({
         });
       }
 
-      // Get API key
-      const userId = await getAuthUserId(ctx);
-      const apiKey = await getApiKey(
-        ctx,
-        args.provider as ProviderType,
-        userId || undefined
-      );
+      // Get API key and authenticated user
+      const apiKey = await getApiKey(ctx, args.provider as ProviderType);
+
+      // Get authenticated user for provider options
+      const authenticatedUser = await ctx.runQuery(api.users.current);
+
+      // Check if we received placeholder messages (from conversation creation)
+      // If so, build proper context messages from stored messages
+      const hasPlaceholderMessages =
+        args.messages.length === 2 &&
+        args.messages.every(
+          msg => msg.role === "system" || msg.role === "user"
+        ) &&
+        args.messages.every(
+          msg => typeof msg.content === "string" && msg.content === ""
+        );
+
+      let actualMessages = args.messages;
+      if (hasPlaceholderMessages && message?.conversationId) {
+        // Build context messages from stored messages, including attachments
+        const { contextMessages } = await buildContextMessages(ctx, {
+          conversationId: message.conversationId,
+        });
+        actualMessages = contextMessages;
+      }
 
       // Check if we should use native Anthropic handler for reasoning
       if (args.provider === "anthropic") {
@@ -139,7 +157,7 @@ export const streamResponse = action({
           anthropicHandler.setAbortController(abortController);
 
           await anthropicHandler.streamResponse({
-            messages: args.messages as StreamMessage[],
+            messages: actualMessages as StreamMessage[],
             model: args.model,
             temperature: args.temperature,
             maxTokens: args.maxTokens,
@@ -152,7 +170,7 @@ export const streamResponse = action({
       }
 
       // Get the last user message to analyze for search needs
-      const lastUserMessage = [...args.messages]
+      const lastUserMessage = [...actualMessages]
         .reverse()
         .find(msg => msg.role === "user");
 
@@ -204,7 +222,7 @@ export const streamResponse = action({
             "google" as ProviderType,
             classificationModelName,
             geminiApiKey,
-            userId || undefined
+            authenticatedUser?._id
           );
 
           // Build context for better search decisions
@@ -420,7 +438,7 @@ export const streamResponse = action({
       // Convert messages to AI SDK format
       const messages = await convertMessages(
         ctx,
-        args.messages as StreamMessage[],
+        actualMessages as StreamMessage[],
         args.provider
       );
 
@@ -475,7 +493,7 @@ export const streamResponse = action({
         args.provider as ProviderType,
         args.model,
         apiKey,
-        userId || undefined
+        authenticatedUser?._id
       );
 
       abortController = new AbortController();
@@ -487,7 +505,7 @@ export const streamResponse = action({
         args.provider as ProviderType,
         args.model,
         args.reasoningConfig,
-        userId || undefined
+        authenticatedUser?._id
       );
 
       const truncateContent = (content: string, maxLength: number): string => {

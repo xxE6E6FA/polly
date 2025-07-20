@@ -232,7 +232,9 @@ export const SendButtonGroup = ({
         />
 
         <button
-          disabled={isStreaming ? !onStop : !canSend}
+          disabled={
+            isStreaming ? !onStop : !canSend || isLoading || isSummarizing
+          }
           type={isStreaming ? "button" : "submit"}
           className={cn(
             "absolute top-0 bottom-0 right-0",
@@ -259,6 +261,7 @@ export const SendButtonGroup = ({
         >
           <div
             className={cn(
+              "flex items-center justify-center",
               "transition-all",
               isCollapsing || !canSend
                 ? "ease-out duration-300"
@@ -279,15 +282,7 @@ export const SendButtonGroup = ({
                 className={cn("h-3.5 w-3.5 fill-current", "text-white")}
               />
             ) : isLoading || isSummarizing ? (
-              <Spinner
-                size="sm"
-                className={cn(
-                  "h-3.5 w-3.5",
-                  canSend
-                    ? "text-primary-foreground"
-                    : "text-primary dark:text-primary/70"
-                )}
-              />
+              <Spinner size="sm" variant="white" className="h-3.5 w-3.5" />
             ) : (
               <PaperPlaneTiltIcon
                 className={cn(

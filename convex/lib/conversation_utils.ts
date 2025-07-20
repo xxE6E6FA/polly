@@ -186,7 +186,15 @@ export const buildUserMessageContent = async (
       type: string;
       name: string;
     };
-  }> = [{ type: "text", text: content }];
+  }> = [];
+
+  // Add text content if it exists, otherwise add a placeholder
+  if (content && content.trim().length > 0) {
+    contentParts.push({ type: "text", text: content });
+  } else {
+    // If no text content but we have attachments, add a minimal placeholder
+    contentParts.push({ type: "text", text: "Please analyze the attached files." });
+  }
 
   for (const attachment of attachments) {
     if (attachment.type === "image") {
@@ -543,9 +551,14 @@ export const processAttachmentsForStorage = async (
   }
   return await Promise.all(
     attachments.map(async (attachment) => {
+      // If attachment already has storageId (uploaded on client), preserve it
+      if (attachment.storageId) {
+        const { mimeType, ...rest } = attachment;
+        return { ...rest, content: undefined };
+      }
+      
       const needsUpload =
         (attachment.type === "image" || attachment.type === "pdf") &&
-        !attachment.storageId &&
         (attachment.url.startsWith("data:") || attachment.content);
       if (needsUpload) {
         try {
@@ -636,7 +649,7 @@ export const buildContextMessages = async (
     }),
   );
   const contextMessagesPromises = messagesWithResolvedUrls
-    .filter((msg) => msg.role !== "context")
+    .filter((msg) => msg.role !== "context" && msg.content && msg.content.trim().length > 0)
     .map(async (msg) => {
       if (msg.role === "system") {
         const isCitationInstruction =
