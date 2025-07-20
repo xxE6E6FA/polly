@@ -89,9 +89,9 @@ export const PersonaPicker = ({
         variant="ghost"
         size="sm"
         className={cn(
-          "h-7 w-auto gap-1 px-2 py-1 text-xs font-medium sm:h-8 sm:gap-2 sm:px-3 sm:text-sm",
-          "text-muted-foreground/80 hover:text-foreground",
-          "hover:bg-accent/50 dark:hover:bg-accent/30",
+          "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+          "text-muted-foreground/70 hover:text-foreground/90",
+          "hover:bg-accent/40 dark:hover:bg-accent/20",
           "transition-all duration-200",
           className
         )}

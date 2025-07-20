@@ -95,14 +95,14 @@ export const SendButtonGroup = ({
       <div
         className={cn(
           "relative flex items-stretch overflow-hidden",
-          "h-9",
+          "h-8",
           "transition-all",
           isCollapsing
             ? "ease-&lsqb;cubic-bezier(0.5,0,0.75,0)&rsqb;"
             : "ease-&lsqb;cubic-bezier(0.34,1.56,0.64,1)&rsqb;",
           isExpanded
-            ? "w-[72px] rounded-full duration-500"
-            : "w-9 rounded-full duration-300",
+            ? "w-[64px] rounded-full duration-500"
+            : "w-8 rounded-full duration-300",
           isCollapsing && "scale-[0.98]",
           isStreaming
             ? "bg-danger hover:bg-danger/90 border border-danger shadow-md hover:shadow-lg"
@@ -149,7 +149,7 @@ export const SendButtonGroup = ({
               >
                 <CaretDownIcon
                   className={cn(
-                    "h-3 w-3",
+                    "h-4 w-4",
                     isStreaming ? "text-white" : "text-primary-foreground",
                     "transition-transform duration-300",
                     dropdownOpen && "rotate-180"
@@ -220,17 +220,6 @@ export const SendButtonGroup = ({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div
-          className={cn(
-            "absolute left-8 top-1/2 -translate-y-1/2 h-5 w-px",
-            "transition-opacity",
-            isExpanded && !isCollapsing
-              ? "opacity-20 duration-500 delay-150"
-              : "opacity-0 duration-150",
-            isStreaming ? "bg-white" : "bg-primary-foreground"
-          )}
-        />
-
         <button
           disabled={
             isStreaming ? !onStop : !canSend || isLoading || isSummarizing
@@ -238,7 +227,7 @@ export const SendButtonGroup = ({
           type={isStreaming ? "button" : "submit"}
           className={cn(
             "absolute top-0 bottom-0 right-0",
-            "w-9",
+            "w-8",
             "inline-flex items-center justify-center",
             canSend ? "text-primary-foreground" : "",
             "disabled:cursor-not-allowed",
@@ -279,14 +268,15 @@ export const SendButtonGroup = ({
           >
             {isStreaming ? (
               <SquareIcon
-                className={cn("h-3.5 w-3.5 fill-current", "text-white")}
+                weight="fill"
+                className={cn("h-3 w-3 fill-current", "text-white")}
               />
             ) : isLoading || isSummarizing ? (
-              <Spinner size="sm" variant="white" className="h-3.5 w-3.5" />
+              <Spinner size="sm" variant="white" className="h-3 w-3" />
             ) : (
               <PaperPlaneTiltIcon
                 className={cn(
-                  "h-4 w-4",
+                  "h-3.5 w-3.5",
                   canSend
                     ? "text-primary-foreground"
                     : "text-primary dark:text-primary/70"

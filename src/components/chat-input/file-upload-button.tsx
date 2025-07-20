@@ -150,7 +150,7 @@ export function FileUploadButton({
       <Button
         aria-label="Upload files"
         className={cn(
-          "h-9 w-9 rounded-full p-0 shrink-0",
+          "h-7 w-7 rounded-full p-0 shrink-0 sm:h-8 sm:w-8",
           "transition-all duration-200",
           "border border-input bg-background text-muted-foreground",
           "hover:bg-accent hover:text-accent-foreground hover:border-accent",
@@ -164,7 +164,7 @@ export function FileUploadButton({
         variant="ghost"
         onClick={handleClick}
       >
-        <PaperclipIcon className="h-4 w-4" />
+        <PaperclipIcon className="h-3.5 w-3.5" />
       </Button>
     </>
   );
