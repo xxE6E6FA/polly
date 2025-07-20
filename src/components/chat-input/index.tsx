@@ -12,7 +12,6 @@ import {
 } from "react";
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
-import { useChatWarnings } from "@/hooks/use-chat-warnings";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import {
@@ -81,8 +80,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     ref
   ) => {
     const { user, canSendMessage } = useUserDataContext();
-    const warnings = useChatWarnings();
-    const hasWarnings = warnings.showLimitWarning || warnings.showLimitReached;
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const {
@@ -361,18 +358,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       <div
         className={cn(
           "relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3",
-          hasExistingMessages && hasWarnings && "pt-6 sm:pt-7"
+          hasExistingMessages && "pt-6 sm:pt-7"
         )}
       >
         <div className="mx-auto w-full max-w-3xl">
-          <WarningBanners
-            warnings={{
-              ...warnings,
-              limitWarningMessage: warnings.limitWarningMessage || { text: "" },
-              limitReachedMessage: warnings.limitReachedMessage || { text: "" },
-            }}
-            hasExistingMessages={hasExistingMessages}
-          />
+          <WarningBanners hasExistingMessages={hasExistingMessages} />
 
           <div
             className={cn(
