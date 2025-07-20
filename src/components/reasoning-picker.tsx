@@ -219,19 +219,21 @@ export const ReasoningPicker = ({
       >
         <SelectTrigger
           className={cn(
-            "h-7 w-auto gap-1 px-2 py-1 text-xs font-medium sm:h-8 sm:gap-2 sm:px-3 sm:text-sm",
+            "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
             "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
             currentValue !== "off"
               ? cn(theme.bgColor, theme.color, theme.hoverBgColor)
-              : "bg-transparent text-muted-foreground/80 hover:text-foreground hover:bg-accent/50 dark:hover:bg-accent/30",
+              : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
             className
           )}
         >
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <Icon
               className={cn(
-                "h-3.5 w-3.5",
-                currentValue !== "off" ? theme.color : "text-muted-foreground"
+                "h-3 w-3",
+                currentValue !== "off"
+                  ? theme.color
+                  : "text-muted-foreground/70"
               )}
               weight={currentValue !== "off" ? "duotone" : "regular"}
             />
@@ -241,8 +243,10 @@ export const ReasoningPicker = ({
             {selectedOption?.icon && (
               <selectedOption.icon
                 className={cn(
-                  "h-3 w-3 inline sm:hidden",
-                  currentValue !== "off" ? theme.color : "text-muted-foreground"
+                  "h-2.5 w-2.5 inline sm:hidden",
+                  currentValue !== "off"
+                    ? theme.color
+                    : "text-muted-foreground/70"
                 )}
                 weight="bold"
               />

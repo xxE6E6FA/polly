@@ -1,4 +1,8 @@
-import { GearIcon, SidebarIcon } from "@phosphor-icons/react";
+import {
+  GearIcon,
+  SidebarIcon,
+  SidebarSimpleIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
@@ -103,7 +107,7 @@ export const Sidebar = () => {
             )}
             onClick={toggleSidebar}
           >
-            <SidebarIcon className="h-5 w-5" />
+            <SidebarSimpleIcon className="h-5 w-5" />
           </Button>
         ) : (
           <Tooltip>
@@ -115,7 +119,7 @@ export const Sidebar = () => {
                 variant="ghost"
                 onClick={toggleSidebar}
               >
-                <SidebarIcon className="h-4 w-4" />
+                <SidebarSimpleIcon className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent>

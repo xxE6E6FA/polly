@@ -22,25 +22,25 @@ export const ModelPickerTrigger = ({
         aria-labelledby="model-picker-label"
         variant="ghost"
         className={cn(
-          "h-7 w-auto gap-1 px-2 py-1 text-xs font-medium sm:h-8 sm:gap-2 sm:px-3 sm:text-sm",
-          "text-muted-foreground/80 hover:text-foreground",
-          "hover:bg-accent/50 dark:hover:bg-accent/30",
+          "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+          "text-muted-foreground/70 hover:text-foreground/90",
+          "hover:bg-accent/40 dark:hover:bg-accent/20",
           "transition-all duration-200",
-          open && "bg-accent/50 dark:bg-accent/30 text-foreground"
+          open && "bg-accent/40 dark:bg-accent/20 text-foreground/90"
         )}
       >
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <ProviderIcon
             provider={selectedModel?.provider}
-            className="h-3.5 w-3.5"
+            className="h-3 w-3"
           />
-          <span className="max-w-[150px] truncate font-medium">
+          <span className="max-w-[120px] truncate font-medium">
             {selectedModel?.name || "Select model"}
           </span>
           <CaretDownIcon
             className={cn(
-              "h-3 w-3 text-muted-foreground/60 group-hover:text-foreground transition-all duration-200 shrink-0",
-              open && "rotate-180 text-foreground"
+              "h-2.5 w-2.5 text-muted-foreground/50 group-hover:text-foreground/70 transition-all duration-200 shrink-0",
+              open && "rotate-180 text-foreground/70"
             )}
           />
         </div>

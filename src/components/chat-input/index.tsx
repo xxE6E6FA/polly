@@ -366,7 +366,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
           <div
             className={cn(
-              "rounded-xl p-2.5 sm:p-3 transition-all duration-700",
+              "rounded-xl p-2 sm:p-2.5 transition-all duration-700",
               canSend
                 ? isPrivateMode
                   ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
@@ -392,8 +392,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               </div>
             </div>
 
-            <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/20 pt-2.5">
-              <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+            <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/20 pt-2">
+              <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
                 <PersonaSelector
                   conversationId={conversationId}
                   hasExistingMessages={hasExistingMessages}
@@ -410,7 +410,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 ) : null}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 {canSend && (
                   <FileUploadButton
                     disabled={isLoading || isStreaming || isUploading}

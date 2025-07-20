@@ -40,7 +40,7 @@ export function AttachmentDisplay({
 
   return (
     <>
-      <div className="mb-3">
+      <div className="mb-2">
         <div className="flex flex-wrap gap-2">
           {attachments.map((attachment, index) => (
             <div
