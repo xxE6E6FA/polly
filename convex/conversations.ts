@@ -354,6 +354,39 @@ export const list = query({
   },
 });
 
+export const search = query({
+  args: {
+    searchQuery: v.string(),
+    includeArchived: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return [];
+    }
+
+    if (!args.searchQuery.trim()) {
+      return [];
+    }
+
+    const conversations = await ctx.db
+      .query("conversations")
+      .withSearchIndex("search_title", q =>
+        q
+          .search("title", args.searchQuery)
+          .eq("userId", userId)
+          .eq("isArchived", args.includeArchived === false ? false : undefined)
+      )
+      .collect();
+
+    // Apply limit if specified
+    const limit = args.limit || 50;
+    return conversations.slice(0, limit);
+  },
+});
+
 export const get = query({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {

@@ -18,15 +18,20 @@ export const ConversationList = ({
   const { user } = useUserDataContext();
 
   const conversationDataRaw = useQuery(
-    api.conversations.list,
+    searchQuery.trim() ? api.conversations.search : api.conversations.list,
     user
-      ? {
-          includeArchived: false,
-        }
+      ? searchQuery.trim()
+        ? {
+            searchQuery,
+            includeArchived: false,
+            limit: 100,
+          }
+        : {
+            includeArchived: false,
+          }
       : "skip"
   );
 
-  // Handle the different return types from the conversations.list query
   const conversations = useMemo(() => {
     if (Array.isArray(conversationDataRaw)) {
       return conversationDataRaw;
@@ -34,12 +39,11 @@ export const ConversationList = ({
     return get(CACHE_KEYS.conversations, []);
   }, [conversationDataRaw]);
 
-  // Cache conversations in local storage when they change
   useEffect(() => {
-    if (conversations && conversations.length > 0) {
+    if (conversations && conversations.length > 0 && !searchQuery.trim()) {
       set(CACHE_KEYS.conversations, conversations);
     }
-  }, [conversations]);
+  }, [conversations, searchQuery]);
 
   return (
     <ConversationListContent
