@@ -2,10 +2,11 @@ import { api } from "@convex/_generated/api";
 import { PaperclipIcon } from "@phosphor-icons/react";
 import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
+import { useQuery } from "convex/react";
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+
 import {
   convertImageToWebP,
   getFileLanguage,
@@ -28,11 +29,7 @@ export function FileUploadButton({
   isSubmitting,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const notificationDialog = useNotificationDialog();
 

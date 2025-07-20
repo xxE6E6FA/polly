@@ -1,5 +1,3 @@
-import type { Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -9,39 +7,33 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
 import { useChatService } from "@/hooks/use-chat-service";
-import { get as getLS, set as setLS } from "@/lib/local-storage";
+import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
-import type { Attachment, ReasoningConfig } from "@/types";
-import { ChatInput, type ChatInputRef } from "./chat-input";
-import { PromptsTickerWrapper } from "./prompts-ticker";
+import type { Attachment, Id, ReasoningConfig } from "@/types";
+import { SimplePrompts } from "./prompts-ticker";
 
-const SetupChecklist = ({
-  hasApiKeys,
-  hasEnabledModels,
-  isAnonymous,
-}: {
-  hasApiKeys: boolean | undefined;
-  hasEnabledModels: boolean | undefined;
-  isAnonymous: boolean;
-}) => {
+const SetupChecklist = () => {
+  const { hasUserApiKeys, hasUserModels, user } = useUserDataContext();
   const [isDismissed, setIsDismissed] = useState(false);
 
   useEffect(() => {
-    const dismissed = getLS<boolean>("setup-checklist/dismissed/v1", false);
+    const dismissed = getLS<boolean>(CACHE_KEYS.setupChecklistDismissed, false);
     setIsDismissed(dismissed);
   }, []);
 
   const handleDismiss = () => {
-    setLS<boolean>("setup-checklist/dismissed/v1", true);
+    setLS<boolean>(CACHE_KEYS.setupChecklistDismissed, true);
     setIsDismissed(true);
   };
 
-  if (isAnonymous || isDismissed || (hasApiKeys && hasEnabledModels)) {
+  const isAnonymous = user?.isAnonymous ?? true;
+  if (isAnonymous || isDismissed || (hasUserApiKeys && hasUserModels)) {
     return null;
   }
 
@@ -66,7 +58,7 @@ const SetupChecklist = ({
           </h3>
           <div className="space-y-2">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
-              {hasApiKeys ? (
+              {hasUserApiKeys ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
                 <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
@@ -74,12 +66,12 @@ const SetupChecklist = ({
               <span
                 className={cn(
                   "flex-1 text-muted-foreground transition-colors text-left",
-                  hasApiKeys && "opacity-60"
+                  hasUserApiKeys && "opacity-60"
                 )}
               >
                 Add your API keys
               </span>
-              {!hasApiKeys && (
+              {!hasUserApiKeys && (
                 <Link to={ROUTES.SETTINGS.API_KEYS}>
                   <Button
                     className="gap-1 bg-background/50 text-xs"
@@ -93,7 +85,7 @@ const SetupChecklist = ({
               )}
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
-              {hasEnabledModels ? (
+              {hasUserModels ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
               ) : (
                 <CircleIcon className="h-3 w-3 shrink-0 text-muted-foreground/40" />
@@ -101,12 +93,12 @@ const SetupChecklist = ({
               <span
                 className={cn(
                   "flex-1 text-muted-foreground transition-colors text-left",
-                  hasEnabledModels && "opacity-60"
+                  hasUserModels && "opacity-60"
                 )}
               >
                 Enable AI models
               </span>
-              {hasApiKeys && !hasEnabledModels && (
+              {hasUserApiKeys && !hasUserModels && (
                 <Link to={ROUTES.SETTINGS.MODELS}>
                   <Button
                     className="gap-1 bg-background/50 text-xs"
@@ -126,48 +118,16 @@ const SetupChecklist = ({
   );
 };
 
-const Mascot = ({ isMobile }: { isMobile: boolean }) => {
-  const sizeClasses = isMobile ? "w-28 h-28" : "w-16 h-16 sm:w-20 sm:h-20";
-  const marginClasses = isMobile ? "mb-3" : "mb-2 sm:mb-3";
-
-  return (
-    <div className={`flex justify-center ${marginClasses}`}>
-      <div className="relative">
-        <img
-          alt="Polly AI Mascot"
-          className={`${sizeClasses} relative z-10 object-contain drop-shadow-lg`}
-          loading="eager"
-          src="/polly-mascot.png"
-        />
-        <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
-      </div>
-    </div>
-  );
-};
-
-const Heading = ({ isMobile }: { isMobile: boolean }) => {
-  const titleClasses = isMobile
-    ? "text-xl font-semibold text-foreground tracking-tight"
-    : "text-lg sm:text-xl font-semibold text-foreground tracking-tight";
-
-  return <h1 className={titleClasses}>What&apos;s on your mind?</h1>;
-};
-
-export const ChatZeroState = () => {
+const ChatSection = () => {
   const {
     canSendMessage,
     hasMessageLimit,
     hasUnlimitedCalls,
     monthlyUsage,
-    hasUserApiKeys,
-    hasUserModels,
     user,
   } = useUserDataContext();
   const isLoading = !user;
-  const authToken = useAuthToken();
-  const queryUserId = user?._id || null;
   const chatInputRef = useRef<ChatInputRef>(null);
-  const mobileChatInputRef = useRef<ChatInputRef>(null);
   const chatService = useChatService({
     overrideMode: "regular",
   });
@@ -193,10 +153,8 @@ export const ChatZeroState = () => {
         return;
       }
 
-      // Create new conversation
       const conversationId = await chatService.createConversation({
         firstMessage: content,
-        userId: queryUserId || undefined,
         generateTitle: true,
         attachments,
         personaId,
@@ -207,7 +165,7 @@ export const ChatZeroState = () => {
         navigate(ROUTES.CHAT_CONVERSATION(conversationId));
       }
     },
-    [chatService.createConversation, queryUserId, navigate, isPrivateMode]
+    [chatService.createConversation, navigate, isPrivateMode]
   );
 
   const handleQuickPrompt = useCallback(
@@ -217,18 +175,6 @@ export const ChatZeroState = () => {
     [handleSendMessage]
   );
 
-  const chatInputProps = {
-    hasExistingMessages: false,
-    isLoading: false,
-    isStreaming: false,
-    onStop: () => undefined,
-    onSendMessage: handleSendMessage,
-  };
-
-  // Determine authentication state considering both cached user data and live auth token
-  const isAnonymous = !(isLoading || authToken) && (user?.isAnonymous ?? true);
-
-  // Calculate if a warning will be shown
   const hasWarning = useMemo(() => {
     const remaining = monthlyUsage?.remainingMessages ?? 0;
     const showLimitWarning =
@@ -243,59 +189,77 @@ export const ChatZeroState = () => {
     monthlyUsage?.remainingMessages,
   ]);
 
+  const chatInputProps = {
+    hasExistingMessages: false,
+    isLoading: false,
+    isStreaming: false,
+    onStop: () => undefined,
+    onSendMessage: handleSendMessage,
+  };
+
+  return (
+    <div className="relative">
+      <SimplePrompts
+        hasReachedLimit={!canSendMessage}
+        hasWarning={hasWarning}
+        isAnonymous={user?.isAnonymous ?? true}
+        userLoading={isLoading}
+        onQuickPrompt={handleQuickPrompt}
+      />
+      <ChatInput ref={chatInputRef} {...chatInputProps} />
+    </div>
+  );
+};
+
+export const ChatZeroState = () => {
   return (
     <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
       <div className="mx-auto flex h-full w-full min-w-0 flex-col sm:block sm:h-auto">
         <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
           <div className="space-y-4 text-center">
-            <Mascot isMobile />
-            <Heading isMobile />
+            <div className="flex justify-center mb-3">
+              <div className="relative">
+                <img
+                  alt="Polly AI Mascot"
+                  className="w-28 h-28 relative z-10 object-contain drop-shadow-lg"
+                  loading="eager"
+                  src="/polly-mascot.png"
+                />
+                <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
+              </div>
+            </div>
+            <h1 className="text-xl font-semibold text-foreground tracking-tight">
+              What&apos;s on your mind?
+            </h1>
           </div>
         </div>
 
-        {/* Desktop: Original centered layout */}
         <div className="hidden max-w-full space-y-4 text-center sm:block sm:space-y-6">
           <div className="space-y-2 sm:space-y-3">
-            <Mascot isMobile={false} />
-            <Heading isMobile={false} />
+            <div className="flex justify-center mb-2 sm:mb-3">
+              <div className="relative">
+                <img
+                  alt="Polly AI Mascot"
+                  className="w-16 h-16 sm:w-20 sm:h-20 relative z-10 object-contain drop-shadow-lg"
+                  loading="eager"
+                  src="/polly-mascot.png"
+                />
+                <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
+              </div>
+            </div>
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
+              What&apos;s on your mind?
+            </h1>
           </div>
 
-          <div className="relative">
-            <PromptsTickerWrapper
-              hasReachedLimit={!canSendMessage}
-              hasWarning={hasWarning}
-              isAnonymous={isAnonymous}
-              userLoading={isLoading}
-              onQuickPrompt={handleQuickPrompt}
-            />
-            <ChatInput ref={chatInputRef} {...chatInputProps} />
-          </div>
+          <ChatSection />
 
-          <SetupChecklist
-            hasApiKeys={hasUserApiKeys}
-            hasEnabledModels={hasUserModels}
-            isAnonymous={isAnonymous}
-          />
+          <SetupChecklist />
         </div>
 
-        {/* Mobile: Bottom section with checklist and chat input */}
         <div className="flex-shrink-0 space-y-4 sm:hidden">
-          <SetupChecklist
-            hasApiKeys={hasUserApiKeys}
-            hasEnabledModels={hasUserModels}
-            isAnonymous={isAnonymous}
-          />
-
-          <div className="relative">
-            <PromptsTickerWrapper
-              hasReachedLimit={!canSendMessage}
-              hasWarning={hasWarning}
-              isAnonymous={isAnonymous}
-              userLoading={isLoading}
-              onQuickPrompt={handleQuickPrompt}
-            />
-            <ChatInput ref={mobileChatInputRef} {...chatInputProps} />
-          </div>
+          <SetupChecklist />
+          <ChatSection />
         </div>
       </div>
     </div>

@@ -1,22 +1,23 @@
-import { api } from "convex/_generated/api";
-import type { Id } from "convex/_generated/dataModel";
-import { useCallback, useMemo, useState } from "react";
-import { usePersistentConvexQuery } from "./use-persistent-convex-query";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 type ConversationSummary = {
   _id: Id<"conversations">;
   _creationTime: number;
-  title?: string;
+  title: string;
   isArchived?: boolean;
   isPinned?: boolean;
   createdAt: number;
   updatedAt: number;
 };
 
-type ConversationSummaryResponse = {
-  conversations: ConversationSummary[];
-  totalCount: number;
-};
+// Helper function to get initial conversations from local storage
+export function getInitialConversations(): ConversationSummary[] {
+  return get(CACHE_KEYS.conversations, []);
+}
 
 export function useConversationSelection() {
   const [selectedConversations, setSelectedConversations] = useState<
@@ -27,20 +28,31 @@ export function useConversationSelection() {
   );
   const [includeAttachments, setIncludeAttachments] = useState(false);
 
-  const conversationData =
-    usePersistentConvexQuery<ConversationSummaryResponse | null>(
-      "conversation-list",
-      api.conversations.getConversationsSummaryForExport,
-      {
-        includeArchived: true,
-        includePinned: true,
-        limit: 1000,
-      }
-    );
+  const conversationSummaryRaw = useQuery(api.conversations.list, {
+    includeArchived: true,
+  });
 
   const conversations: ConversationSummary[] = useMemo(() => {
-    return conversationData?.conversations ?? [];
-  }, [conversationData]);
+    if (Array.isArray(conversationSummaryRaw)) {
+      return conversationSummaryRaw.map(conv => ({
+        _id: conv._id,
+        _creationTime: conv._creationTime,
+        title: conv.title,
+        isArchived: conv.isArchived,
+        isPinned: conv.isPinned,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+      }));
+    }
+    return get(CACHE_KEYS.conversations, []);
+  }, [conversationSummaryRaw]);
+
+  // Cache conversations in local storage when they change
+  useEffect(() => {
+    if (conversations.length > 0) {
+      set(CACHE_KEYS.conversations, conversations);
+    }
+  }, [conversations]);
 
   const handleConversationSelect = useCallback(
     (
@@ -78,60 +90,44 @@ export function useConversationSelection() {
     [lastSelectedIndex, conversations]
   );
 
-  const handleSelectAll = useCallback(() => {
-    if (conversations.length === 0) {
-      return;
-    }
+  const clearSelection = useCallback(() => {
+    setSelectedConversations(new Set());
+    setLastSelectedIndex(null);
+  }, []);
 
-    const allSelected = conversations.every((conv: ConversationSummary) =>
-      selectedConversations.has(conv._id)
+  const onSelectAll = useCallback(() => {
+    const allIds = new Set(conversations.map(conv => conv._id));
+    setSelectedConversations(allIds);
+    setLastSelectedIndex(conversations.length - 1);
+  }, [conversations]);
+
+  const onIncludeAttachmentsChange = useCallback((include: boolean) => {
+    setIncludeAttachments(include);
+  }, []);
+
+  const totalConversations = conversations.length;
+  const visibleConversations = conversations.length;
+
+  const allSelected = useMemo(() => {
+    return (
+      conversations.length > 0 &&
+      conversations.every(conv => selectedConversations.has(conv._id))
     );
-
-    if (allSelected) {
-      setSelectedConversations(new Set());
-    } else {
-      setSelectedConversations(
-        new Set(conversations.map((conv: ConversationSummary) => conv._id))
-      );
-    }
   }, [conversations, selectedConversations]);
 
-  const handleBulkSelect = useCallback(
-    (conversationIds: Id<"conversations">[]) => {
-      if (conversationIds.length === 0) {
-        return;
-      }
-
-      const allSelected = conversationIds.every(id =>
-        selectedConversations.has(id)
-      );
-
-      if (allSelected) {
-        setSelectedConversations(prev => {
-          const newSelected = new Set(prev);
-          conversationIds.forEach(id => newSelected.delete(id));
-          return newSelected;
-        });
-      } else {
-        setSelectedConversations(prev => {
-          const newSelected = new Set(prev);
-          conversationIds.forEach(id => newSelected.add(id));
-          return newSelected;
-        });
-      }
-    },
-    [selectedConversations]
-  );
+  const someSelected = selectedConversations.size > 0;
 
   return {
-    conversations,
     selectedConversations,
-    includeAttachments,
-    isLoading: conversationData === undefined,
     handleConversationSelect,
-    handleSelectAll,
-    handleBulkSelect,
-    setIncludeAttachments,
-    clearSelection: () => setSelectedConversations(new Set()),
+    clearSelection,
+    onSelectAll,
+    includeAttachments,
+    onIncludeAttachmentsChange,
+    conversations,
+    totalConversations,
+    visibleConversations,
+    allSelected,
+    someSelected,
   };
 }

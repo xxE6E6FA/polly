@@ -1,10 +1,10 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import type { ParsedConversation } from "@/lib/import-parsers";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 
 export type JobType =
   | "export"
@@ -55,14 +55,10 @@ export function useBackgroundJobs() {
     new Map()
   );
 
-  const jobStatuses = usePersistentConvexQuery(
-    "background-jobs",
-    api.backgroundJobs.listUserJobs,
-    { limit: 100 }
-  );
+  const jobStatuses = useQuery(api.backgroundJobs.listUserJobs, { limit: 100 });
 
   const scheduleBackgroundExport = useAction(
-    api.conversations.scheduleBackgroundExport
+    api.conversationExport.scheduleBackgroundExport
   );
   const scheduleBackgroundImport = useAction(
     api.conversations.scheduleBackgroundImport
@@ -70,6 +66,8 @@ export function useBackgroundJobs() {
   const scheduleBackgroundBulkDelete = useAction(
     api.conversations.scheduleBackgroundBulkDelete
   );
+
+  const deleteJobMutation = useMutation(api.backgroundJobs.deleteJob);
 
   const previousJobStatuses = useRef<typeof jobStatuses>(null);
 
@@ -147,8 +145,12 @@ export function useBackgroundJobs() {
             message = "Export completed successfully!";
           } else if (job.type === "import") {
             message = "Import completed successfully!";
+            // Invalidate conversations cache to reflect imported conversations
+            del(CACHE_KEYS.conversations);
           } else if (job.type === "bulk_delete") {
             message = "Bulk delete completed successfully!";
+            // Invalidate conversations cache to reflect deleted conversations
+            del(CACHE_KEYS.conversations);
           }
           if (message) {
             toast.success(message);
@@ -287,12 +289,22 @@ export function useBackgroundJobs() {
     return activeJobs.get(jobId);
   };
 
-  const removeJob = (jobId: string) => {
-    setLocalJobs(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(jobId);
-      return newMap;
-    });
+  const removeJob = async (jobId: string) => {
+    try {
+      await deleteJobMutation({ jobId });
+
+      // Also remove from local state
+      setLocalJobs(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(jobId);
+        return newMap;
+      });
+
+      toast.success("Job removed successfully");
+    } catch (error) {
+      console.error("Failed to remove job:", error);
+      toast.error("Failed to remove job");
+    }
   };
 
   const getActiveJobs = () => {

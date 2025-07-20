@@ -32,8 +32,7 @@ const createProviderModel = {
     if (userId) {
       try {
         const userSettings = await ctx.runQuery(
-          api.userSettings.getUserSettings,
-          { userId }
+          api.userSettings.getUserSettings
         );
         sorting = userSettings?.openRouterSorting ?? "default";
       } catch (error) {
@@ -96,10 +95,10 @@ export const getProviderStreamOptions = async (
   if (userId) {
     // Look up the model in user's configured models (preferred source)
     try {
-      const userModels = await ctx.runQuery(api.userModels.getUserModels, {
-        userId,
+      const userModel = await ctx.runQuery(api.userModels.getModelByID, {
+        modelId: model,
+        provider,
       });
-      const userModel = userModels.find((m) => m.modelId === model);
 
       if (userModel) {
         modelWithCapabilities = {

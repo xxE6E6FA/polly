@@ -263,11 +263,11 @@ export const UnifiedChatView = memo(
 
         {/* Confirmation dialog */}
         <ConfirmationDialog
-          open={confirmationDialog.isOpen}
-          title={confirmationDialog.options.title}
-          description={confirmationDialog.options.description}
-          confirmText={confirmationDialog.options.confirmText}
-          variant={confirmationDialog.options.variant}
+          open={confirmationDialog.state.isOpen}
+          title={confirmationDialog.state.title}
+          description={confirmationDialog.state.description}
+          confirmText={confirmationDialog.state.confirmText}
+          variant={confirmationDialog.state.variant}
           onConfirm={confirmationDialog.handleConfirm}
           onCancel={confirmationDialog.handleCancel}
           onOpenChange={confirmationDialog.handleOpenChange}

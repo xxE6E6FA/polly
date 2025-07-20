@@ -1,13 +1,12 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router";
 import { PersonaForm } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
 import { isPersona } from "@/lib/type-guards";
 
@@ -24,7 +23,7 @@ type EmojiClickData = {
 
 export default function EditPersonaPage() {
   const navigate = useNavigate();
-  const { personaId } = useParams();
+  const { id: personaId } = useParams();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -33,10 +32,9 @@ export default function EditPersonaPage() {
   const updatePersonaMutation = useMutation(api.personas.update);
   const deletePersonaMutation = useMutation(api.personas.remove);
 
-  const personaRaw = usePersistentConvexQuery(
-    "edit-persona-data",
+  const personaRaw = useQuery(
     api.personas.get,
-    personaId ? { id: personaId } : "skip"
+    personaId ? { id: personaId as Id<"personas"> } : "skip"
   );
 
   const persona = isPersona(personaRaw) ? personaRaw : null;

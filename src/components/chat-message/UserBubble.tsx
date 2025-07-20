@@ -114,7 +114,7 @@ export const UserBubble = memo(
                   <Button
                     className="px-5 py-2 hover:scale-105"
                     size="sm"
-                    variant="emerald"
+                    variant="primary"
                     onClick={handleEditSave}
                   >
                     Save

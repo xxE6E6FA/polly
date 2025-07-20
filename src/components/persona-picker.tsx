@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CaretDownIcon, CheckIcon, UserIcon } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +24,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
-import { isPersonaArray } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 
@@ -44,24 +43,18 @@ export const PersonaPicker = ({
   tooltip,
 }: PersonaPickerProps) => {
   const { user } = useUserDataContext();
-  const queryUserId = user?._id || null;
 
-  const personasRaw = usePersistentConvexQuery(
-    "persona-picker-personas",
-    api.personas.list,
-    queryUserId ? { userId: queryUserId } : "skip"
-  );
+  const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
 
-  const userPersonaSettingsRaw = usePersistentConvexQuery(
-    "persona-picker-settings",
-    api.personas.getUserPersonaSettings,
-    queryUserId ? { userId: queryUserId } : "skip"
+  const userPersonaSettingsRaw = useQuery(
+    api.userSettings.getUserSettings,
+    user?._id ? {} : "skip"
   );
 
   const [open, setOpen] = useState(false);
 
   // Use type guards to ensure we have proper arrays
-  const personas = isPersonaArray(personasRaw) ? personasRaw : [];
+  const personas = Array.isArray(personasRaw) ? personasRaw : [];
   const userPersonaSettings = Array.isArray(userPersonaSettingsRaw)
     ? userPersonaSettingsRaw
     : [];

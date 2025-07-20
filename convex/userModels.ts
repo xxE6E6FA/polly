@@ -1,66 +1,94 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { getCurrentUserId, requireAuth } from "./lib/auth";
-import { CACHE_TTL, cacheKeys, withCache } from "./lib/cache_utils";
 
-export const getUserModels = query({
-  args: {
-    userId: v.optional(v.id("users")),
-  },
-  handler: async (ctx, args) => {
-    const userId = args.userId || (await getCurrentUserId(ctx));
-
-    if (!userId) {
-      return [];
+export const getVirtualPollyModel = query({
+  args: {},
+  handler: () => {
+    if (!process.env.GEMINI_API_KEY) {
+      return null;
     }
-
-    return await ctx.db
-      .query("userModels")
-      .withIndex("by_user_provider", q => q.eq("userId", userId))
-      .take(200); // Reasonable limit for user models
+    return createVirtualPollyModel();
   },
 });
 
-export const getUserModelsCached = query({
-  args: {
-    userId: v.optional(v.id("users")),
-  },
-  handler: async (ctx, args) => {
-    const userId = args.userId || (await getCurrentUserId(ctx));
+export const getUserModels = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       return [];
     }
 
-    return await withCache(
-      cacheKeys.userModels(userId),
-      async () => {
-        return await ctx.db
-          .query("userModels")
-          .withIndex("by_user_provider", q => q.eq("userId", userId))
-          .take(200); // Reasonable limit for user models
-      },
-      CACHE_TTL
-    );
+    return ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+  },
+});
+
+export const getModelByID = query({
+  args: {
+    modelId: v.string(),
+    provider: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return null;
+    }
+
+    const model = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("modelId"), args.modelId))
+      .filter(q =>
+        q.or(
+          q.eq(q.field("provider"), args.provider),
+          q.eq(q.field("displayProvider"), args.provider)
+        )
+      )
+      .unique();
+
+    return model;
+  },
+});
+
+export const getAvailableModels = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    const pollyModel = getPollyModel();
+
+    if (!userId) {
+      return [pollyModel];
+    }
+
+    const databaseModels = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+
+    return [pollyModel, ...databaseModels];
   },
 });
 
 export const getUserSelectedModel = query({
   args: {},
   handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
-      return getAnonymousDefaultModel();
+      return getPollyModel();
     }
 
     const selectedModel = await ctx.db
       .query("userModels")
-      .withIndex("by_user_selected", q =>
-        q.eq("userId", userId).eq("selected", true)
-      )
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("selected"), true))
       .unique();
 
     if (selectedModel) {
@@ -73,87 +101,26 @@ export const getUserSelectedModel = query({
       .unique();
 
     if (userSettings?.defaultModelSelected) {
-      return getAnonymousDefaultModel();
+      return getPollyModel();
     }
 
     const userHasModels = await ctx.db
       .query("userModels")
-      .withIndex("by_user_provider", q => q.eq("userId", userId))
+      .withIndex("by_user", q => q.eq("userId", userId))
       .first();
 
     if (!userHasModels) {
-      return getAnonymousDefaultModel();
+      return getPollyModel();
     }
 
     return null;
   },
 });
 
-export const getUserModelsByProvider = query({
-  args: {},
-  handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
-
-    if (!userId) {
-      const defaultModel = getAnonymousDefaultModel();
-      if (!defaultModel) {
-        return [];
-      }
-
-      return [
-        {
-          id: "polly",
-          name: "Polly",
-          models: [defaultModel],
-        },
-      ];
-    }
-
-    const models = await ctx.db
-      .query("userModels")
-      .withIndex("by_user_provider", q => q.eq("userId", userId))
-      .collect();
-
-    const defaultModel = getAnonymousDefaultModel();
-    const providers = [];
-
-    if (defaultModel) {
-      providers.push({
-        id: "polly",
-        name: "Polly",
-        models: [defaultModel],
-      });
-    }
-
-    if (models.length > 0) {
-      const byProvider = models.reduce(
-        (acc, model) => {
-          acc[model.provider] = acc[model.provider] || [];
-          acc[model.provider].push(model);
-          return acc;
-        },
-        {} as Record<string, typeof models>
-      );
-
-      const userProviders = Object.entries(byProvider).map(
-        ([providerName, providerModels]) => ({
-          id: providerName,
-          name: providerName,
-          models: providerModels,
-        })
-      );
-
-      providers.push(...userProviders);
-    }
-
-    return providers;
-  },
-});
-
 export const hasUserModels = query({
   args: {},
   handler: async ctx => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
 
     if (!userId) {
       return Boolean(process.env.GEMINI_API_KEY);
@@ -161,7 +128,7 @@ export const hasUserModels = query({
 
     const count = await ctx.db
       .query("userModels")
-      .withIndex("by_user_provider", q => q.eq("userId", userId))
+      .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
 
     if (count.length > 0) {
@@ -187,22 +154,37 @@ export const toggleModel = mutation({
         supportsReasoning: v.boolean(),
         supportsFiles: v.optional(v.boolean()),
         inputModalities: v.optional(v.array(v.string())),
+        free: v.optional(v.boolean()),
       })
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return;
+    }
 
     const existing = await ctx.db
       .query("userModels")
-      .withIndex("by_user_model_id", q =>
-        q.eq("userId", userId).eq("modelId", args.modelId)
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("modelId"), args.modelId))
+      .filter(q =>
+        q.or(
+          q.eq(q.field("provider"), args.modelData?.provider),
+          q.eq(q.field("displayProvider"), args.modelData?.provider)
+        )
       )
       .unique();
 
     if (!existing && args.modelData) {
+      // Determine displayProvider based on whether this is a free model
+      const displayProvider = args.modelData?.free
+        ? "polly"
+        : args.modelData?.provider;
+
       await ctx.db.insert("userModels", {
         ...args.modelData,
+        displayProvider,
         userId,
         selected: false,
         createdAt: Date.now(),
@@ -216,22 +198,25 @@ export const toggleModel = mutation({
 export const selectModel = mutation({
   args: {
     modelId: v.string(),
+    provider: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return;
+    }
 
     if (!args.modelId || args.modelId.trim() === "") {
-      throw new Error("Model ID is required");
+      return;
     }
 
     const selectedModel = await ctx.db
       .query("userModels")
-      .withIndex("by_user_selected", q =>
-        q.eq("userId", userId).eq("selected", true)
-      )
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("selected"), true))
       .unique();
 
-    const defaultModel = getAnonymousDefaultModel();
+    const defaultModel = getPollyModel();
     const isDefaultModel =
       defaultModel && args.modelId === defaultModel.modelId;
 
@@ -267,15 +252,18 @@ export const selectModel = mutation({
 
     const model = await ctx.db
       .query("userModels")
-      .withIndex("by_user_model_id", q =>
-        q.eq("userId", userId).eq("modelId", args.modelId)
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q => q.eq(q.field("modelId"), args.modelId))
+      .filter(q =>
+        q.or(
+          q.eq(q.field("provider"), args.provider),
+          q.eq(q.field("displayProvider"), args.provider)
+        )
       )
       .unique();
 
     if (!model) {
-      throw new Error(
-        `Model '${args.modelId}' not found in user's configured models. Please add the model in Settings first.`
-      );
+      return;
     }
 
     if (model.modelId === selectedModel?.modelId) {
@@ -316,27 +304,28 @@ export const selectModel = mutation({
   },
 });
 
-// Helper function to get default anonymous model
-
-function getAnonymousDefaultModel() {
-  // Only provide default model if we have the Gemini API key
+function getPollyModel() {
   if (!process.env.GEMINI_API_KEY) {
     return null;
   }
 
+  return createVirtualPollyModel();
+}
+
+function createVirtualPollyModel() {
   return {
-    _id: "anonymous-gemini-default" as Id<"userModels">,
+    _id: "polly-gemini-default" as Id<"userModels">,
     _creationTime: Date.now(),
     userId: "anonymous" as Id<"users">,
     modelId: "gemini-2.5-flash-lite-preview-06-17",
     name: "Gemini 2.5 Flash Lite",
     provider: "google",
+    displayProvider: "polly",
     contextLength: 1048576,
     maxOutputTokens: undefined,
     supportsImages: true,
     supportsTools: true,
     supportsReasoning: true,
-    isPollyProvided: true,
     free: true,
     createdAt: Date.now(),
   };

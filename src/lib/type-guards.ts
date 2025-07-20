@@ -103,7 +103,6 @@ export function isMonthlyUsage(x: unknown): x is {
   monthlyLimit: number;
   remainingMessages: number;
   resetDate?: number;
-  needsReset?: boolean;
 } {
   return (
     !!x &&

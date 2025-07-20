@@ -358,7 +358,6 @@ async function fetchOpenRouterModels(apiKey: string) {
       // Determine capabilities based on OpenRouter API schema
       // Check for reasoning support via multiple methods:
       // 1. New reasoning parameter system
-      // 2. Legacy include_reasoning parameter
       // 3. Internal reasoning pricing (not "0" means reasoning is available)
       // 4. Pattern matching for known reasoning models
       const supportsReasoningViaParams =

@@ -34,7 +34,7 @@ export function useChatViewState({
   onDeleteMessage,
 }: UseChatViewStateOptions) {
   // Mutations
-  const unarchiveConversation = useMutation(api.conversations.unarchive);
+  const unarchiveConversation = useMutation(api.conversations.patch);
 
   // Refs
   const virtualizedMessagesRef = useRef<VirtualizedChatMessagesRef>(null);
@@ -156,7 +156,11 @@ export function useChatViewState({
     }
 
     try {
-      await unarchiveConversation({ id: conversationId });
+      await unarchiveConversation({
+        id: conversationId,
+        updates: { isArchived: false },
+        setUpdatedAt: true,
+      });
       const { toast } = await import("sonner");
       toast.success("Conversation restored", {
         description: "You can now continue chatting.",

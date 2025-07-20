@@ -1,12 +1,11 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-
 import { mutation, query } from "./_generated/server";
-import { getCurrentUserId } from "./lib/auth";
 
 export const getUserSettings = query({
-  args: { userId: v.optional(v.id("users")) },
-  handler: async (ctx, args) => {
-    const userId = args.userId || (await getCurrentUserId(ctx));
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       return null;
     }
@@ -55,7 +54,7 @@ export const updateUserSettings = mutation({
     autoArchiveDays: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not found");
     }
@@ -105,12 +104,79 @@ export const updateUserSettings = mutation({
   },
 });
 
+export const getUserSettingsForExport = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+
+    const settings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .first();
+
+    return settings;
+  },
+});
+
+export const updateUserSettingsForImport = mutation({
+  args: {
+    settings: v.object({
+      personasEnabled: v.optional(v.boolean()),
+      openRouterSorting: v.optional(
+        v.union(
+          v.literal("default"),
+          v.literal("price"),
+          v.literal("throughput"),
+          v.literal("latency")
+        )
+      ),
+      anonymizeForDemo: v.optional(v.boolean()),
+      autoArchiveEnabled: v.optional(v.boolean()),
+      autoArchiveDays: v.optional(v.number()),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not found");
+    }
+
+    const existingSettings = await ctx.db
+      .query("userSettings")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .first();
+
+    const now = Date.now();
+
+    if (existingSettings) {
+      // Update existing settings
+      await ctx.db.patch(existingSettings._id, {
+        ...args.settings,
+        updatedAt: now,
+      });
+    } else {
+      // Create new settings
+      await ctx.db.insert("userSettings", {
+        userId,
+        ...args.settings,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
 export const togglePersonasEnabled = mutation({
   args: {
     enabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not found");
     }
@@ -144,7 +210,7 @@ export const updateArchiveSettings = mutation({
     autoArchiveDays: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getCurrentUserId(ctx);
+    const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not found");
     }

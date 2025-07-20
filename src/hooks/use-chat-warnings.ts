@@ -6,7 +6,6 @@ export function useChatWarnings() {
   const {
     hasMessageLimit,
     canSendMessage,
-    isAnonymous,
     monthlyUsage,
     hasUserApiKeys,
     hasUnlimitedCalls,
@@ -24,12 +23,8 @@ export function useChatWarnings() {
     if (!(hasMessageLimit && canSendMessage) || hasUnlimitedCalls) {
       return false;
     }
-    if (isAnonymous) {
-      return (
-        (monthlyUsage?.monthlyMessagesSent ?? 0) > 0 &&
-        (monthlyUsage?.remainingMessages ?? 0) <= 5 &&
-        !isDismissed(warningDismissalKey)
-      );
+    if (user?.isAnonymous) {
+      return Boolean(user?.messagesSent);
     }
     const effectiveRemainingMessages = monthlyUsage?.remainingMessages ?? 0;
     return (
@@ -42,11 +37,11 @@ export function useChatWarnings() {
     hasMessageLimit,
     canSendMessage,
     hasUnlimitedCalls,
-    isAnonymous,
-    monthlyUsage?.monthlyMessagesSent,
     monthlyUsage?.remainingMessages,
     isDismissed,
     warningDismissalKey,
+    user?.isAnonymous,
+    user?.messagesSent,
   ]);
 
   const showLimitReached = isNoUser
@@ -57,13 +52,14 @@ export function useChatWarnings() {
     if (isNoUser) {
       return { text: "" };
     }
-    if (isAnonymous) {
+    if (user.isAnonymous) {
+      const remainingMessages = monthlyUsage?.remainingMessages ?? 0;
       return {
-        text: `${monthlyUsage?.remainingMessages ?? 0} message${
-          monthlyUsage?.remainingMessages === 1 ? "" : "s"
-        } remaining`,
+        text: `${remainingMessages} message${
+          remainingMessages === 1 ? "" : "s"
+        } remaining.`,
         link: { text: "Sign in", href: "/auth" },
-        suffix: "for unlimited chats",
+        suffix: " for higher limits.",
       };
     }
     if (!hasUnlimitedCalls) {
@@ -72,14 +68,14 @@ export function useChatWarnings() {
           monthlyUsage?.remainingMessages === 1 ? "" : "s"
         } remaining. `,
         suffix: hasUserApiKeys
-          ? "Use BYOK models for unlimited chats"
-          : "Add API keys for unlimited chats",
+          ? "Use BYOK models for unlimited chats."
+          : "Add API keys for unlimited chats.",
       };
     }
     return { text: "" };
   }, [
     isNoUser,
-    isAnonymous,
+    user?.isAnonymous,
     monthlyUsage?.remainingMessages,
     hasUnlimitedCalls,
     hasUserApiKeys,
@@ -89,7 +85,7 @@ export function useChatWarnings() {
     if (isNoUser) {
       return { text: "" };
     }
-    if (isAnonymous) {
+    if (user?.isAnonymous) {
       return {
         text: "Message limit reached.",
         link: { text: "Sign in", href: "/auth" },
@@ -102,7 +98,7 @@ export function useChatWarnings() {
         ? "Use your BYOK models to continue chatting."
         : "Add API keys to access BYOK models.",
     };
-  }, [isNoUser, isAnonymous, hasUserApiKeys]);
+  }, [isNoUser, user?.isAnonymous, hasUserApiKeys]);
 
   const handleDismissWarning = useCallback(() => {
     dismissWarning(warningDismissalKey);

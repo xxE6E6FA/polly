@@ -1,7 +1,9 @@
 import { api } from "convex/_generated/api";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { useQuery } from "convex/react";
+import { useEffect, useMemo } from "react";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { useUserDataContext } from "@/providers/user-data-context";
-import type { Conversation, ConversationId } from "@/types";
+import type { ConversationId } from "@/types";
 import { ConversationListContent } from "./conversation-list-content";
 
 type ConversationListProps = {
@@ -14,19 +16,30 @@ export const ConversationList = ({
   currentConversationId,
 }: ConversationListProps) => {
   const { user } = useUserDataContext();
-  const queryUserId = user?._id || null;
 
-  // biome-ignore lint/suspicious/noConsole: debug sidebar conversation list
-  console.log("[sidebar-conversation-list] user:", user);
-  // biome-ignore lint/suspicious/noConsole: debug sidebar conversation list
-  console.log("[sidebar-conversation-list] queryUserId:", queryUserId);
+  const conversationDataRaw = useQuery(
+    api.conversations.list,
+    user
+      ? {
+          includeArchived: false,
+        }
+      : "skip"
+  );
 
-  const conversations: Array<Conversation> | undefined =
-    usePersistentConvexQuery(
-      "conversation-list",
-      api.conversations.list,
-      queryUserId ? { userId: queryUserId } : "skip"
-    );
+  // Handle the different return types from the conversations.list query
+  const conversations = useMemo(() => {
+    if (Array.isArray(conversationDataRaw)) {
+      return conversationDataRaw;
+    }
+    return get(CACHE_KEYS.conversations, []);
+  }, [conversationDataRaw]);
+
+  // Cache conversations in local storage when they change
+  useEffect(() => {
+    if (conversations && conversations.length > 0) {
+      set(CACHE_KEYS.conversations, conversations);
+    }
+  }, [conversations]);
 
   return (
     <ConversationListContent

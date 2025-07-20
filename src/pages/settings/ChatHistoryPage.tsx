@@ -30,37 +30,74 @@ export default function ChatHistoryPage() {
       return;
     }
 
-    try {
-      if (downloadData.downloadUrl) {
-        const link = document.createElement("a");
-        link.href = downloadData.downloadUrl;
+    const downloadFile = async () => {
+      let loadingToastId: string | number | undefined;
 
-        let filename = "export.json";
-        if (downloadData.manifest) {
-          const timestamp = new Date().toISOString().split("T")[0];
-          const conversationCount = downloadData.manifest.totalConversations;
-          filename = `polly-export-${conversationCount}-conversations-${timestamp}.json`;
+      try {
+        if (downloadData.downloadUrl) {
+          // Show loading state
+          loadingToastId = toast.loading("Preparing download...");
+
+          // Fetch the file as a blob
+          const response = await fetch(downloadData.downloadUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const blob = await response.blob();
+
+          // Generate filename
+          let filename = "export.json";
+          if (downloadData.manifest) {
+            const timestamp = new Date().toISOString().split("T")[0];
+            const conversationCount = downloadData.manifest.totalConversations;
+            filename = `polly-export-${conversationCount}-conversations-${timestamp}.json`;
+          }
+
+          // Create a blob URL and download link
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = filename;
+
+          // Add to DOM, click, and cleanup
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Clean up the blob URL
+          window.URL.revokeObjectURL(blobUrl);
+
+          // Dismiss loading toast and show success
+          if (loadingToastId) {
+            toast.dismiss(loadingToastId);
+          }
+          toast.success("Download started", {
+            description: `Export file downloaded as ${filename}`,
+          });
+        } else {
+          // Dismiss loading toast and show error
+          if (loadingToastId) {
+            toast.dismiss(loadingToastId);
+          }
+          toast.error("Download failed", {
+            description: "Export file is not available for download",
+          });
         }
-
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        toast.success("Download started", {
-          description: `Export file downloaded as ${filename}`,
-        });
-      } else {
+      } catch (error) {
+        console.error("Download error:", error);
+        // Dismiss loading toast and show error
+        if (loadingToastId) {
+          toast.dismiss(loadingToastId);
+        }
         toast.error("Download failed", {
-          description: "Export file is not available for download",
+          description: "An error occurred while downloading the file",
         });
       }
-    } catch {
-      toast.error("Download failed", {
-        description: "An error occurred while downloading the file",
-      });
-    }
+    };
 
+    downloadFile();
     setDownloadingJobId(null);
   }, [downloadData, downloadingJobId]);
 
@@ -101,15 +138,15 @@ export default function ChatHistoryPage() {
       <ConversationSelectionList
         selectedConversations={conversationSelection.selectedConversations}
         onConversationSelect={conversationSelection.handleConversationSelect}
-        onSelectAll={conversationSelection.handleSelectAll}
+        onSelectAll={conversationSelection.onSelectAll}
         clearSelection={conversationSelection.clearSelection}
-        includeArchived={true}
-        includePinned={true}
         recentlyImportedIds={
           new Set(recentlyImportedIds as Array<Id<"conversations">>)
         }
         includeAttachments={conversationSelection.includeAttachments}
-        onIncludeAttachmentsChange={conversationSelection.setIncludeAttachments}
+        onIncludeAttachmentsChange={
+          conversationSelection.onIncludeAttachmentsChange
+        }
       />
     </SettingsPageLayout>
   );

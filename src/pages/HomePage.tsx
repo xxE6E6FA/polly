@@ -7,7 +7,7 @@ import { useUserDataContext } from "@/providers/user-data-context";
 
 export default function HomePage() {
   const { setPrivateMode } = usePrivateMode();
-  const { isAnonymous } = useUserDataContext();
+  const { user } = useUserDataContext();
 
   useEffect(() => {
     setPrivateMode(false);
@@ -15,7 +15,7 @@ export default function HomePage() {
 
   return (
     <SharedChatLayout>
-      {!isAnonymous && <PrivateToggle />}
+      {user && !user.isAnonymous && <PrivateToggle />}
       <ChatZeroState />
     </SharedChatLayout>
   );

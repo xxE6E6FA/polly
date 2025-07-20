@@ -202,10 +202,11 @@ export type CreateConversationParams = {
   firstMessage: string;
   sourceConversationId?: ConversationId;
   personaId?: Id<"personas"> | null;
-  userId?: Id<"users">;
   attachments?: Attachment[];
   generateTitle?: boolean;
   reasoningConfig?: ReasoningConfig;
+  model?: string;
+  provider?: string;
 };
 
 // ============================================================================

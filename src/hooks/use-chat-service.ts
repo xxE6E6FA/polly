@@ -1,12 +1,12 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import { ROUTES } from "@/lib/routes";
 import { isUserModel } from "@/lib/type-guards";
 import { usePrivateMode } from "@/providers/private-mode-context";
-import { useUI } from "@/providers/ui-provider";
 import type {
   Attachment,
   ChatMessage,
@@ -16,7 +16,7 @@ import type {
   ReasoningConfig,
 } from "@/types";
 import { type ChatStatus, useChatStateMachine } from "./use-chat-state-machine";
-import { usePersistentConvexQuery } from "./use-persistent-convex-query";
+
 import { usePrivateChat } from "./use-private-chat";
 import { useServerChat } from "./use-server-chat";
 
@@ -94,13 +94,8 @@ export function useChatService({
   overrideMode,
 }: ChatServiceOptions): ChatService {
   const navigate = useNavigate();
-  const { setIsThinking } = useUI();
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
 
   // Use override mode if provided, otherwise use context
@@ -119,7 +114,6 @@ export function useChatService({
 
   const privateChat = usePrivateChat({
     onError,
-    setIsThinking,
     initialPersonaId,
     initialReasoningConfig,
   });
@@ -138,7 +132,7 @@ export function useChatService({
       // Generate message ID for state tracking
       const messageId = `msg_${Date.now()}_${Math.random()
         .toString(36)
-        .substr(2, 9)}`;
+        .substring(2, 11)}`;
 
       try {
         chatStateMachine.actions.sendMessage(messageId);

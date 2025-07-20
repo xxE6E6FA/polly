@@ -1,9 +1,9 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./lib/auth";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 
 // Generate a random share ID
@@ -22,7 +22,10 @@ export const shareConversation = mutation({
   },
   handler: async (ctx, args) => {
     // Require authentication
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -80,7 +83,10 @@ export const updateSharedConversation = mutation({
   },
   handler: async (ctx, args) => {
     // Require authentication
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -134,7 +140,10 @@ export const unshareConversation = mutation({
   },
   handler: async (ctx, args) => {
     // Require authentication
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
 
     // Verify the user owns this conversation
     const conversation = await ctx.db.get(args.conversationId);
@@ -266,7 +275,10 @@ export const listUserSharedConversations = query({
     paginationOpts: paginationOptsSchema,
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
 
     const query = ctx.db
       .query("sharedConversations")
@@ -286,7 +298,10 @@ export const listUserSharedConversationsPaginated = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuth(ctx);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { page: [], isDone: true, continueCursor: null };
+    }
 
     const query = ctx.db
       .query("sharedConversations")

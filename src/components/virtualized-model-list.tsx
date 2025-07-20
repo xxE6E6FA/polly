@@ -5,7 +5,6 @@ import { WindowVirtualizer } from "virtua";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -47,8 +46,7 @@ const ModelCard = memo(
       contextLength >= 1000000
         ? (() => {
             const value = contextLength / 1000000;
-            const formatted =
-              value % 1 === 0 ? value.toFixed(0) : value.toFixed(1);
+            const formatted = value.toFixed(1).replace(/\.0$/, "");
             return {
               short: `${formatted}M`,
               long: `${formatted}M tokens`,
@@ -69,7 +67,7 @@ const ModelCard = memo(
 
     return (
       <div
-        className={`group relative h-[150px] cursor-pointer rounded-lg border p-4 transition-all duration-200 ${
+        className={`group relative min-h-[160px] cursor-pointer rounded-lg border p-4 transition-all duration-200 flex flex-col ${
           isEnabled
             ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
             : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
@@ -86,8 +84,8 @@ const ModelCard = memo(
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-2">
-            <div className="mb-1 flex items-center gap-2">
-              <h4 className="break-words text-sm font-medium leading-tight">
+            <div className="mb-1 flex items-start gap-2">
+              <h4 className="break-words text-sm font-medium leading-tight line-clamp-2">
                 {model.name}
               </h4>
               {model.free && (
@@ -165,7 +163,7 @@ const ModelCard = memo(
           )}
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
           <span className="truncate">{model.modelId}</span>
         </div>
       </div>
@@ -183,7 +181,7 @@ export const VirtualizedModelList = memo(
     const authenticatedUserId = user?._id;
     const enabledModels = useQuery(
       api.userModels.getUserModels,
-      authenticatedUserId ? { userId: authenticatedUserId } : {}
+      authenticatedUserId ? {} : "skip"
     );
 
     const toggleModel = useMutation(api.userModels.toggleModel);
@@ -205,13 +203,12 @@ export const VirtualizedModelList = memo(
           supportsImages: Boolean(model.supportsImages),
           supportsTools: Boolean(model.supportsTools),
           supportsReasoning: Boolean(model.supportsReasoning),
+          supportsFiles: model.supportsFiles ?? undefined,
           inputModalities: model.inputModalities ?? undefined,
+          free: model.free ?? false,
         };
 
         toggleModel({ modelId: model.modelId, modelData });
-
-        // Dispatch event to notify hooks to refresh
-        window.dispatchEvent(new CustomEvent("user-models-changed"));
       },
       [toggleModel]
     );
@@ -266,54 +263,50 @@ export const VirtualizedModelList = memo(
     // For small lists, don't use virtualization to avoid overhead
     if (rows.length <= 20) {
       return (
-        <TooltipProvider>
-          <div className="space-y-3">
-            {rows.map((rowModels, rowIndex) => (
-              <div
-                key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-                className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              >
-                {rowModels
-                  .filter(model => model)
-                  .map(model => (
-                    <ModelCard
-                      key={`${model.provider}-${model.modelId}`}
-                      isEnabled={enabledModelsLookup.has(model.modelId)}
-                      model={model}
-                      onToggle={onToggleModel}
-                    />
-                  ))}
-              </div>
-            ))}
-          </div>
-        </TooltipProvider>
+        <div className="space-y-3">
+          {rows.map((rowModels, rowIndex) => (
+            <div
+              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+              className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
+              {rowModels
+                .filter(model => model)
+                .map(model => (
+                  <ModelCard
+                    key={`${model.provider}-${model.modelId}`}
+                    isEnabled={enabledModelsLookup.has(model.modelId)}
+                    model={model}
+                    onToggle={onToggleModel}
+                  />
+                ))}
+            </div>
+          ))}
+        </div>
       );
     }
 
     return (
-      <TooltipProvider>
-        <WindowVirtualizer>
-          {rows.map((rowModels, rowIndex) => (
-            <div
-              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-              className="pb-3"
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {rowModels
-                  .filter(model => model)
-                  .map(model => (
-                    <ModelCard
-                      key={`${model.provider}-${model.modelId}`}
-                      isEnabled={enabledModelsLookup.has(model.modelId)}
-                      model={model}
-                      onToggle={onToggleModel}
-                    />
-                  ))}
-              </div>
+      <WindowVirtualizer>
+        {rows.map((rowModels, rowIndex) => (
+          <div
+            key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+            className="pb-3"
+          >
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {rowModels
+                .filter(model => model)
+                .map(model => (
+                  <ModelCard
+                    key={`${model.provider}-${model.modelId}`}
+                    isEnabled={enabledModelsLookup.has(model.modelId)}
+                    model={model}
+                    onToggle={onToggleModel}
+                  />
+                ))}
             </div>
-          ))}
-        </WindowVirtualizer>
-      </TooltipProvider>
+          </div>
+        ))}
+      </WindowVirtualizer>
     );
   }
 );

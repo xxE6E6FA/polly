@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -9,13 +9,13 @@ import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
-
 import {
   downloadFile,
   exportAsJSON,
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
@@ -52,10 +52,8 @@ export const ConversationItem = ({
   const isCurrentConversation = currentConversationId === conversation._id;
 
   // Mutations
-  const archiveConversation = useMutation(api.conversations.archive);
+  const patchConversation = useMutation(api.conversations.patch);
   const deleteConversation = useMutation(api.conversations.remove);
-  const updateConversationTitle = useMutation(api.conversations.updateTitle);
-  const setPinned = useMutation(api.conversations.setPinned);
 
   // Check if there are any active delete jobs
   const activeDeleteJobs = backgroundJobs
@@ -108,6 +106,8 @@ export const ConversationItem = ({
           toast.success("Conversation deleted", {
             description: "The conversation has been permanently removed.",
           });
+          // Invalidate conversations cache to reflect deleted conversation
+          del(CACHE_KEYS.conversations);
           return result;
         } catch (error) {
           toast.error("Failed to delete conversation", {
@@ -143,13 +143,13 @@ export const ConversationItem = ({
 
   const handleSaveEdit = useCallback(
     async (newTitle: string) => {
-      await updateConversationTitle({
+      await patchConversation({
         id: conversation._id,
-        title: newTitle,
+        updates: { title: newTitle },
       });
       setIsEditing(false);
     },
-    [conversation, updateConversationTitle]
+    [conversation, patchConversation]
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -178,7 +178,12 @@ export const ConversationItem = ({
         }
 
         await handleError.archive(async () => {
-          await archiveConversation({ id: conversation._id });
+          await patchConversation({
+            id: conversation._id,
+            updates: { isArchived: true },
+          });
+          // Invalidate conversations cache to reflect archived conversation
+          del(CACHE_KEYS.conversations);
         });
       }
     );
@@ -186,7 +191,7 @@ export const ConversationItem = ({
     confirmationDialog,
     conversation.title,
     conversation._id,
-    archiveConversation,
+    patchConversation,
     isCurrentConversation,
     navigate,
     handleError,
@@ -237,12 +242,12 @@ export const ConversationItem = ({
       setIsMobilePopoverOpen(false);
       setIsDesktopPopoverOpen(false);
 
-      await setPinned({
+      await patchConversation({
         id: conversation._id,
-        isPinned: !conversation.isPinned,
+        updates: { isPinned: !conversation.isPinned },
       });
     },
-    [conversation, setPinned]
+    [conversation, patchConversation]
   );
 
   const handleExport = useCallback(
@@ -346,12 +351,12 @@ export const ConversationItem = ({
       </ContextMenu>
 
       <ConfirmationDialog
-        cancelText={confirmationDialog.options.cancelText}
-        confirmText={confirmationDialog.options.confirmText}
-        description={confirmationDialog.options.description}
-        open={confirmationDialog.isOpen}
-        title={confirmationDialog.options.title}
-        variant={confirmationDialog.options.variant}
+        cancelText={confirmationDialog.state.cancelText}
+        confirmText={confirmationDialog.state.confirmText}
+        description={confirmationDialog.state.description}
+        open={confirmationDialog.state.isOpen}
+        title={confirmationDialog.state.title}
+        variant={confirmationDialog.state.variant}
         onCancel={confirmationDialog.handleCancel}
         onConfirm={confirmationDialog.handleConfirm}
         onOpenChange={confirmationDialog.handleOpenChange}

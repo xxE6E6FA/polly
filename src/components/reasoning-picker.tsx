@@ -20,7 +20,7 @@ import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { cn } from "@/lib/utils";
 import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
 
-type ReasoningConfigProps = {
+type ReasoningPickerProps = {
   model?: AIModel | null;
   config: ReasoningConfig;
   onConfigChange: (config: ReasoningConfig) => void;
@@ -108,12 +108,12 @@ function getProviderTheme(provider?: string) {
   }
 }
 
-export const ReasoningConfigSelect = ({
+export const ReasoningPicker = ({
   model,
   config,
   onConfigChange,
   className,
-}: ReasoningConfigProps) => {
+}: ReasoningPickerProps) => {
   const [selectOpen, setSelectOpen] = useState(false);
 
   // Handle mandatory reasoning when model changes

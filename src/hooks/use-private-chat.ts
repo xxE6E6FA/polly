@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { getDefaultSystemPrompt } from "convex/constants";
-import { useAction, useConvex } from "convex/react";
+import { useAction, useConvex, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { type AIProviderType, streamChat } from "@/lib/ai/client-ai-service";
@@ -15,7 +15,6 @@ import type {
   SendMessageParams,
   WebSearchCitation,
 } from "@/types";
-import { usePersistentConvexQuery } from "./use-persistent-convex-query";
 
 // Memory management constants
 const MAX_PRIVATE_MESSAGES = 100;
@@ -60,7 +59,6 @@ const messageUtils = {
 
 interface UsePrivateChatOptions {
   onError?: (error: Error) => void;
-  setIsThinking: (value: boolean) => void;
   onMessagesChange?: (messages: ChatMessage[]) => void;
   onStreamingStateChange?: (isStreaming: boolean) => void;
   initialPersonaId?: Id<"personas">;
@@ -69,7 +67,6 @@ interface UsePrivateChatOptions {
 
 export function usePrivateChat({
   onError,
-  setIsThinking,
   onMessagesChange,
   onStreamingStateChange,
   initialPersonaId,
@@ -87,13 +84,9 @@ export function usePrivateChat({
 
   // Call hooks directly - no dependency injection
   const getDecryptedApiKey = useAction(api.apiKeys.getDecryptedApiKey);
-  const selectedModelRaw = usePersistentConvexQuery(
-    "selected-model",
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
-  const { canSendMessage, isAnonymous } = useUserDataContext();
+  const { canSendMessage, user } = useUserDataContext();
   const convex = useConvex();
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -220,7 +213,7 @@ export function usePrivateChat({
 
   const sendMessage = useCallback(
     async (params: SendMessageParams): Promise<void> => {
-      if (isAnonymous) {
+      if (user?.isAnonymous) {
         toast.error("Sign in required", {
           description: "Sign in to use private chat.",
         });
@@ -290,7 +283,6 @@ export function usePrivateChat({
 
       try {
         setIsGenerating(true);
-        setIsThinking(true);
 
         const provider = selectedModel.provider as AIProviderType;
         const decryptedKey = await getDecryptedApiKey({ provider });
@@ -435,7 +427,6 @@ export function usePrivateChat({
         onError?.(error as Error);
       } finally {
         setIsGenerating(false);
-        setIsThinking(false);
       }
     },
     [
@@ -444,13 +435,12 @@ export function usePrivateChat({
       canSendMessage,
       convex,
       getDecryptedApiKey,
-      setIsThinking,
       onError,
       updateMessages,
       notifyStreamingStateChanged,
       currentPersonaId,
       currentReasoningConfig,
-      isAnonymous,
+      user?.isAnonymous,
     ]
   );
 
@@ -497,7 +487,7 @@ export function usePrivateChat({
 
   const retryUserMessage = useCallback(
     async (messageId: string): Promise<void> => {
-      if (isAnonymous) {
+      if (user?.isAnonymous) {
         toast.error("Sign in required", {
           description: "Sign in to use private chat.",
         });
@@ -532,12 +522,12 @@ export function usePrivateChat({
         reasoningConfig: undefined,
       });
     },
-    [messages, updateMessages, sendMessage, isAnonymous, onError]
+    [messages, updateMessages, sendMessage, onError, user?.isAnonymous]
   );
 
   const retryAssistantMessage = useCallback(
     async (messageId: string): Promise<void> => {
-      if (isAnonymous) {
+      if (user?.isAnonymous) {
         toast.error("Sign in required", {
           description: "Sign in to use private chat.",
         });
@@ -610,7 +600,6 @@ export function usePrivateChat({
 
       try {
         setIsGenerating(true);
-        setIsThinking(true);
 
         const provider = selectedModel.provider as AIProviderType;
         const decryptedKey = await getDecryptedApiKey({ provider });
@@ -731,19 +720,17 @@ export function usePrivateChat({
         onError?.(error as Error);
       } finally {
         setIsGenerating(false);
-        setIsThinking(false);
       }
     },
     [
       messages,
-      updateMessages,
       selectedModel,
       canSendMessage,
-      getDecryptedApiKey,
       onError,
       notifyStreamingStateChanged,
-      setIsThinking,
-      isAnonymous,
+      updateMessages,
+      getDecryptedApiKey,
+      user?.isAnonymous,
     ]
   );
 

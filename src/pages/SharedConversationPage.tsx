@@ -1,27 +1,19 @@
 import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+
 import { ROUTES } from "@/lib/routes";
 import type { ChatMessage, ConversationId } from "@/types";
-
-type SharedConversationData = {
-  conversation: Doc<"conversations"> & { title: string };
-  messages: (Doc<"messages"> & { attachments: undefined })[];
-  sharedAt: number;
-  lastUpdated: number;
-};
 
 export default function SharedConversationPage() {
   const { shareId } = useParams();
 
-  const sharedData = usePersistentConvexQuery<SharedConversationData | null>(
-    "shared-conversation-data",
+  const sharedData = useQuery(
     api.sharedConversations.getSharedConversation,
     shareId ? { shareId } : "skip"
   );

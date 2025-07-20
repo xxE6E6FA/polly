@@ -52,9 +52,10 @@ export class AnthropicNativeHandler {
     });
 
     if (message?.conversationId) {
-      await this.ctx.runMutation(api.conversations.setStreamingState, {
+      await this.ctx.runMutation(api.conversations.patch, {
         id: message.conversationId,
-        isStreaming: true,
+        updates: { isStreaming: true },
+        setUpdatedAt: true,
       });
     }
 

@@ -32,16 +32,8 @@ const buttonVariants = cva(
         info: "bg-info text-info-foreground shadow-md transition-all duration-200 hover:bg-info-hover hover:shadow-lg",
         danger:
           "bg-danger text-danger-foreground shadow-md transition-all duration-200 hover:bg-danger-hover hover:shadow-lg",
-        // Legacy accent color variants (for backward compatibility)
-        coral:
-          "bg-primary text-primary-foreground shadow-md transition-all duration-200 hover:bg-primary-hover hover:shadow-lg",
-        emerald:
-          "bg-success text-success-foreground shadow-md transition-all duration-300 hover:scale-105 hover:bg-success-hover hover:shadow-lg",
-        yellow:
-          "bg-warning text-warning-foreground shadow-md transition-all duration-200 hover:bg-warning-hover hover:shadow-lg",
         purple:
           "bg-[hsl(260_85%_60%)] text-white shadow-md transition-all duration-200 hover:bg-[hsl(260_85%_55%)] hover:shadow-lg dark:text-white",
-        blue: "bg-secondary text-secondary-foreground shadow-md transition-all duration-300 hover:scale-105 hover:bg-secondary-hover hover:shadow-lg",
       },
       size: {
         default: "h-9 px-4 py-2",

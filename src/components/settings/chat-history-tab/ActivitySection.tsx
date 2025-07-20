@@ -161,6 +161,9 @@ function DetailedJobCard({
             {isActive && (
               <div className="mt-2">
                 <Progress value={job.progress} className="h-1.5" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {job.progress}% complete
+                </p>
               </div>
             )}
             {isFailed && job.error && (
@@ -175,6 +178,8 @@ function DetailedJobCard({
                 onClick={() => onDownload(job.id)}
                 disabled={isDownloading && downloadingJobId === job.id}
                 className="h-8 w-8 p-0"
+                title="Download export file"
+                aria-label="Download export file"
               >
                 {isDownloading && downloadingJobId === job.id ? (
                   <Spinner className="h-4 w-4" />
@@ -188,6 +193,8 @@ function DetailedJobCard({
               size="sm"
               onClick={() => onRemove(job.id)}
               className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
+              title="Remove job from history"
+              aria-label="Remove job from history"
             >
               <TrashIcon className="h-4 w-4" />
             </Button>

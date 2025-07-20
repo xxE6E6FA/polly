@@ -1,22 +1,19 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useQuery } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChatService } from "@/hooks/use-chat-service";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
-import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const navigate = useNavigate();
-  const { user } = useUserDataContext();
-  const queryUserId = user?._id || null;
   const { setPrivateMode } = usePrivateMode();
 
   useEffect(() => {
@@ -27,21 +24,11 @@ export default function ConversationRoute() {
     throw new Error("Conversation ID is required");
   }
 
-  const conversation = usePersistentConvexQuery<{
-    _id: string;
-    isArchived?: boolean;
-    [key: string]: unknown;
-  } | null>(
-    "conversation-page-conversation",
-    api.conversations.getAuthorized,
-    queryUserId ? { id: conversationId, userId: queryUserId } : "skip"
-  );
+  const conversation = useQuery(api.conversations.get, {
+    id: conversationId as Id<"conversations">,
+  });
 
-  const hasApiKeys = usePersistentConvexQuery<boolean>(
-    "conversation-page-api-keys",
-    api.apiKeys.hasAnyApiKey,
-    {}
-  );
+  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
   const handleConversationCreate = useCallback(
     (newConversationId: ConversationId) => {

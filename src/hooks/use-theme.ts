@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import { get as getLS, set as setLS, subscribe } from "../lib/local-storage";
+import { CACHE_KEYS, get as getLS, set as setLS } from "../lib/local-storage";
 
 function withDisabledAnimations(fn: () => void) {
   const root = document.documentElement;
@@ -11,13 +11,11 @@ function withDisabledAnimations(fn: () => void) {
   });
 }
 
-type Theme = "light" | "dark";
-
-const THEME_STORAGE_KEY = "theme/v1";
+type Theme = "light" | "dark" | "system";
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = getLS<Theme>(THEME_STORAGE_KEY, "light");
+    const stored = getLS<Theme>(CACHE_KEYS.theme, "system");
     if (stored === "light" || stored === "dark") {
       return stored;
     }
@@ -47,7 +45,7 @@ export function useTheme() {
   const setTheme = useCallback((newTheme: Theme) => {
     withDisabledAnimations(() => {
       setThemeState(newTheme);
-      setLS<Theme>(THEME_STORAGE_KEY, newTheme);
+      setLS<Theme>(CACHE_KEYS.theme, newTheme);
     });
   }, []);
 
@@ -55,12 +53,5 @@ export function useTheme() {
     setTheme(theme === "light" ? "dark" : "light");
   }, [theme, setTheme]);
 
-  // Sync with other tabs
-  useEffect(() => {
-    return subscribe(THEME_STORAGE_KEY, () => {
-      setThemeState(getLS<Theme>(THEME_STORAGE_KEY, "light"));
-    });
-  }, []);
-
-  return { theme, setTheme, toggleTheme, mounted } as const;
+  return { theme, setTheme, toggleTheme, mounted };
 }

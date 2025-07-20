@@ -1,3 +1,5 @@
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
   CheckIcon,
@@ -5,19 +7,19 @@ import {
   MagnifyingGlassIcon,
   PushPinIcon,
 } from "@phosphor-icons/react";
-import { api } from "convex/_generated/api";
-import type { Id } from "convex/_generated/dataModel";
+import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
-import { usePersistentConvexQuery } from "@/hooks/use-persistent-convex-query";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
+
 import { cn } from "@/lib/utils";
 
 type ConversationSummary = {
@@ -39,11 +41,9 @@ interface ConversationSelectionListProps {
   ) => void;
   onSelectAll: () => void;
   clearSelection: () => void;
-  includeArchived?: boolean;
-  includePinned?: boolean;
   recentlyImportedIds?: Set<Id<"conversations">>;
   includeAttachments: boolean;
-  onIncludeAttachmentsChange: (value: boolean) => void;
+  onIncludeAttachmentsChange: (include: boolean) => void;
 }
 
 export function ConversationSelectionList({
@@ -51,8 +51,6 @@ export function ConversationSelectionList({
   onConversationSelect,
   onSelectAll,
   clearSelection,
-  includeArchived = true,
-  includePinned = true,
   recentlyImportedIds,
   includeAttachments,
   onIncludeAttachmentsChange,
@@ -62,62 +60,6 @@ export function ConversationSelectionList({
   const [isDeleting, setIsDeleting] = useState(false);
   const bulkRemove = useMutation(api.conversations.bulkRemove);
   const backgroundJobs = useBackgroundJobs();
-
-  const conversationDataRaw = usePersistentConvexQuery(
-    "conversation-selection-list",
-    api.conversations.getConversationsSummaryForExport,
-    {
-      includeArchived,
-      includePinned,
-      limit: 1000,
-    }
-  );
-
-  // Apply inline type guard (single-use, component-specific)
-  const isValidConversationData = (
-    x: unknown
-  ): x is {
-    conversations: ConversationSummary[];
-  } => {
-    return (
-      !!x &&
-      typeof x === "object" &&
-      "conversations" in x &&
-      Array.isArray((x as Record<string, unknown>).conversations)
-    );
-  };
-
-  const conversationData = isValidConversationData(conversationDataRaw)
-    ? conversationDataRaw
-    : null;
-
-  const conversations = useMemo(() => {
-    return conversationData?.conversations || [];
-  }, [conversationData]);
-
-  const filteredConversations = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return conversations;
-    }
-
-    const query = searchQuery.toLowerCase();
-    return conversations.filter(
-      conv =>
-        conv.title?.toLowerCase().includes(query) || conv._id.includes(query)
-    );
-  }, [conversations, searchQuery]);
-
-  const totalConversations = conversations.length;
-  const visibleConversations = filteredConversations.length;
-
-  const allSelected = useMemo(() => {
-    return (
-      filteredConversations.length > 0 &&
-      filteredConversations.every(conv => selectedConversations.has(conv._id))
-    );
-  }, [filteredConversations, selectedConversations]);
-
-  const someSelected = selectedConversations.size > 0;
 
   const handleItemClick = useCallback(
     (conversationId: Id<"conversations">, index: number, shiftKey: boolean) => {
@@ -169,6 +111,8 @@ export function ConversationSelectionList({
             ids.length === 1 ? "" : "s"
           } deleted successfully.`,
         });
+        // Invalidate conversations cache to reflect deleted conversations
+        del(CACHE_KEYS.conversations);
       }
 
       clearSelection();
@@ -194,7 +138,7 @@ export function ConversationSelectionList({
           key={conversation._id}
           type="button"
           className={cn(
-            "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors duration-150",
+            "w-full flex items-center gap-3 px-6 py-3 text-left transition-colors duration-150",
             isEven ? "bg-background" : "bg-muted/30",
             isSelected && "!bg-primary/10 border-l-2 border-l-primary",
             isRecentlyImported &&
@@ -217,28 +161,32 @@ export function ConversationSelectionList({
           </div>
 
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className="flex items-center gap-1 shrink-0">
-              {isRecentlyImported && (
-                <Badge
-                  variant="default"
-                  className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
-                >
-                  New
-                </Badge>
-              )}
-              {conversation.isPinned && (
-                <PushPinIcon className="w-3 h-3 text-blue-500" />
-              )}
-              {conversation.isArchived && (
-                <ArchiveIcon className="w-3 h-3 text-muted-foreground" />
-              )}
-            </div>
+            {isRecentlyImported ||
+            conversation.isPinned ||
+            conversation.isArchived ? (
+              <div className="flex items-center gap-1 shrink-0">
+                {isRecentlyImported && (
+                  <Badge
+                    variant="default"
+                    className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    New
+                  </Badge>
+                )}
+                {conversation.isPinned && (
+                  <PushPinIcon className="w-3 h-3 text-blue-500" />
+                )}
+                {conversation.isArchived && (
+                  <ArchiveIcon className="w-3 h-3 text-muted-foreground" />
+                )}
+              </div>
+            ) : null}
 
             <span className="text-sm font-medium min-w-0 flex-1 truncate">
               {conversation.title}
             </span>
 
-            <div className="shrink-0 text-xs text-muted-foreground hidden sm:block">
+            <div className="shrink-0 text-xs text-muted-foreground">
               {new Date(conversation.createdAt).toLocaleDateString()}
             </div>
           </div>
@@ -252,31 +200,16 @@ export function ConversationSelectionList({
   const activeJobs = backgroundJobs.getActiveJobs();
   const isExporting = activeJobs.some(job => job.type === "export");
 
-  if (!conversationData) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Loading Conversations...</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const someSelected = selectedConversations.size > 0;
 
   return (
-    <TooltipProvider>
+    <>
       <Card className="h-full flex flex-col">
         <CardHeader className="pb-3 space-y-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">
-              Select Conversations ({totalConversations} total)
-            </CardTitle>
+            <CardTitle className="text-base">Select Conversations</CardTitle>
             <div className="flex items-center gap-2">
-              {someSelected && (
+              {someSelected ? (
                 <>
                   <Button
                     size="sm"
@@ -302,18 +235,25 @@ export function ConversationSelectionList({
                   >
                     Delete ({selectedConversations.size})
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={clearSelection}
+                  >
+                    Clear Selection
+                  </Button>
                 </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={onSelectAll}
+                >
+                  Select All
+                </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 text-xs"
-                onClick={allSelected ? clearSelection : onSelectAll}
-              >
-                {allSelected
-                  ? "Deselect All"
-                  : `Select All${searchQuery ? " (Filtered)" : ""}`}
-              </Button>
             </div>
           </div>
 
@@ -326,12 +266,6 @@ export function ConversationSelectionList({
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
-
-          {searchQuery && (
-            <div className="text-xs text-muted-foreground">
-              {visibleConversations} of {totalConversations} conversations
-            </div>
-          )}
 
           {someSelected && (
             <div className="flex items-center space-x-2 text-sm">
@@ -353,21 +287,22 @@ export function ConversationSelectionList({
         </CardHeader>
 
         <CardContent className="flex-1 min-h-0 p-0 border-t border-border/50">
-          {visibleConversations === 0 ? (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <p className="text-sm">
-                {totalConversations === 0
-                  ? "No conversations found"
-                  : "No conversations match your search"}
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto">
-              {filteredConversations.map((conversation, index) =>
-                renderItem(conversation, index)
-              )}
-            </div>
-          )}
+          <VirtualizedPaginatedList<ConversationSummary>
+            query={api.conversations.list as PaginatedQueryReference}
+            queryArgs={{
+              includeArchived: true,
+            }}
+            renderItem={renderItem}
+            getItemKey={item => item._id}
+            zeroState={
+              <div className="flex items-center justify-center py-8 text-muted-foreground">
+                <p className="text-sm">No conversations found</p>
+              </div>
+            }
+            className="h-96"
+            itemHeight={36}
+            initialNumItems={20}
+          />
         </CardContent>
       </Card>
 
@@ -407,6 +342,6 @@ export function ConversationSelectionList({
           </div>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
+    </>
   );
 }

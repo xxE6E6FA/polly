@@ -3,38 +3,33 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
-import { getAnonymousUserIdFromCookie } from "@/lib/cookies";
+import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
+  const { user } = useUserDataContext();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      // Get stored anonymous user ID if it exists
-      const anonymousUserId = getAnonymousUserIdFromCookie();
-
-      // Pass the anonymous user ID in the state for graduation
-      if (anonymousUserId) {
-        await signIn("google", {
-          state: { anonymousUserId },
-          redirectTo: ROUTES.HOME,
-        });
-      } else {
-        await signIn("google", {
-          redirectTo: ROUTES.HOME,
-        });
+      // Store the anonymous user ID for graduation
+      if (user?._id && user.isAnonymous) {
+        set(CACHE_KEYS.anonymousUserGraduation, user._id);
       }
+
+      await signIn("google", {
+        redirectTo: ROUTES.HOME,
+      });
     } catch (error) {
       console.error("[AuthPage] Sign in error:", error);
       toast.error("Failed to sign in. Please try again.");
-    } finally {
       setIsLoading(false);
     }
-  }, [signIn]);
+  }, [signIn, user]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
@@ -65,7 +60,7 @@ export default function AuthPage() {
             onClick={handleSignIn}
           >
             {isLoading ? (
-              <Spinner size="sm" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
             ) : (
               <svg className="h-5 w-5" viewBox="0 0 24 24">
                 <path

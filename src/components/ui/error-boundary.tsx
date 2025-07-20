@@ -6,7 +6,7 @@ import {
   CopyIcon,
 } from "@phosphor-icons/react";
 import React from "react";
-import { get as getLS } from "@/lib/local-storage";
+import { CACHE_KEYS, get as getLS } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
 
 import { Button } from "./button";
@@ -47,7 +47,7 @@ export class ErrorBoundary extends React.Component<
 
   applyThemeFromLocalStorage = () => {
     try {
-      const storedTheme = getLS<"light" | "dark">("theme/v1", "light");
+      const storedTheme = getLS<"light" | "dark">(CACHE_KEYS.theme, "light");
 
       document.documentElement.classList.remove("light", "dark");
       document.documentElement.classList.add(storedTheme);

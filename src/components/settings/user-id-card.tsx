@@ -27,7 +27,7 @@ function getInitials(name?: string | null) {
 
 export const UserIdCard = () => {
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
-  const userSettings = useUserSettings(user?._id);
+  const userSettings = useUserSettings();
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
 
@@ -125,7 +125,9 @@ export const UserIdCard = () => {
                   />
                   <span className="text-xs text-foreground">Conversations</span>
                 </div>
-                <span className="font-mono text-sm text-foreground">{0}</span>
+                <span className="font-mono text-sm text-foreground">
+                  {user.conversationCount ?? 0}
+                </span>
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
@@ -138,7 +140,9 @@ export const UserIdCard = () => {
                     Total Messages
                   </span>
                 </div>
-                <span className="font-mono text-sm text-foreground">{0}</span>
+                <span className="font-mono text-sm text-foreground">
+                  {user.totalMessageCount ?? 0}
+                </span>
               </div>
 
               <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
@@ -225,11 +229,11 @@ export const UserIdCard = () => {
           <div
             className="absolute bottom-0 left-0 right-0 h-0.5"
             style={{
-              background: `linear-gradient(90deg, 
-                hsl(220 95% 55%), 
-                hsl(260 85% 60%), 
-                hsl(280 75% 65%), 
-                hsl(var(--primary)), 
+              background: `linear-gradient(90deg,
+                hsl(220 95% 55%),
+                hsl(260 85% 60%),
+                hsl(280 75% 65%),
+                hsl(var(--primary)),
                 hsl(220 95% 55%)
               )`,
             }}
