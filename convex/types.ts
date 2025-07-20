@@ -92,7 +92,12 @@ export type GoogleGroundingChunk = {
 // PROVIDER TYPES
 // ============================================================================
 
-export type ProviderType = "openai" | "anthropic" | "google" | "openrouter";
+export type ProviderType =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "openrouter"
+  | "polly";
 
 export type ProviderMetadata = {
   openrouter?: {

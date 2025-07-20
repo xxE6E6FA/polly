@@ -1,3 +1,5 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 
 import { action } from "./_generated/server";
@@ -20,19 +22,7 @@ export const generateConversationStarters = action({
     }
 
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `You are generating conversation starter prompts that will be used to start NEW conversations with an AI assistant. These prompts are inspired by this selected text, but the new AI won't have any context about the original text.
+      const promptText = `You are generating conversation starter prompts that will be used to start NEW conversations with an AI assistant. These prompts are inspired by this selected text, but the new AI won't have any context about the original text.
 
 Selected text: "${args.selectedText}"
 
@@ -46,7 +36,21 @@ Create 5 diverse, self-contained prompts that:
 
 Each prompt should be a complete, standalone request that doesn't reference "this" or assume prior knowledge.
 
-Return exactly 5 prompts, one per line, with no numbers, bullets, or formatting.`,
+Return exactly 5 prompts, one per line, with no numbers, bullets, or formatting.`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_POLLY_MODEL_ID}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: promptText,
                   },
                 ],
               },

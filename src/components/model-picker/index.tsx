@@ -48,9 +48,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
       setOpen(false);
 
       const selectedModelData = userModels.find(
-        model =>
-          model?.modelId === modelId &&
-          (model?.provider === provider || model?.displayProvider === provider)
+        model => model?.modelId === modelId && model?.provider === provider
       );
 
       if (selectedModelData) {

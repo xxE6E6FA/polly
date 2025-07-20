@@ -14,53 +14,34 @@ import { getUserFriendlyErrorMessage } from "./errors";
 
 export type { AIProviderType };
 
-// Simple provider warmup cache - no class needed
-const warmedUpProviders = new Set<AIProviderType>();
-
-function createOptimizedFetch() {
-  return (url: RequestInfo | URL, options?: RequestInit) => {
-    return fetch(url, {
-      ...options,
-      priority: "high" as RequestPriority,
-      headers: {
-        ...options?.headers,
-        "Accept-Encoding": "gzip, deflate, br",
-      },
-    });
-  };
-}
-
 function createLanguageModel(
   provider: AIProviderType,
   modelId: string,
   apiKey: string
 ): LanguageModel {
-  const optimizedFetch = createOptimizedFetch();
+  // Provider is already mapped by the time it reaches here
+  // No need for additional Polly mapping
 
   switch (provider) {
     case "openai":
       return createOpenAI({
         apiKey,
-        fetch: optimizedFetch,
       })(modelId);
 
     case "anthropic":
       return createAnthropic({
         apiKey,
-        fetch: optimizedFetch,
       })(modelId);
 
     case "google":
       return createGoogleGenerativeAI({
         apiKey,
         baseURL: "https://generativelanguage.googleapis.com/v1beta",
-        fetch: optimizedFetch,
       })(modelId);
 
     case "openrouter": {
       const openrouter = createOpenRouter({
         apiKey,
-        fetch: optimizedFetch,
       });
       return openrouter.chat(modelId);
     }
@@ -70,55 +51,6 @@ function createLanguageModel(
   }
 }
 
-async function warmUpProvider(provider: AIProviderType, apiKey: string) {
-  if (warmedUpProviders.has(provider)) {
-    return;
-  }
-
-  try {
-    const warmUpEndpoints: Record<AIProviderType, string> = {
-      google: `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
-      openai: "https://api.openai.com/v1/models",
-      anthropic: "https://api.anthropic.com/v1/models",
-      openrouter: "https://openrouter.ai/api/v1/models",
-    };
-
-    const endpoint = warmUpEndpoints[provider];
-    if (!endpoint) {
-      return;
-    }
-
-    const headers: HeadersInit = {
-      "Accept-Encoding": "gzip, deflate, br",
-    };
-
-    if (provider === "openai") {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    } else if (provider === "anthropic") {
-      headers["x-api-key"] = apiKey;
-      headers["anthropic-version"] = "2023-06-01";
-    } else if (provider === "openrouter") {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-      headers["HTTP-Referer"] = window.location.origin;
-      headers["X-Title"] = "Polly Chat";
-    }
-
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers,
-      keepalive: true,
-      priority: "high" as RequestPriority,
-    });
-
-    if (response.ok || response.status === 401) {
-      warmedUpProviders.add(provider);
-    }
-  } catch (_error) {
-    // Silently ignore warm-up errors
-  }
-}
-
-// Simplified streaming function using Anthropic native client
 async function streamWithAnthropicNative(
   request: ChatStreamRequest,
   abortController: AbortController
@@ -158,15 +90,12 @@ async function streamWithAISDK(
 ): Promise<void> {
   const { messages, model, apiKeys, options, callbacks } = request;
   const provider = model.provider as AIProviderType;
+
+  // Provider is already mapped by the time it reaches here
   const apiKey = apiKeys[provider];
 
   if (!apiKey) {
     throw new Error(`No API key configured for provider: ${provider}`);
-  }
-
-  // Warm up provider if needed
-  if (!warmedUpProviders.has(provider)) {
-    await warmUpProvider(provider, apiKey);
   }
 
   const streamHandler = new ClientStreamHandler(callbacks);
@@ -222,7 +151,6 @@ async function streamWithAISDK(
   }
 }
 
-// Main streaming function - functional approach
 export async function streamChat(
   request: ChatStreamRequest,
   abortController: AbortController = new AbortController()
@@ -230,18 +158,13 @@ export async function streamChat(
   const { model } = request;
   const provider = model.provider as AIProviderType;
 
+  // Provider is already mapped by the time it reaches here
+  // No need for additional Polly mapping
+
   // Use Anthropic native client for reasoning models
   if (provider === "anthropic" && model.supportsReasoning) {
     await streamWithAnthropicNative(request, abortController);
   } else {
     await streamWithAISDK(request, abortController);
   }
-}
-
-// Simple utility for provider warmup
-export function preWarmProvider(
-  provider: AIProviderType,
-  apiKey: string
-): Promise<void> {
-  return warmUpProvider(provider, apiKey);
 }

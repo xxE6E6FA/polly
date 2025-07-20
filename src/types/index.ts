@@ -24,7 +24,12 @@ export type UserId = Id<"users">;
 // ============================================================================
 
 export type AIModel = Doc<"userModels">;
-export type AIProviderType = "openai" | "anthropic" | "google" | "openrouter";
+export type AIProviderType =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "openrouter"
+  | "polly";
 
 // ============================================================================
 // TYPE SAFETY HELPERS
@@ -292,6 +297,7 @@ export type APIKeys = {
   anthropic?: string;
   google?: string;
   openrouter?: string;
+  polly?: string;
 };
 
 // ============================================================================

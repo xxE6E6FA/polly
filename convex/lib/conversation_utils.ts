@@ -11,6 +11,9 @@ import {
 } from "@shared/constants";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
+import { action } from "../_generated/server";
+import { v } from "convex/values";
+import { isPollyModel } from "@shared/constants";
 
 export type StreamingActionResult = {
   userMessageId?: Id<"messages">;
@@ -353,10 +356,8 @@ export async function createMessage(
   });
 }
 
-// DRY Helper: Increment user message stats with model checking
 export async function incrementUserMessageStats(
   ctx: ActionCtx | MutationCtx,
-  model?: string,
   provider?: string,
 ) {
   const userId = await getAuthUserId(ctx);
@@ -369,32 +370,7 @@ export async function incrementUserMessageStats(
     throw new Error("User not found");
   }
 
-  // Check if this is a Polly model (virtual model that doesn't exist in database)
-  const isPollyModel =
-    provider === "polly" ||
-    (model === "gemini-2.5-flash-lite-preview-06-17" && provider === "google");
-
-  let userModel;
-
-  if (isPollyModel) {
-    // For Polly models, create a virtual model object
-    userModel = await ctx.runQuery(api.userModels.getVirtualPollyModel);
-  } else {
-    // Query database for real models
-    userModel = await ctx.runQuery(api.userModels.getModelByID, {
-      modelId: model ?? "",
-      provider: provider ?? "",
-    });
-
-    if (!userModel) {
-      // For private conversation imports, the model might not exist in the user's database
-      // In this case, we'll skip the stats increment rather than failing
-      console.warn(`Model not found for stats increment: ${model}/${provider} - skipping`);
-      return;
-    }
-  }
-
-  if (userModel?.free && !user.hasUnlimitedCalls) {
+  if (isPollyModel(provider)) {
     const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
     const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
     if (monthlyMessagesSent >= monthlyLimit) {

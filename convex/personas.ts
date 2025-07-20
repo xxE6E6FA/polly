@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 
@@ -341,7 +342,7 @@ User's initial prompt:
 ${args.prompt}`;
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-06-17:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_POLLY_MODEL_ID}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: {

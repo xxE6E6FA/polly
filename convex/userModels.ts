@@ -1,4 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
@@ -44,11 +45,10 @@ export const getModelByID = query({
     const model = await ctx.db
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
-      .filter(q => q.eq(q.field("modelId"), args.modelId))
       .filter(q =>
-        q.or(
-          q.eq(q.field("provider"), args.provider),
-          q.eq(q.field("displayProvider"), args.provider)
+        q.and(
+          q.eq(q.field("modelId"), args.modelId),
+          q.eq(q.field("provider"), args.provider)
         )
       )
       .unique();
@@ -168,23 +168,18 @@ export const toggleModel = mutation({
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
       .filter(q => q.eq(q.field("modelId"), args.modelId))
-      .filter(q =>
-        q.or(
-          q.eq(q.field("provider"), args.modelData?.provider),
-          q.eq(q.field("displayProvider"), args.modelData?.provider)
-        )
-      )
+      .filter(q => q.eq(q.field("provider"), args.modelData?.provider))
       .unique();
 
     if (!existing && args.modelData) {
-      // Determine displayProvider based on whether this is a free model
-      const displayProvider = args.modelData?.free
+      // Use polly provider for free models, otherwise use the actual provider
+      const provider = args.modelData?.free
         ? "polly"
         : args.modelData?.provider;
 
       await ctx.db.insert("userModels", {
         ...args.modelData,
-        displayProvider,
+        provider,
         userId,
         selected: false,
         createdAt: Date.now(),
@@ -254,12 +249,7 @@ export const selectModel = mutation({
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
       .filter(q => q.eq(q.field("modelId"), args.modelId))
-      .filter(q =>
-        q.or(
-          q.eq(q.field("provider"), args.provider),
-          q.eq(q.field("displayProvider"), args.provider)
-        )
-      )
+      .filter(q => q.eq(q.field("provider"), args.provider))
       .unique();
 
     if (!model) {
@@ -317,10 +307,9 @@ function createVirtualPollyModel() {
     _id: "polly-gemini-default" as Id<"userModels">,
     _creationTime: Date.now(),
     userId: "anonymous" as Id<"users">,
-    modelId: "gemini-2.5-flash-lite-preview-06-17",
+    modelId: DEFAULT_POLLY_MODEL_ID,
     name: "Gemini 2.5 Flash Lite",
-    provider: "google",
-    displayProvider: "polly",
+    provider: "polly",
     contextLength: 1048576,
     maxOutputTokens: undefined,
     supportsImages: true,

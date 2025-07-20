@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { type LanguageModel } from "ai";
+import { DEFAULT_POLLY_MODEL_ID, mapPollyModelToProvider } from "@shared/constants";
 import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
@@ -53,11 +54,17 @@ const createProviderModel = {
 // Create language model based on provider
 export const createLanguageModel = async (
   ctx: ActionCtx,
-  provider: ProviderType,
+  provider: ProviderType | "polly",
   model: string,
   apiKey: string,
   userId?: Id<"users">
 ): Promise<LanguageModel> => {
+  // Handle Polly provider mapping
+  if (provider === "polly") {
+    const actualProvider = mapPollyModelToProvider(model) as ProviderType;
+    return createLanguageModel(ctx, actualProvider, model, apiKey, userId);
+  }
+
   if (provider === "openrouter") {
     return createProviderModel.openrouter(apiKey, model, ctx, userId);
   }
@@ -76,11 +83,17 @@ export const createLanguageModel = async (
 
 export const getProviderStreamOptions = async (
   ctx: ActionCtx,
-  provider: ProviderType,
+  provider: ProviderType | "polly",
   model: string,
   reasoningConfig?: { effort?: "low" | "medium" | "high"; maxTokens?: number },
   userId?: Id<"users">
 ): Promise<ProviderStreamOptions> => {
+  // Handle Polly provider mapping for reasoning config
+  let actualProvider = provider;
+  if (provider === "polly") {
+    actualProvider = mapPollyModelToProvider(model) as ProviderType;
+  }
+
   // Get model capabilities from database (the source of truth)
   let modelWithCapabilities: {
     modelId: string;
@@ -88,7 +101,7 @@ export const getProviderStreamOptions = async (
     supportsReasoning?: boolean;
   } = {
     modelId: model,
-    provider,
+    provider: actualProvider,
     supportsReasoning: false,
   };
 
@@ -97,7 +110,7 @@ export const getProviderStreamOptions = async (
     try {
       const userModel = await ctx.runQuery(api.userModels.getModelByID, {
         modelId: model,
-        provider,
+        provider: actualProvider,
       });
 
       if (userModel) {
@@ -116,13 +129,13 @@ export const getProviderStreamOptions = async (
   if (!modelWithCapabilities.supportsReasoning) {
     // Check if it's the anonymous default model (gemini-2.5-flash-lite-preview-06-17)
     if (
-      model === "gemini-2.5-flash-lite-preview-06-17" &&
+      model === DEFAULT_POLLY_MODEL_ID &&
       process.env.GEMINI_API_KEY
     ) {
       modelWithCapabilities.supportsReasoning = true;
     } else {
       // Final fallback to enhanced detection for edge cases
-      modelWithCapabilities.supportsReasoning = await isReasoningModelEnhanced(provider, model);
+      modelWithCapabilities.supportsReasoning = await isReasoningModelEnhanced(actualProvider, model);
     }
   }
 
