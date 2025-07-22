@@ -1,8 +1,3 @@
-/**
- * Shared Anthropic stream handling for reasoning models
- * This module provides common logic for handling Anthropic's native streaming API
- * which properly supports thinking/reasoning tokens
- */
 
 export interface AnthropicStreamEvent {
   type: string;
@@ -25,9 +20,6 @@ export interface AnthropicStreamCallbacks {
   checkAbort?: () => boolean | Promise<boolean>;
 }
 
-/**
- * Process an Anthropic stream with proper thinking/reasoning support
- */
 export async function processAnthropicStream(
   stream: AsyncIterable<AnthropicStreamEvent>,
   callbacks: AnthropicStreamCallbacks
@@ -71,9 +63,6 @@ export async function processAnthropicStream(
   }
 }
 
-/**
- * Convert messages to Anthropic format
- */
 export function convertToAnthropicMessages(
   messages: Array<{
     role: string;
@@ -91,9 +80,6 @@ export function convertToAnthropicMessages(
     }));
 }
 
-/**
- * Calculate max tokens for reasoning models
- */
 export function calculateAnthropicMaxTokens(
   baseMaxTokens: number | undefined,
   budgetTokens: number

@@ -208,7 +208,7 @@ export const startStreaming = action({
       model: args.model,
       provider: args.provider,
       temperature: args.temperature ?? 0.7,
-      maxTokens: args.maxTokens ?? 8192,
+      maxTokens: args.maxTokens ?? -1,
       enableWebSearch: args.enableWebSearch,
       webSearchMaxResults: args.webSearchMaxResults ?? 5,
       reasoningConfig: args.reasoningConfig?.enabled

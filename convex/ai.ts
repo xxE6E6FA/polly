@@ -496,7 +496,7 @@ export const streamResponse = action({
         model,
         messages,
         temperature: args.temperature,
-        maxTokens: args.maxTokens || 8192, // Higher default for better responses
+        maxTokens: args.maxTokens || -1,
         topP: args.topP,
         frequencyPenalty: args.frequencyPenalty,
         presencePenalty: args.presencePenalty,

@@ -9,7 +9,7 @@ export const MONTHLY_MESSAGE_LIMIT = 500;
 export const ANONYMOUS_MESSAGE_LIMIT = 10;
 
 // Model constants
-export const DEFAULT_POLLY_MODEL_ID = "gemini-2.5-flash-lite-preview-06-17";
+export const DEFAULT_POLLY_MODEL_ID = "gemini-2.5-flash-lite";
 
 // Polly model detection
 export function isPollyModel(provider?: string): boolean {
@@ -27,7 +27,7 @@ export function mapPollyModelToProvider(modelId: string): ProviderType {
 
 // Streaming defaults
 export const DEFAULT_TEMPERATURE = 0.7;
-export const DEFAULT_MAX_TOKENS = 8192; // Generous default for conversations
+export const DEFAULT_MAX_TOKENS = -1;
 
 // Batch processing
 export const MESSAGE_BATCH_SIZE = 50; // Batch size for message deletion
