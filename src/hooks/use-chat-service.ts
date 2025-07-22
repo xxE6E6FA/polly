@@ -74,10 +74,14 @@ interface ChatService {
   editMessage: (messageId: string, content: string) => Promise<void>;
   retryUserMessage: (
     messageId: string,
+    modelId?: string,
+    providerId?: string,
     reasoningConfig?: ReasoningConfig
   ) => Promise<void>;
   retryAssistantMessage: (
     messageId: string,
+    modelId?: string,
+    providerId?: string,
     reasoningConfig?: ReasoningConfig
   ) => Promise<void>;
   toggleMode: () => void;
@@ -227,22 +231,42 @@ export function useChatService({
 
   // Unified retry functions
   const retryUserMessage = useCallback(
-    async (messageId: string, reasoningConfig?: ReasoningConfig) => {
+    async (
+      messageId: string,
+      modelId?: string,
+      providerId?: string,
+      reasoningConfig?: ReasoningConfig
+    ) => {
       if (mode === "private") {
         await privateChat.retryUserMessage(messageId);
       } else {
-        await serverChat.retryUserMessage(messageId, reasoningConfig);
+        await serverChat.retryUserMessage(
+          messageId,
+          modelId,
+          providerId,
+          reasoningConfig
+        );
       }
     },
     [mode, serverChat, privateChat]
   );
 
   const retryAssistantMessage = useCallback(
-    async (messageId: string, reasoningConfig?: ReasoningConfig) => {
+    async (
+      messageId: string,
+      modelId?: string,
+      providerId?: string,
+      reasoningConfig?: ReasoningConfig
+    ) => {
       if (mode === "private") {
         await privateChat.retryAssistantMessage(messageId);
       } else {
-        await serverChat.retryAssistantMessage(messageId, reasoningConfig);
+        await serverChat.retryAssistantMessage(
+          messageId,
+          modelId,
+          providerId,
+          reasoningConfig
+        );
       }
     },
     [mode, serverChat, privateChat]

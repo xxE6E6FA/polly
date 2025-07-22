@@ -16,7 +16,7 @@ type AssistantBubbleProps = {
   isRetrying: boolean;
   isDeleting: boolean;
   copyToClipboard: () => void;
-  onRetryMessage?: () => void;
+  onRetryMessage?: (modelId?: string, provider?: string) => void;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
 };

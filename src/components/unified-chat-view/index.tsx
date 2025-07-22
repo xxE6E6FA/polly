@@ -51,10 +51,14 @@ type UnifiedChatViewProps = {
   onSavePrivateChat?: () => Promise<void>;
   onRetryUserMessage?: (
     messageId: string,
+    modelId?: string,
+    provider?: string,
     reasoningConfig?: ReasoningConfig
   ) => void;
   onRetryAssistantMessage?: (
     messageId: string,
+    modelId?: string,
+    provider?: string,
     reasoningConfig?: ReasoningConfig
   ) => void;
 };
@@ -111,15 +115,15 @@ export const UnifiedChatView = memo(
 
     // Create wrapper handlers for retry functions
     const handleRetryUserMessage = useCallback(
-      (messageId: string) => {
-        onRetryUserMessage?.(messageId);
+      (messageId: string, modelId?: string, provider?: string) => {
+        onRetryUserMessage?.(messageId, modelId, provider);
       },
       [onRetryUserMessage]
     );
 
     const handleRetryAssistantMessage = useCallback(
-      (messageId: string) => {
-        onRetryAssistantMessage?.(messageId);
+      (messageId: string, modelId?: string, provider?: string) => {
+        onRetryAssistantMessage?.(messageId, modelId, provider);
       },
       [onRetryAssistantMessage]
     );

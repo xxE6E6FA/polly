@@ -9,7 +9,11 @@ type ChatMessageProps = {
   message: ChatMessageType;
   isStreaming?: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
-  onRetryMessage?: (messageId: string) => void;
+  onRetryMessage?: (
+    messageId: string,
+    modelId?: string,
+    provider?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
 };
 
@@ -33,16 +37,19 @@ const ChatMessageComponent = ({
     setTimeout(() => setIsCopied(false), 2000);
   }, [message.content]);
 
-  const handleRetry = useCallback(() => {
-    if (onRetryMessage && !isRetrying) {
-      setIsRetrying(true);
-      try {
-        onRetryMessage(message.id);
-      } finally {
-        setIsRetrying(false);
+  const handleRetry = useCallback(
+    (modelId?: string, provider?: string) => {
+      if (onRetryMessage && !isRetrying) {
+        setIsRetrying(true);
+        try {
+          onRetryMessage(message.id, modelId, provider);
+        } finally {
+          setIsRetrying(false);
+        }
       }
-    }
-  }, [onRetryMessage, message.id, isRetrying]);
+    },
+    [onRetryMessage, message.id, isRetrying]
+  );
 
   const handleDelete = useCallback(() => {
     if (onDeleteMessage && !isDeleting) {

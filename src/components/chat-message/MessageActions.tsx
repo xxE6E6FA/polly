@@ -1,19 +1,387 @@
+import { api } from "@convex/_generated/api";
 import {
   ArrowCounterClockwiseIcon,
+  CaretRightIcon,
   CheckIcon,
   CopyIcon,
   NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
 import type React from "react";
-import { memo } from "react";
+import { memo, useCallback, useState } from "react";
+import { toast } from "sonner";
+import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import { useUserModels } from "@/hooks/use-user-models";
+import { CACHE_KEYS, set } from "@/lib/local-storage";
+import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
+import type { AIModel } from "@/types";
+
+// Provider mapping with titles
+const PROVIDER_CONFIG = {
+  openai: { title: "OpenAI" },
+  anthropic: { title: "Anthropic" },
+  google: { title: "Google AI" },
+  openrouter: { title: "OpenRouter" },
+  polly: { title: "Polly" },
+} as const;
+
+type RetryDropdownProps = {
+  isUser: boolean;
+  isRetrying: boolean;
+  isStreaming: boolean;
+  isEditing: boolean;
+  onRetry: (modelId?: string, provider?: string) => void;
+  onDropdownOpenChange?: (open: boolean) => void;
+};
+
+const RetryDropdown = memo(
+  ({
+    isUser,
+    isRetrying,
+    isStreaming,
+    isEditing,
+    onRetry,
+    onDropdownOpenChange,
+  }: RetryDropdownProps) => {
+    const [open, setOpen] = useState(false);
+    const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const { userModelsByProvider, userModels } = useUserModels();
+    const selectModelMutation = useMutation(api.userModels.selectModel);
+
+    const handleOpenChange = (newOpen: boolean) => {
+      setOpen(newOpen);
+      onDropdownOpenChange?.(newOpen);
+    };
+
+    const handleMobileSheetOpenChange = (newOpen: boolean) => {
+      setIsMobileSheetOpen(newOpen);
+      onDropdownOpenChange?.(newOpen);
+    };
+
+    const handleRetry = useCallback(
+      async (modelId?: string, provider?: string) => {
+        setOpen(false);
+        setIsMobileSheetOpen(false);
+        onDropdownOpenChange?.(false);
+
+        // If a specific model is selected, update the selected model
+        if (modelId && provider) {
+          const selectedModelData = userModels.find(
+            model => model?.modelId === modelId && model?.provider === provider
+          );
+
+          if (selectedModelData) {
+            set(CACHE_KEYS.selectedModel, selectedModelData);
+          }
+
+          try {
+            await selectModelMutation({ modelId, provider });
+          } catch (error) {
+            console.error("Failed to select model:", error);
+            toast.error("Failed to select model", {
+              description:
+                "Unable to change the selected model. Please try again.",
+            });
+          }
+        }
+
+        onRetry(modelId, provider);
+      },
+      [selectModelMutation, userModels, onRetry, onDropdownOpenChange]
+    );
+
+    const handleRetrySame = () => {
+      setOpen(false);
+      setIsMobileSheetOpen(false);
+      onDropdownOpenChange?.(false);
+      onRetry();
+    };
+
+    const renderModelList = () => (
+      <>
+        <button
+          onClick={handleRetrySame}
+          className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+        >
+          <ArrowCounterClockwiseIcon className="h-4 w-4" />
+          <span className="font-medium">Retry same</span>
+        </button>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {Object.entries(userModelsByProvider).map(([providerId, models]) => {
+            const providerConfig =
+              PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+            const providerTitle = providerConfig?.title || providerId;
+
+            return (
+              <div key={providerId} className="border-b last:border-b-0">
+                <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
+                  <ProviderIcon provider={providerId} className="h-4 w-4" />
+                  <span className="font-medium text-sm">{providerTitle}</span>
+                </div>
+                {models.map((model: AIModel) => {
+                  const capabilities = getModelCapabilities(model);
+                  return (
+                    <button
+                      key={model.modelId}
+                      onClick={() => handleRetry(model.modelId, model.provider)}
+                      className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="truncate">{model.name}</span>
+                        {model.free && (
+                          <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            Free
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {capabilities.length > 0 &&
+                          capabilities.slice(0, 3).map((capability, index) => {
+                            const IconComponent = capability.icon;
+                            return (
+                              <TooltipWrapper
+                                key={`${model.modelId}-${capability.label}-${index}`}
+                                content={
+                                  <div>
+                                    <div className="font-semibold text-foreground">
+                                      {capability.label}
+                                    </div>
+                                    <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                      {capability.description}
+                                    </div>
+                                  </div>
+                                }
+                              >
+                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                  <IconComponent className="h-3 w-3" />
+                                </div>
+                              </TooltipWrapper>
+                            );
+                          })}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+
+    return (
+      <>
+        {/* Desktop: Dropdown */}
+        <div className="hidden sm:block">
+          <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    className={cn(
+                      "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                      "motion-safe:hover:scale-105",
+                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                    )}
+                    disabled={isEditing || isRetrying || isStreaming}
+                    size="sm"
+                    title={
+                      isUser ? "Retry from this message" : "Retry this response"
+                    }
+                    variant="ghost"
+                    aria-label={
+                      isUser
+                        ? "Retry conversation from this message"
+                        : "Regenerate this response"
+                    }
+                  >
+                    <ArrowCounterClockwiseIcon
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        isRetrying && "motion-safe:animate-spin-reverse",
+                        "@media (prefers-reduced-motion: reduce) { animation: none }"
+                      )}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isUser ? "Retry from this message" : "Retry this response"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+            <DropdownMenuContent
+              align="end"
+              className="w-auto min-w-[200px] max-w-[300px]"
+            >
+              <DropdownMenuItem
+                onClick={handleRetrySame}
+                className="flex items-center gap-2"
+              >
+                <ArrowCounterClockwiseIcon className="h-4 w-4" />
+                Retry same
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {Object.entries(userModelsByProvider).map(
+                ([providerId, models]) => {
+                  const providerConfig =
+                    PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+                  const providerTitle = providerConfig?.title || providerId;
+
+                  return (
+                    <DropdownMenuSub key={providerId}>
+                      <DropdownMenuSubTrigger className="flex items-center gap-2">
+                        <ProviderIcon
+                          provider={providerId}
+                          className="h-4 w-4"
+                        />
+                        {providerTitle}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-auto min-w-[200px]">
+                        {models.map((model: AIModel) => {
+                          const capabilities = getModelCapabilities(model);
+                          return (
+                            <DropdownMenuItem
+                              key={model.modelId}
+                              onClick={() =>
+                                handleRetry(model.modelId, model.provider)
+                              }
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                <span className="truncate">{model.name}</span>
+                                {model.free && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Free
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex shrink-0 items-center gap-1">
+                                {capabilities.length > 0 &&
+                                  capabilities
+                                    .slice(0, 3)
+                                    .map((capability, index) => {
+                                      const IconComponent = capability.icon;
+                                      return (
+                                        <TooltipWrapper
+                                          key={`${model.modelId}-${capability.label}-${index}`}
+                                          content={
+                                            <div>
+                                              <div className="font-semibold text-foreground">
+                                                {capability.label}
+                                              </div>
+                                              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                                {capability.description}
+                                              </div>
+                                            </div>
+                                          }
+                                        >
+                                          <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                            <IconComponent className="h-3 w-3" />
+                                          </div>
+                                        </TooltipWrapper>
+                                      );
+                                    })}
+                              </div>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                }
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Mobile: Bottom Sheet */}
+        <div className="sm:hidden">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className={cn(
+                  "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                  "motion-safe:hover:scale-105",
+                  "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                )}
+                disabled={isEditing || isRetrying || isStreaming}
+                size="sm"
+                title={
+                  isUser ? "Retry from this message" : "Retry this response"
+                }
+                variant="ghost"
+                aria-label={
+                  isUser
+                    ? "Retry conversation from this message"
+                    : "Regenerate this response"
+                }
+                onClick={() => setIsMobileSheetOpen(true)}
+              >
+                <ArrowCounterClockwiseIcon
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    isRetrying && "motion-safe:animate-spin-reverse",
+                    "@media (prefers-reduced-motion: reduce) { animation: none }"
+                  )}
+                  aria-hidden="true"
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>
+                {isUser ? "Retry from this message" : "Retry this response"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Dialog
+            open={isMobileSheetOpen}
+            onOpenChange={handleMobileSheetOpenChange}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {isUser ? "Retry from this message" : "Retry this response"}
+                </DialogTitle>
+              </DialogHeader>
+              {renderModelList()}
+            </DialogContent>
+          </Dialog>
+        </div>
+      </>
+    );
+  }
+);
+
+RetryDropdown.displayName = "RetryDropdown";
 
 type ActionButtonProps = {
   icon: React.ReactNode;
@@ -74,7 +442,7 @@ type MessageActionsProps = {
   isDeleting: boolean;
   copyToClipboard: () => void;
   onEditMessage?: () => void;
-  onRetryMessage?: () => void;
+  onRetryMessage?: (modelId?: string, provider?: string) => void;
   onDeleteMessage?: () => void;
   model?: string;
   provider?: string;
@@ -97,6 +465,8 @@ export const MessageActions = memo(
     provider,
     className,
   }: MessageActionsProps) => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
     if (isStreaming) {
       return null;
     }
@@ -108,6 +478,7 @@ export const MessageActions = memo(
       "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms; opacity: 100; transform: none }",
       isUser && isEditing && "opacity-0 pointer-events-none translate-y-2",
       isUser && "justify-end mt-1.5",
+      isDropdownOpen && "sm:opacity-100 sm:translate-y-0",
       className
     );
 
@@ -145,28 +516,13 @@ export const MessageActions = memo(
           )}
 
           {onRetryMessage && (
-            <ActionButton
-              disabled={isEditing || isRetrying || isStreaming}
-              title={isUser ? "Retry from this message" : "Retry this response"}
-              icon={
-                <ArrowCounterClockwiseIcon
-                  className={cn(
-                    "h-3.5 w-3.5",
-                    isRetrying && "motion-safe:animate-spin-reverse",
-                    "@media (prefers-reduced-motion: reduce) { animation: none }"
-                  )}
-                  aria-hidden="true"
-                />
-              }
-              tooltip={
-                isUser ? "Retry from this message" : "Retry this response"
-              }
-              ariaLabel={
-                isUser
-                  ? "Retry conversation from this message"
-                  : "Regenerate this response"
-              }
-              onClick={onRetryMessage}
+            <RetryDropdown
+              isUser={isUser}
+              isRetrying={isRetrying}
+              isStreaming={isStreaming}
+              isEditing={isEditing}
+              onRetry={onRetryMessage}
+              onDropdownOpenChange={setIsDropdownOpen}
             />
           )}
 

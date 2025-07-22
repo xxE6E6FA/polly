@@ -557,8 +557,16 @@ export function useServerChat({
   );
 
   const retryUserMessage = useCallback(
-    async (messageId: string, reasoningConfig?: ReasoningConfig) => {
-      if (!(conversationId && model && provider)) {
+    async (
+      messageId: string,
+      modelId?: string,
+      providerId?: string,
+      reasoningConfig?: ReasoningConfig
+    ) => {
+      const retryModel = modelId || model;
+      const retryProvider = providerId || provider;
+
+      if (!(conversationId && retryModel && retryProvider)) {
         return;
       }
 
@@ -567,8 +575,8 @@ export function useServerChat({
           conversationId,
           messageId: messageId as Id<"messages">,
           retryType: "user",
-          model,
-          provider,
+          model: retryModel,
+          provider: retryProvider,
           reasoningConfig: reasoningConfig
             ? {
                 enabled: reasoningConfig.enabled,
@@ -590,8 +598,16 @@ export function useServerChat({
   );
 
   const retryAssistantMessage = useCallback(
-    async (messageId: string, reasoningConfig?: ReasoningConfig) => {
-      if (!(conversationId && model && provider)) {
+    async (
+      messageId: string,
+      modelId?: string,
+      providerId?: string,
+      reasoningConfig?: ReasoningConfig
+    ) => {
+      const retryModel = modelId || model;
+      const retryProvider = providerId || provider;
+
+      if (!(conversationId && retryModel && retryProvider)) {
         return;
       }
 
@@ -600,8 +616,8 @@ export function useServerChat({
           conversationId,
           messageId: messageId as Id<"messages">,
           retryType: "assistant",
-          model,
-          provider,
+          model: retryModel,
+          provider: retryProvider,
           reasoningConfig: reasoningConfig
             ? {
                 enabled: reasoningConfig.enabled,

@@ -14,7 +14,7 @@ type UserBubbleProps = {
   isDeleting: boolean;
   copyToClipboard: () => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
-  onRetryMessage?: () => void;
+  onRetryMessage?: (modelId?: string, provider?: string) => void;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
 };
