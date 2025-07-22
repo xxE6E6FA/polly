@@ -1,9 +1,10 @@
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
-import { hasMandatoryReasoning } from "./lib/model_capabilities_config";
-
-// OpenAI API Types - Public API structure
+import {
+  hasMandatoryReasoning,
+  supportsReasoning,
+} from "./lib/model_capabilities_config";
 
 type OpenAIModel = {
   id: string;
@@ -21,8 +22,6 @@ type OpenAIApiResponse = {
   object: "list";
   data: OpenAIModel[];
 };
-
-// OpenAI Models
 
 async function fetchOpenAIModels(apiKey: string) {
   try {
@@ -185,11 +184,13 @@ async function fetchAnthropicModels(apiKey: string) {
         const modelId = model.id;
         const displayName = model.display_name || model.id;
 
-        // Conservative capability defaults - Anthropic API doesn't provide capability details
         const supportsImages = true; // All modern Claude models support images
         const supportsTools = true; // All modern Claude models support tools
         const supportsFiles = true; // All modern Claude models support files
-        const supportsReasoning = hasMandatoryReasoning("anthropic", modelId); // Use shared reasoning detection
+        const supportsReasoningCapability = supportsReasoning(
+          "anthropic",
+          modelId
+        );
 
         const contextWindow = getAnthropicContextWindow(modelId);
 
@@ -198,7 +199,7 @@ async function fetchAnthropicModels(apiKey: string) {
           name: displayName,
           provider: "anthropic",
           contextWindow,
-          supportsReasoning,
+          supportsReasoning: supportsReasoningCapability,
           supportsTools,
           supportsImages,
           supportsFiles,

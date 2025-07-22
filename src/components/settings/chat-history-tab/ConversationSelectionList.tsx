@@ -4,7 +4,6 @@ import {
   ArchiveIcon,
   CheckIcon,
   DownloadIcon,
-  MagnifyingGlassIcon,
   PushPinIcon,
 } from "@phosphor-icons/react";
 import type { PaginatedQueryReference } from "convex/react";
@@ -15,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { CACHE_KEYS, del } from "@/lib/local-storage";

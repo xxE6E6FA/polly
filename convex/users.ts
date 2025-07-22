@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 
 export const current = query({
   args: {},
@@ -116,5 +116,12 @@ export const patch = mutation({
   handler: (ctx, args) => {
     const patch: Record<string, unknown> = { ...args.updates };
     return ctx.db.patch(args.id, patch);
+  },
+});
+
+export const internalGetById = internalQuery({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
   },
 });

@@ -1,7 +1,7 @@
 import { UploadIcon } from "@phosphor-icons/react";
 import { api } from "convex/_generated/api";
 import { useMutation } from "convex/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";

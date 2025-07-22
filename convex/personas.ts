@@ -192,16 +192,11 @@ export const listForExport = query({
   },
 });
 
+import { personaImportSchema } from "./lib/schemas";
+
 export const importPersonas = mutation({
   args: {
-    personas: v.array(
-      v.object({
-        name: v.string(),
-        description: v.string(),
-        prompt: v.string(),
-        icon: v.optional(v.string()),
-      })
-    ),
+    personas: v.array(personaImportSchema),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

@@ -45,19 +45,10 @@ export type ExportConversation = {
   }>;
 };
 
-// Export manifest schema for lightweight storage
-const exportManifestSchema = v.object({
-  totalConversations: v.number(),
-  totalMessages: v.number(),
-  conversationDateRange: v.object({
-    earliest: v.number(),
-    latest: v.number(),
-  }),
-  conversationTitles: v.array(v.string()),
-  includeAttachments: v.boolean(),
-  fileSizeBytes: v.optional(v.number()),
-  version: v.string(),
-});
+import {
+  backgroundJobManifestSchema,
+  backgroundJobResultSchema,
+} from "./lib/schemas";
 
 // Create a new background job with enhanced metadata
 export const create = mutation({
@@ -232,7 +223,7 @@ export const updateProgress = mutation({
 export const saveExportResult = mutation({
   args: {
     jobId: v.string(),
-    manifest: exportManifestSchema,
+    manifest: backgroundJobManifestSchema,
     fileStorageId: v.id("_storage"),
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
@@ -260,12 +251,7 @@ export const saveExportResult = mutation({
 export const saveImportResult = mutation({
   args: {
     jobId: v.string(),
-    result: v.object({
-      totalImported: v.number(),
-      totalProcessed: v.number(),
-      errors: v.array(v.string()),
-      conversationIds: v.optional(v.array(v.string())),
-    }),
+    result: backgroundJobResultSchema,
     status: v.union(v.literal("completed"), v.literal("failed")),
   },
   handler: async (ctx, args) => {

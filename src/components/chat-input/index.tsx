@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import {
   forwardRef,
   useCallback,
@@ -39,11 +39,13 @@ interface ChatInputProps {
   ) => void;
   onSendAsNewConversation?: (
     content: string,
-    navigate: boolean,
+    shouldNavigate: boolean,
     attachments?: Attachment[],
+    contextSummary?: string,
+    sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig
-  ) => void;
+  ) => Promise<ConversationId | undefined>;
   conversationId?: ConversationId;
   hasExistingMessages?: boolean;
   isLoading?: boolean;
@@ -95,6 +97,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
       return get(CACHE_KEYS.selectedModel, null);
     }, [selectedModelRaw]);
+    const _generateSummaryAction = useAction(
+      api.conversationSummary.generateConversationSummary
+    );
     const shouldUsePreservedState = !(conversationId || hasExistingMessages);
     const [input, setInputState] = useState(() =>
       shouldUsePreservedState ? chatInputState.input : ""
@@ -307,7 +312,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     const handleSendAsNewConversation = useCallback(
       async (
-        navigate: boolean,
+        shouldNavigate = true,
         personaId?: Id<"personas"> | null,
         reasoningConfig?: ReasoningConfig
       ) => {
@@ -315,23 +320,56 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           const currentInput = textareaRef.current?.value || "";
 
           try {
+            // Generate summary if we have a current conversation
+            let contextSummary: string | undefined;
+            if (conversationId) {
+              try {
+                contextSummary = await _generateSummaryAction({
+                  conversationId,
+                  maxTokens: 150,
+                });
+              } catch (error) {
+                console.error("Failed to generate summary:", error);
+              }
+            }
+
             // Upload attachments to Convex storage if not in private mode
             const processedAttachments =
               await uploadAttachmentsToConvex(attachments);
 
-            await onSendAsNewConversation(
+            const newConversationId = await onSendAsNewConversation(
               currentInput,
-              navigate,
+              shouldNavigate,
               processedAttachments,
+              contextSummary,
+              conversationId,
               personaId,
               reasoningConfig
             );
+
+            if (newConversationId) {
+              setInput("");
+              setAttachments([]);
+              if (shouldUsePreservedState) {
+                clearChatInputState();
+              }
+            }
           } catch (error) {
             console.error("Failed to send as new conversation:", error);
           }
         }
       },
-      [onSendAsNewConversation, attachments, uploadAttachmentsToConvex]
+      [
+        onSendAsNewConversation,
+        attachments,
+        uploadAttachmentsToConvex,
+        conversationId,
+        _generateSummaryAction,
+        setInput,
+        setAttachments,
+        shouldUsePreservedState,
+        clearChatInputState,
+      ]
     );
 
     useImperativeHandle(
@@ -354,6 +392,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       return null;
     }
 
+    let chatInputStateClass: string;
+    if (!canSend) {
+      chatInputStateClass = "chat-input-disabled";
+    } else if (isPrivateMode) {
+      chatInputStateClass = "chat-input-private";
+    } else {
+      chatInputStateClass = "chat-input-enabled";
+    }
+
     return (
       <div
         className={cn(
@@ -366,12 +413,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
           <div
             className={cn(
-              "rounded-xl p-2 sm:p-2.5 transition-all duration-700",
-              canSend
-                ? isPrivateMode
-                  ? "border-2 border-purple-500/60 bg-gradient-to-br from-purple-50/80 via-purple-25/50 to-amber-50/30 dark:from-purple-950/25 dark:via-purple-900/15 dark:to-amber-950/10"
-                  : "border border-border bg-background"
-                : "border border-border bg-muted/50 dark:bg-muted/30 opacity-75"
+              "chat-input-container rounded-xl p-2 sm:p-2.5 transition-all duration-700",
+              chatInputStateClass
             )}
           >
             <AttachmentDisplay

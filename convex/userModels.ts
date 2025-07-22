@@ -139,24 +139,12 @@ export const hasUserModels = query({
   },
 });
 
+import { userModelSchema } from "./lib/schemas";
+
 export const toggleModel = mutation({
   args: {
     modelId: v.string(),
-    modelData: v.optional(
-      v.object({
-        modelId: v.string(),
-        name: v.string(),
-        provider: v.string(),
-        contextLength: v.number(),
-        maxOutputTokens: v.optional(v.number()),
-        supportsImages: v.boolean(),
-        supportsTools: v.boolean(),
-        supportsReasoning: v.boolean(),
-        supportsFiles: v.optional(v.boolean()),
-        inputModalities: v.optional(v.array(v.string())),
-        free: v.optional(v.boolean()),
-      })
-    ),
+    modelData: v.optional(userModelSchema),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

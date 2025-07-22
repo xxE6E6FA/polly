@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { supportsReasoning } from "@shared/model-capabilities-config";
 import { ANTHROPIC_BUDGET_MAP } from "@shared/reasoning-config";
 import type { AnthropicStreamOptions } from "@/types";
 import {
@@ -113,8 +114,7 @@ export class AnthropicClient {
    * Check if a model supports native reasoning
    */
   static supportsNativeReasoning(model: string): boolean {
-    // Models that support thinking/reasoning via native API
-    const reasoningPatterns = ["opus-4", "sonnet-4", "3-7"];
-    return reasoningPatterns.some(pattern => model.includes(pattern));
+    // Use shared reasoning detection for consistency
+    return supportsReasoning("anthropic", model);
   }
 }

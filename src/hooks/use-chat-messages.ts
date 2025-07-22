@@ -112,19 +112,20 @@ export function useChatMessages({
         ? convexMessages.page
         : [];
 
-    const streamingMessage = messagesArray.find(
-      (msg: Record<string, unknown>) => {
-        const metadata = isMessageMetadata(msg.metadata) ? msg.metadata : null;
-        return (
-          msg.role === "assistant" &&
-          !metadata?.finishReason &&
-          !metadata?.stopped
-        );
-      }
-    );
+    const streamingMessage = messagesArray.find(msg => {
+      const message = msg as Doc<"messages">;
+      const metadata = isMessageMetadata(message.metadata)
+        ? message.metadata
+        : null;
+      return (
+        message.role === "assistant" &&
+        !metadata?.finishReason &&
+        !metadata?.stopped
+      );
+    });
 
     return streamingMessage
-      ? { id: streamingMessage._id, isStreaming: true }
+      ? { id: (streamingMessage as Doc<"messages">)._id, isStreaming: true }
       : null;
   }, [convexMessages]);
 
@@ -221,19 +222,20 @@ export function useChatMessages({
           ? convexMessages.page
           : [];
 
-      const message = messagesArray.find(
-        (m: Record<string, unknown>) => m._id === messageId
-      );
+      const message = messagesArray.find(m => m._id === messageId);
 
       if (!message) {
         return false;
       }
 
-      const metadata = isMessageMetadata(message.metadata)
-        ? message.metadata
+      const messageData = message as Doc<"messages">;
+      const metadata = isMessageMetadata(messageData.metadata)
+        ? messageData.metadata
         : null;
       return (
-        message?.role === "assistant" && !metadata?.finishReason && isGenerating
+        messageData?.role === "assistant" &&
+        !metadata?.finishReason &&
+        isGenerating
       );
     },
     [convexMessages, streamingMessageInfo]

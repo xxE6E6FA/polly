@@ -3,15 +3,23 @@ import {
   isPollyModel,
   MESSAGE_BATCH_SIZE,
   MONTHLY_MESSAGE_LIMIT,
+  mapPollyModelToProvider,
 } from "@shared/constants";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action, mutation, query } from "./_generated/server";
+import {
+  action,
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 
 import type { MessageDoc } from "./lib/conversation_utils";
 import {
   buildContextMessages,
+  checkConversationAccess,
   deleteMessagesAfterIndex,
   ensureStreamingCleared,
   executeStreamingAction,
@@ -28,12 +36,16 @@ import {
 import {
   attachmentSchema,
   attachmentWithMimeTypeSchema,
+  extendedMessageMetadataSchema,
+  messageRoleSchema,
+  modelProviderArgs,
+  providerSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
 import type { Citation } from "./types";
 
-export const create = mutation({
+export const createConversation = mutation({
   args: {
     title: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
@@ -42,7 +54,7 @@ export const create = mutation({
     attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     model: v.optional(v.string()),
-    provider: v.optional(v.string()),
+    provider: v.optional(providerSchema),
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
@@ -113,31 +125,6 @@ export const create = mutation({
       createdAt: Date.now(),
     });
 
-    // Start streaming assistant response if model and provider are provided
-    if (args.model && args.provider) {
-      // Execute streaming action in the background
-      // The action will build context messages from the stored messages, including attachments
-      await ctx.scheduler.runAfter(0, api.ai.streamResponse, {
-        messages: [
-          { role: "system" as const, content: "" }, // Placeholder - will be replaced by action
-          { role: "user" as const, content: "" }, // Placeholder - will be replaced by action
-        ],
-        messageId: assistantMessageId,
-        model: args.model,
-        provider: args.provider,
-        temperature: 0.7,
-        maxTokens: 8192,
-        enableWebSearch: args.useWebSearch,
-        webSearchMaxResults: 5,
-        reasoningConfig: args.reasoningConfig?.enabled
-          ? {
-              effort: args.reasoningConfig.effort,
-              maxTokens: args.reasoningConfig.maxTokens,
-            }
-          : undefined,
-      });
-    }
-
     // Schedule title generation in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       await ctx.scheduler.runAfter(
@@ -159,27 +146,95 @@ export const create = mutation({
   },
 });
 
+export const startStreaming = action({
+  args: {
+    conversationId: v.id("conversations"),
+    assistantMessageId: v.id("messages"),
+    model: v.string(),
+    provider: providerSchema,
+    temperature: v.optional(v.number()),
+    maxTokens: v.optional(v.number()),
+    enableWebSearch: v.optional(v.boolean()),
+    webSearchMaxResults: v.optional(v.number()),
+    reasoningConfig: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        effort: v.union(
+          v.literal("low"),
+          v.literal("medium"),
+          v.literal("high")
+        ),
+        maxTokens: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    // Verify conversation exists and user has access
+    const conversation = await ctx.runQuery(api.conversations.get, {
+      id: args.conversationId,
+    });
+
+    if (!conversation) {
+      throw new Error("Conversation not found or access denied");
+    }
+
+    // Get user ID for authentication context
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    // Verify user owns the conversation
+    if (conversation.userId !== userId) {
+      throw new Error("Access denied to conversation");
+    }
+
+    // Get the message to verify it exists and belongs to the conversation
+    const message = await ctx.runQuery(api.messages.getById, {
+      id: args.assistantMessageId,
+    });
+
+    if (!message || message.conversationId !== args.conversationId) {
+      throw new Error("Message not found or does not belong to conversation");
+    }
+
+    // Start streaming immediately with proper authentication context
+    await ctx.runAction(api.ai.streamResponse, {
+      messages: [
+        { role: "system" as const, content: "" }, // Will be replaced by action
+        { role: "user" as const, content: "" }, // Will be replaced by action
+      ],
+      messageId: args.assistantMessageId,
+      model: args.model,
+      provider: args.provider,
+      temperature: args.temperature ?? 0.7,
+      maxTokens: args.maxTokens ?? 8192,
+      enableWebSearch: args.enableWebSearch,
+      webSearchMaxResults: args.webSearchMaxResults ?? 5,
+      reasoningConfig: args.reasoningConfig?.enabled
+        ? {
+            effort: args.reasoningConfig.effort,
+            maxTokens: args.reasoningConfig.maxTokens,
+          }
+        : undefined,
+      conversationId: args.conversationId, // Pass conversation ID for authentication context
+    });
+  },
+});
+
 export const savePrivateConversation = action({
   args: {
     messages: v.array(
       v.object({
-        role: v.string(),
+        role: messageRoleSchema,
         content: v.string(),
         createdAt: v.number(),
         model: v.optional(v.string()),
-        provider: v.optional(v.string()),
+        provider: v.optional(providerSchema),
         reasoning: v.optional(v.string()),
         attachments: v.optional(v.array(attachmentWithMimeTypeSchema)),
         citations: v.optional(v.array(webCitationSchema)),
-        metadata: v.optional(
-          v.object({
-            tokenCount: v.optional(v.number()),
-            reasoningTokenCount: v.optional(v.number()),
-            finishReason: v.optional(v.string()),
-            duration: v.optional(v.number()),
-            stopped: v.optional(v.boolean()),
-          })
-        ),
+        metadata: v.optional(extendedMessageMetadataSchema),
       })
     ),
     title: v.optional(v.string()),
@@ -187,9 +242,13 @@ export const savePrivateConversation = action({
   },
   handler: async (ctx, args): Promise<Id<"conversations">> => {
     // Get authenticated user - this is the correct pattern for actions
-    const user = await ctx.runQuery(api.users.current);
-    if (!user) {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
       throw new Error("User not authenticated");
+    }
+    const user = await ctx.runQuery(api.users.getById, { id: userId });
+    if (!user) {
+      throw new Error("User not found");
     }
 
     // Block anonymous users from saving private conversations
@@ -200,11 +259,14 @@ export const savePrivateConversation = action({
     const conversationTitle = args.title || "New conversation";
 
     // Create the conversation
-    const createResult = await ctx.runMutation(api.conversations.create, {
-      title: conversationTitle,
-      personaId: args.personaId,
-      firstMessage: "", // No initial message, all messages are added below
-    });
+    const createResult = await ctx.runMutation(
+      api.conversations.createConversation,
+      {
+        title: conversationTitle,
+        personaId: args.personaId,
+        firstMessage: "", // No initial message, all messages are added below
+      }
+    );
     const conversationId = createResult.conversationId;
 
     // Extract model/provider from the first user message for stats tracking
@@ -390,8 +452,12 @@ export const search = query({
 export const get = query({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {
-    const conversation = await ctx.db.get(args.id);
-    if (!conversation) {
+    const { hasAccess, conversation } = await checkConversationAccess(
+      ctx,
+      args.id,
+      true
+    );
+    if (!hasAccess) {
       return null;
     }
     return conversation;
@@ -406,9 +472,13 @@ export const getForExport = query({
   handler: async (ctx, args) => {
     try {
       const conversationId = args.id as Id<"conversations">;
-      const conversation = await ctx.db.get(conversationId);
+      const { hasAccess, conversation } = await checkConversationAccess(
+        ctx,
+        conversationId,
+        true
+      );
 
-      if (!conversation) {
+      if (!(hasAccess && conversation)) {
         return null;
       }
 
@@ -457,7 +527,13 @@ export const patch = mutation({
     updates: v.any(),
     setUpdatedAt: v.optional(v.boolean()),
   },
-  handler: (ctx, args) => {
+  handler: async (ctx, args) => {
+    // Check access to the conversation (no shared access for mutations)
+    const { hasAccess } = await checkConversationAccess(ctx, args.id, false);
+    if (!hasAccess) {
+      throw new Error("Access denied");
+    }
+
     const patch: Record<string, unknown> = { ...args.updates };
     if (args.setUpdatedAt) {
       patch.updatedAt = Date.now();
@@ -466,13 +542,125 @@ export const patch = mutation({
   },
 });
 
+// Internal mutation for system operations like title generation
+export const internalPatch = internalMutation({
+  args: {
+    id: v.id("conversations"),
+    updates: v.any(),
+    setUpdatedAt: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const patch: Record<string, unknown> = { ...args.updates };
+    if (args.setUpdatedAt) {
+      patch.updatedAt = Date.now();
+    }
+    await ctx.db.patch(args.id, patch);
+  },
+});
+
+export const internalGet = internalQuery({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+export const createWithUserId = internalMutation({
+  args: {
+    title: v.optional(v.string()),
+    userId: v.id("users"),
+    personaId: v.optional(v.id("personas")),
+    sourceConversationId: v.optional(v.id("conversations")),
+    firstMessage: v.string(),
+    attachments: v.optional(v.array(attachmentSchema)),
+    useWebSearch: v.optional(v.boolean()),
+    model: v.optional(v.string()),
+    provider: v.optional(providerSchema),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Create conversation
+    const conversationId = await ctx.db.insert("conversations", {
+      title: args.title || "New Conversation",
+      userId: args.userId,
+      personaId: args.personaId,
+      sourceConversationId: args.sourceConversationId,
+      isStreaming: true,
+      isArchived: false,
+      isPinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.patch(args.userId, {
+      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
+    });
+
+    // Create user message
+    const userMessageId = await ctx.db.insert("messages", {
+      conversationId,
+      role: "user",
+      content: args.firstMessage,
+      attachments: args.attachments,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+      isMainBranch: true,
+      createdAt: Date.now(),
+    });
+
+    // Only increment stats if this is a new conversation with a first message
+    if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      await incrementUserMessageStats(ctx, args.provider);
+    }
+
+    // Create empty assistant message for streaming
+    const assistantMessageId = await ctx.db.insert("messages", {
+      conversationId,
+      role: "assistant",
+      content: "",
+      model: args.model,
+      provider: args.provider,
+      isMainBranch: true,
+      createdAt: Date.now(),
+    });
+
+    // Schedule title generation in the background
+    if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      await ctx.scheduler.runAfter(
+        100,
+        api.titleGeneration.generateTitleBackground,
+        {
+          conversationId,
+          message: args.firstMessage,
+        }
+      );
+    }
+
+    return {
+      conversationId,
+      userMessageId,
+      assistantMessageId,
+      user,
+    };
+  },
+});
+
 export const remove = mutation({
   args: { id: v.id("conversations") },
   handler: async (ctx, args) => {
-    // Get conversation to find userId for cache invalidation
-    const conversation = await ctx.db.get(args.id);
-    if (!conversation) {
-      throw new Error("Conversation not found");
+    // Check access to the conversation (no shared access for mutations)
+    const { hasAccess, conversation } = await checkConversationAccess(
+      ctx,
+      args.id,
+      false
+    );
+    if (!(hasAccess && conversation)) {
+      throw new Error("Access denied");
     }
 
     // First, ensure streaming is stopped for this conversation
@@ -507,8 +695,8 @@ export const remove = mutation({
     const result = await ctx.db.delete(args.id);
 
     // Use atomic decrement for conversation count
-    const user = await ctx.db.get(conversation.userId);
-    if (user) {
+    const user = await ctx.db.get(conversation?.userId);
+    if (user && "conversationCount" in user) {
       await ctx.db.patch(user._id, {
         conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
       });
@@ -527,10 +715,14 @@ export const bulkRemove = mutation({
     if (args.ids.length <= SYNC_THRESHOLD) {
       const results = [];
       for (const id of args.ids) {
-        // Get conversation to find userId for cache invalidation
-        const conversation = await ctx.db.get(id);
-        if (!conversation) {
-          results.push({ id, status: "not_found" });
+        // Check access to the conversation (no shared access for mutations)
+        const { hasAccess, conversation } = await checkConversationAccess(
+          ctx,
+          id,
+          false
+        );
+        if (!(hasAccess && conversation)) {
+          results.push({ id, status: "access_denied" });
           continue;
         }
 
@@ -567,8 +759,8 @@ export const bulkRemove = mutation({
 
         // Use atomic decrement for conversation count
         // Note: Message count is already decremented in messages.removeMultiple
-        const user = await ctx.db.get(conversation.userId);
-        if (user) {
+        const user = await ctx.db.get(conversation?.userId);
+        if (user && "conversationCount" in user) {
           await ctx.db.patch(user._id, {
             conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
           });
@@ -778,8 +970,7 @@ export const sendFollowUpMessage = action({
     content: v.string(),
     attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
-    model: v.string(),
-    provider: v.string(),
+    ...modelProviderArgs,
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
@@ -852,8 +1043,7 @@ export const retryFromMessage = action({
     conversationId: v.id("conversations"),
     messageId: v.id("messages"),
     retryType: v.union(v.literal("user"), v.literal("assistant")),
-    model: v.string(),
-    provider: v.string(),
+    ...modelProviderArgs,
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
@@ -945,8 +1135,7 @@ export const editMessage = action({
     conversationId: v.id("conversations"),
     messageId: v.id("messages"),
     newContent: v.string(),
-    model: v.string(),
-    provider: v.string(),
+    ...modelProviderArgs,
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
@@ -1147,5 +1336,133 @@ export const incrementUserMessageStatsAction = action({
   },
   handler: async (ctx, args) => {
     await incrementUserMessageStats(ctx, args.provider);
+  },
+});
+
+export const createBranchingConversation = action({
+  args: {
+    userId: v.optional(v.id("users")),
+    firstMessage: v.string(),
+    sourceConversationId: v.optional(v.id("conversations")),
+    personaId: v.optional(v.id("personas")),
+    personaPrompt: v.optional(v.string()),
+    attachments: v.optional(v.array(attachmentSchema)),
+    useWebSearch: v.optional(v.boolean()),
+    generateTitle: v.optional(v.boolean()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    contextSummary: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    conversationId: Id<"conversations">;
+    userId: Id<"users">;
+    isNewUser: boolean;
+  }> => {
+    // Get authenticated user ID first
+    let authenticatedUserId: Id<"users"> | null = null;
+    try {
+      authenticatedUserId = await getAuthUserId(ctx);
+    } catch (error) {
+      console.warn("Failed to get authenticated user:", error);
+    }
+
+    // Create user if needed or use provided user ID
+    let actualUserId: Id<"users">;
+    let isNewUser = false;
+
+    if (args.userId) {
+      // Use provided user ID (for background jobs or specific user creation)
+      actualUserId = args.userId;
+    } else if (authenticatedUserId) {
+      // Use authenticated user ID
+      actualUserId = authenticatedUserId;
+    } else {
+      // Create anonymous user as fallback
+      actualUserId = await ctx.runMutation(api.users.createAnonymous);
+      isNewUser = true;
+    }
+
+    // Get user's selected model
+    const selectedModel = await ctx.runQuery(
+      api.userModels.getUserSelectedModel
+    );
+    if (!selectedModel) {
+      throw new Error("No model selected. Please select a model in Settings.");
+    }
+
+    // Check if it's a Polly free model and enforce limits
+    const isPollyModelResult = isPollyModel(selectedModel.provider);
+    const user = await ctx.runQuery(api.users.getById, { id: actualUserId });
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (isPollyModelResult && !user.hasUnlimitedCalls) {
+      const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+      const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+      if (monthlyMessagesSent >= monthlyLimit) {
+        throw new Error("Monthly Polly model message limit reached.");
+      }
+    }
+
+    // Fetch persona prompt if personaId is provided but personaPrompt is not
+    let finalPersonaPrompt = args.personaPrompt;
+    if (args.personaId && !finalPersonaPrompt) {
+      const persona = await ctx.runQuery(api.personas.get, {
+        id: args.personaId,
+      });
+      finalPersonaPrompt = persona?.prompt ?? undefined;
+    }
+
+    // Map polly provider to actual provider
+    let actualProvider = selectedModel.provider as
+      | "openai"
+      | "anthropic"
+      | "google"
+      | "openrouter";
+
+    if (selectedModel.provider === "polly") {
+      actualProvider = mapPollyModelToProvider(selectedModel.modelId) as
+        | "openai"
+        | "anthropic"
+        | "google"
+        | "openrouter";
+    }
+
+    // Create conversation using internal mutation
+    const createResult = await ctx.runMutation(
+      internal.conversations.createWithUserId,
+      {
+        title: "New conversation",
+        userId: actualUserId,
+        personaId: args.personaId,
+        sourceConversationId: args.sourceConversationId,
+        firstMessage: args.firstMessage,
+        attachments: args.attachments,
+        useWebSearch: args.useWebSearch,
+        model: selectedModel.modelId,
+        provider: actualProvider,
+        reasoningConfig: args.reasoningConfig,
+      }
+    );
+
+    // Create context message if contextSummary is provided
+    if (args.sourceConversationId && args.contextSummary) {
+      await ctx.runMutation(api.messages.create, {
+        conversationId: createResult.conversationId,
+        role: "context",
+        content: `Context from previous conversation: ${args.contextSummary}`,
+        sourceConversationId: args.sourceConversationId,
+        isMainBranch: true,
+      });
+    }
+
+    return {
+      conversationId: createResult.conversationId,
+      userId: actualUserId,
+      isNewUser,
+    };
   },
 });

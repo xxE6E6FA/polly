@@ -6,7 +6,7 @@ import {
   PaperPlaneTiltIcon,
   SquareIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import {
   DropdownMenu,
@@ -67,6 +67,22 @@ export const SendButtonGroup = ({
     !isStreaming &&
     hasInputText;
 
+  const getButtonTitle = () => {
+    if (isStreaming) {
+      return "Stop generation";
+    }
+    if (hasApiKeys === false) {
+      return "Configure API keys to start chatting";
+    }
+    if (hasEnabledModels === false) {
+      return "Enable models in settings to start chatting";
+    }
+    if (canSend) {
+      return "Send message";
+    }
+    return undefined;
+  };
+
   useEffect(() => {
     const shouldExpand = canSend && shouldShowDropdown;
 
@@ -90,6 +106,42 @@ export const SendButtonGroup = ({
     }
   }, [canSend, shouldShowDropdown, isExpanded, hasBeenEnabled]);
 
+  const renderButtonContent = useMemo(() => {
+    if (isStreaming) {
+      return (
+        <SquareIcon
+          weight="fill"
+          className={cn("h-3 w-3 fill-current", "text-white")}
+        />
+      );
+    }
+
+    if (isLoading || isSummarizing) {
+      return <Spinner size="sm" variant="white" className="h-3 w-3" />;
+    }
+
+    return (
+      <PaperPlaneTiltIcon
+        className={cn(
+          "h-3.5 w-3.5",
+          canSend
+            ? "text-primary-foreground"
+            : "text-primary dark:text-primary/70"
+        )}
+      />
+    );
+  }, [isStreaming, isLoading, isSummarizing, canSend]);
+
+  const dropdownMenuTriggerAnimationClasses = useMemo(() => {
+    if (isExpanded && !isCollapsing) {
+      return "opacity-100 scale-100 duration-500 delay-100 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]";
+    }
+    if (isCollapsing) {
+      return "opacity-0 scale-90 duration-200 ease-out";
+    }
+    return "opacity-0 scale-75 duration-300 ease-out";
+  }, [isExpanded, isCollapsing]);
+
   return (
     <div className="relative">
       <div
@@ -98,8 +150,8 @@ export const SendButtonGroup = ({
           "h-8",
           "transition-all",
           isCollapsing
-            ? "ease-&lsqb;cubic-bezier(0.5,0,0.75,0)&rsqb;"
-            : "ease-&lsqb;cubic-bezier(0.34,1.56,0.64,1)&rsqb;",
+            ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
+            : "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
           isExpanded
             ? "w-[64px] rounded-full duration-500"
             : "w-8 rounded-full duration-300",
@@ -137,11 +189,7 @@ export const SendButtonGroup = ({
                   "w-8",
                   "inline-flex items-center justify-center",
                   "transition-all",
-                  isExpanded && !isCollapsing
-                    ? "opacity-100 scale-100 duration-500 delay-100 ease-&lsqb;cubic-bezier(0.68,-0.55,0.265,1.55)&rsqb;"
-                    : isCollapsing
-                      ? "opacity-0 scale-90 duration-200 ease-out"
-                      : "opacity-0 scale-75 duration-300 ease-out",
+                  dropdownMenuTriggerAnimationClasses,
                   !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
                   "disabled:cursor-not-allowed",
                   "focus:outline-none"
@@ -235,55 +283,10 @@ export const SendButtonGroup = ({
             canSend && "hover:bg-black/5 dark:hover:bg-white/5",
             "transition-colors duration-200"
           )}
-          title={
-            isStreaming
-              ? "Stop generation"
-              : hasApiKeys === false
-                ? "Configure API keys to start chatting"
-                : hasEnabledModels === false
-                  ? "Enable models in settings to start chatting"
-                  : canSend
-                    ? "Send message"
-                    : undefined
-          }
+          title={getButtonTitle()}
           onClick={isStreaming ? onStop : onSend}
         >
-          <div
-            className={cn(
-              "flex items-center justify-center",
-              "transition-all",
-              isCollapsing || !canSend
-                ? "ease-out duration-300"
-                : "ease-&lsqb;cubic-bezier(0.34,1.56,0.64,1)&rsqb; duration-500",
-              canSend && !isCollapsing
-                ? "scale-100 rotate-0"
-                : "scale-90 rotate-0"
-            )}
-            style={{
-              animation:
-                hasBeenEnabled && canSend && !isCollapsing
-                  ? "icon-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)"
-                  : undefined,
-            }}
-          >
-            {isStreaming ? (
-              <SquareIcon
-                weight="fill"
-                className={cn("h-3 w-3 fill-current", "text-white")}
-              />
-            ) : isLoading || isSummarizing ? (
-              <Spinner size="sm" variant="white" className="h-3 w-3" />
-            ) : (
-              <PaperPlaneTiltIcon
-                className={cn(
-                  "h-3.5 w-3.5",
-                  canSend
-                    ? "text-primary-foreground"
-                    : "text-primary dark:text-primary/70"
-                )}
-              />
-            )}
-          </div>
+          {renderButtonContent}
         </button>
       </div>
     </div>

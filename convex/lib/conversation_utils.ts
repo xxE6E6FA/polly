@@ -1,6 +1,10 @@
 import { api } from "../_generated/api";
-import { type Id } from "../_generated/dataModel";
-import { type ActionCtx, type MutationCtx } from "../_generated/server";
+import { type Doc, type Id } from "../_generated/dataModel";
+import {
+  type ActionCtx,
+  type MutationCtx,
+  type QueryCtx,
+} from "../_generated/server";
 import { getDefaultSystemPrompt } from "../constants";
 import { ConvexError } from "convex/values";
 import {
@@ -11,9 +15,13 @@ import {
 } from "@shared/constants";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
-import { action } from "../_generated/server";
-import { v } from "convex/values";
+
 import { isPollyModel } from "@shared/constants";
+import { Infer } from "convex/values";
+import { conversationCreationSchema, messageCreationSchema } from "./schemas";
+
+// Infer the type from the schema
+export type CreateMessageArgs = Infer<typeof messageCreationSchema>;
 
 export type StreamingActionResult = {
   userMessageId?: Id<"messages">;
@@ -196,7 +204,10 @@ export const buildUserMessageContent = async (
     contentParts.push({ type: "text", text: content });
   } else {
     // If no text content but we have attachments, add a minimal placeholder
-    contentParts.push({ type: "text", text: "Please analyze the attached files." });
+    contentParts.push({
+      type: "text",
+      text: "Please analyze the attached files.",
+    });
   }
 
   for (const attachment of attachments) {
@@ -346,13 +357,28 @@ export async function getPersonaPrompt(
 
 // DRY Helper: Create a message (works for both ActionCtx and MutationCtx)
 export async function createMessage(
-  ctx: { db: any },
-  fields: Record<string, any>,
+  ctx: { db: MutationCtx["db"] },
+  fields: CreateMessageArgs,
 ) {
   return await ctx.db.insert("messages", {
     ...fields,
     isMainBranch: fields.isMainBranch !== false, // default true
     createdAt: fields.createdAt ?? Date.now(),
+  });
+}
+
+// Infer the type from the schema
+export type CreateConversationArgs = Infer<typeof conversationCreationSchema>;
+
+// DRY Helper: Create a conversation (works for both ActionCtx and MutationCtx)
+export async function createConversation(
+  ctx: { db: MutationCtx["db"] },
+  fields: CreateConversationArgs,
+) {
+  return await ctx.db.insert("conversations", {
+    ...fields,
+    createdAt: fields.createdAt ?? Date.now(),
+    updatedAt: fields.updatedAt ?? Date.now(),
   });
 }
 
@@ -532,7 +558,7 @@ export const processAttachmentsForStorage = async (
         const { mimeType, ...rest } = attachment;
         return { ...rest, content: undefined };
       }
-      
+
       const needsUpload =
         (attachment.type === "image" || attachment.type === "pdf") &&
         (attachment.url.startsWith("data:") || attachment.content);
@@ -611,50 +637,59 @@ export const buildContextMessages = async (
     : undefined;
   const messagesWithResolvedUrls = await Promise.all(
     relevantMessages.map(async (msg) => {
-      if (msg.attachments && msg.attachments.length > 0) {
+      const message = msg as Doc<"messages">;
+      if (message.attachments && message.attachments.length > 0) {
         const resolvedAttachments = await resolveAttachmentUrls(
           ctx,
-          msg.attachments,
+          message.attachments,
         );
         return {
-          ...msg,
+          ...message,
           attachments: resolvedAttachments,
         };
       }
-      return msg;
+      return message;
     }),
   );
   const contextMessagesPromises = messagesWithResolvedUrls
-    .filter((msg) => msg.role !== "context" && msg.content && msg.content.trim().length > 0)
+    .filter((msg) => {
+      const message = msg as Doc<"messages">;
+      return (
+        message.role !== "context" &&
+        message.content &&
+        message.content.trim().length > 0
+      );
+    })
     .map(async (msg) => {
-      if (msg.role === "system") {
+      const message = msg as Doc<"messages">;
+      if (message.role === "system") {
         const isCitationInstruction =
-          msg.content.includes("🚨 CRITICAL CITATION REQUIREMENTS") ||
-          msg.content.includes("SEARCH RESULTS:") ||
-          msg.content.includes("AVAILABLE SOURCES FOR CITATION:");
+          message.content.includes("🚨 CRITICAL CITATION REQUIREMENTS") ||
+          message.content.includes("SEARCH RESULTS:") ||
+          message.content.includes("AVAILABLE SOURCES FOR CITATION:");
         if (isCitationInstruction) {
           return undefined;
         }
         return {
           role: "system" as const,
-          content: msg.content,
+          content: message.content,
         };
       }
-      if (msg.role === "user") {
+      if (message.role === "user") {
         const content = await buildUserMessageContent(
           ctx,
-          msg.content,
-          msg.attachments,
+          message.content,
+          message.attachments,
         );
         return {
           role: "user" as const,
           content,
         };
       }
-      if (msg.role === "assistant") {
+      if (message.role === "assistant") {
         return {
           role: "assistant" as const,
-          content: msg.content,
+          content: message.content,
         };
       }
       return;
@@ -666,9 +701,13 @@ export const buildContextMessages = async (
 
   // Get model name from the last assistant message or use a default
   const lastAssistantMessage = relevantMessages
-    .filter((msg) => msg.role === "assistant" && msg.model)
+    .filter((msg) => {
+      const message = msg as Doc<"messages">;
+      return message.role === "assistant" && message.model;
+    })
     .pop();
-  const modelName = lastAssistantMessage?.model || "an AI model";
+  const modelName =
+    (lastAssistantMessage as Doc<"messages">)?.model || "an AI model";
 
   // Merge baseline instructions with persona prompt into a single system message
   const mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
@@ -739,6 +778,7 @@ export const setupAndStartStreaming = async (
           maxTokens: args.reasoningConfig.maxTokens,
         }
       : undefined,
+    conversationId: args.conversationId, // For background job authentication
   });
   return assistantMessageId;
 };
@@ -765,3 +805,61 @@ export const handleStreamingError = async (
   }
   throw error;
 };
+
+export async function checkConversationAccess(
+  ctx: QueryCtx | MutationCtx,
+  conversationId: Id<"conversations">,
+  allowShared: boolean = false,
+): Promise<{ hasAccess: boolean; conversation?: Doc<"conversations"> }> {
+  const userId = await getAuthUserId(ctx);
+
+  // Use direct database operations since we have QueryCtx | MutationCtx
+  const conversation = await ctx.db.get(conversationId);
+
+  if (!conversation) {
+    return { hasAccess: false };
+  }
+
+  // If no user is authenticated, only allow access to shared conversations
+  if (!userId) {
+    if (!allowShared) {
+      return { hasAccess: false };
+    }
+
+    // Check if this conversation is shared using direct database query
+    const sharedConversation = await ctx.db
+      .query("sharedConversations")
+      .withIndex("by_original_conversation", (q) =>
+        q.eq("originalConversationId", conversationId),
+      )
+      .first();
+
+    if (!sharedConversation) {
+      return { hasAccess: false };
+    }
+
+    return { hasAccess: true, conversation };
+  }
+
+  // For authenticated users, check if they own the conversation
+  if (conversation.userId !== userId) {
+    if (!allowShared) {
+      return { hasAccess: false };
+    }
+
+    const sharedConversation = await ctx.db
+      .query("sharedConversations")
+      .withIndex("by_original_conversation", (q) =>
+        q.eq("originalConversationId", conversationId),
+      )
+      .first();
+
+    if (!sharedConversation) {
+      return { hasAccess: false };
+    }
+
+    return { hasAccess: true, conversation };
+  }
+
+  return { hasAccess: true, conversation };
+}

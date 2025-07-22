@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+
 import {
   internalMutation,
   internalQuery,
@@ -7,10 +8,14 @@ import {
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
-import { incrementUserMessageStats } from "./lib/conversation_utils";
+import {
+  checkConversationAccess,
+  incrementUserMessageStats,
+} from "./lib/conversation_utils";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 import {
   attachmentSchema,
+  extendedMessageMetadataSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -29,19 +34,7 @@ export const create = mutation({
     sourceConversationId: v.optional(v.id("conversations")),
     useWebSearch: v.optional(v.boolean()),
     attachments: v.optional(v.array(attachmentSchema)),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-        searchQuery: v.optional(v.string()),
-        searchFeature: v.optional(v.string()),
-        searchCategory: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
-      })
-    ),
+    metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
     const messageId = await ctx.db.insert("messages", {
@@ -77,19 +70,7 @@ export const createUserMessageBatched = mutation({
     sourceConversationId: v.optional(v.id("conversations")),
     useWebSearch: v.optional(v.boolean()),
     attachments: v.optional(v.array(attachmentSchema)),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-        searchQuery: v.optional(v.string()),
-        searchFeature: v.optional(v.string()),
-        searchCategory: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
-      })
-    ),
+    metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
     const messageId = await ctx.db.insert("messages", {
@@ -185,6 +166,21 @@ export const update = mutation({
     patch: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.id);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    // Check access to the conversation this message belongs to (no shared access for mutations)
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied");
+    }
+
     const { id, patch, ...directUpdates } = args;
 
     const updates = patch || directUpdates;
@@ -206,20 +202,7 @@ export const internalUpdate = internalMutation({
     reasoning: v.optional(v.string()),
     // Web search citations
     citations: v.optional(v.array(webCitationSchema)),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-        searchQuery: v.optional(v.string()),
-        searchFeature: v.optional(v.string()),
-        searchCategory: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
-        webSearchCost: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -255,6 +238,21 @@ export const setBranch = mutation({
     parentId: v.optional(v.id("messages")),
   },
   handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    // Check access to the conversation this message belongs to (no shared access for mutations)
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied");
+    }
+
     if (args.parentId) {
       const siblings = await ctx.db
         .query("messages")
@@ -279,6 +277,16 @@ export const remove = mutation({
 
     if (!message) {
       return;
+    }
+
+    // Check access to the conversation this message belongs to (no shared access for mutations)
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied");
     }
 
     const operations: Promise<void>[] = [];
@@ -341,6 +349,20 @@ export const removeMultiple = mutation({
   handler: async (ctx, args) => {
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
+    // Check access for all messages before proceeding
+    for (const message of messages) {
+      if (message) {
+        const { hasAccess } = await checkConversationAccess(
+          ctx,
+          message.conversationId,
+          false
+        );
+        if (!hasAccess) {
+          throw new Error("Access denied to one or more messages");
+        }
+      }
+    }
+
     const conversationIds = new Set<Id<"conversations">>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
@@ -354,7 +376,7 @@ export const removeMultiple = mutation({
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
               const user = await ctx.db.get(conversation.userId);
-              if (user) {
+              if (user && "totalMessageCount" in user) {
                 const currentCount =
                   userMessageCounts.get(conversation.userId) || 0;
                 userMessageCounts.set(conversation.userId, currentCount + 1);
@@ -401,7 +423,7 @@ export const removeMultiple = mutation({
       operations.push(
         (async () => {
           const user = await ctx.db.get(userId);
-          if (user) {
+          if (user && "totalMessageCount" in user) {
             await ctx.db.patch(userId, {
               totalMessageCount: Math.max(
                 0,
@@ -430,13 +452,38 @@ export const removeMultiple = mutation({
 export const getById = query({
   args: { id: v.id("messages") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const message = await ctx.db.get(args.id);
+    if (!message) {
+      return null;
+    }
+
+    // Check access to the conversation this message belongs to
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      true
+    );
+    if (!hasAccess) {
+      return null;
+    }
+
+    return message;
   },
 });
 
 export const getAllInConversation = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    // Check access to the conversation
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      args.conversationId,
+      true
+    );
+    if (!hasAccess) {
+      return [];
+    }
+
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", q =>
@@ -479,20 +526,7 @@ export const internalAtomicUpdate = internalMutation({
     appendContent: v.optional(v.string()),
     appendReasoning: v.optional(v.string()),
     citations: v.optional(v.array(webCitationSchema)),
-    metadata: v.optional(
-      v.object({
-        tokenCount: v.optional(v.number()),
-        reasoningTokenCount: v.optional(v.number()),
-        finishReason: v.optional(v.string()),
-        duration: v.optional(v.number()),
-        stopped: v.optional(v.boolean()),
-        searchQuery: v.optional(v.string()),
-        searchFeature: v.optional(v.string()),
-        searchCategory: v.optional(v.string()),
-        status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
-        webSearchCost: v.optional(v.number()),
-      })
-    ),
+    metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
     const { id, appendContent, appendReasoning, ...updates } = args;

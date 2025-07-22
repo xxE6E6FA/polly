@@ -150,10 +150,10 @@ export function FileUploadButton({
       <Button
         aria-label="Upload files"
         className={cn(
-          "h-7 w-7 rounded-full p-0 shrink-0 sm:h-8 sm:w-8",
+          "h-8 w-8 rounded-full p-0 shrink-0",
           "transition-all duration-200",
-          "border border-input bg-background text-muted-foreground",
-          "hover:bg-accent hover:text-accent-foreground hover:border-accent",
+          "bg-primary text-primary-foreground",
+          "hover:bg-primary/90 hover:text-primary-foreground",
           "hover:scale-105 active:scale-95",
           "shadow-sm hover:shadow-md",
           disabled && "cursor-not-allowed opacity-50 hover:scale-100"

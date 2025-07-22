@@ -193,8 +193,13 @@ export const VirtualizedModelList = memo(
 
     const onToggleModel = useCallback(
       (model: BaseModel) => {
+        if (!authenticatedUserId) {
+          return;
+        }
+
         // Convert BaseModel to the exact format expected by the mutation validator
         const modelData = {
+          userId: authenticatedUserId,
           modelId: model.modelId,
           name: model.name,
           provider: model.provider,
@@ -206,11 +211,12 @@ export const VirtualizedModelList = memo(
           supportsFiles: model.supportsFiles ?? undefined,
           inputModalities: model.inputModalities ?? undefined,
           free: model.free ?? false,
+          createdAt: Date.now(),
         };
 
         toggleModel({ modelId: model.modelId, modelData });
       },
-      [toggleModel]
+      [toggleModel, authenticatedUserId]
     );
 
     // Calculate columns based on screen size with debounced updates

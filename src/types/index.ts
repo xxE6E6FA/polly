@@ -210,8 +210,7 @@ export type CreateConversationParams = {
   attachments?: Attachment[];
   generateTitle?: boolean;
   reasoningConfig?: ReasoningConfig;
-  model?: string;
-  provider?: string;
+  contextSummary?: string | null;
 };
 
 // ============================================================================

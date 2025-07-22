@@ -46,21 +46,25 @@ export default function ConversationRoute() {
   const handleSendAsNewConversation = useCallback(
     async (
       content: string,
-      navigate: boolean,
+      shouldNavigate: boolean,
       attachments?: Attachment[],
+      contextSummary?: string,
+      sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
-    ) => {
+    ): Promise<ConversationId | undefined> => {
       if (chatService.sendMessageToNewConversation) {
-        await chatService.sendMessageToNewConversation(
+        return await chatService.sendMessageToNewConversation(
           content,
-          navigate,
+          shouldNavigate,
           attachments,
-          conversationId as ConversationId,
+          contextSummary,
+          sourceConversationId || (conversationId as ConversationId),
           personaId,
           reasoningConfig
         );
       }
+      return undefined;
     },
     [chatService.sendMessageToNewConversation, conversationId]
   );

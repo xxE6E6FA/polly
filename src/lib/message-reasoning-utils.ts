@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
@@ -32,11 +33,11 @@ export function useLastMessageReasoningConfig(
 
   // Find the last user message with a reasoning config
   const lastUserMessage = messagesList
-    .filter(msg => msg.role === "user")
+    .filter(msg => (msg as Doc<"messages">).role === "user")
     .reverse()
-    .find(msg => msg.reasoningConfig);
+    .find(msg => (msg as Doc<"messages">).reasoningConfig);
 
-  return lastUserMessage?.reasoningConfig || null;
+  return (lastUserMessage as Doc<"messages">)?.reasoningConfig || null;
 }
 
 /**

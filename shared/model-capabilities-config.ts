@@ -1,22 +1,12 @@
-// Shared model capability configuration
-// This file is used by both convex backend and src frontend
-// To ensure consistent capability detection across the entire application
-
-// ============================================================================
-// SIMPLE FILE TYPE DETECTION
-// ============================================================================
-
 export function isImageType(fileType: string): boolean {
   return fileType.startsWith("image/");
 }
 
 export function isTextType(fileType: string): boolean {
-  // Handle empty or unknown types - assume text for safety
   if (!fileType || fileType === "application/octet-stream") {
     return true;
   }
 
-  // Common text MIME types (what file.type actually contains)
   return (
     fileType.startsWith("text/") ||
     fileType === "application/json" ||
@@ -28,13 +18,6 @@ export function isTextType(fileType: string): boolean {
   );
 }
 
-
-
-// ============================================================================
-// REASONING CONFIGURATION
-// ============================================================================
-
-// Models that always have reasoning enabled and cannot disable it
 export const MANDATORY_REASONING_PATTERNS = [
   "o1-",
   "o3-",
@@ -43,14 +26,16 @@ export const MANDATORY_REASONING_PATTERNS = [
   "gemini-2.5-pro",
 ] as const;
 
-// OpenRouter models that support optional reasoning (reasoning can be disabled)
-// This uses fuzzy matching patterns - a model matches if it contains any of these patterns
 export const OPENROUTER_OPTIONAL_REASONING_PATTERNS = [
   "gemini-2.5-flash",
   "claude-3.7",
+  // Anthropic reasoning models (optional)
+  "claude-3.5",
+  "claude-opus-4",
+  "claude-sonnet-4",
+  "claude-3-7-sonnet",
   // Examples (uncomment when verified):
   // "2.5-flash",        // Matches all Gemini 2.5 Flash variants
-  // "claude-3.5",       // Matches all Claude 3.5 variants (sonnet, haiku, etc.)
   // "llama-3.1",        // Matches all Llama 3.1 variants
   // "qwen2.5",          // Matches all Qwen 2.5 variants
 ] as const;
@@ -61,7 +46,6 @@ export function hasMandatoryReasoning(
 ): boolean {
   const modelIdLower = modelId.toLowerCase();
 
-  // Check explicit patterns first
   const hasPattern = MANDATORY_REASONING_PATTERNS.some((pattern) =>
     modelIdLower.includes(pattern.toLowerCase())
   );
@@ -85,9 +69,35 @@ export function hasMandatoryReasoning(
   return false;
 }
 
-// ============================================================================
-// SIMPLIFIED CAPABILITY CHECKER
-// ============================================================================
+/**
+ * Check if a model supports reasoning (either mandatory or optional)
+ */
+export function supportsReasoning(
+  provider: string,
+  modelId: string
+): boolean {
+  const modelIdLower = modelId.toLowerCase();
+
+  // Check mandatory reasoning patterns first
+  const hasMandatoryPattern = MANDATORY_REASONING_PATTERNS.some((pattern) =>
+    modelIdLower.includes(pattern.toLowerCase())
+  );
+
+  if (hasMandatoryPattern) {
+    return true;
+  }
+
+  // Check optional reasoning patterns
+  const hasOptionalPattern = OPENROUTER_OPTIONAL_REASONING_PATTERNS.some((pattern) =>
+    modelIdLower.includes(pattern.toLowerCase())
+  );
+
+  if (hasOptionalPattern) {
+    return true;
+  }
+
+  return false;
+}
 
 export interface ModelForCapabilityCheck {
   provider: string;
@@ -116,13 +126,8 @@ export function checkModelCapability(
     return backendValue as boolean;
   }
 
-  // No fallback - if backend doesn't provide it, return false
   return false;
 }
-
-// ============================================================================
-// FILE TYPE SUPPORT
-// ============================================================================
 
 export function isFileTypeSupported(
   fileType: string,

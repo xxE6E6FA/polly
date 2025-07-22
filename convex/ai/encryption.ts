@@ -1,4 +1,5 @@
 import { api } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { type ProviderType } from "../types";
 import { CONFIG } from "./config";
@@ -34,27 +35,56 @@ export const serverDecryptApiKey = async (
 export const getApiKey = async (
   ctx: ActionCtx,
   provider: Exclude<ProviderType, "polly">, // Remove "polly" from allowed types
-  modelId?: string
+  modelId?: string,
+  conversationId?: Id<"conversations">
 ): Promise<string> => {
-  const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-    provider,
-    modelId,
-  });
+  // Add retry logic for transient failures
+  const maxRetries = 2;
+  let lastError: Error | null = null;
 
-  if (apiKey) {
-    return apiKey;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
+        provider,
+        modelId,
+        conversationId,
+      });
+
+      if (apiKey) {
+        return apiKey;
+      }
+
+      // Fallback to environment variables
+      const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS]];
+      if (envKey) {
+        return envKey;
+      }
+
+      // If we get here, no API key was found
+      throw new Error(`No API key found for ${provider}. Please add an API key in Settings.`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Log the attempt for debugging
+      console.warn(`API key lookup attempt ${attempt} failed for ${provider}:`, {
+        error: lastError.message,
+        attempt,
+        maxRetries,
+        provider,
+        modelId,
+        conversationId,
+      });
+
+      // If this is the last attempt, throw the error
+      if (attempt === maxRetries) {
+        throw lastError;
+      }
+
+      // Wait a short time before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 100));
+    }
   }
 
-  // Fallback to environment variables
-  const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS]];
-  if (envKey) {
-    return envKey;
-  }
-
-  const authenticatedUser = await ctx.runQuery(api.users.current);
-  const errorMessage = authenticatedUser
-    ? `No API key found for ${provider}. Please add an API key in Settings.`
-    : `Authentication required. Please sign in to use ${provider} models.`;
-
-  throw new Error(errorMessage);
+  // This should never be reached, but TypeScript requires it
+  throw lastError || new Error(`No API key found for ${provider}. Please add an API key in Settings.`);
 };

@@ -1,8 +1,4 @@
-import {
-  GearIcon,
-  SidebarIcon,
-  SidebarSimpleIcon,
-} from "@phosphor-icons/react";
+import { GearIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
