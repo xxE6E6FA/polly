@@ -47,7 +47,7 @@ export class AnthropicClient {
     const finalMaxTokens = calculateAnthropicMaxTokens(maxTokens, budgetTokens);
 
     try {
-      const stream = await this.anthropic.messages.stream({
+      const stream = this.anthropic.messages.stream({
         model,
         max_tokens: finalMaxTokens,
         temperature: 1, // Required for thinking

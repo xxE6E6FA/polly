@@ -200,21 +200,6 @@ export function usePrivateChat({
     };
   }, []);
 
-  // Periodic memory monitoring (development only)
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      const interval = setInterval(() => {
-        if (messageCountRef.current > MAX_PRIVATE_MESSAGES) {
-          console.warn(
-            `[PrivateChat] High message count detected: ${messageCountRef.current}. Consider cleanup.`
-          );
-        }
-      }, 10000); // Check every 10 seconds in development
-
-      return () => clearInterval(interval);
-    }
-  }, []);
-
   const sendMessage = useCallback(
     async (params: SendMessageParams): Promise<void> => {
       if (user?.isAnonymous) {

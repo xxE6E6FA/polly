@@ -24,14 +24,12 @@ export type ProviderStreamOptions =
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
   | { extraBody: { reasoning: { effort: string; max_tokens?: number } } };
 
-// Map effort levels to token budgets for Anthropic
 export const ANTHROPIC_BUDGET_MAP = {
   low: 5000,
   medium: 10000,
   high: 20000,
 } as const;
 
-// Map effort levels to thinking budgets for Google
 export const GOOGLE_THINKING_BUDGET_MAP = {
   low: 1024,
   medium: 4096,

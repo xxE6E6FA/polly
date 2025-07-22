@@ -118,7 +118,7 @@ async function streamWithAISDK(
       model: languageModel,
       messages: coreMessages,
       temperature: options?.temperature,
-      maxTokens: options?.maxTokens || 8192,
+      maxTokens: options?.maxTokens || -1,
       topP: options?.topP,
       frequencyPenalty: options?.frequencyPenalty,
       presencePenalty: options?.presencePenalty,
