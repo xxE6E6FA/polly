@@ -121,22 +121,11 @@ export const getUserSettingsForExport = query({
   },
 });
 
+import { userSettingsUpdateSchema } from "./lib/schemas";
+
 export const updateUserSettingsForImport = mutation({
   args: {
-    settings: v.object({
-      personasEnabled: v.optional(v.boolean()),
-      openRouterSorting: v.optional(
-        v.union(
-          v.literal("default"),
-          v.literal("price"),
-          v.literal("throughput"),
-          v.literal("latency")
-        )
-      ),
-      anonymizeForDemo: v.optional(v.boolean()),
-      autoArchiveEnabled: v.optional(v.boolean()),
-      autoArchiveDays: v.optional(v.number()),
-    }),
+    settings: userSettingsUpdateSchema,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);

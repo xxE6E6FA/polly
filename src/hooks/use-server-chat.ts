@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { mapPollyModelToProvider } from "@shared/constants";
+import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ type UseServerChatOptions = {
   onMessagesChange?: (messages: ChatMessage[]) => void;
   onError?: (error: Error) => void;
   onConversationCreate?: (conversationId: ConversationId) => void;
+  onInputClear?: () => void;
 };
 
 // A helper hook to wrap a Convex action with manual loading state
@@ -63,8 +65,10 @@ export function useServerChat({
   conversationId,
   onError,
   onConversationCreate,
+  onInputClear,
 }: UseServerChatOptions) {
   const { canSendMessage, user } = useUserDataContext();
+  const convex = useConvex();
 
   // Get selected model and provider
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
@@ -73,11 +77,37 @@ export function useServerChat({
     [selectedModelRaw]
   );
   const model = selectedModel?.modelId;
-  const provider = selectedModel?.provider;
+  const provider = useMemo(() => {
+    if (!selectedModel) {
+      return undefined;
+    }
+
+    // Use the actual provider from the selected model
+    const actualProvider = selectedModel.provider;
+
+    // If it's a Polly model, map to the actual provider
+    if (actualProvider === "polly") {
+      return mapPollyModelToProvider(model || "") as
+        | "openai"
+        | "anthropic"
+        | "google"
+        | "openrouter";
+    }
+
+    // Otherwise use the provider directly
+    return actualProvider as "openai" | "anthropic" | "google" | "openrouter";
+  }, [selectedModel, model]);
 
   // Create conversation functionality
-  const createConversationAction = useMutation(api.conversations.create);
+  const createConversationMutation = useMutation(
+    api.conversations.createConversation
+  );
+  const startStreamingAction = useAction(api.conversations.startStreaming);
+  const createBranchingConversationAction = useAction(
+    api.conversations.createBranchingConversation
+  );
 
+  // Consolidated conversation creation function
   const createConversation = useCallback(
     async ({
       firstMessage,
@@ -85,7 +115,11 @@ export function useServerChat({
       personaId,
       attachments,
       reasoningConfig,
-    }: CreateConversationParams): Promise<ConversationId | undefined> => {
+      contextSummary,
+      shouldNavigate = true,
+    }: CreateConversationParams & { shouldNavigate?: boolean }): Promise<
+      ConversationId | undefined
+    > => {
       if (!(model && provider)) {
         const errorMsg =
           "No model selected. Please select a model in the model picker to start a conversation.";
@@ -96,31 +130,159 @@ export function useServerChat({
         return undefined;
       }
 
-      const result = await createConversationAction({
-        firstMessage,
-        sourceConversationId,
-        personaId: personaId || undefined,
-        attachments: cleanAttachmentsForConvex(attachments),
-        reasoningConfig:
-          reasoningConfig?.enabled && reasoningConfig.maxTokens
-            ? {
-                enabled: reasoningConfig.enabled,
-                effort: reasoningConfig.effort || "medium",
-                maxTokens: reasoningConfig.maxTokens,
+      try {
+        // Use createBranchingConversation action for branching conversations with context
+        if (sourceConversationId && contextSummary) {
+          const result = await createBranchingConversationAction({
+            userId: user?._id,
+            firstMessage,
+            sourceConversationId,
+            personaId: personaId || undefined,
+            attachments: cleanAttachmentsForConvex(attachments),
+            useWebSearch: true,
+            reasoningConfig:
+              reasoningConfig?.enabled && reasoningConfig.maxTokens
+                ? {
+                    enabled: reasoningConfig.enabled,
+                    effort: reasoningConfig.effort || "medium",
+                    maxTokens: reasoningConfig.maxTokens,
+                  }
+                : undefined,
+            contextSummary,
+          });
+
+          // Navigate immediately when conversation is created and navigation is requested
+          if (
+            result?.conversationId &&
+            shouldNavigate &&
+            onConversationCreate
+          ) {
+            onConversationCreate(result.conversationId);
+          }
+
+          // Start streaming in the background if model and provider are provided
+          if (result?.conversationId && model && provider) {
+            // Get the assistant message ID from the conversation
+            const conversation = await convex.query(api.conversations.get, {
+              id: result.conversationId,
+            });
+
+            if (conversation) {
+              const messages = await convex.query(api.messages.list, {
+                conversationId: result.conversationId,
+              });
+
+              const assistantMessage = Array.isArray(messages)
+                ? messages.find(
+                    (msg: { role: string }) => msg.role === "assistant"
+                  )
+                : messages.page.find(
+                    (msg: { role: string }) => msg.role === "assistant"
+                  );
+
+              if (assistantMessage) {
+                startStreamingAction({
+                  conversationId: result.conversationId,
+                  assistantMessageId: assistantMessage._id,
+                  model,
+                  provider,
+                  enableWebSearch: true,
+                  reasoningConfig:
+                    reasoningConfig?.enabled && reasoningConfig.maxTokens
+                      ? {
+                          enabled: reasoningConfig.enabled,
+                          effort: reasoningConfig.effort || "medium",
+                          maxTokens: reasoningConfig.maxTokens,
+                        }
+                      : undefined,
+                }).catch((error: Error) => {
+                  // Log error but don't fail the conversation creation
+                  console.error("Failed to start streaming:", error);
+                  onError?.(error);
+                });
               }
-            : undefined,
-        model,
-        provider,
-      });
+            }
+          }
 
-      // Store user in local storage if not already present
-      if (result?.user) {
-        // User data is now managed by UserDataProvider
+          return result?.conversationId;
+        }
+
+        // Use regular create mutation for normal conversations
+        const result = await createConversationMutation({
+          title: "New Conversation",
+          firstMessage,
+          sourceConversationId,
+          personaId: personaId || undefined,
+          attachments: cleanAttachmentsForConvex(attachments),
+          reasoningConfig:
+            reasoningConfig?.enabled && reasoningConfig.maxTokens
+              ? {
+                  enabled: reasoningConfig.enabled,
+                  effort: reasoningConfig.effort || "medium",
+                  maxTokens: reasoningConfig.maxTokens,
+                }
+              : undefined,
+          model,
+          provider,
+          useWebSearch: true,
+        });
+
+        // Start streaming in the background if model and provider are provided
+        if (result && model && provider) {
+          startStreamingAction({
+            conversationId: result.conversationId,
+            assistantMessageId: result.assistantMessageId,
+            model,
+            provider,
+            enableWebSearch: true,
+            reasoningConfig:
+              reasoningConfig?.enabled && reasoningConfig.maxTokens
+                ? {
+                    enabled: reasoningConfig.enabled,
+                    effort: reasoningConfig.effort || "medium",
+                    maxTokens: reasoningConfig.maxTokens,
+                  }
+                : undefined,
+          }).catch((error: Error) => {
+            // Log error but don't fail the conversation creation
+            console.error("Failed to start streaming:", error);
+            onError?.(error);
+          });
+        }
+
+        return result?.conversationId;
+      } catch (error) {
+        console.error("Failed to create conversation:", {
+          error: error instanceof Error ? error.message : String(error),
+          model,
+          provider,
+          hasUser: !!user,
+          userId: user?._id,
+        });
+
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to create conversation";
+        toast.error("Failed to create conversation", {
+          description: errorMessage,
+        });
+        onError?.(error as Error);
+        return undefined;
       }
-
-      return result?.conversationId;
     },
-    [createConversationAction, onError, model, provider]
+    [
+      onError,
+      model,
+      provider,
+      startStreamingAction,
+      createConversationMutation,
+      user?._id,
+      createBranchingConversationAction,
+      onConversationCreate,
+      convex.query,
+      user,
+    ]
   );
 
   // Use specialized hooks
@@ -241,8 +403,6 @@ export function useServerChat({
             sourceConversationId: undefined,
             personaId,
             attachments,
-            model,
-            provider,
           });
           if (!createdConversationId) {
             throw new Error("Failed to create conversation");
@@ -290,11 +450,32 @@ export function useServerChat({
     ]
   );
 
+  const generateConversationSummaryAction = useAction(
+    api.conversationSummary.generateConversationSummary
+  );
+
+  const generateConversationSummary = useCallback(
+    async (conversationId: ConversationId): Promise<string | null> => {
+      try {
+        const summary = await generateConversationSummaryAction({
+          conversationId,
+          maxTokens: 150,
+        });
+        return summary;
+      } catch {
+        return null;
+      }
+    },
+    [generateConversationSummaryAction]
+  );
+
+  // Consolidated function for sending messages to new conversations
   const sendMessageToNewConversation = useCallback(
     async (
       content: string,
       shouldNavigate = true,
       attachments?: Attachment[],
+      contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
@@ -324,34 +505,35 @@ export function useServerChat({
       }
 
       try {
-        // Validate model and provider are available
-        if (!(model && provider)) {
-          const errorMsg =
-            "No model selected. Please select a model in the model picker to create a conversation.";
-          toast.error("Cannot create conversation", {
-            description: errorMsg,
-          });
-          throw new Error(errorMsg);
+        // Generate summary if we have a current conversation and no context summary
+        let finalContextSummary = contextSummary;
+        if (conversationId && !contextSummary) {
+          try {
+            const summary = await generateConversationSummary(conversationId);
+            finalContextSummary = summary || undefined;
+          } catch (error) {
+            console.error("Failed to generate summary:", error);
+          }
         }
 
-        const createdConversationId = await createConversation({
+        const newConversationId = await createConversation({
           firstMessage: content,
-          sourceConversationId,
+          sourceConversationId: sourceConversationId || conversationId,
           personaId,
           attachments,
           reasoningConfig,
-          model,
-          provider,
+          contextSummary: finalContextSummary || undefined,
+          shouldNavigate,
         });
-        if (!createdConversationId) {
+
+        if (!newConversationId) {
           throw new Error("Failed to create conversation");
         }
 
-        if (shouldNavigate && onConversationCreate) {
-          onConversationCreate(createdConversationId);
-        }
+        // Clear input if conversation creation was successful
+        onInputClear?.();
 
-        return createdConversationId;
+        return newConversationId;
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -368,9 +550,9 @@ export function useServerChat({
       onError,
       isUserReady,
       createConversation,
-      onConversationCreate,
-      model,
-      provider,
+      conversationId,
+      generateConversationSummary,
+      onInputClear,
     ]
   );
 

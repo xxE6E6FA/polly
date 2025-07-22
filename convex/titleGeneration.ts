@@ -1,8 +1,7 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { action, internalMutation } from "./_generated/server";
 
 export const generateTitle = action({
@@ -73,7 +72,7 @@ export const generateTitle = action({
 
     // Update the conversation title if conversationId is provided
     if (args.conversationId) {
-      await ctx.runMutation(api.conversations.patch, {
+      await ctx.runMutation(internal.conversations.internalPatch, {
         id: args.conversationId,
         updates: { title: generatedTitle },
         setUpdatedAt: false,
@@ -121,7 +120,7 @@ export const generateTitleBackground = action({
       } else {
         // Final fallback - set a simple title
         const fallbackTitle = args.message.slice(0, 60) || "New conversation";
-        await ctx.runMutation(api.conversations.patch, {
+        await ctx.runMutation(internal.conversations.internalPatch, {
           id: args.conversationId,
           updates: { title: fallbackTitle },
           setUpdatedAt: false,

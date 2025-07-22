@@ -38,11 +38,13 @@ type UnifiedChatViewProps = {
   ) => Promise<void>;
   onSendAsNewConversation?: (
     content: string,
-    navigate: boolean,
+    shouldNavigate: boolean,
     attachments?: Attachment[],
+    contextSummary?: string,
+    sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig
-  ) => Promise<void>;
+  ) => Promise<ConversationId | undefined>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onStopGeneration: () => void;

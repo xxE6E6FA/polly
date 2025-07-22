@@ -1,13 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  mutation,
-  query,
-} from "./_generated/server";
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { action, internalQuery, mutation, query } from "./_generated/server";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -326,61 +321,55 @@ export const getDecryptedApiKey = action({
       v.literal("exa")
     ), // Remove "polly" - it should never reach the server
     modelId: v.optional(v.string()),
+    conversationId: v.optional(v.id("conversations")), // For getting user ID from conversation
   },
   handler: async (ctx, args): Promise<string | null> => {
     // No more Polly mapping here - it's handled client-side
 
-    // First try to get authenticated user - this is the correct pattern for actions
-    const authenticatedUser = await ctx.runQuery(api.users.current);
+    // Get user ID from conversation if available, otherwise use auth context
+    let userId: Id<"users"> | null = null;
 
-    if (!authenticatedUser) {
-      return getEnvironmentApiKey(args.provider);
+    userId = await getAuthUserId(ctx);
+
+    // If no user from auth context, try to get from conversation (works for background jobs)
+    if (!userId && args.conversationId) {
+      try {
+        const conversation = await ctx.runQuery(
+          internal.conversations.internalGet,
+          {
+            id: args.conversationId,
+          }
+        );
+        userId = conversation?.userId || null;
+      } catch (error) {
+        console.warn("Failed to get user from conversation:", error);
+      }
+    }
+
+    if (!userId) {
+      return null;
     }
 
     const apiKeyRecord = await ctx.runQuery(
       internal.apiKeys.getEncryptedApiKeyData,
       {
-        userId: authenticatedUser._id,
+        userId,
         provider: args.provider,
       }
     );
 
     if (!(apiKeyRecord?.encryptedKey && apiKeyRecord.initializationVector)) {
-      return getEnvironmentApiKey(args.provider);
+      return null;
     }
 
-    try {
-      const decryptedKey = await serverDecryptApiKey(
-        apiKeyRecord.encryptedKey,
-        apiKeyRecord.initializationVector
-      );
-      return decryptedKey;
-    } catch {
-      // Fall back to environment variables on decryption error
-      return getEnvironmentApiKey(args.provider);
-    }
+    const decryptedKey = await serverDecryptApiKey(
+      apiKeyRecord.encryptedKey,
+      apiKeyRecord.initializationVector
+    );
+    return decryptedKey;
   },
 });
 
-// Helper function to get API key from environment variables
-function getEnvironmentApiKey(provider: string): string | null {
-  switch (provider) {
-    case "openai":
-      return process.env.OPENAI_API_KEY || null;
-    case "anthropic":
-      return process.env.ANTHROPIC_API_KEY || null;
-    case "google":
-      return process.env.GEMINI_API_KEY || null;
-    case "openrouter":
-      return process.env.OPENROUTER_API_KEY || null;
-    case "exa":
-      return process.env.EXA_API_KEY || null;
-    default:
-      return null;
-  }
-}
-
-// Get client-encrypted key for client-side decryption (like Whisper pattern)
 export const getClientEncryptedApiKey = query({
   args: {
     provider: v.union(

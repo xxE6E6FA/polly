@@ -59,8 +59,9 @@ interface ChatService {
   ) => Promise<void>;
   sendMessageToNewConversation: (
     content: string,
-    shouldNavigate?: boolean,
+    shouldNavigate: boolean,
     attachments?: Attachment[],
+    contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
     reasoningConfig?: ReasoningConfig
@@ -110,6 +111,9 @@ export function useChatService({
     conversationId,
     onError,
     onConversationCreate,
+    onInputClear: () => {
+      // This will be handled by the chat input component
+    },
   });
 
   const privateChat = usePrivateChat({
@@ -278,6 +282,40 @@ export function useChatService({
     privateChat.messages,
   ]);
 
+  // Wrapper for sendMessageToNewConversation to match the expected interface
+  const sendMessageToNewConversation = useCallback(
+    async (
+      content: string,
+      shouldNavigate: boolean,
+      attachments?: Attachment[],
+      contextSummary?: string,
+      sourceConversationId?: ConversationId,
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig
+    ) => {
+      if (mode === "private") {
+        // For private mode, just send the message normally
+        await privateChat.sendMessage({
+          content,
+          attachments,
+          personaId,
+          reasoningConfig,
+        });
+        return undefined;
+      }
+      return serverChat.sendMessageToNewConversation(
+        content,
+        shouldNavigate,
+        attachments,
+        contextSummary,
+        sourceConversationId,
+        personaId,
+        reasoningConfig
+      );
+    },
+    [mode, privateChat, serverChat]
+  );
+
   // Memoize the service object
   return useMemo(
     () => ({
@@ -309,7 +347,7 @@ export function useChatService({
 
       // Actions
       sendMessage,
-      sendMessageToNewConversation: serverChat.sendMessageToNewConversation,
+      sendMessageToNewConversation,
       createConversation: serverChat.createConversation,
       stopGeneration,
       deleteMessage,
@@ -338,9 +376,9 @@ export function useChatService({
       chatStateMachine.error,
       chatStateMachine.canRetry,
       serverChat.isLoading,
-      serverChat.sendMessageToNewConversation,
       serverChat.createConversation,
       sendMessage,
+      sendMessageToNewConversation,
       stopGeneration,
       deleteMessage,
       editMessage,

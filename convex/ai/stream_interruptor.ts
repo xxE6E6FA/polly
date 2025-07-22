@@ -1,4 +1,4 @@
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { handleStreamOperation } from "./error_handlers";
@@ -23,7 +23,7 @@ export class StreamInterruptor {
 
   constructor(
     private ctx: ActionCtx,
-    private messageId: Id<"messages">
+    private messageId: Id<"messages">,
   ) {}
 
   /**
@@ -49,6 +49,9 @@ export class StreamInterruptor {
       return; // Already monitoring
     }
 
+    // Start the monitoring in the background
+    // We intentionally don't await this as it runs continuously
+    // The promise is stored for potential future use
     this.stopCheckPromise = this.monitorWithBackoff();
   }
 
@@ -73,7 +76,7 @@ export class StreamInterruptor {
         interval = Math.min(interval * backoffMultiplier, maxInterval);
 
         // Wait for the interval or until aborted
-        await new Promise<void>(resolve => {
+        await new Promise<void>((resolve) => {
           const timeout = setTimeout(resolve, interval);
           this.resourceManager.registerTimeout(timeout);
 
@@ -121,9 +124,12 @@ export class StreamInterruptor {
 
         // Check if the conversation is no longer in streaming state
         if (message.conversationId) {
-          const conversation = await this.ctx.runQuery(api.conversations.get, {
-            id: message.conversationId,
-          });
+          const conversation = await this.ctx.runQuery(
+            internal.conversations.internalGet,
+            {
+              id: message.conversationId,
+            },
+          );
 
           const shouldStop = conversation ? !conversation.isStreaming : true;
 
@@ -146,7 +152,7 @@ export class StreamInterruptor {
       () => {
         this.messageDeleted = true;
         this.lastStopCheckResult = true;
-      }
+      },
     );
 
     if (!result) {
@@ -184,7 +190,10 @@ export class StreamInterruptor {
     }
 
     // Small delay to let the signal propagate
-    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    await new Promise<void>((resolve) => {
+      const timeout = setTimeout(resolve, 50);
+      this.resourceManager.registerTimeout(timeout);
+    });
   }
 
   /**

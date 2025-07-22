@@ -59,7 +59,6 @@ export default function SharedConversationPage() {
     content: "This is a shared copy of a conversation from Polly",
     isMainBranch: true,
     createdAt: 0,
-    sourceConversationId: undefined,
   };
 
   const allMessages = [notificationMessage, ...chatMessages];

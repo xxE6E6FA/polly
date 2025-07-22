@@ -38,7 +38,10 @@ export class StreamHandler {
   private cacheValidUntil = 0;
   private static readonly CACHE_DURATION_MS = 1000; // Cache for 1 second
 
-  constructor(private ctx: ActionCtx, private messageId: Id<"messages">) {}
+  constructor(
+    private ctx: ActionCtx,
+    private messageId: Id<"messages">,
+  ) {}
 
   get messageIdValue() {
     return this.messageId;
@@ -82,7 +85,7 @@ export class StreamHandler {
         this.messageDeleted = true;
         this.messageExistsCache = false;
         this.safeAbort();
-      }
+      },
     );
 
     if (!result) {
@@ -146,9 +149,12 @@ export class StreamHandler {
             return true;
           }
         } else {
-          const conversation = await this.ctx.runQuery(api.conversations.get, {
-            id: conversationId,
-          });
+          const conversation = await this.ctx.runQuery(
+            internal.conversations.internalGet,
+            {
+              id: conversationId,
+            },
+          );
 
           const isStreaming = conversation?.isStreaming ?? false;
           this.cachedStreamingState = isStreaming;
@@ -296,7 +302,7 @@ export class StreamHandler {
     text: string,
     finishReason: string | null | undefined,
     reasoning: string | null | undefined,
-    providerMetadata: ProviderMetadata | undefined
+    providerMetadata: ProviderMetadata | undefined,
   ): Promise<void> {
     if (this.wasStopped || this.messageDeleted) {
       return;
@@ -323,7 +329,6 @@ export class StreamHandler {
       }
     }
 
-    // Update metadata only (content is already set in finishProcessing)
     await this.queueUpdate(async () => {
       if (this.messageDeleted) {
         return;
@@ -347,6 +352,7 @@ export class StreamHandler {
 
         await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
           id: this.messageId,
+          content: cleanedText,
           reasoning: humanizedReasoning,
           metadata,
           citations,
@@ -367,9 +373,7 @@ export class StreamHandler {
 
     await this.waitForQueuedUpdates();
 
-    // No need to enrich citations anymore - Exa provides all metadata directly
-    // Citations from other providers might need enrichment, but we're focusing on Exa
-
+    // Clear streaming state
     await clearConversationStreaming(this.ctx, this.messageId);
   }
 
@@ -414,14 +418,14 @@ export class StreamHandler {
 
   async processStream(
     stream: AsyncIterable<string | StreamPart>,
-    isFullStream = false
+    isFullStream = false,
   ): Promise<void> {
     // Initialize streaming before processing any content
     await this.initializeStreaming();
 
     // If message was deleted during initialization, exit early
     if (this.messageDeleted) {
-      throw new Error("MessageDeleted");
+      return; // Return silently instead of throwing
     }
 
     try {
@@ -433,7 +437,7 @@ export class StreamHandler {
           (await this.checkIfStopped())
         ) {
           if (this.messageDeleted) {
-            throw new Error("MessageDeleted");
+            return; // Return silently instead of throwing
           }
           throw new Error("StoppedByUser");
         }
@@ -472,7 +476,10 @@ export class StreamHandler {
         error: errorPart.error,
       });
       // Handle error parts by throwing an error to stop the stream
-      const errorObj = errorPart.error as { message?: string; toString?: () => string } | null;
+      const errorObj = errorPart.error as {
+        message?: string;
+        toString?: () => string;
+      } | null;
       const errorMessage =
         errorObj?.message || errorObj?.toString?.() || "Unknown stream error";
       throw new Error(`Stream error: ${errorMessage}`);
@@ -484,7 +491,7 @@ export class StreamHandler {
       // Check if we should stop before processing reasoning
       if (await this.checkIfStopped()) {
         if (this.messageDeleted) {
-          throw new Error("MessageDeleted");
+          return; // Return silently instead of throwing
         }
         throw new Error("StoppedByUser");
       }
@@ -525,59 +532,43 @@ export class StreamHandler {
   }
 
   public async finishProcessing(): Promise<void> {
-    if (this.messageDeleted) {
-      return;
-    }
+    // Ensure content buffer is flushed
+    await this.flushContentBuffer();
 
-    if (!this.finishData) {
+    // Check if we have finish data
+    if (!this.hasFinishData()) {
       console.warn("=== No finish data available ===", {
         messageId: this.messageId,
         wasStopped: this.wasStopped,
         isInitialized: this.isInitialized,
       });
+
+      // If we have content but no finish data, assume it completed normally
+      if (this.contentBuffer.trim().length > 0) {
+        await this.handleFinish(
+          this.contentBuffer,
+          "stop", // Default finish reason
+          undefined, // No reasoning
+          undefined // No provider metadata
+        );
+      } else {
+        // If no content and no finish data, mark as stopped
+        await this.handleStop();
+      }
       return;
     }
 
-    // Clean the content to remove duplicate source sections
-    const cleanedContent = removeDuplicateSourceSections(this.finishData.text);
-
-    // Set the final content from onFinish (authoritative)
-    await this.queueUpdate(async () => {
-      if (this.messageDeleted) {
-        return;
-      }
-
-      try {
-        await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
-          id: this.messageId,
-          content: cleanedContent,
-        });
-      } catch (error) {
-        // If message doesn't exist, mark as deleted and continue
-        if (
-          error instanceof Error &&
-          (error.message.includes("not found") ||
-            error.message.includes("nonexistent document"))
-        ) {
-          this.messageDeleted = true;
-          return;
-        }
-        throw error;
-      }
-    });
-
-    await this.waitForQueuedUpdates();
-
-    // Now handle metadata and other finish tasks (skip if deleted or stopped)
-    if (!this.messageDeleted && !this.wasStopped) {
+    // Process finish data
+    if (this.finishData) {
       await this.handleFinish(
-        cleanedContent,
+        this.finishData.text,
         this.finishData.finishReason,
         this.finishData.reasoning,
-        this.finishData.providerMetadata
+        this.finishData.providerMetadata,
       );
     }
 
-    this.finishData = null;
+    // Clear streaming state
+    await clearConversationStreaming(this.ctx, this.messageId);
   }
 }

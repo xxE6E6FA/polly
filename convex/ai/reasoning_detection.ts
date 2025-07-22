@@ -18,7 +18,7 @@ function supportsGoogleReasoning(model: string): boolean {
   return false;
 }
 
-export async function isReasoningModelEnhanced(
+export async function isReasoningModel(
   provider: string,
   model: string
 ): Promise<boolean> {

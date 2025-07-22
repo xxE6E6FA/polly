@@ -728,21 +728,7 @@ pre {
     background: hsl(var(--card));
 }
 
-/* Remove outline from chat input textarea */
-.dark .chat-input-container textarea {
-    outline: none !important;
-    background: transparent;
-    color: hsl(var(--foreground));
-}
 
-.dark .chat-input-container textarea:focus {
-    outline: none !important;
-    color: hsl(var(--foreground));
-}
-
-.dark .chat-input-container textarea::placeholder {
-    color: hsl(var(--muted-foreground));
-}
 
 /* Picker trigger styles */
 .picker-trigger {
@@ -771,7 +757,7 @@ pre {
     opacity: 1;
 }
 
-/* Light mode chat input - Clean, consistent states */
+/* Chat Input Container States */
 .chat-input-container {
     position: relative;
     background: hsl(var(--card));
@@ -791,14 +777,71 @@ pre {
     background: hsl(var(--card));
 }
 
-/* Remove outline from chat input textarea */
+/* Chat input textarea styles */
 .chat-input-container textarea {
     outline: none !important;
+    background: transparent;
+    color: hsl(var(--foreground));
 }
 
 .chat-input-container textarea:focus {
     outline: none !important;
+    color: hsl(var(--foreground));
 }
+
+.chat-input-container textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+}
+
+/* Dark mode textarea styles */
+.dark .chat-input-container textarea {
+    outline: none !important;
+    background: transparent;
+    color: hsl(var(--foreground));
+}
+
+.dark .chat-input-container textarea:focus {
+    outline: none !important;
+    color: hsl(var(--foreground));
+}
+
+.dark .chat-input-container textarea::placeholder {
+    color: hsl(var(--muted-foreground));
+}
+
+
+
+/* Chat Input States */
+.chat-input-enabled {
+    border: 1px solid hsl(var(--border));
+    background: hsl(var(--background));
+}
+
+.chat-input-disabled {
+    border: 1px solid hsl(var(--border));
+    opacity: 0.75;
+}
+
+.chat-input-private {
+    border: 2px solid hsl(262 83% 58% / 0.6);
+    background: linear-gradient(
+        to bottom right,
+        rgb(250 245 255 / 0.8),
+        rgb(250 245 255 / 0.5) 50%,
+        rgb(255 251 235 / 0.3)
+    );
+}
+
+.dark .chat-input-private {
+    background: linear-gradient(
+        to bottom right,
+        rgb(59 7 100 / 0.25),
+        rgb(88 28 135 / 0.15) 50%,
+        rgb(69 26 3 / 0.1)
+    );
+}
+
+
 
 /* Action Button Variant - for subtle action buttons across the app */
 .btn-action {

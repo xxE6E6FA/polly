@@ -22,7 +22,7 @@ import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-lis
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
-import { useUserDataContext } from "@/providers/user-data-context";
+
 import type { ConversationId } from "@/types";
 
 type ArchivedConversation = {
@@ -34,8 +34,7 @@ type ArchivedConversation = {
 
 export const ArchivedConversationsPage = () => {
   const confirmationDialog = useConfirmationDialog();
-  const { user } = useUserDataContext();
-  const _queryUserId = user?._id || null;
+
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 

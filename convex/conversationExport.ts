@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { ConvexError, v } from "convex/values";
+import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { action } from "./_generated/server";
 import type { ExportConversation } from "./backgroundJobs";

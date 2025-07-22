@@ -80,7 +80,12 @@ export default function PrivateChatPage() {
         content: msg.content,
         createdAt: new Date(msg.createdAt).getTime(),
         model: msg.model,
-        provider: msg.provider,
+        provider: msg.provider as
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "openrouter"
+          | undefined,
         reasoning: msg.reasoning,
         attachments: msg.attachments?.map(attachment => ({
           type: attachment.type,
@@ -156,9 +161,11 @@ export default function PrivateChatPage() {
       content: string,
       navigateToNew: boolean,
       attachments?: Attachment[],
+      _contextSummary?: string,
+      _sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
-    ): Promise<void> => {
+    ): Promise<ConversationId | undefined> => {
       if (navigateToNew) {
         navigate(ROUTES.HOME, {
           state: {
@@ -169,7 +176,7 @@ export default function PrivateChatPage() {
           },
         });
       }
-      return Promise.resolve();
+      return Promise.resolve(undefined);
     },
     [navigate]
   );

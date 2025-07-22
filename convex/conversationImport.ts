@@ -6,7 +6,11 @@ import {
   internalQuery,
   mutation,
 } from "./_generated/server";
-import { attachmentSchema, webCitationSchema } from "./lib/schemas";
+import {
+  attachmentSchema,
+  extendedMessageMetadataSchema,
+  webCitationSchema,
+} from "./lib/schemas";
 
 // Internal mutation to process a batch of conversations
 export const processBatch = internalMutation({
@@ -24,21 +28,7 @@ export const processBatch = internalMutation({
             reasoning: v.optional(v.string()),
             attachments: v.optional(v.array(attachmentSchema)),
             citations: v.optional(v.array(webCitationSchema)),
-            metadata: v.optional(
-              v.object({
-                tokenCount: v.optional(v.number()),
-                reasoningTokenCount: v.optional(v.number()),
-                finishReason: v.optional(v.string()),
-                duration: v.optional(v.number()),
-                stopped: v.optional(v.boolean()),
-                searchQuery: v.optional(v.string()),
-                searchFeature: v.optional(v.string()),
-                searchCategory: v.optional(v.string()),
-                status: v.optional(
-                  v.union(v.literal("pending"), v.literal("error"))
-                ),
-              })
-            ),
+            metadata: v.optional(extendedMessageMetadataSchema),
           })
         ),
         createdAt: v.optional(v.number()),

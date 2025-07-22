@@ -38,12 +38,6 @@ export const GOOGLE_THINKING_BUDGET_MAP = {
   high: 8192,
 } as const;
 
-/**
- * Get provider reasoning config using model capabilities
- * @param model - The model object with capabilities
- * @param reasoningConfig - Optional reasoning configuration
- * @returns Provider-specific stream options
- */
 export function getProviderReasoningConfig(
   model: ModelWithCapabilities,
   reasoningConfig?: ReasoningConfig
@@ -73,9 +67,7 @@ export function getProviderReasoningConfig(
       );
     }
 
-    // For other Google models, handle disabled reasoning explicitly
     if (!reasoningConfig) {
-      // For Google models, we need to explicitly disable thinking
       return {
         google: {
           thinkingConfig: {
@@ -107,12 +99,6 @@ export function getProviderReasoningConfig(
   return getProviderReasoningOptions(actualProvider, reasoningConfig);
 }
 
-/**
- * Get provider-specific reasoning configuration
- * @param provider - The AI provider name
- * @param reasoningConfig - Optional reasoning configuration
- * @returns Provider-specific stream options
- */
 export function getProviderReasoningOptions(
   provider: string,
   reasoningConfig?: ReasoningConfig

@@ -9,7 +9,7 @@ import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { getProviderReasoningConfig } from "../../shared/reasoning-config";
 import { type ProviderStreamOptions, type ProviderType } from "../types";
-import { isReasoningModelEnhanced } from "./reasoning_detection";
+import { isReasoningModel } from "./reasoning_detection";
 import { applyOpenRouterSorting } from "./utils";
 
 // Provider factory map
@@ -135,7 +135,7 @@ export const getProviderStreamOptions = async (
       modelWithCapabilities.supportsReasoning = true;
     } else {
       // Final fallback to enhanced detection for edge cases
-      modelWithCapabilities.supportsReasoning = await isReasoningModelEnhanced(actualProvider, model);
+      modelWithCapabilities.supportsReasoning = await isReasoningModel(actualProvider, model);
     }
   }
 

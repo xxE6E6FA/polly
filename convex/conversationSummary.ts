@@ -1,4 +1,3 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 

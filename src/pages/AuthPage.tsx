@@ -1,7 +1,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Spinner } from "@/components/spinner";
+
 import { Button } from "@/components/ui/button";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";

@@ -162,7 +162,10 @@ export async function streamChat(
   // No need for additional Polly mapping
 
   // Use Anthropic native client for reasoning models
-  if (provider === "anthropic" && model.supportsReasoning) {
+  if (
+    provider === "anthropic" &&
+    AnthropicClient.supportsNativeReasoning(model.modelId)
+  ) {
     await streamWithAnthropicNative(request, abortController);
   } else {
     await streamWithAISDK(request, abortController);

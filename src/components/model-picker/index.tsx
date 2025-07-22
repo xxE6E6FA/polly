@@ -9,14 +9,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useUserModels } from "@/hooks/use-user-models";
-import { CACHE_KEYS, del, get, set } from "@/lib/local-storage";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isUserModel } from "@/lib/type-guards";
-import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { AnonymousUserUpsell } from "./AnonymousUserUpsell";
 import { ModelList } from "./ModelList";
 import { ModelPickerTrigger } from "./ModelPickerTrigger";
-import { NoModelsState } from "./NoModelsState";
 
 type ModelPickerProps = {
   className?: string;

@@ -8,7 +8,7 @@ import { generateText, streamText } from "ai";
 import { v } from "convex/values";
 import dedent from "dedent";
 import { api, internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { action } from "./_generated/server";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import { getApiKey } from "./ai/encryption";
@@ -20,7 +20,7 @@ import {
   updateMessage,
 } from "./ai/messages";
 import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
-import { isReasoningModelEnhanced } from "./ai/reasoning_detection";
+import { isReasoningModel } from "./ai/reasoning_detection";
 import { ResourceManager } from "./ai/resource_manager";
 import {
   generateSearchNeedAssessment,
@@ -34,49 +34,16 @@ import {
 import { StreamInterruptor } from "./ai/stream_interruptor";
 import { StreamHandler } from "./ai/streaming";
 import { buildContextMessages } from "./lib/conversation_utils";
-import type {
-  Citation,
-  MessageDoc,
-  ProviderType,
-  StreamMessage,
-} from "./types";
+import {
+  contextMessageSchema,
+  reasoningConfigForActionSchema,
+} from "./lib/schemas";
+import type { Citation, ProviderType, StreamMessage } from "./types";
 
 // Main streaming action
 export const streamResponse = action({
   args: {
-    messages: v.array(
-      v.object({
-        role: v.union(
-          v.literal("user"),
-          v.literal("assistant"),
-          v.literal("system")
-        ),
-        content: v.union(
-          v.string(),
-          v.array(
-            v.object({
-              type: v.union(
-                v.literal("text"),
-                v.literal("image_url"),
-                v.literal("file")
-              ),
-              text: v.optional(v.string()),
-              image_url: v.optional(v.object({ url: v.string() })),
-              file: v.optional(
-                v.object({ filename: v.string(), file_data: v.string() })
-              ),
-              attachment: v.optional(
-                v.object({
-                  storageId: v.id("_storage"),
-                  type: v.string(),
-                  name: v.string(),
-                })
-              ),
-            })
-          )
-        ),
-      })
-    ),
+    messages: v.array(contextMessageSchema),
     messageId: v.id("messages"),
     model: v.string(),
     provider: v.string(),
@@ -88,14 +55,8 @@ export const streamResponse = action({
     presencePenalty: v.optional(v.number()),
     enableWebSearch: v.optional(v.boolean()), // false = disable, all else = AI decides
     webSearchMaxResults: v.optional(v.number()),
-    reasoningConfig: v.optional(
-      v.object({
-        effort: v.optional(
-          v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
-        ),
-        maxTokens: v.optional(v.number()),
-      })
-    ),
+    reasoningConfig: v.optional(reasoningConfigForActionSchema),
+    conversationId: v.optional(v.id("conversations")), // For background job authentication
   },
   handler: async (ctx, args) => {
     const resourceManager = new ResourceManager();
@@ -104,39 +65,75 @@ export const streamResponse = action({
     const interruptor = new StreamInterruptor(ctx, args.messageId);
 
     try {
-      // Ensure conversation is marked as streaming at the start
       const message = await ctx.runQuery(api.messages.getById, {
         id: args.messageId,
       });
 
-      if (message?.conversationId) {
+      const conversationId = args.conversationId || message?.conversationId;
+
+      // Use internalPatch for background jobs to avoid authentication issues
+      if (args.conversationId) {
+        // Background job - use internal mutation
+        await ctx.runMutation(internal.conversations.internalPatch, {
+          id: args.conversationId,
+          updates: { isStreaming: true },
+          setUpdatedAt: true,
+        });
+      } else if (conversationId) {
+        // Regular request - use regular mutation with access checks
         await ctx.runMutation(api.conversations.patch, {
-          id: message.conversationId,
+          id: conversationId,
           updates: { isStreaming: true },
           setUpdatedAt: true,
         });
       }
 
-      // Get API key and authenticated user
       let actualProvider = args.provider;
       if (args.provider === "polly") {
-        // Map Polly provider to actual provider for server-side API key lookup
         actualProvider = mapPollyModelToProvider(args.model);
+      }
+
+      let userId: Id<"users"> | null = null;
+      let authenticatedUser = null;
+
+      userId = await getAuthUserId(ctx);
+      if (userId) {
+        authenticatedUser = await ctx.runQuery(internal.users.internalGetById, {
+          id: userId,
+        });
+      }
+
+      // If no user from auth context, try to get from conversation (works for background jobs)
+      if (!userId && conversationId) {
+        const conversation = await ctx.runQuery(
+          internal.conversations.internalGet,
+          {
+            id: conversationId,
+          }
+        );
+        userId = conversation?.userId || null;
+        if (userId) {
+          authenticatedUser = await ctx.runQuery(
+            internal.users.internalGetById,
+            { id: userId }
+          );
+        }
       }
 
       const apiKey = await getApiKey(
         ctx,
         actualProvider as Exclude<ProviderType, "polly">,
-        args.model
+        args.model,
+        conversationId
       );
 
-      // Get authenticated user for provider options
-      const authenticatedUser = await ctx.runQuery(api.users.current);
+      if (!apiKey) {
+        throw new Error(
+          `No valid API key found for ${actualProvider}. Please add an API key in Settings.`
+        );
+      }
 
-      // Check if we received placeholder messages (from conversation creation)
-      // If so, build proper context messages from stored messages
       const hasPlaceholderMessages =
-        args.messages.length === 2 &&
         args.messages.every(
           msg => msg.role === "system" || msg.role === "user"
         ) &&
@@ -145,23 +142,20 @@ export const streamResponse = action({
         );
 
       let actualMessages = args.messages;
-      if (hasPlaceholderMessages && message?.conversationId) {
-        // Build context messages from stored messages, including attachments
+      if (hasPlaceholderMessages && conversationId) {
         const { contextMessages } = await buildContextMessages(ctx, {
-          conversationId: message.conversationId,
+          conversationId: conversationId,
         });
         actualMessages = contextMessages;
       }
 
-      // Check if we should use native Anthropic handler for reasoning
       if (args.provider === "anthropic") {
-        const hasReasoningSupport = await isReasoningModelEnhanced(
+        const hasReasoningSupport = await isReasoningModel(
           args.provider,
           args.model
         );
 
         if (hasReasoningSupport) {
-          // Use native Anthropic handler for reasoning models
           const anthropicHandler = new AnthropicNativeHandler(
             ctx,
             apiKey,
@@ -197,37 +191,21 @@ export const streamResponse = action({
               .map(part => part.text || "")
               .join(" ") || "";
 
-      // Handle Exa web search if needed
       let exaCitations: Citation[] = [];
       let searchContext = "";
-      let searchQuery = "";
+      let searchQuery = userQuery;
       let searchDecision: SearchDecision | null = null;
-
-      // We'll include previous search context if available, regardless of query type
-      // The LLM can decide how to use it based on the actual query
-
-      // Determine if web search is needed
       let shouldSearch = false;
 
       if (args.enableWebSearch === false) {
-        // User explicitly disabled search - respect that
         shouldSearch = false;
       } else if (userQuery) {
-        // For all other cases (true, undefined, null), use intelligent detection
-        // Even for follow-ups, check if user explicitly wants a new search
         try {
-          // Use Gemini Flash Lite for quick classification
-          // Benefits:
-          // 1. App-level API key (no user key required)
-          // 2. Extremely cheap (~$0.01 per 1M tokens)
-          // 3. Fast response times for simple classification
-          // 4. Good enough accuracy for search detection
           const geminiApiKey = process.env.GEMINI_API_KEY;
           if (!geminiApiKey) {
             throw new Error("Gemini API key not configured");
           }
 
-          // Allow override via env var for testing different models
           const classificationModelName =
             process.env.SEARCH_CLASSIFICATION_MODEL || DEFAULT_POLLY_MODEL_ID; // Default to cheapest
 
@@ -240,98 +218,89 @@ export const streamResponse = action({
           );
 
           // Build context for better search decisions
-          const searchContext: SearchDecisionContext = {
+          const searchDecisionContext: SearchDecisionContext = {
             userQuery,
             conversationHistory: [],
             previousSearches: [],
           };
 
-          // Extract context messages from the current message array
-          // Directly use messages with role === 'context', normalize to 'system' for LLM
-          const contextMessages = (args.messages as MessageDoc[])
+          const contextMessages = (args.messages as Doc<"messages">[])
             .filter(msg => msg.role === "context")
             .map(msg => ({
-              role: "system", // normalize for LLM compatibility
+              role: "system",
               content: msg.content,
             }));
 
-          // Add the context summary to conversation history if available
-          if (contextMessages.length > 0 && searchContext.conversationHistory) {
-            // Add context as a special "context" role message
-            searchContext.conversationHistory.push({
-              role: "assistant" as "user" | "assistant", // Type requirement
+          if (
+            contextMessages.length > 0 &&
+            searchDecisionContext.conversationHistory
+          ) {
+            searchDecisionContext.conversationHistory.push({
+              role: "assistant" as "user" | "assistant",
               content: contextMessages.join("\n\n"),
               hasSearchResults: false,
             });
           }
 
-          // Add conversation history if available
-          if (message?.conversationId) {
-            try {
-              const recentMessagesResult = await ctx.runQuery(
-                api.messages.list,
-                {
-                  conversationId: message.conversationId,
-                }
-              );
+          if (conversationId) {
+            const recentMessagesResult = await ctx.runQuery(api.messages.list, {
+              conversationId: conversationId,
+            });
 
-              // Handle both array and pagination result safely
-              let recentMessages: Doc<"messages">[] = [];
-              if (Array.isArray(recentMessagesResult)) {
-                recentMessages = recentMessagesResult;
-              } else if (
-                recentMessagesResult &&
-                typeof recentMessagesResult === "object" &&
-                "page" in recentMessagesResult
-              ) {
-                recentMessages = Array.isArray(recentMessagesResult.page)
-                  ? recentMessagesResult.page
-                  : [];
-              } else {
-                recentMessages = [];
-              }
-
-              // Get last 3 messages (excluding current) with safety checks
-              const historyMessages = recentMessages
-                .filter((m: Doc<"messages">) => m && m._id !== args.messageId)
-                .slice(-3)
-                .map((m: Doc<"messages">) => ({
-                  role: m.role as "user" | "assistant",
-                  content: m.content || "",
-                  hasSearchResults: !!m.citations?.length,
-                }));
-
-              // Append to existing context (which may include context summary)
-              if (searchContext.conversationHistory) {
-                searchContext.conversationHistory.push(...historyMessages);
-              }
-
-              // Extract previous searches with safety checks
-              const previousSearches = recentMessages
-                .filter(
-                  (m: Doc<"messages">) =>
-                    m?.metadata?.searchQuery && m._id !== args.messageId
-                )
-                .slice(-2) // Last 2 searches
-                .map((m: Doc<"messages">) => ({
-                  query: (m.metadata?.searchQuery as string) || "",
-                  searchType: (m.metadata?.searchFeature as string) || "search",
-                  category: m.metadata?.searchCategory as string | undefined,
-                  resultCount: m.citations?.length || 0,
-                }));
-
-              searchContext.previousSearches = previousSearches;
-            } catch (_error) {
-              // Continue without context on error
+            let recentMessages: Doc<"messages">[] = [];
+            if (Array.isArray(recentMessagesResult)) {
+              recentMessages = recentMessagesResult;
+            } else if (
+              recentMessagesResult &&
+              typeof recentMessagesResult === "object" &&
+              "page" in recentMessagesResult
+            ) {
+              recentMessages = Array.isArray(recentMessagesResult.page)
+                ? (recentMessagesResult.page as Doc<"messages">[])
+                : [];
+            } else {
+              recentMessages = [];
             }
+
+            const historyMessages = recentMessages
+              .filter((m: Doc<"messages">) => m && m._id !== args.messageId)
+              .slice(-3)
+              .map((m: Doc<"messages">) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content || "",
+                hasSearchResults: !!m.citations?.length,
+              }));
+
+            if (searchDecisionContext.conversationHistory) {
+              searchDecisionContext.conversationHistory.push(
+                ...historyMessages
+              );
+            }
+
+            const previousSearches = recentMessages
+              .filter(
+                (m: Doc<"messages">) =>
+                  m?.metadata?.searchQuery && m._id !== args.messageId
+              )
+              .slice(-2) // Last 2 searches
+              .map((m: Doc<"messages">) => ({
+                query: (m.metadata?.searchQuery as string) || "",
+                searchType: (m.metadata?.searchFeature as string) || "search",
+                category: m.metadata?.searchCategory as string | undefined,
+                resultCount: m.citations?.length || 0,
+              }));
+
+            searchDecisionContext.previousSearches = previousSearches;
           }
 
-          const searchNeedPrompt = generateSearchNeedAssessment(searchContext);
+          const searchNeedPrompt = generateSearchNeedAssessment(
+            searchDecisionContext
+          );
 
           const { text: searchNeedText } = await generateText({
             model: classificationModel,
             prompt: searchNeedPrompt,
-            temperature: 0.1, // Low temperature for consistent classification
+            temperature: 0.1,
             maxTokens: 300,
           });
 
@@ -340,7 +309,6 @@ export const streamResponse = action({
 
           let searchDecisionResult: SearchDecision;
 
-          // If LLM can answer confidently, skip search entirely
           if (searchNeedAssessment.canAnswerConfidently) {
             searchDecisionResult = {
               shouldSearch: false,
@@ -352,7 +320,9 @@ export const streamResponse = action({
             };
           } else {
             // STEP 2: If LLM cannot answer confidently, determine HOW to search
-            const searchStrategyPrompt = generateSearchStrategy(searchContext);
+            const searchStrategyPrompt = generateSearchStrategy(
+              searchDecisionContext
+            );
 
             const { text: searchStrategyText } = await generateText({
               model: classificationModel,
@@ -376,8 +346,8 @@ export const streamResponse = action({
 
           searchDecision = searchDecisionResult;
           shouldSearch = searchDecision.shouldSearch;
+          searchQuery = searchDecision.suggestedQuery || userQuery;
         } catch {
-          // Fallback: default to no search on LLM failure
           shouldSearch = false;
           searchDecision = {
             shouldSearch: false,
@@ -395,54 +365,40 @@ export const streamResponse = action({
         const exaApiKey = getExaApiKey();
 
         if (exaApiKey) {
-          try {
-            // Use search decision from LLM
-            const exaFeature = searchDecision?.searchType || "search";
-            const category = searchDecision?.category || undefined;
+          const exaFeature = searchDecision?.searchType || "search";
+          const category = searchDecision?.category || undefined;
 
-            // Use the LLM's suggested query if available, otherwise use the original query
-            searchQuery = searchDecision?.suggestedQuery || userQuery;
-
-            // Update message with search query and feature type immediately
-            await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-              id: args.messageId,
-              metadata: {
-                ...(message?.metadata || {}),
-                searchQuery,
-                searchFeature: exaFeature,
-                searchCategory: category,
-              },
-            });
-
-            const searchResults = await performWebSearch(exaApiKey, {
-              query: searchQuery,
-              searchType: exaFeature,
-              category,
-              maxResults: args.webSearchMaxResults || WEB_SEARCH_MAX_RESULTS,
-            });
-
-            exaCitations = searchResults.citations;
-            searchContext = extractSearchContext(exaFeature, searchResults);
-
-            // Update message with search results and citations immediately
-            await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-              id: args.messageId,
-              metadata: {
-                ...(message?.metadata || {}),
-                searchQuery,
-                searchFeature: exaFeature,
-                searchCategory: category,
-              },
-              citations: exaCitations,
-            });
-          } catch (error) {
-            console.error("Web search error:", {
-              error: error instanceof Error ? error.message : String(error),
+          await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+            id: args.messageId,
+            metadata: {
+              ...(message?.metadata || {}),
               searchQuery,
-              exaFeature: searchDecision?.searchType,
-            });
-            // Continue without web search on error
-          }
+              searchFeature: exaFeature,
+              searchCategory: category,
+            },
+          });
+
+          const searchResults = await performWebSearch(exaApiKey, {
+            query: searchQuery,
+            searchType: exaFeature,
+            category,
+            maxResults: args.webSearchMaxResults || WEB_SEARCH_MAX_RESULTS,
+          });
+
+          exaCitations = searchResults.citations;
+          searchContext = extractSearchContext(exaFeature, searchResults);
+
+          // Update message with search results and citations immediately
+          await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+            id: args.messageId,
+            metadata: {
+              ...(message?.metadata || {}),
+              searchQuery,
+              searchFeature: exaFeature,
+              searchCategory: category,
+            },
+            citations: exaCitations,
+          });
         }
       }
 
@@ -519,20 +475,6 @@ export const streamResponse = action({
         authenticatedUser?._id
       );
 
-      const truncateContent = (content: string, maxLength: number): string => {
-        if (content.length <= maxLength) {
-          return content;
-        }
-
-        const truncateAt =
-          content.lastIndexOf("\n", maxLength - 100) || maxLength - 100;
-        return (
-          content.substring(0, truncateAt) +
-          "\n\n[Content truncated for length...]"
-        );
-      };
-
-      // Validate message array complexity for follow-up messages with search
       if (searchContext && exaCitations.length > 0) {
         const totalMessageLength = messages.reduce((total, msg) => {
           return (
@@ -549,18 +491,6 @@ export const streamResponse = action({
           });
         }
       }
-
-      const MAX_SYSTEM_MESSAGE_LENGTH = 5000; // Reduced from 10000
-      messages.forEach((msg, index) => {
-        if (msg.role === "system" && typeof msg.content === "string") {
-          if (msg.content.length > MAX_SYSTEM_MESSAGE_LENGTH) {
-            messages[index].content = truncateContent(
-              msg.content,
-              MAX_SYSTEM_MESSAGE_LENGTH
-            );
-          }
-        }
-      });
 
       const streamResult = streamText({
         model,
@@ -582,7 +512,7 @@ export const streamResponse = action({
         },
       });
 
-      const hasReasoningSupport = await isReasoningModelEnhanced(
+      const hasReasoningSupport = await isReasoningModel(
         args.provider,
         args.model
       );
@@ -655,8 +585,8 @@ export const streamResponse = action({
       }
 
       await clearConversationStreaming(ctx, args.messageId);
-      throw error;
     } finally {
+      // Cleanup operations are synchronous
       interruptor.cleanup();
       resourceManager.cleanup();
       abortController = null;
@@ -669,24 +599,19 @@ export const stopStreaming = action({
   handler: async (ctx, args) => {
     await clearConversationStreaming(ctx, args.messageId);
 
-    try {
-      const currentMessage = await ctx.runQuery(api.messages.getById, {
-        id: args.messageId,
-      });
+    const currentMessage = await ctx.runQuery(api.messages.getById, {
+      id: args.messageId,
+    });
 
-      if (currentMessage) {
-        await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-          id: args.messageId,
-          metadata: {
-            ...(currentMessage.metadata || {}),
-            finishReason: "stop",
-            stopped: true,
-          },
-        });
-      }
-    } catch {
-      // Message might not exist or already be updated, which is fine
-      // The stream handler will also set these flags when it detects the abort
+    if (currentMessage) {
+      await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: args.messageId,
+        metadata: {
+          ...(currentMessage.metadata || {}),
+          finishReason: "stop",
+          stopped: true,
+        },
+      });
     }
   },
 });
