@@ -16,8 +16,16 @@ type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
   isStreaming?: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
-  onRetryUserMessage?: (messageId: string) => void;
-  onRetryAssistantMessage?: (messageId: string) => void;
+  onRetryUserMessage?: (
+    messageId: string,
+    modelId?: string,
+    provider?: string
+  ) => void;
+  onRetryAssistantMessage?: (
+    messageId: string,
+    modelId?: string,
+    provider?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
   scrollElement?: Element | null;
   shouldScrollToBottom?: boolean;
@@ -33,8 +41,16 @@ interface MessageItemProps {
   messageId: string;
   isStreaming: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
-  onRetryUserMessage?: (messageId: string) => void;
-  onRetryAssistantMessage?: (messageId: string) => void;
+  onRetryUserMessage?: (
+    messageId: string,
+    modelId?: string,
+    provider?: string
+  ) => void;
+  onRetryAssistantMessage?: (
+    messageId: string,
+    modelId?: string,
+    provider?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
   // Message selector for efficient re-renders
   messageSelector: (messageId: string) => ChatMessageType | undefined;
