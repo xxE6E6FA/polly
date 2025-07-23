@@ -1,19 +1,17 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
-import { useCallback, useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useEffect } from "react";
+import { useParams } from "react-router";
 import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
-import { useChatService } from "@/hooks/use-chat-service";
-import { ROUTES } from "@/lib/routes";
+import { useChat } from "@/hooks/use-chat";
 import { usePrivateMode } from "@/providers/private-mode-context";
-import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
+import type { ConversationId } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
-  const navigate = useNavigate();
   const { setPrivateMode } = usePrivateMode();
 
   useEffect(() => {
@@ -30,44 +28,18 @@ export default function ConversationRoute() {
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  const handleConversationCreate = useCallback(
-    (newConversationId: ConversationId) => {
-      navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-    },
-    [navigate]
-  );
-
-  const chatService = useChatService({
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    sendMessage,
+    editMessage,
+    retryFromMessage,
+    deleteMessage,
+    stopGeneration,
+  } = useChat({
     conversationId: conversationId as ConversationId,
-    onConversationCreate: handleConversationCreate,
   });
-
-  // Handle sending message as new conversation
-  const handleSendAsNewConversation = useCallback(
-    async (
-      content: string,
-      shouldNavigate: boolean,
-      attachments?: Attachment[],
-      contextSummary?: string,
-      sourceConversationId?: ConversationId,
-      personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
-    ): Promise<ConversationId | undefined> => {
-      if (chatService.sendMessageToNewConversation) {
-        return await chatService.sendMessageToNewConversation(
-          content,
-          shouldNavigate,
-          attachments,
-          contextSummary,
-          sourceConversationId || (conversationId as ConversationId),
-          personaId,
-          reasoningConfig
-        );
-      }
-      return undefined;
-    },
-    [chatService.sendMessageToNewConversation, conversationId]
-  );
 
   if (conversation === null) {
     return <NotFoundPage />;
@@ -79,20 +51,39 @@ export default function ConversationRoute() {
       <UnifiedChatView
         conversationId={conversationId as ConversationId}
         isArchived={conversation?.isArchived}
-        messages={chatService.messages}
-        isLoading={chatService.isLoading}
-        isLoadingMessages={chatService.isLoadingMessages}
-        isStreaming={chatService.isStreaming}
-        currentPersonaId={chatService.currentPersonaId}
+        messages={messages}
+        isLoading={isLoading}
+        isLoadingMessages={false}
+        isStreaming={isStreaming}
+        currentPersonaId={conversation?.personaId || null}
         canSavePrivateChat={false}
         hasApiKeys={hasApiKeys ?? false}
-        onSendMessage={chatService.sendMessage}
-        onSendAsNewConversation={handleSendAsNewConversation}
-        onDeleteMessage={chatService.deleteMessage}
-        onEditMessage={chatService.editMessage}
-        onStopGeneration={chatService.stopGeneration}
-        onRetryUserMessage={chatService.retryUserMessage}
-        onRetryAssistantMessage={chatService.retryAssistantMessage}
+        onSendMessage={async (
+          content,
+          attachments,
+          personaId,
+          reasoningConfig
+        ) => {
+          await sendMessage({
+            content,
+            attachments,
+            personaId,
+            reasoningConfig,
+          });
+        }}
+        onSendAsNewConversation={async () => {
+          // This functionality would need to be implemented separately
+          return await Promise.resolve(undefined);
+        }}
+        onDeleteMessage={deleteMessage}
+        onEditMessage={editMessage}
+        onStopGeneration={stopGeneration}
+        onRetryUserMessage={async messageId => {
+          await retryFromMessage(messageId);
+        }}
+        onRetryAssistantMessage={async messageId => {
+          await retryFromMessage(messageId);
+        }}
       />
     </>
   );

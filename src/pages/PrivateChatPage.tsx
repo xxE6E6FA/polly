@@ -1,13 +1,12 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { UnifiedChatView } from "@/components/unified-chat-view";
-import { useChatService } from "@/hooks/use-chat-service";
+import { useChat } from "@/hooks/use-chat";
 import { ROUTES } from "@/lib/routes";
-import { isUserModel } from "@/lib/type-guards";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
@@ -15,13 +14,9 @@ import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const { user } = useUserDataContext();
-  const savePrivateConversation = useAction(
-    api.conversations.savePrivateConversation
-  );
-  const { setPrivateMode, setChatInputState } = usePrivateMode();
+  const { setPrivateMode } = usePrivateMode();
+  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
   const [navigationState, setNavigationState] = useState<{
     initialMessage?: string;
@@ -29,6 +24,11 @@ export default function PrivateChatPage() {
     personaId?: string | null;
     reasoningConfig?: ReasoningConfig;
   } | null>(location.state);
+
+  const [currentPersonaId, setCurrentPersonaId] =
+    useState<Id<"personas"> | null>(
+      navigationState?.personaId as Id<"personas"> | null
+    );
 
   useEffect(() => {
     setPrivateMode(true);
@@ -38,28 +38,35 @@ export default function PrivateChatPage() {
     };
   }, [setPrivateMode]);
 
-  const chatService = useChatService({
-    onConversationCreate: (conversationId: ConversationId) => {
-      navigate(ROUTES.CHAT_CONVERSATION(conversationId));
-    },
-    overrideMode: "private",
-    initialPersonaId: navigationState?.personaId
-      ? (navigationState.personaId as Id<"personas">)
-      : undefined,
-    initialReasoningConfig: navigationState?.reasoningConfig,
-  });
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    sendMessage,
+    editMessage,
+    retryFromMessage,
+    deleteMessage,
+    stopGeneration,
+    saveConversation,
+    canSave,
+  } = useChat({});
 
-  // Sync the current reasoning config with the private mode context
+  // Handle initial message from navigation state
   useEffect(() => {
-    if (chatService.currentReasoningConfig) {
-      setChatInputState({
-        reasoningConfig: chatService.currentReasoningConfig,
+    if (navigationState?.initialMessage && messages.length === 0) {
+      sendMessage({
+        content: navigationState.initialMessage,
+        attachments: navigationState.attachments,
+        personaId: navigationState.personaId as Id<"personas"> | null,
+        reasoningConfig: navigationState.reasoningConfig,
       });
+      // Clear navigation state after sending
+      setNavigationState(null);
     }
-  }, [chatService.currentReasoningConfig, setChatInputState]);
+  }, [navigationState, messages.length, sendMessage]);
 
   // Handle saving private chat to Convex
-  const handleSavePrivateChat = async () => {
+  const handleSavePrivateChat = useCallback(async () => {
     if (!user?._id) {
       toast.error("Cannot save chat", {
         description: "User not authenticated",
@@ -67,7 +74,7 @@ export default function PrivateChatPage() {
       return;
     }
 
-    if (chatService.messages.length === 0) {
+    if (!canSave) {
       toast.error("No messages to save", {
         description: "Start a private conversation first",
       });
@@ -75,132 +82,79 @@ export default function PrivateChatPage() {
     }
 
     try {
-      const messagesToSave = chatService.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        createdAt: new Date(msg.createdAt).getTime(),
-        model: msg.model,
-        provider: msg.provider as
-          | "openai"
-          | "anthropic"
-          | "google"
-          | "openrouter"
-          | undefined,
-        reasoning: msg.reasoning,
-        attachments: msg.attachments?.map(attachment => ({
-          type: attachment.type,
-          url: attachment.url,
-          name: attachment.name,
-          size: attachment.size,
-          content: attachment.content,
-          thumbnail: attachment.thumbnail,
-          storageId: attachment.storageId,
-          mimeType: attachment.mimeType,
-        })),
-        citations: msg.citations,
-        metadata: msg.metadata,
-      }));
-
-      const conversationId = await savePrivateConversation({
-        messages: messagesToSave,
-        ...(chatService.currentPersonaId && {
-          personaId: chatService.currentPersonaId,
-        }),
-      });
-
+      const conversationId = await saveConversation();
       if (conversationId) {
-        toast.success("Private chat saved", {
-          description: "All messages have been saved to your chat history",
-        });
-
-        // Navigate to the saved conversation
+        toast.success("Chat saved successfully");
         navigate(ROUTES.CHAT_CONVERSATION(conversationId));
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to save private chat";
-      toast.error("Failed to save chat", { description: errorMessage });
+      console.error("Failed to save private conversation:", error);
+      toast.error("Failed to save chat", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     }
-  };
+  }, [user, canSave, saveConversation, navigate]);
 
-  // Auto-send initial message for private chat
-  useEffect(() => {
-    if (
-      !chatService.messages.length &&
-      navigationState?.initialMessage?.trim() &&
-      selectedModel
-    ) {
-      if (navigationState.initialMessage) {
-        chatService.sendMessage(
-          navigationState.initialMessage,
-          navigationState.attachments,
-          navigationState.personaId
-            ? (navigationState.personaId as Id<"personas">)
-            : null,
-          navigationState.reasoningConfig
-        );
-      }
-
-      // Clear navigation state immediately to prevent re-execution.
-      setNavigationState(null);
-      navigate(location.pathname, { replace: true, state: null });
-    }
-  }, [
-    selectedModel,
-    chatService.sendMessage,
-    navigationState,
-    chatService.messages.length,
-    navigate,
-    location.pathname,
-  ]);
-
-  const canSavePrivateChat = chatService.messages.length > 0;
-
+  // Handle sending message as new conversation
   const handleSendAsNewConversation = useCallback(
-    (
+    async (
       content: string,
-      navigateToNew: boolean,
+      _shouldNavigate: boolean,
       attachments?: Attachment[],
       _contextSummary?: string,
       _sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
       reasoningConfig?: ReasoningConfig
     ): Promise<ConversationId | undefined> => {
-      if (navigateToNew) {
-        navigate(ROUTES.HOME, {
-          state: {
-            initialMessage: content,
-            attachments,
-            personaId,
-            reasoningConfig,
-          },
-        });
-      }
-      return Promise.resolve(undefined);
+      // In private mode, we just send the message to the current chat
+      await sendMessage({
+        content,
+        attachments,
+        personaId,
+        reasoningConfig,
+      });
+      return undefined;
     },
-    [navigate]
+    [sendMessage]
   );
 
   return (
-    <div className="h-screen w-full private-mode-background">
-      <UnifiedChatView
-        messages={chatService.messages}
-        isLoading={chatService.isLoading}
-        isLoadingMessages={chatService.isLoadingMessages}
-        isStreaming={chatService.isStreaming}
-        currentPersonaId={chatService.currentPersonaId}
-        currentReasoningConfig={chatService.currentReasoningConfig}
-        canSavePrivateChat={canSavePrivateChat}
-        hasApiKeys={true}
-        onSendMessage={chatService.sendMessage}
-        onSendAsNewConversation={handleSendAsNewConversation}
-        onDeleteMessage={chatService.deleteMessage}
-        onEditMessage={chatService.editMessage}
-        onStopGeneration={chatService.stopGeneration}
-        onSavePrivateChat={handleSavePrivateChat}
-        onRetryUserMessage={chatService.retryUserMessage}
-        onRetryAssistantMessage={chatService.retryAssistantMessage}
-      />
-    </div>
+    <UnifiedChatView
+      isArchived={false}
+      messages={messages}
+      isLoading={isLoading}
+      isLoadingMessages={false}
+      isStreaming={isStreaming}
+      currentPersonaId={currentPersonaId}
+      canSavePrivateChat={canSave}
+      hasApiKeys={hasApiKeys ?? false}
+      onSendMessage={async (
+        content,
+        attachments,
+        personaId,
+        reasoningConfig
+      ) => {
+        await sendMessage({
+          content,
+          attachments,
+          personaId,
+          reasoningConfig,
+        });
+        if (personaId !== currentPersonaId) {
+          setCurrentPersonaId(personaId || null);
+        }
+      }}
+      onSendAsNewConversation={handleSendAsNewConversation}
+      onDeleteMessage={deleteMessage}
+      onEditMessage={editMessage}
+      onStopGeneration={stopGeneration}
+      onRetryUserMessage={async messageId => {
+        await retryFromMessage(messageId);
+      }}
+      onRetryAssistantMessage={async messageId => {
+        await retryFromMessage(messageId);
+      }}
+      onSavePrivateChat={handleSavePrivateChat}
+    />
   );
 }

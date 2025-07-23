@@ -1,4 +1,4 @@
-import { api } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { type Doc, type Id } from "../_generated/dataModel";
 import {
   type ActionCtx,
@@ -763,9 +763,10 @@ export const setupAndStartStreaming = async (
     provider: args.provider,
     isMainBranch: true,
   });
-  await ctx.runAction(api.ai.streamResponse, {
+  await ctx.scheduler.runAfter(0, internal.stream.stream, {
     messages: args.contextMessages,
     messageId: assistantMessageId,
+    conversationId: args.conversationId,
     model: args.model,
     provider: args.provider,
     temperature: DEFAULT_TEMPERATURE,
@@ -778,7 +779,6 @@ export const setupAndStartStreaming = async (
           maxTokens: args.reasoningConfig.maxTokens,
         }
       : undefined,
-    conversationId: args.conversationId, // For background job authentication
   });
   return assistantMessageId;
 };

@@ -16,14 +16,11 @@ import {
   query,
 } from "./_generated/server";
 
-import type { MessageDoc } from "./lib/conversation_utils";
 import {
   buildContextMessages,
   checkConversationAccess,
   deleteMessagesAfterIndex,
-  ensureStreamingCleared,
   executeStreamingAction,
-  findStreamingMessage,
   incrementUserMessageStats,
   processAttachmentsForStorage,
   setupAndStartStreaming,
@@ -146,81 +143,7 @@ export const createConversation = mutation({
   },
 });
 
-export const startStreaming = action({
-  args: {
-    conversationId: v.id("conversations"),
-    assistantMessageId: v.id("messages"),
-    model: v.string(),
-    provider: providerSchema,
-    temperature: v.optional(v.number()),
-    maxTokens: v.optional(v.number()),
-    enableWebSearch: v.optional(v.boolean()),
-    webSearchMaxResults: v.optional(v.number()),
-    reasoningConfig: v.optional(
-      v.object({
-        enabled: v.boolean(),
-        effort: v.union(
-          v.literal("low"),
-          v.literal("medium"),
-          v.literal("high")
-        ),
-        maxTokens: v.number(),
-      })
-    ),
-  },
-  handler: async (ctx, args) => {
-    // Verify conversation exists and user has access
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
-    });
-
-    if (!conversation) {
-      throw new Error("Conversation not found or access denied");
-    }
-
-    // Get user ID for authentication context
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    // Verify user owns the conversation
-    if (conversation.userId !== userId) {
-      throw new Error("Access denied to conversation");
-    }
-
-    // Get the message to verify it exists and belongs to the conversation
-    const message = await ctx.runQuery(api.messages.getById, {
-      id: args.assistantMessageId,
-    });
-
-    if (!message || message.conversationId !== args.conversationId) {
-      throw new Error("Message not found or does not belong to conversation");
-    }
-
-    // Start streaming immediately with proper authentication context
-    await ctx.runAction(api.ai.streamResponse, {
-      messages: [
-        { role: "system" as const, content: "" }, // Will be replaced by action
-        { role: "user" as const, content: "" }, // Will be replaced by action
-      ],
-      messageId: args.assistantMessageId,
-      model: args.model,
-      provider: args.provider,
-      temperature: args.temperature ?? 0.7,
-      maxTokens: args.maxTokens ?? -1,
-      enableWebSearch: args.enableWebSearch,
-      webSearchMaxResults: args.webSearchMaxResults ?? 5,
-      reasoningConfig: args.reasoningConfig?.enabled
-        ? {
-            effort: args.reasoningConfig.effort,
-            maxTokens: args.reasoningConfig.maxTokens,
-          }
-        : undefined,
-      conversationId: args.conversationId, // Pass conversation ID for authentication context
-    });
-  },
-});
+// startStreaming action removed - streaming is now handled by the sendMessage mutation
 
 export const savePrivateConversation = action({
   args: {
@@ -964,7 +887,7 @@ export const processBulkDelete = action({
   },
 });
 
-export const sendFollowUpMessage = action({
+export const sendMessage = mutation({
   args: {
     conversationId: v.id("conversations"),
     content: v.string(),
@@ -972,69 +895,171 @@ export const sendFollowUpMessage = action({
     useWebSearch: v.optional(v.boolean()),
     ...modelProviderArgs,
     reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+    maxTokens: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
+    webSearchMaxResults: v.optional(v.number()),
   },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    userMessageId: Id<"messages">;
-    assistantMessageId: Id<"messages">;
-  }> => {
+  handler: async (ctx, args) => {
     // Get authenticated user
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
     }
 
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
-    });
-    if (!conversation) {
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation || conversation.userId !== userId) {
       throw new Error("Conversation not found or access denied");
     }
 
-    // Process attachments if provided
-    const processedAttachments =
-      args.attachments && args.attachments.length > 0
-        ? await processAttachmentsForStorage(ctx, args.attachments)
-        : undefined;
+    // Check if this is a Polly free model and enforce limits
+    const isPollyModelResult = isPollyModel(args.provider);
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
 
-    // Create user message and increment count in a single batch
-    const userMessageId = await ctx.runMutation(
-      api.messages.createUserMessageBatched,
-      {
-        conversationId: args.conversationId,
-        content: args.content,
-        model: args.model,
-        provider: args.provider,
-        attachments: processedAttachments,
-        useWebSearch: args.useWebSearch,
-        reasoningConfig: args.reasoningConfig,
+    if (isPollyModelResult && !user.hasUnlimitedCalls) {
+      const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
+      const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+      if (monthlyMessagesSent >= monthlyLimit) {
+        throw new Error("Monthly Polly model message limit reached.");
       }
-    );
+    }
 
-    // Build context messages
-    const { contextMessages } = await buildContextMessages(ctx, {
+    // Create user message
+    const userMessageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
-      personaId: conversation.personaId,
+      role: "user",
+      content: args.content,
+      attachments: args.attachments,
+      useWebSearch: args.useWebSearch,
+      reasoningConfig: args.reasoningConfig,
+      isMainBranch: true,
+      createdAt: Date.now(),
     });
 
-    // Execute streaming action
-    const result = await executeStreamingAction(ctx, {
+    // Increment user message stats directly in mutation
+    if (isPollyModelResult) {
+      await ctx.db.patch(userId, {
+        messagesSent: (user.messagesSent || 0) + 1,
+        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
+      });
+    } else {
+      await ctx.db.patch(userId, {
+        messagesSent: (user.messagesSent || 0) + 1,
+        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
+      });
+    }
+
+    // Create assistant placeholder message
+    const assistantMessageId = await ctx.db.insert("messages", {
       conversationId: args.conversationId,
+      role: "assistant",
+      content: "",
       model: args.model,
       provider: args.provider,
-      userMessageId,
-      conversation,
-      contextMessages,
-      useWebSearch: args.useWebSearch,
+      isMainBranch: true,
+      createdAt: Date.now(),
+    });
+
+    // Schedule the stream action
+    await ctx.scheduler.runAfter(0, internal.stream.stream, {
+      conversationId: args.conversationId,
+      messageId: assistantMessageId,
+      messages: [], // Will be built by the stream action
+      model: args.model,
+      provider: args.provider,
+      temperature: args.temperature,
+      maxTokens: args.maxTokens,
+      topP: args.topP,
+      frequencyPenalty: args.frequencyPenalty,
+      presencePenalty: args.presencePenalty,
+      enableWebSearch: args.useWebSearch,
+      webSearchMaxResults: args.webSearchMaxResults,
       reasoningConfig: args.reasoningConfig,
     });
 
-    return {
-      userMessageId,
-      assistantMessageId: result.assistantMessageId,
-    };
+    return { userMessageId, assistantMessageId };
+  },
+});
+
+export const editAndResendMessage = mutation({
+  args: {
+    messageId: v.id("messages"),
+    newContent: v.string(),
+    ...modelProviderArgs,
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+    maxTokens: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
+    webSearchMaxResults: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message || message.role !== "user") {
+      throw new Error("Can only edit user messages.");
+    }
+    const conversationId = message.conversationId;
+
+    // Check access
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+    const conversation = await ctx.db.get(conversationId);
+    if (!conversation || conversation.userId !== userId) {
+      throw new Error("Conversation not found or access denied");
+    }
+
+    // Update the user message
+    await ctx.db.patch(args.messageId, { content: args.newContent });
+
+    // Delete subsequent messages
+    const subsequentMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
+      .filter(q => q.gt(q.field("_creationTime"), message._creationTime))
+      .collect();
+
+    for (const msg of subsequentMessages) {
+      await ctx.db.delete(msg._id);
+    }
+
+    // Create new assistant placeholder
+    const assistantMessageId = await ctx.db.insert("messages", {
+      conversationId,
+      role: "assistant",
+      content: "",
+      model: args.model,
+      provider: args.provider,
+      isMainBranch: true,
+      createdAt: Date.now(),
+    });
+
+    // Schedule the stream action
+    await ctx.scheduler.runAfter(0, internal.stream.stream, {
+      conversationId,
+      messageId: assistantMessageId,
+      messages: [],
+      model: args.model,
+      provider: args.provider,
+      temperature: args.temperature,
+      maxTokens: args.maxTokens,
+      topP: args.topP,
+      frequencyPenalty: args.frequencyPenalty,
+      presencePenalty: args.presencePenalty,
+      enableWebSearch: message.useWebSearch,
+      webSearchMaxResults: args.webSearchMaxResults,
+      reasoningConfig: args.reasoningConfig,
+    });
+
+    return { assistantMessageId };
   },
 });
 
@@ -1215,47 +1240,11 @@ export const editMessage = action({
   },
 });
 
-export const stopGeneration = action({
-  args: {
-    conversationId: v.id("conversations"),
-  },
-  handler: async (ctx, args): Promise<{ stopped: boolean }> => {
-    try {
-      // Get all messages for the conversation to find the currently streaming one
-      const messagesResult = await ctx.runQuery(api.messages.list, {
-        conversationId: args.conversationId,
-      });
-
-      // Handle pagination result - if no pagination options passed, result is array
-      const messages = Array.isArray(messagesResult)
-        ? messagesResult
-        : messagesResult.page;
-
-      // Find the most recent assistant message that might be streaming
-      // Cast through unknown to handle citation type differences between pagination result and MessageDoc
-      const streamingMessage = findStreamingMessage(
-        messages as unknown as MessageDoc[]
-      );
-
-      if (streamingMessage) {
-        // Stop the streaming for this specific message
-        // This will also clear the conversation streaming state
-        await ctx.runAction(api.ai.stopStreaming, {
-          messageId: streamingMessage._id,
-        });
-      } else {
-        // No streaming message found, but clear the conversation state anyway
-        await ensureStreamingCleared(ctx, args.conversationId);
-      }
-
-      return {
-        stopped: true,
-      };
-    } catch (error) {
-      // Still try to clear streaming state even if stopping failed
-      await ensureStreamingCleared(ctx, args.conversationId);
-      throw error;
-    }
+export const stopGeneration = mutation({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.conversationId, { isStreaming: false });
+    // The StreamInterruptor in the action will handle the rest.
   },
 });
 
