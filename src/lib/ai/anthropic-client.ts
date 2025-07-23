@@ -115,6 +115,6 @@ export class AnthropicClient {
    */
   static supportsNativeReasoning(model: string): boolean {
     // Use shared reasoning detection for consistency
-    return supportsReasoning("anthropic", model);
+    return supportsReasoning(model);
   }
 }

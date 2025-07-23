@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/spinner";
@@ -8,7 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useChatService } from "@/hooks/use-chat-service";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -34,9 +33,9 @@ export const ConversationStarterPopover = ({
     api.conversationStarters.generateConversationStarters
   );
 
-  const chatService = useChatService({
-    overrideMode: "regular", // Always use regular mode for conversation starters
-  });
+  const createConversationMutation = useMutation(
+    api.conversations.createConversation
+  );
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
 
@@ -76,14 +75,14 @@ export const ConversationStarterPopover = ({
 
   const handleStartConversation = async (prompt: string) => {
     try {
-      const conversationId = await chatService.createConversation({
+      const result = await createConversationMutation({
         firstMessage: prompt,
-        generateTitle: true,
+        title: "New Conversation",
       });
 
-      if (conversationId) {
+      if (result?.conversationId) {
         // Navigate to conversation - the Convex action already started the assistant response
-        navigate(ROUTES.CHAT_CONVERSATION(conversationId));
+        navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
         onOpenChange(false);
       }
     } catch (error) {

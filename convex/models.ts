@@ -187,10 +187,7 @@ async function fetchAnthropicModels(apiKey: string) {
         const supportsImages = true; // All modern Claude models support images
         const supportsTools = true; // All modern Claude models support tools
         const supportsFiles = true; // All modern Claude models support files
-        const supportsReasoningCapability = supportsReasoning(
-          "anthropic",
-          modelId
-        );
+        const supportsReasoningCapability = supportsReasoning(modelId);
 
         const contextWindow = getAnthropicContextWindow(modelId);
 

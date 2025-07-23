@@ -12,7 +12,7 @@ import { type StreamMessage } from "../types";
 import { handleStreamOperation } from "./error_handlers";
 import { ResourceManager } from "./resource_manager";
 import { StreamInterruptor } from "./stream_interruptor";
-import { StreamHandler } from "./streaming";
+import { StreamHandler } from "../stream";
 
 export class AnthropicNativeHandler {
   private anthropic: Anthropic;

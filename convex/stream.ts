@@ -9,16 +9,12 @@ import { v } from "convex/values";
 import dedent from "dedent";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import { action } from "./_generated/server";
+import { internalAction } from "./_generated/server";
 import { AnthropicNativeHandler } from "./ai/anthropic_native";
 import { getApiKey } from "./ai/encryption";
 import { getUserFriendlyErrorMessage } from "./ai/errors";
 import { extractSearchContext, getExaApiKey, performWebSearch } from "./ai/exa";
-import {
-  clearConversationStreaming,
-  convertMessages,
-  updateMessage,
-} from "./ai/messages";
+import { convertMessages } from "./ai/messages";
 import { createLanguageModel, getProviderStreamOptions } from "./ai/providers";
 import { isReasoningModel } from "./ai/reasoning_detection";
 import { ResourceManager } from "./ai/resource_manager";
@@ -32,7 +28,6 @@ import {
   type SearchNeedAssessment,
 } from "./ai/search_detection";
 import { StreamInterruptor } from "./ai/stream_interruptor";
-import { StreamHandler } from "./ai/streaming";
 import { buildContextMessages } from "./lib/conversation_utils";
 import {
   contextMessageSchema,
@@ -40,23 +35,157 @@ import {
 } from "./lib/schemas";
 import type { Citation, ProviderType, StreamMessage } from "./types";
 
-// Main streaming action
-export const streamResponse = action({
+// --- Optimized StreamHandler ---
+// This version batches database writes to reduce load.
+
+export class StreamHandler {
+  // biome-ignore lint/suspicious/noExplicitAny: ActionCtx type from Convex
+  private ctx: any;
+  private messageId: Id<"messages">;
+  private contentBuffer = "";
+  private reasoningBuffer = "";
+  private lastUpdateTime = 0;
+  private readonly updateInterval = 300; // ms
+  private abortController: AbortController | null = null;
+  private finishData: {
+    text: string;
+    finishReason: string;
+    // biome-ignore lint/suspicious/noExplicitAny: Reasoning can have various shapes
+    reasoning?: any;
+    // biome-ignore lint/suspicious/noExplicitAny: Provider metadata varies by provider
+    providerMetadata?: any;
+  } | null = null;
+
+  // biome-ignore lint/suspicious/noExplicitAny: ActionCtx type from Convex
+  constructor(ctx: any, messageId: Id<"messages">) {
+    this.ctx = ctx;
+    this.messageId = messageId;
+  }
+
+  get messageIdValue(): Id<"messages"> {
+    return this.messageId;
+  }
+
+  public setAbortController(controller: AbortController) {
+    this.abortController = controller;
+  }
+
+  public async appendToBuffer(text: string) {
+    this.contentBuffer += text;
+    await this.flushBuffers();
+  }
+
+  public async checkIfStopped(): Promise<boolean> {
+    const message = await this.ctx.runQuery(api.messages.getById, {
+      id: this.messageId,
+    });
+    return message?.metadata?.stopped === true;
+  }
+
+  public setFinishData(data: typeof this.finishData) {
+    this.finishData = data;
+  }
+
+  private async flushBuffers(force = false) {
+    const now = Date.now();
+    if (
+      !force &&
+      now - this.lastUpdateTime < this.updateInterval &&
+      this.contentBuffer.length > 0 &&
+      !/[\n.!?]/.test(this.contentBuffer)
+    ) {
+      return;
+    }
+
+    if (this.contentBuffer.length > 0 || this.reasoningBuffer.length > 0) {
+      const contentToAppend = this.contentBuffer;
+      const reasoningToAppend = this.reasoningBuffer;
+      this.contentBuffer = "";
+      this.reasoningBuffer = "";
+      this.lastUpdateTime = now;
+
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        appendContent: contentToAppend,
+        appendReasoning: reasoningToAppend,
+      });
+    }
+  }
+
+  public async processStream(
+    // biome-ignore lint/suspicious/noExplicitAny: Stream can have different shapes
+    stream: AsyncIterable<any>,
+    hasReasoning: boolean
+  ) {
+    for await (const part of stream) {
+      if (this.abortController?.signal.aborted) {
+        throw new Error("Stream aborted by user");
+      }
+      if (hasReasoning) {
+        if (part.type === "text-delta") {
+          this.contentBuffer += part.textDelta;
+        } else if (part.type === "tool-use") {
+          this.reasoningBuffer += JSON.stringify(part.toolUse, null, 2);
+        }
+      } else {
+        this.contentBuffer += part;
+      }
+      await this.flushBuffers();
+    }
+  }
+
+  public async finishProcessing() {
+    await this.flushBuffers(true);
+    if (this.finishData) {
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        content: this.finishData.text,
+        reasoning: this.finishData.reasoning
+          ? JSON.stringify(this.finishData.reasoning, null, 2)
+          : undefined,
+        metadata: {
+          finishReason: this.finishData.finishReason,
+          providerMetadata: this.finishData.providerMetadata,
+        },
+      });
+    }
+  }
+
+  public async handleStop() {
+    await this.flushBuffers(true);
+    const currentMessage = await this.ctx.runQuery(api.messages.getById, {
+      id: this.messageId,
+    });
+    if (currentMessage) {
+      await this.ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: this.messageId,
+        metadata: {
+          ...(currentMessage.metadata || {}),
+          finishReason: "stop",
+          stopped: true,
+        },
+      });
+    }
+  }
+}
+
+// --- Unified Stream Action ---
+
+export const stream = internalAction({
   args: {
     messages: v.array(contextMessageSchema),
     messageId: v.id("messages"),
+    conversationId: v.id("conversations"),
     model: v.string(),
     provider: v.string(),
-
     temperature: v.optional(v.number()),
     maxTokens: v.optional(v.number()),
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
-    enableWebSearch: v.optional(v.boolean()), // false = disable, all else = AI decides
+    enableWebSearch: v.optional(v.boolean()),
     webSearchMaxResults: v.optional(v.number()),
     reasoningConfig: v.optional(reasoningConfigForActionSchema),
-    conversationId: v.optional(v.id("conversations")), // For background job authentication
   },
   handler: async (ctx, args) => {
     const resourceManager = new ResourceManager();
@@ -65,66 +194,27 @@ export const streamResponse = action({
     const interruptor = new StreamInterruptor(ctx, args.messageId);
 
     try {
-      const message = await ctx.runQuery(api.messages.getById, {
-        id: args.messageId,
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: true },
+        setUpdatedAt: true,
       });
-
-      const conversationId = args.conversationId || message?.conversationId;
-
-      // Use internalPatch for background jobs to avoid authentication issues
-      if (args.conversationId) {
-        // Background job - use internal mutation
-        await ctx.runMutation(internal.conversations.internalPatch, {
-          id: args.conversationId,
-          updates: { isStreaming: true },
-          setUpdatedAt: true,
-        });
-      } else if (conversationId) {
-        // Regular request - use regular mutation with access checks
-        await ctx.runMutation(api.conversations.patch, {
-          id: conversationId,
-          updates: { isStreaming: true },
-          setUpdatedAt: true,
-        });
-      }
 
       let actualProvider = args.provider;
       if (args.provider === "polly") {
         actualProvider = mapPollyModelToProvider(args.model);
       }
 
-      let userId: Id<"users"> | null = null;
-      let authenticatedUser = null;
-
-      userId = await getAuthUserId(ctx);
-      if (userId) {
-        authenticatedUser = await ctx.runQuery(internal.users.internalGetById, {
-          id: userId,
-        });
-      }
-
-      // If no user from auth context, try to get from conversation (works for background jobs)
-      if (!userId && conversationId) {
-        const conversation = await ctx.runQuery(
-          internal.conversations.internalGet,
-          {
-            id: conversationId,
-          }
-        );
-        userId = conversation?.userId || null;
-        if (userId) {
-          authenticatedUser = await ctx.runQuery(
-            internal.users.internalGetById,
-            { id: userId }
-          );
-        }
-      }
+      const userId = await getAuthUserId(ctx);
+      const authenticatedUser = userId
+        ? await ctx.runQuery(internal.users.internalGetById, { id: userId })
+        : null;
 
       const apiKey = await getApiKey(
         ctx,
         actualProvider as Exclude<ProviderType, "polly">,
         args.model,
-        conversationId
+        args.conversationId
       );
 
       if (!apiKey) {
@@ -133,22 +223,21 @@ export const streamResponse = action({
         );
       }
 
-      const hasPlaceholderMessages =
-        args.messages.every(
-          msg => msg.role === "system" || msg.role === "user"
-        ) &&
-        args.messages.every(
-          msg => typeof msg.content === "string" && msg.content === ""
-        );
-
+      // Build context messages if not provided
       let actualMessages = args.messages;
-      if (hasPlaceholderMessages && conversationId) {
+      if (args.messages.length === 0) {
+        const conversation = await ctx.runQuery(
+          internal.conversations.internalGet,
+          { id: args.conversationId }
+        );
         const { contextMessages } = await buildContextMessages(ctx, {
-          conversationId: conversationId,
+          conversationId: args.conversationId,
+          personaId: conversation?.personaId,
         });
         actualMessages = contextMessages;
       }
 
+      // Handle Anthropic reasoning models separately
       if (args.provider === "anthropic") {
         const hasReasoningSupport = await isReasoningModel(
           args.provider,
@@ -178,17 +267,17 @@ export const streamResponse = action({
         }
       }
 
-      // Get the last user message to analyze for search needs
       const lastUserMessage = [...actualMessages]
         .reverse()
         .find(msg => msg.role === "user");
-
       const userQuery =
         typeof lastUserMessage?.content === "string"
           ? lastUserMessage.content
           : lastUserMessage?.content
-              .filter(part => part.type === "text")
-              .map(part => part.text || "")
+              // biome-ignore lint/suspicious/noExplicitAny: Message content parts can have various types
+              ?.filter((part: any) => part.type === "text")
+              // biome-ignore lint/suspicious/noExplicitAny: Message content parts can have various types
+              .map((part: any) => part.text || "")
               .join(" ") || "";
 
       let exaCitations: Citation[] = [];
@@ -197,9 +286,7 @@ export const streamResponse = action({
       let searchDecision: SearchDecision | null = null;
       let shouldSearch = false;
 
-      if (args.enableWebSearch === false) {
-        shouldSearch = false;
-      } else if (userQuery) {
+      if (args.enableWebSearch !== false && userQuery) {
         try {
           const geminiApiKey = process.env.GEMINI_API_KEY;
           if (!geminiApiKey) {
@@ -207,7 +294,7 @@ export const streamResponse = action({
           }
 
           const classificationModelName =
-            process.env.SEARCH_CLASSIFICATION_MODEL || DEFAULT_POLLY_MODEL_ID; // Default to cheapest
+            process.env.SEARCH_CLASSIFICATION_MODEL || DEFAULT_POLLY_MODEL_ID;
 
           const classificationModel = await createLanguageModel(
             ctx,
@@ -242,9 +329,9 @@ export const streamResponse = action({
             });
           }
 
-          if (conversationId) {
+          if (args.conversationId) {
             const recentMessagesResult = await ctx.runQuery(api.messages.list, {
-              conversationId: conversationId,
+              conversationId: args.conversationId,
             });
 
             let recentMessages: Doc<"messages">[] = [];
@@ -282,7 +369,7 @@ export const streamResponse = action({
                 (m: Doc<"messages">) =>
                   m?.metadata?.searchQuery && m._id !== args.messageId
               )
-              .slice(-2) // Last 2 searches
+              .slice(-2)
               .map((m: Doc<"messages">) => ({
                 query: (m.metadata?.searchQuery as string) || "",
                 searchType: (m.metadata?.searchFeature as string) || "search",
@@ -319,7 +406,6 @@ export const streamResponse = action({
               suggestedQuery: userQuery,
             };
           } else {
-            // STEP 2: If LLM cannot answer confidently, determine HOW to search
             const searchStrategyPrompt = generateSearchStrategy(
               searchDecisionContext
             );
@@ -336,11 +422,10 @@ export const streamResponse = action({
               userQuery
             );
 
-            // Combine both assessments for final decision
             searchDecisionResult = {
               ...preliminarySearchDecision,
               reasoning: `Search need assessment: Cannot answer confidently. Search strategy: ${preliminarySearchDecision.reasoning}`,
-              confidence: 0.7, // Default confidence when search is needed
+              confidence: 0.7,
             };
           }
 
@@ -371,7 +456,6 @@ export const streamResponse = action({
           await ctx.runMutation(internal.messages.internalAtomicUpdate, {
             id: args.messageId,
             metadata: {
-              ...(message?.metadata || {}),
               searchQuery,
               searchFeature: exaFeature,
               searchCategory: category,
@@ -388,11 +472,9 @@ export const streamResponse = action({
           exaCitations = searchResults.citations;
           searchContext = extractSearchContext(exaFeature, searchResults);
 
-          // Update message with search results and citations immediately
           await ctx.runMutation(internal.messages.internalAtomicUpdate, {
             id: args.messageId,
             metadata: {
-              ...(message?.metadata || {}),
               searchQuery,
               searchFeature: exaFeature,
               searchCategory: category,
@@ -402,7 +484,6 @@ export const streamResponse = action({
         }
       }
 
-      // Convert messages to AI SDK format
       const messages = await convertMessages(
         ctx,
         actualMessages as StreamMessage[],
@@ -410,7 +491,6 @@ export const streamResponse = action({
       );
 
       if (searchContext && exaCitations.length > 0) {
-        // Create citation instructions with numbered sources
         const citationInstructions = dedent`
           You have access to current information from web sources. Use this information naturally in your response and cite sources with numbered references.
 
@@ -431,15 +511,11 @@ export const streamResponse = action({
           Respond naturally using this information where relevant.
         `;
 
-        // Use user role for citation instructions to ensure compatibility across all providers
-        // System messages are meant for initial context, not mid-conversation instructions
         messages.push({
           role: "user",
           content: citationInstructions,
         });
       } else if (searchContext) {
-        // If we have search context but no citations (edge case), still provide the context
-        // but without citation instructions
         const contextMessage = dedent`
           AVAILABLE INFORMATION:
           ${searchContext}
@@ -447,8 +523,6 @@ export const streamResponse = action({
           Use this information naturally in your response where relevant.
         `;
 
-        // Use user role for search context to ensure compatibility across all providers
-        // System messages are meant for initial context, not mid-conversation instructions
         messages.push({
           role: "user",
           content: contextMessage,
@@ -475,23 +549,6 @@ export const streamResponse = action({
         authenticatedUser?._id
       );
 
-      if (searchContext && exaCitations.length > 0) {
-        const totalMessageLength = messages.reduce((total, msg) => {
-          return (
-            total + (typeof msg.content === "string" ? msg.content.length : 0)
-          );
-        }, 0);
-
-        // If total message length is too large, it might cause LLM issues
-        if (totalMessageLength > 50000) {
-          console.warn("Large message array detected:", {
-            totalLength: totalMessageLength,
-            messageCount: messages.length,
-            messageId: args.messageId,
-          });
-        }
-      }
-
       const streamResult = streamText({
         model,
         messages,
@@ -516,102 +573,46 @@ export const streamResponse = action({
         args.provider,
         args.model
       );
-
       interruptor.startStopMonitoring();
 
-      if (hasReasoningSupport) {
-        try {
-          if (!streamResult.fullStream) {
-            throw new Error("No fullStream available");
-          }
-          await streamHandler.processStream(streamResult.fullStream, true);
-        } catch (error) {
-          if (
-            error instanceof Error &&
-            (error.message === "StoppedByUser" ||
-              error.name === "AbortError" ||
-              error.message.includes("AbortError") ||
-              error.message === "MessageDeleted")
-          ) {
-            throw error;
-          }
-          if (!streamResult.textStream) {
-            throw new Error("No textStream available");
-          }
-          await streamHandler.processStream(streamResult.textStream, false);
-        }
-      } else {
-        if (!streamResult.textStream) {
-          throw new Error("No textStream available");
-        }
+      if (hasReasoningSupport && streamResult.fullStream) {
+        await streamHandler.processStream(streamResult.fullStream, true);
+      } else if (streamResult.textStream) {
         await streamHandler.processStream(streamResult.textStream, false);
+      } else {
+        throw new Error("No valid stream available from the provider.");
       }
 
       await streamHandler.finishProcessing();
-    } catch (error) {
-      console.error("streamResponse ERROR:", {
+      // biome-ignore lint/suspicious/noExplicitAny: Error can be various types
+    } catch (error: any) {
+      console.error("stream action ERROR:", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
 
       if (
         error instanceof Error &&
-        (error.message === "StoppedByUser" ||
-          error.name === "AbortError" ||
-          error.message.includes("AbortError"))
+        (error.message.includes("aborted") ||
+          error.message.includes("StoppedByUser"))
       ) {
         await streamHandler.handleStop();
         return;
       }
 
-      if (error instanceof Error && error.message === "MessageDeleted") {
-        // This is expected behavior when a message is deleted during streaming
-        return;
-      }
-
-      // Only try to update the message with error if it still exists
-      const messageExists = await ctx
-        .runQuery(api.messages.getById, {
-          id: args.messageId,
-        })
-        .then(msg => Boolean(msg))
-        .catch(() => false);
-
-      if (messageExists) {
-        await updateMessage(ctx, args.messageId, {
-          content: getUserFriendlyErrorMessage(error),
-          finishReason: "error",
-        });
-      }
-
-      await clearConversationStreaming(ctx, args.messageId);
+      await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+        id: args.messageId,
+        content: getUserFriendlyErrorMessage(error),
+        metadata: { finishReason: "error" },
+      });
     } finally {
-      // Cleanup operations are synchronous
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: false },
+      });
       interruptor.cleanup();
       resourceManager.cleanup();
       abortController = null;
-    }
-  },
-});
-
-export const stopStreaming = action({
-  args: { messageId: v.id("messages") },
-  handler: async (ctx, args) => {
-    await clearConversationStreaming(ctx, args.messageId);
-
-    const currentMessage = await ctx.runQuery(api.messages.getById, {
-      id: args.messageId,
-    });
-
-    if (currentMessage) {
-      await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-        id: args.messageId,
-        metadata: {
-          ...(currentMessage.metadata || {}),
-          finishReason: "stop",
-          stopped: true,
-        },
-      });
     }
   },
 });

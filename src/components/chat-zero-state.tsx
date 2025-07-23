@@ -1,3 +1,4 @@
+import { api } from "@convex/_generated/api";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -5,11 +6,11 @@ import {
   LightningIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
-import { useChatService } from "@/hooks/use-chat-service";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -128,9 +129,9 @@ const ChatSection = () => {
   } = useUserDataContext();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
-  const chatService = useChatService({
-    overrideMode: "regular",
-  });
+  const createConversationMutation = useMutation(
+    api.conversations.createConversation
+  );
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
 
@@ -153,19 +154,25 @@ const ChatSection = () => {
         return;
       }
 
-      const conversationId = await chatService.createConversation({
+      const result = await createConversationMutation({
         firstMessage: content,
-        generateTitle: true,
+        title: "New Conversation",
         attachments,
-        personaId,
-        reasoningConfig,
+        personaId: personaId ?? undefined,
+        reasoningConfig: reasoningConfig
+          ? {
+              enabled: reasoningConfig.enabled,
+              effort: reasoningConfig.effort || "medium",
+              maxTokens: reasoningConfig.maxTokens,
+            }
+          : undefined,
       });
 
-      if (conversationId) {
-        navigate(ROUTES.CHAT_CONVERSATION(conversationId));
+      if (result?.conversationId) {
+        navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
       }
     },
-    [chatService.createConversation, navigate, isPrivateMode]
+    [navigate, isPrivateMode, createConversationMutation]
   );
 
   const handleQuickPrompt = useCallback(

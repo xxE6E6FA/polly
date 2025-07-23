@@ -73,7 +73,6 @@ export function hasMandatoryReasoning(
  * Check if a model supports reasoning (either mandatory or optional)
  */
 export function supportsReasoning(
-  provider: string,
   modelId: string
 ): boolean {
   const modelIdLower = modelId.toLowerCase();

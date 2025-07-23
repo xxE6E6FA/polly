@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import {
   ArrowCounterClockwiseIcon,
-  CaretRightIcon,
   CheckIcon,
   CopyIcon,
   NotePencilIcon,
