@@ -1,5 +1,4 @@
 import type { Doc } from "@convex/_generated/dataModel";
-import { CaretDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ProviderIcon } from "../provider-icons";
@@ -39,12 +38,6 @@ export const ModelPickerTrigger = ({
           <span className="max-w-[120px] truncate font-medium">
             {selectedModel?.name || "Select model"}
           </span>
-          <CaretDownIcon
-            className={cn(
-              "h-2.5 w-2.5 text-muted-foreground/50 group-hover:text-foreground/70 transition-all duration-200 shrink-0",
-              open && "rotate-180 text-foreground/70"
-            )}
-          />
         </div>
       </Button>
     </>

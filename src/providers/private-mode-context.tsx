@@ -14,6 +14,7 @@ interface ChatInputState {
   attachments: Attachment[];
   selectedPersonaId: Id<"personas"> | null;
   reasoningConfig: ReasoningConfig;
+  temperature?: number;
 }
 
 interface PrivateModeContextType {
@@ -35,6 +36,7 @@ const defaultChatInputState: ChatInputState = {
     enabled: false,
     effort: "medium",
   },
+  temperature: undefined,
 };
 
 const PrivateModeContext = createContext<PrivateModeContextType | undefined>(

@@ -53,6 +53,7 @@ export const createConversation = mutation({
     model: v.optional(v.string()),
     provider: v.optional(providerSchema),
     reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     // Development mode logging (always enabled for now to debug streaming issues)
@@ -149,6 +150,10 @@ export const createConversation = mutation({
       reasoningConfig: args.reasoningConfig,
       isMainBranch: true,
       createdAt: Date.now(),
+      metadata:
+        args.temperature !== undefined
+          ? { temperature: args.temperature }
+          : undefined,
     });
     log("USER_MESSAGE_CREATED", { userMessageId });
 
@@ -203,7 +208,7 @@ export const createConversation = mutation({
         useWebSearch: args.useWebSearch,
         reasoningConfig: args.reasoningConfig,
         // Include generation parameters that might be passed through
-        temperature: undefined,
+        temperature: args.temperature,
         maxTokens: undefined,
         topP: undefined,
         frequencyPenalty: undefined,
@@ -291,6 +296,10 @@ export const sendMessage = action({
         reasoningConfig: args.reasoningConfig,
         model: fullModel.modelId,
         provider: fullModel.provider,
+        metadata:
+          args.temperature !== undefined
+            ? { temperature: args.temperature }
+            : undefined,
       }
     );
 
@@ -1652,6 +1661,7 @@ export const createConversationAction = action({
     ),
     useWebSearch: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
   },
   returns: v.union(
     v.object({
@@ -1702,6 +1712,7 @@ export const createConversationAction = action({
         attachments: args.attachments,
         useWebSearch: args.useWebSearch,
         reasoningConfig: args.reasoningConfig,
+        temperature: args.temperature,
       });
 
       return {

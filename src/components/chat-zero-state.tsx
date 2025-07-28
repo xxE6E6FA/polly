@@ -143,7 +143,8 @@ const ChatSection = () => {
       content: string,
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
     ) => {
       if (isPrivateMode) {
         navigate(ROUTES.PRIVATE_CHAT, {
@@ -152,6 +153,7 @@ const ChatSection = () => {
             attachments,
             personaId,
             reasoningConfig,
+            temperature,
           },
         });
         return;
@@ -171,6 +173,7 @@ const ChatSection = () => {
           : undefined,
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,
+        temperature,
       });
 
       if (result?.conversationId) {

@@ -27,6 +27,7 @@ type UnifiedChatViewProps = {
   isStreaming: boolean;
   currentPersonaId: Id<"personas"> | null;
   currentReasoningConfig?: ReasoningConfig;
+  currentTemperature?: number;
   canSavePrivateChat: boolean;
   hasApiKeys: boolean;
   isArchived?: boolean;
@@ -34,7 +35,8 @@ type UnifiedChatViewProps = {
     content: string,
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => Promise<void>;
   onSendAsNewConversation?: (
     content: string,
@@ -43,23 +45,27 @@ type UnifiedChatViewProps = {
     contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => Promise<ConversationId | undefined>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onStopGeneration: () => void;
   onSavePrivateChat?: () => Promise<void>;
+  onTemperatureChange?: (temperature: number | undefined) => void;
   onRetryUserMessage?: (
     messageId: string,
     modelId?: string,
     provider?: string,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => void;
   onRetryAssistantMessage?: (
     messageId: string,
     modelId?: string,
     provider?: string,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => void;
 };
 
@@ -71,6 +77,7 @@ export const UnifiedChatView = memo(
     isLoadingMessages,
     isStreaming,
     currentPersonaId,
+    currentTemperature,
     canSavePrivateChat,
     hasApiKeys,
     isArchived,
@@ -80,6 +87,7 @@ export const UnifiedChatView = memo(
     onEditMessage,
     onStopGeneration,
     onSavePrivateChat,
+    onTemperatureChange,
     onRetryUserMessage,
     onRetryAssistantMessage,
   }: UnifiedChatViewProps) => {
@@ -115,17 +123,39 @@ export const UnifiedChatView = memo(
 
     // Create wrapper handlers for retry functions
     const handleRetryUserMessage = useCallback(
-      (messageId: string, modelId?: string, provider?: string) => {
-        onRetryUserMessage?.(messageId, modelId, provider);
+      (
+        messageId: string,
+        modelId?: string,
+        provider?: string,
+        reasoningConfig?: ReasoningConfig
+      ) => {
+        onRetryUserMessage?.(
+          messageId,
+          modelId,
+          provider,
+          reasoningConfig,
+          currentTemperature
+        );
       },
-      [onRetryUserMessage]
+      [onRetryUserMessage, currentTemperature]
     );
 
     const handleRetryAssistantMessage = useCallback(
-      (messageId: string, modelId?: string, provider?: string) => {
-        onRetryAssistantMessage?.(messageId, modelId, provider);
+      (
+        messageId: string,
+        modelId?: string,
+        provider?: string,
+        reasoningConfig?: ReasoningConfig
+      ) => {
+        onRetryAssistantMessage?.(
+          messageId,
+          modelId,
+          provider,
+          reasoningConfig,
+          currentTemperature
+        );
       },
-      [onRetryAssistantMessage]
+      [onRetryAssistantMessage, currentTemperature]
     );
 
     const ConversationZeroState = () => {
@@ -243,6 +273,8 @@ export const UnifiedChatView = memo(
                       onStop={onStopGeneration}
                       onSendAsNewConversation={onSendAsNewConversation}
                       currentReasoningConfig={getCurrentReasoningConfig()}
+                      currentTemperature={currentTemperature}
+                      onTemperatureChange={onTemperatureChange}
                     />
                   </div>
                 )}

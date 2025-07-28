@@ -62,12 +62,17 @@ export default function PrivateChatPage() {
     attachments?: Attachment[];
     personaId?: string | null;
     reasoningConfig?: ReasoningConfig;
+    temperature?: number;
   } | null>(location.state);
 
   const [currentPersonaId, setCurrentPersonaId] =
     useState<Id<"personas"> | null>(
       navigationState?.personaId as Id<"personas"> | null
     );
+
+  const [currentTemperature, setCurrentTemperature] = useState<
+    number | undefined
+  >(navigationState?.temperature);
 
   // Stable timestamp management - moved outside useMemo to avoid mutation
   const messageTimestampsRef = useRef(new Map<string, number>());
@@ -139,6 +144,7 @@ export default function PrivateChatPage() {
           body: {
             ...apiBody,
             reasoningConfig: navigationState.reasoningConfig,
+            temperature: navigationState.temperature,
           },
           headers: apiHeaders,
           // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
@@ -386,7 +392,8 @@ export default function PrivateChatPage() {
       content: string,
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
     ) => {
       // Convert attachments to clean format expected by AI SDK
       const aiSdkAttachments = attachments?.map(attachment => ({
@@ -405,6 +412,7 @@ export default function PrivateChatPage() {
             ...apiBody,
             reasoningConfig,
             personaId,
+            temperature,
           },
           headers: apiHeaders,
           // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
@@ -455,7 +463,8 @@ export default function PrivateChatPage() {
       messageId: string,
       modelId?: string,
       provider?: string,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
     ) => {
       const messageIndex = messages.findIndex(m => m.id === messageId);
       if (messageIndex === -1) {
@@ -476,6 +485,7 @@ export default function PrivateChatPage() {
             modelId: modelId || selectedModel?.modelId,
             provider: provider || selectedModel?.provider,
             reasoningConfig: reasoningConfig || undefined,
+            temperature: temperature,
           },
           headers: apiHeaders,
         });
@@ -500,6 +510,7 @@ export default function PrivateChatPage() {
             modelId: modelId || selectedModel?.modelId,
             provider: provider || selectedModel?.provider,
             reasoningConfig: reasoningConfig || undefined,
+            temperature: temperature,
           },
           headers: apiHeaders,
         });
@@ -513,7 +524,8 @@ export default function PrivateChatPage() {
       messageId: string,
       modelId?: string,
       provider?: string,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
     ) => {
       const messageIndex = messages.findIndex(m => m.id === messageId);
       if (messageIndex === -1) {
@@ -540,6 +552,7 @@ export default function PrivateChatPage() {
           modelId: modelId || selectedModel?.modelId,
           provider: provider || selectedModel?.provider,
           reasoningConfig: reasoningConfig || undefined,
+          temperature: temperature,
         },
         headers: apiHeaders,
       });
@@ -554,6 +567,7 @@ export default function PrivateChatPage() {
       isLoadingMessages={false}
       isStreaming={isStreaming}
       currentPersonaId={currentPersonaId}
+      currentTemperature={currentTemperature}
       canSavePrivateChat={!!canSave}
       hasApiKeys={hasApiKeys ?? false}
       onSendMessage={handleSendMessage}
@@ -561,6 +575,7 @@ export default function PrivateChatPage() {
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
       onStopGeneration={stop}
+      onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={handleRetryUserMessage}
       onRetryAssistantMessage={handleRetryAssistantMessage}
       onSavePrivateChat={handleSavePrivateChat}
