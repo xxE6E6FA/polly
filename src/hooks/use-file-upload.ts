@@ -199,7 +199,17 @@ export function useFileUpload({
   const uploadAttachmentsToConvex = useCallback(
     async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
       if (privateMode) {
-        return attachmentsToUpload;
+        // In private mode, convert base64 content to data URLs for local use
+        return attachmentsToUpload.map(attachment => {
+          if (attachment.content && attachment.mimeType && !attachment.url) {
+            return {
+              ...attachment,
+              url: `data:${attachment.mimeType};base64,${attachment.content}`,
+              contentType: attachment.mimeType, // AI SDK expects contentType field
+            };
+          }
+          return attachment;
+        });
       }
 
       const uploadedAttachments: Attachment[] = [];

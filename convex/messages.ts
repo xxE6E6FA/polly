@@ -55,11 +55,7 @@ export const create = mutation({
             modelId: args.model,
             provider: args.provider,
           });
-          await incrementUserMessageStats(
-            ctx,
-            args.provider,
-            model?.free === true
-          );
+          await incrementUserMessageStats(ctx, model?.free === true);
         }
       }
     }
@@ -97,7 +93,7 @@ export const createUserMessageBatched = mutation({
         modelId: args.model,
         provider: args.provider,
       });
-      await incrementUserMessageStats(ctx, args.provider, model?.free === true);
+      await incrementUserMessageStats(ctx, model?.free === true);
     }
 
     return messageId;
@@ -742,14 +738,6 @@ export const updateAssistantContent = internalMutation({
   },
   handler: async (ctx, args) => {
     const { messageId, appendContent, appendReasoning, ...updates } = args;
-    console.log(
-      "[updateAssistantContent] Called with messageId:",
-      messageId,
-      "appendContent length:",
-      appendContent?.length,
-      "appendReasoning length:",
-      appendReasoning?.length
-    );
 
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)

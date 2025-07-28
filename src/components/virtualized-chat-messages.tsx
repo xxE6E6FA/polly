@@ -66,10 +66,7 @@ const MessageItem = memo(
     onDeleteMessage,
     messageSelector,
   }: MessageItemProps) => {
-    const message = useMemo(
-      () => messageSelector(messageId),
-      [messageSelector, messageId]
-    );
+    const message = messageSelector(messageId);
 
     if (!message) {
       return null;
@@ -104,6 +101,42 @@ const MessageItem = memo(
         </div>
       </div>
     );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison for better performance during streaming
+    if (prevProps.messageId !== nextProps.messageId) {
+      return false;
+    }
+
+    if (prevProps.isStreaming !== nextProps.isStreaming) {
+      return false;
+    }
+
+    // Check if the actual message content changed
+    const prevMessage = prevProps.messageSelector(prevProps.messageId);
+    const nextMessage = nextProps.messageSelector(nextProps.messageId);
+
+    if (!(prevMessage && nextMessage)) {
+      return false;
+    }
+
+    // Compare the properties that matter for rendering
+    if (
+      prevMessage.content !== nextMessage.content ||
+      prevMessage.status !== nextMessage.status ||
+      prevMessage.reasoning !== nextMessage.reasoning
+    ) {
+      return false;
+    }
+
+    // All callback functions should be stable, so we can do reference equality
+    return (
+      prevProps.onEditMessage === nextProps.onEditMessage &&
+      prevProps.onRetryUserMessage === nextProps.onRetryUserMessage &&
+      prevProps.onRetryAssistantMessage === nextProps.onRetryAssistantMessage &&
+      prevProps.onDeleteMessage === nextProps.onDeleteMessage &&
+      prevProps.messageSelector === nextProps.messageSelector
+    );
   }
 );
 
@@ -130,11 +163,17 @@ export const VirtualizedChatMessages = memo(
       const lastAssistantMessageId = useRef<string | null>(null);
 
       // Create a memoized message selector for efficient lookups
-      const _messageSelector = useCallback(
-        (messageId: string) => {
-          return messages.find(msg => msg.id === messageId);
-        },
-        [messages]
+      const messagesMap = useMemo(() => {
+        const map = new Map<string, ChatMessageType>();
+        for (const message of messages) {
+          map.set(message.id, message);
+        }
+        return map;
+      }, [messages]);
+
+      const messageSelector = useCallback(
+        (messageId: string) => messagesMap.get(messageId),
+        [messagesMap]
       );
 
       // Generate a unique ID for this VList instance
@@ -143,33 +182,43 @@ export const VirtualizedChatMessages = memo(
         []
       );
 
-      // Filter and sort messages
+      // Filter and sort messages - optimized for streaming performance
       const processedMessages = useMemo(() => {
-        return messages
-          .filter(message => {
-            if (message.role === "system") {
-              return false;
+        const filtered = [];
+
+        for (const message of messages) {
+          if (message.role === "system") {
+            continue;
+          }
+
+          if (message.role === "assistant") {
+            // Include assistant messages if they have content, reasoning, or if we're streaming
+            // This ensures empty assistant messages appear when streaming starts
+            if (
+              message.content ||
+              message.reasoning ||
+              (isStreaming && !message.metadata?.finishReason)
+            ) {
+              filtered.push(message);
             }
-            if (message.role === "assistant") {
-              // Include assistant messages if they have content, reasoning, or if we're streaming
-              // This ensures empty assistant messages appear when streaming starts
-              return (
-                message.content ||
-                message.reasoning ||
-                (isStreaming && !message.metadata?.finishReason)
-              );
-            }
-            return true;
-          })
-          .sort((a, b) => {
-            if (a.role === "context" && b.role !== "context") {
-              return -1;
-            }
-            if (b.role === "context" && a.role !== "context") {
-              return 1;
-            }
-            return 0;
-          });
+          } else {
+            filtered.push(message);
+          }
+        }
+
+        // Sort with context messages first - more efficient than general sort
+        const contextMessages = [];
+        const otherMessages = [];
+
+        for (const message of filtered) {
+          if (message.role === "context") {
+            contextMessages.push(message);
+          } else {
+            otherMessages.push(message);
+          }
+        }
+
+        return [...contextMessages, ...otherMessages];
       }, [messages, isStreaming]);
 
       // Helper function to get the scroll container
@@ -413,7 +462,7 @@ export const VirtualizedChatMessages = memo(
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}
                 onDeleteMessage={onDeleteMessage}
-                messageSelector={_messageSelector}
+                messageSelector={messageSelector}
               />
             );
           })}

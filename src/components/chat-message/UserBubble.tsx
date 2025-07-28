@@ -148,6 +148,42 @@ export const UserBubble = memo(
         </div>
       </div>
     );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison for better performance
+    const message = nextProps.message;
+    const prevMessage = prevProps.message;
+
+    // Always re-render if message content changes (for editing)
+    if (prevMessage.content !== message.content) {
+      return false;
+    }
+
+    // Always re-render if attachments change
+    if (prevMessage.attachments?.length !== message.attachments?.length) {
+      return false;
+    }
+
+    // Check if any attachment changed
+    if (prevMessage.attachments && message.attachments) {
+      for (let i = 0; i < message.attachments.length; i++) {
+        if (prevMessage.attachments[i]?.url !== message.attachments[i]?.url) {
+          return false;
+        }
+      }
+    }
+
+    // Skip re-render if other props are the same
+    return (
+      prevProps.isStreaming === nextProps.isStreaming &&
+      prevProps.isCopied === nextProps.isCopied &&
+      prevProps.isRetrying === nextProps.isRetrying &&
+      prevProps.isDeleting === nextProps.isDeleting &&
+      prevProps.onEditMessage === nextProps.onEditMessage &&
+      prevProps.onRetryMessage === nextProps.onRetryMessage &&
+      prevProps.onDeleteMessage === nextProps.onDeleteMessage &&
+      prevProps.onPreviewFile === nextProps.onPreviewFile
+    );
   }
 );
 

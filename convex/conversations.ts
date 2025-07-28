@@ -155,11 +155,7 @@ export const createConversation = mutation({
     // Only increment stats if this is a new conversation with a first message
     // (not for private conversation imports which have pre-existing messages)
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await incrementUserMessageStats(
-        ctx,
-        fullModel.provider,
-        fullModel.free === true
-      );
+      await incrementUserMessageStats(ctx, fullModel.free === true);
       log("USER_STATS_INCREMENTED");
     }
 
@@ -371,16 +367,15 @@ export const savePrivateConversation = action({
     // Generate a title from the first user message or use provided title
     const conversationTitle = args.title || "New conversation";
 
-    // Create the conversation
-    const createResult = await ctx.runMutation(
-      api.conversations.createConversation,
+    // Create the conversation (without any initial messages since we'll add them manually)
+    const conversationId = await ctx.runMutation(
+      internal.conversations.createEmptyInternal,
       {
         title: conversationTitle,
+        userId: user._id,
         personaId: args.personaId,
-        firstMessage: "", // No initial message, all messages are added below
       }
     );
-    const conversationId = createResult.conversationId;
 
     // Extract model/provider from the first user message for stats tracking
     // Only increment stats once for the entire conversation, not per message
@@ -392,11 +387,7 @@ export const savePrivateConversation = action({
           modelId: firstUserMessage.model,
           provider: firstUserMessage.provider,
         });
-        await incrementUserMessageStats(
-          ctx,
-          firstUserMessage.provider,
-          model?.free === true
-        );
+        await incrementUserMessageStats(ctx, model?.free === true);
       } catch (error) {
         // If the model doesn't exist in the user's database, skip stats increment
         // This can happen when importing private conversations with models the user no longer has
@@ -436,6 +427,7 @@ export const savePrivateConversation = action({
       // Skip empty messages and system messages (these are not user-facing)
       if (
         !message.content ||
+        message.content.trim() === "" ||
         message.role === "system" ||
         message.role === "context"
       ) {
@@ -748,7 +740,7 @@ export const createWithUserId = internalMutation({
 
     // Only increment stats if this is a new conversation with a first message
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await incrementUserMessageStats(ctx, args.provider);
+      await incrementUserMessageStats(ctx);
     }
 
     // Create empty assistant message for streaming
@@ -1606,11 +1598,7 @@ export const createBranchingConversation = action({
     );
 
     // Increment message stats
-    await incrementUserMessageStats(
-      ctx,
-      actualProvider,
-      selectedModel.free === true
-    );
+    await incrementUserMessageStats(ctx, selectedModel.free === true);
 
     // Create context message if contextSummary is provided
     if (args.sourceConversationId && args.contextSummary) {
