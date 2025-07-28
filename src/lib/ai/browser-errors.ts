@@ -1,3 +1,7 @@
+/**
+ * Browser-side error handling for client streaming
+ * Converts technical errors to user-friendly messages in private chats
+ */
 export function getUserFriendlyErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     // API key errors

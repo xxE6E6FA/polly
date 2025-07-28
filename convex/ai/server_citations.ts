@@ -1,3 +1,7 @@
+/**
+ * Server-side citation processing for Convex backend
+ * Enhanced citation extraction with database integration and multiple provider formats
+ */
 import { extractCitations as extractCitationsShared } from "../lib/shared/citations";
 import {
   type Citation,

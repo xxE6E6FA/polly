@@ -12,10 +12,8 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
-import {
-  SettingsPageLayout,
-  SettingsZeroState,
-} from "@/components/settings/ui";
+import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
+import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

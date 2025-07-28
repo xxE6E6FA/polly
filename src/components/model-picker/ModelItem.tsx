@@ -1,3 +1,4 @@
+import type { Doc } from "@convex/_generated/dataModel";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { memo, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -5,7 +6,9 @@ import { CommandItem } from "@/components/ui/command";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
-import type { AIModel } from "@/types";
+
+// Union type for models returned by getAvailableModels
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 // Memoized model item component
 const ModelItemComponent = ({
@@ -13,11 +16,30 @@ const ModelItemComponent = ({
   onSelect,
   hasReachedPollyLimit,
 }: {
-  model: AIModel;
+  model: AvailableModel;
   onSelect: (value: string) => void;
   hasReachedPollyLimit?: boolean;
 }) => {
-  const capabilities = useMemo(() => getModelCapabilities(model), [model]);
+  // Convert model to capabilities format
+  const modelForCapabilities = useMemo(
+    () => ({
+      modelId: model.modelId,
+      provider: model.provider,
+      name: model.name,
+      contextLength: model.contextLength,
+      supportsReasoning: model.supportsReasoning,
+      supportsImages: model.supportsImages,
+      supportsTools: model.supportsTools,
+      supportsFiles: model.supportsFiles,
+      inputModalities: model.inputModalities,
+    }),
+    [model]
+  );
+
+  const capabilities = useMemo(
+    () => getModelCapabilities(modelForCapabilities),
+    [modelForCapabilities]
+  );
 
   const handleSelect = useCallback(() => {
     // Don't allow selecting Polly models if limit is reached

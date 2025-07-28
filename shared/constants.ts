@@ -2,32 +2,16 @@
  * Shared constants used across the entire application
  */
 
-import { ProviderType } from "./provider-constants";
-
 // User limits
 export const MONTHLY_MESSAGE_LIMIT = 500;
 export const ANONYMOUS_MESSAGE_LIMIT = 10;
 
-// Model constants
-export const DEFAULT_POLLY_MODEL_ID = "gemini-2.5-flash-lite";
-
-// Polly model detection
-export function isPollyModel(provider?: string): boolean {
-  return provider === "polly";
-}
-
-export function mapPollyModelToProvider(modelId: string): ProviderType {
-  // Map specific Polly models to their actual providers
-  if (modelId === DEFAULT_POLLY_MODEL_ID) {
-    return "google";
-  }
-  // Default fallback - this should be updated as more models are added
-  return "google";
-}
+// Built-in model constants
+export const DEFAULT_BUILTIN_MODEL_ID = "gemini-2.5-flash-lite";
 
 // Streaming defaults
 export const DEFAULT_TEMPERATURE = 0.7;
-export const DEFAULT_MAX_TOKENS = -1;
+export const DEFAULT_MAX_TOKENS = -1; // -1 means use model's default
 
 // Batch processing
 export const MESSAGE_BATCH_SIZE = 50; // Batch size for message deletion

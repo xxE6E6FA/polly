@@ -1,15 +1,17 @@
+import type { Doc } from "@convex/_generated/dataModel";
 import { CaretDownIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { AIModel } from "@/types";
 import { ProviderIcon } from "../provider-icons";
+
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 export const ModelPickerTrigger = ({
   open,
   selectedModel,
 }: {
   open: boolean;
-  selectedModel: AIModel | null | undefined;
+  selectedModel: AvailableModel | null | undefined;
 }) => {
   return (
     <>
@@ -31,7 +33,7 @@ export const ModelPickerTrigger = ({
       >
         <div className="flex items-center gap-1">
           <ProviderIcon
-            provider={selectedModel?.provider}
+            provider={selectedModel?.free ? "polly" : selectedModel?.provider}
             className="h-3 w-3"
           />
           <span className="max-w-[120px] truncate font-medium">

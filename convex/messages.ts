@@ -1,6 +1,6 @@
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-
 import {
   internalMutation,
   internalQuery,
@@ -16,6 +16,7 @@ import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 import {
   attachmentSchema,
   extendedMessageMetadataSchema,
+  messageStatusSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -25,6 +26,7 @@ export const create = mutation({
     conversationId: v.id("conversations"),
     role: v.string(),
     content: v.string(),
+    status: v.optional(messageStatusSchema),
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
     reasoningConfig: v.optional(reasoningConfigSchema),
@@ -48,7 +50,16 @@ export const create = mutation({
       if (conversation) {
         // Only increment stats if model and provider are provided
         if (args.model && args.provider) {
-          await incrementUserMessageStats(ctx, args.provider);
+          // Check if this is a built-in model
+          const model = await ctx.runQuery(api.userModels.getModelByID, {
+            modelId: args.model,
+            provider: args.provider,
+          });
+          await incrementUserMessageStats(
+            ctx,
+            args.provider,
+            model?.free === true
+          );
         }
       }
     }
@@ -80,7 +91,14 @@ export const createUserMessageBatched = mutation({
       createdAt: Date.now(),
     });
 
-    await incrementUserMessageStats(ctx, args.provider);
+    // Check if this is a built-in model
+    if (args.model && args.provider) {
+      const model = await ctx.runQuery(api.userModels.getModelByID, {
+        modelId: args.model,
+        provider: args.provider,
+      });
+      await incrementUserMessageStats(ctx, args.provider, model?.free === true);
+    }
 
     return messageId;
   },
@@ -212,6 +230,16 @@ export const internalUpdate = internalMutation({
 
     while (retries < maxRetries) {
       try {
+        // Check if message exists before patching
+        const message = await ctx.db.get(id);
+        if (!message) {
+          console.log(
+            "[internalUpdate] Message not found, id:",
+            id,
+            "- likely already finalized or deleted"
+          );
+          return; // Return silently instead of throwing
+        }
         return await ctx.db.patch(id, updates);
       } catch (error) {
         if (
@@ -229,6 +257,52 @@ export const internalUpdate = internalMutation({
         throw error;
       }
     }
+  },
+});
+
+// Internal mutation to update message content and completion metadata
+export const updateContent = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    content: v.string(),
+    reasoning: v.optional(v.string()),
+    finishReason: v.optional(v.string()),
+    usage: v.optional(
+      v.object({
+        promptTokens: v.number(),
+        completionTokens: v.number(),
+        totalTokens: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const { messageId, usage, finishReason, ...updates } = args;
+
+    // Check if message exists before patching
+    const message = await ctx.db.get(messageId);
+    if (!message) {
+      console.log(
+        "[updateContent] Message not found, messageId:",
+        messageId,
+        "- likely already finalized or deleted"
+      );
+      return; // Return silently instead of throwing
+    }
+
+    // Build the update object
+    const updateData = {
+      ...updates,
+      completedAt: Date.now(),
+      ...(usage &&
+        finishReason && {
+          metadata: {
+            finishReason,
+            usage,
+          },
+        }),
+    };
+
+    await ctx.db.patch(messageId, updateData);
   },
 });
 
@@ -610,5 +684,110 @@ export const hasStreamingMessage = query({
       hasStreaming: Boolean(streamingMessage),
       streamingMessageId: streamingMessage?._id || null,
     };
+  },
+});
+
+export const getLastUsedModel = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    // Get the most recent assistant message with model info
+    const lastAssistantMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_role", q =>
+        q.eq("conversationId", args.conversationId).eq("role", "assistant")
+      )
+      .order("desc")
+      .filter(q =>
+        q.and(
+          q.neq(q.field("model"), undefined),
+          q.neq(q.field("provider"), undefined)
+        )
+      )
+      .first();
+
+    if (lastAssistantMessage?.model && lastAssistantMessage?.provider) {
+      return {
+        modelId: lastAssistantMessage.model,
+        provider: lastAssistantMessage.provider,
+      };
+    }
+
+    return null;
+  },
+});
+
+// Production-grade mutations for message status management
+export const updateMessageStatus = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    status: messageStatusSchema,
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.messageId, {
+      status: args.status,
+    });
+  },
+});
+
+export const updateAssistantContent = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    content: v.optional(v.string()),
+    appendContent: v.optional(v.string()),
+    status: v.optional(messageStatusSchema),
+    reasoning: v.optional(v.string()),
+    appendReasoning: v.optional(v.string()),
+    citations: v.optional(v.array(webCitationSchema)),
+    metadata: v.optional(extendedMessageMetadataSchema),
+  },
+  handler: async (ctx, args) => {
+    const { messageId, appendContent, appendReasoning, ...updates } = args;
+    console.log(
+      "[updateAssistantContent] Called with messageId:",
+      messageId,
+      "appendContent length:",
+      appendContent?.length,
+      "appendReasoning length:",
+      appendReasoning?.length
+    );
+
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
+    if (!(appendContent || appendReasoning)) {
+      if (Object.keys(filteredUpdates).length === 0) {
+        return;
+      }
+      return await ctx.db.patch(messageId, filteredUpdates);
+    }
+
+    return await withRetry(
+      async () => {
+        const message = await ctx.db.get(messageId);
+        if (!message) {
+          console.log(
+            "[updateAssistantContent] Message not found, messageId:",
+            messageId,
+            "- likely already finalized or deleted"
+          );
+          // Don't throw error, just return silently as the message might have been finalized
+          return;
+        }
+
+        const appendUpdates = { ...filteredUpdates };
+
+        if (appendContent) {
+          appendUpdates.content = (message.content || "") + appendContent;
+        }
+        if (appendReasoning) {
+          appendUpdates.reasoning = (message.reasoning || "") + appendReasoning;
+        }
+
+        return await ctx.db.patch(messageId, appendUpdates);
+      },
+      2,
+      10
+    );
   },
 });

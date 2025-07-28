@@ -8,10 +8,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useUserModels } from "@/hooks/use-user-models";
+import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
-import { isUserModel } from "@/lib/type-guards";
+
 import { useUserDataContext } from "@/providers/user-data-context";
+
 import { AnonymousUserUpsell } from "./AnonymousUserUpsell";
 import { ModelList } from "./ModelList";
 import { ModelPickerTrigger } from "./ModelPickerTrigger";
@@ -23,11 +24,11 @@ type ModelPickerProps = {
 const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
-  const { userModelsByProvider, userModels } = useUserModels();
+  const { modelGroups } = useModelSelection();
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectModelMutation = useMutation(api.userModels.selectModel);
 
-  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
+  const selectedModel = selectedModelRaw;
 
   const hasReachedPollyLimit = useMemo(
     () =>
@@ -45,7 +46,10 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
     async (modelId: string, provider: string) => {
       setOpen(false);
 
-      const selectedModelData = userModels.find(
+      const selectedModelData = [
+        ...modelGroups.freeModels,
+        ...Object.values(modelGroups.providerModels).flat(),
+      ].find(
         model => model?.modelId === modelId && model?.provider === provider
       );
 
@@ -62,7 +66,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
         });
       }
     },
-    [selectModelMutation, userModels]
+    [selectModelMutation, modelGroups]
   );
 
   const fallbackModel = useMemo(() => {
@@ -116,7 +120,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
           sideOffset={4}
         >
           <ModelList
-            userModelsByProvider={userModelsByProvider}
+            modelGroups={modelGroups}
             handleSelect={handleSelect}
             hasReachedPollyLimit={hasReachedPollyLimit}
           />

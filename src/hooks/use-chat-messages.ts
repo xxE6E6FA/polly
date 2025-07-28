@@ -4,9 +4,13 @@ import type { Doc } from "convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-
+import {
+  convertServerMessage,
+  extractMessagesArray,
+  findStreamingMessage,
+  isMessageStreaming,
+} from "@/lib/chat/message-utils";
 import { ROUTES } from "@/lib/routes";
-import { hasPageArray } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 
@@ -14,21 +18,6 @@ type UseChatMessagesOptions = {
   conversationId?: ConversationId;
   onError?: (error: Error) => void;
 };
-
-// Type guard for message metadata
-function isMessageMetadata(x: unknown): x is {
-  finishReason?: string;
-  stopped?: boolean;
-  tokenCount?: number;
-  reasoningTokenCount?: number;
-  duration?: number;
-  searchQuery?: string;
-  searchFeature?: string;
-  searchCategory?: string;
-  status?: "pending" | "error";
-} {
-  return x === null || x === undefined || typeof x === "object";
-}
 
 export function useChatMessages({
   conversationId,
@@ -46,20 +35,16 @@ export function useChatMessages({
     conversationId ? { conversationId } : "skip"
   );
 
-  const updateMessageContent = useMutation(api.messages.update);
-  const deleteMessagesByIds = useMutation(api.messages.removeMultiple);
-  const deleteConversation = useMutation(api.conversations.remove);
+  const updateMessageContentAction = useMutation(api.messages.update);
+  const deleteMessagesByIdsAction = useMutation(api.messages.removeMultiple);
+  const deleteConversationAction = useMutation(api.conversations.remove);
 
   const messages: ChatMessage[] = useMemo(() => {
     if (!convexMessages) {
       return Array.from(pendingMessages.values());
     }
 
-    const messagesArray = Array.isArray(convexMessages)
-      ? (convexMessages as Doc<"messages">[])
-      : hasPageArray(convexMessages)
-        ? (convexMessages.page as Doc<"messages">[])
-        : [];
+    const messagesArray = extractMessagesArray(convexMessages);
 
     const serverMessageContents = new Set(
       messagesArray.map((msg: Doc<"messages">) => `${msg.role}:${msg.content}`)
@@ -73,28 +58,7 @@ export function useChatMessages({
     );
 
     const combinedMessages: ChatMessage[] = [
-      ...messagesArray.map(
-        (msg: Doc<"messages">): ChatMessage => ({
-          id: msg._id,
-          role: msg.role as ChatMessage["role"],
-          content: msg.content,
-          reasoning: msg.reasoning,
-          model: msg.model,
-          provider: msg.provider,
-          parentId: msg.parentId,
-          isMainBranch: msg.isMainBranch,
-          sourceConversationId: msg.sourceConversationId as
-            | ConversationId
-            | undefined,
-          useWebSearch: msg.useWebSearch,
-          attachments: msg.attachments as ChatMessage["attachments"],
-          citations: msg.citations as ChatMessage["citations"],
-          metadata: isMessageMetadata(msg.metadata)
-            ? (msg.metadata as ChatMessage["metadata"])
-            : undefined,
-          createdAt: msg.createdAt || msg._creationTime,
-        })
-      ),
+      ...messagesArray.map(convertServerMessage),
       ...filteredPendingMessages,
     ];
 
@@ -102,31 +66,7 @@ export function useChatMessages({
   }, [convexMessages, pendingMessages]);
 
   const streamingMessageInfo = useMemo(() => {
-    if (!convexMessages) {
-      return null;
-    }
-
-    const messagesArray = Array.isArray(convexMessages)
-      ? convexMessages
-      : hasPageArray(convexMessages)
-        ? convexMessages.page
-        : [];
-
-    const streamingMessage = messagesArray.find(msg => {
-      const message = msg as Doc<"messages">;
-      const metadata = isMessageMetadata(message.metadata)
-        ? message.metadata
-        : null;
-      return (
-        message.role === "assistant" &&
-        !metadata?.finishReason &&
-        !metadata?.stopped
-      );
-    });
-
-    return streamingMessage
-      ? { id: (streamingMessage as Doc<"messages">)._id, isStreaming: true }
-      : null;
+    return findStreamingMessage(convexMessages);
   }, [convexMessages]);
 
   const deleteMessagesAfter = useCallback(
@@ -137,11 +77,11 @@ export function useChatMessages({
           .filter(m => m?.id)
           .map(m => m.id as Id<"messages">);
         if (idsToDelete.length > 0) {
-          await deleteMessagesByIds({ ids: idsToDelete });
+          await deleteMessagesByIdsAction({ ids: idsToDelete });
         }
       }
     },
-    [messages, deleteMessagesByIds]
+    [messages, deleteMessagesByIdsAction]
   );
 
   const editMessage = useCallback(
@@ -151,7 +91,7 @@ export function useChatMessages({
       }
 
       try {
-        await updateMessageContent({
+        await updateMessageContentAction({
           id: messageId as Id<"messages">,
           content: newContent,
         });
@@ -159,7 +99,7 @@ export function useChatMessages({
         onError?.(error as Error);
       }
     },
-    [user?._id, conversationId, updateMessageContent, onError]
+    [user?._id, conversationId, updateMessageContentAction, onError]
   );
 
   const deleteMessage = useCallback(
@@ -187,9 +127,11 @@ export function useChatMessages({
         if (isLastVisibleMessage) {
           navigate(ROUTES.HOME);
           await new Promise(resolve => setTimeout(resolve, 100));
-          await deleteConversation({ id: conversationId });
+          await deleteConversationAction({ id: conversationId });
         } else {
-          await deleteMessagesByIds({ ids: [messageId as Id<"messages">] });
+          await deleteMessagesByIdsAction({
+            ids: [messageId as Id<"messages">],
+          });
         }
       } catch (error) {
         onError?.(error as Error);
@@ -198,15 +140,15 @@ export function useChatMessages({
     [
       user?._id,
       conversationId,
-      deleteMessagesByIds,
-      deleteConversation,
       messages,
       navigate,
       onError,
+      deleteMessagesByIdsAction,
+      deleteConversationAction,
     ]
   );
 
-  const isMessageStreaming = useCallback(
+  const isMessageStreamingCallback = useCallback(
     (messageId: string, isGenerating: boolean) => {
       if (!convexMessages) {
         return false;
@@ -216,27 +158,14 @@ export function useChatMessages({
         return isGenerating;
       }
 
-      const messagesArray = Array.isArray(convexMessages)
-        ? convexMessages
-        : hasPageArray(convexMessages)
-          ? convexMessages.page
-          : [];
-
+      const messagesArray = extractMessagesArray(convexMessages);
       const message = messagesArray.find(m => m._id === messageId);
 
       if (!message) {
         return false;
       }
 
-      const messageData = message as Doc<"messages">;
-      const metadata = isMessageMetadata(messageData.metadata)
-        ? messageData.metadata
-        : null;
-      return (
-        messageData?.role === "assistant" &&
-        !metadata?.finishReason &&
-        isGenerating
-      );
+      return isMessageStreaming(message, isGenerating);
     },
     [convexMessages, streamingMessageInfo]
   );
@@ -266,6 +195,6 @@ export function useChatMessages({
     deleteMessagesAfter,
     editMessage,
     deleteMessage,
-    isMessageStreaming,
+    isMessageStreaming: isMessageStreamingCallback,
   };
 }

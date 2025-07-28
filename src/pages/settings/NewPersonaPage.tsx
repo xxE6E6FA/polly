@@ -8,7 +8,7 @@ import {
   PersonaForm,
   type PersonaFormData,
 } from "@/components/settings/persona-form";
-import { SettingsPageLayout } from "@/components/settings/ui";
+import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 

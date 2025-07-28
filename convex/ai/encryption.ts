@@ -3,6 +3,7 @@ import type { Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { type ProviderType } from "../types";
 import { CONFIG } from "./config";
+import { log } from "../lib/logger";
 
 export const serverDecryptApiKey = async (
   encryptedKey: number[],
@@ -38,12 +39,15 @@ export const getApiKey = async (
   modelId?: string,
   conversationId?: Id<"conversations">
 ): Promise<string> => {
+  log.debug(`Starting API key lookup for provider: ${provider}`);
+  
   // Add retry logic for transient failures
   const maxRetries = 2;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      log.debug(`API key lookup attempt ${attempt}: Looking up user API key`);
       const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
         provider,
         modelId,
@@ -51,22 +55,29 @@ export const getApiKey = async (
       });
 
       if (apiKey) {
+        console.log("[getApiKey] Found user API key");
         return apiKey;
       }
 
+      console.log("[getApiKey] No user API key found, checking environment variables");
       // Fallback to environment variables
-      const envKey = process.env[CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS]];
+      const envKeyName = CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS];
+      console.log("[getApiKey] Looking for environment variable:", envKeyName);
+      const envKey = process.env[envKeyName];
+      console.log("[getApiKey] Environment variable value:", envKey ? "found (length: " + envKey.length + ")" : "not found");
       if (envKey) {
+        console.log("[getApiKey] Found environment API key for provider:", provider);
         return envKey;
       }
 
+      console.log("[getApiKey] No environment API key found for provider:", provider);
       // If we get here, no API key was found
       throw new Error(`No API key found for ${provider}. Please add an API key in Settings.`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       
       // Log the attempt for debugging
-      console.warn(`API key lookup attempt ${attempt} failed for ${provider}:`, {
+      log.warn(`API key lookup attempt ${attempt} failed for ${provider}`, {
         error: lastError.message,
         attempt,
         maxRetries,

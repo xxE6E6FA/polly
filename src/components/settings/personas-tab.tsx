@@ -33,8 +33,8 @@ import { isPersonaArray, isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { SettingsHeader } from "./settings-header";
-import { SettingsPageLayout } from "./ui";
 import { SectionHeader } from "./ui/SectionHeader";
+import { SettingsPageLayout } from "./ui/SettingsPageLayout";
 
 export const PersonasTab = () => {
   const { user } = useUserDataContext();

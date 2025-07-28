@@ -1,9 +1,9 @@
+import { DEFAULT_STREAM_CONFIG } from "../lib/shared/stream_utils";
+
 export const CONFIG = {
   STREAM: {
-    BATCH_SIZE: 30,
-    BATCH_TIMEOUT: 75,
-    CHECK_STOP_EVERY_N_CHUNKS: 10,
-    ABORT_TIMEOUT_MS: 5000, // Max time to wait for abort to complete
+    ...DEFAULT_STREAM_CONFIG,
+    CHECK_STOP_EVERY_N_CHUNKS: 10, // Override specific values for this use case
     STOP_CHECK_INTERVAL_MS: 500, // Increased from 250ms to 500ms - check less frequently
   },
   AES: {

@@ -1,12 +1,6 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
 
 // ============================================================================
-// CONVEX GENERATED TYPES RE-EXPORTS
-// ============================================================================
-
-export type { Doc, Id } from "../../convex/_generated/dataModel";
-
-// ============================================================================
 // CORE ENTITY TYPES
 // ============================================================================
 
@@ -131,6 +125,7 @@ export type ChatMessage = {
   id: string;
   role: MessageRole;
   content: string;
+  status?: "thinking" | "streaming" | "done" | "error";
   reasoning?: string;
   model?: string;
   provider?: string;
@@ -296,7 +291,7 @@ export type APIKeys = {
   anthropic?: string;
   google?: string;
   openrouter?: string;
-  polly?: string;
+  polly?: string; // For UI consistency (not actually used)
 };
 
 // ============================================================================
@@ -336,6 +331,29 @@ export type FileUploadProgress = {
   status: "pending" | "uploading" | "processing" | "complete" | "error";
   error?: string;
   attachment?: Attachment;
+};
+
+// ============================================================================
+// MODEL MANAGEMENT TYPES
+// ============================================================================
+
+export type ToggleModelResult = {
+  success: boolean;
+  action?: "added" | "removed";
+  error?: string;
+  requiresConfirmation?: boolean;
+  conflictingBuiltInModel?: {
+    name: string;
+    modelId: string;
+    provider: string;
+  };
+  message?: string;
+  overridesBuiltIn?: boolean;
+};
+
+export type ModelConflictCheck = {
+  hasConflict: boolean;
+  builtInModel: Doc<"builtInModels"> | null;
 };
 
 // ============================================================================

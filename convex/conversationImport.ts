@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import {
   action,
   internalMutation,
@@ -122,7 +122,7 @@ export const processImport = action({
   handler: async (ctx, args) => {
     try {
       // Update status to processing
-      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateStatus, {
         jobId: args.importId,
         status: "processing",
       });
@@ -162,7 +162,7 @@ export const processImport = action({
         .slice(0, 1000); // Limit to prevent excessive operations
 
       // Update initial progress
-      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateProgress, {
         jobId: args.importId,
         processedItems: 0,
         totalItems: validConversations.length,
@@ -191,25 +191,31 @@ export const processImport = action({
           allImportedIds.push(...batchResult.conversationIds);
 
           // Update progress based on actual processed items
-          await ctx.runMutation(api.backgroundJobs.updateProgress, {
-            jobId: args.importId,
-            processedItems: i + batchSize, // Update based on batch progress
-            totalItems: validConversations.length,
-          });
+          await ctx.runMutation(
+            internal.backgroundJobs.internalUpdateProgress,
+            {
+              jobId: args.importId,
+              processedItems: i + batchSize, // Update based on batch progress
+              totalItems: validConversations.length,
+            }
+          );
         } catch (error) {
           errors.push(`Batch ${Math.floor(i / batchSize) + 1}: ${error}`);
 
           // Still update progress even if batch failed
-          await ctx.runMutation(api.backgroundJobs.updateProgress, {
-            jobId: args.importId,
-            processedItems: i + batchSize,
-            totalItems: validConversations.length,
-          });
+          await ctx.runMutation(
+            internal.backgroundJobs.internalUpdateProgress,
+            {
+              jobId: args.importId,
+              processedItems: i + batchSize,
+              totalItems: validConversations.length,
+            }
+          );
         }
       }
 
       // Save final result with imported conversation IDs
-      await ctx.runMutation(api.backgroundJobs.saveImportResult, {
+      await ctx.runMutation(internal.backgroundJobs.internalSaveImportResult, {
         jobId: args.importId,
         result: {
           totalImported,
@@ -222,7 +228,7 @@ export const processImport = action({
 
       return { success: true, totalImported };
     } catch (error) {
-      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateStatus, {
         jobId: args.importId,
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",

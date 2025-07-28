@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { action, internalQuery, mutation, query } from "./_generated/server";
+import { log } from "./lib/logger";
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -324,12 +325,14 @@ export const getDecryptedApiKey = action({
     conversationId: v.optional(v.id("conversations")), // For getting user ID from conversation
   },
   handler: async (ctx, args): Promise<string | null> => {
+    console.log("[getDecryptedApiKey] Called with:", args);
     // No more Polly mapping here - it's handled client-side
 
     // Get user ID from conversation if available, otherwise use auth context
     let userId: Id<"users"> | null = null;
 
     userId = await getAuthUserId(ctx);
+    console.log("[getDecryptedApiKey] User ID from auth:", userId);
 
     // If no user from auth context, try to get from conversation (works for background jobs)
     if (!userId && args.conversationId) {
@@ -341,12 +344,16 @@ export const getDecryptedApiKey = action({
           }
         );
         userId = conversation?.userId || null;
+        console.log("[getDecryptedApiKey] User ID from conversation:", userId);
       } catch (error) {
-        console.warn("Failed to get user from conversation:", error);
+        log.warn("Failed to get user from conversation", error);
       }
     }
 
     if (!userId) {
+      console.log(
+        "[getDecryptedApiKey] No user ID found, returning null (will fallback to environment variables)"
+      );
       return null;
     }
 
@@ -357,16 +364,29 @@ export const getDecryptedApiKey = action({
         provider: args.provider,
       }
     );
+    console.log(
+      "[getDecryptedApiKey] API key record:",
+      apiKeyRecord ? "found" : "not found"
+    );
 
     if (!(apiKeyRecord?.encryptedKey && apiKeyRecord.initializationVector)) {
+      console.log(
+        "[getDecryptedApiKey] No valid encrypted key found, returning null (will fallback to environment variables)"
+      );
       return null;
     }
 
-    const decryptedKey = await serverDecryptApiKey(
-      apiKeyRecord.encryptedKey,
-      apiKeyRecord.initializationVector
-    );
-    return decryptedKey;
+    try {
+      const decryptedKey = await serverDecryptApiKey(
+        apiKeyRecord.encryptedKey,
+        apiKeyRecord.initializationVector
+      );
+      console.log("[getDecryptedApiKey] Successfully decrypted user API key");
+      return decryptedKey;
+    } catch (error) {
+      log.warn("Failed to decrypt API key", error);
+      return null;
+    }
   },
 });
 

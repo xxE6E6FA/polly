@@ -42,6 +42,7 @@ async function clearDatabase() {
     { name: "messages", mutation: "clearMessages" },
     { name: "userApiKeys", mutation: "clearUserApiKeys" },
     { name: "userModels", mutation: "clearUserModels" },
+    { name: "builtInModels", mutation: "clearBuiltInModels" },
     { name: "userPersonaSettings", mutation: "clearUserPersonaSettings" },
     { name: "userSettings", mutation: "clearUserSettings" },
   ];

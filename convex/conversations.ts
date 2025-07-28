@@ -1,21 +1,20 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import {
-  isPollyModel,
+  DEFAULT_BUILTIN_MODEL_ID,
   MESSAGE_BATCH_SIZE,
   MONTHLY_MESSAGE_LIMIT,
-  mapPollyModelToProvider,
 } from "@shared/constants";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  type ActionCtx,
   action,
   internalMutation,
   internalQuery,
   mutation,
   query,
 } from "./_generated/server";
-
 import {
   buildContextMessages,
   checkConversationAccess,
@@ -23,8 +22,8 @@ import {
   executeStreamingAction,
   incrementUserMessageStats,
   processAttachmentsForStorage,
-  setupAndStartStreaming,
 } from "./lib/conversation_utils";
+import { getUserEffectiveModelWithCapabilities } from "./lib/model_resolution";
 import {
   createEmptyPaginationResult,
   paginationOptsSchema,
@@ -40,6 +39,7 @@ import {
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
+import { abortStream, isConversationStreaming } from "./lib/streaming_utils";
 import type { Citation } from "./types";
 
 export const createConversation = mutation({
@@ -55,24 +55,69 @@ export const createConversation = mutation({
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
+    // Development mode logging (always enabled for now to debug streaming issues)
+    // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
+    const log = (step: string, data?: any) => {
+      console.log(
+        `[CREATE_CONVERSATION] ${step}:`,
+        data ? JSON.stringify(data, null, 2) : ""
+      );
+    };
+
+    log("CREATE_CONVERSATION_START", {
+      title: args.title,
+      firstMessage: args.firstMessage
+        ? `${args.firstMessage.substring(0, 100)}...`
+        : "empty",
+      hasAttachments: !!args.attachments?.length,
+      model: args.model,
+      provider: args.provider,
+    });
+
     // Get authenticated user
     const userId = await getAuthUserId(ctx);
+    log("USER_AUTH_CHECK", { userId: !!userId });
     if (!userId) {
       throw new Error("User not authenticated");
     }
     const user = await ctx.db.get(userId);
+    log("USER_FETCH", { hasUser: !!user });
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Check if this is a Polly free model and enforce limits
-    const isPollyModelResult = isPollyModel(args?.provider);
+    // Get user's effective model with full capabilities
+    console.log("[CREATE_CONVERSATION] About to resolve model with args:", {
+      model: args.model,
+      provider: args.provider,
+    });
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+    console.log("[CREATE_CONVERSATION] Resolved model:", {
+      fullModel,
+    });
 
-    if (isPollyModelResult && !user.hasUnlimitedCalls) {
+    // Check if this is a built-in free model and enforce limits
+    // If model has 'free' field, it's from builtInModels table and is a built-in model
+    const isBuiltInModelResult = fullModel.free === true;
+    log("BUILTIN_MODEL_CHECK", {
+      isBuiltInModel: isBuiltInModelResult,
+      hasUnlimitedCalls: user.hasUnlimitedCalls,
+    });
+
+    if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
       const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
       const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
+      log("MONTHLY_LIMIT_CHECK", {
+        monthlyLimit,
+        monthlyMessagesSent,
+        withinLimit: monthlyMessagesSent < monthlyLimit,
+      });
       if (monthlyMessagesSent >= monthlyLimit) {
-        throw new Error("Monthly Polly model message limit reached.");
+        throw new Error("Monthly built-in model message limit reached.");
       }
     }
 
@@ -82,12 +127,13 @@ export const createConversation = mutation({
       userId: user._id,
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
-      isStreaming: true,
+      isStreaming: false,
       isArchived: false,
       isPinned: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    log("CONVERSATION_CREATED", { conversationId });
 
     await ctx.db.patch(user._id, {
       conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
@@ -104,23 +150,32 @@ export const createConversation = mutation({
       isMainBranch: true,
       createdAt: Date.now(),
     });
+    log("USER_MESSAGE_CREATED", { userMessageId });
 
     // Only increment stats if this is a new conversation with a first message
     // (not for private conversation imports which have pre-existing messages)
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await incrementUserMessageStats(ctx, args.provider);
+      await incrementUserMessageStats(
+        ctx,
+        fullModel.provider,
+        fullModel.free === true
+      );
+      log("USER_STATS_INCREMENTED");
     }
 
     // Create empty assistant message for streaming (don't count assistant messages)
-    const assistantMessageId = await ctx.db.insert("messages", {
-      conversationId,
-      role: "assistant",
-      content: "",
-      model: args.model,
-      provider: args.provider,
-      isMainBranch: true,
-      createdAt: Date.now(),
-    });
+    const assistantMessageId: Id<"messages"> = await ctx.runMutation(
+      api.messages.create,
+      {
+        conversationId,
+        role: "assistant",
+        content: "",
+        status: "thinking",
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+      }
+    );
+    log("ASSISTANT_MESSAGE_CREATED", { assistantMessageId });
 
     // Schedule title generation in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
@@ -132,6 +187,37 @@ export const createConversation = mutation({
           message: args.firstMessage,
         }
       );
+      log("TITLE_GENERATION_SCHEDULED");
+    }
+
+    // **CRITICAL**: Trigger streaming for the assistant response!
+    // This was the missing piece - we need to start streaming after creating the assistant message
+    if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      log("TRIGGERING_STREAMING", {
+        assistantMessageId,
+        reasoningConfig: args.reasoningConfig,
+      });
+
+      // Schedule streaming generation action for real-time updates
+      await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
+        messageId: assistantMessageId,
+        conversationId,
+        model: fullModel, // Pass the full model object
+        personaId: args.personaId,
+        useWebSearch: args.useWebSearch,
+        reasoningConfig: args.reasoningConfig,
+        // Include generation parameters that might be passed through
+        temperature: undefined,
+        maxTokens: undefined,
+        topP: undefined,
+        frequencyPenalty: undefined,
+        presencePenalty: undefined,
+        webSearchMaxResults: undefined,
+      });
+
+      log("STREAMING_SCHEDULED_SUCCESSFULLY");
+    } else {
+      log("STREAMING_SKIPPED", { reason: "No first message" });
     }
 
     return {
@@ -140,6 +226,110 @@ export const createConversation = mutation({
       assistantMessageId,
       user,
     };
+  },
+});
+
+/**
+ * Send a message with dynamic model and persona selection (moved from agent_conversations)
+ */
+export const sendMessage = action({
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(
+            v.literal("image"),
+            v.literal("pdf"),
+            v.literal("text")
+          ),
+          url: v.string(),
+          name: v.string(),
+          size: v.number(),
+          content: v.optional(v.string()),
+          thumbnail: v.optional(v.string()),
+          storageId: v.optional(v.id("_storage")),
+        })
+      )
+    ),
+    useWebSearch: v.optional(v.boolean()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+    maxTokens: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
+    webSearchMaxResults: v.optional(v.number()),
+  },
+  returns: v.object({
+    userMessageId: v.id("messages"),
+    assistantMessageId: v.id("messages"),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    userMessageId: Id<"messages">;
+    assistantMessageId: Id<"messages">;
+  }> => {
+    // Get user's effective model with full capabilities
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
+    // Create user message
+    const userMessageId: Id<"messages"> = await ctx.runMutation(
+      api.messages.create,
+      {
+        conversationId: args.conversationId,
+        role: "user",
+        content: args.content,
+        attachments: args.attachments,
+        useWebSearch: args.useWebSearch,
+        reasoningConfig: args.reasoningConfig,
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+      }
+    );
+
+    // The streaming state will be tracked via message status rather than conversation flag
+
+    // Create assistant placeholder with thinking status
+    const assistantMessageId: Id<"messages"> = await ctx.runMutation(
+      api.messages.create,
+      {
+        conversationId: args.conversationId,
+        role: "assistant",
+        content: "",
+        status: "thinking",
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+      }
+    );
+
+    // Start streaming response
+    await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
+      messageId: assistantMessageId,
+      conversationId: args.conversationId,
+      model: fullModel, // Pass the full model object
+      personaId: args.personaId,
+      reasoningConfig: args.reasoningConfig,
+      temperature: args.temperature,
+      maxTokens: args.maxTokens,
+      topP: args.topP,
+      frequencyPenalty: args.frequencyPenalty,
+      presencePenalty: args.presencePenalty,
+      useWebSearch: args.useWebSearch,
+      webSearchMaxResults: args.webSearchMaxResults,
+    });
+
+    return { userMessageId, assistantMessageId };
   },
 });
 
@@ -197,7 +387,16 @@ export const savePrivateConversation = action({
     const firstUserMessage = args.messages.find(msg => msg.role === "user");
     if (firstUserMessage?.model && firstUserMessage?.provider) {
       try {
-        await incrementUserMessageStats(ctx, firstUserMessage.provider);
+        // Check if this is a built-in model
+        const model = await ctx.runQuery(api.userModels.getModelByID, {
+          modelId: firstUserMessage.model,
+          provider: firstUserMessage.provider,
+        });
+        await incrementUserMessageStats(
+          ctx,
+          firstUserMessage.provider,
+          model?.free === true
+        );
       } catch (error) {
         // If the model doesn't exist in the user's database, skip stats increment
         // This can happen when importing private conversations with models the user no longer has
@@ -282,7 +481,7 @@ export const savePrivateConversation = action({
     }
 
     // Mark conversation as not streaming since all messages are already complete
-    await ctx.runMutation(api.conversations.patch, {
+    await ctx.runMutation(internal.conversations.internalPatch, {
       id: conversationId,
       updates: { isStreaming: false },
       setUpdatedAt: true,
@@ -473,6 +672,17 @@ export const internalPatch = internalMutation({
     setUpdatedAt: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // Check if conversation exists before patching
+    const conversation = await ctx.db.get(args.id);
+    if (!conversation) {
+      console.log(
+        "[internalPatch] Conversation not found, id:",
+        args.id,
+        "- likely already deleted"
+      );
+      return; // Return silently instead of throwing
+    }
+
     const patch: Record<string, unknown> = { ...args.updates };
     if (args.setUpdatedAt) {
       patch.updatedAt = Date.now();
@@ -570,6 +780,38 @@ export const createWithUserId = internalMutation({
       assistantMessageId,
       user,
     };
+  },
+});
+
+export const createEmptyInternal = internalMutation({
+  args: {
+    title: v.string(),
+    userId: v.id("users"),
+    personaId: v.optional(v.id("personas")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Create empty conversation
+    const conversationId = await ctx.db.insert("conversations", {
+      title: args.title,
+      userId: args.userId,
+      personaId: args.personaId,
+      isStreaming: false,
+      isArchived: false,
+      isPinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.patch(args.userId, {
+      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
+    });
+
+    return conversationId;
   },
 });
 
@@ -887,107 +1129,7 @@ export const processBulkDelete = action({
   },
 });
 
-export const sendMessage = mutation({
-  args: {
-    conversationId: v.id("conversations"),
-    content: v.string(),
-    attachments: v.optional(v.array(attachmentSchema)),
-    useWebSearch: v.optional(v.boolean()),
-    ...modelProviderArgs,
-    reasoningConfig: v.optional(reasoningConfigSchema),
-    temperature: v.optional(v.number()),
-    maxTokens: v.optional(v.number()),
-    topP: v.optional(v.number()),
-    frequencyPenalty: v.optional(v.number()),
-    presencePenalty: v.optional(v.number()),
-    webSearchMaxResults: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    // Get authenticated user
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    const conversation = await ctx.db.get(args.conversationId);
-    if (!conversation || conversation.userId !== userId) {
-      throw new Error("Conversation not found or access denied");
-    }
-
-    // Check if this is a Polly free model and enforce limits
-    const isPollyModelResult = isPollyModel(args.provider);
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    if (isPollyModelResult && !user.hasUnlimitedCalls) {
-      const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-      const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-      if (monthlyMessagesSent >= monthlyLimit) {
-        throw new Error("Monthly Polly model message limit reached.");
-      }
-    }
-
-    // Create user message
-    const userMessageId = await ctx.db.insert("messages", {
-      conversationId: args.conversationId,
-      role: "user",
-      content: args.content,
-      attachments: args.attachments,
-      useWebSearch: args.useWebSearch,
-      reasoningConfig: args.reasoningConfig,
-      isMainBranch: true,
-      createdAt: Date.now(),
-    });
-
-    // Increment user message stats directly in mutation
-    if (isPollyModelResult) {
-      await ctx.db.patch(userId, {
-        messagesSent: (user.messagesSent || 0) + 1,
-        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
-        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
-      });
-    } else {
-      await ctx.db.patch(userId, {
-        messagesSent: (user.messagesSent || 0) + 1,
-        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
-      });
-    }
-
-    // Create assistant placeholder message
-    const assistantMessageId = await ctx.db.insert("messages", {
-      conversationId: args.conversationId,
-      role: "assistant",
-      content: "",
-      model: args.model,
-      provider: args.provider,
-      isMainBranch: true,
-      createdAt: Date.now(),
-    });
-
-    // Schedule the stream action
-    await ctx.scheduler.runAfter(0, internal.stream.stream, {
-      conversationId: args.conversationId,
-      messageId: assistantMessageId,
-      messages: [], // Will be built by the stream action
-      model: args.model,
-      provider: args.provider,
-      temperature: args.temperature,
-      maxTokens: args.maxTokens,
-      topP: args.topP,
-      frequencyPenalty: args.frequencyPenalty,
-      presencePenalty: args.presencePenalty,
-      enableWebSearch: args.useWebSearch,
-      webSearchMaxResults: args.webSearchMaxResults,
-      reasoningConfig: args.reasoningConfig,
-    });
-
-    return { userMessageId, assistantMessageId };
-  },
-});
-
-export const editAndResendMessage = mutation({
+export const editAndResendMessage = action({
   args: {
     messageId: v.id("messages"),
     newContent: v.string(),
@@ -1000,74 +1142,123 @@ export const editAndResendMessage = mutation({
     presencePenalty: v.optional(v.number()),
     webSearchMaxResults: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.messageId);
-    if (!message || message.role !== "user") {
-      throw new Error("Can only edit user messages.");
+  returns: v.object({
+    assistantMessageId: v.id("messages"),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ assistantMessageId: Id<"messages"> }> => {
+    // Get the message to find the conversation
+    const message = await ctx.runQuery(api.messages.getById, {
+      id: args.messageId,
+    });
+    if (!message) {
+      throw new Error("Message not found");
     }
-    const conversationId = message.conversationId;
 
-    // Check access
+    if (message.role !== "user") {
+      throw new Error("Can only edit user messages");
+    }
+
+    // Get authenticated user
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("User not authenticated");
     }
-    const conversation = await ctx.db.get(conversationId);
-    if (!conversation || conversation.userId !== userId) {
+
+    const conversation = await ctx.runQuery(api.conversations.get, {
+      id: message.conversationId,
+    });
+    if (!conversation) {
       throw new Error("Conversation not found or access denied");
     }
 
-    // Update the user message
-    await ctx.db.patch(args.messageId, { content: args.newContent });
-
-    // Delete subsequent messages
-    const subsequentMessages = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
-      .filter(q => q.gt(q.field("_creationTime"), message._creationTime))
-      .collect();
-
-    for (const msg of subsequentMessages) {
-      await ctx.db.delete(msg._id);
-    }
-
-    // Create new assistant placeholder
-    const assistantMessageId = await ctx.db.insert("messages", {
-      conversationId,
-      role: "assistant",
-      content: "",
-      model: args.model,
-      provider: args.provider,
-      isMainBranch: true,
-      createdAt: Date.now(),
+    // Get all messages for the conversation
+    const messagesResult = await ctx.runQuery(api.messages.list, {
+      conversationId: message.conversationId,
     });
 
-    // Schedule the stream action
-    await ctx.scheduler.runAfter(0, internal.stream.stream, {
-      conversationId,
-      messageId: assistantMessageId,
-      messages: [],
-      model: args.model,
-      provider: args.provider,
-      temperature: args.temperature,
-      maxTokens: args.maxTokens,
-      topP: args.topP,
-      frequencyPenalty: args.frequencyPenalty,
-      presencePenalty: args.presencePenalty,
-      enableWebSearch: message.useWebSearch,
-      webSearchMaxResults: args.webSearchMaxResults,
+    const messages = Array.isArray(messagesResult)
+      ? messagesResult
+      : messagesResult.page;
+
+    const messageIndex = messages.findIndex(
+      (msg: Doc<"messages">) => msg._id === args.messageId
+    );
+    if (messageIndex === -1) {
+      throw new Error("Message not found");
+    }
+
+    const useWebSearch = message.useWebSearch;
+
+    // Update the message content
+    await ctx.runMutation(api.messages.update, {
+      id: args.messageId,
+      content: args.newContent,
+    });
+
+    // Delete all messages after the edited message
+    await handleMessageDeletion(ctx, messages, messageIndex, "user");
+
+    // Build context messages including the edited message
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: message.conversationId,
+      personaId: conversation.personaId,
+    });
+
+    // Get user's effective model using centralized resolution with full capabilities
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
+    // Execute streaming action
+    const result = await executeStreamingAction(ctx, {
+      conversationId: message.conversationId,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      conversation,
+      contextMessages,
+      useWebSearch,
       reasoningConfig: args.reasoningConfig,
     });
 
-    return { assistantMessageId };
+    return {
+      assistantMessageId: result.assistantMessageId,
+    };
   },
 });
+
+// Helper function to handle message deletion logic for retry and edit operations
+const handleMessageDeletion = async (
+  ctx: ActionCtx,
+  messages: Doc<"messages">[],
+  messageIndex: number,
+  retryType: "user" | "assistant"
+) => {
+  if (retryType === "assistant") {
+    // For assistant retry, delete the assistant message itself AND everything after it
+    const messagesToDelete = messages.slice(messageIndex);
+    for (const msg of messagesToDelete) {
+      await ctx.runMutation(api.messages.remove, { id: msg._id });
+    }
+  } else {
+    // For user retry, delete messages after the user message (but keep the user message)
+    await deleteMessagesAfterIndex(
+      ctx,
+      messages as import("./lib/conversation_utils").MessageDoc[],
+      messageIndex
+    );
+  }
+};
 
 export const retryFromMessage = action({
   args: {
     conversationId: v.id("conversations"),
     messageId: v.id("messages"),
-    retryType: v.union(v.literal("user"), v.literal("assistant")),
+    retryType: v.optional(v.union(v.literal("user"), v.literal("assistant"))),
     ...modelProviderArgs,
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
@@ -1099,20 +1290,28 @@ export const retryFromMessage = action({
       : messagesResult.page;
 
     // Find the target message
-    const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
+    const messageIndex = messages.findIndex(
+      (msg: Doc<"messages">) => msg._id === args.messageId
+    );
     if (messageIndex === -1) {
       throw new Error("Message not found");
     }
 
+    const targetMessage = messages[messageIndex] as Doc<"messages">;
+
+    // Determine retry type automatically if not provided
+    const retryType =
+      args.retryType || (targetMessage.role === "user" ? "user" : "assistant");
+
     let contextEndIndex: number;
     let useWebSearch: boolean | undefined;
 
-    if (args.retryType === "user") {
-      // Retry from user message - include the user message and regenerate assistant response
+    if (retryType === "user") {
+      // Retry from user message - keep the user message and regenerate assistant response
       contextEndIndex = messageIndex;
-      useWebSearch = messages[messageIndex].useWebSearch;
+      useWebSearch = targetMessage.useWebSearch;
     } else {
-      // Retry from assistant message - go back to previous user message
+      // Retry from assistant message - go back to the previous user message for context
       const previousUserMessageIndex = messageIndex - 1;
       const previousUserMessage = messages[previousUserMessageIndex];
 
@@ -1121,15 +1320,11 @@ export const retryFromMessage = action({
       }
 
       contextEndIndex = previousUserMessageIndex;
-      useWebSearch = previousUserMessage.useWebSearch;
+      useWebSearch = (previousUserMessage as Doc<"messages">).useWebSearch;
     }
 
-    // Delete messages after the context end point
-    await deleteMessagesAfterIndex(
-      ctx,
-      messages as import("./lib/conversation_utils").MessageDoc[],
-      contextEndIndex
-    );
+    // Handle message deletion based on retry type
+    await handleMessageDeletion(ctx, messages, messageIndex, retryType);
 
     // Build context messages up to the retry point
     const { contextMessages } = await buildContextMessages(ctx, {
@@ -1138,11 +1333,18 @@ export const retryFromMessage = action({
       includeUpToIndex: contextEndIndex,
     });
 
+    // Get user's effective model using centralized resolution with full capabilities
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
     // Execute streaming action
     const result = await executeStreamingAction(ctx, {
       conversationId: args.conversationId,
-      model: args.model,
-      provider: args.provider,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
       conversation,
       contextMessages,
       useWebSearch,
@@ -1191,7 +1393,9 @@ export const editMessage = action({
       : messagesResult.page;
 
     // Find the target message and validate it's a user message
-    const messageIndex = messages.findIndex(msg => msg._id === args.messageId);
+    const messageIndex = messages.findIndex(
+      (msg: Doc<"messages">) => msg._id === args.messageId
+    );
     if (messageIndex === -1) {
       throw new Error("Message not found");
     }
@@ -1210,12 +1414,8 @@ export const editMessage = action({
       content: args.newContent,
     });
 
-    // Delete all messages after the edited message
-    await deleteMessagesAfterIndex(
-      ctx,
-      messages as import("./lib/conversation_utils").MessageDoc[],
-      messageIndex
-    );
+    // Delete all messages after the edited message (use user retry logic)
+    await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
     // Build context messages including the edited message
     const { contextMessages } = await buildContextMessages(ctx, {
@@ -1223,11 +1423,18 @@ export const editMessage = action({
       personaId: conversation.personaId,
     });
 
+    // Get user's effective model using centralized resolution with full capabilities
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
     // Execute streaming action
     const result = await executeStreamingAction(ctx, {
       conversationId: args.conversationId,
-      model: args.model,
-      provider: args.provider,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
       conversation,
       contextMessages,
       useWebSearch,
@@ -1243,88 +1450,54 @@ export const editMessage = action({
 export const stopGeneration = mutation({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.conversationId, { isStreaming: false });
-    // The StreamInterruptor in the action will handle the rest.
-  },
-});
+    console.log(
+      `[stopGeneration] Stopping generation for conversation: ${args.conversationId}`
+    );
 
-export const resumeConversation = action({
-  args: {
-    conversationId: v.id("conversations"),
-  },
-  handler: async (ctx, args): Promise<{ resumed: boolean }> => {
-    // Get all messages for the conversation
-    const messagesResult = await ctx.runQuery(api.messages.list, {
-      conversationId: args.conversationId,
+    // First, try to abort any active in-memory streams
+    const wasAborted = abortStream(args.conversationId);
+
+    // Also mark the conversation as not streaming to signal completion
+    await ctx.db.patch(args.conversationId, {
+      isStreaming: false,
     });
 
-    // Handle pagination result - if no pagination options passed, result is array
-    const messages = Array.isArray(messagesResult)
-      ? messagesResult
-      : messagesResult.page;
+    // Also mark any streaming message as stopped by finding the most recent assistant message
+    const recentAssistantMessage = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .filter(q => q.eq(q.field("role"), "assistant"))
+      .order("desc")
+      .first();
 
-    if (messages.length === 0) {
-      return { resumed: false };
+    if (recentAssistantMessage) {
+      const metadata = recentAssistantMessage.metadata as
+        | Record<string, unknown>
+        | null
+        | undefined;
+      // If the message doesn't have a finishReason, it's likely streaming
+      if (!(metadata?.finishReason || metadata?.stopped)) {
+        console.log(
+          `[stopGeneration] Marking message ${recentAssistantMessage._id} as stopped`
+        );
+        await ctx.db.patch(recentAssistantMessage._id, {
+          metadata: {
+            ...metadata,
+            finishReason: "stop",
+            stopped: true,
+          },
+        });
+      }
     }
 
-    // Check if the last message is a user message (indicating an interrupted conversation)
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage.role !== "user") {
-      return { resumed: false };
+    const hasRecentMessage = Boolean(recentAssistantMessage);
+    if (!(wasAborted || hasRecentMessage)) {
+      console.warn(
+        `[stopGeneration] No active stream or streaming message found for conversation ${args.conversationId}`
+      );
     }
-
-    // Check if there's already a response being generated
-    const hasStreamingMessage = messages
-      .filter(msg => msg.role === "assistant")
-      .some(msg => !msg.metadata?.finishReason);
-
-    if (hasStreamingMessage) {
-      return { resumed: false };
-    }
-
-    // Get the persona for this conversation if it exists
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
-    });
-
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    // Build context messages
-    const { contextMessages } = await buildContextMessages(ctx, {
-      conversationId: args.conversationId,
-      personaId: conversation.personaId,
-    });
-
-    // Get user's selected model
-    const userModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
-
-    if (!userModel) {
-      throw new Error("No model selected for user");
-    }
-
-    // Setup and start streaming
-    await setupAndStartStreaming(ctx, {
-      conversationId: args.conversationId,
-      contextMessages,
-      model: userModel.modelId,
-      provider: userModel.provider,
-      userId: conversation.userId,
-      useWebSearch: lastMessage.useWebSearch,
-    });
-
-    return { resumed: true };
-  },
-});
-
-export const incrementUserMessageStatsAction = action({
-  args: {
-    model: v.optional(v.string()),
-    provider: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await incrementUserMessageStats(ctx, args.provider);
   },
 });
 
@@ -1369,7 +1542,9 @@ export const createBranchingConversation = action({
       actualUserId = authenticatedUserId;
     } else {
       // Create anonymous user as fallback
-      actualUserId = await ctx.runMutation(api.users.createAnonymous);
+      actualUserId = await ctx.runMutation(
+        internal.users.internalCreateAnonymous
+      );
       isNewUser = true;
     }
 
@@ -1381,18 +1556,19 @@ export const createBranchingConversation = action({
       throw new Error("No model selected. Please select a model in Settings.");
     }
 
-    // Check if it's a Polly free model and enforce limits
-    const isPollyModelResult = isPollyModel(selectedModel.provider);
+    // Check if it's a built-in free model and enforce limits
+    // If model has 'free' field, it's from builtInModels table and is a built-in model
+    const isBuiltInModelResult = selectedModel.free === true;
     const user = await ctx.runQuery(api.users.getById, { id: actualUserId });
     if (!user) {
       throw new Error("User not found");
     }
 
-    if (isPollyModelResult && !user.hasUnlimitedCalls) {
+    if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
       const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
       const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
       if (monthlyMessagesSent >= monthlyLimit) {
-        throw new Error("Monthly Polly model message limit reached.");
+        throw new Error("Monthly built-in model message limit reached.");
       }
     }
 
@@ -1405,20 +1581,12 @@ export const createBranchingConversation = action({
       finalPersonaPrompt = persona?.prompt ?? undefined;
     }
 
-    // Map polly provider to actual provider
-    let actualProvider = selectedModel.provider as
+    // Provider is already the actual provider - no mapping needed
+    const actualProvider = selectedModel.provider as
       | "openai"
       | "anthropic"
       | "google"
       | "openrouter";
-
-    if (selectedModel.provider === "polly") {
-      actualProvider = mapPollyModelToProvider(selectedModel.modelId) as
-        | "openai"
-        | "anthropic"
-        | "google"
-        | "openrouter";
-    }
 
     // Create conversation using internal mutation
     const createResult = await ctx.runMutation(
@@ -1437,6 +1605,13 @@ export const createBranchingConversation = action({
       }
     );
 
+    // Increment message stats
+    await incrementUserMessageStats(
+      ctx,
+      actualProvider,
+      selectedModel.free === true
+    );
+
     // Create context message if contextSummary is provided
     if (args.sourceConversationId && args.contextSummary) {
       await ctx.runMutation(api.messages.create, {
@@ -1453,5 +1628,121 @@ export const createBranchingConversation = action({
       userId: actualUserId,
       isNewUser,
     };
+  },
+});
+
+/**
+ * Wrapper functions for UI compatibility (replaces agent_conversations.ts)
+ */
+
+/**
+ * Create conversation action wrapper (UI expects this)
+ */
+export const createConversationAction = action({
+  args: {
+    title: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    firstMessage: v.optional(v.string()),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(
+            v.literal("image"),
+            v.literal("pdf"),
+            v.literal("text")
+          ),
+          url: v.string(),
+          name: v.string(),
+          size: v.number(),
+          content: v.optional(v.string()),
+          thumbnail: v.optional(v.string()),
+          storageId: v.optional(v.id("_storage")),
+        })
+      )
+    ),
+    useWebSearch: v.optional(v.boolean()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+  },
+  returns: v.union(
+    v.object({
+      conversationId: v.id("conversations"),
+      userMessageId: v.id("messages"),
+      assistantMessageId: v.id("messages"),
+    }),
+    v.object({
+      conversationId: v.id("conversations"),
+    })
+  ),
+  handler: async (
+    ctx,
+    args
+  ): Promise<
+    | {
+        conversationId: Id<"conversations">;
+        userMessageId: Id<"messages">;
+        assistantMessageId: Id<"messages">;
+      }
+    | { conversationId: Id<"conversations"> }
+  > => {
+    // Get current authenticated user
+    const user = await ctx.runQuery(api.users.current);
+
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    // If there's a first message, create conversation with it
+    if (args.firstMessage) {
+      const result: {
+        conversationId: Id<"conversations">;
+        userMessageId: Id<"messages">;
+        assistantMessageId: Id<"messages">;
+      } = await ctx.runMutation(api.conversations.createConversation, {
+        title: args.title,
+        personaId: args.personaId,
+        firstMessage: args.firstMessage,
+        model: args.model || DEFAULT_BUILTIN_MODEL_ID,
+        provider:
+          (args.provider as
+            | "openai"
+            | "anthropic"
+            | "google"
+            | "openrouter"
+            | undefined) || "google",
+        attachments: args.attachments,
+        useWebSearch: args.useWebSearch,
+        reasoningConfig: args.reasoningConfig,
+      });
+
+      return {
+        conversationId: result.conversationId,
+        userMessageId: result.userMessageId,
+        assistantMessageId: result.assistantMessageId,
+      };
+    }
+
+    // Create empty conversation - use internal mutation to create just the conversation
+    const conversationId: Id<"conversations"> = await ctx.runMutation(
+      internal.conversations.createEmptyInternal,
+      {
+        title: args.title || "New Conversation",
+        userId: user._id,
+        personaId: args.personaId,
+      }
+    );
+
+    return { conversationId };
+  },
+});
+
+/**
+ * Check if a conversation is currently streaming by examining its messages
+ */
+export const isStreaming = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    return await isConversationStreaming(ctx, args.conversationId);
   },
 });

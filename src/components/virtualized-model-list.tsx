@@ -1,13 +1,16 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { WindowVirtualizer } from "virtua";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Switch } from "@/components/ui/switch";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { useUserDataContext } from "@/providers/user-data-context";
+import type { ToggleModelResult } from "@/types";
 
 type BaseModel = {
   modelId: string;
@@ -24,9 +27,9 @@ type BaseModel = {
   free?: boolean;
 };
 
-type VirtualizedModelListProps = {
+interface VirtualizedModelListProps {
   models: BaseModel[];
-};
+}
 
 const ModelCard = memo(
   ({
@@ -176,6 +179,15 @@ ModelCard.displayName = "ModelCard";
 export const VirtualizedModelList = memo(
   ({ models }: VirtualizedModelListProps) => {
     const [columnsPerRow, setColumnsPerRow] = useState(4);
+    const [conflictDialog, setConflictDialog] = useState<{
+      isOpen: boolean;
+      model: BaseModel | null;
+      conflictInfo: ToggleModelResult | null;
+    }>({
+      isOpen: false,
+      model: null,
+      conflictInfo: null,
+    });
 
     const { user } = useUserDataContext();
     const authenticatedUserId = user?._id;
@@ -188,36 +200,89 @@ export const VirtualizedModelList = memo(
 
     // Memoize enabled models lookup for better performance
     const enabledModelsLookup = enabledModels
-      ? new Set(enabledModels.map(m => m.modelId))
+      ? new Set(enabledModels.map((m: BaseModel) => m.modelId))
       : new Set();
 
-    const onToggleModel = useCallback(
-      (model: BaseModel) => {
+    const handleToggleModel = useCallback(
+      async (model: BaseModel, acknowledgeConflict = false) => {
         if (!authenticatedUserId) {
           return;
         }
 
-        // Convert BaseModel to the exact format expected by the mutation validator
-        const modelData = {
-          userId: authenticatedUserId,
-          modelId: model.modelId,
-          name: model.name,
-          provider: model.provider,
-          contextLength: model.contextLength || model.contextWindow || 0,
-          maxOutputTokens: model.maxOutputTokens ?? undefined,
-          supportsImages: Boolean(model.supportsImages),
-          supportsTools: Boolean(model.supportsTools),
-          supportsReasoning: Boolean(model.supportsReasoning),
-          supportsFiles: model.supportsFiles ?? undefined,
-          inputModalities: model.inputModalities ?? undefined,
-          free: model.free ?? false,
-          createdAt: Date.now(),
-        };
+        try {
+          // Convert BaseModel to the exact format expected by the mutation validator
+          const modelData = {
+            userId: authenticatedUserId,
+            modelId: model.modelId,
+            name: model.name,
+            provider: model.provider,
+            contextLength: model.contextLength || model.contextWindow || 0,
+            maxOutputTokens: model.maxOutputTokens ?? undefined,
+            supportsImages: Boolean(model.supportsImages),
+            supportsTools: Boolean(model.supportsTools),
+            supportsReasoning: Boolean(model.supportsReasoning),
+            supportsFiles: model.supportsFiles ?? undefined,
+            inputModalities: model.inputModalities ?? undefined,
+            free: model.free ?? false,
+            createdAt: Date.now(),
+          };
 
-        toggleModel({ modelId: model.modelId, modelData });
+          const result = (await toggleModel({
+            modelId: model.modelId,
+            modelData,
+            acknowledgeConflict,
+          })) as ToggleModelResult;
+
+          if (!result.success) {
+            if (result.requiresConfirmation) {
+              // Show conflict dialog
+              setConflictDialog({
+                isOpen: true,
+                model,
+                conflictInfo: result,
+              });
+              return;
+            }
+
+            // Show error toast
+            toast.error(result.error || "Failed to toggle model");
+            return;
+          }
+
+          // Success toast
+          const action = result.action === "added" ? "enabled" : "disabled";
+          let message = `Model ${action} successfully`;
+
+          if (result.overridesBuiltIn) {
+            message += " (using your API key instead of free Polly model)";
+          }
+
+          toast.success(message);
+        } catch (error) {
+          console.error("Failed to toggle model:", error);
+          toast.error("Failed to toggle model");
+        }
       },
       [toggleModel, authenticatedUserId]
     );
+
+    const onToggleModel = useCallback(
+      (model: BaseModel) => {
+        handleToggleModel(model, false);
+      },
+      [handleToggleModel]
+    );
+
+    const handleConflictConfirm = useCallback(() => {
+      if (conflictDialog.model) {
+        handleToggleModel(conflictDialog.model, true);
+      }
+      setConflictDialog({ isOpen: false, model: null, conflictInfo: null });
+    }, [conflictDialog.model, handleToggleModel]);
+
+    const handleConflictCancel = useCallback(() => {
+      setConflictDialog({ isOpen: false, model: null, conflictInfo: null });
+    }, []);
 
     // Calculate columns based on screen size with debounced updates
     useEffect(() => {
@@ -269,50 +334,96 @@ export const VirtualizedModelList = memo(
     // For small lists, don't use virtualization to avoid overhead
     if (rows.length <= 20) {
       return (
-        <div className="space-y-3">
-          {rows.map((rowModels, rowIndex) => (
-            <div
-              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-              className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            >
-              {rowModels
-                .filter(model => model)
-                .map(model => (
-                  <ModelCard
-                    key={`${model.provider}-${model.modelId}`}
-                    isEnabled={enabledModelsLookup.has(model.modelId)}
-                    model={model}
-                    onToggle={onToggleModel}
-                  />
-                ))}
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="space-y-3">
+            {rows.map((rowModels, rowIndex) => (
+              <div
+                key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+                className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                {rowModels
+                  .filter(model => model)
+                  .map(model => (
+                    <ModelCard
+                      key={`${model.provider}-${model.modelId}`}
+                      isEnabled={enabledModelsLookup.has(model.modelId)}
+                      model={model}
+                      onToggle={onToggleModel}
+                    />
+                  ))}
+              </div>
+            ))}
+          </div>
+          <ConfirmationDialog
+            open={conflictDialog.isOpen}
+            onOpenChange={open => {
+              if (!open) {
+                setConflictDialog({
+                  isOpen: false,
+                  model: null,
+                  conflictInfo: null,
+                });
+              }
+            }}
+            onConfirm={handleConflictConfirm}
+            onCancel={handleConflictCancel}
+            title="Model Conflict"
+            description={
+              conflictDialog.conflictInfo?.message ||
+              "You already have this model enabled. Do you want to override it?"
+            }
+            confirmText="Use My API Key"
+            cancelText="Keep Free Model"
+          />
+        </>
       );
     }
 
     return (
-      <WindowVirtualizer>
-        {rows.map((rowModels, rowIndex) => (
-          <div
-            key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-            className="pb-3"
-          >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {rowModels
-                .filter(model => model)
-                .map(model => (
-                  <ModelCard
-                    key={`${model.provider}-${model.modelId}`}
-                    isEnabled={enabledModelsLookup.has(model.modelId)}
-                    model={model}
-                    onToggle={onToggleModel}
-                  />
-                ))}
+      <>
+        <WindowVirtualizer>
+          {rows.map((rowModels, rowIndex) => (
+            <div
+              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+              className="pb-3"
+            >
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {rowModels
+                  .filter(model => model)
+                  .map(model => (
+                    <ModelCard
+                      key={`${model.provider}-${model.modelId}`}
+                      isEnabled={enabledModelsLookup.has(model.modelId)}
+                      model={model}
+                      onToggle={onToggleModel}
+                    />
+                  ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </WindowVirtualizer>
+          ))}
+        </WindowVirtualizer>
+        <ConfirmationDialog
+          open={conflictDialog.isOpen}
+          onOpenChange={open => {
+            if (!open) {
+              setConflictDialog({
+                isOpen: false,
+                model: null,
+                conflictInfo: null,
+              });
+            }
+          }}
+          onConfirm={handleConflictConfirm}
+          onCancel={handleConflictCancel}
+          title="Model Conflict"
+          description={
+            conflictDialog.conflictInfo?.message ||
+            "You already have this model enabled. Do you want to override it?"
+          }
+          confirmText="Use My API Key"
+          cancelText="Keep Free Model"
+        />
+      </>
     );
   }
 );

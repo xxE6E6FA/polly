@@ -1,4 +1,14 @@
 import { api } from "@convex/_generated/api";
+
+type ApiKeyInfo = {
+  provider: string;
+  isValid: boolean;
+  hasKey: boolean;
+  partialKey: string;
+  createdAt: number;
+  encryptionType: string;
+};
+
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
@@ -93,7 +103,7 @@ export const ApiKeysTab = () => {
   }, [apiKeysRaw]);
 
   const hasOpenRouterKey = apiKeys?.some(
-    key => key.provider === "openrouter" && hasStoredKey(key)
+    (key: ApiKeyInfo) => key.provider === "openrouter" && hasStoredKey(key)
   );
 
   const handleOpenRouterSortingChange = (value: string) => {
@@ -195,7 +205,9 @@ export const ApiKeysTab = () => {
             [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
           >
         ).map(([provider, info]) => {
-          const keyInfo = apiKeys.find(k => k.provider === provider);
+          const keyInfo = apiKeys.find(
+            (k: ApiKeyInfo) => k.provider === provider
+          );
           const isConnected = hasStoredKey(keyInfo);
 
           return (

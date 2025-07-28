@@ -7,7 +7,7 @@ import { ActivitySection } from "@/components/settings/chat-history-tab/Activity
 import { ConversationSelectionList } from "@/components/settings/chat-history-tab/ConversationSelectionList";
 import { ImportExportActions } from "@/components/settings/chat-history-tab/ImportExportActions";
 import { SettingsHeader } from "@/components/settings/settings-header";
-import { SettingsPageLayout } from "@/components/settings/ui";
+import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConversationSelection } from "@/hooks/use-conversation-selection";
 

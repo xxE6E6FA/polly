@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
@@ -51,6 +52,87 @@ import {
 } from "./lib/schemas";
 
 // Create a new background job with enhanced metadata
+// Internal version for system operations
+export const internalCreate = internalMutation({
+  args: {
+    jobId: v.string(),
+    userId: v.id("users"), // Explicitly passed for internal operations
+    type: v.union(
+      v.literal("export"),
+      v.literal("import"),
+      v.literal("bulk_archive"),
+      v.literal("bulk_delete"),
+      v.literal("conversation_summary"),
+      v.literal("data_migration"),
+      v.literal("model_migration"),
+      v.literal("backup")
+    ),
+    category: v.optional(
+      v.union(
+        v.literal("data_transfer"),
+        v.literal("bulk_operations"),
+        v.literal("ai_processing"),
+        v.literal("maintenance")
+      )
+    ),
+    totalItems: v.number(),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    payload: v.optional(v.any()),
+    priority: v.optional(
+      v.union(
+        v.literal("low"),
+        v.literal("normal"),
+        v.literal("high"),
+        v.literal("urgent")
+      )
+    ),
+    // Import/Export specific fields
+    conversationIds: v.optional(v.array(v.id("conversations"))),
+    includeAttachments: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    // Auto-assign category based on type if not provided
+    let category = args.category;
+    if (!category) {
+      if (args.type === "export" || args.type === "import") {
+        category = "data_transfer";
+      } else if (args.type === "bulk_archive" || args.type === "bulk_delete") {
+        category = "bulk_operations";
+      } else if (
+        args.type === "conversation_summary" ||
+        args.type === "model_migration"
+      ) {
+        category = "ai_processing";
+      } else {
+        category = "maintenance";
+      }
+    }
+
+    const jobId = await ctx.db.insert("backgroundJobs", {
+      jobId: args.jobId,
+      userId: args.userId, // Use explicitly passed userId
+      type: args.type,
+      category,
+      status: "scheduled",
+      totalItems: args.totalItems,
+      processedItems: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      title: args.title,
+      description: args.description,
+      payload: args.payload,
+      priority: args.priority || "normal",
+      retryCount: 0,
+      maxRetries: 3,
+      conversationIds: args.conversationIds,
+      includeAttachments: args.includeAttachments,
+    });
+
+    return jobId;
+  },
+});
+
 export const create = mutation({
   args: {
     jobId: v.string(),
@@ -608,3 +690,159 @@ export const createConvexExportData = (
     })),
   };
 };
+
+// Internal versions for system operations (no auth checks)
+export const internalUpdateStatus = internalMutation({
+  args: {
+    jobId: v.string(),
+    status: v.union(
+      v.literal("scheduled"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("backgroundJobs")
+      .filter(q => q.eq(q.field("jobId"), args.jobId))
+      .first();
+
+    if (!job) {
+      throw new ConvexError("Background job not found");
+    }
+
+    const updates: {
+      status: "scheduled" | "processing" | "completed" | "failed" | "cancelled";
+      error?: string;
+      updatedAt: number;
+      startedAt?: number;
+      completedAt?: number;
+    } = {
+      status: args.status,
+      updatedAt: Date.now(),
+    };
+
+    if (args.status === "processing" && !job.startedAt) {
+      updates.startedAt = Date.now();
+    }
+
+    if (args.status === "completed" || args.status === "failed") {
+      updates.completedAt = Date.now();
+    }
+
+    if (args.error) {
+      updates.error = args.error;
+    }
+
+    await ctx.db.patch(job._id, updates);
+  },
+});
+
+export const internalUpdateProgress = internalMutation({
+  args: {
+    jobId: v.string(),
+    processedItems: v.number(),
+    totalItems: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("backgroundJobs")
+      .filter(q => q.eq(q.field("jobId"), args.jobId))
+      .first();
+
+    if (!job) {
+      throw new ConvexError("Background job not found");
+    }
+
+    const updates: {
+      processedItems: number;
+      updatedAt: number;
+      totalItems?: number;
+    } = {
+      processedItems: args.processedItems,
+      updatedAt: Date.now(),
+    };
+
+    if (args.totalItems !== undefined) {
+      updates.totalItems = args.totalItems;
+    }
+
+    await ctx.db.patch(job._id, updates);
+  },
+});
+
+export const internalSaveExportResult = internalMutation({
+  args: {
+    jobId: v.string(),
+    manifest: backgroundJobManifestSchema,
+    fileStorageId: v.id("_storage"),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("backgroundJobs")
+      .filter(q => q.eq(q.field("jobId"), args.jobId))
+      .first();
+
+    if (!job) {
+      throw new ConvexError("Background job not found");
+    }
+
+    const result: {
+      status: "completed" | "failed";
+      updatedAt: number;
+      completedAt: number;
+      fileStorageId: Id<"_storage">;
+      manifest: typeof args.manifest;
+    } = {
+      status: args.status,
+      updatedAt: Date.now(),
+      completedAt: Date.now(),
+      fileStorageId: args.fileStorageId,
+      manifest: args.manifest,
+    };
+
+    await ctx.db.patch(job._id, result);
+  },
+});
+
+export const internalSaveImportResult = internalMutation({
+  args: {
+    jobId: v.string(),
+    result: backgroundJobResultSchema,
+    status: v.union(v.literal("completed"), v.literal("failed")),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const job = await ctx.db
+      .query("backgroundJobs")
+      .filter(q => q.eq(q.field("jobId"), args.jobId))
+      .first();
+
+    if (!job) {
+      throw new ConvexError("Background job not found");
+    }
+
+    const updates: {
+      status: "completed" | "failed";
+      updatedAt: number;
+      completedAt: number;
+      result: typeof args.result;
+      error?: string;
+    } = {
+      status: args.status,
+      updatedAt: Date.now(),
+      completedAt: Date.now(),
+      result: args.result,
+    };
+
+    if (args.error) {
+      updates.error = args.error;
+    }
+
+    await ctx.db.patch(job._id, updates);
+  },
+});

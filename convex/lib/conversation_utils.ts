@@ -5,23 +5,18 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from "../_generated/server";
-import { getDefaultSystemPrompt } from "../constants";
+
 import { ConvexError } from "convex/values";
 import {
   DEFAULT_TEMPERATURE,
   DEFAULT_MAX_TOKENS,
   WEB_SEARCH_MAX_RESULTS,
-  MONTHLY_MESSAGE_LIMIT,
 } from "@shared/constants";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
 
-import { isPollyModel } from "@shared/constants";
-import { Infer } from "convex/values";
-import { conversationCreationSchema, messageCreationSchema } from "./schemas";
-
-// Infer the type from the schema
-export type CreateMessageArgs = Infer<typeof messageCreationSchema>;
+import { CreateMessageArgs, CreateConversationArgs } from "./schemas";
+import { getUserEffectiveModelWithCapabilities } from "./model_resolution";
 
 export type StreamingActionResult = {
   userMessageId?: Id<"messages">;
@@ -89,7 +84,7 @@ export type MessageDoc = {
 
 // Helper to find streaming assistant message
 export const findStreamingMessage = (
-  messages: Array<MessageDoc>,
+  messages: Array<MessageDoc>
 ): MessageDoc | undefined => {
   return messages
     .filter((msg) => msg.role === "assistant")
@@ -100,10 +95,10 @@ export const findStreamingMessage = (
 // Helper to ensure conversation streaming state is cleared
 export const ensureStreamingCleared = async (
   ctx: ActionCtx,
-  conversationId: Id<"conversations">,
+  conversationId: Id<"conversations">
 ): Promise<void> => {
   try {
-    await ctx.runMutation(api.conversations.patch, {
+    await ctx.runMutation(internal.conversations.internalPatch, {
       id: conversationId,
       updates: { isStreaming: false },
       setUpdatedAt: true,
@@ -112,7 +107,7 @@ export const ensureStreamingCleared = async (
     // Log but don't throw - this is a cleanup operation
     console.error(
       `Failed to clear streaming state for conversation ${conversationId}:`,
-      error,
+      error
     );
   }
 };
@@ -121,7 +116,7 @@ export const ensureStreamingCleared = async (
 export const deleteMessagesAfterIndex = async (
   ctx: ActionCtx,
   messages: Array<MessageDoc>,
-  afterIndex: number,
+  afterIndex: number
 ): Promise<void> => {
   const messagesToDelete = messages.slice(afterIndex + 1);
   for (const msg of messagesToDelete) {
@@ -140,7 +135,7 @@ export const resolveAttachmentUrls = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
-  }>,
+  }>
 ) => {
   return await Promise.all(
     attachments.map(async (attachment) => {
@@ -152,7 +147,7 @@ export const resolveAttachmentUrls = async (
         };
       }
       return attachment;
-    }),
+    })
   );
 };
 
@@ -168,7 +163,7 @@ export const buildUserMessageContent = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
-  }>,
+  }>
 ): Promise<
   | string
   | Array<{
@@ -253,99 +248,16 @@ export const buildUserMessageContent = async (
 };
 
 // Helper to get a default system prompt based on conversation messages
-export const getDefaultSystemPromptForConversation = (
-  messages: Array<MessageDoc>,
-): string => {
-  // Get the model info from the last assistant message or use a default
-  const lastAssistantMessage = messages
-    .filter((msg) => msg.role === "assistant" && msg.model)
-    .pop();
 
-  const modelName = lastAssistantMessage?.model || "an AI model";
-  return getDefaultSystemPrompt(modelName);
-};
 
 // DRY Helper: Process attachments for storage
-export async function processAndStoreAttachments(
-  ctx: { storage: ActionCtx["storage"] },
-  attachments?: Array<{
-    type: "image" | "pdf" | "text";
-    url: string;
-    name: string;
-    size: number;
-    content?: string;
-    thumbnail?: string;
-    storageId?: Id<"_storage">;
-    mimeType?: string;
-  }>,
-): Promise<
-  | Array<{
-      type: "image" | "pdf" | "text";
-      url: string;
-      name: string;
-      size: number;
-      storageId?: Id<"_storage">;
-      thumbnail?: string;
-      content?: undefined;
-    }>
-  | undefined
-> {
-  if (!attachments || attachments.length === 0) return undefined;
-  return await Promise.all(
-    attachments.map(async (attachment) => {
-      const needsUpload =
-        (attachment.type === "image" || attachment.type === "pdf") &&
-        !attachment.storageId &&
-        (attachment.url?.startsWith("data:") || attachment.content);
-      if (needsUpload) {
-        try {
-          let mimeType: string;
-          let base64Data: string;
-          if (attachment.url?.startsWith("data:")) {
-            const matches = attachment.url.match(/^data:([^;]+);base64,(.+)$/);
-            if (!matches) throw new ConvexError("Invalid data URL format");
-            mimeType = matches[1];
-            base64Data = matches[2];
-          } else if (attachment.content) {
-            mimeType =
-              attachment.mimeType ||
-              (attachment.type === "image" ? "image/jpeg" : "application/pdf");
-            base64Data = attachment.content;
-          } else {
-            // Remove content property if present
-            const { content, mimeType, ...rest } = attachment;
-            return { ...rest, content: undefined };
-          }
-          const byteCharacters = Buffer.from(base64Data, "base64");
-          const blob = new globalThis.Blob([byteCharacters], {
-            type: mimeType,
-          });
-          const storageId = await ctx.storage.store(blob);
-          return {
-            type: attachment.type,
-            url: "",
-            name: attachment.name,
-            size: attachment.size,
-            storageId: storageId as Id<"_storage">,
-            thumbnail: attachment.thumbnail,
-            content: undefined,
-          };
-        } catch (error) {
-          const { content, mimeType, ...rest } = attachment;
-          return { ...rest, content: undefined };
-        }
-      }
-      const { content, mimeType, ...rest } = attachment;
-      return { ...rest, content: undefined };
-    }),
-  );
-}
+
 
 // DRY Helper: Fetch persona prompt if needed
 export async function getPersonaPrompt(
   ctx: { runQuery: ActionCtx["runQuery"] },
   personaId?: Id<"personas">,
-  personaPrompt?: string,
+  personaPrompt?: string
 ): Promise<string | undefined> {
   if (personaPrompt) return personaPrompt;
   if (personaId) {
@@ -358,7 +270,7 @@ export async function getPersonaPrompt(
 // DRY Helper: Create a message (works for both ActionCtx and MutationCtx)
 export async function createMessage(
   ctx: { db: MutationCtx["db"] },
-  fields: CreateMessageArgs,
+  fields: CreateMessageArgs
 ) {
   return await ctx.db.insert("messages", {
     ...fields,
@@ -368,12 +280,12 @@ export async function createMessage(
 }
 
 // Infer the type from the schema
-export type CreateConversationArgs = Infer<typeof conversationCreationSchema>;
+
 
 // DRY Helper: Create a conversation (works for both ActionCtx and MutationCtx)
 export async function createConversation(
   ctx: { db: MutationCtx["db"] },
-  fields: CreateConversationArgs,
+  fields: CreateConversationArgs
 ) {
   return await ctx.db.insert("conversations", {
     ...fields,
@@ -385,6 +297,7 @@ export async function createConversation(
 export async function incrementUserMessageStats(
   ctx: ActionCtx | MutationCtx,
   provider?: string,
+  isBuiltInModel?: boolean
 ) {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
@@ -396,37 +309,39 @@ export async function incrementUserMessageStats(
     throw new Error("User not found");
   }
 
-  if (isPollyModel(provider)) {
-    const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-    const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-    if (monthlyMessagesSent >= monthlyLimit) {
-      throw new Error("Monthly Polly model message limit reached.");
-    }
+  // Update user message counters
+  const updates: Record<string, number> = {
+    messagesSent: (user.messagesSent || 0) + 1,
+    totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
+  };
 
-    await ctx.runMutation(api.users.patch, {
-      id: userId,
-      updates: {
-        messagesSent: (user.messagesSent || 0) + 1,
-        monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
-        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
-      },
-    });
-  } else {
-    await ctx.runMutation(api.users.patch, {
-      id: userId,
-      updates: {
-        messagesSent: (user.messagesSent || 0) + 1,
-        totalMessageCount: Math.max(0, (user.totalMessageCount || 0) + 1),
-      },
-    });
+  // Update built-in model counter if applicable
+  // Note: With user models taking precedence, a model is built-in only if:
+  // 1. No user model exists for this modelId/provider combination, AND
+  // 2. A built-in model exists for this combination
+  // This is determined by checking if the returned model has the 'free' field
+  if (isBuiltInModel) {
+    updates.monthlyMessagesSent = (user.monthlyMessagesSent || 0) + 1;
   }
+
+  // Update provider-specific counters if provider is specified
+  if (provider) {
+    const providerKey = `${provider}MessagesSent` as keyof typeof user;
+    const currentCount = (user[providerKey] as number) || 0;
+    updates[providerKey] = currentCount + 1;
+  }
+
+  await ctx.runMutation(api.users.patch, {
+    id: userId,
+    updates,
+  });
 }
 
 export async function scheduleTitleGeneration(
   ctx: { scheduler: ActionCtx["scheduler"] },
   conversationId: Id<"conversations">,
   message: string,
-  force?: boolean,
+  force?: boolean
 ) {
   if (force === false && (!message || message.trim().length === 0)) return;
   await ctx.scheduler.runAfter(
@@ -435,14 +350,14 @@ export async function scheduleTitleGeneration(
     {
       conversationId,
       message,
-    },
+    }
   );
 }
 
 // DRY Helper: Generate export metadata
 export function generateExportMetadata(
   conversationIds: Array<Id<"conversations">>,
-  includeAttachments: boolean,
+  includeAttachments: boolean
 ) {
   const dateStr = new Date().toLocaleDateString();
   const count = conversationIds.length;
@@ -451,15 +366,19 @@ export function generateExportMetadata(
       ? `Conversation Export - ${dateStr}`
       : `${count} Conversations Export - ${dateStr}`;
   const description = includeAttachments
-    ? `Export of ${count} conversation${count !== 1 ? "s" : ""} with attachments created on ${dateStr}`
-    : `Export of ${count} conversation${count !== 1 ? "s" : ""} created on ${dateStr}`;
+    ? `Export of ${count} conversation${
+        count !== 1 ? "s" : ""
+      } with attachments created on ${dateStr}`
+    : `Export of ${count} conversation${
+        count !== 1 ? "s" : ""
+      } created on ${dateStr}`;
   return { title, description };
 }
 
 // DRY Helper: Merge baseline instructions with persona prompt
 export const mergeSystemPrompts = (
   modelName: string,
-  personaPrompt?: string,
+  personaPrompt?: string
 ): string => {
   // Get baseline instructions (formatting rules, date/time, model info, etc.)
   const baselineInstructions = getBaselineInstructions(modelName);
@@ -491,6 +410,7 @@ export const executeStreamingAction = async (
               type: string;
               name: string;
             };
+            
           }>;
     }>;
     useWebSearch?: boolean;
@@ -499,7 +419,7 @@ export const executeStreamingAction = async (
       effort: "low" | "medium" | "high";
       maxTokens?: number;
     };
-  },
+  }
 ): Promise<StreamingActionResult> => {
   let assistantMessageId: Id<"messages"> | undefined;
   try {
@@ -509,12 +429,13 @@ export const executeStreamingAction = async (
       model: args.model,
       provider: args.provider,
       userId: args.conversation.userId,
+      personaId: args.conversation.personaId,
       useWebSearch: args.useWebSearch,
       reasoningConfig: args.reasoningConfig,
     });
     return {
       userMessageId: args.userMessageId,
-      assistantMessageId,
+      assistantMessageId: assistantMessageId as Id<"messages">,
     };
   } catch (error) {
     return await handleStreamingError(ctx, error, args.conversationId, {
@@ -535,7 +456,7 @@ export const processAttachmentsForStorage = async (
     thumbnail?: string;
     storageId?: Id<"_storage">;
     mimeType?: string;
-  }>,
+  }>
 ): Promise<
   | Array<{
       type: "image" | "pdf" | "text";
@@ -602,7 +523,7 @@ export const processAttachmentsForStorage = async (
       }
       const { content, mimeType, ...rest } = attachment;
       return { ...rest, content: undefined };
-    }),
+    })
   );
 };
 
@@ -612,36 +533,93 @@ export const buildContextMessages = async (
     conversationId: Id<"conversations">;
     personaId?: Id<"personas">;
     includeUpToIndex?: number;
-  },
-) => {
+  }
+): Promise<{
+  contextMessages: Array<{
+    role: "user" | "assistant" | "system";
+    content:
+      | string
+      | Array<{
+          type: "text" | "image_url" | "file";
+          text?: string;
+          image_url?: { url: string };
+          file?: { filename: string; file_data: string };
+          attachment?: {
+            storageId: Id<"_storage">;
+            type: string;
+            name: string;
+          };
+        }>;
+  }>;
+  messages: any[];
+}> => {
+  // Development mode logging (always enabled for now to debug streaming issues)
+  // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
+  const log = (step: string, data?: any) => {
+    console.log(
+      `[BUILD_CONTEXT] ${step}:`,
+      data ? JSON.stringify(data, null, 2) : ""
+    );
+  };
+
+  log("BUILD_CONTEXT_START", {
+    conversationId: args.conversationId,
+    personaId: args.personaId,
+    includeUpToIndex: args.includeUpToIndex,
+  });
+
   // Get the conversation to find its personaId
   const conversation = await ctx.runQuery(api.conversations.get, {
     id: args.conversationId,
   });
+  log("CONVERSATION_FETCHED", {
+    hasConversation: !!conversation,
+    conversationPersonaId: conversation?.personaId,
+  });
 
-  const messagesResult = await ctx.runQuery(api.messages.list, {
+  const messagesResult: any = await ctx.runQuery(api.messages.list, {
     conversationId: args.conversationId,
   });
-  const messages = Array.isArray(messagesResult)
+  const messages: MessageDoc[] = Array.isArray(messagesResult)
     ? messagesResult
     : messagesResult.page;
-  const relevantMessages =
+  log("MESSAGES_FETCHED", {
+    messagesCount: messages.length,
+    isArray: Array.isArray(messagesResult),
+    includeUpToIndex: args.includeUpToIndex,
+  });
+
+  const relevantMessages: MessageDoc[] =
     args.includeUpToIndex !== undefined
       ? messages.slice(0, args.includeUpToIndex + 1)
       : messages;
+  log("RELEVANT_MESSAGES_FILTERED", {
+    relevantMessagesCount: relevantMessages.length,
+    messageRoles: relevantMessages.map((msg: MessageDoc) => msg.role),
+  });
 
   // Use the personaId from the conversation (or fallback to args.personaId)
   const effectivePersonaId = conversation?.personaId || args.personaId;
+  log("PERSONA_RESOLUTION", {
+    effectivePersonaId,
+    conversationPersonaId: conversation?.personaId,
+    argsPersonaId: args.personaId,
+  });
+
   const personaPrompt = effectivePersonaId
     ? (await ctx.runQuery(api.personas.get, { id: effectivePersonaId }))?.prompt
     : undefined;
-  const messagesWithResolvedUrls = await Promise.all(
-    relevantMessages.map(async (msg) => {
-      const message = msg as Doc<"messages">;
+  log("PERSONA_PROMPT_FETCHED", {
+    hasPersonaPrompt: !!personaPrompt,
+    personaPromptLength: personaPrompt?.length,
+  });
+  const messagesWithResolvedUrls: MessageDoc[] = await Promise.all(
+    relevantMessages.map(async (msg: MessageDoc) => {
+      const message = msg;
       if (message.attachments && message.attachments.length > 0) {
         const resolvedAttachments = await resolveAttachmentUrls(
           ctx,
-          message.attachments,
+          message.attachments
         );
         return {
           ...message,
@@ -649,19 +627,19 @@ export const buildContextMessages = async (
         };
       }
       return message;
-    }),
+    })
   );
   const contextMessagesPromises = messagesWithResolvedUrls
-    .filter((msg) => {
-      const message = msg as Doc<"messages">;
+    .filter((msg: MessageDoc) => {
+      const message = msg;
       return (
         message.role !== "context" &&
         message.content &&
         message.content.trim().length > 0
       );
     })
-    .map(async (msg) => {
-      const message = msg as Doc<"messages">;
+    .map(async (msg: MessageDoc) => {
+      const message = msg;
       if (message.role === "system") {
         const isCitationInstruction =
           message.content.includes("🚨 CRITICAL CITATION REQUIREMENTS") ||
@@ -679,7 +657,7 @@ export const buildContextMessages = async (
         const content = await buildUserMessageContent(
           ctx,
           message.content,
-          message.attachments,
+          message.attachments
         );
         return {
           role: "user" as const,
@@ -692,29 +670,44 @@ export const buildContextMessages = async (
           content: message.content,
         };
       }
-      return;
+      return undefined;
     });
   const contextMessagesWithNulls = await Promise.all(contextMessagesPromises);
   const contextMessages = contextMessagesWithNulls.filter(
-    (msg): msg is Exclude<typeof msg, undefined> => msg !== undefined,
+    (msg: any): msg is Exclude<typeof msg, undefined> => msg !== undefined
   );
+  log("CONTEXT_MESSAGES_FILTERED", {
+    contextMessagesCount: contextMessages.length,
+    filteredFromCount: contextMessagesWithNulls.length,
+  });
 
   // Get model name from the last assistant message or use a default
   const lastAssistantMessage = relevantMessages
-    .filter((msg) => {
-      const message = msg as Doc<"messages">;
+    .filter((msg: MessageDoc) => {
+      const message = msg;
       return message.role === "assistant" && message.model;
     })
     .pop();
-  const modelName =
-    (lastAssistantMessage as Doc<"messages">)?.model || "an AI model";
+  const modelName = lastAssistantMessage?.model || "an AI model";
+  log("MODEL_NAME_RESOLVED", {
+    modelName,
+    hasLastAssistantMessage: !!lastAssistantMessage,
+  });
 
   // Merge baseline instructions with persona prompt into a single system message
   const mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
+  log("SYSTEM_PROMPT_MERGED", {
+    systemPromptLength: mergedSystemPrompt.length,
+  });
 
   contextMessages.unshift({
     role: "system",
     content: mergedSystemPrompt,
+  });
+
+  log("BUILD_CONTEXT_COMPLETE", {
+    finalContextMessagesCount: contextMessages.length,
+    finalMessageRoles: contextMessages.map((m: any) => m.role),
   });
 
   return { contextMessages, messages: relevantMessages };
@@ -743,19 +736,21 @@ export const setupAndStartStreaming = async (
     model: string;
     provider: string;
     userId: Id<"users">;
+    personaId?: Id<"personas">;
     useWebSearch?: boolean;
     reasoningConfig?: {
       enabled?: boolean;
       effort: "low" | "medium" | "high";
       maxTokens?: number;
     };
-  },
-) => {
-  await ctx.runMutation(api.conversations.patch, {
+  }
+): Promise<Id<"messages">> => {
+  await ctx.runMutation(internal.conversations.internalPatch, {
     id: args.conversationId,
     updates: { isStreaming: true },
   });
-  const assistantMessageId = await ctx.runMutation(api.messages.create, {
+  
+  const assistantMessageId: Id<"messages"> = await ctx.runMutation(api.messages.create, {
     conversationId: args.conversationId,
     role: "assistant",
     content: "",
@@ -763,23 +758,29 @@ export const setupAndStartStreaming = async (
     provider: args.provider,
     isMainBranch: true,
   });
-  await ctx.scheduler.runAfter(0, internal.stream.stream, {
-    messages: args.contextMessages,
+  
+  // Get the full model object with capabilities
+  const fullModel = await getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider);
+  
+  // Use the proper streaming action instead of simple generation
+  await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,
-    model: args.model,
-    provider: args.provider,
+    model: fullModel, // Pass the full model object
+    personaId: args.personaId,
     temperature: DEFAULT_TEMPERATURE,
     maxTokens: DEFAULT_MAX_TOKENS,
-    enableWebSearch: args.useWebSearch,
+    useWebSearch: args.useWebSearch,
     webSearchMaxResults: WEB_SEARCH_MAX_RESULTS,
     reasoningConfig: args.reasoningConfig?.enabled
       ? {
+          enabled: args.reasoningConfig.enabled,
           effort: args.reasoningConfig.effort,
           maxTokens: args.reasoningConfig.maxTokens,
         }
       : undefined,
   });
+  
   return assistantMessageId;
 };
 
@@ -790,9 +791,9 @@ export const handleStreamingError = async (
   messageIds?: {
     userMessageId?: Id<"messages">;
     assistantMessageId?: Id<"messages">;
-  },
+  }
 ) => {
-  await ctx.runMutation(api.conversations.patch, {
+  await ctx.runMutation(internal.conversations.internalPatch, {
     id: conversationId,
     updates: { isStreaming: false },
   });
@@ -809,7 +810,7 @@ export const handleStreamingError = async (
 export async function checkConversationAccess(
   ctx: QueryCtx | MutationCtx,
   conversationId: Id<"conversations">,
-  allowShared: boolean = false,
+  allowShared: boolean = false
 ): Promise<{ hasAccess: boolean; conversation?: Doc<"conversations"> }> {
   const userId = await getAuthUserId(ctx);
 
@@ -830,7 +831,7 @@ export async function checkConversationAccess(
     const sharedConversation = await ctx.db
       .query("sharedConversations")
       .withIndex("by_original_conversation", (q) =>
-        q.eq("originalConversationId", conversationId),
+        q.eq("originalConversationId", conversationId)
       )
       .first();
 
@@ -850,7 +851,7 @@ export async function checkConversationAccess(
     const sharedConversation = await ctx.db
       .query("sharedConversations")
       .withIndex("by_original_conversation", (q) =>
-        q.eq("originalConversationId", conversationId),
+        q.eq("originalConversationId", conversationId)
       )
       .first();
 

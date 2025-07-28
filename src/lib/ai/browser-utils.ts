@@ -1,3 +1,8 @@
+/**
+ * Browser-side utilities for client streaming
+ * Text processing and environment variable access for private chats
+ */
+
 // Humanize text by fixing common formatting issues
 export function humanizeText(text: string): string {
   return (

@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/spinner";
@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useTextSelection } from "@/hooks/use-text-selection";
+import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 
@@ -33,11 +34,12 @@ export const ConversationStarterPopover = ({
     api.conversationStarters.generateConversationStarters
   );
 
-  const createConversationMutation = useMutation(
-    api.conversations.createConversation
+  const createConversationAction = useAction(
+    api.conversations.createConversationAction
   );
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
+  const { selectedModel } = useModelSelection();
 
   useEffect(() => {
     async function fetchPrompts() {
@@ -75,9 +77,11 @@ export const ConversationStarterPopover = ({
 
   const handleStartConversation = async (prompt: string) => {
     try {
-      const result = await createConversationMutation({
+      const result = await createConversationAction({
         firstMessage: prompt,
         title: "New Conversation",
+        model: selectedModel?.modelId,
+        provider: selectedModel?.provider,
       });
 
       if (result?.conversationId) {

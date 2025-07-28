@@ -6,7 +6,7 @@ export const userModelSchema = v.object({
     modelId: v.string(),
     name: v.string(),
     provider: v.string(),
-    displayProvider: v.optional(v.string()),
+
     contextLength: v.number(),
     maxOutputTokens: v.optional(v.number()),
     supportsImages: v.boolean(),
@@ -17,6 +17,45 @@ export const userModelSchema = v.object({
     selected: v.optional(v.boolean()),
     free: v.optional(v.boolean()),
     createdAt: v.number(),
+});
+
+// Built-in models schema (global, not per-user)
+export const builtInModelSchema = v.object({
+    modelId: v.string(),
+    name: v.string(),
+    provider: v.string(),
+    displayProvider: v.optional(v.string()),
+
+    contextLength: v.number(),
+    maxOutputTokens: v.optional(v.number()),
+    supportsImages: v.boolean(),
+    supportsTools: v.boolean(),
+    supportsReasoning: v.boolean(),
+    supportsFiles: v.optional(v.boolean()),
+    inputModalities: v.optional(v.array(v.string())),
+    free: v.boolean(),
+    isActive: v.optional(v.boolean()), // Allow disabling built-in models
+    createdAt: v.number(),
+});
+
+// Model schema for internal actions (handles both user models and built-in models)
+export const modelForInternalActionsSchema = v.object({
+    modelId: v.string(),
+    name: v.string(),
+    provider: v.string(),
+    supportsReasoning: v.boolean(),
+    supportsImages: v.optional(v.boolean()),
+    supportsTools: v.optional(v.boolean()),
+    supportsFiles: v.optional(v.boolean()),
+    contextLength: v.optional(v.number()),
+    // Fields that may exist on built-in models
+    free: v.optional(v.boolean()),
+    isActive: v.optional(v.boolean()),
+    // Fields that may exist on user models  
+    selected: v.optional(v.boolean()),
+
+    maxOutputTokens: v.optional(v.number()),
+    inputModalities: v.optional(v.array(v.string())),
 });
 
 // Common attachment schema used across messages and conversations
@@ -104,12 +143,17 @@ export const extendedMessageMetadataSchema = v.object({
   searchCategory: v.optional(v.string()),
   status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
   webSearchCost: v.optional(v.number()),
+  usage: v.optional(v.object({
+    promptTokens: v.number(),
+    completionTokens: v.number(),
+    totalTokens: v.number(),
+  })),
 });
 
 // Common args for model and provider
 export const modelProviderArgs = {
-  model: v.string(),
-  provider: v.string(),
+  model: v.optional(v.string()),
+  provider: v.optional(v.string()),
 };
 
 // Common args for conversation actions
@@ -181,9 +225,9 @@ export const contextMessageSchema = v.object({
   ),
 });
 
-// Reasoning configuration for AI interactions
+// Reasoning configuration for AI interactions - matches reasoningConfigSchema
 export const reasoningConfigForActionSchema = v.object({
-  enabled: v.optional(v.boolean()),
+  enabled: v.boolean(),
   effort: v.union(v.literal("low"), v.literal("medium"), v.literal("high")),
   maxTokens: v.optional(v.number()),
 });
@@ -322,10 +366,10 @@ export const userSchema = v.object({
   emailVerificationTime: v.optional(v.number()),
   image: v.optional(v.string()),
   isAnonymous: v.optional(v.boolean()),
-  messagesSent: v.optional(v.number()),
+  messagesSent: v.optional(v.number()), // Total messages sent across all models
   createdAt: v.optional(v.number()),
-  monthlyMessagesSent: v.optional(v.number()),
-  monthlyLimit: v.optional(v.number()),
+  monthlyMessagesSent: v.optional(v.number()), // Monthly messages sent using built-in models
+  monthlyLimit: v.optional(v.number()), // Monthly limit for built-in models
   lastMonthlyReset: v.optional(v.number()),
   hasUnlimitedCalls: v.optional(v.boolean()),
   conversationCount: v.optional(v.number()),
@@ -445,11 +489,20 @@ export const userSettingsUpdateSchema = v.object({
   autoArchiveDays: v.optional(v.number()),
 });
 
+// Message status for production-grade AI chat
+export const messageStatusSchema = v.union(
+  v.literal("thinking"),
+  v.literal("streaming"), 
+  v.literal("done"),
+  v.literal("error")
+);
+
 // Message schema
 export const messageSchema = v.object({
   conversationId: v.id("conversations"),
   role: v.string(),
   content: v.string(),
+  status: v.optional(messageStatusSchema),
   reasoning: v.optional(v.string()),
   model: v.optional(v.string()),
   provider: v.optional(v.string()),
@@ -462,6 +515,7 @@ export const messageSchema = v.object({
   citations: v.optional(v.array(webCitationSchema)),
   metadata: v.optional(extendedMessageMetadataSchema),
   createdAt: v.number(),
+  completedAt: v.optional(v.number()),
 });
 
 
