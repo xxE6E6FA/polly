@@ -17,6 +17,7 @@ export interface SendMessageParams {
   personaId?: Id<"personas"> | null;
   reasoningConfig?: ReasoningConfig;
   useWebSearch?: boolean;
+  temperature?: number;
 }
 
 export interface ModelOptions {
@@ -164,7 +165,7 @@ export const createServerChatHandlers = (
         model: modelOptions.model,
         provider: modelOptions.provider,
         reasoningConfig: params.reasoningConfig || modelOptions.reasoningConfig,
-        temperature: modelOptions.temperature,
+        temperature: params.temperature ?? modelOptions.temperature,
         maxTokens: modelOptions.maxTokens,
         topP: modelOptions.topP,
         frequencyPenalty: modelOptions.frequencyPenalty,
@@ -367,6 +368,7 @@ export const createPrivateChatHandlers = (
       const options = {
         ...modelOptions,
         reasoningConfig: params.reasoningConfig || modelOptions.reasoningConfig,
+        temperature: params.temperature ?? modelOptions.temperature,
       };
 
       await streamMessage(messageHistory, assistantMessage.id, options);

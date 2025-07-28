@@ -12,6 +12,7 @@ import {
 } from "react";
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
+import { TemperaturePicker } from "@/components/temperature-picker";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { getDefaultReasoningConfig } from "@/lib/message-reasoning-utils";
@@ -32,7 +33,8 @@ interface ChatInputProps {
     content: string,
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => void;
   onSendAsNewConversation?: (
     content: string,
@@ -41,7 +43,8 @@ interface ChatInputProps {
     contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => Promise<ConversationId | undefined>;
   conversationId?: ConversationId;
   hasExistingMessages?: boolean;
@@ -50,6 +53,8 @@ interface ChatInputProps {
   onStop?: () => void;
   placeholder?: string;
   currentReasoningConfig?: ReasoningConfig;
+  currentTemperature?: number;
+  onTemperatureChange?: (temperature: number | undefined) => void;
 }
 
 export type ChatInputRef = {
@@ -69,12 +74,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       onSendMessage,
       onSendAsNewConversation,
       conversationId,
-      hasExistingMessages,
-      isLoading,
-      isStreaming,
+      hasExistingMessages = false,
+      isLoading = false,
+      isStreaming = false,
       onStop,
-      placeholder,
+      placeholder = "Ask me anything...",
       currentReasoningConfig,
+      currentTemperature,
+      onTemperatureChange,
     },
     ref
   ) => {
@@ -115,6 +122,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         }
         return getDefaultReasoningConfig();
       });
+    const [temperature, setTemperatureState] = useState<number | undefined>(
+      () =>
+        shouldUsePreservedState
+          ? chatInputState.temperature
+          : currentTemperature
+    );
 
     // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
@@ -169,20 +182,27 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [isPrivateMode, uploadFile]
     );
 
+    // Sync state updates to preserved state
     useEffect(() => {
-      if (shouldUsePreservedState) {
-        setInputState(chatInputState.input);
-        setAttachmentsState(chatInputState.attachments);
-        setSelectedPersonaIdState(chatInputState.selectedPersonaId);
-        setReasoningConfigState(chatInputState.reasoningConfig);
+      if (!shouldUsePreservedState) {
+        return;
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
+      setChatInputState({
+        selectedPersonaId,
+        input,
+        reasoningConfig,
+        attachments,
+        temperature,
+      });
     }, [
       shouldUsePreservedState,
-      chatInputState.selectedPersonaId,
-      chatInputState.input,
-      chatInputState.reasoningConfig,
-      chatInputState.attachments,
+      setChatInputState,
+      selectedPersonaId,
+      input,
+      reasoningConfig,
+      attachments,
+      temperature,
     ]);
 
     useEffect(() => {
@@ -193,6 +213,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [conversationId, shouldUsePreservedState, currentReasoningConfig]);
 
+    // State setters with preservation
     const setInput = useCallback(
       (value: string) => {
         setInputState(value);
@@ -204,16 +225,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     );
 
     const setAttachments = useCallback(
-      (value: Attachment[] | ((prev: Attachment[]) => Attachment[])) => {
-        setAttachmentsState(prev => {
-          const newValue = typeof value === "function" ? value(prev) : value;
-          return newValue;
-        });
-
+      (newValue: Attachment[] | ((prev: Attachment[]) => Attachment[])) => {
+        const value =
+          typeof newValue === "function" ? newValue(attachments) : newValue;
+        setAttachmentsState(value);
         if (shouldUsePreservedState) {
-          const newValue =
-            typeof value === "function" ? value(attachments) : value;
-          setChatInputState({ attachments: newValue });
+          setChatInputState({ attachments: value });
         }
       },
       [shouldUsePreservedState, setChatInputState, attachments]
@@ -237,6 +254,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         }
       },
       [shouldUsePreservedState, setChatInputState]
+    );
+
+    const setTemperature = useCallback(
+      (value: number | undefined) => {
+        setTemperatureState(value);
+        if (shouldUsePreservedState) {
+          setChatInputState({ temperature: value });
+        }
+        onTemperatureChange?.(value);
+      },
+      [shouldUsePreservedState, setChatInputState, onTemperatureChange]
     );
 
     const addAttachments = useCallback(
@@ -272,7 +300,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           input.trim(),
           processedAttachments,
           selectedPersonaId,
-          reasoningConfig.enabled ? reasoningConfig : undefined
+          reasoningConfig.enabled ? reasoningConfig : undefined,
+          temperature
         );
 
         setInput("");
@@ -297,6 +326,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       shouldUsePreservedState,
       clearChatInputState,
       uploadAttachmentsToConvex,
+      temperature,
     ]);
 
     const handleSendAsNewConversation = useCallback(
@@ -333,7 +363,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               contextSummary,
               conversationId,
               personaId,
-              reasoningConfig
+              reasoningConfig,
+              temperature
             );
 
             if (newConversationId) {
@@ -358,6 +389,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setAttachments,
         shouldUsePreservedState,
         clearChatInputState,
+        temperature,
       ]
     );
 
@@ -433,6 +465,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onPersonaSelect={setSelectedPersonaId}
                 />
                 {canSend && <ModelPicker />}
+                {canSend && (
+                  <TemperaturePicker
+                    temperature={temperature}
+                    onTemperatureChange={setTemperature}
+                    disabled={isLoading || isStreaming}
+                  />
+                )}
                 {canSend && selectedModel && isUserModel(selectedModel) ? (
                   <ReasoningPicker
                     model={selectedModel}

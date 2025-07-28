@@ -23,9 +23,6 @@ const SelectTrigger = React.forwardRef<
     {...props}
   >
     <span>{children}</span>
-    <SelectPrimitive.Icon asChild>
-      <CaretDownIcon className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
 ));
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;

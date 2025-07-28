@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CaretDownIcon, CheckIcon, UserIcon } from "@phosphor-icons/react";
+import { CheckIcon, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
@@ -105,7 +105,6 @@ export const PersonaPicker = ({
           <span className="max-w-[120px] truncate font-medium">
             {currentPersona?.name || "Persona"}
           </span>
-          <CaretDownIcon className="h-3 w-3 opacity-50" />
         </div>
       </Button>
     );

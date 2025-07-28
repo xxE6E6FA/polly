@@ -21,7 +21,8 @@ interface UseChatViewStateOptions {
     content: string,
     attachments?: Attachment[],
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => Promise<void>;
   onDeleteMessage: (messageId: string) => Promise<void>;
 }
@@ -108,9 +109,16 @@ export function useChatViewState({
       content: string,
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
     ) => {
-      await onSendMessage(content, attachments, personaId, reasoningConfig);
+      await onSendMessage(
+        content,
+        attachments,
+        personaId,
+        reasoningConfig,
+        temperature
+      );
 
       // Refocus the textarea after sending
       setTimeout(() => {

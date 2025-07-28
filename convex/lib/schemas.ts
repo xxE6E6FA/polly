@@ -143,6 +143,7 @@ export const extendedMessageMetadataSchema = v.object({
   searchCategory: v.optional(v.string()),
   status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
   webSearchCost: v.optional(v.number()),
+  temperature: v.optional(v.number()),
   usage: v.optional(v.object({
     promptTokens: v.number(),
     completionTokens: v.number(),
