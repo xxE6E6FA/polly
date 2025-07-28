@@ -296,7 +296,6 @@ export async function createConversation(
 
 export async function incrementUserMessageStats(
   ctx: ActionCtx | MutationCtx,
-  provider?: string,
   isBuiltInModel?: boolean
 ) {
   const userId = await getAuthUserId(ctx);
@@ -322,13 +321,6 @@ export async function incrementUserMessageStats(
   // This is determined by checking if the returned model has the 'free' field
   if (isBuiltInModel) {
     updates.monthlyMessagesSent = (user.monthlyMessagesSent || 0) + 1;
-  }
-
-  // Update provider-specific counters if provider is specified
-  if (provider) {
-    const providerKey = `${provider}MessagesSent` as keyof typeof user;
-    const currentCount = (user[providerKey] as number) || 0;
-    updates[providerKey] = currentCount + 1;
   }
 
   await ctx.runMutation(api.users.patch, {

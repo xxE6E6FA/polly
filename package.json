@@ -49,6 +49,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@types/katex": "^0.16.7",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/node": "^5.3.7",
     "@vitejs/plugin-react": "^4.6.0",
     "ai": "^4.3.16",
     "autoprefixer": "^10.4.21",

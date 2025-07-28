@@ -35,6 +35,11 @@ export const AssistantBubble = memo(
   }: AssistantBubbleProps) => {
     const reasoning = message.reasoning;
     const displayContent = message.content;
+    const hasSearch = Boolean(message.metadata?.searchQuery);
+    const isThinking = message.status === "thinking";
+    const isStreamingWithoutContent =
+      message.status === "streaming" &&
+      (!displayContent || displayContent.length === 0);
 
     return (
       <div className="w-full">
@@ -58,7 +63,7 @@ export const AssistantBubble = memo(
               <Reasoning
                 isLoading={isStreaming}
                 reasoning={reasoning}
-                hasSearch={!!message.metadata?.searchQuery}
+                hasSearch={hasSearch}
               />
             </div>
           )}
@@ -72,7 +77,7 @@ export const AssistantBubble = memo(
             </StreamingMarkdown>
 
             {/* Show status-based loading indicators */}
-            {message.status === "thinking" && (
+            {isThinking && (
               <div
                 className={cn(
                   "flex items-center gap-1 mt-2",
@@ -87,21 +92,20 @@ export const AssistantBubble = memo(
               </div>
             )}
 
-            {message.status === "streaming" &&
-              (!displayContent || displayContent.length === 0) && (
-                <div
-                  className={cn(
-                    "flex items-center gap-1 mt-2",
-                    "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
-                  )}
-                  aria-label="AI is generating response"
-                >
-                  <Spinner size="sm" />
-                  <span className="text-xs text-muted-foreground/70 ml-2">
-                    Generating response...
-                  </span>
-                </div>
-              )}
+            {isStreamingWithoutContent && (
+              <div
+                className={cn(
+                  "flex items-center gap-1 mt-2",
+                  "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
+                )}
+                aria-label="AI is generating response"
+              >
+                <Spinner size="sm" />
+                <span className="text-xs text-muted-foreground/70 ml-2">
+                  Generating response...
+                </span>
+              </div>
+            )}
 
             {/* Fallback to legacy isStreaming for backward compatibility */}
             {!message.status &&
@@ -179,6 +183,41 @@ export const AssistantBubble = memo(
           />
         </div>
       </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    // Custom comparison for better streaming performance
+    const message = nextProps.message;
+    const prevMessage = prevProps.message;
+
+    // Always re-render if streaming state changes
+    if (prevProps.isStreaming !== nextProps.isStreaming) {
+      return false;
+    }
+
+    // Always re-render if message content changes
+    if (prevMessage.content !== message.content) {
+      return false;
+    }
+
+    // Always re-render if message status changes
+    if (prevMessage.status !== message.status) {
+      return false;
+    }
+
+    // Always re-render if reasoning changes
+    if (prevMessage.reasoning !== message.reasoning) {
+      return false;
+    }
+
+    // Skip re-render if other props are the same
+    return (
+      prevProps.isCopied === nextProps.isCopied &&
+      prevProps.isRetrying === nextProps.isRetrying &&
+      prevProps.isDeleting === nextProps.isDeleting &&
+      prevProps.onRetryMessage === nextProps.onRetryMessage &&
+      prevProps.onDeleteMessage === nextProps.onDeleteMessage &&
+      prevProps.onPreviewFile === nextProps.onPreviewFile
     );
   }
 );

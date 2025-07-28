@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -70,8 +71,8 @@ export function useChat({ conversationId }: UseChatParams) {
   // Model options from selected model (these are user preferences, not model capabilities)
   const modelOptions: ModelOptions = useMemo(
     () => ({
-      model: selectedModel?.modelId,
-      provider: selectedModel?.provider,
+      model: selectedModel?.modelId ?? DEFAULT_BUILTIN_MODEL_ID,
+      provider: selectedModel?.provider ?? "google",
       // These would come from user settings, not the model definition
       temperature: undefined,
       maxTokens: undefined,

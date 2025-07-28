@@ -117,26 +117,24 @@ const StreamingMarkdownInner = memo(
     );
   },
   (prevProps, nextProps) => {
-    // Custom comparison for better streaming performance
+    // Custom comparison for streaming performance
     if (prevProps.isStreaming !== nextProps.isStreaming) {
-      return false; // Re-render when streaming state changes
+      return false;
     }
 
-    if (nextProps.isStreaming) {
-      // During streaming, only re-render if content has meaningfully changed
-      const contentDiff = nextProps.children.length - prevProps.children.length;
-      const shouldUpdate =
-        contentDiff >= 10 || // Batch updates for better performance
-        (nextProps.children !== prevProps.children && contentDiff > 0);
-      return !shouldUpdate;
+    if (prevProps.children !== nextProps.children) {
+      return false;
     }
 
-    // When not streaming, normal comparison
-    return (
-      prevProps.children === nextProps.children &&
-      prevProps.className === nextProps.className &&
-      prevProps.messageId === nextProps.messageId
-    );
+    if (prevProps.className !== nextProps.className) {
+      return false;
+    }
+
+    if (prevProps.messageId !== nextProps.messageId) {
+      return false;
+    }
+
+    return true;
   }
 );
 
