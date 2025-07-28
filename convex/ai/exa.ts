@@ -36,9 +36,7 @@ export const exaSearchArgs = v.object({
 
 export type ExaSearchArgs = Infer<typeof exaSearchArgs>;
 
-export const createExaClient = (apiKey: string) => {
-  return new Exa(apiKey);
-};
+
 
 export const exaResultsToCitations = (
   results: Array<{
@@ -76,7 +74,7 @@ export async function searchWithExa(
   rawResults: unknown;
 }> {
   try {
-    const exa = createExaClient(apiKey);
+    const exa = new Exa(apiKey);
 
     const searchOptions: Record<string, unknown> = {
       numResults: args.maxResults || WEB_SEARCH_MAX_RESULTS,
@@ -161,7 +159,7 @@ export async function getExaAnswer(
   context?: string;
 }> {
   try {
-    const exa = createExaClient(apiKey);
+    const exa = new Exa(apiKey);
 
     const results = await exa.answer(args.question, {
       text: true,
@@ -198,7 +196,7 @@ export async function findSimilarWithExa(
   rawResults: unknown;
 }> {
   try {
-    const exa = createExaClient(apiKey);
+    const exa = new Exa(apiKey);
 
     const similarResults = await exa.findSimilarAndContents(args.url, {
       numResults: args.numResults || WEB_SEARCH_MAX_RESULTS,
@@ -253,9 +251,7 @@ export async function findSimilarWithExa(
   }
 }
 
-export const getExaApiKey = (): string | null => {
-  return process.env.EXA_API_KEY || null;
-};
+
 
 export interface WebSearchArgs {
   query: string;

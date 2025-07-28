@@ -1,10 +1,8 @@
 import { v } from "convex/values";
+import { supportsReasoning } from "../shared/reasoning-model-detection";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
-import {
-  hasMandatoryReasoning,
-  supportsReasoning,
-} from "./lib/model_capabilities_config";
+import { log } from "./lib/logger";
 
 type OpenAIModel = {
   id: string;
@@ -76,11 +74,11 @@ async function fetchOpenAIModels(apiKey: string) {
         const hasEnhancedData = features.length > 0 || groups.length > 0;
 
         // Capability detection: use enhanced data if available, otherwise use shared patterns
-        const supportsReasoning = hasEnhancedData
+        const modelSupportsReasoning = hasEnhancedData
           ? groups.includes("reasoning") ||
             features.includes("reasoning_effort") ||
             features.includes("detailed_reasoning_summary")
-          : hasMandatoryReasoning("openai", modelId); // Use shared reasoning detection
+          : supportsReasoning("openai", modelId); // Use centralized reasoning detection
 
         const supportsTools = hasEnhancedData
           ? features.includes("function_calling") ||
@@ -111,14 +109,14 @@ async function fetchOpenAIModels(apiKey: string) {
           name,
           provider: "openai",
           contextWindow,
-          supportsReasoning,
+          supportsReasoning: modelSupportsReasoning,
           supportsTools,
           supportsImages,
           supportsFiles,
         };
       });
   } catch (error) {
-    console.error("Failed to fetch OpenAI models:", error);
+    log.error("Failed to fetch OpenAI models", error);
     return [];
   }
 }
@@ -187,7 +185,10 @@ async function fetchAnthropicModels(apiKey: string) {
         const supportsImages = true; // All modern Claude models support images
         const supportsTools = true; // All modern Claude models support tools
         const supportsFiles = true; // All modern Claude models support files
-        const supportsReasoningCapability = supportsReasoning(modelId);
+        const supportsReasoningCapability = supportsReasoning(
+          "anthropic",
+          modelId
+        );
 
         const contextWindow = getAnthropicContextWindow(modelId);
 
@@ -204,7 +205,7 @@ async function fetchAnthropicModels(apiKey: string) {
       }
     );
   } catch (error) {
-    console.error("Failed to fetch Anthropic models:", error);
+    log.error("Failed to fetch Anthropic models", error);
     return [];
   }
 }
@@ -239,7 +240,7 @@ async function fetchGoogleModels(apiKey: string) {
     );
 
     if (!response.ok) {
-      console.error(`❌ Google API error: ${response.status}`);
+      log.error(`Google API error: ${response.status}`);
       throw new Error(`Google API error: ${response.status}`);
     }
 
@@ -254,7 +255,7 @@ async function fetchGoogleModels(apiKey: string) {
         const displayName = model.displayName || modelId;
 
         // Use Google API data where possible, conservative defaults otherwise
-        const supportsReasoning = hasMandatoryReasoning("google", modelId); // Use shared reasoning detection
+        const modelSupportsReasoning = supportsReasoning("google", modelId); // Use centralized reasoning detection
         const supportsTools =
           modelId.includes("pro") || modelId.includes("gemini-1.5"); // Pro models support tools
         const supportsImages =
@@ -272,7 +273,7 @@ async function fetchGoogleModels(apiKey: string) {
           name: displayName,
           provider: "google",
           contextWindow,
-          supportsReasoning,
+          supportsReasoning: modelSupportsReasoning,
           supportsTools,
           supportsImages,
           supportsFiles,
@@ -281,7 +282,7 @@ async function fetchGoogleModels(apiKey: string) {
 
     return filteredModels;
   } catch (error) {
-    console.error("❌ Failed to fetch Google models:", error);
+    log.error("Failed to fetch Google models", error);
     return [];
   }
 }
@@ -346,7 +347,7 @@ async function fetchOpenRouterModels(apiKey: string) {
     });
 
     if (!response.ok) {
-      console.error(`❌ OpenRouter API error: ${response.status}`);
+      log.error(`OpenRouter API error: ${response.status}`);
       throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
@@ -366,17 +367,16 @@ async function fetchOpenRouterModels(apiKey: string) {
         model.pricing?.internal_reasoning !== "0" &&
         model.pricing?.internal_reasoning !== undefined;
 
-      const supportsReasoningViaPatterns =
-        model.id.includes("gemini-2.5-pro") || // Specifically Gemini 2.5 Pro models
-        model.id.includes("deepseek-r1") ||
-        model.id.includes("o1-") ||
-        model.id.includes("o3-") ||
-        model.id.includes("thinking");
+      // Use centralized reasoning detection for pattern matching
+      const supportsReasoningViaCentralized = supportsReasoning(
+        "openrouter",
+        model.id
+      );
 
-      const supportsReasoning =
+      const modelSupportsReasoning =
         supportsReasoningViaParams ||
         supportsReasoningViaPricing ||
-        supportsReasoningViaPatterns;
+        supportsReasoningViaCentralized;
 
       const supportsTools =
         model.supported_parameters?.includes("tools") ||
@@ -397,7 +397,7 @@ async function fetchOpenRouterModels(apiKey: string) {
         name: model.name || model.id,
         provider: "openrouter",
         contextWindow,
-        supportsReasoning,
+        supportsReasoning: modelSupportsReasoning,
         supportsTools,
         supportsImages,
         supportsFiles,
@@ -406,7 +406,7 @@ async function fetchOpenRouterModels(apiKey: string) {
 
     return mappedModels;
   } catch (error) {
-    console.error("❌ Failed to fetch OpenRouter models:", error);
+    log.error("Failed to fetch OpenRouter models", error);
     return [];
   }
 }
@@ -515,14 +515,14 @@ export const fetchAllModels = action({
             models = await fetchOpenRouterModels(decryptedKey);
             break;
           default:
-            console.warn(`Unknown provider: ${keyInfo.provider}`);
+            log.warn(`Unknown provider: ${keyInfo.provider}`);
             models = [];
             break;
         }
 
         allModels.push(...models);
       } catch (error) {
-        console.error(`Failed to fetch models for ${keyInfo.provider}:`, error);
+        log.error(`Failed to fetch models for ${keyInfo.provider}`, error);
       }
     }
 
@@ -558,7 +558,7 @@ export const fetchProviderModels = action({
           return [];
       }
     } catch (error) {
-      console.error(`Failed to fetch models for ${provider}:`, error);
+      log.error(`Failed to fetch models for ${provider}`, error);
       return [];
     }
   },

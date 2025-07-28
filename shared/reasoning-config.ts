@@ -1,10 +1,12 @@
-import { mapPollyModelToProvider } from "./constants";
+
+import { getModelReasoningInfo } from "./reasoning-model-detection";
 
 export type ReasoningEffortLevel = "low" | "medium" | "high";
 
 export type ReasoningConfig = {
   effort?: ReasoningEffortLevel;
   maxTokens?: number;
+  enabled?: boolean; // Added for explicit enable/disable
 };
 
 export type ModelWithCapabilities = {
@@ -17,12 +19,23 @@ export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
   | {
-      google: {
-        thinkingConfig: { includeThoughts: boolean; thinkingBudget?: number };
+      providerOptions: {
+        google: {
+          thinkingConfig: { thinkingBudget: number };
+        };
       };
     }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
-  | { extraBody: { reasoning: { effort: string; max_tokens?: number } } };
+  | { 
+      extraBody: { 
+        reasoning: { 
+          effort?: "low" | "medium" | "high";
+          max_tokens?: number;
+          exclude?: boolean;
+          enabled?: boolean;
+        } 
+      } 
+    };
 
 export const ANTHROPIC_BUDGET_MAP = {
   low: 5000,
@@ -40,51 +53,21 @@ export function getProviderReasoningConfig(
   model: ModelWithCapabilities,
   reasoningConfig?: ReasoningConfig
 ): ProviderStreamOptions {
-  const { provider, modelId, supportsReasoning } = model;
+  const { provider, modelId, supportsReasoning: modelSupportsReasoning } = model;
 
-  if (!supportsReasoning) {
+  // Use centralized reasoning detection
+  const reasoningInfo = getModelReasoningInfo(provider, modelId);
+  
+  // If model doesn't support reasoning at all, return empty config
+  if (!reasoningInfo.supportsReasoning && !modelSupportsReasoning) {
     return {};
   }
 
-  // Handle Polly provider mapping
+  // Handle built-in provider mapping - use provider as-is since it should already be resolved
   let actualProvider = provider;
-  if (provider === "polly") {
-    actualProvider = mapPollyModelToProvider(modelId);
-  }
 
-  // Special handling for Google models
-  if (actualProvider === "google") {
-    // Gemini 2.5 Pro enforces reasoning - it cannot be disabled
-    if (modelId.toLowerCase().includes("gemini-2.5-pro")) {
-      // Always enable reasoning for 2.5 Pro, using provided config or defaults
-      return getProviderReasoningOptions(
-        actualProvider,
-        reasoningConfig || {
-          effort: "medium",
-        }
-      );
-    }
-
-    if (!reasoningConfig) {
-      return {
-        google: {
-          thinkingConfig: {
-            includeThoughts: false,
-            thinkingBudget: 0,
-          },
-        },
-      };
-    }
-  }
-
-  // Handle OpenAI o1 models that enforce reasoning
-  if (
-    actualProvider === "openai" &&
-    (modelId.toLowerCase().includes("o1-") ||
-      modelId.toLowerCase().includes("o3-") ||
-      modelId.toLowerCase().includes("o4"))
-  ) {
-    // Always enable reasoning for o1/o3/o4 models
+  // For models with mandatory reasoning or special handling requirements
+  if (reasoningInfo.needsSpecialHandling || reasoningInfo.reasoningType === "mandatory") {
     return getProviderReasoningOptions(
       actualProvider,
       reasoningConfig || {
@@ -93,7 +76,12 @@ export function getProviderReasoningConfig(
     );
   }
 
-  // Delegate to shared implementation
+  // For all other models (optional or unknown), only enable if explicitly requested
+  if (!reasoningConfig || (!reasoningConfig.enabled && !reasoningConfig.effort && !reasoningConfig.maxTokens)) {
+    return {}; // Simply omit reasoning settings when not enabled
+  }
+
+  // Delegate to provider-specific implementation when reasoning is explicitly enabled
   return getProviderReasoningOptions(actualProvider, reasoningConfig);
 }
 
@@ -110,19 +98,18 @@ export function getProviderReasoningOptions(
       };
 
     case "google": {
-      const thinkingConfig: {
-        includeThoughts: boolean;
-        thinkingBudget?: number;
-      } = {
-        includeThoughts: true,
-        thinkingBudget:
-          reasoningConfig?.maxTokens ??
-          GOOGLE_THINKING_BUDGET_MAP[reasoningConfig?.effort ?? "medium"],
-      };
+      const thinkingBudget =
+        reasoningConfig?.maxTokens ??
+        GOOGLE_THINKING_BUDGET_MAP[reasoningConfig?.effort ?? "medium"];
 
       return {
-        google: {
-          thinkingConfig,
+        providerOptions: {
+          google: {
+            thinkingConfig: {
+              thinkingBudget,
+              includeThoughts: true,
+            } as any, // Type assertion - includeThoughts is supported by Google API but not yet in AI SDK types
+          },
         },
       };
     }
@@ -142,17 +129,44 @@ export function getProviderReasoningOptions(
       };
     }
 
-    case "openrouter":
+    case "openrouter": {
+      // OpenRouter's unified reasoning API supports:
+      // - effort: "low", "medium", "high" (for o-series, Grok models)
+      // - max_tokens: Direct token allocation (for Gemini, Anthropic models)  
+      // - exclude: true/false to hide reasoning from response
+      // - enabled: true to use default settings
+      const reasoningOptions: {
+        effort?: "low" | "medium" | "high";
+        max_tokens?: number;
+        exclude?: boolean;
+        enabled?: boolean;
+      } = {};
+
+      // Set effort level if provided (preferred for o-series and Grok models)
+      if (reasoningConfig?.effort) {
+        reasoningOptions.effort = reasoningConfig.effort;
+      }
+
+      // Set max tokens if provided (preferred for Gemini and Anthropic models)
+      if (reasoningConfig?.maxTokens) {
+        reasoningOptions.max_tokens = reasoningConfig.maxTokens;
+      }
+
+      // Control reasoning token visibility - set to false to include reasoning in response
+      // We want reasoning tokens for our internal processing
+      reasoningOptions.exclude = false;
+
+      // Enable reasoning with provided config or use enabled: true for defaults
+      if (Object.keys(reasoningOptions).length === 1) { // Only exclude is set
+        reasoningOptions.enabled = true;
+      }
+
       return {
         extraBody: {
-          reasoning: {
-            effort: reasoningConfig?.effort ?? "medium",
-            ...(reasoningConfig?.maxTokens && {
-              max_tokens: reasoningConfig.maxTokens,
-            }),
-          },
+          reasoning: reasoningOptions,
         },
       };
+    }
 
     default:
       return {};

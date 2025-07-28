@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -6,17 +7,18 @@ import {
   LightningIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
+import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
-import type { Attachment, Id, ReasoningConfig } from "@/types";
+import type { Attachment, ReasoningConfig } from "@/types";
 import { SimplePrompts } from "./prompts-ticker";
 
 const SetupChecklist = () => {
@@ -127,10 +129,11 @@ const ChatSection = () => {
     monthlyUsage,
     user,
   } = useUserDataContext();
+  const { selectedModel } = useModelSelection();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
-  const createConversationMutation = useMutation(
-    api.conversations.createConversation
+  const createConversationAction = useAction(
+    api.conversations.createConversationAction
   );
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
@@ -154,7 +157,7 @@ const ChatSection = () => {
         return;
       }
 
-      const result = await createConversationMutation({
+      const result = await createConversationAction({
         firstMessage: content,
         title: "New Conversation",
         attachments,
@@ -166,13 +169,15 @@ const ChatSection = () => {
               maxTokens: reasoningConfig.maxTokens,
             }
           : undefined,
+        model: selectedModel?.modelId,
+        provider: selectedModel?.provider,
       });
 
       if (result?.conversationId) {
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
       }
     },
-    [navigate, isPrivateMode, createConversationMutation]
+    [navigate, isPrivateMode, createConversationAction, selectedModel]
   );
 
   const handleQuickPrompt = useCallback(

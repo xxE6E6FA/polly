@@ -1,7 +1,8 @@
 import { api } from "@convex/_generated/api";
 import { GithubLogoIcon } from "@phosphor-icons/react";
 import { useMutation } from "convex/react";
-import { SettingsPageLayout, SettingsSection } from "@/components/settings/ui";
+import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
+import { SettingsSection } from "@/components/settings/ui/SettingsSection";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { Link, useParams } from "react-router-dom";
 
@@ -33,7 +34,7 @@ export default function SharedConversationPage() {
   const { conversation, messages } = sharedData;
 
   const chatMessages: ChatMessage[] = messages.map(
-    (msg): ChatMessage => ({
+    (msg: Doc<"messages">): ChatMessage => ({
       id: msg._id,
       role: msg.role as ChatMessage["role"],
       content: msg.content,

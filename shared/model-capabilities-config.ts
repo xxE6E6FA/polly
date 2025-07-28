@@ -18,84 +18,37 @@ export function isTextType(fileType: string): boolean {
   );
 }
 
-export const MANDATORY_REASONING_PATTERNS = [
-  "o1-",
-  "o3-",
-  "o4-",
-  "deepseek-r1",
-  "gemini-2.5-pro",
-] as const;
-
-export const OPENROUTER_OPTIONAL_REASONING_PATTERNS = [
-  "gemini-2.5-flash",
-  "claude-3.7",
-  // Anthropic reasoning models (optional)
-  "claude-3.5",
-  "claude-opus-4",
-  "claude-sonnet-4",
-  "claude-3-7-sonnet",
-  // Examples (uncomment when verified):
-  // "2.5-flash",        // Matches all Gemini 2.5 Flash variants
-  // "llama-3.1",        // Matches all Llama 3.1 variants
-  // "qwen2.5",          // Matches all Qwen 2.5 variants
-] as const;
-
-export function hasMandatoryReasoning(
-  provider: string,
-  modelId: string
-): boolean {
-  const modelIdLower = modelId.toLowerCase();
-
-  const hasPattern = MANDATORY_REASONING_PATTERNS.some((pattern) =>
-    modelIdLower.includes(pattern.toLowerCase())
-  );
-
-  if (hasPattern) {
-    return true;
-  }
-
-  // For OpenRouter models with reasoning capability:
-  // Check if it's in the optional list (if so, reasoning is optional)
-  // All other OpenRouter reasoning models default to mandatory for safety
-  if (provider === "openrouter") {
-    const isKnownOptional = OPENROUTER_OPTIONAL_REASONING_PATTERNS.some(
-      (pattern) => modelId.includes(pattern)
-    );
-    // If it's not in the optional list, assume mandatory for safety
-    // This only applies to models that we know support reasoning
-    return !isKnownOptional;
-  }
-
-  return false;
-}
+// Re-export from centralized reasoning detection module
+export {
+  hasMandatoryReasoning,
+  supportsReasoning as supportsReasoningCapability,
+  getModelReasoningInfo,
+  getReasoningType,
+} from "./reasoning-model-detection";
 
 /**
- * Check if a model supports reasoning (either mandatory or optional)
+ * @deprecated Use supportsReasoningCapability with provider parameter instead
+ * Legacy function for backward compatibility
  */
-export function supportsReasoning(
-  modelId: string
-): boolean {
-  const modelIdLower = modelId.toLowerCase();
-
-  // Check mandatory reasoning patterns first
-  const hasMandatoryPattern = MANDATORY_REASONING_PATTERNS.some((pattern) =>
-    modelIdLower.includes(pattern.toLowerCase())
-  );
-
-  if (hasMandatoryPattern) {
-    return true;
+export function supportsReasoning(modelId: string): boolean {
+  // Import here to avoid circular dependencies
+  const { supportsReasoning: checkReasoning } = require("./reasoning-model-detection");
+  
+  // For legacy calls without provider, try to infer from model ID
+  let provider = "unknown";
+  const modelLower = modelId.toLowerCase();
+  
+  if (modelLower.includes("gpt") || modelLower.includes("o1-") || modelLower.includes("o3-") || modelLower.includes("o4-")) {
+    provider = "openai";
+  } else if (modelLower.includes("claude")) {
+    provider = "anthropic";
+  } else if (modelLower.includes("gemini")) {
+    provider = "google";
+  } else if (modelLower.includes("deepseek")) {
+    provider = "openrouter";
   }
-
-  // Check optional reasoning patterns
-  const hasOptionalPattern = OPENROUTER_OPTIONAL_REASONING_PATTERNS.some((pattern) =>
-    modelIdLower.includes(pattern.toLowerCase())
-  );
-
-  if (hasOptionalPattern) {
-    return true;
-  }
-
-  return false;
+  
+  return checkReasoning(provider, modelId);
 }
 
 export interface ModelForCapabilityCheck {

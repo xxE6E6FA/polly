@@ -7,6 +7,7 @@ import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
+import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type { ConversationId } from "@/types";
 
@@ -22,16 +23,23 @@ export default function ConversationRoute() {
     throw new Error("Conversation ID is required");
   }
 
+  // Override the selected model to match the last used model in this conversation
+  useConversationModelOverride(conversationId as ConversationId);
+
   const conversation = useQuery(api.conversations.get, {
     id: conversationId as Id<"conversations">,
   });
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
+  const conversationIsStreaming = useQuery(api.conversations.isStreaming, {
+    conversationId: conversationId as Id<"conversations">,
+  });
+
   const {
     messages,
     isLoading,
-    isStreaming,
+    isStreaming: messageIsStreaming,
     sendMessage,
     editMessage,
     retryFromMessage,
@@ -54,7 +62,7 @@ export default function ConversationRoute() {
         messages={messages}
         isLoading={isLoading}
         isLoadingMessages={false}
-        isStreaming={isStreaming}
+        isStreaming={!!(messageIsStreaming || conversationIsStreaming)}
         currentPersonaId={conversation?.personaId || null}
         canSavePrivateChat={false}
         hasApiKeys={hasApiKeys ?? false}
@@ -78,11 +86,29 @@ export default function ConversationRoute() {
         onDeleteMessage={deleteMessage}
         onEditMessage={editMessage}
         onStopGeneration={stopGeneration}
-        onRetryUserMessage={async messageId => {
-          await retryFromMessage(messageId);
+        onRetryUserMessage={async (
+          messageId,
+          modelId,
+          provider,
+          reasoningConfig
+        ) => {
+          await retryFromMessage(messageId, {
+            model: modelId,
+            provider,
+            reasoningConfig,
+          });
         }}
-        onRetryAssistantMessage={async messageId => {
-          await retryFromMessage(messageId);
+        onRetryAssistantMessage={async (
+          messageId,
+          modelId,
+          provider,
+          reasoningConfig
+        ) => {
+          await retryFromMessage(messageId, {
+            model: modelId,
+            provider,
+            reasoningConfig,
+          });
         }}
       />
     </>

@@ -1,91 +1,64 @@
+import type { DataModel } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
+
+/**
+ * Generic function to clear all documents from a table
+ */
+async function clearTable<T extends keyof DataModel>(
+  tableName: T,
+  // biome-ignore lint/suspicious/noExplicitAny: Complex types for generic function
+  ctx: { db: { query: any; delete: any } }
+): Promise<number> {
+  const docs = await ctx.db.query(tableName).collect();
+  for (const doc of docs) {
+    await ctx.db.delete(doc._id);
+  }
+  return docs.length;
+}
 
 export const clearUsers = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("users").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("users", ctx),
 });
 
 export const clearAccounts = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("accounts").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("accounts", ctx),
 });
 
 export const clearSessions = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("sessions").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("sessions", ctx),
 });
 
 export const clearConversations = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("conversations").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("conversations", ctx),
 });
 
 export const clearSharedConversations = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("sharedConversations").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("sharedConversations", ctx),
 });
 
 export const clearMessages = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("messages").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("messages", ctx),
 });
 
 export const clearUserApiKeys = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("userApiKeys").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("userApiKeys", ctx),
 });
 
 export const clearUserModels = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("userModels").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("userModels", ctx),
+});
+
+export const clearBuiltInModels = mutation({
+  args: {},
+  handler: async ctx => clearTable("builtInModels", ctx),
 });
 
 export const migrateUserModelsCapabilities = mutation({
@@ -120,24 +93,12 @@ export const migrateUserModelsCapabilities = mutation({
 
 export const clearUserPersonaSettings = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("userPersonaSettings").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("userPersonaSettings", ctx),
 });
 
 export const clearUserSettings = mutation({
   args: {},
-  handler: async ctx => {
-    const docs = await ctx.db.query("userSettings").collect();
-    for (const doc of docs) {
-      await ctx.db.delete(doc._id);
-    }
-    return docs.length;
-  },
+  handler: async ctx => clearTable("userSettings", ctx),
 });
 
 export const cleanupOrphanedAccounts = mutation({
@@ -168,55 +129,25 @@ export const cleanupOrphanedAccounts = mutation({
 // Clear auth-related tables (with correct table names)
 export const clearAuthAccounts = mutation({
   args: {},
-  handler: async ctx => {
-    const documents = await ctx.db.query("authAccounts").collect();
-    for (const doc of documents) {
-      await ctx.db.delete(doc._id);
-    }
-    return documents.length;
-  },
+  handler: async ctx => clearTable("authAccounts", ctx),
 });
 
 export const clearAuthSessions = mutation({
   args: {},
-  handler: async ctx => {
-    const documents = await ctx.db.query("authSessions").collect();
-    for (const doc of documents) {
-      await ctx.db.delete(doc._id);
-    }
-    return documents.length;
-  },
+  handler: async ctx => clearTable("authSessions", ctx),
 });
 
 export const clearAuthVerificationCodes = mutation({
   args: {},
-  handler: async ctx => {
-    const documents = await ctx.db.query("authVerificationCodes").collect();
-    for (const doc of documents) {
-      await ctx.db.delete(doc._id);
-    }
-    return documents.length;
-  },
+  handler: async ctx => clearTable("authVerificationCodes", ctx),
 });
 
 export const clearAuthRefreshTokens = mutation({
   args: {},
-  handler: async ctx => {
-    const documents = await ctx.db.query("authRefreshTokens").collect();
-    for (const doc of documents) {
-      await ctx.db.delete(doc._id);
-    }
-    return documents.length;
-  },
+  handler: async ctx => clearTable("authRefreshTokens", ctx),
 });
 
 export const clearAuthRateLimits = mutation({
   args: {},
-  handler: async ctx => {
-    const documents = await ctx.db.query("authRateLimits").collect();
-    for (const doc of documents) {
-      await ctx.db.delete(doc._id);
-    }
-    return documents.length;
-  },
+  handler: async ctx => clearTable("authRateLimits", ctx),
 });

@@ -1,4 +1,4 @@
-import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
+import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 
 import { action } from "./_generated/server";
@@ -38,7 +38,7 @@ Each prompt should be a complete, standalone request that doesn't reference "thi
 Return exactly 5 prompts, one per line, with no numbers, bullets, or formatting.`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_POLLY_MODEL_ID}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {

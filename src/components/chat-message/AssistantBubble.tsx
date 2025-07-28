@@ -64,11 +64,48 @@ export const AssistantBubble = memo(
           )}
 
           <div className="relative">
-            <StreamingMarkdown isStreaming={isStreaming} messageId={message.id}>
+            <StreamingMarkdown
+              isStreaming={isStreaming || message.status === "streaming"}
+              messageId={message.id}
+            >
               {displayContent}
             </StreamingMarkdown>
 
-            {isStreaming &&
+            {/* Show status-based loading indicators */}
+            {message.status === "thinking" && (
+              <div
+                className={cn(
+                  "flex items-center gap-1 mt-2",
+                  "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
+                )}
+                aria-label="AI is thinking"
+              >
+                <Spinner size="sm" />
+                <span className="text-xs text-muted-foreground/70 ml-2">
+                  Thinking...
+                </span>
+              </div>
+            )}
+
+            {message.status === "streaming" &&
+              (!displayContent || displayContent.length === 0) && (
+                <div
+                  className={cn(
+                    "flex items-center gap-1 mt-2",
+                    "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
+                  )}
+                  aria-label="AI is generating response"
+                >
+                  <Spinner size="sm" />
+                  <span className="text-xs text-muted-foreground/70 ml-2">
+                    Generating response...
+                  </span>
+                </div>
+              )}
+
+            {/* Fallback to legacy isStreaming for backward compatibility */}
+            {!message.status &&
+              isStreaming &&
               (!displayContent || displayContent.length === 0) && (
                 <div
                   className={cn(
@@ -83,6 +120,12 @@ export const AssistantBubble = memo(
                   </span>
                 </div>
               )}
+
+            {message.status === "error" && (
+              <div className="mt-2 text-xs text-red-500">
+                An error occurred while generating the response.
+              </div>
+            )}
           </div>
 
           {message.metadata?.stopped && !isStreaming && (

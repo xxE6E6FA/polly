@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
@@ -6,6 +7,7 @@ import {
   NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { useMutation } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useState } from "react";
@@ -34,20 +36,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
-import { useUserModels } from "@/hooks/use-user-models";
+import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
-import { cn } from "@/lib/utils";
-import type { AIModel } from "@/types";
 
-// Provider mapping with titles
-const PROVIDER_CONFIG = {
-  openai: { title: "OpenAI" },
-  anthropic: { title: "Anthropic" },
-  google: { title: "Google AI" },
-  openrouter: { title: "OpenRouter" },
-  polly: { title: "Polly" },
-} as const;
+import { cn } from "@/lib/utils";
+
+// Union type for models from getAvailableModels
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 type RetryDropdownProps = {
   isUser: boolean;
@@ -69,7 +65,7 @@ const RetryDropdown = memo(
   }: RetryDropdownProps) => {
     const [open, setOpen] = useState(false);
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
-    const { userModelsByProvider, userModels } = useUserModels();
+    const { modelGroups, userModels } = useModelSelection();
     const selectModelMutation = useMutation(api.userModels.selectModel);
 
     const handleOpenChange = (newOpen: boolean) => {
@@ -91,7 +87,8 @@ const RetryDropdown = memo(
         // If a specific model is selected, update the selected model
         if (modelId && provider) {
           const selectedModelData = userModels.find(
-            model => model?.modelId === modelId && model?.provider === provider
+            (model: AvailableModel | null) =>
+              model?.modelId === modelId && model?.provider === provider
           );
 
           if (selectedModelData) {
@@ -131,64 +128,145 @@ const RetryDropdown = memo(
           <span className="font-medium">Retry same</span>
         </button>
         <div className="max-h-[60vh] overflow-y-auto">
-          {Object.entries(userModelsByProvider).map(([providerId, models]) => {
-            const providerConfig =
-              PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
-            const providerTitle = providerConfig?.title || providerId;
-
-            return (
-              <div key={providerId} className="border-b last:border-b-0">
-                <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
-                  <ProviderIcon provider={providerId} className="h-4 w-4" />
-                  <span className="font-medium text-sm">{providerTitle}</span>
-                </div>
-                {models.map((model: AIModel) => {
-                  const capabilities = getModelCapabilities(model);
-                  return (
-                    <button
-                      key={model.modelId}
-                      onClick={() => handleRetry(model.modelId, model.provider)}
-                      className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <span className="truncate">{model.name}</span>
-                        {model.free && (
-                          <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                            Free
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        {capabilities.length > 0 &&
-                          capabilities.slice(0, 3).map((capability, index) => {
-                            const IconComponent = capability.icon;
-                            return (
-                              <TooltipWrapper
-                                key={`${model.modelId}-${capability.label}-${index}`}
-                                content={
-                                  <div>
-                                    <div className="font-semibold text-foreground">
-                                      {capability.label}
-                                    </div>
-                                    <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                      {capability.description}
-                                    </div>
-                                  </div>
-                                }
-                              >
-                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                                  <IconComponent className="h-3 w-3" />
-                                </div>
-                              </TooltipWrapper>
-                            );
-                          })}
-                      </div>
-                    </button>
-                  );
-                })}
+          {/* Free Models Group */}
+          {modelGroups.freeModels.length > 0 && (
+            <div className="border-b">
+              <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
+                <ProviderIcon provider="polly" className="h-4 w-4" />
+                <span className="font-medium text-sm">Polly</span>
               </div>
-            );
-          })}
+              {modelGroups.freeModels.map((model: AvailableModel) => {
+                const capabilities = getModelCapabilities({
+                  modelId: model.modelId,
+                  provider: model.provider,
+                  name: model.name,
+                  contextLength: model.contextLength,
+                  supportsReasoning: model.supportsReasoning,
+                  supportsImages: model.supportsImages,
+                  supportsTools: model.supportsTools,
+                  supportsFiles: model.supportsFiles,
+                  inputModalities: model.inputModalities,
+                });
+                return (
+                  <button
+                    key={model.modelId}
+                    onClick={() => handleRetry(model.modelId, model.provider)}
+                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="truncate">{model.name}</span>
+                      {model.free && (
+                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                          Free
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {capabilities.length > 0 &&
+                        capabilities.slice(0, 3).map((capability, index) => {
+                          const IconComponent = capability.icon;
+                          return (
+                            <TooltipWrapper
+                              key={`${model.modelId}-${capability.label}-${index}`}
+                              content={
+                                <div>
+                                  <div className="font-semibold text-foreground">
+                                    {capability.label}
+                                  </div>
+                                  <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                    {capability.description}
+                                  </div>
+                                </div>
+                              }
+                            >
+                              <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                <IconComponent className="h-3 w-3" />
+                              </div>
+                            </TooltipWrapper>
+                          );
+                        })}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Provider Groups */}
+          {Object.entries(modelGroups.providerModels).map(
+            ([providerId, models]) => {
+              const providerConfig =
+                PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+              const providerTitle = providerConfig?.title || providerId;
+
+              return (
+                <div key={providerId} className="border-b last:border-b-0">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
+                    <ProviderIcon provider={providerId} className="h-4 w-4" />
+                    <span className="font-medium text-sm">{providerTitle}</span>
+                  </div>
+                  {models.map((model: AvailableModel) => {
+                    const capabilities = getModelCapabilities({
+                      modelId: model.modelId,
+                      provider: model.provider,
+                      name: model.name,
+                      contextLength: model.contextLength,
+                      supportsReasoning: model.supportsReasoning,
+                      supportsImages: model.supportsImages,
+                      supportsTools: model.supportsTools,
+                      supportsFiles: model.supportsFiles,
+                      inputModalities: model.inputModalities,
+                    });
+                    return (
+                      <button
+                        key={model.modelId}
+                        onClick={() =>
+                          handleRetry(model.modelId, model.provider)
+                        }
+                        className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <span className="truncate">{model.name}</span>
+                          {model.free && (
+                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                              Free
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {capabilities.length > 0 &&
+                            capabilities
+                              .slice(0, 3)
+                              .map((capability, index) => {
+                                const IconComponent = capability.icon;
+                                return (
+                                  <TooltipWrapper
+                                    key={`${model.modelId}-${capability.label}-${index}`}
+                                    content={
+                                      <div>
+                                        <div className="font-semibold text-foreground">
+                                          {capability.label}
+                                        </div>
+                                        <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                          {capability.description}
+                                        </div>
+                                      </div>
+                                    }
+                                  >
+                                    <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                      <IconComponent className="h-3 w-3" />
+                                    </div>
+                                  </TooltipWrapper>
+                                );
+                              })}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            }
+          )}
         </div>
       </>
     );
@@ -248,7 +326,67 @@ const RetryDropdown = memo(
                 Retry same
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {Object.entries(userModelsByProvider).map(
+              {/* Free Models Group */}
+              {modelGroups.freeModels.length > 0 && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-2">
+                    <ProviderIcon provider="polly" className="h-4 w-4" />
+                    Polly
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-auto min-w-[200px]">
+                    {modelGroups.freeModels.map((model: AvailableModel) => {
+                      const capabilities = getModelCapabilities({
+                        modelId: model.modelId,
+                        provider: model.provider,
+                        name: model.name,
+                        contextLength: model.contextLength,
+                        supportsReasoning: model.supportsReasoning,
+                        supportsImages: model.supportsImages,
+                        supportsTools: model.supportsTools,
+                        supportsFiles: model.supportsFiles,
+                        inputModalities: model.inputModalities,
+                      });
+                      return (
+                        <DropdownMenuItem
+                          key={model.modelId}
+                          onClick={() =>
+                            handleRetry(model.modelId, model.provider)
+                          }
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                            <span className="truncate">{model.name}</span>
+                            {model.free && (
+                              <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                                Free
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1 ml-2">
+                            {capabilities.length > 0 &&
+                              capabilities.slice(0, 2).map(capability => {
+                                const IconComponent = capability.icon;
+                                return (
+                                  <TooltipWrapper
+                                    key={capability.label}
+                                    content={capability.description}
+                                  >
+                                    <div className="flex items-center justify-center w-4 h-4">
+                                      <IconComponent className="w-3 h-3 text-muted-foreground" />
+                                    </div>
+                                  </TooltipWrapper>
+                                );
+                              })}
+                          </div>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )}
+
+              {/* Provider Groups */}
+              {Object.entries(modelGroups.providerModels).map(
                 ([providerId, models]) => {
                   const providerConfig =
                     PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
@@ -264,8 +402,18 @@ const RetryDropdown = memo(
                         {providerTitle}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-auto min-w-[200px]">
-                        {models.map((model: AIModel) => {
-                          const capabilities = getModelCapabilities(model);
+                        {models.map((model: AvailableModel) => {
+                          const capabilities = getModelCapabilities({
+                            modelId: model.modelId,
+                            provider: model.provider,
+                            name: model.name,
+                            contextLength: model.contextLength,
+                            supportsReasoning: model.supportsReasoning,
+                            supportsImages: model.supportsImages,
+                            supportsTools: model.supportsTools,
+                            supportsFiles: model.supportsFiles,
+                            inputModalities: model.inputModalities,
+                          });
                           return (
                             <DropdownMenuItem
                               key={model.modelId}

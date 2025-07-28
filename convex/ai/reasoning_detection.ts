@@ -1,48 +1,37 @@
-import { hasMandatoryReasoning } from "../lib/model_capabilities_config";
+// Re-export from centralized reasoning detection
+export { 
+  supportsReasoning as isReasoningModel, 
+  getModelReasoningInfo,
+  hasMandatoryReasoning,
+  hasOptionalReasoning,
+} from "../../shared/reasoning-model-detection";
+
 import { checkOpenRouterReasoningSupport } from "./openrouter_capabilities";
 
 /**
- * Check if a Google model supports reasoning (including optional reasoning)
+ * Enhanced reasoning detection that includes OpenRouter API checking
  */
-function supportsGoogleReasoning(model: string): boolean {
-  const modelLower = model.toLowerCase();
-
-  // Gemini 2.5 models support reasoning
-  if (modelLower.includes("gemini-2.5")) {
-    return true;
-  }
-
-  // Other known reasoning-capable Google models can be added here
-  // For now, be conservative and only include 2.5 series
-
-  return false;
-}
-
-export async function isReasoningModel(
+export async function isReasoningModelWithApiCheck(
   provider: string,
   model: string
 ): Promise<boolean> {
-  // For OpenRouter, use dynamic API checking
+  // Import here to avoid circular dependencies  
+  const { supportsReasoning } = require("../../shared/reasoning-model-detection");
+  
+  // For OpenRouter, use dynamic API checking when available
   if (provider === "openrouter") {
     try {
       return await checkOpenRouterReasoningSupport(model);
     } catch (error) {
       console.warn(
-        "Failed to check OpenRouter reasoning support, falling back to mandatory patterns:",
+        "Failed to check OpenRouter reasoning support, falling back to pattern matching:",
         error
       );
-      // Fall back to mandatory reasoning patterns only
-      return hasMandatoryReasoning(provider, model);
+      // Fall back to pattern-based detection
+      return supportsReasoning(provider, model);
     }
   }
 
-  // For Google models, check both mandatory and optional reasoning support
-  if (provider === "google") {
-    return (
-      hasMandatoryReasoning(provider, model) || supportsGoogleReasoning(model)
-    );
-  }
-
-  // For other providers, use mandatory reasoning patterns only
-  return hasMandatoryReasoning(provider, model);
+  // For other providers, use centralized detection
+  return supportsReasoning(provider, model);
 }

@@ -14,10 +14,7 @@ import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
-import {
-  getDefaultReasoningConfig,
-  useLastMessageReasoningConfig,
-} from "@/lib/message-reasoning-utils";
+import { getDefaultReasoningConfig } from "@/lib/message-reasoning-utils";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -111,13 +108,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       useState<Id<"personas"> | null>(() =>
         shouldUsePreservedState ? chatInputState.selectedPersonaId : null
       );
-    const lastMessageReasoningConfig =
-      useLastMessageReasoningConfig(conversationId);
     const [reasoningConfig, setReasoningConfigState] =
       useState<ReasoningConfig>(() => {
-        if (conversationId && lastMessageReasoningConfig) {
-          return lastMessageReasoningConfig;
-        }
         if (shouldUsePreservedState) {
           return chatInputState.reasoningConfig;
         }
@@ -173,36 +165,23 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setAttachmentsState(chatInputState.attachments);
         setSelectedPersonaIdState(chatInputState.selectedPersonaId);
         setReasoningConfigState(chatInputState.reasoningConfig);
-      } else if (conversationId && lastMessageReasoningConfig) {
-        setReasoningConfigState(lastMessageReasoningConfig);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       shouldUsePreservedState,
       chatInputState.selectedPersonaId,
       chatInputState.input,
-      conversationId,
-      lastMessageReasoningConfig,
       chatInputState.reasoningConfig,
       chatInputState.attachments,
     ]);
 
     useEffect(() => {
       if (conversationId && !shouldUsePreservedState) {
-        if (lastMessageReasoningConfig) {
-          setReasoningConfigState(lastMessageReasoningConfig);
-        } else {
-          setReasoningConfigState(getDefaultReasoningConfig());
-        }
+        setReasoningConfigState(getDefaultReasoningConfig());
       } else if (currentReasoningConfig && shouldUsePreservedState) {
         setReasoningConfigState(currentReasoningConfig);
       }
-    }, [
-      conversationId,
-      shouldUsePreservedState,
-      lastMessageReasoningConfig,
-      currentReasoningConfig,
-    ]);
+    }, [conversationId, shouldUsePreservedState, currentReasoningConfig]);
 
     const setInput = useCallback(
       (value: string) => {
@@ -423,7 +402,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             />
 
             <div className="flex items-end gap-3">
-              <div className="flex-1">
+              <div className="flex-1 flex items-center">
                 <ChatInputField
                   value={input}
                   onChange={setInput}

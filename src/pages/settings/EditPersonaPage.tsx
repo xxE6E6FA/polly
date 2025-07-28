@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { PersonaForm } from "@/components/settings/persona-form";
-import { SettingsPageLayout } from "@/components/settings/ui";
+import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ROUTES } from "@/lib/routes";

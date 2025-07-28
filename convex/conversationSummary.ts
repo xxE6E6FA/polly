@@ -1,4 +1,4 @@
-import { DEFAULT_POLLY_MODEL_ID } from "@shared/constants";
+import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -48,7 +48,7 @@ ${conversationText}
 Summary:`;
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_POLLY_MODEL_ID}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: {

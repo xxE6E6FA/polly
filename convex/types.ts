@@ -184,8 +184,10 @@ export type AnthropicReasoningConfig = {
 
 export type OpenRouterReasoningConfig = {
   reasoning: {
-    effort: "low" | "medium" | "high";
-    maxTokens?: number;
+    effort?: "low" | "medium" | "high";
+    max_tokens?: number;
+    exclude?: boolean;
+    enabled?: boolean;
   };
 };
 
@@ -193,28 +195,27 @@ export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
   | {
-      google: {
-        thinkingConfig: { includeThoughts: boolean; thinkingBudget?: number };
+      providerOptions: {
+        google: {
+          thinkingConfig: { thinkingBudget: number };
+        };
       };
     }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
-  | { extraBody: { reasoning: { effort: string; max_tokens?: number } } };
+  | {
+      extraBody: {
+        reasoning: {
+          effort?: "low" | "medium" | "high";
+          max_tokens?: number;
+          exclude?: boolean;
+          enabled?: boolean;
+        };
+      };
+    };
 
 // ============================================================================
 // ERROR HANDLING TYPES
 // ============================================================================
-
-export type StreamErrorType =
-  | "MessageDeleted"
-  | "WriteConflict"
-  | "AbortError"
-  | "Unknown";
-
-export interface StreamError {
-  type: StreamErrorType;
-  message: string;
-  originalError?: Error;
-}
 
 // ============================================================================
 // SEARCH DETECTION TYPES

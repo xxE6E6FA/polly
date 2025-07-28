@@ -25,8 +25,9 @@ export const scheduleBackgroundExport = action({
     );
 
     // Create export job record with enhanced metadata
-    await ctx.runMutation(api.backgroundJobs.create, {
+    await ctx.runMutation(internal.backgroundJobs.internalCreate, {
       jobId: args.jobId,
+      userId,
       type: "export",
       totalItems: args.conversationIds.length,
       title: metadata.title,
@@ -65,13 +66,13 @@ export const processBackgroundExport = action({
   ): Promise<{ success: boolean; exportedCount: number }> => {
     try {
       // Update status to processing
-      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateStatus, {
         jobId: args.jobId,
         status: "processing",
       });
 
       // Update initial progress
-      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateProgress, {
         jobId: args.jobId,
         processedItems: 0,
         totalItems: args.conversationIds.length,
@@ -92,7 +93,7 @@ export const processBackgroundExport = action({
       }
 
       // Update progress after data retrieval
-      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateProgress, {
         jobId: args.jobId,
         processedItems: Math.floor(args.conversationIds.length * 0.5),
         totalItems: args.conversationIds.length,
@@ -105,7 +106,7 @@ export const processBackgroundExport = action({
       );
 
       // Update progress before file creation
-      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateProgress, {
         jobId: args.jobId,
         processedItems: Math.floor(args.conversationIds.length * 0.8),
         totalItems: args.conversationIds.length,
@@ -120,14 +121,14 @@ export const processBackgroundExport = action({
       );
 
       // Update final progress
-      await ctx.runMutation(api.backgroundJobs.updateProgress, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateProgress, {
         jobId: args.jobId,
         processedItems: args.conversationIds.length,
         totalItems: args.conversationIds.length,
       });
 
       // Save the export result
-      await ctx.runMutation(api.backgroundJobs.saveExportResult, {
+      await ctx.runMutation(internal.backgroundJobs.internalSaveExportResult, {
         jobId: args.jobId,
         manifest: convexExportData.manifest,
         fileStorageId,
@@ -136,7 +137,7 @@ export const processBackgroundExport = action({
 
       return { success: true, exportedCount: exportData.length };
     } catch (error) {
-      await ctx.runMutation(api.backgroundJobs.updateStatus, {
+      await ctx.runMutation(internal.backgroundJobs.internalUpdateStatus, {
         jobId: args.jobId,
         status: "failed",
         error: error instanceof Error ? error.message : "Unknown error",

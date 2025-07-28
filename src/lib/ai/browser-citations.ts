@@ -1,3 +1,7 @@
+/**
+ * Browser-side citation extraction for client streaming
+ * Handles citations from AI provider responses in private chats
+ */
 import type { WebSearchCitation } from "@/types";
 
 /**

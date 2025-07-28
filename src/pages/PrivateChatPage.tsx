@@ -148,11 +148,29 @@ export default function PrivateChatPage() {
       onDeleteMessage={deleteMessage}
       onEditMessage={editMessage}
       onStopGeneration={stopGeneration}
-      onRetryUserMessage={async messageId => {
-        await retryFromMessage(messageId);
+      onRetryUserMessage={async (
+        messageId,
+        modelId,
+        provider,
+        reasoningConfig
+      ) => {
+        await retryFromMessage(messageId, {
+          model: modelId,
+          provider,
+          reasoningConfig,
+        });
       }}
-      onRetryAssistantMessage={async messageId => {
-        await retryFromMessage(messageId);
+      onRetryAssistantMessage={async (
+        messageId,
+        modelId,
+        provider,
+        reasoningConfig
+      ) => {
+        await retryFromMessage(messageId, {
+          model: modelId,
+          provider,
+          reasoningConfig,
+        });
       }}
       onSavePrivateChat={handleSavePrivateChat}
     />

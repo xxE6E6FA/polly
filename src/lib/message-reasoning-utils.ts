@@ -33,9 +33,9 @@ export function useLastMessageReasoningConfig(
 
   // Find the last user message with a reasoning config
   const lastUserMessage = messagesList
-    .filter(msg => (msg as Doc<"messages">).role === "user")
+    .filter((msg: Doc<"messages">) => msg.role === "user")
     .reverse()
-    .find(msg => (msg as Doc<"messages">).reasoningConfig);
+    .find((msg: Doc<"messages">) => msg.reasoningConfig);
 
   return (lastUserMessage as Doc<"messages">)?.reasoningConfig || null;
 }

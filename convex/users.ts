@@ -1,6 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { internalQuery, mutation, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  mutation,
+  query,
+} from "./_generated/server";
 
 export const current = query({
   args: {},
@@ -15,6 +20,23 @@ export const current = query({
     // If no authenticated user, return null
     // Don't try to find anonymous users without auth - this creates inconsistent state
     return null;
+  },
+});
+
+// Internal version for system operations
+export const internalCreateAnonymous = internalMutation({
+  args: {},
+  handler: async ctx => {
+    const now = Date.now();
+
+    return await ctx.db.insert("users", {
+      isAnonymous: true,
+      createdAt: now,
+      messagesSent: 0,
+      monthlyMessagesSent: 0,
+      conversationCount: 0,
+      totalMessageCount: 0,
+    });
   },
 });
 

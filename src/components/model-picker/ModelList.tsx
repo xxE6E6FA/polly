@@ -1,4 +1,6 @@
+import type { Doc } from "@convex/_generated/dataModel";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { memo } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
 import {
@@ -8,24 +10,21 @@ import {
   CommandInput,
   CommandList,
 } from "@/components/ui/command";
-import type { AIModel } from "@/types";
+
 import { ModelItem } from "./ModelItem";
 
-// Provider mapping with titles
-const PROVIDER_CONFIG = {
-  openai: { title: "OpenAI" },
-  anthropic: { title: "Anthropic" },
-  google: { title: "Google AI" },
-  openrouter: { title: "OpenRouter" },
-  polly: { title: "Polly" },
-} as const;
+// Union type for models returned by getAvailableModels
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 const ModelListComponent = ({
-  userModelsByProvider,
+  modelGroups,
   handleSelect,
   hasReachedPollyLimit,
 }: {
-  userModelsByProvider: Record<string, AIModel[]>;
+  modelGroups: {
+    freeModels: AvailableModel[];
+    providerModels: Record<string, AvailableModel[]>;
+  };
   handleSelect: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
 }) => {
@@ -45,7 +44,8 @@ const ModelListComponent = ({
           </div>
         </CommandEmpty>
 
-        {Object.keys(userModelsByProvider).length === 0 ? (
+        {modelGroups.freeModels.length === 0 &&
+        Object.keys(modelGroups.providerModels).length === 0 ? (
           <div className="p-6 text-center">
             <p className="mb-2 text-sm text-muted-foreground">
               No models available
@@ -55,42 +55,67 @@ const ModelListComponent = ({
             </p>
           </div>
         ) : (
-          Object.entries(userModelsByProvider).map(
-            ([providerId, models], providerIndex: number | undefined) => {
-              const providerConfig =
-                PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
-              const providerTitle = providerConfig?.title || providerId;
+          <>
+            {/* Free Models Group */}
+            {modelGroups.freeModels.length > 0 && (
+              <CommandGroup>
+                <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
+                  <ProviderIcon provider="polly" className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Polly
+                  </span>
+                </div>
+                {modelGroups.freeModels.map((model: AvailableModel) => (
+                  <ModelItem
+                    key={model.modelId}
+                    model={model}
+                    onSelect={() => handleSelect(model.modelId, model.provider)}
+                    hasReachedPollyLimit={hasReachedPollyLimit ?? false}
+                  />
+                ))}
+                {Object.keys(modelGroups.providerModels).length > 0 && (
+                  <div className="mx-2 my-1.5 h-px bg-border/50" />
+                )}
+              </CommandGroup>
+            )}
 
-              return (
-                <CommandGroup key={providerId}>
-                  <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
-                    <ProviderIcon
-                      provider={providerId}
-                      className="h-3.5 w-3.5"
-                    />
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {providerTitle}
-                    </span>
-                  </div>
-                  {models.map((model: AIModel) => (
-                    <ModelItem
-                      key={model.modelId}
-                      model={model}
-                      onSelect={() =>
-                        handleSelect(model.modelId, model.provider)
-                      }
-                      hasReachedPollyLimit={hasReachedPollyLimit ?? false}
-                    />
-                  ))}
-                  {providerIndex !== undefined &&
-                    providerIndex <
-                      Object.keys(userModelsByProvider).length - 1 && (
+            {/* Provider Groups */}
+            {Object.entries(modelGroups.providerModels).map(
+              ([providerId, models], providerIndex: number) => {
+                const providerConfig =
+                  PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+                const providerTitle = providerConfig?.title || providerId;
+
+                return (
+                  <CommandGroup key={providerId}>
+                    <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
+                      <ProviderIcon
+                        provider={providerId}
+                        className="h-3.5 w-3.5"
+                      />
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {providerTitle}
+                      </span>
+                    </div>
+                    {models.map((model: AvailableModel) => (
+                      <ModelItem
+                        key={model.modelId}
+                        model={model}
+                        onSelect={() =>
+                          handleSelect(model.modelId, model.provider)
+                        }
+                        hasReachedPollyLimit={hasReachedPollyLimit ?? false}
+                      />
+                    ))}
+                    {providerIndex <
+                      Object.keys(modelGroups.providerModels).length - 1 && (
                       <div className="mx-2 my-1.5 h-px bg-border/50" />
                     )}
-                </CommandGroup>
-              );
-            }
-          )
+                  </CommandGroup>
+                );
+              }
+            )}
+          </>
         )}
       </CommandList>
     </Command>

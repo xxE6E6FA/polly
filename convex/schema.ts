@@ -3,6 +3,7 @@ import { defineSchema, defineTable } from "convex/server";
 import {
   accountSchema,
   backgroundJobSchema,
+  builtInModelSchema,
   conversationSchema,
   messageSchema,
   personaSchema,
@@ -71,6 +72,10 @@ export default defineSchema({
   ]),
 
   userModels: defineTable(userModelSchema).index("by_user", ["userId"]),
+
+  builtInModels: defineTable(builtInModelSchema)
+    .index("by_provider", ["provider"])
+    .index("by_active", ["isActive", "createdAt"]),
 
   personas: defineTable(personaSchema)
     .index("by_user_active", ["userId", "isActive"])

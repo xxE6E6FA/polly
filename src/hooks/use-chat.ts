@@ -2,12 +2,11 @@ import { api } from "@convex/_generated/api";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ChatService,
+  type ChatMode,
+  createChatHandlers,
   type ModelOptions,
-  PrivateChatStrategy,
   type SendMessageParams,
-  ServerChatStrategy,
-} from "@/lib/ai/ChatService";
+} from "@/lib/ai/chat-handlers";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { isUserModel } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -57,10 +56,9 @@ export function useChat({ conversationId }: UseChatParams) {
     api.messages.list,
     conversationId ? { conversationId } : "skip"
   );
-  const sendMessageMutation = useMutation(api.conversations.sendMessage);
-  const editAndResendMutation = useMutation(
-    api.conversations.editAndResendMessage
-  );
+  const sendMessageAction = useAction(api.conversations.sendMessage);
+  const editAndResendAction = useAction(api.conversations.editAndResendMessage);
+  const retryFromMessageAction = useAction(api.conversations.retryFromMessage);
   const deleteMessageMutation = useMutation(api.messages.remove);
   const stopGenerationMutation = useMutation(api.conversations.stopGeneration);
 
@@ -102,57 +100,59 @@ export function useChat({ conversationId }: UseChatParams) {
     };
   }, [selectedModel]);
 
-  // --- Chat Service and Strategy ---
-  const chatService = useMemo(() => {
-    let strategy;
+  // --- Chat Handlers ---
+  const chatHandlers = useMemo(() => {
     if (conversationId) {
-      strategy = new ServerChatStrategy(
+      const mode: ChatMode = {
+        type: "server",
         conversationId,
-        {
-          sendMessage: sendMessageMutation,
-          editAndResend: editAndResendMutation,
+        actions: {
+          sendMessage: sendMessageAction,
+          editAndResend: editAndResendAction,
+          retryFromMessage: retryFromMessageAction,
           deleteMessage: deleteMessageMutation,
           stopGeneration: stopGenerationMutation,
         },
-        modelOptions
-      );
-    } else if (modelCapabilities) {
-      strategy = new PrivateChatStrategy(
-        messages,
-        setMessages,
-        saveConversationAction,
-        modelOptions,
-        getDecryptedApiKey,
-        modelCapabilities
-      );
-    } else {
-      // Return a dummy strategy that throws errors
-      strategy = {
-        sendMessage: () => {
-          throw new Error("Model not loaded");
-        },
-        retryFromMessage: () => {
-          throw new Error("Model not loaded");
-        },
-        editMessage: () => {
-          throw new Error("Model not loaded");
-        },
-        deleteMessage: () => {
-          throw new Error("Model not loaded");
-        },
-        stopGeneration: () => {
-          throw new Error("Model not loaded");
-        },
-        saveConversation: () => {
-          throw new Error("Model not loaded");
+      };
+      return createChatHandlers(mode, modelOptions);
+    }
+    if (modelCapabilities) {
+      const mode: ChatMode = {
+        type: "private",
+        config: {
+          messages,
+          setMessages,
+          saveConversationAction,
+          getDecryptedApiKey,
+          modelCapabilities,
         },
       };
+      return createChatHandlers(mode, modelOptions);
     }
-    return new ChatService(strategy);
+    // Return handlers that throw errors when model is not loaded
+    return {
+      sendMessage: () => {
+        throw new Error("Model not loaded");
+      },
+      retryFromMessage: () => {
+        throw new Error("Model not loaded");
+      },
+      editMessage: () => {
+        throw new Error("Model not loaded");
+      },
+      deleteMessage: () => {
+        throw new Error("Model not loaded");
+      },
+      stopGeneration: () => {
+        throw new Error("Model not loaded");
+      },
+      saveConversation: () => {
+        throw new Error("Model not loaded");
+      },
+    };
   }, [
     conversationId,
-    sendMessageMutation,
-    editAndResendMutation,
+    sendMessageAction,
     deleteMessageMutation,
     stopGenerationMutation,
     saveConversationAction,
@@ -160,6 +160,8 @@ export function useChat({ conversationId }: UseChatParams) {
     modelOptions,
     getDecryptedApiKey,
     modelCapabilities,
+    retryFromMessageAction,
+    editAndResendAction,
   ]);
 
   // Sync server messages to local state
@@ -211,10 +213,10 @@ export function useChat({ conversationId }: UseChatParams) {
       }
 
       // For server mode, optimistic updates are handled by the mutation
-      // For private mode, they're handled by the strategy
-      await chatService.sendMessage(params);
+      // For private mode, they're handled by the handlers
+      await chatHandlers.sendMessage(params);
     },
-    [chatService, selectedModel]
+    [selectedModel, chatHandlers.sendMessage]
   );
 
   const editMessage = useCallback(
@@ -223,9 +225,9 @@ export function useChat({ conversationId }: UseChatParams) {
         throw new Error("No model selected");
       }
 
-      await chatService.editMessage(messageId, newContent, options || {});
+      await chatHandlers.editMessage(messageId, newContent, options || {});
     },
-    [chatService, selectedModel]
+    [selectedModel, chatHandlers.editMessage]
   );
 
   const retryFromMessage = useCallback(
@@ -234,27 +236,27 @@ export function useChat({ conversationId }: UseChatParams) {
         throw new Error("No model selected");
       }
 
-      await chatService.retryFromMessage(messageId, options || {});
+      await chatHandlers.retryFromMessage(messageId, options || {});
     },
-    [chatService, selectedModel]
+    [selectedModel, chatHandlers.retryFromMessage]
   );
 
   const deleteMessage = useCallback(
     async (messageId: string) => {
-      await chatService.deleteMessage(messageId);
+      await chatHandlers.deleteMessage(messageId);
     },
-    [chatService]
+    [chatHandlers.deleteMessage]
   );
 
   const stopGeneration = useCallback(() => {
-    chatService.stopGeneration();
-  }, [chatService]);
+    chatHandlers.stopGeneration();
+  }, [chatHandlers.stopGeneration]);
 
   const saveConversation = useCallback(
     async (title?: string) => {
-      return await chatService.saveConversation(title);
+      return (await chatHandlers.saveConversation?.(title)) || null;
     },
-    [chatService]
+    [chatHandlers.saveConversation]
   );
 
   // Check if any message is currently streaming

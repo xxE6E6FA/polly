@@ -4,12 +4,13 @@ import {
   LightningIcon,
   SparkleIcon,
 } from "@phosphor-icons/react";
-import { hasMandatoryReasoning } from "@shared/model-capabilities-config";
+
 import {
-  ANTHROPIC_BUDGET_MAP,
-  GOOGLE_THINKING_BUDGET_MAP,
-} from "@shared/reasoning-config";
-import { useCallback, useEffect, useState } from "react";
+  getModelReasoningInfo,
+  getProviderReasoningRequirements,
+  hasMandatoryReasoning,
+} from "@shared/reasoning-model-detection";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -34,7 +35,7 @@ type ReasoningOption = {
   description: string;
 };
 
-const REASONING_OPTIONS: ReasoningOption[] = [
+const reasoningOptions: ReasoningOption[] = [
   {
     value: "off",
     label: "Off",
@@ -51,13 +52,13 @@ const REASONING_OPTIONS: ReasoningOption[] = [
     value: "medium",
     label: "Balanced",
     icon: CompassIcon,
-    description: "Standard depth",
+    description: "Standard thinking",
   },
   {
     value: "high",
     label: "Deep",
     icon: LightbulbIcon,
-    description: "Thorough analysis",
+    description: "Thorough thinking",
   },
 ];
 
@@ -116,20 +117,77 @@ export const ReasoningPicker = ({
 }: ReasoningPickerProps) => {
   const [selectOpen, setSelectOpen] = useState(false);
 
-  // Handle mandatory reasoning when model changes
+  // Get the actual provider once for the entire component
+  const provider = useMemo(() => {
+    if (!model) {
+      return null;
+    }
+
+    // Provider is now the actual provider, no mapping needed
+    return model.provider;
+  }, [model]);
+
+  // Handle mandatory reasoning and provider-specific defaults when model changes
   useEffect(() => {
-    if (model) {
-      const isMandatory = hasMandatoryReasoning(model.provider, model.modelId);
+    if (model && provider) {
+      const isMandatory = hasMandatoryReasoning(provider, model.modelId);
+      const modelInfo = getModelReasoningInfo(provider, model.modelId);
+
       if (isMandatory && !config.enabled) {
+        // Auto-enable reasoning for mandatory models
+        let defaultEffort: ReasoningEffortLevel = "medium";
+        let defaultMaxTokens = config.maxTokens;
+
+        // Set provider-specific defaults for better experience
+        if (provider === "openai") {
+          // OpenAI o-series models work well with medium effort by default
+          defaultEffort = "medium";
+        } else if (
+          provider === "google" &&
+          model.modelId.includes("gemini-2.5-pro")
+        ) {
+          // Gemini 2.5 Pro enforces reasoning, start with balanced approach
+          defaultEffort = "medium";
+          defaultMaxTokens = 10000; // Default max tokens for Gemini 2.5 Pro
+        }
+
         const newConfig = {
           enabled: true,
-          effort: config.effort || "medium",
-          maxTokens: config.maxTokens,
+          effort: defaultEffort,
+          maxTokens: defaultMaxTokens,
         };
         onConfigChange(newConfig);
+      } else if (
+        modelInfo.reasoningType === "optional" &&
+        config.enabled &&
+        !config.maxTokens
+      ) {
+        // Set appropriate token budgets for optional reasoning models
+        let maxTokens = config.maxTokens;
+        const effort = config.effort || "medium";
+
+        switch (provider) {
+          case "anthropic":
+            maxTokens =
+              effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+            break;
+          case "google":
+            maxTokens =
+              effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+            break;
+          default:
+            maxTokens = 8192;
+        }
+
+        if (maxTokens !== config.maxTokens) {
+          onConfigChange({
+            ...config,
+            maxTokens,
+          });
+        }
       }
     }
-  }, [model, config.enabled, config.effort, config.maxTokens, onConfigChange]);
+  }, [model, config, onConfigChange, provider]);
 
   const handleChange = useCallback(
     (value: string) => {
@@ -141,18 +199,45 @@ export const ReasoningPicker = ({
       } else {
         const effort = value as ReasoningEffortLevel;
         let maxTokens = config.maxTokens;
-        if (!maxTokens) {
-          switch (model?.provider) {
+
+        // Auto-set appropriate token budgets if not already set
+        if (!maxTokens && model && provider) {
+          switch (provider) {
             case "anthropic":
-              maxTokens = ANTHROPIC_BUDGET_MAP[effort];
+              maxTokens =
+                effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
               break;
             case "google":
-              maxTokens = GOOGLE_THINKING_BUDGET_MAP[effort];
+              maxTokens =
+                effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
               break;
+            case "openrouter": {
+              // For OpenRouter, use different defaults based on model type
+              const requirements =
+                getProviderReasoningRequirements("openrouter");
+              const isTokenModel =
+                requirements &&
+                "supportsDifferentControls" in requirements &&
+                requirements.supportsDifferentControls.maxTokens.some(
+                  (pattern: string) =>
+                    model.modelId?.toLowerCase().includes(pattern.toLowerCase())
+                );
+
+              if (isTokenModel) {
+                // For token-based models (Anthropic, Gemini via OpenRouter)
+                maxTokens =
+                  effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+              } else {
+                // For effort-based models (OpenAI, Grok via OpenRouter)
+                maxTokens = 8192; // Default fallback
+              }
+              break;
+            }
             default:
               maxTokens = 8192;
           }
         }
+
         onConfigChange({
           enabled: true,
           effort,
@@ -160,27 +245,27 @@ export const ReasoningPicker = ({
         });
       }
     },
-    [config, onConfigChange, model]
+    [config, onConfigChange, model, provider]
   );
 
-  if (!model?.supportsReasoning) {
+  if (!(model?.supportsReasoning && provider)) {
     return null;
   }
 
-  const isMandatory = hasMandatoryReasoning(model.provider, model.modelId);
-  const theme = getProviderTheme(model.provider);
+  const isMandatory = hasMandatoryReasoning(provider, model.modelId);
+  const theme = getProviderTheme(provider);
   const Icon = theme.icon;
 
-  let currentValue = "medium";
-  if (!(isMandatory || config.enabled)) {
+  let currentValue: string;
+  if (isMandatory || config.enabled) {
+    currentValue = config.effort || "medium";
+  } else {
     currentValue = "off";
-  } else if (config.enabled && config.effort) {
-    currentValue = config.effort;
   }
 
   const availableOptions = isMandatory
-    ? REASONING_OPTIONS.filter(opt => opt.value !== "off")
-    : REASONING_OPTIONS;
+    ? reasoningOptions.filter(opt => opt.value !== "off")
+    : reasoningOptions;
 
   const selectedOption = availableOptions.find(
     opt => opt.value === currentValue
@@ -205,9 +290,24 @@ export const ReasoningPicker = ({
             {isMandatory
               ? `Thinking is always enabled for ${model.name}. Configure effort level.`
               : currentValue === "off"
-                ? "Click to enable step-by-step thinking"
+                ? "Click to enable step-by-step thinking for better reasoning"
                 : selectedOption?.description}
           </p>
+          {config.enabled && config.maxTokens && (
+            <p className="text-xs text-muted-foreground/80 mt-1 border-t pt-1">
+              Budget: ~{config.maxTokens.toLocaleString()} tokens
+            </p>
+          )}
+          {provider === "openai" && config.enabled && (
+            <p className="text-xs text-blue-400/80 mt-1">
+              Uses reasoningEffort parameter
+            </p>
+          )}
+          {provider === "openrouter" && config.enabled && (
+            <p className="text-xs text-purple-400/80 mt-1">
+              Unified reasoning API
+            </p>
+          )}
         </div>
       }
     >
