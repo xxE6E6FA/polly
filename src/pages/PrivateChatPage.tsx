@@ -110,7 +110,7 @@ export default function PrivateChatPage() {
     return headers;
   }, [authToken]);
 
-  const { messages, append, stop, status } = useChat({
+  const { messages, append, stop, status, setMessages, reload } = useChat({
     api: `${import.meta.env.VITE_CONVEX_URL}/http/chat`,
     body: apiBody,
     headers: apiHeaders,
@@ -452,26 +452,99 @@ export default function PrivateChatPage() {
 
   const handleRetryUserMessage = useCallback(
     (
-      _messageId: string,
-      _modelId?: string,
-      _provider?: string,
-      _reasoningConfig?: ReasoningConfig
+      messageId: string,
+      modelId?: string,
+      provider?: string,
+      reasoningConfig?: ReasoningConfig
     ) => {
-      toast.error("Cannot retry messages in private mode");
+      const messageIndex = messages.findIndex(m => m.id === messageId);
+      if (messageIndex === -1) {
+        return;
+      }
+
+      const targetMessage = messages[messageIndex];
+
+      if (targetMessage.role === "user") {
+        // Retry from user message - keep the user message and regenerate assistant response
+        const messagesToKeep = messages.slice(0, messageIndex + 1);
+        setMessages(messagesToKeep);
+
+        // Regenerate response from this point with new model options
+        reload({
+          body: {
+            ...apiBody,
+            modelId: modelId || selectedModel?.modelId,
+            provider: provider || selectedModel?.provider,
+            reasoningConfig: reasoningConfig || undefined,
+          },
+          headers: apiHeaders,
+        });
+      } else {
+        // If retrying from assistant message, go back to previous user message
+        const previousUserMessageIndex = messageIndex - 1;
+        const previousUserMessage = messages[previousUserMessageIndex];
+
+        if (!previousUserMessage || previousUserMessage.role !== "user") {
+          toast.error("Cannot find previous user message to retry from");
+          return;
+        }
+
+        // Keep messages up to (and including) the previous user message
+        const messagesToKeep = messages.slice(0, previousUserMessageIndex + 1);
+        setMessages(messagesToKeep);
+
+        // Regenerate response from the previous user message
+        reload({
+          body: {
+            ...apiBody,
+            modelId: modelId || selectedModel?.modelId,
+            provider: provider || selectedModel?.provider,
+            reasoningConfig: reasoningConfig || undefined,
+          },
+          headers: apiHeaders,
+        });
+      }
     },
-    []
+    [messages, apiBody, apiHeaders, selectedModel, setMessages, reload]
   );
 
   const handleRetryAssistantMessage = useCallback(
     (
-      _messageId: string,
-      _modelId?: string,
-      _provider?: string,
-      _reasoningConfig?: ReasoningConfig
+      messageId: string,
+      modelId?: string,
+      provider?: string,
+      reasoningConfig?: ReasoningConfig
     ) => {
-      toast.error("Cannot retry messages in private mode");
+      const messageIndex = messages.findIndex(m => m.id === messageId);
+      if (messageIndex === -1) {
+        return;
+      }
+
+      // For assistant messages, go back to the previous user message
+      const previousUserMessageIndex = messageIndex - 1;
+      const previousUserMessage = messages[previousUserMessageIndex];
+
+      if (!previousUserMessage || previousUserMessage.role !== "user") {
+        toast.error("Cannot find previous user message to retry from");
+        return;
+      }
+
+      // Keep messages up to (and including) the previous user message
+      const messagesToKeep = messages.slice(0, previousUserMessageIndex + 1);
+      setMessages(messagesToKeep);
+
+      // Regenerate response from the previous user message
+      reload({
+        body: {
+          ...apiBody,
+          modelId: modelId || selectedModel?.modelId,
+          provider: provider || selectedModel?.provider,
+          reasoningConfig: reasoningConfig || undefined,
+        },
+        headers: apiHeaders,
+      });
     },
-    []
+    [messages, apiBody, apiHeaders, selectedModel, setMessages, reload]
   );
 
   return (
