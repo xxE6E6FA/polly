@@ -31,10 +31,13 @@ export interface SearchNeedAssessment {
 }
 
 import dedent from "dedent";
+import { log } from "../lib/logger";
 
 export const generateSearchNeedAssessment = (
   context: SearchDecisionContext
 ): string => {
+  log.debug("🎯 generateSearchNeedAssessment called for query:", context.userQuery);
+  
   return dedent`
     You are determining whether you can answer a user's query confidently using only your training data, or if it would benefit from external sources.
 
@@ -76,6 +79,8 @@ export const generateSearchNeedAssessment = (
 export const generateSearchStrategy = (
   context: SearchDecisionContext
 ): string => {
+  log.debug("🎯 generateSearchStrategy called for query:", context.userQuery);
+  
   let prompt = dedent`
     The LLM has determined it needs external data to answer this query. Determine the optimal search strategy.
 
@@ -127,6 +132,8 @@ export const generateSearchStrategy = (
 export const parseSearchNeedAssessment = (
   llmResponse: string
 ): SearchNeedAssessment => {
+  log.debug("🤖 parseSearchNeedAssessment called with response:", llmResponse);
+  
   try {
     // Extract true/false from the response
     const trimmedResponse = llmResponse.trim().toLowerCase();
@@ -150,7 +157,7 @@ export const parseSearchNeedAssessment = (
     
     throw new Error("No valid boolean found in search need assessment response");
   } catch (error) {
-    console.error("Failed to parse search need assessment response:", error);
+    log.error("Failed to parse search need assessment response:", error);
 
     // Conservative fallback: assume we can answer confidently (no search)
     return {
@@ -163,6 +170,9 @@ export const parseSearchStrategy = (
   llmResponse: string,
   userQuery: string
 ): SearchDecision => {
+  log.debug("📋 parseSearchStrategy called for query:", userQuery);
+  log.debug("LLM response:", llmResponse);
+  
   try {
     // Extract JSON from the response
     const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
@@ -182,7 +192,7 @@ export const parseSearchStrategy = (
       suggestedQuery: parsed.suggestedQuery || userQuery,
     };
   } catch (error) {
-    console.error("Failed to parse search strategy response:", error);
+    log.error("Failed to parse search strategy response:", error);
 
     // If we can't parse the response, default to basic search
     return {

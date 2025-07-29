@@ -357,6 +357,7 @@ export type MessageDoc = {
   conversationId: Id<"conversations">;
   role: "user" | "assistant" | "system" | "context";
   content: string;
+  status?: "thinking" | "searching" | "streaming" | "done" | "error";
   reasoning?: string;
   model?: string;
   provider?: string;

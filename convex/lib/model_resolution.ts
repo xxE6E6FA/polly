@@ -6,6 +6,7 @@
 import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
+import { log } from "./logger";
 
 export interface EffectiveModel {
   modelId: string;
@@ -26,11 +27,11 @@ export async function getUserEffectiveModel(
   requestedModel?: string,
   requestedProvider?: string
 ): Promise<EffectiveModel> {
-  console.log("[MODEL_RESOLUTION] Called with:", { requestedModel, requestedProvider });
+  log.debug("Model resolution called with:", { requestedModel, requestedProvider });
   
   // If both are provided, use them directly
   if (requestedModel && requestedProvider) {
-    console.log("[MODEL_RESOLUTION] Using provided values directly");
+    log.debug("Using provided values directly");
     return {
       modelId: requestedModel,
       provider: requestedProvider,
@@ -49,7 +50,7 @@ export async function getUserEffectiveModel(
         finalProvider = finalProvider || selectedModel.provider;
       }
     } catch (error) {
-      console.warn("Failed to get user's selected model:", error);
+      log.warn("Failed to get user's selected model:", error);
       // Continue to fallback logic below
     }
   }
@@ -63,7 +64,7 @@ export async function getUserEffectiveModel(
     provider,
   };
   
-  console.log("[MODEL_RESOLUTION] Final result:", result);
+  log.debug("Model resolution final result:", result);
   return result;
 }
 
@@ -87,8 +88,6 @@ export async function getUserEffectiveModelWithCapabilities(
   contextLength?: number;
   free?: boolean;
 }> {
-  console.log("[MODEL_RESOLUTION_FULL] Called with:", { requestedModel, requestedProvider });
-
   // Get user's selected model if not fully provided
   let finalModel = requestedModel;
   let finalProvider = requestedProvider;
@@ -103,7 +102,7 @@ export async function getUserEffectiveModelWithCapabilities(
         finalProvider = finalProvider || selectedModel.provider;
       }
     } catch (error) {
-      console.warn("Failed to get user's selected model:", error);
+      log.warn("Failed to get user's selected model:", error);
     }
   }
 
@@ -118,7 +117,7 @@ export async function getUserEffectiveModelWithCapabilities(
         fullModelObject = modelFromDB;
       }
     } catch (error) {
-      console.warn("Failed to get model by ID:", error);
+      log.warn("Failed to get model by ID:", error);
     }
   }
 
@@ -139,7 +138,6 @@ export async function getUserEffectiveModelWithCapabilities(
       contextLength: fullModelObject.contextLength,
       free: fullModelObject.free,
     };
-    console.log("[MODEL_RESOLUTION_FULL] Full result:", result);
     return result;
   }
 
@@ -154,6 +152,5 @@ export async function getUserEffectiveModelWithCapabilities(
     supportsFiles: false,
   };
   
-  console.log("[MODEL_RESOLUTION_FULL] Fallback result:", fallbackResult);
   return fallbackResult;
 }

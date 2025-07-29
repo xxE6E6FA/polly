@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import type { EmojiClickData } from "emoji-picker-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import {
   PersonaForm,
@@ -40,8 +41,8 @@ export default function NewPersonaPage() {
         icon: formData.icon,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to create persona:", error);
+    } catch (_error) {
+      toast.error("Failed to create persona");
     } finally {
       setIsLoading(false);
     }

@@ -79,7 +79,7 @@ class ConvexLogger {
 // Export a singleton instance
 export const logger = new ConvexLogger();
 
-// For backward compatibility, export individual functions
+// Export individual logging functions for convenience
 export const log = {
   debug: (message: string, ...args: any[]) => logger.debug(message, ...args),
   info: (message: string, ...args: any[]) => logger.info(message, ...args),

@@ -54,8 +54,7 @@ export const ArchivedConversationsPage = () => {
         });
         // Invalidate conversations cache to reflect unarchived conversation
         del(CACHE_KEYS.conversations);
-      } catch (error) {
-        console.error("Failed to unarchive conversation:", error);
+      } catch (_error) {
         toast.error("Failed to restore conversation", {
           description: "Unable to restore conversation. Please try again.",
         });
@@ -85,8 +84,7 @@ export const ArchivedConversationsPage = () => {
             });
             // Invalidate conversations cache to reflect deleted conversation
             del(CACHE_KEYS.conversations);
-          } catch (error) {
-            console.error("Failed to delete conversation:", error);
+          } catch (_error) {
             toast.error("Failed to delete conversation", {
               description: "Unable to delete conversation. Please try again.",
             });

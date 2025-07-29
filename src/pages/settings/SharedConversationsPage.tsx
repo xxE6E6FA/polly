@@ -77,9 +77,8 @@ export default function SharedConversationsPage() {
         try {
           await unshareConversation({ conversationId });
           toast.success("Conversation unshared");
-        } catch (error) {
+        } catch (_error) {
           toast.error("Failed to unshare conversation");
-          console.error("Unshare error:", error);
         }
       }
     );

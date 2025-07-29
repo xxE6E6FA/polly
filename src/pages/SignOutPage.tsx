@@ -12,8 +12,8 @@ export default function SignOutPage() {
       // Clear user data from local storage before signing out
       clearUserData();
       await signOut();
-    } catch (error) {
-      console.error("Sign out failed:", error);
+    } catch (_error) {
+      // Sign out failed, but we'll navigate anyway
     } finally {
       navigate("/", { replace: true });
     }

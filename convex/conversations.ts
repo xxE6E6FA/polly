@@ -49,13 +49,23 @@ export const createConversation = mutation({
     sourceConversationId: v.optional(v.id("conversations")),
     firstMessage: v.string(),
     attachments: v.optional(v.array(attachmentSchema)),
-    useWebSearch: v.optional(v.boolean()),
     model: v.optional(v.string()),
     provider: v.optional(providerSchema),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // Determine search availability based on user authentication
+    const authUserId = await getAuthUserId(ctx);
+    const useWebSearch = !!authUserId; // Search enabled only for authenticated users
+
+    console.log(
+      "[web_search_debug] createConversation - useWebSearch:",
+      useWebSearch,
+      "for user:",
+      authUserId
+    );
+
     // Development mode logging (always enabled for now to debug streaming issues)
     // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
     const log = (step: string, data?: any) => {
@@ -146,7 +156,6 @@ export const createConversation = mutation({
       role: "user",
       content: args.firstMessage,
       attachments: args.attachments,
-      useWebSearch: args.useWebSearch,
       reasoningConfig: args.reasoningConfig,
       isMainBranch: true,
       createdAt: Date.now(),
@@ -192,7 +201,7 @@ export const createConversation = mutation({
     }
 
     // **CRITICAL**: Trigger streaming for the assistant response!
-    // This was the missing piece - we need to start streaming after creating the assistant message
+    // We need to start streaming after creating the assistant message
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       log("TRIGGERING_STREAMING", {
         assistantMessageId,
@@ -205,7 +214,6 @@ export const createConversation = mutation({
         conversationId,
         model: fullModel, // Pass the full model object
         personaId: args.personaId,
-        useWebSearch: args.useWebSearch,
         reasoningConfig: args.reasoningConfig,
         // Include generation parameters that might be passed through
         temperature: args.temperature,
@@ -213,7 +221,7 @@ export const createConversation = mutation({
         topP: undefined,
         frequencyPenalty: undefined,
         presencePenalty: undefined,
-        webSearchMaxResults: undefined,
+        useWebSearch, // Pass the search availability determined by user auth
       });
 
       log("STREAMING_SCHEDULED_SUCCESSFULLY");
@@ -257,14 +265,13 @@ export const sendMessage = action({
         })
       )
     ),
-    useWebSearch: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
     maxTokens: v.optional(v.number()),
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
-    webSearchMaxResults: v.optional(v.number()),
+    // Removed useWebSearch and webSearchMaxResults - determined by user auth status
   },
   returns: v.object({
     userMessageId: v.id("messages"),
@@ -277,6 +284,17 @@ export const sendMessage = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
+    // Determine search availability based on user authentication
+    const authUserId = await getAuthUserId(ctx);
+    const useWebSearch = !!authUserId; // Search enabled only for authenticated users
+
+    console.log(
+      "[web_search_debug] sendMessage - useWebSearch:",
+      useWebSearch,
+      "for user:",
+      authUserId
+    );
+
     // Get user's effective model with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
@@ -292,7 +310,6 @@ export const sendMessage = action({
         role: "user",
         content: args.content,
         attachments: args.attachments,
-        useWebSearch: args.useWebSearch,
         reasoningConfig: args.reasoningConfig,
         model: fullModel.modelId,
         provider: fullModel.provider,
@@ -319,6 +336,9 @@ export const sendMessage = action({
     );
 
     // Start streaming response
+    console.log(
+      "[web_search_debug] Scheduling streamResponse - search determined by user auth status"
+    );
     await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
       messageId: assistantMessageId,
       conversationId: args.conversationId,
@@ -330,15 +350,12 @@ export const sendMessage = action({
       topP: args.topP,
       frequencyPenalty: args.frequencyPenalty,
       presencePenalty: args.presencePenalty,
-      useWebSearch: args.useWebSearch,
-      webSearchMaxResults: args.webSearchMaxResults,
+      useWebSearch, // Pass the search availability determined by user auth
     });
 
     return { userMessageId, assistantMessageId };
   },
 });
-
-// startStreaming action removed - streaming is now handled by the sendMessage mutation
 
 export const savePrivateConversation = action({
   args: {
@@ -1191,8 +1208,6 @@ export const editAndResendMessage = action({
       throw new Error("Message not found");
     }
 
-    const useWebSearch = message.useWebSearch;
-
     // Update the message content
     await ctx.runMutation(api.messages.update, {
       id: args.messageId,
@@ -1222,7 +1237,7 @@ export const editAndResendMessage = action({
       provider: fullModel.provider,
       conversation,
       contextMessages,
-      useWebSearch,
+      useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
     });
 
@@ -1305,12 +1320,10 @@ export const retryFromMessage = action({
       args.retryType || (targetMessage.role === "user" ? "user" : "assistant");
 
     let contextEndIndex: number;
-    let useWebSearch: boolean | undefined;
 
     if (retryType === "user") {
       // Retry from user message - keep the user message and regenerate assistant response
       contextEndIndex = messageIndex;
-      useWebSearch = targetMessage.useWebSearch;
     } else {
       // Retry from assistant message - go back to the previous user message for context
       const previousUserMessageIndex = messageIndex - 1;
@@ -1321,7 +1334,6 @@ export const retryFromMessage = action({
       }
 
       contextEndIndex = previousUserMessageIndex;
-      useWebSearch = (previousUserMessage as Doc<"messages">).useWebSearch;
     }
 
     // Handle message deletion based on retry type
@@ -1348,7 +1360,7 @@ export const retryFromMessage = action({
       provider: fullModel.provider,
       conversation,
       contextMessages,
-      useWebSearch,
+      useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
     });
 
@@ -1407,8 +1419,6 @@ export const editMessage = action({
     }
 
     // Store the original web search setting before deleting messages
-    const useWebSearch = targetMessage.useWebSearch;
-
     // Update the message content
     await ctx.runMutation(api.messages.update, {
       id: args.messageId,
@@ -1438,7 +1448,7 @@ export const editMessage = action({
       provider: fullModel.provider,
       conversation,
       contextMessages,
-      useWebSearch,
+      useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
     });
 
@@ -1710,7 +1720,6 @@ export const createConversationAction = action({
             | "openrouter"
             | undefined) || "google",
         attachments: args.attachments,
-        useWebSearch: args.useWebSearch,
         reasoningConfig: args.reasoningConfig,
         temperature: args.temperature,
       });

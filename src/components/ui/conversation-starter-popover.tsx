@@ -47,10 +47,7 @@ export const ConversationStarterPopover = ({
       try {
         const generatedPrompts = await generateStartersAction({ selectedText });
         setPrompts(generatedPrompts);
-      } catch (error) {
-        if (process.env.NODE_ENV === "development") {
-          console.error("Failed to generate conversation starters:", error);
-        }
+      } catch (_error) {
         // Use fallback prompts on error
         setPrompts([
           "Can you explain this in more detail?",
@@ -89,10 +86,7 @@ export const ConversationStarterPopover = ({
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
         onOpenChange(false);
       }
-    } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("Failed to start conversation:", error);
-      }
+    } catch (_error) {
       const { toast } = await import("sonner");
       toast.error("Failed to start conversation", {
         description:

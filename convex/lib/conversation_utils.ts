@@ -7,10 +7,10 @@ import {
 } from "../_generated/server";
 
 import { ConvexError } from "convex/values";
+import { log } from "./logger";
 import {
   DEFAULT_TEMPERATURE,
   DEFAULT_MAX_TOKENS,
-  WEB_SEARCH_MAX_RESULTS,
 } from "@shared/constants";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
@@ -60,7 +60,6 @@ export type MessageDoc = {
     thumbnail?: string;
     storageId?: Id<"_storage">;
   }>;
-  useWebSearch?: boolean;
   isMainBranch: boolean;
   createdAt: number;
   metadata?: {
@@ -105,7 +104,7 @@ export const ensureStreamingCleared = async (
     });
   } catch (error) {
     // Log but don't throw - this is a cleanup operation
-    console.error(
+    log.error(
       `Failed to clear streaming state for conversation ${conversationId}:`,
       error
     );
@@ -405,7 +404,7 @@ export const executeStreamingAction = async (
             
           }>;
     }>;
-    useWebSearch?: boolean;
+    useWebSearch: boolean; // Add useWebSearch parameter
     reasoningConfig?: {
       enabled?: boolean;
       effort: "low" | "medium" | "high";
@@ -422,7 +421,7 @@ export const executeStreamingAction = async (
       provider: args.provider,
       userId: args.conversation.userId,
       personaId: args.conversation.personaId,
-      useWebSearch: args.useWebSearch,
+      useWebSearch: args.useWebSearch, // Pass through useWebSearch
       reasoningConfig: args.reasoningConfig,
     });
     return {
@@ -545,28 +544,25 @@ export const buildContextMessages = async (
   }>;
   messages: any[];
 }> => {
-  // Development mode logging (always enabled for now to debug streaming issues)
+  // Development mode logging - simplified to reduce noise
   // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
   const log = (step: string, data?: any) => {
-    console.log(
-      `[BUILD_CONTEXT] ${step}:`,
-      data ? JSON.stringify(data, null, 2) : ""
-    );
+    // Only log essential debugging info - remove verbose step tracking
+    if (step === "BUILD_CONTEXT_START" || step === "BUILD_CONTEXT_COMPLETE" || step.includes("ERROR")) {
+      console.log(
+        `[BUILD_CONTEXT] ${step}:`,
+        data ? JSON.stringify(data, null, 2) : ""
+      );
+    }
   };
 
   log("BUILD_CONTEXT_START", {
     conversationId: args.conversationId,
-    personaId: args.personaId,
-    includeUpToIndex: args.includeUpToIndex,
   });
 
   // Get the conversation to find its personaId
   const conversation = await ctx.runQuery(api.conversations.get, {
     id: args.conversationId,
-  });
-  log("CONVERSATION_FETCHED", {
-    hasConversation: !!conversation,
-    conversationPersonaId: conversation?.personaId,
   });
 
   const messagesResult: any = await ctx.runQuery(api.messages.list, {
@@ -575,36 +571,18 @@ export const buildContextMessages = async (
   const messages: MessageDoc[] = Array.isArray(messagesResult)
     ? messagesResult
     : messagesResult.page;
-  log("MESSAGES_FETCHED", {
-    messagesCount: messages.length,
-    isArray: Array.isArray(messagesResult),
-    includeUpToIndex: args.includeUpToIndex,
-  });
 
   const relevantMessages: MessageDoc[] =
     args.includeUpToIndex !== undefined
       ? messages.slice(0, args.includeUpToIndex + 1)
       : messages;
-  log("RELEVANT_MESSAGES_FILTERED", {
-    relevantMessagesCount: relevantMessages.length,
-    messageRoles: relevantMessages.map((msg: MessageDoc) => msg.role),
-  });
 
   // Use the personaId from the conversation (or fallback to args.personaId)
   const effectivePersonaId = conversation?.personaId || args.personaId;
-  log("PERSONA_RESOLUTION", {
-    effectivePersonaId,
-    conversationPersonaId: conversation?.personaId,
-    argsPersonaId: args.personaId,
-  });
 
   const personaPrompt = effectivePersonaId
     ? (await ctx.runQuery(api.personas.get, { id: effectivePersonaId }))?.prompt
     : undefined;
-  log("PERSONA_PROMPT_FETCHED", {
-    hasPersonaPrompt: !!personaPrompt,
-    personaPromptLength: personaPrompt?.length,
-  });
   const messagesWithResolvedUrls: MessageDoc[] = await Promise.all(
     relevantMessages.map(async (msg: MessageDoc) => {
       const message = msg;
@@ -668,10 +646,6 @@ export const buildContextMessages = async (
   const contextMessages = contextMessagesWithNulls.filter(
     (msg: any): msg is Exclude<typeof msg, undefined> => msg !== undefined
   );
-  log("CONTEXT_MESSAGES_FILTERED", {
-    contextMessagesCount: contextMessages.length,
-    filteredFromCount: contextMessagesWithNulls.length,
-  });
 
   // Get model name from the last assistant message or use a default
   const lastAssistantMessage = relevantMessages
@@ -681,16 +655,9 @@ export const buildContextMessages = async (
     })
     .pop();
   const modelName = lastAssistantMessage?.model || "an AI model";
-  log("MODEL_NAME_RESOLVED", {
-    modelName,
-    hasLastAssistantMessage: !!lastAssistantMessage,
-  });
 
   // Merge baseline instructions with persona prompt into a single system message
   const mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
-  log("SYSTEM_PROMPT_MERGED", {
-    systemPromptLength: mergedSystemPrompt.length,
-  });
 
   contextMessages.unshift({
     role: "system",
@@ -698,8 +665,7 @@ export const buildContextMessages = async (
   });
 
   log("BUILD_CONTEXT_COMPLETE", {
-    finalContextMessagesCount: contextMessages.length,
-    finalMessageRoles: contextMessages.map((m: any) => m.role),
+    messagesCount: contextMessages.length,
   });
 
   return { contextMessages, messages: relevantMessages };
@@ -729,7 +695,7 @@ export const setupAndStartStreaming = async (
     provider: string;
     userId: Id<"users">;
     personaId?: Id<"personas">;
-    useWebSearch?: boolean;
+    useWebSearch: boolean; // Add useWebSearch parameter
     reasoningConfig?: {
       enabled?: boolean;
       effort: "low" | "medium" | "high";
@@ -762,8 +728,7 @@ export const setupAndStartStreaming = async (
     personaId: args.personaId,
     temperature: DEFAULT_TEMPERATURE,
     maxTokens: DEFAULT_MAX_TOKENS,
-    useWebSearch: args.useWebSearch,
-    webSearchMaxResults: WEB_SEARCH_MAX_RESULTS,
+    useWebSearch: args.useWebSearch, // Pass through the useWebSearch parameter
     reasoningConfig: args.reasoningConfig?.enabled
       ? {
           enabled: args.reasoningConfig.enabled,

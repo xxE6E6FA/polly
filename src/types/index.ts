@@ -125,7 +125,7 @@ export type ChatMessage = {
   id: string;
   role: MessageRole;
   content: string;
-  status?: "thinking" | "streaming" | "done" | "error";
+  status?: "thinking" | "searching" | "streaming" | "done" | "error";
   reasoning?: string;
   model?: string;
   provider?: string;
@@ -291,7 +291,6 @@ export type APIKeys = {
   anthropic?: string;
   google?: string;
   openrouter?: string;
-  polly?: string; // For UI consistency (not actually used)
 };
 
 // ============================================================================

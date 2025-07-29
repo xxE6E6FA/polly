@@ -35,7 +35,6 @@ export function ImportExportActions() {
       }
 
       if (!file.name.endsWith(".json")) {
-        console.error("File is not JSON:", file.name);
         toast.error("Please select a JSON file");
         return;
       }
@@ -43,7 +42,6 @@ export function ImportExportActions() {
       const reader = new FileReader();
 
       reader.onerror = () => {
-        console.error("FileReader error");
         toast.error("Failed to read the file");
         setIsValidating(false);
       };
@@ -54,7 +52,6 @@ export function ImportExportActions() {
           const content = e.target?.result as string;
 
           if (!content || content.trim() === "") {
-            console.error("File content is empty");
             toast.error("The selected file is empty");
             setIsValidating(false);
             return;
@@ -63,7 +60,6 @@ export function ImportExportActions() {
           const importResult = detectAndParseImportData(content);
 
           if (importResult.errors.length > 0) {
-            console.error("Import parsing errors:", importResult.errors);
             toast.error(`Import failed: ${importResult.errors[0]}`);
             setIsValidating(false);
             return;
@@ -84,7 +80,6 @@ export function ImportExportActions() {
             });
 
             if (!validationResult.isValid) {
-              console.error("Validation failed:", validationResult.errors);
               toast.error(`Validation failed: ${validationResult.errors[0]}`);
               setIsValidating(false);
               return;
@@ -127,14 +122,12 @@ export function ImportExportActions() {
                 toast.success(
                   `Started importing ${conversationCount} conversations${sourceInfo}`
                 );
-              } catch (error) {
-                console.error("Background import failed:", error);
+              } catch (_error) {
                 toast.error("Failed to start import");
               }
             }
           );
         } catch (error) {
-          console.error("Failed to read or parse file:", error);
           toast.error("Failed to read or parse the file", {
             description:
               error instanceof Error ? error.message : "Unknown parsing error",

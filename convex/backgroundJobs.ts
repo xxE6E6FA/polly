@@ -7,6 +7,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { log } from "./lib/logger";
 
 // Export conversation type definition
 export type ExportConversation = {
@@ -471,7 +472,7 @@ export const deleteJob = mutation({
       try {
         await ctx.storage.delete(job.fileStorageId);
       } catch (error) {
-        console.warn("Failed to delete associated file:", error);
+        log.warn("Failed to delete associated file:", error);
       }
     }
 
@@ -530,7 +531,7 @@ export const cleanupOldJobs = mutation({
         try {
           await ctx.storage.delete(job.fileStorageId);
         } catch (error) {
-          console.warn("Failed to delete associated file:", error);
+          log.warn("Failed to delete associated file:", error);
         }
       }
 
@@ -573,7 +574,7 @@ export const cleanupOldJobsForAllUsers = internalMutation({
         try {
           await ctx.storage.delete(job.fileStorageId);
         } catch (error) {
-          console.warn("Failed to delete associated file:", error);
+          log.warn("Failed to delete associated file:", error);
         }
       }
 

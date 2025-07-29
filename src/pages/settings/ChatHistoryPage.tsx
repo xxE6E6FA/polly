@@ -85,8 +85,7 @@ export default function ChatHistoryPage() {
             description: "Export file is not available for download",
           });
         }
-      } catch (error) {
-        console.error("Download error:", error);
+      } catch (_error) {
         // Dismiss loading toast and show error
         if (loadingToastId) {
           toast.dismiss(loadingToastId);

@@ -205,7 +205,6 @@ export function useBackgroundJobs() {
 
       return jobId;
     } catch (error) {
-      console.error("Export failed:", error);
       toast.error("Failed to start export");
       throw error;
     }
@@ -243,7 +242,6 @@ export function useBackgroundJobs() {
 
       return jobId;
     } catch (error) {
-      console.error("Import failed:", error);
       toast.error("Failed to start import");
       throw error;
     }
@@ -279,7 +277,6 @@ export function useBackgroundJobs() {
 
       return jobId;
     } catch (error) {
-      console.error("Bulk delete failed:", error);
       toast.error("Failed to start bulk delete");
       throw error;
     }
@@ -301,8 +298,7 @@ export function useBackgroundJobs() {
       });
 
       toast.success("Job removed successfully");
-    } catch (error) {
-      console.error("Failed to remove job:", error);
+    } catch (_error) {
       toast.error("Failed to remove job");
     }
   };

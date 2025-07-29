@@ -120,7 +120,6 @@ export default function PrivateChatPage() {
     body: apiBody,
     headers: apiHeaders,
     onError: error => {
-      console.error("Chat error:", error);
       toast.error("Chat error", {
         description: error.message,
       });
@@ -260,7 +259,6 @@ export default function PrivateChatPage() {
         navigate(ROUTES.CHAT_CONVERSATION(conversationId));
       }
     } catch (error) {
-      console.error("Failed to save private conversation:", error);
       toast.error("Failed to save chat", {
         description: error instanceof Error ? error.message : "Unknown error",
       });

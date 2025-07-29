@@ -35,7 +35,7 @@ export const serverDecryptApiKey = async (
 
 export const getApiKey = async (
   ctx: ActionCtx,
-  provider: Exclude<ProviderType, "polly">, // Remove "polly" from allowed types
+  provider: Exclude<ProviderType, "polly">,
   modelId?: string,
   conversationId?: Id<"conversations">
 ): Promise<string> => {
@@ -55,22 +55,18 @@ export const getApiKey = async (
       });
 
       if (apiKey) {
-        console.log("[getApiKey] Found user API key");
+        // Found user API key
         return apiKey;
       }
 
-      console.log("[getApiKey] No user API key found, checking environment variables");
       // Fallback to environment variables
       const envKeyName = CONFIG.PROVIDER_ENV_KEYS[provider as keyof typeof CONFIG.PROVIDER_ENV_KEYS];
-      console.log("[getApiKey] Looking for environment variable:", envKeyName);
       const envKey = process.env[envKeyName];
-      console.log("[getApiKey] Environment variable value:", envKey ? "found (length: " + envKey.length + ")" : "not found");
       if (envKey) {
-        console.log("[getApiKey] Found environment API key for provider:", provider);
+        // Found environment API key
         return envKey;
       }
 
-      console.log("[getApiKey] No environment API key found for provider:", provider);
       // If we get here, no API key was found
       throw new Error(`No API key found for ${provider}. Please add an API key in Settings.`);
     } catch (error) {

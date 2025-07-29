@@ -493,6 +493,7 @@ export const userSettingsUpdateSchema = v.object({
 // Message status for production-grade AI chat
 export const messageStatusSchema = v.union(
   v.literal("thinking"),
+  v.literal("searching"), // New status for web search in progress
   v.literal("streaming"), 
   v.literal("done"),
   v.literal("error")

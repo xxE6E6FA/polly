@@ -350,7 +350,7 @@ export const VirtualizedChatMessages = memo(
         }
       }, [processedMessages]);
 
-      // Modified auto-scroll logic for streaming
+      // Auto-scroll logic for streaming messages
       useEffect(() => {
         if (!shouldScrollToBottom || processedMessages.length === 0) {
           return;

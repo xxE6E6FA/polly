@@ -1,4 +1,4 @@
-import { type CoreMessage, streamText } from "ai";
+import { type CoreMessage, streamText, generateText } from "ai";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
@@ -29,6 +29,16 @@ import {
 } from "./server_utils";
 import { setStreamActive, clearStream } from "../lib/streaming_utils";
 import { log } from "../lib/logger";
+
+// Web search imports
+import {
+  generateSearchNeedAssessment,
+  generateSearchStrategy,
+  parseSearchNeedAssessment,
+  parseSearchStrategy,
+  type SearchDecisionContext,
+} from "./search_detection";
+import { performWebSearch } from "./exa";
 
 // Unified storage converter
 export const convertStorageToData = async (
@@ -280,21 +290,21 @@ export const streamResponse = internalAction({
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
-    useWebSearch: v.optional(v.boolean()),
-    webSearchMaxResults: v.optional(v.number()),
+    useWebSearch: v.boolean(), // Determined by calling action based on user auth
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     console.log(
-      "[stream_generation] Starting streaming with model:",
+      "[stream_generation] Starting streaming:",
       args.model.modelId,
-      "provider:",
-      args.model.provider,
       "messageId:",
       args.messageId,
       "conversationId:",
       args.conversationId
     );
+
+    // Use the search availability determined by the calling action
+    const isSearchEnabled = args.useWebSearch;
 
     // Create AbortController for proper stream interruption
     const abortController = new AbortController();
@@ -316,9 +326,6 @@ export const streamResponse = internalAction({
     // Create a robust abort checker function
     const checkAbort = () => {
       const aborted = abortController.signal.aborted || isStreamingStopped;
-      if (aborted) {
-        console.log("[stream_generation] Abort check: stream is stopped");
-      }
       return aborted;
     };
 
@@ -361,8 +368,8 @@ export const streamResponse = internalAction({
             status: "done",
           });
         } catch (updateError) {
-          console.error(
-            "[stream_generation] Failed to finalize stopped message:",
+          log.error(
+            "Failed to finalize stopped message:",
             updateError
           );
         }
@@ -389,8 +396,8 @@ export const streamResponse = internalAction({
           status: "error",
         });
       } catch (updateError) {
-        console.error(
-          "[stream_generation] Failed to update error state:",
+        log.error(
+          "Failed to update error state:",
           updateError
         );
       }
@@ -419,6 +426,8 @@ export const streamResponse = internalAction({
       log.debug(
       `Built context with ${contextMessages.length} messages`
       );
+
+      log.debug("Search enabled:", isSearchEnabled, "determined by calling action");
 
       // Override the system message with the persona prompt
       if (contextMessages.length > 0 && contextMessages[0].role === "system") {
@@ -455,6 +464,162 @@ export const streamResponse = internalAction({
         apiKey
       );
 
+      // Perform web search if enabled and needed
+      if (isSearchEnabled) {
+        log.debug("Starting search detection process");
+        
+        const userMessages = contextMessages.filter(msg => msg.role === "user");
+        const latestUserMessage = userMessages[userMessages.length - 1];
+        
+        if (latestUserMessage && typeof latestUserMessage.content === "string") {
+          try {
+            // Step 1: Check if search is needed using LLM
+            const searchContext: SearchDecisionContext = {
+              userQuery: latestUserMessage.content,
+              conversationHistory: contextMessages.slice(-5).filter(msg => msg.role !== "system").map(msg => ({
+                role: msg.role as "user" | "assistant",
+                content: typeof msg.content === "string" ? msg.content : "[multimodal content]",
+                hasSearchResults: false, // TODO: Track this properly
+              })),
+            };
+
+            const needAssessmentPrompt = generateSearchNeedAssessment(searchContext);
+            
+            // Use built-in Gemini for search detection to ensure we have API keys
+            const searchDetectionApiKey = await getApiKey(ctx, "google", "gemini-2.0-flash-exp", args.conversationId);
+            const searchDetectionModel = await createLanguageModel(
+              ctx,
+              "google",
+              "gemini-2.0-flash-exp", 
+              searchDetectionApiKey
+            );
+            
+            log.debug("Calling LLM for search need assessment using built-in Gemini");
+            const { text: needAssessmentResponse } = await generateText({
+              model: searchDetectionModel,
+              prompt: needAssessmentPrompt,
+              temperature: 0.1, // Low temperature for consistent decision making
+            });
+
+            const searchNeed = parseSearchNeedAssessment(needAssessmentResponse);
+            log.debug("Search needed:", !searchNeed.canAnswerConfidently);
+
+            // Step 2: If search is needed, determine search strategy
+            if (!searchNeed.canAnswerConfidently) {
+              const searchStrategyPrompt = generateSearchStrategy(searchContext);
+              
+              log.debug("Calling LLM for search strategy using built-in Gemini");
+              const { text: strategyResponse } = await generateText({
+                model: searchDetectionModel,
+                prompt: searchStrategyPrompt,
+                temperature: 0.1,
+              });
+
+              const searchDecision = parseSearchStrategy(strategyResponse, latestUserMessage.content);
+                              log.debug("Search strategy:", searchDecision.searchType, "for query:", searchDecision.suggestedQuery);
+
+              // Step 3: Get EXA API key - TODO: Add EXA as a proper provider type
+              const exaApiKey = process.env.EXA_API_KEY;
+                              if (!exaApiKey) {
+                  log.debug("No EXA API key configured, skipping web search");
+                  log.debug("To enable web search, add EXA_API_KEY environment variable");
+              } else {
+                // NOW set status to searching since we're actually about to perform web search
+                await ctx.runMutation(internal.messages.updateMessageStatus, {
+                  messageId: args.messageId,
+                  status: "searching",
+                });
+
+                // Set search metadata with actual strategy now that we're searching
+                await ctx.runMutation(internal.messages.updateAssistantContent, {
+                  messageId: args.messageId,
+                  metadata: {
+                    searchQuery: searchDecision.suggestedQuery || latestUserMessage.content,
+                    searchFeature: searchDecision.searchType, // "answer", "similar", "search"
+                    searchCategory: searchDecision.category, // "company", "news", etc.
+                  },
+                });
+
+                                  log.debug("Performing EXA search");
+                const searchResult = await performWebSearch(exaApiKey, {
+                  query: searchDecision.suggestedQuery || latestUserMessage.content,
+                  searchType: searchDecision.searchType,
+                  category: searchDecision.category,
+                  maxResults: 12, // TODO: Make this configurable
+                });
+
+                // Step 4: Add search results to context
+                if (searchResult.citations.length > 0) {
+                                      log.debug("Adding", searchResult.citations.length, "search results to context");
+                  
+                  // Create a system message with search results
+                  const searchResultsMessage = {
+                    role: "system" as const,
+                    content: `🚨 CRITICAL CITATION REQUIREMENTS 🚨
+
+Based on the user's query, I have searched the web and found relevant information. You MUST cite sources for any information derived from these search results.
+
+SEARCH RESULTS:
+${searchResult.context}
+
+AVAILABLE SOURCES FOR CITATION:
+${searchResult.citations.map((citation, idx) => 
+  `[${idx + 1}] ${citation.title} - ${citation.url}`
+).join('\n')}
+
+When using information from these search results, you MUST include citations in the format [1], [2], etc. corresponding to the source numbers above.`,
+                  };
+
+                  // Insert search results after system message but before conversation
+                  contextMessages.splice(1, 0, searchResultsMessage);
+                  
+                  // Update message with citations for UI display
+                  await ctx.runMutation(internal.messages.updateAssistantContent, {
+                    messageId: args.messageId,
+                    citations: searchResult.citations,
+                  });
+                  
+                                      log.debug("Search results added to context successfully");
+                } else {
+                  log.debug("No search results found");
+                  
+                  // Update with empty citations array to show search was attempted
+                  await ctx.runMutation(internal.messages.updateAssistantContent, {
+                    messageId: args.messageId,
+                    citations: [], // Empty array indicates search was done but found nothing
+                  });
+                }
+              }
+            } else {
+              log.debug("LLM determined search is not needed");
+            }
+                      } catch (error) {
+              log.error("Error during search process:", error);
+            
+            // Clear search metadata since search failed
+            await ctx.runMutation(internal.messages.updateAssistantContent, {
+              messageId: args.messageId,
+              metadata: {
+                searchQuery: undefined,
+                searchFeature: undefined,
+                searchCategory: undefined,
+              },
+            });
+            
+            // Continue without search - don't break the conversation flow
+          } finally {
+            // Reset status to thinking after search is complete (success or failure)
+            // Keep search metadata for citations display, but SearchQuery won't show due to status change
+            await ctx.runMutation(internal.messages.updateMessageStatus, {
+              messageId: args.messageId,
+              status: "thinking",
+            });
+          }
+        } else {
+          log.debug("No suitable user message found for search");
+        }
+      }
+
       // Convert messages to AI SDK format
       const convertedMessages = await convertMessages(
         ctx,
@@ -462,12 +627,7 @@ export const streamResponse = internalAction({
         effectiveProvider as any
       );
 
-      // Get reasoning-specific stream options
-      console.log(
-        "[stream_generation:reasoning] Reasoning config:",
-        args.reasoningConfig
-      );
-
+      // Get reasoning-specific stream options (simplified logging)
       // Only pass reasoning config if enabled
       const enabledReasoningConfig = args.reasoningConfig?.enabled
         ? {
@@ -475,10 +635,6 @@ export const streamResponse = internalAction({
             maxTokens: args.reasoningConfig.maxTokens,
           }
         : undefined;
-      console.log(
-        "[stream_generation:reasoning] Enabled reasoning config:",
-        enabledReasoningConfig
-      );
 
       const streamOptions = await getProviderStreamOptions(
         ctx,
@@ -486,10 +642,6 @@ export const streamResponse = internalAction({
         effectiveModel,
         enabledReasoningConfig,
         args.model // Pass the full model object instead of undefined
-      );
-      console.log(
-        "[stream_generation:reasoning] Stream options:",
-        streamOptions
       );
 
       // Prepare generation options with proper abortSignal

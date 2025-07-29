@@ -13,6 +13,7 @@ import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { getProviderReasoningConfig } from "../../shared/reasoning-config";
+import { log } from "../lib/logger";
 import { type ProviderStreamOptions, type ProviderType } from "../types";
 import { isReasoningModel } from "./reasoning_detection";
 import { applyOpenRouterSorting } from "./server_utils";
@@ -76,7 +77,7 @@ const createProviderModel = {
         );
         sorting = userSettings?.openRouterSorting ?? "default";
       } catch (error) {
-        console.warn(
+        log.warn(
           "Failed to get user settings for OpenRouter sorting:",
           error
         );
@@ -147,7 +148,6 @@ export const getProviderStreamOptions = async (
 
   if (modelObject) {
     // Use the provided modelObject directly
-    console.log("[provider:reasoning] Using provided model object:", modelObject);
     modelWithCapabilities = {
       modelId: modelObject.modelId,
       provider: modelObject.provider,
@@ -162,17 +162,17 @@ export const getProviderStreamOptions = async (
       });
 
       if (userModel) {
-        console.log("[provider:reasoning] Found user model:", userModel);
+        // Found user model
         modelWithCapabilities = {
           modelId: userModel.modelId,
           provider: userModel.provider,
           supportsReasoning: userModel.supportsReasoning,
         };
       } else {
-        console.log("[provider:reasoning] No user model found for:", { modelId: model, provider: actualProvider });
+        // No user model found - using default
       }
     } catch (error) {
-      console.warn("Failed to get user models for reasoning detection:", error);
+      log.warn("Failed to get user models for reasoning detection:", error);
     }
   }
 
@@ -195,16 +195,10 @@ export const getProviderStreamOptions = async (
   }
 
   // Use shared reasoning configuration logic
-  console.log(
-    "[provider:reasoning] Model capabilities:",
-    modelWithCapabilities
-  );
-  console.log("[provider:reasoning] Input reasoning config:", reasoningConfig);
   const sharedStreamOptions = getProviderReasoningConfig(
     modelWithCapabilities,
     reasoningConfig
   );
-  console.log("[provider:reasoning] Generated stream options:", sharedStreamOptions);
   
   // Convert shared type to local type (they should be compatible)
   return sharedStreamOptions as ProviderStreamOptions;

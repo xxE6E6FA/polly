@@ -5,6 +5,7 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "./_generated/server";
+import { log } from "./lib/logger";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
@@ -73,8 +74,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       if (existingUserId) {
         const existingUser = await ctx.db.get(existingUserId);
         if (!existingUser) {
-          console.error(
-            `[Auth] User document ${existingUserId} doesn't exist (orphaned account)`
+          log.error(
+            `User document ${existingUserId} doesn't exist (orphaned account)`
           );
           throw new ConvexError("User account is in an invalid state");
         }
