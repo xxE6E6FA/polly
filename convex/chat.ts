@@ -6,6 +6,7 @@ import { streamText } from "ai";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { incrementUserMessageStats } from "./lib/conversation_utils";
+import { log } from "./lib/logger";
 
 export const chatStream = httpAction(
   async (ctx, request): Promise<Response> => {
@@ -170,16 +171,24 @@ export const chatStream = httpAction(
           console.log("[chatStream] Using user API key");
         } else {
           // Fallback to environment variables
-          const envKeyName =
-            provider === "openai"
-              ? "OPENAI_API_KEY"
-              : provider === "anthropic"
-                ? "ANTHROPIC_API_KEY"
-                : provider === "google"
-                  ? "GEMINI_API_KEY"
-                  : provider === "openrouter"
-                    ? "OPENROUTER_API_KEY"
-                    : null;
+          let envKeyName: string | null = null;
+          switch (provider) {
+            case "openai":
+              envKeyName = "OPENAI_API_KEY";
+              break;
+            case "anthropic":
+              envKeyName = "ANTHROPIC_API_KEY";
+              break;
+            case "google":
+              envKeyName = "GEMINI_API_KEY";
+              break;
+            case "openrouter":
+              envKeyName = "OPENROUTER_API_KEY";
+              break;
+            default:
+              envKeyName = null;
+              break;
+          }
 
           if (!envKeyName) {
             throw new Error(`Unsupported provider: ${provider}`);
@@ -215,7 +224,7 @@ export const chatStream = httpAction(
           console.log(`[chatStream] Using environment API key for ${provider}`);
         }
       } catch (apiKeyError) {
-        console.error("Failed to get API key:", apiKeyError);
+        log.error("Failed to get API key:", apiKeyError);
         return new Response(
           JSON.stringify({
             error:
@@ -310,15 +319,15 @@ export const chatStream = httpAction(
 
       return response;
     } catch (error) {
-      console.error("Chat API error:", error);
-      console.error(
+      log.error("Chat API error:", error);
+      log.error(
         "Error stack:",
         error instanceof Error ? error.stack : "No stack trace"
       );
 
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
-      console.error("Sending error response:", errorMessage);
+      log.error("Sending error response:", errorMessage);
 
       return new Response(
         JSON.stringify({

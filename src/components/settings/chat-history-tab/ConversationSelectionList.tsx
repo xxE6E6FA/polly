@@ -83,7 +83,6 @@ export function ConversationSelectionList({
         `Started exporting ${conversationIds.length} conversation${conversationIds.length === 1 ? "" : "s"}`
       );
     } catch (error) {
-      console.error("Export failed:", error);
       toast.error("Failed to start export", {
         description:
           error instanceof Error ? error.message : "Unknown error occurred",
@@ -114,8 +113,7 @@ export function ConversationSelectionList({
       }
 
       clearSelection();
-    } catch (error) {
-      console.error("Failed to delete conversations:", error);
+    } catch (_error) {
       toast.error("Delete Failed", {
         description: "Failed to delete conversations. Please try again.",
       });

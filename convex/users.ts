@@ -6,6 +6,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { log } from "./lib/logger";
 
 export const current = query({
   args: {},
@@ -117,7 +118,7 @@ export const graduateAnonymousUser = mutation({
         messagesTransferred: anonymousUser.totalMessageCount || 0,
       };
     } catch (error) {
-      console.error("[Users] Failed to graduate anonymous user:", error);
+      log.error("Failed to graduate anonymous user:", error);
       throw new Error("Failed to graduate anonymous user");
     }
   },

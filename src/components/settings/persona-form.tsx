@@ -94,8 +94,7 @@ export const PersonaForm = ({
           description: "Your prompt has been enhanced with AI suggestions.",
         });
       }
-    } catch (error) {
-      console.error("Failed to improve prompt:", error);
+    } catch (_error) {
       toast.error("Failed to improve prompt", {
         description: "Unable to improve the prompt. Please try again.",
       });

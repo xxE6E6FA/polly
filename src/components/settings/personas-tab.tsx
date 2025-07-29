@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -75,8 +76,8 @@ export const PersonasTab = () => {
       setDeletingPersona(personaId);
       try {
         await removePersonaMutation({ id: personaId });
-      } catch (error) {
-        console.error("Failed to delete persona:", error);
+      } catch (_error) {
+        toast.error("Failed to delete persona");
       } finally {
         setDeletingPersona(null);
       }

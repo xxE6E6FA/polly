@@ -1,6 +1,7 @@
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { action } from "./_generated/server";
+import { log } from "./lib/logger";
 
 type MigrationResult = {
   success: boolean;
@@ -19,7 +20,7 @@ export const runBuiltInModelsMigration = action({
       console.log("Migration completed successfully:", result);
       return result;
     } catch (error) {
-      console.error("Migration failed:", error);
+      log.error("Migration failed:", error);
       throw error;
     }
   },

@@ -3,6 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { toast } from "sonner";
 import { PersonaForm } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { Button } from "@/components/ui/button";
@@ -71,8 +72,8 @@ export default function EditPersonaPage() {
         icon: formData.icon,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to update persona:", error);
+    } catch (_error) {
+      toast.error("Failed to update persona");
     } finally {
       setIsUpdating(false);
     }
@@ -95,8 +96,8 @@ export default function EditPersonaPage() {
     try {
       await deletePersonaMutation({ id: personaId as Id<"personas"> });
       navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (error) {
-      console.error("Failed to delete persona:", error);
+    } catch (_error) {
+      toast.error("Failed to delete persona");
     } finally {
       setIsDeleting(false);
     }

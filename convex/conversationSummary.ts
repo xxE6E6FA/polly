@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { action } from "./_generated/server";
+import { log } from "./lib/logger";
 
 export const generateConversationSummary = action({
   args: {
@@ -94,7 +95,7 @@ Summary:`;
 
       return summary;
     } catch (error) {
-      console.error("Error generating conversation summary:", error);
+      log.error("Error generating conversation summary:", error);
       return "Previous conversation (summary not available)";
     }
   },

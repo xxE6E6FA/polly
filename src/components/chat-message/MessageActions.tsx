@@ -97,8 +97,7 @@ const RetryDropdown = memo(
 
           try {
             await selectModelMutation({ modelId, provider });
-          } catch (error) {
-            console.error("Failed to select model:", error);
+          } catch (_error) {
             toast.error("Failed to select model", {
               description:
                 "Unable to change the selected model. Please try again.",

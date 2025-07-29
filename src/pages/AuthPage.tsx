@@ -24,8 +24,7 @@ export default function AuthPage() {
       await signIn("google", {
         redirectTo: ROUTES.HOME,
       });
-    } catch (error) {
-      console.error("[AuthPage] Sign in error:", error);
+    } catch (_error) {
       toast.error("Failed to sign in. Please try again.");
       setIsLoading(false);
     }

@@ -18,38 +18,7 @@ export function isTextType(fileType: string): boolean {
   );
 }
 
-// Re-export from centralized reasoning detection module
-export {
-  hasMandatoryReasoning,
-  supportsReasoning as supportsReasoningCapability,
-  getModelReasoningInfo,
-  getReasoningType,
-} from "./reasoning-model-detection";
 
-/**
- * @deprecated Use supportsReasoningCapability with provider parameter instead
- * Legacy function for backward compatibility
- */
-export function supportsReasoning(modelId: string): boolean {
-  // Import here to avoid circular dependencies
-  const { supportsReasoning: checkReasoning } = require("./reasoning-model-detection");
-  
-  // For legacy calls without provider, try to infer from model ID
-  let provider = "unknown";
-  const modelLower = modelId.toLowerCase();
-  
-  if (modelLower.includes("gpt") || modelLower.includes("o1-") || modelLower.includes("o3-") || modelLower.includes("o4-")) {
-    provider = "openai";
-  } else if (modelLower.includes("claude")) {
-    provider = "anthropic";
-  } else if (modelLower.includes("gemini")) {
-    provider = "google";
-  } else if (modelLower.includes("deepseek")) {
-    provider = "openrouter";
-  }
-  
-  return checkReasoning(provider, modelId);
-}
 
 export interface ModelForCapabilityCheck {
   provider: string;

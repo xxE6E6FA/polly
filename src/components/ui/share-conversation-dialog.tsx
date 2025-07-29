@@ -103,9 +103,8 @@ export const ControlledShareConversationDialog = ({
       const url = generateShareUrl(shareId);
       setShareUrl(url);
       toast.success("Conversation shared successfully!");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to share conversation");
-      console.error("Share error:", error);
     } finally {
       setIsSharing(false);
     }
@@ -119,9 +118,8 @@ export const ControlledShareConversationDialog = ({
       const url = generateShareUrl(shareId);
       setShareUrl(url);
       toast.success("Shared conversation updated!");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update shared conversation");
-      console.error("Update error:", error);
     } finally {
       setIsUpdating(false);
     }
@@ -134,9 +132,8 @@ export const ControlledShareConversationDialog = ({
       await unshareConversation({ conversationId });
       setShareUrl("");
       toast.success("Conversation unshared");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to unshare conversation");
-      console.error("Unshare error:", error);
     } finally {
       setIsUnsharing(false);
     }

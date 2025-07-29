@@ -3,6 +3,7 @@ import { v } from "convex/values";
 
 import { api, internal } from "./_generated/api";
 import { action, internalMutation } from "./_generated/server";
+import { log } from "./lib/logger";
 
 export const generateTitle = action({
   args: {
@@ -53,7 +54,7 @@ export const generateTitle = action({
 
         generatedTitle = title;
       } catch (error) {
-        console.error("Error generating title with Gemini:", error);
+        log.error("Error generating title with Gemini:", error);
         // Fallback to simple title generation
         const clean = args.message.replace(/[#*`]/g, "").trim();
         generatedTitle =
@@ -100,10 +101,7 @@ export const generateTitleBackground = action({
         conversationId: args.conversationId,
       });
     } catch (error) {
-      console.error(
-        `Title generation failed (attempt ${retryCount + 1}):`,
-        error
-      );
+      log.error(`Title generation failed (attempt ${retryCount + 1}):`, error);
 
       // Retry with exponential backoff
       if (retryCount < maxRetries) {
@@ -156,14 +154,14 @@ export const batchUpdateTitles = internalMutation({
       .filter(({ result }) => result.status === "rejected");
 
     if (failures.length > 0) {
-      console.error(
+      log.error(
         `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
       );
       failures.forEach(({ result, index }) => {
         const update = args.updates[index];
         const reason =
           result.status === "rejected" ? result.reason : "Unknown error";
-        console.error(
+        log.error(
           `Failed to update conversation ${update.conversationId}:`,
           reason
         );

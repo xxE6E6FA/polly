@@ -258,8 +258,7 @@ export const VirtualizedModelList = memo(
           }
 
           toast.success(message);
-        } catch (error) {
-          console.error("Failed to toggle model:", error);
+        } catch (_error) {
           toast.error("Failed to toggle model");
         }
       },

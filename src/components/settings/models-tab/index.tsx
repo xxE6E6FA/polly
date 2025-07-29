@@ -166,7 +166,6 @@ export const ModelsTab = () => {
       setIsInitialLoad(false);
       setError(null);
     } catch (e) {
-      console.error("Failed to fetch models:", e);
       setError(e as Error);
     } finally {
       setIsLoading(false);

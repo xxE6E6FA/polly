@@ -1,3 +1,5 @@
+import { log } from "../lib/logger";
+
 export interface OpenRouterModel {
   id: string;
   name: string;
@@ -37,7 +39,7 @@ async function fetchOpenRouterCapabilities(): Promise<Map<string, boolean>> {
 
     return capabilities;
   } catch (error) {
-    console.warn("Failed to fetch OpenRouter capabilities:", error);
+          log.warn("Failed to fetch OpenRouter capabilities:", error);
     // Return empty map on error - will fall back to pattern matching
     return new Map();
   }
@@ -62,7 +64,7 @@ export async function checkOpenRouterReasoningSupport(
       modelCapabilitiesCache = await fetchOpenRouterCapabilities();
       cacheExpiry = now + CACHE_DURATION;
     } catch (error) {
-      console.warn("Failed to refresh OpenRouter capabilities cache:", error);
+      log.warn("Failed to refresh OpenRouter capabilities cache:", error);
     }
   }
 

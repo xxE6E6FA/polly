@@ -1,9 +1,6 @@
 // Re-export from centralized reasoning detection
 export { 
   supportsReasoning as isReasoningModel, 
-  getModelReasoningInfo,
-  hasMandatoryReasoning,
-  hasOptionalReasoning,
 } from "../../shared/reasoning-model-detection";
 
 import { checkOpenRouterReasoningSupport } from "./openrouter_capabilities";

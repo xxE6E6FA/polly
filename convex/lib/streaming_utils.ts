@@ -4,6 +4,7 @@
 
 import type { GenericQueryCtx, GenericMutationCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
+import { log } from "./logger";
 
 type AnyCtx = GenericQueryCtx<DataModel> | GenericMutationCtx<DataModel>;
 
@@ -62,26 +63,23 @@ export async function findStreamingMessage(
 const activeStreams = new Map<string, AbortController>();
 
 export function setStreamActive(conversationId: string, abortController: AbortController) {
-  console.log(`[streaming_utils] Registering stream for conversation: ${conversationId}`);
   activeStreams.set(conversationId, abortController);
 }
 
 export function abortStream(conversationId: string): boolean {
-  console.log(`[streaming_utils] Attempting to abort stream for conversation: ${conversationId}`);
+  // Only log if there are issues, not successful operations
   const controller = activeStreams.get(conversationId);
   if (controller) {
-    console.log(`[streaming_utils] Found and aborting stream for conversation: ${conversationId}. Signal aborted before: ${controller.signal.aborted}`);
     controller.abort();
-    console.log(`[streaming_utils] Signal aborted after: ${controller.signal.aborted}`);
     activeStreams.delete(conversationId);
     return true;
   }
-  console.log(`[streaming_utils] No active stream found for conversation: ${conversationId}. Active streams:`, Array.from(activeStreams.keys()));
+  // Only log when stream is not found (potential issue)
+      log.debug(`No active stream found for conversation: ${conversationId}`);
   return false;
 }
 
 export function clearStream(conversationId: string) {
-  console.log(`[streaming_utils] Clearing stream for conversation: ${conversationId}`);
   activeStreams.delete(conversationId);
 }
 

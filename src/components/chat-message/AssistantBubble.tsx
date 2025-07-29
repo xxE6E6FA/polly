@@ -3,7 +3,7 @@ import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { SearchQuery } from "@/components/search-query";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import { cn } from "@/lib/utils";
+
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { Spinner } from "../spinner";
 import { AttachmentStrip } from "./AttachmentStrip";
@@ -37,6 +37,7 @@ export const AssistantBubble = memo(
     const displayContent = message.content;
     const hasSearch = Boolean(message.metadata?.searchQuery);
     const isThinking = message.status === "thinking";
+    const isSearching = message.status === "searching";
     const isStreamingWithoutContent =
       message.status === "streaming" &&
       (!displayContent || displayContent.length === 0);
@@ -44,17 +45,31 @@ export const AssistantBubble = memo(
     return (
       <div className="w-full">
         <div className="min-w-0 flex-1">
-          {message.metadata?.searchQuery && (
+          {/* Unified Loading Status Area - Search has highest priority */}
+          {(isSearching || isThinking || isStreamingWithoutContent) && (
             <div className="mb-2.5">
-              <SearchQuery
-                feature={message.metadata.searchFeature}
-                category={message.metadata.searchCategory}
-                citations={message.citations}
-                isLoading={
-                  isStreaming &&
-                  (!message.content || message.content.length === 0)
-                }
-              />
+              {isSearching ? (
+                <SearchQuery
+                  feature={message.metadata?.searchFeature}
+                  category={message.metadata?.searchCategory}
+                  citations={message.citations}
+                  isLoading={true}
+                />
+              ) : isStreamingWithoutContent ? (
+                <div className="text-sm text-muted-foreground py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Spinner className="h-3 w-3" />
+                    <span>Thinking...</span>
+                  </div>
+                </div>
+              ) : isThinking ? (
+                <div className="text-sm text-muted-foreground py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Spinner className="h-3 w-3" />
+                    <span>Thinking...</span>
+                  </div>
+                </div>
+              ) : null}
             </div>
           )}
 
@@ -75,55 +90,6 @@ export const AssistantBubble = memo(
             >
               {displayContent}
             </StreamingMarkdown>
-
-            {/* Show status-based loading indicators */}
-            {isThinking && (
-              <div
-                className={cn(
-                  "flex items-center gap-1 mt-2",
-                  "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
-                )}
-                aria-label="AI is thinking"
-              >
-                <Spinner size="sm" />
-                <span className="text-xs text-muted-foreground/70 ml-2">
-                  Thinking...
-                </span>
-              </div>
-            )}
-
-            {isStreamingWithoutContent && (
-              <div
-                className={cn(
-                  "flex items-center gap-1 mt-2",
-                  "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
-                )}
-                aria-label="AI is generating response"
-              >
-                <Spinner size="sm" />
-                <span className="text-xs text-muted-foreground/70 ml-2">
-                  Generating response...
-                </span>
-              </div>
-            )}
-
-            {/* Fallback to legacy isStreaming for backward compatibility */}
-            {!message.status &&
-              isStreaming &&
-              (!displayContent || displayContent.length === 0) && (
-                <div
-                  className={cn(
-                    "flex items-center gap-1 mt-2",
-                    "@media (prefers-reduced-motion: reduce) { animation-play-state: paused }"
-                  )}
-                  aria-label="AI is thinking"
-                >
-                  <Spinner size="sm" />
-                  <span className="text-xs text-muted-foreground/70 ml-2">
-                    Thinking...
-                  </span>
-                </div>
-              )}
 
             {message.status === "error" && (
               <div className="mt-2 text-xs text-red-500">

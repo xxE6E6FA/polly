@@ -41,8 +41,7 @@ const CodeBlockComponent = ({
       await navigator.clipboard.writeText(processedCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
+    } catch (_error) {
       const { toast } = await import("sonner");
       toast.error("Failed to copy code", {
         description: "Unable to copy code to clipboard. Please try again.",

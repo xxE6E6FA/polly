@@ -28,6 +28,7 @@ export function convertServerMessage(msg: Doc<"messages">): ChatMessage {
     id: msg._id,
     role: msg.role as ChatMessage["role"],
     content: msg.content,
+    status: msg.status,
     reasoning: msg.reasoning,
     model: msg.model,
     provider: msg.provider,

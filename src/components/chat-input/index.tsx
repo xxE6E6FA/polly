@@ -310,8 +310,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         if (shouldUsePreservedState) {
           clearChatInputState();
         }
-      } catch (error) {
-        console.error("Failed to send message:", error);
+      } catch (_error) {
+        // Chat error is handled by the streaming hook
       } finally {
         setIsUploading(false);
       }
@@ -347,8 +347,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   conversationId,
                   maxTokens: 150,
                 });
-              } catch (error) {
-                console.error("Failed to generate summary:", error);
+              } catch (_error) {
+                // Summary generation failed, continue without summary
               }
             }
 
@@ -374,8 +374,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 clearChatInputState();
               }
             }
-          } catch (error) {
-            console.error("Failed to send as new conversation:", error);
+          } catch (_error) {
+            // Conversation creation error is handled by the main flow
           }
         }
       },

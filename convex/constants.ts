@@ -34,33 +34,7 @@ export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION
 
 export const DEFAULT_POLLY_PERSONA = dedent`You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
 
-// Legacy function for backward compatibility
-export const getDefaultSystemPrompt = (
-  modelName: string,
-  timezone = "UTC"
-): string => {
-  const now = new Date();
-  const currentDateTime = now.toLocaleString("en-US", {
-    timeZone: timezone,
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    timeZoneName: "short",
-  });
-
-  const baselineInstructions = BASELINE_SYSTEM_INSTRUCTIONS.replace(
-    /{{MODEL_NAME}}/g,
-    modelName
-  ).replace(/{{CURRENT_DATETIME}}/g, currentDateTime);
-
-  return `${baselineInstructions}\n\n${DEFAULT_POLLY_PERSONA}`;
-};
-
-// New function to get baseline instructions with dynamic values
+// Function to get baseline instructions with dynamic values
 export const getBaselineInstructions = (
   modelName: string,
   timezone = "UTC"

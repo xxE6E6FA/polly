@@ -208,11 +208,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
               description: "Your anonymous conversations have been preserved.",
             });
           }
-        } catch (error) {
-          console.error(
-            "[UserDataProvider] Failed to graduate anonymous user:",
-            error
-          );
+        } catch (_error) {
           // Clear the stored ID even if graduation failed
           set(CACHE_KEYS.anonymousUserGraduation, null);
           toast.error("Failed to preserve conversations", {
@@ -270,8 +266,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
           hasAttemptedSignIn.current = false;
         }
       })
-      .catch(error => {
-        console.error("[UserDataProvider] Anonymous sign-in failed:", error);
+      .catch(_error => {
         hasAttemptedSignIn.current = false;
       })
       .finally(() => {

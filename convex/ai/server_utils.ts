@@ -255,7 +255,7 @@ export const finalizeBatching = (state: AdaptiveBatchingState): void => {
 
   const computed = {
     messageId: state.metrics.messageId,
-    totalTime,
+    totalTime: totalTime,
     chunkCount: state.metrics.chunkCount,
     updateCount: state.metrics.updateCount,
     totalCharacters: state.metrics.totalCharacters,
@@ -265,8 +265,7 @@ export const finalizeBatching = (state: AdaptiveBatchingState): void => {
     efficiency: Math.round(efficiency * 100) / 100,
   };
 
-  console.log(`[StreamPerf:${state.metrics.messageId}] Final metrics:`, computed);
-
+  // Only log performance metrics if there are actual issues
   if (computed.efficiency < 10) {
     console.warn(
       `[StreamPerf:${state.metrics.messageId}] Low efficiency detected: ${computed.efficiency} chars/update. Consider increasing batch size.`

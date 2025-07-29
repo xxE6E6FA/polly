@@ -320,19 +320,15 @@ export const getDecryptedApiKey = action({
       v.literal("google"),
       v.literal("openrouter"),
       v.literal("exa")
-    ), // Remove "polly" - it should never reach the server
+    ),
     modelId: v.optional(v.string()),
     conversationId: v.optional(v.id("conversations")), // For getting user ID from conversation
   },
   handler: async (ctx, args): Promise<string | null> => {
-    console.log("[getDecryptedApiKey] Called with:", args);
-    // No more Polly mapping here - it's handled client-side
-
     // Get user ID from conversation if available, otherwise use auth context
     let userId: Id<"users"> | null = null;
 
     userId = await getAuthUserId(ctx);
-    console.log("[getDecryptedApiKey] User ID from auth:", userId);
 
     // If no user from auth context, try to get from conversation (works for background jobs)
     if (!userId && args.conversationId) {
@@ -344,16 +340,13 @@ export const getDecryptedApiKey = action({
           }
         );
         userId = conversation?.userId || null;
-        console.log("[getDecryptedApiKey] User ID from conversation:", userId);
       } catch (error) {
         log.warn("Failed to get user from conversation", error);
       }
     }
 
     if (!userId) {
-      console.log(
-        "[getDecryptedApiKey] No user ID found, returning null (will fallback to environment variables)"
-      );
+      // User ID not found - will fallback to environment variables
       return null;
     }
 
@@ -364,15 +357,9 @@ export const getDecryptedApiKey = action({
         provider: args.provider,
       }
     );
-    console.log(
-      "[getDecryptedApiKey] API key record:",
-      apiKeyRecord ? "found" : "not found"
-    );
 
     if (!(apiKeyRecord?.encryptedKey && apiKeyRecord.initializationVector)) {
-      console.log(
-        "[getDecryptedApiKey] No valid encrypted key found, returning null (will fallback to environment variables)"
-      );
+      // No valid encrypted key found - will fallback to environment variables
       return null;
     }
 
@@ -381,7 +368,6 @@ export const getDecryptedApiKey = action({
         apiKeyRecord.encryptedKey,
         apiKeyRecord.initializationVector
       );
-      console.log("[getDecryptedApiKey] Successfully decrypted user API key");
       return decryptedKey;
     } catch (error) {
       log.warn("Failed to decrypt API key", error);
@@ -434,7 +420,7 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("google"),
       v.literal("openrouter"),
       v.literal("exa")
-    ), // Remove "polly" - it should never reach this function
+    ),
   },
   handler: async (ctx, args) => {
     const apiKey = await ctx.db

@@ -52,7 +52,6 @@ function prepareMessagesForRetry(
   const previousUserMessage = messages[previousUserMessageIndex];
 
   if (!previousUserMessage || previousUserMessage.role !== "user") {
-    console.error("Cannot find previous user message to retry from");
     return null;
   }
 

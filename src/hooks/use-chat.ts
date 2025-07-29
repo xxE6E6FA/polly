@@ -181,6 +181,7 @@ export function useChat({ conversationId }: UseChatParams) {
             id: msg._id,
             role: msg.role,
             content: msg.content,
+            status: msg.status,
             reasoning: msg.reasoning,
             model: msg.model,
             provider: msg.provider,
