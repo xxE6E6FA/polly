@@ -129,7 +129,7 @@ export function TemperaturePicker({
               </div>
             </div>
 
-            <div className="flex justify-between pt-2">
+            <div className="flex justify-center pt-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -137,13 +137,6 @@ export function TemperaturePicker({
                 className="text-xs h-7"
               >
                 Reset to Default
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setIsOpen(false)}
-                className="text-xs h-7"
-              >
-                Done
               </Button>
             </div>
           </div>
