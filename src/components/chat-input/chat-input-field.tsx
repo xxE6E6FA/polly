@@ -10,6 +10,8 @@ interface ChatInputFieldProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  onHistoryNavigation?: () => boolean;
+  onHistoryNavigationDown?: () => boolean;
 }
 
 export function ChatInputField({
@@ -20,15 +22,40 @@ export function ChatInputField({
   placeholder = "Type a message...",
   disabled = false,
   className,
+  onHistoryNavigation,
+  onHistoryNavigationDown,
 }: ChatInputFieldProps) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         onSubmit();
+      } else if (e.key === "ArrowUp" && onHistoryNavigation) {
+        const textarea = e.target as HTMLTextAreaElement;
+        const cursorPosition = textarea.selectionStart;
+
+        // Only trigger history navigation if cursor is at position 0
+        if (cursorPosition === 0) {
+          const handled = onHistoryNavigation();
+          if (handled) {
+            e.preventDefault();
+          }
+        }
+      } else if (e.key === "ArrowDown" && onHistoryNavigationDown) {
+        const textarea = e.target as HTMLTextAreaElement;
+        const cursorPosition = textarea.selectionStart;
+        const textLength = textarea.value.length;
+
+        // Only trigger down navigation if cursor is at the end of the text
+        if (cursorPosition === textLength) {
+          const handled = onHistoryNavigationDown();
+          if (handled) {
+            e.preventDefault();
+          }
+        }
       }
     },
-    [onSubmit]
+    [onSubmit, onHistoryNavigation, onHistoryNavigationDown]
   );
 
   const handleChange = useCallback(

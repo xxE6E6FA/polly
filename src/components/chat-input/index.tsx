@@ -13,6 +13,7 @@ import {
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
 import { TemperaturePicker } from "@/components/temperature-picker";
+import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { getDefaultReasoningConfig } from "@/lib/message-reasoning-utils";
@@ -20,7 +21,12 @@ import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
-import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
+import type {
+  Attachment,
+  ChatMessage,
+  ConversationId,
+  ReasoningConfig,
+} from "@/types";
 import { AttachmentDisplay } from "./attachment-display";
 import { ChatInputField } from "./chat-input-field";
 import { FileUploadButton } from "./file-upload-button";
@@ -55,6 +61,7 @@ interface ChatInputProps {
   currentReasoningConfig?: ReasoningConfig;
   currentTemperature?: number;
   onTemperatureChange?: (temperature: number | undefined) => void;
+  messages?: ChatMessage[]; // Add messages prop for history navigation
 }
 
 export type ChatInputRef = {
@@ -82,6 +89,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       currentReasoningConfig,
       currentTemperature,
       onTemperatureChange,
+      messages,
     },
     ref
   ) => {
@@ -129,6 +137,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           : currentTemperature
     );
 
+    // Access conversation messages for history navigation
+    const { messages: conversationMessages } = useChatMessages({
+      conversationId,
+      onError: () => {
+        // Handle errors gracefully - history navigation is optional
+      },
+    });
+
+    // History navigation state
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const [originalInput, setOriginalInput] = useState("");
+
     // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
 
@@ -167,9 +187,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 type: attachment.mimeType,
               });
 
-              const uploadedAttachment = await uploadFile(file);
-              uploadedAttachments.push(uploadedAttachment);
-            } catch {
+              const uploadResult = await uploadFile(file);
+              uploadedAttachments.push({
+                ...attachment,
+                storageId: uploadResult.storageId,
+                url: uploadResult.url,
+              });
+            } catch (error) {
+              console.error("Failed to upload attachment:", error);
+              // Keep the original attachment without storageId for fallback
               uploadedAttachments.push(attachment);
             }
           } else {
@@ -234,6 +260,116 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         }
       },
       [shouldUsePreservedState, setChatInputState, attachments]
+    );
+
+    // Get user messages for history navigation
+    const userMessages = useMemo(() => {
+      // Use messages prop if provided (works for both server and private mode)
+      // Otherwise fallback to conversationMessages for backward compatibility
+      const sourceMessages = messages || conversationMessages;
+      if (!sourceMessages) {
+        return [];
+      }
+      return sourceMessages
+        .filter(msg => msg.role === "user")
+        .map(msg => msg.content)
+        .reverse(); // Most recent first
+    }, [messages, conversationMessages]);
+
+    // Handle history navigation (Up = older messages)
+    const handleHistoryNavigation = useCallback(() => {
+      if (userMessages.length === 0) {
+        return false;
+      }
+
+      // Store original input on first navigation
+      if (historyIndex === -1) {
+        setOriginalInput(input);
+      }
+
+      const nextIndex = historyIndex + 1;
+      if (nextIndex < userMessages.length) {
+        setHistoryIndex(nextIndex);
+        setInput(userMessages[nextIndex]);
+
+        // Move cursor to end after setting text
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            textarea.setSelectionRange(
+              textarea.value.length,
+              textarea.value.length
+            );
+          }
+        }, 0);
+
+        return true;
+      }
+
+      return false;
+    }, [historyIndex, input, userMessages, setInput]);
+
+    // Handle reverse history navigation (Down = newer messages)
+    const handleHistoryNavigationDown = useCallback(() => {
+      // Only allow down navigation if we're already in history mode
+      if (historyIndex <= -1) {
+        return false;
+      }
+
+      const nextIndex = historyIndex - 1;
+
+      if (nextIndex === -1) {
+        // Return to original input
+        setHistoryIndex(-1);
+        setInput(originalInput);
+
+        // Move cursor to end after setting text
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            textarea.setSelectionRange(
+              textarea.value.length,
+              textarea.value.length
+            );
+          }
+        }, 0);
+
+        return true;
+      }
+
+      if (nextIndex >= 0) {
+        // Navigate to newer message in history
+        setHistoryIndex(nextIndex);
+        setInput(userMessages[nextIndex]);
+
+        // Move cursor to end after setting text
+        setTimeout(() => {
+          if (textareaRef.current) {
+            const textarea = textareaRef.current;
+            textarea.setSelectionRange(
+              textarea.value.length,
+              textarea.value.length
+            );
+          }
+        }, 0);
+
+        return true;
+      }
+
+      return false;
+    }, [historyIndex, originalInput, userMessages, setInput]);
+
+    // Reset history when input changes (user typing)
+    const handleInputChange = useCallback(
+      (value: string) => {
+        // If we're not navigating history, reset history state
+        if (historyIndex !== -1 && value !== userMessages[historyIndex]) {
+          setHistoryIndex(-1);
+          setOriginalInput("");
+        }
+        setInput(value);
+      },
+      [historyIndex, userMessages, setInput]
     );
 
     const setSelectedPersonaId = useCallback(
@@ -447,11 +583,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               <div className="flex-1 flex items-center">
                 <ChatInputField
                   value={input}
-                  onChange={setInput}
+                  onChange={handleInputChange}
                   onSubmit={submit}
                   textareaRef={textareaRef}
                   placeholder={placeholder}
                   disabled={isLoading || isStreaming || isUploading || !canSend}
+                  onHistoryNavigation={handleHistoryNavigation}
+                  onHistoryNavigationDown={handleHistoryNavigationDown}
                 />
               </div>
             </div>
