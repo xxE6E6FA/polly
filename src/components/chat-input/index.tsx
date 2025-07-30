@@ -1,5 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { FILE_LIMITS } from "@shared/file-constants";
+import { isFileTypeSupported } from "@shared/model-capabilities-config";
 import { useAction, useQuery } from "convex/react";
 import {
   forwardRef,
@@ -15,6 +17,13 @@ import { ReasoningPicker } from "@/components/reasoning-picker";
 import { TemperaturePicker } from "@/components/temperature-picker";
 import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
+import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import {
+  convertImageToWebP,
+  getFileLanguage,
+  readFileAsBase64,
+  readFileAsText,
+} from "@/lib/file-utils";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { getDefaultReasoningConfig } from "@/lib/message-reasoning-utils";
 import { isUserModel } from "@/lib/type-guards";
@@ -151,6 +160,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
+    const notificationDialog = useNotificationDialog();
+
+    // Drag and drop state
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // Custom function to upload attachments to Convex storage
     const uploadAttachmentsToConvex = useCallback(
@@ -410,6 +423,104 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [setAttachments]
     );
 
+    // Process files for drag and drop
+    const processFiles = useCallback(
+      async (files: FileList) => {
+        const newAttachments: Attachment[] = [];
+
+        // Check if model is properly selected and typed
+        const validModel =
+          isUserModel(selectedModel) &&
+          selectedModel.provider &&
+          selectedModel.modelId
+            ? selectedModel
+            : null;
+
+        for (const file of Array.from(files)) {
+          // Check file size
+          if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+            notificationDialog.notify({
+              title: "File Too Large",
+              description: `File ${file.name} exceeds the ${Math.round(
+                FILE_LIMITS.MAX_SIZE_BYTES / (1024 * 1024)
+              )}MB limit.`,
+              type: "error",
+            });
+            continue;
+          }
+
+          // Check if we have a valid model for file type checking
+          if (!validModel) {
+            notificationDialog.notify({
+              title: "No Model Selected",
+              description: "Please select a model to upload files.",
+              type: "error",
+            });
+            continue;
+          }
+
+          const fileSupport = isFileTypeSupported(file.type, validModel);
+          if (!fileSupport.supported) {
+            notificationDialog.notify({
+              title: "Unsupported File Type",
+              description: `File ${file.name} is not supported by the current model.`,
+              type: "error",
+            });
+            continue;
+          }
+
+          try {
+            if (fileSupport.category === "text") {
+              const textContent = await readFileAsText(file);
+              newAttachments.push({
+                type: "text",
+                url: "",
+                name: file.name,
+                size: file.size,
+                content: textContent,
+                language: getFileLanguage(file.name),
+              });
+            } else {
+              let base64Content: string;
+              let mimeType = file.type;
+
+              if (fileSupport.category === "image") {
+                try {
+                  const converted = await convertImageToWebP(file);
+                  base64Content = converted.base64;
+                  mimeType = converted.mimeType;
+                } catch {
+                  base64Content = await readFileAsBase64(file);
+                }
+              } else {
+                base64Content = await readFileAsBase64(file);
+              }
+
+              newAttachments.push({
+                type: fileSupport.category as "image" | "pdf" | "text",
+                url: "",
+                name: file.name,
+                size: file.size,
+                content: base64Content,
+                mimeType,
+              });
+            }
+          } catch {
+            notificationDialog.notify({
+              title: "File Upload Failed",
+              description: `Failed to process ${file.name}`,
+              type: "error",
+            });
+          }
+        }
+
+        if (newAttachments.length > 0) {
+          addAttachments(newAttachments);
+        }
+      },
+      [selectedModel, notificationDialog, addAttachments]
+    );
+
     const removeAttachment = useCallback(
       (index: number) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
@@ -419,6 +530,53 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     const canSend = canSendMessage;
     const [isUploading, setIsUploading] = useState(false);
+
+    // Drag and drop event handlers
+    const handleDragOver = useCallback(
+      (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isDragOver) {
+          setIsDragOver(true);
+        }
+      },
+      [isDragOver]
+    );
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Only set drag over to false if we're leaving the container
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      const isOutside =
+        e.clientX < rect.left ||
+        e.clientX > rect.right ||
+        e.clientY < rect.top ||
+        e.clientY > rect.bottom;
+
+      if (isOutside) {
+        setIsDragOver(false);
+      }
+    }, []);
+
+    const handleDrop = useCallback(
+      async (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+
+        if (!canSend || isLoading || isStreaming) {
+          return;
+        }
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          await processFiles(files);
+        }
+      },
+      [canSend, isLoading, isStreaming, processFiles]
+    );
 
     const submit = useCallback(async () => {
       if (input.trim().length === 0 && attachments.length === 0) {
@@ -570,10 +728,35 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
           <div
             className={cn(
-              "chat-input-container rounded-xl p-2 sm:p-2.5 transition-all duration-700",
-              chatInputStateClass
+              "relative chat-input-container rounded-xl p-2 sm:p-2.5 transition-all duration-700",
+              chatInputStateClass,
+              isDragOver && canSend && "ring-2 ring-primary/50 bg-primary/5"
             )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
+            {isDragOver && canSend && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-primary/10 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2 text-primary">
+                  <svg
+                    className="h-8 w-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="text-sm font-medium">Drop files to upload</p>
+                </div>
+              </div>
+            )}
+
             <AttachmentDisplay
               attachments={attachments}
               onRemoveAttachment={removeAttachment}
