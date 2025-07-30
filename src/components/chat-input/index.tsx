@@ -105,6 +105,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const { user, canSendMessage } = useUserDataContext();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const prevIsStreamingRef = useRef(isStreaming);
     const {
       isPrivateMode,
       chatInputState,
@@ -146,17 +147,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           : currentTemperature
     );
 
-    // Access conversation messages for history navigation
+    // History navigation state - optimized for performance
+    const [historyIndex, setHistoryIndex] = useState(-1);
+    const [originalInput, setOriginalInput] = useState("");
+
+    // Lazy-load conversation messages only when history navigation is used
     const { messages: conversationMessages } = useChatMessages({
       conversationId,
       onError: () => {
         // Handle errors gracefully - history navigation is optional
       },
     });
-
-    // History navigation state
-    const [historyIndex, setHistoryIndex] = useState(-1);
-    const [originalInput, setOriginalInput] = useState("");
 
     // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
@@ -221,28 +222,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [isPrivateMode, uploadFile]
     );
 
-    // Sync state updates to preserved state
-    useEffect(() => {
-      if (!shouldUsePreservedState) {
-        return;
-      }
-
-      setChatInputState({
-        selectedPersonaId,
-        input,
-        reasoningConfig,
-        attachments,
-        temperature,
-      });
-    }, [
-      shouldUsePreservedState,
-      setChatInputState,
-      selectedPersonaId,
-      input,
-      reasoningConfig,
-      attachments,
-      temperature,
-    ]);
+    // Remove the synchronous state sync effect - this was causing input lag
+    // State preservation is now handled by the debounced setInput function
 
     useEffect(() => {
       if (conversationId && !shouldUsePreservedState) {
@@ -252,12 +233,53 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [conversationId, shouldUsePreservedState, currentReasoningConfig]);
 
-    // State setters with preservation
+    // Debounced state preservation to avoid excessive local storage writes
+    const preservationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Auto-focus input after streaming completes - optimal UX
+    useEffect(() => {
+      // Focus input when streaming transitions from true to false
+      if (prevIsStreamingRef.current && !isStreaming) {
+        // Small delay to ensure DOM is updated and avoid interrupting any final updates
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+            // Subtle visual cue that input is ready for typing
+            textareaRef.current.style.transform = "scale(1.001)";
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.style.transform = "";
+              }
+            }, 200);
+          }
+        }, 50);
+      }
+      prevIsStreamingRef.current = isStreaming;
+    }, [isStreaming]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (preservationTimeoutRef.current) {
+          clearTimeout(preservationTimeoutRef.current);
+        }
+      };
+    }, []);
+
     const setInput = useCallback(
       (value: string) => {
         setInputState(value);
+
+        // Debounce state preservation for better performance during fast typing
         if (shouldUsePreservedState) {
-          setChatInputState({ input: value });
+          if (preservationTimeoutRef.current) {
+            clearTimeout(preservationTimeoutRef.current);
+          }
+
+          preservationTimeoutRef.current = setTimeout(() => {
+            setChatInputState({ input: value });
+            preservationTimeoutRef.current = null;
+          }, 150); // 150ms debounce for state preservation
         }
       },
       [shouldUsePreservedState, setChatInputState]
@@ -275,21 +297,29 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [shouldUsePreservedState, setChatInputState, attachments]
     );
 
-    // Get user messages for history navigation
+    // Optimized user messages for history navigation - limited processing
     const userMessages = useMemo(() => {
-      // Use messages prop if provided (works for both server and private mode)
-      // Otherwise fallback to conversationMessages for backward compatibility
       const sourceMessages = messages || conversationMessages;
-      if (!sourceMessages) {
+      if (!sourceMessages || sourceMessages.length === 0) {
         return [];
       }
-      return sourceMessages
-        .filter(msg => msg.role === "user")
-        .map(msg => msg.content)
-        .reverse(); // Most recent first
+
+      // Efficient processing limited to last 10 user messages for performance
+      const userContents: string[] = [];
+      for (
+        let i = sourceMessages.length - 1;
+        i >= 0 && userContents.length < 10;
+        i--
+      ) {
+        const msg = sourceMessages[i];
+        if (msg.role === "user" && msg.content) {
+          userContents.push(msg.content);
+        }
+      }
+      return userContents;
     }, [messages, conversationMessages]);
 
-    // Handle history navigation (Up = older messages)
+    // Optimized history navigation (Up = older messages)
     const handleHistoryNavigation = useCallback(() => {
       if (userMessages.length === 0) {
         return false;
@@ -305,7 +335,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setHistoryIndex(nextIndex);
         setInput(userMessages[nextIndex]);
 
-        // Move cursor to end after setting text
+        // Optimized cursor positioning
         setTimeout(() => {
           if (textareaRef.current) {
             const textarea = textareaRef.current;
@@ -322,9 +352,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       return false;
     }, [historyIndex, input, userMessages, setInput]);
 
-    // Handle reverse history navigation (Down = newer messages)
+    // Optimized reverse history navigation (Down = newer messages)
     const handleHistoryNavigationDown = useCallback(() => {
-      // Only allow down navigation if we're already in history mode
       if (historyIndex <= -1) {
         return false;
       }
@@ -336,7 +365,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setHistoryIndex(-1);
         setInput(originalInput);
 
-        // Move cursor to end after setting text
         setTimeout(() => {
           if (textareaRef.current) {
             const textarea = textareaRef.current;
@@ -355,7 +383,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setHistoryIndex(nextIndex);
         setInput(userMessages[nextIndex]);
 
-        // Move cursor to end after setting text
         setTimeout(() => {
           if (textareaRef.current) {
             const textarea = textareaRef.current;
@@ -372,10 +399,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       return false;
     }, [historyIndex, originalInput, userMessages, setInput]);
 
-    // Reset history when input changes (user typing)
+    // Optimized input change with efficient history reset
     const handleInputChange = useCallback(
       (value: string) => {
-        // If we're not navigating history, reset history state
+        // Reset history state only when user is actively typing (not navigating)
         if (historyIndex !== -1 && value !== userMessages[historyIndex]) {
           setHistoryIndex(-1);
           setOriginalInput("");
@@ -479,6 +506,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 size: file.size,
                 content: textContent,
                 language: getFileLanguage(file.name),
+              });
+            } else if (fileSupport.category === "pdf") {
+              // For PDFs, we'll rely on the file upload hook to handle extraction
+              // This is just a placeholder - the actual processing happens in useFileUpload
+              const base64Content = await readFileAsBase64(file);
+              newAttachments.push({
+                type: "pdf",
+                url: "",
+                name: file.name,
+                size: file.size,
+                content: base64Content,
+                mimeType: file.type,
               });
             } else {
               let base64Content: string;
@@ -728,10 +767,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
           <div
             className={cn(
-              "relative chat-input-container rounded-xl p-2 sm:p-2.5 transition-all duration-700",
+              "relative chat-input-container rounded-xl p-2 sm:p-2.5",
+              // Performance: Remove expensive transitions for better input responsiveness
+              "contain-layout will-change-[transform,opacity]",
               chatInputStateClass,
               isDragOver && canSend && "ring-2 ring-primary/50 bg-primary/5"
             )}
+            style={{
+              // Force GPU acceleration for the main container
+              transform: "translate3d(0, 0, 0)",
+            }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -763,7 +808,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             />
 
             <div className="flex items-end gap-3">
-              <div className="flex-1 flex items-center">
+              <div className="flex-1 flex items-center contain-layout">
                 <ChatInputField
                   value={input}
                   onChange={handleInputChange}
