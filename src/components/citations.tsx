@@ -102,14 +102,22 @@ export const Citations = ({
         observerRef.current.disconnect();
       }
 
-      observerRef.current = new MutationObserver(() => {
-        scheduleScanning();
+      observerRef.current = new MutationObserver(mutations => {
+        // Only schedule scanning if there are relevant mutations
+        const hasRelevantMutations = mutations.some(
+          mutation =>
+            mutation.type === "childList" && mutation.addedNodes.length > 0
+        );
+
+        if (hasRelevantMutations) {
+          scheduleScanning();
+        }
       });
 
       observerRef.current.observe(messageContainer, {
         childList: true,
         subtree: true,
-        characterData: true,
+        // Remove characterData observer to reduce noise during streaming
       });
     }
 

@@ -39,31 +39,43 @@ export function useChatMessages({
   const deleteMessagesByIdsAction = useMutation(api.messages.removeMultiple);
   const deleteConversationAction = useMutation(api.conversations.remove);
 
-  const messages: ChatMessage[] = useMemo(() => {
-    if (!convexMessages) {
-      return Array.from(pendingMessages.values());
-    }
+  // Memoize expensive operations separately for better performance
+  const messagesArray = useMemo(() => {
+    return convexMessages ? extractMessagesArray(convexMessages) : [];
+  }, [convexMessages]);
 
-    const messagesArray = extractMessagesArray(convexMessages);
+  const serverMessages = useMemo(() => {
+    return messagesArray.map(convertServerMessage);
+  }, [messagesArray]);
 
-    const serverMessageContents = new Set(
+  const serverMessageKeys = useMemo(() => {
+    return new Set(
       messagesArray.map((msg: Doc<"messages">) => `${msg.role}:${msg.content}`)
     );
+  }, [messagesArray]);
 
-    const filteredPendingMessages = Array.from(pendingMessages.values()).filter(
-      pendingMsg => {
-        const key = `${pendingMsg.role}:${pendingMsg.content}`;
-        return !serverMessageContents.has(key);
-      }
-    );
+  const pendingMessagesArray = useMemo(() => {
+    return Array.from(pendingMessages.values());
+  }, [pendingMessages]);
+
+  const messages: ChatMessage[] = useMemo(() => {
+    if (!convexMessages) {
+      return pendingMessagesArray;
+    }
+
+    // Filter pending messages that aren't already on server
+    const filteredPendingMessages = pendingMessagesArray.filter(pendingMsg => {
+      const key = `${pendingMsg.role}:${pendingMsg.content}`;
+      return !serverMessageKeys.has(key);
+    });
 
     const combinedMessages: ChatMessage[] = [
-      ...messagesArray.map(convertServerMessage),
+      ...serverMessages,
       ...filteredPendingMessages,
     ];
 
     return combinedMessages.sort((a, b) => a.createdAt - b.createdAt);
-  }, [convexMessages, pendingMessages]);
+  }, [convexMessages, serverMessages, serverMessageKeys, pendingMessagesArray]);
 
   const streamingMessageInfo = useMemo(() => {
     return findStreamingMessage(convexMessages);
