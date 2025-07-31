@@ -62,13 +62,12 @@ export function isFileTypeSupported(
     }
   }
 
-  // Check PDF support - use backend data only
+  // Check PDF support - universally supported via multiple strategies
   if (fileType === "application/pdf") {
-    // For PDF support, check if the model supports files
-    const hasPdfCapability = model?.supportsFiles ?? false;
-    if (hasPdfCapability) {
-      return { supported: true, category: "pdf" };
-    }
+    // PDFs are supported for all models via two strategies:
+    // 1. Native PDF support: Anthropic/Google models with supportsFiles capability
+    // 2. Text extraction: All other models use Gemini 2.5 Flash Lite for text extraction
+    return { supported: true, category: "pdf" };
   }
 
   // Check text file support

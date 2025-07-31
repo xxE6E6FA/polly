@@ -63,22 +63,15 @@ export const attachmentSchema = v.object({
   type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),
   url: v.string(),
   name: v.string(),
-  size: v.number(),
+  size: v.float64(),
   content: v.optional(v.string()),
   thumbnail: v.optional(v.string()),
   storageId: v.optional(v.id("_storage")),
-});
-
-// Extended attachment schema with mimeType for processing
-export const attachmentWithMimeTypeSchema = v.object({
-  type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),
-  url: v.string(),
-  name: v.string(),
-  size: v.number(),
-  content: v.optional(v.string()),
-  thumbnail: v.optional(v.string()),
-  storageId: v.optional(v.id("_storage")),
-  mimeType: v.optional(v.string()),
+  mimeType: v.optional(v.string()), // Added for PDF processing support
+  // PDF-specific fields for persistent text extraction
+  textFileId: v.optional(v.id("_storage")), // Reference to stored text file
+  extractedText: v.optional(v.string()), // Cached text extraction for PDFs (deprecated in favor of textFileId)
+  extractionError: v.optional(v.string()), // Error message if extraction failed
 });
 
 // Reasoning configuration schema
@@ -494,6 +487,7 @@ export const userSettingsUpdateSchema = v.object({
 export const messageStatusSchema = v.union(
   v.literal("thinking"),
   v.literal("searching"), // New status for web search in progress
+  v.literal("reading_pdf"), // New status for PDF processing
   v.literal("streaming"), 
   v.literal("done"),
   v.literal("error")
@@ -505,6 +499,7 @@ export const messageSchema = v.object({
   role: v.string(),
   content: v.string(),
   status: v.optional(messageStatusSchema),
+  statusText: v.optional(v.string()), // For custom status messages (e.g., PDF reading progress)
   reasoning: v.optional(v.string()),
   model: v.optional(v.string()),
   provider: v.optional(v.string()),

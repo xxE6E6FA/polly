@@ -30,7 +30,7 @@ export const seedBuiltInModels = internalMutation({
         supportsImages: true,
         supportsTools: true,
         supportsReasoning: supportsReasoning("google", "gemini-2.5-flash-lite"),
-        supportsFiles: false,
+        supportsFiles: true, // Gemini 2.5 Flash Lite supports PDF parsing
         free: true,
         isActive: true,
       },

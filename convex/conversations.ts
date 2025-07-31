@@ -31,7 +31,6 @@ import {
 } from "./lib/pagination";
 import {
   attachmentSchema,
-  attachmentWithMimeTypeSchema,
   extendedMessageMetadataSchema,
   messageRoleSchema,
   modelProviderArgs,
@@ -302,6 +301,10 @@ export const sendMessage = action({
       args.provider
     );
 
+    // Store attachments as-is during message creation
+    // PDF text extraction will happen during assistant response with progress indicators
+    const processedAttachments = args.attachments;
+
     // Create user message
     const userMessageId: Id<"messages"> = await ctx.runMutation(
       api.messages.create,
@@ -309,7 +312,7 @@ export const sendMessage = action({
         conversationId: args.conversationId,
         role: "user",
         content: args.content,
-        attachments: args.attachments,
+        attachments: processedAttachments,
         reasoningConfig: args.reasoningConfig,
         model: fullModel.modelId,
         provider: fullModel.provider,
@@ -367,7 +370,7 @@ export const savePrivateConversation = action({
         model: v.optional(v.string()),
         provider: v.optional(providerSchema),
         reasoning: v.optional(v.string()),
-        attachments: v.optional(v.array(attachmentWithMimeTypeSchema)),
+        attachments: v.optional(v.array(attachmentSchema)),
         citations: v.optional(v.array(webCitationSchema)),
         metadata: v.optional(extendedMessageMetadataSchema),
       })
@@ -1638,6 +1641,8 @@ export const createBranchingConversation = action({
   },
 });
 
+import { processAttachmentsForLLM } from "./lib/process_attachments";
+
 /**
  * Wrapper functions for UI compatibility (replaces agent_conversations.ts)
  */
@@ -1652,23 +1657,7 @@ export const createConversationAction = action({
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
     firstMessage: v.optional(v.string()),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     useWebSearch: v.optional(v.boolean()),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
@@ -1703,6 +1692,17 @@ export const createConversationAction = action({
 
     // If there's a first message, create conversation with it
     if (args.firstMessage) {
+      // Resolve the model capabilities to decide on PDF processing
+      const _fullModel = await getUserEffectiveModelWithCapabilities(
+        ctx,
+        args.model,
+        args.provider
+      );
+
+      // Store attachments as-is during conversation creation
+      // PDF text extraction will happen during assistant response with progress indicators
+      const processedAttachments = args.attachments;
+
       const result: {
         conversationId: Id<"conversations">;
         userMessageId: Id<"messages">;
@@ -1719,7 +1719,7 @@ export const createConversationAction = action({
             | "google"
             | "openrouter"
             | undefined) || "google",
-        attachments: args.attachments,
+        attachments: processedAttachments,
         reasoningConfig: args.reasoningConfig,
         temperature: args.temperature,
       });

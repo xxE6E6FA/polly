@@ -3,6 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useCallback } from "react";
 import { generateThumbnail } from "@/lib/file-utils";
+
 import type { Attachment, FileUploadProgress } from "@/types";
 
 export function useConvexFileUpload() {
@@ -68,6 +69,7 @@ export function useConvexFileUpload() {
           name: file.name,
           size: file.size,
           storageId: storageId as Id<"_storage">,
+          mimeType: file.type,
         };
 
         // Generate thumbnail for images
