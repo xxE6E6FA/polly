@@ -1,4 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
+import { memo } from "react";
 import { PersonaPicker } from "@/components/persona-picker";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isUserSettings } from "@/lib/type-guards";
@@ -13,12 +14,12 @@ interface PersonaSelectorProps {
   onPersonaSelect: (id: Id<"personas"> | null) => void;
 }
 
-export function PersonaSelector({
+const PersonaSelectorComponent = ({
   conversationId,
   hasExistingMessages,
   selectedPersonaId = null,
   onPersonaSelect,
-}: PersonaSelectorProps) {
+}: PersonaSelectorProps) => {
   const { canSendMessage } = useUserDataContext();
   const userSettingsRaw = useUserSettings();
   const { isPrivateMode } = usePrivateMode();
@@ -47,4 +48,6 @@ export function PersonaSelector({
       onPersonaSelect={onPersonaSelect}
     />
   );
-}
+};
+
+export const PersonaSelector = memo(PersonaSelectorComponent);

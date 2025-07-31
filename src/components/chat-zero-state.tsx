@@ -197,12 +197,7 @@ const ChatSection = () => {
     const showLimitReached =
       hasMessageLimit && !canSendMessage && !hasUnlimitedCalls;
     return showLimitWarning || showLimitReached;
-  }, [
-    hasMessageLimit,
-    canSendMessage,
-    hasUnlimitedCalls,
-    monthlyUsage?.remainingMessages,
-  ]);
+  }, [hasMessageLimit, canSendMessage, hasUnlimitedCalls, monthlyUsage]);
 
   const chatInputProps = {
     hasExistingMessages: false,

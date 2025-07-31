@@ -1,5 +1,5 @@
 import { ThermometerIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -16,11 +16,11 @@ interface TemperaturePickerProps {
   disabled?: boolean;
 }
 
-export function TemperaturePicker({
+const TemperaturePickerComponent = ({
   temperature,
   onTemperatureChange,
   disabled = false,
-}: TemperaturePickerProps) {
+}: TemperaturePickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -144,4 +144,6 @@ export function TemperaturePicker({
       </Popover>
     </>
   );
-}
+};
+
+export const TemperaturePicker = memo(TemperaturePickerComponent);

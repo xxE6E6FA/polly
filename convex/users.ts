@@ -148,3 +148,21 @@ export const internalGetById = internalQuery({
     return await ctx.db.get(args.id);
   },
 });
+
+export const getMessageSentCount = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return null;
+    }
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      return null;
+    }
+    return {
+      messagesSent: user.messagesSent,
+      monthlyMessagesSent: user.monthlyMessagesSent,
+    };
+  },
+});

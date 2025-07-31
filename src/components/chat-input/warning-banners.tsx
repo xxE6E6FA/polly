@@ -27,6 +27,7 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
     hasUnlimitedCalls,
     user,
   } = useUserDataContext();
+
   const isNoUser = user === null;
 
   const [dismissedWarning, setDismissedWarning] = useState<string | null>(null);
@@ -115,7 +116,7 @@ export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
     hasMessageLimit,
     canSendMessage,
     hasUnlimitedCalls,
-    monthlyUsage?.remainingMessages,
+    monthlyUsage,
     hasUserApiKeys,
     user?.isAnonymous,
     dismissedWarning,
