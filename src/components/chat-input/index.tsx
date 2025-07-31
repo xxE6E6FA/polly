@@ -15,6 +15,7 @@ import {
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
 import { TemperaturePicker } from "@/components/temperature-picker";
+import { useChatInputPreservation } from "@/hooks/use-chat-input-preservation";
 import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
@@ -105,12 +106,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const { user, canSendMessage } = useUserDataContext();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const {
-      isPrivateMode,
-      chatInputState,
-      setChatInputState,
-      clearChatInputState,
-    } = usePrivateMode();
+    const { isPrivateMode } = usePrivateMode();
+    const { setChatInputState, getChatInputState, clearChatInputState } =
+      useChatInputPreservation();
     const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
     const selectedModel = useMemo(() => {
       if (selectedModelRaw) {
@@ -123,26 +121,26 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     );
     const shouldUsePreservedState = !(conversationId || hasExistingMessages);
     const [input, setInputState] = useState(() =>
-      shouldUsePreservedState ? chatInputState.input : ""
+      shouldUsePreservedState ? getChatInputState().input : ""
     );
     const [attachments, setAttachmentsState] = useState<Attachment[]>(() =>
-      shouldUsePreservedState ? chatInputState.attachments : []
+      shouldUsePreservedState ? getChatInputState().attachments : []
     );
     const [selectedPersonaId, setSelectedPersonaIdState] =
       useState<Id<"personas"> | null>(() =>
-        shouldUsePreservedState ? chatInputState.selectedPersonaId : null
+        shouldUsePreservedState ? getChatInputState().selectedPersonaId : null
       );
     const [reasoningConfig, setReasoningConfigState] =
       useState<ReasoningConfig>(() => {
         if (shouldUsePreservedState) {
-          return chatInputState.reasoningConfig;
+          return getChatInputState().reasoningConfig;
         }
         return getDefaultReasoningConfig();
       });
     const [temperature, setTemperatureState] = useState<number | undefined>(
       () =>
         shouldUsePreservedState
-          ? chatInputState.temperature
+          ? getChatInputState().temperature
           : currentTemperature
     );
 
@@ -201,14 +199,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               });
 
               const uploadResult = await uploadFile(file);
-              uploadedAttachments.push({
-                ...attachment,
-                storageId: uploadResult.storageId,
-                url: uploadResult.url,
-              });
+              uploadedAttachments.push(uploadResult);
             } catch (error) {
               console.error("Failed to upload attachment:", error);
-              // Keep the original attachment without storageId for fallback
+              // For large files, don't fall back to base64 content as it exceeds Convex limits
+              if (attachment.size > 1024 * 1024) {
+                // 1MB limit
+                throw new Error(
+                  `Failed to upload large file "${attachment.name}". File uploads to storage are required for files over 1MB.`
+                );
+              }
+              // For smaller files, keep the original attachment as fallback
               uploadedAttachments.push(attachment);
             }
           } else {

@@ -17,6 +17,7 @@ import {
 } from "react";
 import { useLocation } from "react-router";
 import { toast } from "sonner";
+import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";
 
@@ -28,7 +29,6 @@ type AuthState =
 
 interface MonthlyUsage {
   monthlyLimit: number;
-  monthlyMessagesSent: number;
   resetDate?: number;
   remainingMessages: number;
 }
@@ -66,12 +66,13 @@ const DEFAULT_USER_DATA: UserData = {
 function buildUserData(
   user: Doc<"users">,
   hasUserApiKeys: boolean,
-  hasUserModels: boolean
+  hasUserModels: boolean,
+  monthlyMessagesSent: number
 ): UserData {
   if (user.isAnonymous) {
     const remainingMessages = Math.max(
       0,
-      ANONYMOUS_MESSAGE_LIMIT - (user.messagesSent || 0)
+      ANONYMOUS_MESSAGE_LIMIT - monthlyMessagesSent
     );
     return {
       canSendMessage: remainingMessages > 0,
@@ -79,7 +80,6 @@ function buildUserData(
       hasUnlimitedCalls: false,
       monthlyUsage: {
         monthlyLimit: ANONYMOUS_MESSAGE_LIMIT,
-        monthlyMessagesSent: user.messagesSent || 0,
         remainingMessages,
       },
       hasUserApiKeys,
@@ -91,7 +91,6 @@ function buildUserData(
 
   const hasUnlimitedCalls = !!user.hasUnlimitedCalls;
   const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
-  const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
   const remainingMessages = hasUnlimitedCalls
     ? Number.MAX_SAFE_INTEGER
     : Math.max(0, monthlyLimit - monthlyMessagesSent);
@@ -100,7 +99,6 @@ function buildUserData(
     ? undefined
     : {
         monthlyLimit,
-        monthlyMessagesSent,
         remainingMessages,
         resetDate: user.lastMonthlyReset,
       };
@@ -128,6 +126,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [authState, setAuthState] = useState<AuthState>("initializing");
   const [isGraduating, setIsGraduating] = useState(false);
   const graduateAnonymousUser = useMutation(api.users.graduateAnonymousUser);
+  const { monthlyMessagesSent } = useMessageSentCount();
 
   const userRecordRaw = useQuery(api.users.current);
   const userRecord = userRecordRaw;
@@ -308,13 +307,24 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const computedValue = {
-      ...buildUserData(userRecord, hasUserApiKeys, hasUserModels),
+      ...buildUserData(
+        userRecord,
+        hasUserApiKeys,
+        hasUserModels,
+        monthlyMessagesSent
+      ),
       user: userRecord,
     };
 
     set(CACHE_KEYS.userData, computedValue);
     return computedValue;
-  }, [userRecord, hasUserApiKeys, hasUserModels, isLoading]);
+  }, [
+    userRecord,
+    hasUserApiKeys,
+    hasUserModels,
+    isLoading,
+    monthlyMessagesSent,
+  ]);
 
   return (
     <UserDataContext.Provider value={value}>

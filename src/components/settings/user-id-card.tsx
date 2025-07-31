@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -27,6 +28,7 @@ function getInitials(name?: string | null) {
 
 export const UserIdCard = () => {
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
+  const { monthlyMessagesSent } = useMessageSentCount();
   const userSettings = useUserSettings();
 
   const shouldAnonymize = userSettings?.anonymizeForDemo ?? false;
@@ -36,7 +38,7 @@ export const UserIdCard = () => {
   }
 
   const usagePercentage = monthlyUsage
-    ? (monthlyUsage.monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100
+    ? (monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100
     : 0;
 
   return (
@@ -154,7 +156,7 @@ export const UserIdCard = () => {
                   <span className="text-xs text-foreground">This Month</span>
                 </div>
                 <span className="font-mono text-sm text-foreground">
-                  {monthlyUsage?.monthlyMessagesSent || 0}
+                  {monthlyMessagesSent || 0}
                 </span>
               </div>
             </div>
@@ -170,8 +172,7 @@ export const UserIdCard = () => {
                     </span>
                   </div>
                   <span className="font-mono text-xs text-foreground">
-                    {monthlyUsage.monthlyMessagesSent}/
-                    {monthlyUsage.monthlyLimit}
+                    {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
                   </span>
                 </div>
                 <Progress
@@ -251,7 +252,7 @@ export const UserIdCard = () => {
                 <span className="text-xs text-foreground">Monthly Usage</span>
               </div>
               <span className="font-mono text-xs text-foreground">
-                {monthlyUsage.monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
+                {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
               </span>
             </div>
             <Progress

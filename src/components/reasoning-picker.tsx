@@ -10,7 +10,7 @@ import {
   getProviderReasoningRequirements,
   hasMandatoryReasoning,
 } from "@shared/reasoning-model-detection";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -109,7 +109,7 @@ function getProviderTheme(provider?: string) {
   }
 }
 
-export const ReasoningPicker = ({
+const ReasoningPickerComponent = ({
   model,
   config,
   onConfigChange,
@@ -383,3 +383,5 @@ export const ReasoningPicker = ({
     </TooltipWrapper>
   );
 };
+
+export const ReasoningPicker = memo(ReasoningPickerComponent);
