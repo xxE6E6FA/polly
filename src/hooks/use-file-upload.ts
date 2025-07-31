@@ -37,12 +37,17 @@ export function useFileUpload({
       const newAttachments: Attachment[] = [];
 
       for (const file of [...files]) {
-        // Validate file size
-        if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+        // Validate file size with different limits for PDFs
+        const maxSize =
+          file.type === "application/pdf"
+            ? FILE_LIMITS.PDF_MAX_SIZE_BYTES
+            : FILE_LIMITS.MAX_SIZE_BYTES;
+
+        if (file.size > maxSize) {
           notificationDialog.notify({
             title: "File Too Large",
             description: `File ${file.name} is too large. Maximum size is ${
-              FILE_LIMITS.MAX_SIZE_BYTES / (1024 * 1024)
+              maxSize / (1024 * 1024)
             }MB.`,
             type: "error",
           });
@@ -232,7 +237,16 @@ export function useFileUpload({
 
             const uploadedAttachment = await uploadFile(file);
             uploadedAttachments.push(uploadedAttachment);
-          } catch {
+          } catch (error) {
+            console.error("Failed to upload attachment:", error);
+            // For large files, don't fall back to base64 content as it exceeds Convex limits
+            if (attachment.size > 1024 * 1024) {
+              // 1MB limit
+              throw new Error(
+                `Failed to upload large file "${attachment.name}". File uploads to storage are required for files over 1MB.`
+              );
+            }
+            // For smaller files, keep the original attachment as fallback
             uploadedAttachments.push(attachment);
           }
         } else {

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import {
@@ -8,6 +8,7 @@ import {
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
+
 import {
   checkConversationAccess,
   incrementUserMessageStats,
@@ -779,3 +780,34 @@ export const updateAssistantContent = internalMutation({
     );
   },
 });
+
+export const updateAssistantStatus = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    status: messageStatusSchema,
+    statusText: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const { messageId, status, statusText } = args;
+
+    try {
+      // Update the message status and statusText in database
+      await ctx.db.patch(messageId, {
+        status,
+        statusText,
+      });
+    } catch (error) {
+      console.error(
+        "[updateAssistantStatus] Message not found, messageId:",
+        messageId,
+        error
+      );
+      throw new ConvexError(
+        `Message with id ${messageId} not found: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  },
+});
+
+// Re-export streamResponse from ai/messages for internal API access
+export { streamResponse } from "./ai/messages";

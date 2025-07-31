@@ -125,7 +125,14 @@ export type ChatMessage = {
   id: string;
   role: MessageRole;
   content: string;
-  status?: "thinking" | "searching" | "streaming" | "done" | "error";
+  status?:
+    | "thinking"
+    | "searching"
+    | "reading_pdf"
+    | "streaming"
+    | "done"
+    | "error";
+  statusText?: string; // For custom status messages (e.g., PDF reading progress)
   reasoning?: string;
   model?: string;
   provider?: string;
@@ -159,6 +166,10 @@ export type Attachment = {
   storageId?: Id<"_storage">;
   mimeType?: string;
   language?: string;
+  // PDF-specific fields for storing both original and extracted text
+  textFileId?: Id<"_storage">; // Reference to stored text file (replaces extractedText)
+  extractedText?: string; // For PDFs: cached text extraction (deprecated in favor of textFileId)
+  extractionError?: string; // For PDFs: error message if extraction failed
 };
 
 // ============================================================================

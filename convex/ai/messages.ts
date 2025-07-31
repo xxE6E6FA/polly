@@ -29,6 +29,7 @@ import {
 } from "./server_utils";
 import { setStreamActive, clearStream } from "../lib/streaming_utils";
 import { log } from "../lib/logger";
+import { processAttachmentsForLLM } from "../lib/process_attachments";
 
 // Web search imports
 import {
@@ -416,7 +417,7 @@ export const streamResponse = internalAction({
         }
       }
 
-      // Get conversation context
+            // Get conversation context
       const contextResult = await buildContextMessages(ctx, {
         conversationId: args.conversationId,
         personaId: args.personaId,
@@ -424,17 +425,93 @@ export const streamResponse = internalAction({
 
       const { contextMessages } = contextResult;
       log.debug(
-      `Built context with ${contextMessages.length} messages`
+        `Built context with ${contextMessages.length} messages`
       );
+
+      // Process attachments for the latest user message with PDF text extraction and progress updates
+      // This happens here so we can show "Reading PDF..." status in the assistant message
+      let processedContextMessages = contextMessages;
+      
+      // Find the latest user message that has file attachments
+      const latestUserMessage = contextMessages.find(msg => {
+        if (msg.role !== "user" || typeof msg.content === "string") return false;
+        return Array.isArray(msg.content) && msg.content.some(part => 
+          part.type === "file" && part.attachment?.storageId
+        );
+      });
+
+
+
+      if (latestUserMessage && Array.isArray(latestUserMessage.content)) {
+        log.debug("Processing attachments for latest user message");
+        
+        // Extract attachments from content parts
+        const attachmentParts = latestUserMessage.content.filter(part => 
+          part.type === "file" && part.attachment?.storageId
+        );
+        
+
+        
+        if (attachmentParts.length > 0) {
+          // Convert content parts to attachment format for processing
+          const attachments = attachmentParts.map(part => ({
+            type: part.attachment?.type === "pdf" ? "pdf" as const : "text" as const,
+            url: "",
+            name: part.attachment?.name || part.file?.filename || "unknown",
+            size: 0,
+            storageId: part.attachment?.storageId,
+            content: part.file?.file_data,
+          }));
+
+
+
+          const processedAttachments = await processAttachmentsForLLM(
+            ctx,
+            attachments,
+            args.model.provider,
+            args.model.modelId,
+            args.model.supportsFiles ?? false,
+            args.messageId // Pass assistant messageId for progress updates
+          );
+
+
+
+          // Update the content parts with processed attachments
+          const updatedContent = latestUserMessage.content.map(part => {
+            if (part.type === "file" && part.attachment?.storageId) {
+              const processedAttachment = processedAttachments?.find((att: any) => 
+                att.storageId === part.attachment?.storageId
+              );
+              if (processedAttachment) {
+                return {
+                  ...part,
+                  file: {
+                    filename: processedAttachment.name,
+                    file_data: processedAttachment.content || "",
+                  },
+                };
+              }
+            }
+            return part;
+          });
+
+          // Update the context messages with processed content
+          processedContextMessages = contextMessages.map(msg => 
+            msg === latestUserMessage 
+              ? { ...msg, content: updatedContent }
+              : msg
+          );
+        }
+      }
 
       log.debug("Search enabled:", isSearchEnabled, "determined by calling action");
 
       // Override the system message with the persona prompt
-      if (contextMessages.length > 0 && contextMessages[0].role === "system") {
-        contextMessages[0].content = systemPrompt;
+      if (processedContextMessages.length > 0 && processedContextMessages[0].role === "system") {
+        processedContextMessages[0].content = systemPrompt;
       } else {
         // Prepend system message if not present
-        contextMessages.unshift({
+        processedContextMessages.unshift({
           role: "system",
           content: systemPrompt,
         });
@@ -620,10 +697,10 @@ When using information from these search results, you MUST include citations in 
         }
       }
 
-      // Convert messages to AI SDK format
+      // Convert messages to AI SDK format using processed context messages
       const convertedMessages = await convertMessages(
         ctx,
-        contextMessages,
+        processedContextMessages,
         effectiveProvider as any
       );
 
@@ -868,3 +945,4 @@ When using information from these search results, you MUST include citations in 
     return null;
   },
 });
+

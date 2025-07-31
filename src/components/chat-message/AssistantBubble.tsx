@@ -38,6 +38,7 @@ export const AssistantBubble = memo(
     const hasSearch = Boolean(message.metadata?.searchQuery);
     const isThinking = message.status === "thinking";
     const isSearching = message.status === "searching";
+    const isPdfReading = message.status === "reading_pdf";
     const isStreamingWithoutContent =
       message.status === "streaming" &&
       (!displayContent || displayContent.length === 0);
@@ -46,7 +47,10 @@ export const AssistantBubble = memo(
       <div className="w-full">
         <div className="min-w-0 flex-1">
           {/* Unified Loading Status Area - Search has highest priority */}
-          {(isSearching || isThinking || isStreamingWithoutContent) && (
+          {(isSearching ||
+            isPdfReading ||
+            isThinking ||
+            isStreamingWithoutContent) && (
             <div className="mb-2.5">
               {isSearching ? (
                 <SearchQuery
@@ -55,6 +59,13 @@ export const AssistantBubble = memo(
                   citations={message.citations}
                   isLoading={true}
                 />
+              ) : isPdfReading ? (
+                <div className="text-sm text-muted-foreground py-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Spinner className="h-3 w-3" />
+                    <span>📄 {message.statusText || "Reading PDF..."}</span>
+                  </div>
+                </div>
               ) : isStreamingWithoutContent ? (
                 <div className="text-sm text-muted-foreground py-2 space-y-1">
                   <div className="flex items-center gap-2">

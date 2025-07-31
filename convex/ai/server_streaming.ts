@@ -181,7 +181,7 @@ export const getProviderStreamOptions = async (
     // For built-in models, check if we have the model in the database
     if (modelObject?.builtIn) {
       const builtInModels = await ctx.runQuery(api.userModels.getBuiltInModels);
-      const foundModel = builtInModels.find(m => m.modelId === model && m.provider === provider);
+      const foundModel = builtInModels.find((m: any) => m.modelId === model && m.provider === provider);
       if (foundModel) {
         modelWithCapabilities.supportsReasoning = foundModel.supportsReasoning;
       }

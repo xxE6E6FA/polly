@@ -438,12 +438,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             : null;
 
         for (const file of Array.from(files)) {
-          // Check file size
-          if (file.size > FILE_LIMITS.MAX_SIZE_BYTES) {
+          // Check file size with different limits for PDFs
+          const maxSize =
+            file.type === "application/pdf"
+              ? FILE_LIMITS.PDF_MAX_SIZE_BYTES
+              : FILE_LIMITS.MAX_SIZE_BYTES;
+
+          if (file.size > maxSize) {
             notificationDialog.notify({
               title: "File Too Large",
               description: `File ${file.name} exceeds the ${Math.round(
-                FILE_LIMITS.MAX_SIZE_BYTES / (1024 * 1024)
+                maxSize / (1024 * 1024)
               )}MB limit.`,
               type: "error",
             });
