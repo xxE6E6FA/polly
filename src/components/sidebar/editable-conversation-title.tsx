@@ -8,6 +8,7 @@ type EditableConversationTitleProps = {
   isEditing: boolean;
   isCurrentConversation: boolean;
   isMobile: boolean;
+  hasActionsVisible?: boolean;
   onStartEdit: () => void;
   onSaveEdit: (newTitle: string) => void;
   onCancelEdit: () => void;
@@ -37,6 +38,7 @@ export const EditableConversationTitle = ({
   isEditing,
   isCurrentConversation,
   isMobile,
+  hasActionsVisible = false,
   onStartEdit,
   onSaveEdit,
   onCancelEdit,
@@ -124,40 +126,56 @@ export const EditableConversationTitle = ({
   useClickOutside(editInputRef, handleClickOutside);
 
   return (
-    <Input
-      ref={editInputRef}
-      value={isEditing ? editingTitle : title}
-      readOnly={!isEditing}
-      className={cn(
-        "h-auto font-medium shadow-none outline-none ring-0 focus-visible:ring-0 truncate",
-        isMobile ? "text-xs" : "text-xs",
-        "border-0 bg-transparent p-0",
-        !isEditing && "cursor-default",
-        !(isEditing || isMobile) &&
-          isCurrentConversation &&
-          "cursor-text hover:opacity-80",
-        // Enable text selection when editing
-        isEditing && "selectable-auto"
-      )}
-      onBlur={isEditing ? handleBlur : undefined}
-      onFocus={isEditing ? handleFocus : undefined}
-      onChange={isEditing ? e => setEditingTitle(e.target.value) : undefined}
-      onKeyDown={isEditing ? handleKeyDown : undefined}
-      onClick={
+    <div
+      className="relative w-full"
+      style={
         isEditing
-          ? e => {
-              e.stopPropagation();
-              e.preventDefault();
+          ? undefined
+          : {
+              maskImage: hasActionsVisible
+                ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
+                : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
+              webkitMaskImage: hasActionsVisible
+                ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
+                : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
             }
-          : handleClick
       }
-      onMouseDown={
-        isEditing
-          ? e => {
-              e.stopPropagation();
-            }
-          : undefined
-      }
-    />
+    >
+      <Input
+        ref={editInputRef}
+        value={isEditing ? editingTitle : title}
+        readOnly={!isEditing}
+        className={cn(
+          "h-auto font-medium shadow-none outline-none ring-0 focus-visible:ring-0",
+          isMobile ? "text-xs" : "text-xs",
+          "border-0 bg-transparent p-0",
+          !isEditing && "cursor-default",
+          !(isEditing || isMobile) &&
+            isCurrentConversation &&
+            "cursor-text hover:opacity-80",
+          // Enable text selection when editing
+          isEditing && "selectable-auto"
+        )}
+        onBlur={isEditing ? handleBlur : undefined}
+        onFocus={isEditing ? handleFocus : undefined}
+        onChange={isEditing ? e => setEditingTitle(e.target.value) : undefined}
+        onKeyDown={isEditing ? handleKeyDown : undefined}
+        onClick={
+          isEditing
+            ? e => {
+                e.stopPropagation();
+                e.preventDefault();
+              }
+            : handleClick
+        }
+        onMouseDown={
+          isEditing
+            ? e => {
+                e.stopPropagation();
+              }
+            : undefined
+        }
+      />
+    </div>
   );
 };

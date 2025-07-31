@@ -10,7 +10,6 @@ import { useMutation } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
@@ -27,6 +26,7 @@ import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-lis
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 
 type SharedConversation = {
   _id: string;
@@ -41,6 +41,7 @@ type SharedConversation = {
 
 export default function SharedConversationsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const managedToast = useToast();
   const confirmDialog = useConfirmationDialog();
 
   // Mutations
@@ -57,7 +58,7 @@ export default function SharedConversationsPage() {
     await navigator.clipboard.writeText(url);
     setCopiedId(shareId);
     setTimeout(() => setCopiedId(null), 2000);
-    toast.success("Link copied to clipboard");
+    managedToast.success("Link copied to clipboard");
   };
 
   const handleUnshare = (
@@ -76,9 +77,9 @@ export default function SharedConversationsPage() {
       async () => {
         try {
           await unshareConversation({ conversationId });
-          toast.success("Conversation unshared");
+          managedToast.success("Conversation unshared");
         } catch (_error) {
-          toast.error("Failed to unshare conversation");
+          managedToast.error("Failed to unshare conversation");
         }
       }
     );

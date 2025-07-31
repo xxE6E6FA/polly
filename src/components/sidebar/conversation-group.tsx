@@ -12,7 +12,7 @@ export const ConversationGroup = ({
 }: ConversationGroupProps) => {
   return (
     <div className="space-y-1">
-      <h3 className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-foreground/70 flex items-center gap-1">
+      <h3 className="py-1.5 text-xs font-medium uppercase tracking-wider text-foreground/70 flex items-center gap-1">
         {title === "Pinned" && (
           <PushPinIcon className="h-3.5 w-3.5" weight="fill" />
         )}

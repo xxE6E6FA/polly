@@ -2,19 +2,20 @@ import { UploadIcon } from "@phosphor-icons/react";
 import { api } from "convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useCallback, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { detectAndParseImportData } from "@/lib/import-parsers";
+import { useToast } from "@/providers/toast-context";
 
 export function ImportExportActions() {
   const [isValidating, setIsValidating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const confirmDialog = useConfirmationDialog();
   const backgroundJobs = useBackgroundJobs();
+  const managedToast = useToast();
 
   const validateImportData = useMutation(
     api.conversationImport.validateImportData
@@ -29,20 +30,20 @@ export function ImportExportActions() {
 
       // Check file size (warn if > 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        toast.warning(
+        managedToast.error(
           "Large file detected. Import may take longer than usual."
         );
       }
 
       if (!file.name.endsWith(".json")) {
-        toast.error("Please select a JSON file");
+        managedToast.error("Please select a JSON file");
         return;
       }
 
       const reader = new FileReader();
 
       reader.onerror = () => {
-        toast.error("Failed to read the file");
+        managedToast.error("Failed to read the file");
         setIsValidating(false);
       };
 
@@ -52,7 +53,7 @@ export function ImportExportActions() {
           const content = e.target?.result as string;
 
           if (!content || content.trim() === "") {
-            toast.error("The selected file is empty");
+            managedToast.error("The selected file is empty");
             setIsValidating(false);
             return;
           }
@@ -60,14 +61,14 @@ export function ImportExportActions() {
           const importResult = detectAndParseImportData(content);
 
           if (importResult.errors.length > 0) {
-            toast.error(`Import failed: ${importResult.errors[0]}`);
+            managedToast.error(`Import failed: ${importResult.errors[0]}`);
             setIsValidating(false);
             return;
           }
 
           if (importResult.conversations.length === 0) {
             console.warn("No conversations found in import result");
-            toast.error("No valid conversations found in the file");
+            managedToast.error("No valid conversations found in the file");
             setIsValidating(false);
             return;
           }
@@ -80,14 +81,16 @@ export function ImportExportActions() {
             });
 
             if (!validationResult.isValid) {
-              toast.error(`Validation failed: ${validationResult.errors[0]}`);
+              managedToast.error(
+                `Validation failed: ${validationResult.errors[0]}`
+              );
               setIsValidating(false);
               return;
             }
 
             if (validationResult.warnings.length > 0) {
               console.warn("Validation warnings:", validationResult.warnings);
-              toast.warning(
+              managedToast.error(
                 `${validationResult.warnings.length} warnings found in data`
               );
             }
@@ -119,16 +122,16 @@ export function ImportExportActions() {
             async () => {
               try {
                 await backgroundJobs.startImport(importResult.conversations);
-                toast.success(
+                managedToast.success(
                   `Started importing ${conversationCount} conversations${sourceInfo}`
                 );
               } catch (_error) {
-                toast.error("Failed to start import");
+                managedToast.error("Failed to start import");
               }
             }
           );
         } catch (error) {
-          toast.error("Failed to read or parse the file", {
+          managedToast.error("Failed to read or parse the file", {
             description:
               error instanceof Error ? error.message : "Unknown parsing error",
           });
@@ -143,7 +146,13 @@ export function ImportExportActions() {
         fileInputRef.current.value = "";
       }
     },
-    [confirmDialog, backgroundJobs, validateImportData]
+    [
+      confirmDialog,
+      backgroundJobs,
+      validateImportData,
+      managedToast.success,
+      managedToast.error,
+    ]
   );
 
   const triggerFileInput = useCallback(() => {

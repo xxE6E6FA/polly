@@ -12,7 +12,6 @@ type ApiKeyInfo = {
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
-import { toast } from "sonner";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +27,7 @@ import { useUserSettings } from "@/hooks/use-user-settings";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
+import { useToast } from "@/providers/toast-context";
 import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
 
@@ -91,6 +91,7 @@ export const ApiKeysTab = () => {
   const updateUserSettingsMutation = useMutation(
     api.userSettings.updateUserSettings
   );
+  const managedToast = useToast();
 
   // Apply type guard to ensure proper typing
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
@@ -115,7 +116,7 @@ export const ApiKeysTab = () => {
         | "latency",
     });
 
-    toast.success("OpenRouter Settings Updated", {
+    managedToast.success("OpenRouter Settings Updated", {
       description: "Your provider sorting preference has been saved.",
     });
   };
@@ -131,7 +132,7 @@ export const ApiKeysTab = () => {
     }
 
     if (!validateApiKey(provider, key.trim())) {
-      toast.error("Invalid API Key", {
+      managedToast.error("Invalid API Key", {
         description: `Please enter a valid ${API_KEY_INFO[provider].name} API key.`,
       });
       return;
@@ -139,11 +140,11 @@ export const ApiKeysTab = () => {
 
     try {
       await storeKeyMutation({ provider, rawKey: key.trim() });
-      toast.success("API Key Saved", {
+      managedToast.success("API Key Saved", {
         description: `Your ${API_KEY_INFO[provider].name} API key has been securely stored.`,
       });
     } catch (error) {
-      toast.error("Error", {
+      managedToast.error("Error", {
         description:
           error instanceof Error
             ? error.message
@@ -155,11 +156,11 @@ export const ApiKeysTab = () => {
   const handleApiKeyRemove = async (provider: ApiProvider) => {
     try {
       await removeKeyMutation({ provider });
-      toast.success("API Key Removed", {
+      managedToast.success("API Key Removed", {
         description: `Your ${API_KEY_INFO[provider].name} API key has been removed.`,
       });
     } catch {
-      toast.error("Error", {
+      managedToast.error("Error", {
         description: "Failed to remove API key. Please try again.",
       });
     }

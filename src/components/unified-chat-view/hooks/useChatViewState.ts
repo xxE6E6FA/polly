@@ -6,6 +6,7 @@ import type { ChatInputRef } from "@/components/chat-input";
 import type { VirtualizedChatMessagesRef } from "@/components/virtualized-chat-messages";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { useTextSelection } from "@/hooks/use-text-selection";
+import { useToast } from "@/providers/toast-context";
 import type {
   Attachment,
   ChatMessage,
@@ -36,6 +37,9 @@ export function useChatViewState({
 }: UseChatViewStateOptions) {
   // Mutations
   const unarchiveConversation = useMutation(api.conversations.patch);
+
+  // Hooks
+  const managedToast = useToast();
 
   // Refs
   const virtualizedMessagesRef = useRef<VirtualizedChatMessagesRef>(null);
@@ -169,17 +173,17 @@ export function useChatViewState({
         updates: { isArchived: false },
         setUpdatedAt: true,
       });
-      const { toast } = await import("sonner");
-      toast.success("Conversation restored", {
+      managedToast.success("Conversation restored", {
         description: "You can now continue chatting.",
+        id: `restore-${conversationId}`,
       });
     } catch (_error) {
-      const { toast } = await import("sonner");
-      toast.error("Failed to restore conversation", {
+      managedToast.error("Failed to restore conversation", {
         description: "Unable to restore conversation. Please try again.",
+        id: `restore-error-${conversationId}`,
       });
     }
-  }, [conversationId, unarchiveConversation]);
+  }, [conversationId, unarchiveConversation, managedToast]);
 
   // Clean up text selection on unmount
   useEffect(() => {

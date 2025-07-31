@@ -2,6 +2,7 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { ConversationId } from "@/types";
+import { BatchActions } from "./batch-actions";
 import { ConversationGroup } from "./conversation-group";
 import { ConversationItem } from "./conversation-item";
 
@@ -88,6 +89,18 @@ export const ConversationListContent = ({
     return groups;
   }, [conversations]);
 
+  // Create ordered list of all visible conversation IDs for range selection
+  const allVisibleIds = useMemo(() => {
+    const ids: ConversationId[] = [];
+    ids.push(...groupedConversations.pinned.map(c => c._id));
+    ids.push(...groupedConversations.today.map(c => c._id));
+    ids.push(...groupedConversations.yesterday.map(c => c._id));
+    ids.push(...groupedConversations.lastWeek.map(c => c._id));
+    ids.push(...groupedConversations.lastMonth.map(c => c._id));
+    ids.push(...groupedConversations.older.map(c => c._id));
+    return ids;
+  }, [groupedConversations]);
+
   // Show skeleton when loading
   if (isLoading) {
     return <ConversationListSkeleton />;
@@ -111,7 +124,9 @@ export const ConversationListContent = ({
   }
 
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-0 pb-4">
+      <BatchActions />
+
       {groupedConversations.pinned.length > 0 && (
         <ConversationGroup title="Pinned">
           {groupedConversations.pinned.map(conversation => (
@@ -119,6 +134,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -131,6 +147,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -143,6 +160,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -155,6 +173,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -167,6 +186,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -179,6 +199,7 @@ export const ConversationListContent = ({
               key={conversation._id}
               conversation={conversation}
               currentConversationId={currentConversationId}
+              allVisibleIds={allVisibleIds}
             />
           ))}
         </ConversationGroup>
@@ -189,17 +210,17 @@ export const ConversationListContent = ({
 
 const ConversationListSkeleton = () => {
   return (
-    <div className="space-y-4 pb-4">
+    <div className="space-y-0 pb-4">
       {/* Today section */}
       <div className="space-y-1">
-        <div className="mx-3 mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
+        <div className="mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
       </div>
 
       {/* Yesterday section */}
       <div className="space-y-1">
-        <div className="mx-3 mb-1 h-4 w-20 animate-pulse rounded bg-muted/60" />
+        <div className="mb-1 h-4 w-20 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
@@ -209,7 +230,5 @@ const ConversationListSkeleton = () => {
 };
 
 const ConversationItemSkeleton = () => {
-  return (
-    <div className="mx-1 h-8 animate-pulse rounded-lg bg-muted/40 px-3 py-2" />
-  );
+  return <div className="h-8 animate-pulse rounded-lg bg-muted/40 px-3 py-2" />;
 };

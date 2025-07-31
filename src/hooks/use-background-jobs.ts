@@ -2,9 +2,9 @@ import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import type { ParsedConversation } from "@/lib/import-parsers";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
+import { useToast } from "@/providers/toast-context";
 
 export type JobType =
   | "export"
@@ -50,10 +50,12 @@ export interface BackgroundJob {
   completedAt?: number;
 }
 
-export function useBackgroundJobs() {
+export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
   const [localJobs, setLocalJobs] = useState<Map<string, BackgroundJob>>(
     new Map()
   );
+  const { suppressToasts = false } = options;
+  const managedToast = useToast();
 
   const jobStatuses = useQuery(api.backgroundJobs.listUserJobs, { limit: 100 });
 
@@ -117,6 +119,11 @@ export function useBackgroundJobs() {
   }, [jobStatuses, localJobs]);
 
   useEffect(() => {
+    // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+    console.trace(
+      `🔄 useBackgroundJobs useEffect triggered (suppressToasts: ${suppressToasts}, jobs: ${jobStatuses?.length || 0})`
+    );
+
     if (
       !(
         jobStatuses &&
@@ -140,6 +147,8 @@ export function useBackgroundJobs() {
       const previousJob = previousMap.get(job._id);
       if (previousJob && previousJob.status !== job.status) {
         if (job.status === "completed") {
+          const jobKey = job.jobId || job._id;
+
           let message = "";
           if (job.type === "export") {
             message = "Export completed successfully!";
@@ -152,10 +161,17 @@ export function useBackgroundJobs() {
             // Invalidate conversations cache to reflect deleted conversations
             del(CACHE_KEYS.conversations);
           }
-          if (message) {
-            toast.success(message);
+
+          if (message && !suppressToasts) {
+            // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+            console.trace(
+              `🟢 useBackgroundJobs completion toast: "${message}" for job ${jobKey} (suppressToasts: ${suppressToasts})`
+            );
+            managedToast.success(message, { id: `job-${jobKey}` });
           }
         } else if (job.status === "failed") {
+          const jobKey = job.jobId || job._id;
+
           let message = "";
           if (job.type === "export") {
             message = `Export failed: ${job.error}`;
@@ -164,21 +180,31 @@ export function useBackgroundJobs() {
           } else if (job.type === "bulk_delete") {
             message = `Bulk delete failed: ${job.error}`;
           }
-          if (message) {
-            toast.error(message);
+
+          if (message && !suppressToasts) {
+            // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+            console.trace(
+              `🔴 useBackgroundJobs error toast: "${message}" for job ${jobKey} (suppressToasts: ${suppressToasts})`
+            );
+            managedToast.error(message, { id: `job-error-${jobKey}` });
           }
         }
       }
     });
 
     previousJobStatuses.current = jobStatuses;
-  }, [jobStatuses]);
+  }, [jobStatuses, suppressToasts, managedToast]);
 
   const startExport = async (
     conversationIds: Id<"conversations">[],
     options: { includeAttachmentContent?: boolean } = {}
   ) => {
     const jobId = crypto.randomUUID();
+
+    // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+    console.trace(
+      `📤 useBackgroundJobs startExport called (suppressToasts: ${suppressToasts}) for ${conversationIds.length} conversations, jobId: ${jobId}`
+    );
 
     try {
       await scheduleBackgroundExport({
@@ -199,13 +225,18 @@ export function useBackgroundJobs() {
       };
 
       setLocalJobs(prev => new Map(prev).set(jobId, newJob));
-      toast.success(
-        "Export started in background. You'll be notified when it's ready."
+      // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+      console.trace(
+        `🚀 useBackgroundJobs start export toast for job ${jobId} (suppressToasts: ${suppressToasts})`
+      );
+      managedToast.success(
+        "Export started in background. You'll be notified when it's ready.",
+        { id: `start-export-${jobId}` }
       );
 
       return jobId;
     } catch (error) {
-      toast.error("Failed to start export");
+      managedToast.error("Failed to start export");
       throw error;
     }
   };
@@ -236,13 +267,14 @@ export function useBackgroundJobs() {
       };
 
       setLocalJobs(prev => new Map(prev).set(jobId, newJob));
-      toast.success(
-        "Import started in background. You'll be notified when it's ready."
+      managedToast.success(
+        "Import started in background. You'll be notified when it's ready.",
+        { id: `start-import-${jobId}` }
       );
 
       return jobId;
     } catch (error) {
-      toast.error("Failed to start import");
+      managedToast.error("Failed to start import");
       throw error;
     }
   };
@@ -271,13 +303,14 @@ export function useBackgroundJobs() {
       };
 
       setLocalJobs(prev => new Map(prev).set(jobId, newJob));
-      toast.success(
-        "Bulk delete started in background. You'll be notified when it's complete."
+      managedToast.success(
+        "Bulk delete started in background. You'll be notified when it's complete.",
+        { id: `start-bulk-delete-${jobId}` }
       );
 
       return jobId;
     } catch (error) {
-      toast.error("Failed to start bulk delete");
+      managedToast.error("Failed to start bulk delete");
       throw error;
     }
   };
@@ -297,9 +330,9 @@ export function useBackgroundJobs() {
         return newMap;
       });
 
-      toast.success("Job removed successfully");
+      managedToast.success("Job removed successfully");
     } catch (_error) {
-      toast.error("Failed to remove job");
+      managedToast.error("Failed to remove job");
     }
   };
 

@@ -9,6 +9,7 @@ import {
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
+import { useToast } from "@/providers/toast-context";
 import type { AIModel, Attachment, FileUploadProgress } from "@/types";
 
 interface UseFileUploadProps {
@@ -27,6 +28,7 @@ export function useFileUpload({
 
   const { uploadFile } = useConvexFileUpload();
   const notificationDialog = useNotificationDialog();
+  const managedToast = useToast();
 
   const handleFileUpload = useCallback(
     async (files: FileList | null) => {
@@ -156,12 +158,11 @@ export function useFileUpload({
 
       // Show success toast for added files
       if (newAttachments.length > 0) {
-        const { toast } = await import("sonner");
         const imageAttachments = newAttachments.filter(
           att => att.type === "image"
         );
 
-        toast.success(
+        managedToast.success(
           `File${newAttachments.length > 1 ? "s" : ""} added successfully`,
           {
             description:
@@ -182,7 +183,7 @@ export function useFileUpload({
         );
       }
     },
-    [notificationDialog, currentModel, privateMode]
+    [notificationDialog, currentModel, privateMode, managedToast]
   );
 
   const removeAttachment = useCallback((index: number) => {

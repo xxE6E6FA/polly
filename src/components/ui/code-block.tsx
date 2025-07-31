@@ -16,6 +16,7 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { darkSyntaxTheme, lightSyntaxTheme } from "@/lib/syntax-themes";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 
 type CodeBlockProps = {
   code: string;
@@ -31,6 +32,7 @@ const CodeBlockComponent = ({
   const [copied, setCopied] = useState(false);
   const [wordWrap, setWordWrap] = useState(true);
   const { theme } = useTheme();
+  const managedToast = useToast();
   const codeContainerRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
 
@@ -43,12 +45,11 @@ const CodeBlockComponent = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (_error) {
-      const { toast } = await import("sonner");
-      toast.error("Failed to copy code", {
+      managedToast.error("Failed to copy code", {
         description: "Unable to copy code to clipboard. Please try again.",
       });
     }
-  }, [processedCode]);
+  }, [processedCode, managedToast]);
 
   const handleDownload = () => {
     const blob = new Blob([processedCode], { type: "text/plain" });

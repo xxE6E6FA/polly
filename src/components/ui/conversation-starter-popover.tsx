@@ -12,6 +12,7 @@ import { useTextSelection } from "@/hooks/use-text-selection";
 import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 
 type ConversationStarterPopoverProps = {
   selectedText: string;
@@ -37,6 +38,8 @@ export const ConversationStarterPopover = ({
   const createConversationAction = useAction(
     api.conversations.createConversationAction
   );
+
+  const managedToast = useToast();
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
   const { selectedModel } = useModelSelection();
@@ -87,8 +90,7 @@ export const ConversationStarterPopover = ({
         onOpenChange(false);
       }
     } catch (_error) {
-      const { toast } = await import("sonner");
-      toast.error("Failed to start conversation", {
+      managedToast.error("Failed to start conversation", {
         description:
           "Unable to create conversation from this prompt. Please try again.",
       });
