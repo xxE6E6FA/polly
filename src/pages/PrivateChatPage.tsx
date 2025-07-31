@@ -5,10 +5,10 @@ import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { toast } from "sonner";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   Attachment,
@@ -23,6 +23,7 @@ export default function PrivateChatPage() {
   const { user } = useUserDataContext();
   const { setPrivateMode } = usePrivateMode();
   const authToken = useAuthToken();
+  const managedToast = useToast();
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
@@ -120,7 +121,7 @@ export default function PrivateChatPage() {
     body: apiBody,
     headers: apiHeaders,
     onError: error => {
-      toast.error("Chat error", {
+      managedToast.error("Chat error", {
         description: error.message,
       });
     },
@@ -171,14 +172,14 @@ export default function PrivateChatPage() {
   // Handle saving private chat to Convex
   const handleSavePrivateChat = useCallback(async () => {
     if (!user?._id) {
-      toast.error("Cannot save chat", {
+      managedToast.error("Cannot save chat", {
         description: "User not authenticated",
       });
       return;
     }
 
     if (!canSave) {
-      toast.error("No messages to save", {
+      managedToast.error("No messages to save", {
         description: "Start a private conversation first",
       });
       return;
@@ -255,11 +256,11 @@ export default function PrivateChatPage() {
       });
 
       if (conversationId) {
-        toast.success("Chat saved successfully");
+        managedToast.success("Chat saved successfully");
         navigate(ROUTES.CHAT_CONVERSATION(conversationId));
       }
     } catch (error) {
-      toast.error("Failed to save chat", {
+      managedToast.error("Failed to save chat", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -271,6 +272,8 @@ export default function PrivateChatPage() {
     saveConversationAction,
     navigate,
     convertDataUrlToAttachment,
+    managedToast.success,
+    managedToast.error,
   ]);
 
   // Convert AI SDK messages to ChatMessage format for UnifiedChatView
@@ -443,17 +446,20 @@ export default function PrivateChatPage() {
   );
 
   // These handlers are no-ops for private mode since AI SDK manages messages
-  const handleDeleteMessage = useCallback((_messageId: string) => {
-    toast.error("Cannot delete messages in private mode");
-    return Promise.resolve();
-  }, []);
+  const handleDeleteMessage = useCallback(
+    (_messageId: string) => {
+      managedToast.error("Cannot delete messages in private mode");
+      return Promise.resolve();
+    },
+    [managedToast.error]
+  );
 
   const handleEditMessage = useCallback(
     (_messageId: string, _content: string) => {
-      toast.error("Cannot edit messages in private mode");
+      managedToast.error("Cannot edit messages in private mode");
       return Promise.resolve();
     },
-    []
+    [managedToast.error]
   );
 
   const handleRetryUserMessage = useCallback(
@@ -493,7 +499,7 @@ export default function PrivateChatPage() {
         const previousUserMessage = messages[previousUserMessageIndex];
 
         if (!previousUserMessage || previousUserMessage.role !== "user") {
-          toast.error("Cannot find previous user message to retry from");
+          managedToast.error("Cannot find previous user message to retry from");
           return;
         }
 
@@ -514,7 +520,15 @@ export default function PrivateChatPage() {
         });
       }
     },
-    [messages, apiBody, apiHeaders, selectedModel, setMessages, reload]
+    [
+      messages,
+      apiBody,
+      apiHeaders,
+      selectedModel,
+      setMessages,
+      reload,
+      managedToast.error,
+    ]
   );
 
   const handleRetryAssistantMessage = useCallback(
@@ -535,7 +549,7 @@ export default function PrivateChatPage() {
       const previousUserMessage = messages[previousUserMessageIndex];
 
       if (!previousUserMessage || previousUserMessage.role !== "user") {
-        toast.error("Cannot find previous user message to retry from");
+        managedToast.error("Cannot find previous user message to retry from");
         return;
       }
 
@@ -555,7 +569,15 @@ export default function PrivateChatPage() {
         headers: apiHeaders,
       });
     },
-    [messages, apiBody, apiHeaders, selectedModel, setMessages, reload]
+    [
+      messages,
+      apiBody,
+      apiHeaders,
+      selectedModel,
+      setMessages,
+      reload,
+      managedToast.error,
+    ]
   );
 
   return (

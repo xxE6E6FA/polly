@@ -3,13 +3,13 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { toast } from "sonner";
 import { PersonaForm } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ROUTES } from "@/lib/routes";
 import { isPersona } from "@/lib/type-guards";
+import { useToast } from "@/providers/toast-context";
 
 type PersonaFormData = {
   name: string;
@@ -25,6 +25,7 @@ type EmojiClickData = {
 export default function EditPersonaPage() {
   const navigate = useNavigate();
   const { id: personaId } = useParams();
+  const managedToast = useToast();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -73,7 +74,7 @@ export default function EditPersonaPage() {
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {
-      toast.error("Failed to update persona");
+      managedToast.error("Failed to update persona");
     } finally {
       setIsUpdating(false);
     }
@@ -97,7 +98,7 @@ export default function EditPersonaPage() {
       await deletePersonaMutation({ id: personaId as Id<"personas"> });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {
-      toast.error("Failed to delete persona");
+      managedToast.error("Failed to delete persona");
     } finally {
       setIsDeleting(false);
     }

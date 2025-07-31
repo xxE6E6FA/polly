@@ -1,15 +1,16 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
+import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 
 export default function AuthPage() {
   const { signIn } = useAuthActions();
   const { user } = useUserDataContext();
+  const managedToast = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = useCallback(async () => {
@@ -25,10 +26,10 @@ export default function AuthPage() {
         redirectTo: ROUTES.HOME,
       });
     } catch (_error) {
-      toast.error("Failed to sign in. Please try again.");
+      managedToast.error("Failed to sign in. Please try again.");
       setIsLoading(false);
     }
-  }, [signIn, user]);
+  }, [signIn, user, managedToast]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">

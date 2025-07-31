@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { Backdrop } from "@/components/ui/backdrop";
 import {
   Popover,
@@ -10,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import { useToast } from "@/providers/toast-context";
 
 import { useUserDataContext } from "@/providers/user-data-context";
 
@@ -27,6 +27,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const { modelGroups } = useModelSelection();
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
   const selectModelMutation = useMutation(api.userModels.selectModel);
+  const managedToast = useToast();
 
   const selectedModel = selectedModelRaw;
 
@@ -60,12 +61,12 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
       try {
         await selectModelMutation({ modelId, provider });
       } catch (_error) {
-        toast.error("Failed to select model", {
+        managedToast.error("Failed to select model", {
           description: "Unable to change the selected model. Please try again.",
         });
       }
     },
-    [selectModelMutation, modelGroups]
+    [selectModelMutation, modelGroups, managedToast.error]
   );
 
   const fallbackModel = useMemo(() => {

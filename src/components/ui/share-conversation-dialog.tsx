@@ -10,7 +10,6 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
-import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 import type { ConversationId } from "@/types";
 import { Alert, AlertDescription, AlertIcon } from "./alert";
 
@@ -73,6 +73,8 @@ export const ControlledShareConversationDialog = ({
   const [shareUrl, setShareUrl] = useState("");
   const [isCopied, setIsCopied] = useState(false);
 
+  const managedToast = useToast();
+
   // Get current sharing status (only when dialog is open)
   const sharedStatus = useQuery(
     api.sharedConversations.getSharedStatus,
@@ -102,9 +104,9 @@ export const ControlledShareConversationDialog = ({
       const shareId = await shareConversation({ conversationId });
       const url = generateShareUrl(shareId);
       setShareUrl(url);
-      toast.success("Conversation shared successfully!");
+      managedToast.success("Conversation shared successfully!");
     } catch (_error) {
-      toast.error("Failed to share conversation");
+      managedToast.error("Failed to share conversation");
     } finally {
       setIsSharing(false);
     }
@@ -117,9 +119,9 @@ export const ControlledShareConversationDialog = ({
       const shareId = await updateSharedConversation({ conversationId });
       const url = generateShareUrl(shareId);
       setShareUrl(url);
-      toast.success("Shared conversation updated!");
+      managedToast.success("Shared conversation updated!");
     } catch (_error) {
-      toast.error("Failed to update shared conversation");
+      managedToast.error("Failed to update shared conversation");
     } finally {
       setIsUpdating(false);
     }
@@ -131,9 +133,9 @@ export const ControlledShareConversationDialog = ({
     try {
       await unshareConversation({ conversationId });
       setShareUrl("");
-      toast.success("Conversation unshared");
+      managedToast.success("Conversation unshared");
     } catch (_error) {
-      toast.error("Failed to unshare conversation");
+      managedToast.error("Failed to unshare conversation");
     } finally {
       setIsUnsharing(false);
     }
@@ -151,7 +153,7 @@ export const ControlledShareConversationDialog = ({
 
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
-    toast.success("Link copied to clipboard");
+    managedToast.success("Link copied to clipboard");
   };
 
   // Handle open in new tab

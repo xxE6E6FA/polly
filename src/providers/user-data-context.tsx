@@ -16,10 +16,10 @@ import {
   useState,
 } from "react";
 import { useLocation } from "react-router";
-import { toast } from "sonner";
 import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";
+import { useToast } from "@/providers/toast-context";
 
 type AuthState =
   | "initializing"
@@ -127,6 +127,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isGraduating, setIsGraduating] = useState(false);
   const graduateAnonymousUser = useMutation(api.users.graduateAnonymousUser);
   const { monthlyMessagesSent } = useMessageSentCount();
+  const managedToast = useToast();
 
   const userRecordRaw = useQuery(api.users.current);
   const userRecord = userRecordRaw;
@@ -203,14 +204,14 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           // Only show success toast if there was actually data to graduate
           if (result && result.conversationsTransferred > 0) {
-            toast.success("Welcome back!", {
+            managedToast.success("Welcome back!", {
               description: "Your anonymous conversations have been preserved.",
             });
           }
         } catch (_error) {
           // Clear the stored ID even if graduation failed
           set(CACHE_KEYS.anonymousUserGraduation, null);
-          toast.error("Failed to preserve conversations", {
+          managedToast.error("Failed to preserve conversations", {
             description: "Your conversations may not have been transferred.",
           });
         } finally {
@@ -229,6 +230,8 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     graduateAnonymousUser,
     isGraduating,
     authState,
+    managedToast.success,
+    managedToast.error,
   ]);
 
   useEffect(() => {

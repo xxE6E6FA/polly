@@ -10,7 +10,6 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
@@ -27,11 +26,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
 import { isPersonaArray, isUserSettings } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { SettingsHeader } from "./settings-header";
 import { SectionHeader } from "./ui/SectionHeader";
@@ -46,6 +45,7 @@ export const PersonasTab = () => {
     user?._id ? {} : "skip"
   );
   const userSettingsRaw = useUserSettings();
+  const managedToast = useToast();
 
   // Apply type guards
   const personas = isPersonaArray(personasRaw) ? personasRaw : [];
@@ -77,12 +77,12 @@ export const PersonasTab = () => {
       try {
         await removePersonaMutation({ id: personaId });
       } catch (_error) {
-        toast.error("Failed to delete persona");
+        managedToast.error("Failed to delete persona");
       } finally {
         setDeletingPersona(null);
       }
     },
-    [removePersonaMutation]
+    [removePersonaMutation, managedToast.error]
   );
 
   const handleToggleBuiltInPersona = useCallback(

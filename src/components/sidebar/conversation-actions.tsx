@@ -25,7 +25,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { cn } from "@/lib/utils";
+import { useBatchSelection } from "@/providers/batch-selection-context";
 import type { Conversation } from "@/types";
 
 type ConversationActionsProps = {
@@ -37,6 +39,7 @@ type ConversationActionsProps = {
   isDesktopPopoverOpen: boolean;
   exportingFormat: "json" | "md" | null;
   isDeleteJobInProgress: boolean;
+  isBulkMode: boolean;
   onMobilePopoverChange: (open: boolean) => void;
   onDesktopPopoverChange: (open: boolean) => void;
   onStartEdit: () => void;
@@ -56,6 +59,7 @@ export const ConversationActions = ({
   isDesktopPopoverOpen,
   exportingFormat: _exportingFormat,
   isDeleteJobInProgress: _isDeleteJobInProgress,
+  isBulkMode,
   onMobilePopoverChange,
   onDesktopPopoverChange,
   onStartEdit,
@@ -76,14 +80,14 @@ export const ConversationActions = ({
     }
   };
 
-  if (conversation.isStreaming || isEditing) {
+  if (conversation.isStreaming || isEditing || isBulkMode) {
     return null;
   }
 
   return (
     <>
       {isMobile ? (
-        <div className="flex-shrink-0 pr-2">
+        <div className="flex-shrink-0">
           <Popover
             open={isMobilePopoverOpen}
             onOpenChange={onMobilePopoverChange}
@@ -152,75 +156,77 @@ export const ConversationActions = ({
           </Popover>
         </div>
       ) : (
-        (isHovered || isDesktopPopoverOpen) && (
-          <div className="flex flex-shrink-0 items-center gap-0.5 pr-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="h-7 w-7 text-foreground/70 hover:bg-accent hover:text-foreground"
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={onPinToggle}
-                >
-                  <PushPinIcon
-                    className="h-3.5 w-3.5"
-                    weight={conversation.isPinned ? "fill" : "regular"}
-                  />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{conversation.isPinned ? "Unpin" : "Pin"} conversation</p>
-              </TooltipContent>
-            </Tooltip>
-
-            <Popover
-              open={isDesktopPopoverOpen}
-              onOpenChange={onDesktopPopoverChange}
-            >
-              <PopoverTrigger asChild>
-                <Button
-                  className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={popoverStopPropagation}
-                >
-                  <DotsThreeVerticalIcon
-                    className="h-3.5 w-3.5"
-                    weight="bold"
-                  />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                sideOffset={5}
-                className="w-40 p-1"
-                onClick={popoverStopPropagation}
-                onInteractOutside={handleInteractOutside}
+        <div
+          className={cn(
+            "flex flex-shrink-0 items-center gap-0.5 transition-all duration-200 ease-in-out",
+            isHovered || isDesktopPopoverOpen
+              ? "opacity-100 translate-x-0"
+              : "opacity-0 translate-x-2 pointer-events-none"
+          )}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="h-7 w-7 text-foreground/70 hover:bg-accent hover:text-foreground"
+                size="icon-sm"
+                variant="ghost"
+                onClick={onPinToggle}
               >
-                <div className="flex flex-col gap-0.5">
-                  <Button
-                    className="h-8 justify-start gap-2 px-2 text-xs"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onArchive()}
-                  >
-                    <ArchiveIcon className="h-3.5 w-3.5" />
-                    Archive
-                  </Button>
-                  <Button
-                    className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onDelete()}
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                    Delete
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        )
+                <PushPinIcon
+                  className="h-3.5 w-3.5"
+                  weight={conversation.isPinned ? "fill" : "regular"}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{conversation.isPinned ? "Unpin" : "Pin"} conversation</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Popover
+            open={isDesktopPopoverOpen}
+            onOpenChange={onDesktopPopoverChange}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
+                size="icon-sm"
+                variant="ghost"
+                onClick={popoverStopPropagation}
+              >
+                <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              sideOffset={5}
+              className="w-40 p-1"
+              onClick={popoverStopPropagation}
+              onInteractOutside={handleInteractOutside}
+            >
+              <div className="flex flex-col gap-0.5">
+                <Button
+                  className="h-8 justify-start gap-2 px-2 text-xs"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onArchive()}
+                >
+                  <ArchiveIcon className="h-3.5 w-3.5" />
+                  Archive
+                </Button>
+                <Button
+                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onDelete()}
+                >
+                  <TrashIcon className="h-3.5 w-3.5" />
+                  Delete
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       )}
     </>
   );
@@ -247,58 +253,104 @@ export const ConversationContextMenu = ({
   onArchive: () => void;
   onDelete: () => void;
 }) => {
+  const { hasSelection, selectionCount, isSelected, selectConversation } =
+    useBatchSelection();
+  const { performBulkAction } = useBulkActions();
+  const isCurrentSelected = isSelected(conversation._id);
+  const showBatchActions = hasSelection && selectionCount > 1;
+
+  const handleBulkAction = (actionKey: string) => {
+    if (!isCurrentSelected) {
+      selectConversation(conversation._id);
+    }
+    performBulkAction(actionKey);
+  };
+
   return (
     <ContextMenuContent className="w-48">
-      <ContextMenuItem onSelect={onPinToggle}>
-        <PushPinIcon
-          className="h-4 w-4"
-          weight={conversation.isPinned ? "fill" : "regular"}
-        />
-        {conversation.isPinned ? "Unpin" : "Pin"}
-      </ContextMenuItem>
+      {showBatchActions ? (
+        <>
+          {/* Batch actions */}
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            {selectionCount} conversations selected
+          </div>
+          <ContextMenuSeparator />
 
-      <ContextMenuItem onSelect={onStartEdit}>
-        <PencilSimpleIcon className="h-4 w-4" />
-        Edit title
-      </ContextMenuItem>
+          <ContextMenuItem onSelect={() => handleBulkAction("export-json")}>
+            <FileCodeIcon className="h-4 w-4" />
+            Export selected as JSON
+          </ContextMenuItem>
 
-      <ContextMenuSeparator />
+          <ContextMenuSeparator />
 
-      <ContextMenuItem onSelect={onShare}>
-        <ShareNetworkIcon className="h-4 w-4" />
-        Share
-      </ContextMenuItem>
+          <ContextMenuItem onSelect={() => handleBulkAction("archive")}>
+            <ArchiveIcon className="h-4 w-4" />
+            Archive selected
+          </ContextMenuItem>
 
-      <ContextMenuItem
-        onSelect={() => onExport("md")}
-        disabled={exportingFormat === "md" || isDeleteJobInProgress}
-      >
-        <FileTextIcon className="h-4 w-4" />
-        {exportingFormat === "md" ? "Exporting..." : "Export as Markdown"}
-      </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => handleBulkAction("delete")}
+            className="text-destructive focus:text-destructive"
+          >
+            <TrashIcon className="h-4 w-4" />
+            Delete selected
+          </ContextMenuItem>
+        </>
+      ) : (
+        <>
+          {/* Single conversation actions */}
+          <ContextMenuItem onSelect={onPinToggle}>
+            <PushPinIcon
+              className="h-4 w-4"
+              weight={conversation.isPinned ? "fill" : "regular"}
+            />
+            {conversation.isPinned ? "Unpin" : "Pin"}
+          </ContextMenuItem>
 
-      <ContextMenuItem
-        onSelect={() => onExport("json")}
-        disabled={exportingFormat === "json" || isDeleteJobInProgress}
-      >
-        <FileCodeIcon className="h-4 w-4" />
-        {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
-      </ContextMenuItem>
+          <ContextMenuItem onSelect={onStartEdit}>
+            <PencilSimpleIcon className="h-4 w-4" />
+            Edit title
+          </ContextMenuItem>
 
-      <ContextMenuSeparator />
+          <ContextMenuSeparator />
 
-      <ContextMenuItem onSelect={onArchive}>
-        <ArchiveIcon className="h-4 w-4" />
-        Archive
-      </ContextMenuItem>
+          <ContextMenuItem onSelect={onShare}>
+            <ShareNetworkIcon className="h-4 w-4" />
+            Share
+          </ContextMenuItem>
 
-      <ContextMenuItem
-        onSelect={onDelete}
-        className="text-destructive focus:text-destructive"
-      >
-        <TrashIcon className="h-4 w-4" />
-        Delete
-      </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => onExport("md")}
+            disabled={exportingFormat === "md" || isDeleteJobInProgress}
+          >
+            <FileTextIcon className="h-4 w-4" />
+            {exportingFormat === "md" ? "Exporting..." : "Export as Markdown"}
+          </ContextMenuItem>
+
+          <ContextMenuItem
+            onSelect={() => onExport("json")}
+            disabled={exportingFormat === "json" || isDeleteJobInProgress}
+          >
+            <FileCodeIcon className="h-4 w-4" />
+            {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
+          </ContextMenuItem>
+
+          <ContextMenuSeparator />
+
+          <ContextMenuItem onSelect={onArchive}>
+            <ArchiveIcon className="h-4 w-4" />
+            Archive
+          </ContextMenuItem>
+
+          <ContextMenuItem
+            onSelect={onDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <TrashIcon className="h-4 w-4" />
+            Delete
+          </ContextMenuItem>
+        </>
+      )}
     </ContextMenuContent>
   );
 };

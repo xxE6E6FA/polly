@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useBatchSelection } from "@/providers/batch-selection-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
@@ -28,6 +29,7 @@ export const Sidebar = () => {
     setSidebarVisible,
     mounted,
   } = useUI();
+  const { setHoveringOverSidebar } = useBatchSelection();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();
@@ -211,9 +213,7 @@ export const Sidebar = () => {
               </div>
             </div>
 
-            <div
-              className={cn("space-y-3", isMobile ? "px-2 pb-3" : "px-3 pb-3")}
-            >
+            <div className="space-y-3 px-3 pb-3">
               <SidebarSearch
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -222,10 +222,9 @@ export const Sidebar = () => {
           </div>
 
           <div
-            className={cn(
-              "flex-1 overflow-y-auto min-h-0 scrollbar-thin",
-              isMobile ? "px-2" : "px-2"
-            )}
+            className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3"
+            onMouseEnter={() => setHoveringOverSidebar(true)}
+            onMouseLeave={() => setHoveringOverSidebar(false)}
           >
             <ConversationList
               currentConversationId={currentConversationId}

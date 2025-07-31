@@ -10,7 +10,6 @@ import {
 import { useAction } from "convex/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +21,7 @@ import {
 } from "@/components/ui/popover";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/providers/toast-context";
 import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {
@@ -48,6 +48,7 @@ export const PersonaForm = ({
 }: PersonaFormProps) => {
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
+  const managedToast = useToast();
   const improvePromptAction = useAction(api.personas.improvePrompt);
 
   const updateFormField = useCallback(
@@ -79,7 +80,7 @@ export const PersonaForm = ({
 
   const handleImprovePrompt = useCallback(async () => {
     if (!promptValue.trim()) {
-      toast.error("No prompt to improve", {
+      managedToast.error("No prompt to improve", {
         description: "Please enter a prompt first before trying to improve it.",
       });
       return;
@@ -90,18 +91,24 @@ export const PersonaForm = ({
       const result = await improvePromptAction({ prompt: promptValue });
       if (result.improvedPrompt) {
         handlePromptChange(result.improvedPrompt);
-        toast.success("Prompt improved!", {
+        managedToast.success("Prompt improved!", {
           description: "Your prompt has been enhanced with AI suggestions.",
         });
       }
     } catch (_error) {
-      toast.error("Failed to improve prompt", {
+      managedToast.error("Failed to improve prompt", {
         description: "Unable to improve the prompt. Please try again.",
       });
     } finally {
       setIsImprovingPrompt(false);
     }
-  }, [promptValue, improvePromptAction, handlePromptChange]);
+  }, [
+    promptValue,
+    improvePromptAction,
+    handlePromptChange,
+    managedToast.success,
+    managedToast.error,
+  ]);
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">

@@ -1,8 +1,8 @@
 import { api } from "@convex/_generated/api";
+import { CheckIcon, CircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
@@ -18,6 +18,8 @@ import {
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useBatchSelection } from "@/providers/batch-selection-context";
+import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
 import type { Conversation, ConversationId } from "@/types";
 import {
@@ -29,11 +31,13 @@ import { EditableConversationTitle } from "./editable-conversation-title";
 type ConversationItemProps = {
   conversation: Conversation;
   currentConversationId?: ConversationId;
+  allVisibleIds: ConversationId[];
 };
 
 export const ConversationItem = ({
   conversation,
   currentConversationId,
+  allVisibleIds,
 }: ConversationItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -45,11 +49,25 @@ export const ConversationItem = ({
   );
 
   const { isMobile, setSidebarVisible } = useUI();
+  const {
+    isSelectionMode,
+    isSelected,
+    toggleSelection,
+    hasSelection,
+    selectRange,
+    isShiftPressed,
+  } = useBatchSelection();
   const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
+  const managedToast = useToast();
   const backgroundJobs = useBackgroundJobs();
 
   const isCurrentConversation = currentConversationId === conversation._id;
+  const isItemSelected = isSelected(conversation._id);
+  const isBulkMode = isSelectionMode || hasSelection;
+  const isActionsHovered = isHovered || isDesktopPopoverOpen;
+
+  const shouldShowActions = !(isMobile || isBulkMode) && isActionsHovered;
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
@@ -84,18 +102,26 @@ export const ConversationItem = ({
         const filename = generateFilename(conversation.title, exportingFormat);
         downloadFile(content, filename, mimeType);
 
-        toast.success("Export successful", {
+        managedToast.success("Export successful", {
           description: `Conversation exported as ${filename}`,
+          id: `export-${conversation._id}`,
         });
       } catch (_error) {
-        toast.error("Export failed", {
+        managedToast.error("Export failed", {
           description: "An error occurred while exporting the conversation",
+          id: `export-error-${conversation._id}`,
         });
       } finally {
         setExportingFormat(null);
       }
     }
-  }, [exportData, exportingFormat, conversation.title]);
+  }, [
+    exportData,
+    exportingFormat,
+    conversation.title,
+    conversation._id,
+    managedToast,
+  ]);
 
   // Error handlers
   const handleError = useMemo(
@@ -103,15 +129,17 @@ export const ConversationItem = ({
       async delete(operation: () => Promise<unknown>) {
         try {
           const result = await operation();
-          toast.success("Conversation deleted", {
+          managedToast.success("Conversation deleted", {
             description: "The conversation has been permanently removed.",
+            id: `delete-${conversation._id}`,
           });
           // Invalidate conversations cache to reflect deleted conversation
           del(CACHE_KEYS.conversations);
           return result;
         } catch (error) {
-          toast.error("Failed to delete conversation", {
+          managedToast.error("Failed to delete conversation", {
             description: "Unable to delete conversation. Please try again.",
+            id: `delete-error-${conversation._id}`,
           });
           throw error;
         }
@@ -120,19 +148,21 @@ export const ConversationItem = ({
       async archive(operation: () => Promise<unknown>) {
         try {
           const result = await operation();
-          toast.success("Conversation archived", {
+          managedToast.success("Conversation archived", {
             description: "The conversation has been moved to archive.",
+            id: `archive-${conversation._id}`,
           });
           return result;
         } catch (error) {
-          toast.error("Failed to archive conversation", {
+          managedToast.error("Failed to archive conversation", {
             description: "Unable to archive conversation. Please try again.",
+            id: `archive-error-${conversation._id}`,
           });
           throw error;
         }
       },
     }),
-    []
+    [managedToast, conversation._id]
   );
 
   const handleStartEdit = useCallback(() => {
@@ -266,11 +296,38 @@ export const ConversationItem = ({
     setIsShareDialogOpen(true);
   }, []);
 
-  const handleConversationClick = useCallback(() => {
-    if (isMobile) {
-      setSidebarVisible(false);
-    }
-  }, [isMobile, setSidebarVisible]);
+  const handleConversationClick = useCallback(
+    (e: React.MouseEvent) => {
+      // If in selection mode, handle selection instead of navigating
+      if (isSelectionMode || hasSelection) {
+        e.preventDefault();
+
+        // If Shift is held and we're in selection mode, do range selection
+        if (isShiftPressed && hasSelection) {
+          selectRange(conversation._id, allVisibleIds);
+        } else {
+          // Otherwise, just toggle this item
+          toggleSelection(conversation._id);
+        }
+        return;
+      }
+
+      if (isMobile) {
+        setSidebarVisible(false);
+      }
+    },
+    [
+      isMobile,
+      setSidebarVisible,
+      isSelectionMode,
+      hasSelection,
+      isShiftPressed,
+      toggleSelection,
+      selectRange,
+      conversation._id,
+      allVisibleIds,
+    ]
+  );
 
   return (
     <>
@@ -278,31 +335,75 @@ export const ConversationItem = ({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "group relative flex items-center rounded-lg transition-all duration-200",
+              "group relative flex items-center rounded-lg transition-all duration-200 ease-in-out my-0.5",
               isCurrentConversation || isEditing
                 ? "bg-accent text-foreground shadow-sm"
-                : "text-foreground/80 hover:text-foreground hover:bg-accent/50",
-              isMobile ? "mx-1 my-0.5" : "mx-1 my-0.5"
+                : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
             )}
             onMouseEnter={() => !isMobile && setIsHovered(true)}
             onMouseLeave={() => !isMobile && setIsHovered(false)}
           >
+            {/* Selection checkbox - positioned absolutely, slides in from left when in bulk mode */}
+            <div className="absolute left-2 top-0 h-full flex items-center">
+              <div
+                className={cn(
+                  "flex items-center transition-all duration-200 ease-in-out",
+                  isBulkMode
+                    ? "opacity-100 translate-x-0"
+                    : "opacity-0 -translate-x-2 pointer-events-none"
+                )}
+              >
+                <button
+                  onClick={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // If Shift is held and we have a selection, do range selection
+                    if (isShiftPressed && hasSelection) {
+                      selectRange(conversation._id, allVisibleIds);
+                    } else {
+                      toggleSelection(conversation._id);
+                    }
+                  }}
+                  className="flex items-center justify-center w-4 h-4 rounded border border-muted-foreground/30 hover:border-muted-foreground/50 transition-colors"
+                >
+                  {isItemSelected ? (
+                    <CheckIcon
+                      className="w-2.5 h-2.5 text-primary"
+                      weight="bold"
+                    />
+                  ) : (
+                    <CircleIcon className="w-2.5 h-2.5 text-transparent" />
+                  )}
+                </button>
+              </div>
+            </div>
+
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               className={cn(
-                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg",
-                isMobile ? "px-3 py-2.5" : "px-3 py-2"
+                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out",
+                isMobile ? "py-2.5" : "py-2",
+                // Adjust padding dynamically based on checkbox visibility
+                isBulkMode ? "px-3 pl-8" : "px-3"
               )}
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
               }
             >
-              <div className={cn("flex-1 min-w-0", isMobile ? "pr-3" : "pr-2")}>
+              <div
+                className={cn(
+                  "flex-1 min-w-0 transition-all duration-200 ease-in-out",
+                  // Only add padding when actions are visible (not on mobile and not in bulk mode)
+                  shouldShowActions ? "pr-20" : "pr-2"
+                )}
+              >
                 <EditableConversationTitle
                   title={conversation.title}
                   isEditing={isEditing}
                   isCurrentConversation={isCurrentConversation}
                   isMobile={isMobile}
+                  hasActionsVisible={shouldShowActions}
                   onStartEdit={handleStartEdit}
                   onSaveEdit={handleSaveEdit}
                   onCancelEdit={handleCancelEdit}
@@ -316,24 +417,28 @@ export const ConversationItem = ({
               )}
             </Link>
 
-            <ConversationActions
-              conversation={conversation}
-              isEditing={isEditing}
-              isHovered={isHovered}
-              isMobile={isMobile}
-              isMobilePopoverOpen={isMobilePopoverOpen}
-              isDesktopPopoverOpen={isDesktopPopoverOpen}
-              exportingFormat={exportingFormat}
-              isDeleteJobInProgress={isDeleteJobInProgress}
-              onMobilePopoverChange={setIsMobilePopoverOpen}
-              onDesktopPopoverChange={setIsDesktopPopoverOpen}
-              onStartEdit={handleStartEdit}
-              onArchive={handleArchiveClick}
-              onDelete={handleDeleteClick}
-              onPinToggle={handlePinToggle}
-              onExport={handleExport}
-              onShare={handleShareClick}
-            />
+            {/* Position actions absolutely to overlay title area */}
+            <div className="absolute right-2 top-0 h-full flex items-center">
+              <ConversationActions
+                conversation={conversation}
+                isEditing={isEditing}
+                isHovered={isHovered}
+                isMobile={isMobile}
+                isMobilePopoverOpen={isMobilePopoverOpen}
+                isDesktopPopoverOpen={isDesktopPopoverOpen}
+                exportingFormat={exportingFormat}
+                isDeleteJobInProgress={isDeleteJobInProgress}
+                isBulkMode={isBulkMode}
+                onMobilePopoverChange={setIsMobilePopoverOpen}
+                onDesktopPopoverChange={setIsDesktopPopoverOpen}
+                onStartEdit={handleStartEdit}
+                onArchive={handleArchiveClick}
+                onDelete={handleDeleteClick}
+                onPinToggle={handlePinToggle}
+                onExport={handleExport}
+                onShare={handleShareClick}
+              />
+            </div>
           </div>
         </ContextMenuTrigger>
 

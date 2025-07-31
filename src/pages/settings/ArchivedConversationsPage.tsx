@@ -8,7 +8,6 @@ import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
-import { toast } from "sonner";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
@@ -20,6 +19,7 @@ import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-lis
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
+import { useToast } from "@/providers/toast-context";
 
 import type { ConversationId } from "@/types";
 
@@ -32,6 +32,7 @@ type ArchivedConversation = {
 
 export const ArchivedConversationsPage = () => {
   const confirmationDialog = useConfirmationDialog();
+  const managedToast = useToast();
 
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -48,21 +49,21 @@ export const ArchivedConversationsPage = () => {
           updates: { isArchived: false },
           setUpdatedAt: true,
         });
-        toast.success("Conversation restored", {
+        managedToast.success("Conversation restored", {
           description:
             "The conversation has been moved back to your main list.",
         });
         // Invalidate conversations cache to reflect unarchived conversation
         del(CACHE_KEYS.conversations);
       } catch (_error) {
-        toast.error("Failed to restore conversation", {
+        managedToast.error("Failed to restore conversation", {
           description: "Unable to restore conversation. Please try again.",
         });
       } finally {
         setIsUnarchiving(null);
       }
     },
-    [unarchiveMutation]
+    [unarchiveMutation, managedToast.success, managedToast.error]
   );
 
   const handlePermanentDelete = useCallback(
@@ -79,13 +80,13 @@ export const ArchivedConversationsPage = () => {
           setIsDeleting(conversationId);
           try {
             await deleteConversationMutation({ id: conversationId });
-            toast.success("Conversation deleted", {
+            managedToast.success("Conversation deleted", {
               description: "The conversation has been permanently removed.",
             });
             // Invalidate conversations cache to reflect deleted conversation
             del(CACHE_KEYS.conversations);
           } catch (_error) {
-            toast.error("Failed to delete conversation", {
+            managedToast.error("Failed to delete conversation", {
               description: "Unable to delete conversation. Please try again.",
             });
           } finally {
@@ -94,7 +95,12 @@ export const ArchivedConversationsPage = () => {
         }
       );
     },
-    [confirmationDialog, deleteConversationMutation]
+    [
+      confirmationDialog,
+      deleteConversationMutation,
+      managedToast.success,
+      managedToast.error,
+    ]
   );
 
   // Render function for each archived conversation

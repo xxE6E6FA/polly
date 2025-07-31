@@ -9,17 +9,15 @@ import {
 import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
-
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 
 type ConversationSummary = {
   _id: Id<"conversations">;
@@ -58,6 +56,7 @@ export function ConversationSelectionList({
   const [isDeleting, setIsDeleting] = useState(false);
   const bulkRemove = useMutation(api.conversations.bulkRemove);
   const backgroundJobs = useBackgroundJobs();
+  const managedToast = useToast();
 
   const handleItemClick = useCallback(
     (conversationId: Id<"conversations">, index: number, shiftKey: boolean) => {
@@ -68,7 +67,7 @@ export function ConversationSelectionList({
 
   const handleExport = useCallback(async () => {
     if (selectedConversations.size === 0) {
-      toast.error("Please select conversations to export");
+      managedToast.error("Please select conversations to export");
       return;
     }
 
@@ -79,16 +78,26 @@ export function ConversationSelectionList({
       await backgroundJobs.startExport(conversationIds, {
         includeAttachmentContent: includeAttachments,
       });
-      toast.success(
+      // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+      console.trace(
+        `🚀 ConversationSelectionList export started toast: ${conversationIds.length} conversations`
+      );
+      managedToast.success(
         `Started exporting ${conversationIds.length} conversation${conversationIds.length === 1 ? "" : "s"}`
       );
     } catch (error) {
-      toast.error("Failed to start export", {
+      managedToast.error("Failed to start export", {
         description:
           error instanceof Error ? error.message : "Unknown error occurred",
       });
     }
-  }, [selectedConversations, includeAttachments, backgroundJobs]);
+  }, [
+    selectedConversations,
+    includeAttachments,
+    backgroundJobs,
+    managedToast.success,
+    managedToast.error,
+  ]);
 
   const handleBulkDelete = useCallback(async () => {
     setIsDeleting(true);
@@ -98,12 +107,20 @@ export function ConversationSelectionList({
 
       if (ids.length > BackgroundThreshold) {
         await backgroundJobs.startBulkDelete(ids);
-        toast.success(
+        // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+        console.trace(
+          `🗑️ ConversationSelectionList background delete toast: ${ids.length} conversations`
+        );
+        managedToast.success(
           `Started deleting ${ids.length} conversations in background. You'll be notified when complete.`
         );
       } else {
         await bulkRemove({ ids });
-        toast.success("Conversations Deleted", {
+        // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
+        console.trace(
+          `🗑️ ConversationSelectionList direct delete toast: ${ids.length} conversations`
+        );
+        managedToast.success("Conversations Deleted", {
           description: `${ids.length} conversation${
             ids.length === 1 ? "" : "s"
           } deleted successfully.`,
@@ -114,14 +131,21 @@ export function ConversationSelectionList({
 
       clearSelection();
     } catch (_error) {
-      toast.error("Delete Failed", {
+      managedToast.error("Delete Failed", {
         description: "Failed to delete conversations. Please try again.",
       });
     } finally {
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
-  }, [selectedConversations, bulkRemove, backgroundJobs, clearSelection]);
+  }, [
+    selectedConversations,
+    bulkRemove,
+    backgroundJobs,
+    clearSelection,
+    managedToast.success,
+    managedToast.error,
+  ]);
 
   const renderItem = useCallback(
     (conversation: ConversationSummary, index: number) => {

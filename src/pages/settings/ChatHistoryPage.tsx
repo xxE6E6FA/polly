@@ -2,7 +2,6 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { ActivitySection } from "@/components/settings/chat-history-tab/ActivitySection";
 import { ConversationSelectionList } from "@/components/settings/chat-history-tab/ConversationSelectionList";
 import { ImportExportActions } from "@/components/settings/chat-history-tab/ImportExportActions";
@@ -10,10 +9,12 @@ import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConversationSelection } from "@/hooks/use-conversation-selection";
+import { useToast } from "@/providers/toast-context";
 
 export default function ChatHistoryPage() {
   const conversationSelection = useConversationSelection();
   const backgroundJobs = useBackgroundJobs();
+  const managedToast = useToast();
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
 
   const downloadData = useQuery(
@@ -36,7 +37,7 @@ export default function ChatHistoryPage() {
       try {
         if (downloadData.downloadUrl) {
           // Show loading state
-          loadingToastId = toast.loading("Preparing download...");
+          loadingToastId = managedToast.loading("Preparing download...");
 
           // Fetch the file as a blob
           const response = await fetch(downloadData.downloadUrl);
@@ -71,26 +72,26 @@ export default function ChatHistoryPage() {
 
           // Dismiss loading toast and show success
           if (loadingToastId) {
-            toast.dismiss(loadingToastId);
+            managedToast.dismiss(loadingToastId);
           }
-          toast.success("Download started", {
+          managedToast.success("Download started", {
             description: `Export file downloaded as ${filename}`,
           });
         } else {
           // Dismiss loading toast and show error
           if (loadingToastId) {
-            toast.dismiss(loadingToastId);
+            managedToast.dismiss(loadingToastId);
           }
-          toast.error("Download failed", {
+          managedToast.error("Download failed", {
             description: "Export file is not available for download",
           });
         }
       } catch (_error) {
         // Dismiss loading toast and show error
         if (loadingToastId) {
-          toast.dismiss(loadingToastId);
+          managedToast.dismiss(loadingToastId);
         }
-        toast.error("Download failed", {
+        managedToast.error("Download failed", {
           description: "An error occurred while downloading the file",
         });
       }
@@ -98,7 +99,14 @@ export default function ChatHistoryPage() {
 
     downloadFile();
     setDownloadingJobId(null);
-  }, [downloadData, downloadingJobId]);
+  }, [
+    downloadData,
+    downloadingJobId,
+    managedToast.success,
+    managedToast.error,
+    managedToast.loading,
+    managedToast.dismiss,
+  ]);
 
   const handleRemove = (jobId: string) => {
     backgroundJobs.removeJob(jobId);

@@ -10,7 +10,6 @@ import {
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   downloadFile,
   exportAsJSON,
@@ -18,6 +17,7 @@ import {
   generateFilename,
 } from "@/lib/export";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
@@ -55,6 +55,7 @@ export const ChatHeader = ({
 }: ChatHeaderProps) => {
   const { user } = useUserDataContext();
   const { isSidebarVisible } = useUI();
+  const managedToast = useToast();
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
   );
@@ -118,12 +119,14 @@ export const ChatHeader = ({
         const filename = generateFilename("Private Chat", format);
         downloadFile(content, filename, mimeType);
 
-        toast.success("Export successful", {
+        managedToast.success("Export successful", {
           description: `Private chat exported as ${filename}`,
+          id: `export-private-${Date.now()}`,
         });
       } catch (_error) {
-        toast.error("Export failed", {
+        managedToast.error("Export failed", {
           description: "An error occurred while exporting the private chat",
+          id: `export-private-error-${Date.now()}`,
         });
       }
       return;
@@ -131,8 +134,9 @@ export const ChatHeader = ({
 
     // Handle regular conversation export
     if (!conversationId) {
-      toast.error("Export failed", {
+      managedToast.error("Export failed", {
         description: "No conversation to export",
+        id: "export-no-conversation",
       });
       return;
     }
@@ -159,25 +163,35 @@ export const ChatHeader = ({
         const filename = generateFilename(conversation.title, exportingFormat);
         downloadFile(content, filename, mimeType);
 
-        toast.success("Export successful", {
+        managedToast.success("Export successful", {
           description: `Conversation exported as ${filename}`,
+          id: `export-conversation-${conversationId}`,
         });
       } catch (_error) {
-        toast.error("Export failed", {
+        managedToast.error("Export failed", {
           description: "An error occurred while exporting the conversation",
+          id: `export-conversation-error-${conversationId}`,
         });
       } finally {
         setExportingFormat(null);
         setShouldLoadExportData(false);
       }
     } else if (shouldLoadExportData && exportData === null && exportingFormat) {
-      toast.error("Export failed", {
+      managedToast.error("Export failed", {
         description: "Unable to load conversation data",
+        id: `export-load-error-${conversationId}`,
       });
       setExportingFormat(null);
       setShouldLoadExportData(false);
     }
-  }, [exportData, exportingFormat, conversation, shouldLoadExportData]);
+  }, [
+    exportData,
+    exportingFormat,
+    conversation,
+    shouldLoadExportData,
+    managedToast,
+    conversationId,
+  ]);
 
   // For chat pages, show full header with conversation title
   return (

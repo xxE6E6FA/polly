@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { WindowVirtualizer } from "virtua";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +8,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Switch } from "@/components/ui/switch";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ToggleModelResult } from "@/types";
 
@@ -190,6 +190,7 @@ export const VirtualizedModelList = memo(
     });
 
     const { user } = useUserDataContext();
+    const managedToast = useToast();
     const authenticatedUserId = user?._id;
     const enabledModels = useQuery(
       api.userModels.getUserModels,
@@ -245,7 +246,7 @@ export const VirtualizedModelList = memo(
             }
 
             // Show error toast
-            toast.error(result.error || "Failed to toggle model");
+            managedToast.error(result.error || "Failed to toggle model");
             return;
           }
 
@@ -257,12 +258,17 @@ export const VirtualizedModelList = memo(
             message += " (using your API key instead of free Polly model)";
           }
 
-          toast.success(message);
+          managedToast.success(message);
         } catch (_error) {
-          toast.error("Failed to toggle model");
+          managedToast.error("Failed to toggle model");
         }
       },
-      [toggleModel, authenticatedUserId]
+      [
+        toggleModel,
+        authenticatedUserId,
+        managedToast.success,
+        managedToast.error,
+      ]
     );
 
     const onToggleModel = useCallback(

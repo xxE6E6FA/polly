@@ -11,7 +11,6 @@ import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { useMutation } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useState } from "react";
-import { toast } from "sonner";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,8 +38,8 @@ import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
-
 import { cn } from "@/lib/utils";
+import { useToast } from "@/providers/toast-context";
 
 // Union type for models from getAvailableModels
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -67,6 +66,7 @@ const RetryDropdown = memo(
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const { modelGroups, userModels } = useModelSelection();
     const selectModelMutation = useMutation(api.userModels.selectModel);
+    const managedToast = useToast();
 
     const handleOpenChange = (newOpen: boolean) => {
       setOpen(newOpen);
@@ -98,7 +98,7 @@ const RetryDropdown = memo(
           try {
             await selectModelMutation({ modelId, provider });
           } catch (_error) {
-            toast.error("Failed to select model", {
+            managedToast.error("Failed to select model", {
               description:
                 "Unable to change the selected model. Please try again.",
             });
@@ -107,7 +107,13 @@ const RetryDropdown = memo(
 
         onRetry(modelId, provider);
       },
-      [selectModelMutation, userModels, onRetry, onDropdownOpenChange]
+      [
+        selectModelMutation,
+        userModels,
+        onRetry,
+        onDropdownOpenChange,
+        managedToast.error,
+      ]
     );
 
     const handleRetrySame = () => {
