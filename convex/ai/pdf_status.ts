@@ -2,7 +2,7 @@
  * PDF Status Management - Clean separation of PDF processing status from message content
  */
 
-import type { ActionCtx, MutationCtx } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 

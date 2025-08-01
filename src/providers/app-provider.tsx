@@ -2,6 +2,7 @@ import type React from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { BatchSelectionProvider } from "@/providers/batch-selection-context";
 import { PrivateModeProvider } from "@/providers/private-mode-context";
+import { SidebarWidthProvider } from "@/providers/sidebar-width-context";
 import { ToastProvider } from "@/providers/toast-context";
 import { UserDataProvider } from "@/providers/user-data-context";
 import { ConvexProvider } from "./convex-provider";
@@ -19,7 +20,9 @@ export const AppProvider = ({ children }: AppProviderProps) => {
           <ToastProvider>
             <UserDataProvider>
               <BatchSelectionProvider>
-                <PrivateModeProvider>{children}</PrivateModeProvider>
+                <PrivateModeProvider>
+                  <SidebarWidthProvider>{children}</SidebarWidthProvider>
+                </PrivateModeProvider>
               </BatchSelectionProvider>
             </UserDataProvider>
           </ToastProvider>

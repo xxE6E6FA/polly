@@ -10,6 +10,7 @@ export const CACHE_KEYS = {
   selectedModel: "selected-model",
   conversations: "conversations",
   sidebar: "sidebar",
+  sidebarWidth: "sidebar-width",
   theme: "theme",
   userSettings: "user-settings",
   setupChecklistDismissed: "setup-checklist-dismissed",

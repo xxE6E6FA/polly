@@ -1,5 +1,5 @@
 import { GearIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { ConversationList } from "@/components/sidebar/conversation-list";
@@ -16,14 +16,19 @@ import {
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useBatchSelection } from "@/providers/batch-selection-context";
+import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
+
+const SCROLL_THRESHOLD = 8;
+const SHADOW_HEIGHT = 8;
 
 export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [shadowHeight, setShadowHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<HTMLDivElement>(null);
   const {
     isSidebarVisible,
     toggleSidebar,
@@ -31,6 +36,7 @@ export const Sidebar = () => {
     setSidebarVisible,
     mounted,
   } = useUI();
+  const { sidebarWidth, setSidebarWidth, setIsResizing } = useSidebarWidth();
   const { setHoveringOverSidebar } = useBatchSelection();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
@@ -38,7 +44,6 @@ export const Sidebar = () => {
   const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    // Mark as initialized after first render to prevent animations on route changes
     if (mounted && !hasInitialized) {
       setHasInitialized(true);
     }
@@ -58,12 +63,13 @@ export const Sidebar = () => {
 
     const { scrollTop, scrollHeight, clientHeight } = container;
     const isScrollable = scrollHeight > clientHeight;
-    const scrollThreshold = 8; // Small threshold to show gradients earlier
 
     if (isScrollable) {
-      const topShadow = scrollTop > scrollThreshold ? 8 : 0;
+      const topShadow = scrollTop > SCROLL_THRESHOLD ? SHADOW_HEIGHT : 0;
       const bottomShadow =
-        scrollTop < scrollHeight - clientHeight - scrollThreshold ? 8 : 0;
+        scrollTop < scrollHeight - clientHeight - SCROLL_THRESHOLD
+          ? SHADOW_HEIGHT
+          : 0;
       setShadowHeight(Math.max(topShadow, bottomShadow));
     } else {
       setShadowHeight(0);
@@ -102,48 +108,200 @@ export const Sidebar = () => {
     }
   }, [isMobile, isSidebarVisible, setSidebarVisible]);
 
-  return (
-    <div
-      className={cn(
-        "h-screen flex",
-        mounted && hasInitialized && "transition-width duration-300 ease-out",
-        isMobile ? "fixed inset-0 z-30" : "relative",
-        isMobile && (isSidebarVisible ? "w-full" : "w-0"),
-        !isMobile && (isSidebarVisible ? "w-80" : "w-0")
-      )}
-    >
-      {isMobile && (
-        <Backdrop
-          blur="sm"
-          variant="default"
-          className={cn(
-            "z-30 lg:hidden",
-            isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-          )}
-          onClick={handleBackdropClick}
-        />
-      )}
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      setIsResizing(true);
 
+      const startX = e.clientX;
+      const startWidth = sidebarWidth;
+
+      const handleMouseMove = (e: MouseEvent) => {
+        const deltaX = e.clientX - startX;
+        const newWidth = startWidth + deltaX;
+        setSidebarWidth(newWidth);
+      };
+
+      const handleMouseUp = () => {
+        setIsResizing(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [sidebarWidth, setSidebarWidth, setIsResizing]
+  );
+
+  const handleDoubleClick = useCallback(() => {
+    setSidebarWidth(320);
+  }, [setSidebarWidth]);
+
+  const sidebarStyle = useMemo(
+    () =>
+      ({
+        "--sidebar-width": `${sidebarWidth}px`,
+        "--shadow-height": `${shadowHeight}px`,
+      }) as React.CSSProperties,
+    [sidebarWidth, shadowHeight]
+  );
+
+  const scrollContainerStyle = useMemo(
+    () =>
+      ({
+        "--shadow-height": `${shadowHeight}px`,
+        maskImage:
+          shadowHeight > 0
+            ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
+            : "none",
+        WebkitMaskImage:
+          shadowHeight > 0
+            ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
+            : "none",
+      }) as React.CSSProperties,
+    [shadowHeight]
+  );
+
+  return (
+    <>
       <div
         className={cn(
-          "fixed left-2 top-2 z-50",
-          isMobile && "left-1.5 top-1.5"
+          "fixed inset-y-0 left-0 z-40 bg-background dark:bg-card dark:border-r dark:border-border shadow-xl",
+          isMobile
+            ? "w-full transform transition-transform duration-300 ease-out"
+            : "transition-[width] duration-300 ease-out"
         )}
+        style={{
+          ...sidebarStyle,
+          width: isMobile
+            ? "100%"
+            : isSidebarVisible
+              ? "var(--sidebar-width)"
+              : "0",
+          transform:
+            isMobile && !isSidebarVisible
+              ? "translateX(-100%)"
+              : "translateX(0)",
+        }}
       >
-        {isMobile ? (
-          <Button
-            size="icon-sm"
-            title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-            variant="ghost"
+        {isSidebarVisible && (
+          <div className="flex h-full flex-col">
+            <div className="flex-shrink-0 pb-2">
+              <div className="relative flex h-12 items-center justify-center px-3">
+                <Link className="group" to={ROUTES.HOME}>
+                  <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
+                    <div
+                      className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
+                      style={{
+                        maskImage: "url('/favicon.svg')",
+                        maskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        WebkitMaskImage: "url('/favicon.svg')",
+                        WebkitMaskSize: "contain",
+                        WebkitMaskRepeat: "no-repeat",
+                        WebkitMaskPosition: "center",
+                      }}
+                    />
+                    <h1 className="leading-none font-bold polly-logo-text-unified text-lg">
+                      Polly
+                    </h1>
+                  </div>
+                </Link>
+
+                <div className="absolute flex items-center gap-1 right-3">
+                  {user && !user.isAnonymous && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link to={ROUTES.SETTINGS.ROOT}>
+                          <Button
+                            size="icon-sm"
+                            title="Settings"
+                            variant="ghost"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <GearIcon className="h-4 w-4 transition-colors" />
+                          </Button>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Settings</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+
+                  <ThemeToggle
+                    size="icon-sm"
+                    variant="ghost"
+                    className="hover:bg-accent text-foreground/70 hover:text-foreground"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3 px-3 pb-3">
+                <SidebarSearch
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                />
+              </div>
+            </div>
+
+            <div
+              ref={scrollContainerRef}
+              className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3 relative"
+              style={scrollContainerStyle}
+              onMouseEnter={() => setHoveringOverSidebar(true)}
+              onMouseLeave={() => setHoveringOverSidebar(false)}
+            >
+              <ConversationList
+                currentConversationId={currentConversationId}
+                searchQuery={searchQuery}
+              />
+            </div>
+
+            <UserSection />
+          </div>
+        )}
+
+        {!isMobile && isSidebarVisible && (
+          <div
+            ref={resizeRef}
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/50 active:bg-accent transition-colors z-10"
+            onMouseDown={handleResizeStart}
+            onDoubleClick={handleDoubleClick}
+          />
+        )}
+      </div>
+
+      {isMobile && (
+        <>
+          <Backdrop
+            blur="sm"
+            variant="default"
             className={cn(
-              "hover:bg-accent text-foreground/70 hover:text-foreground",
-              "h-9 w-9"
+              "z-30 lg:hidden transition-opacity duration-300",
+              isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
-            onClick={toggleSidebar}
-          >
-            <SidebarSimpleIcon className="h-5 w-5" />
-          </Button>
-        ) : (
+            onClick={handleBackdropClick}
+          />
+
+          <div className="fixed left-1.5 top-1.5 z-[60]">
+            <Button
+              size="icon-sm"
+              title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+              variant="ghost"
+              className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+              onClick={toggleSidebar}
+            >
+              <SidebarSimpleIcon className="h-5 w-5" />
+            </Button>
+          </div>
+        </>
+      )}
+
+      {!isMobile && (
+        <div className="fixed left-2 top-2 z-50">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -160,131 +318,8 @@ export const Sidebar = () => {
               <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
             </TooltipContent>
           </Tooltip>
-        )}
-      </div>
-
-      <div
-        className={cn(
-          "bg-background dark:bg-card dark:border-r dark:border-border flex-shrink-0 overflow-hidden fixed left-0 top-0 h-screen z-40 shadow-xl",
-          isSidebarVisible ? "w-80 opacity-100" : "w-0 opacity-0"
-        )}
-        style={{
-          transition:
-            mounted && hasInitialized
-              ? "width 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1)"
-              : "none",
-        }}
-      >
-        <div className="flex h-full w-80 flex-col">
-          <div className="flex-shrink-0 pb-2">
-            <div className="relative flex h-12 items-center justify-center px-3">
-              <Link className="group" to={ROUTES.HOME}>
-                <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
-                  <div
-                    className={cn(
-                      "polly-logo-gradient-unified flex-shrink-0",
-                      "w-5 h-5"
-                    )}
-                    style={{
-                      maskImage: "url('/favicon.svg')",
-                      maskSize: "contain",
-                      maskRepeat: "no-repeat",
-                      maskPosition: "center",
-                      WebkitMaskImage: "url('/favicon.svg')",
-                      WebkitMaskSize: "contain",
-                      WebkitMaskRepeat: "no-repeat",
-                      WebkitMaskPosition: "center",
-                    }}
-                  />
-                  <h1
-                    className={cn(
-                      "leading-none font-bold polly-logo-text-unified",
-                      "text-lg"
-                    )}
-                  >
-                    Polly
-                  </h1>
-                </div>
-              </Link>
-
-              <div
-                className={cn(
-                  "absolute flex items-center",
-                  isMobile ? "right-1.5 gap-2" : "right-3 gap-1"
-                )}
-              >
-                {user && !user.isAnonymous && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Link to={ROUTES.SETTINGS.ROOT}>
-                        <Button
-                          size="icon-sm"
-                          title="Settings"
-                          variant="ghost"
-                          className={cn(
-                            "text-muted-foreground hover:text-foreground transition-colors",
-                            isMobile && "h-9 w-9"
-                          )}
-                        >
-                          <GearIcon
-                            className={cn(isMobile ? "h-5 w-5" : "h-4 w-4")}
-                          />
-                        </Button>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Settings</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                <ThemeToggle
-                  size="icon-sm"
-                  variant="ghost"
-                  className={cn(
-                    "hover:bg-accent text-foreground/70 hover:text-foreground",
-                    isMobile && "h-9 w-9"
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 px-3 pb-3">
-              <SidebarSearch
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-              />
-            </div>
-          </div>
-
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3 relative"
-            style={
-              {
-                "--shadow-height": `${shadowHeight}px`,
-                maskImage:
-                  shadowHeight > 0
-                    ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
-                    : "none",
-                WebkitMaskImage:
-                  shadowHeight > 0
-                    ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
-                    : "none",
-              } as React.CSSProperties
-            }
-            onMouseEnter={() => setHoveringOverSidebar(true)}
-            onMouseLeave={() => setHoveringOverSidebar(false)}
-          >
-            <ConversationList
-              currentConversationId={currentConversationId}
-              searchQuery={searchQuery}
-            />
-          </div>
-
-          <UserSection />
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 };
