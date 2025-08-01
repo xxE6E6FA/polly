@@ -119,11 +119,6 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
   }, [jobStatuses, localJobs]);
 
   useEffect(() => {
-    // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-    console.trace(
-      `🔄 useBackgroundJobs useEffect triggered (suppressToasts: ${suppressToasts}, jobs: ${jobStatuses?.length || 0})`
-    );
-
     if (
       !(
         jobStatuses &&
@@ -163,10 +158,6 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           }
 
           if (message && !suppressToasts) {
-            // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-            console.trace(
-              `🟢 useBackgroundJobs completion toast: "${message}" for job ${jobKey} (suppressToasts: ${suppressToasts})`
-            );
             managedToast.success(message, { id: `job-${jobKey}` });
           }
         } else if (job.status === "failed") {
@@ -182,10 +173,6 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           }
 
           if (message && !suppressToasts) {
-            // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-            console.trace(
-              `🔴 useBackgroundJobs error toast: "${message}" for job ${jobKey} (suppressToasts: ${suppressToasts})`
-            );
             managedToast.error(message, { id: `job-error-${jobKey}` });
           }
         }
@@ -200,11 +187,6 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
     options: { includeAttachmentContent?: boolean } = {}
   ) => {
     const jobId = crypto.randomUUID();
-
-    // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-    console.trace(
-      `📤 useBackgroundJobs startExport called (suppressToasts: ${suppressToasts}) for ${conversationIds.length} conversations, jobId: ${jobId}`
-    );
 
     try {
       await scheduleBackgroundExport({
@@ -225,10 +207,6 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
       };
 
       setLocalJobs(prev => new Map(prev).set(jobId, newJob));
-      // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-      console.trace(
-        `🚀 useBackgroundJobs start export toast for job ${jobId} (suppressToasts: ${suppressToasts})`
-      );
       managedToast.success(
         "Export started in background. You'll be notified when it's ready.",
         { id: `start-export-${jobId}` }
