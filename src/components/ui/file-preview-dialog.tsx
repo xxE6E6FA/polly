@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 import { Backdrop } from "@/components/ui/backdrop";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
+import { getFileLanguage } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
@@ -104,9 +105,12 @@ export const FilePreviewDialog = ({
             />
             <div className="overflow-y-auto p-6">
               <StreamingMarkdown isStreaming={false}>
-                {attachment.language && attachment.language !== "text"
-                  ? `\`\`\`${attachment.language}\n${attachment.content}\n\`\`\``
-                  : attachment.content}
+                {(() => {
+                  const language = getFileLanguage(attachment.name);
+                  return language !== "text"
+                    ? `\`\`\`${language}\n${attachment.content}\n\`\`\``
+                    : attachment.content;
+                })()}
               </StreamingMarkdown>
             </div>
           </div>

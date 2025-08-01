@@ -95,7 +95,6 @@ export function useFileUpload({
               name: file.name,
               size: file.size,
               content: textContent,
-              language: getFileLanguage(file.name),
             };
             newAttachments.push(attachment);
           } else {

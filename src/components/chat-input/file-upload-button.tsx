@@ -9,7 +9,6 @@ import { useNotificationDialog } from "@/hooks/use-dialog-management";
 
 import {
   convertImageToWebP,
-  getFileLanguage,
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
@@ -95,7 +94,6 @@ export function FileUploadButton({
             name: file.name,
             size: file.size,
             content: textContent,
-            language: getFileLanguage(file.name),
           });
         } else {
           let base64Content: string;
