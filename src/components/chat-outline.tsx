@@ -1,6 +1,7 @@
 import { UserIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { cn, generateHeadingId } from "@/lib/utils";
+import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
@@ -68,6 +69,7 @@ const ChatOutlineComponent = ({
 }: ChatOutlineProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const { isSidebarVisible, isMobile } = useUI();
+  const { sidebarWidth } = useSidebarWidth();
 
   // Memoized function to strip markdown and truncate
   const stripAndTruncate = useCallback(
@@ -182,7 +184,7 @@ const ChatOutlineComponent = ({
         className
       )}
       style={{
-        left: isSidebarVisible ? "340px" : "20px", // 320px sidebar + 20px margin
+        left: isSidebarVisible ? `${sidebarWidth + 20}px` : "20px",
       }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
