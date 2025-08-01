@@ -104,54 +104,32 @@ export const FileDisplay = ({
 
   if (attachment.type === "image" && fileUrl) {
     return (
-      <div
+      <button
         className={`overflow-hidden rounded-xl border border-border/20 shadow-sm ${className}`}
+        onClick={onClick}
+        type="button"
       >
         <img
           alt={attachment.name}
-          className="h-auto w-full max-w-sm cursor-pointer object-cover"
+          className="h-auto w-full max-w-sm object-cover"
           loading="lazy"
           src={fileUrl}
           style={{ maxHeight: "300px" }}
-          onClick={onClick}
-          onKeyDown={e => {
-            if (onClick && (e.key === "Enter" || e.key === " ")) {
-              e.preventDefault();
-              onClick();
-            }
-          }}
-          role={onClick ? "button" : undefined}
-          tabIndex={onClick ? 0 : undefined}
         />
-      </div>
+      </button>
     );
   }
 
   // For non-image files, show a file icon with name
   return (
-    <div
-      className={`inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 py-1 text-xs ${
-        attachment.type === "pdf"
-          ? "cursor-pointer hover:bg-muted/50 transition-colors"
-          : ""
-      } ${className}`}
-      onClick={attachment.type === "pdf" ? onClick : undefined}
-      onKeyDown={e => {
-        if (
-          attachment.type === "pdf" &&
-          onClick &&
-          (e.key === "Enter" || e.key === " ")
-        ) {
-          e.preventDefault();
-          onClick();
-        }
-      }}
-      role={attachment.type === "pdf" && onClick ? "button" : undefined}
-      tabIndex={attachment.type === "pdf" && onClick ? 0 : undefined}
+    <button
+      className={`inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-3 py-1 text-xs hover:bg-muted/50 transition-colors ${className}`}
+      onClick={onClick}
+      type="button"
     >
       {getFileIcon(attachment)}
       <span className="text-foreground selectable-text">{attachment.name}</span>
-    </div>
+    </button>
   );
 };
 
@@ -196,18 +174,11 @@ export const ImageThumbnail = ({
 
   if (attachment.type === "image" && thumbnailUrl) {
     return (
-      <div
+      <button
         className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/10 ${className}`}
         title={attachment.name}
         onClick={onClick}
-        onKeyDown={e => {
-          if (onClick && (e.key === "Enter" || e.key === " ")) {
-            e.preventDefault();
-            onClick();
-          }
-        }}
-        role={onClick ? "button" : undefined}
-        tabIndex={onClick ? 0 : undefined}
+        type="button"
       >
         <img
           alt={attachment.name}
@@ -215,7 +186,7 @@ export const ImageThumbnail = ({
           loading="lazy"
           src={thumbnailUrl}
         />
-      </div>
+      </button>
     );
   }
 
