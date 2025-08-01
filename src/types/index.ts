@@ -165,7 +165,6 @@ export type Attachment = {
   thumbnail?: string;
   storageId?: Id<"_storage">;
   mimeType?: string;
-  language?: string;
   // PDF-specific fields for storing both original and extracted text
   textFileId?: Id<"_storage">; // Reference to stored text file (replaces extractedText)
   extractedText?: string; // For PDFs: cached text extraction (deprecated in favor of textFileId)

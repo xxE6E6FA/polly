@@ -89,8 +89,8 @@ export function cleanAttachmentsForConvex(attachments?: Attachment[]) {
   }
 
   return attachments.map(attachment => {
-    // Remove mimeType as it's not in the Convex schema
-    const { mimeType: _mimeType, ...cleanAttachment } = attachment;
-    return cleanAttachment;
+    // The Convex schema now includes all fields from the Attachment type
+    // This function is kept for potential future field filtering
+    return attachment;
   });
 }
