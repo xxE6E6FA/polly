@@ -36,9 +36,7 @@ export function SidebarWidthProvider({ children }: { children: ReactNode }) {
       Math.min(MAX_SIDEBAR_WIDTH, width)
     );
     setSidebarWidthState(constrainedWidth);
-    if (constrainedWidth !== MIN_SIDEBAR_WIDTH) {
-      set(CACHE_KEYS.sidebarWidth, constrainedWidth);
-    }
+    set(CACHE_KEYS.sidebarWidth, constrainedWidth);
   };
 
   return (
