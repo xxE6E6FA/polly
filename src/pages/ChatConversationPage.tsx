@@ -1,19 +1,24 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useQuery } from "convex/react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useAction, useQuery } from "convex/react";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
+import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const { setPrivateMode } = usePrivateMode();
+  const navigate = useNavigate();
+  const createBranchingConversationAction = useAction(
+    api.conversations.createBranchingConversation
+  );
   const [currentTemperature, setCurrentTemperature] = useState<
     number | undefined
   >(undefined);
@@ -21,6 +26,43 @@ export default function ConversationRoute() {
   useEffect(() => {
     setPrivateMode(false);
   }, [setPrivateMode]);
+
+  const handleSendAsNewConversation = useCallback(
+    async (
+      content: string,
+      shouldNavigate: boolean,
+      attachments?: Attachment[],
+      contextSummary?: string,
+      sourceConversationId?: ConversationId,
+      personaId?: Id<"personas"> | null,
+      reasoningConfig?: ReasoningConfig,
+      temperature?: number
+    ) => {
+      try {
+        const result = await createBranchingConversationAction({
+          firstMessage: content,
+          sourceConversationId: sourceConversationId as Id<"conversations">,
+          personaId: personaId ?? undefined,
+          attachments,
+          reasoningConfig,
+          contextSummary,
+          useWebSearch: true,
+          generateTitle: true,
+        });
+
+        if (result?.conversationId) {
+          if (shouldNavigate) {
+            navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
+          }
+          return result.conversationId;
+        }
+      } catch (error) {
+        console.error("Failed to create branching conversation:", error);
+      }
+      return undefined;
+    },
+    [createBranchingConversationAction, navigate]
+  );
 
   if (!conversationId) {
     throw new Error("Conversation ID is required");
@@ -85,10 +127,7 @@ export default function ConversationRoute() {
             temperature,
           });
         }}
-        onSendAsNewConversation={async () => {
-          // This functionality would need to be implemented separately
-          return await Promise.resolve(undefined);
-        }}
+        onSendAsNewConversation={handleSendAsNewConversation}
         onDeleteMessage={deleteMessage}
         onEditMessage={editMessage}
         onStopGeneration={stopGeneration}
