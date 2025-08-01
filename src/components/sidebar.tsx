@@ -1,5 +1,5 @@
 import { GearIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { ConversationList } from "@/components/sidebar/conversation-list";
@@ -22,6 +22,8 @@ import type { ConversationId } from "@/types";
 
 export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [shadowHeight, setShadowHeight] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const {
     isSidebarVisible,
     toggleSidebar,
@@ -48,6 +50,26 @@ export const Sidebar = () => {
     }
   }, [currentConversationId, isMobile, setSidebarVisible]);
 
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isScrollable = scrollHeight > clientHeight;
+    const scrollThreshold = 8; // Small threshold to show gradients earlier
+
+    if (isScrollable) {
+      const topShadow = scrollTop > scrollThreshold ? 8 : 0;
+      const bottomShadow =
+        scrollTop < scrollHeight - clientHeight - scrollThreshold ? 8 : 0;
+      setShadowHeight(Math.max(topShadow, bottomShadow));
+    } else {
+      setShadowHeight(0);
+    }
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
@@ -59,6 +81,20 @@ export const Sidebar = () => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar]);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.addEventListener("scroll", handleScroll);
+    handleScroll();
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [handleScroll]);
 
   const handleBackdropClick = useCallback(() => {
     if (isMobile && isSidebarVisible) {
@@ -222,7 +258,21 @@ export const Sidebar = () => {
           </div>
 
           <div
-            className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3"
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3 relative"
+            style={
+              {
+                "--shadow-height": `${shadowHeight}px`,
+                maskImage:
+                  shadowHeight > 0
+                    ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
+                    : "none",
+                WebkitMaskImage:
+                  shadowHeight > 0
+                    ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
+                    : "none",
+              } as React.CSSProperties
+            }
             onMouseEnter={() => setHoveringOverSidebar(true)}
             onMouseLeave={() => setHoveringOverSidebar(false)}
           >
