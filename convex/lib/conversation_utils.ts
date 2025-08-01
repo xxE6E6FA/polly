@@ -119,6 +119,10 @@ export const deleteMessagesAfterIndex = async (
 ): Promise<void> => {
   const messagesToDelete = messages.slice(afterIndex + 1);
   for (const msg of messagesToDelete) {
+    // NEVER delete context messages - they should persist across retries
+    if (msg.role === "context") {
+      continue;
+    }
     await ctx.runMutation(api.messages.remove, { id: msg._id });
   }
 };
@@ -599,11 +603,13 @@ export const buildContextMessages = async (
       return message;
     })
   );
+  // Collect context messages separately to append to system prompt
+  const contextMessageContents: string[] = [];
+  
   const contextMessagesPromises = messagesWithResolvedUrls
     .filter((msg: MessageDoc) => {
       const message = msg;
       return (
-        message.role !== "context" &&
         message.content &&
         message.content.trim().length > 0
       );
@@ -622,6 +628,11 @@ export const buildContextMessages = async (
           role: "system" as const,
           content: message.content,
         };
+      }
+      if (message.role === "context") {
+        // Collect context content to append to main system prompt
+        contextMessageContents.push(message.content);
+        return undefined; // Don't create separate system messages for context
       }
       if (message.role === "user") {
         const content = await buildUserMessageContent(
@@ -656,8 +667,13 @@ export const buildContextMessages = async (
     .pop();
   const modelName = lastAssistantMessage?.model || "an AI model";
 
-  // Merge baseline instructions with persona prompt into a single system message
-  const mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
+  // Merge baseline instructions with persona prompt and context into a single system message
+  let mergedSystemPrompt = mergeSystemPrompts(modelName, personaPrompt);
+  
+  // Append context messages to the system prompt if any exist
+  if (contextMessageContents.length > 0) {
+    mergedSystemPrompt += `\n\nAdditional Context:\n${contextMessageContents.join('\n\n')}`;
+  }
 
   contextMessages.unshift({
     role: "system",

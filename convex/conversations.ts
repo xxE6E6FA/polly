@@ -1259,8 +1259,13 @@ const handleMessageDeletion = async (
 ) => {
   if (retryType === "assistant") {
     // For assistant retry, delete the assistant message itself AND everything after it
+    // BUT preserve context messages
     const messagesToDelete = messages.slice(messageIndex);
     for (const msg of messagesToDelete) {
+      // NEVER delete context messages - they should persist across retries
+      if (msg.role === "context") {
+        continue;
+      }
       await ctx.runMutation(api.messages.remove, { id: msg._id });
     }
   } else {
@@ -1622,14 +1627,36 @@ export const createBranchingConversation = action({
     // Increment message stats
     await incrementUserMessageStats(ctx, selectedModel.free === true);
 
-    // Create context message if contextSummary is provided
+    // Create context message FIRST if contextSummary is provided
+    // This must happen before streaming so the AI can see the context
     if (args.sourceConversationId && args.contextSummary) {
       await ctx.runMutation(api.messages.create, {
         conversationId: createResult.conversationId,
         role: "context",
-        content: `Context from previous conversation: ${args.contextSummary}`,
+        content: `Prior context: ${args.contextSummary}`,
         sourceConversationId: args.sourceConversationId,
         isMainBranch: true,
+      });
+    }
+
+    // **CRITICAL**: Trigger streaming for the assistant response!
+    // This happens AFTER context is added so AI can see the full conversation
+    if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      // Get the full model object with capabilities for streaming
+      const fullModel = await getUserEffectiveModelWithCapabilities(
+        ctx,
+        selectedModel.modelId,
+        actualProvider
+      );
+
+      // Schedule streaming generation action for real-time updates
+      await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
+        messageId: createResult.assistantMessageId,
+        conversationId: createResult.conversationId,
+        model: fullModel, // Pass the full model object
+        personaId: args.personaId,
+        reasoningConfig: args.reasoningConfig,
+        useWebSearch: args.useWebSearch ?? true, // Enable web search by default for authenticated users
       });
     }
 
