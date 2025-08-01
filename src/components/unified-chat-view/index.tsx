@@ -172,6 +172,10 @@ export const UnifiedChatView = memo(
       );
     };
 
+    // CSS mask gradient for seamless scrolling
+    const maskGradient =
+      "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 16px, rgba(0,0,0,0.9) 32px, rgba(0,0,0,0.9) calc(100% - 32px), rgba(0,0,0,0.1) calc(100% - 16px), transparent 100%)";
+
     const renderMessageArea = () => {
       if (isLoadingConversation) {
         return (
@@ -236,13 +240,17 @@ export const UnifiedChatView = memo(
                   </div>
                 )}
 
-                {/* Messages area */}
                 <div
                   ref={messagesContainerRef}
                   className={cn(
                     "flex-1 overflow-hidden",
                     isEmpty && "overflow-y-auto"
                   )}
+                  style={{
+                    maskImage: maskGradient,
+                    // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
+                    WebkitMaskImage: maskGradient,
+                  }}
                 >
                   {renderMessageArea()}
                 </div>
