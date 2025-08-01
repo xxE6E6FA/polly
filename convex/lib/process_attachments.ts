@@ -2,7 +2,7 @@
 import { type ActionCtx } from "../_generated/server";
 import type { Attachment } from "@/types";
 import { shouldExtractPdfText } from "../ai/pdf_extraction";
-import { internal } from "../_generated/api";
+
 import type { Id } from "../_generated/dataModel";
 import { getOrCreatePdfText } from "../ai/pdf_text_persistence";
 import { updatePdfReadingStatus, clearPdfReadingStatus } from "../ai/pdf_status";

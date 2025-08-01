@@ -1641,8 +1641,6 @@ export const createBranchingConversation = action({
   },
 });
 
-import { processAttachmentsForLLM } from "./lib/process_attachments";
-
 /**
  * Wrapper functions for UI compatibility (replaces agent_conversations.ts)
  */
@@ -1693,7 +1691,7 @@ export const createConversationAction = action({
     // If there's a first message, create conversation with it
     if (args.firstMessage) {
       // Resolve the model capabilities to decide on PDF processing
-      const _fullModel = await getUserEffectiveModelWithCapabilities(
+      await getUserEffectiveModelWithCapabilities(
         ctx,
         args.model,
         args.provider

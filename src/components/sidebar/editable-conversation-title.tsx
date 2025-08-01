@@ -131,14 +131,15 @@ export const EditableConversationTitle = ({
       style={
         isEditing
           ? undefined
-          : {
+          : ({
               maskImage: hasActionsVisible
                 ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
                 : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
-              webkitMaskImage: hasActionsVisible
+              // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
+              WebkitMaskImage: hasActionsVisible
                 ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
                 : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
-            }
+            } as React.CSSProperties)
       }
     >
       <Input

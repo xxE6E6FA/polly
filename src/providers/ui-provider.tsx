@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 
 function setSidebarVisibility(isVisible: boolean): void {
@@ -44,24 +44,6 @@ export function useUI() {
   return context;
 }
 
-function withDisabledAnimations(fn: () => void) {
-  const style = document.createElement("style");
-  style.textContent = `
-    * {
-      transition: none !important;
-      animation: none !important;
-    }
-  `;
-  document.head.appendChild(style);
-
-  fn();
-
-  // Re-enable animations after a short delay
-  setTimeout(() => {
-    document.head.removeChild(style);
-  }, 100);
-}
-
 export const UIProvider = ({
   children,
   serverSidebarVisible = false,
@@ -69,18 +51,16 @@ export const UIProvider = ({
   const [isSidebarVisible, setSidebarVisible] = useState(serverSidebarVisible);
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const prevIsMobile = useRef(false);
 
   // Initialize sidebar state
   useEffect(() => {
     const storedSidebarState = getSidebarVisibility();
-    const defaultSidebarState = false; // Default to false as per new function
+    const defaultSidebarState = false;
 
-    withDisabledAnimations(() => {
-      setSidebarVisible(
-        storedSidebarState !== null ? storedSidebarState : defaultSidebarState
-      );
-    });
-
+    setSidebarVisible(
+      storedSidebarState !== null ? storedSidebarState : defaultSidebarState
+    );
     setMounted(true);
   }, []);
 
@@ -88,12 +68,16 @@ export const UIProvider = ({
   useEffect(() => {
     const handleResize = () => {
       const mobile = window.innerWidth < 768;
+      const wasDesktop = !prevIsMobile.current && mobile;
+
       setIsMobile(mobile);
 
-      // Auto-hide sidebar on mobile
-      if (mobile && isSidebarVisible) {
+      // Only auto-hide sidebar when transitioning from desktop to mobile
+      if (wasDesktop && isSidebarVisible) {
         setSidebarVisible(false);
       }
+
+      prevIsMobile.current = mobile;
     };
 
     handleResize();
