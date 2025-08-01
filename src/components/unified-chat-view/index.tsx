@@ -45,8 +45,7 @@ type UnifiedChatViewProps = {
     contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig,
-    temperature?: number
+    reasoningConfig?: ReasoningConfig
   ) => Promise<ConversationId | undefined>;
   onDeleteMessage: (messageId: string) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
