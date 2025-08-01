@@ -1,4 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
+import { cleanAttachmentsForConvex } from "@/lib/utils";
 import type {
   APIKeys,
   Attachment,
@@ -160,7 +161,7 @@ export const createServerChatHandlers = (
       await actions.sendMessage({
         conversationId,
         content: params.content,
-        attachments: params.attachments,
+        attachments: cleanAttachmentsForConvex(params.attachments),
         model: modelOptions.model,
         provider: modelOptions.provider,
         reasoningConfig: params.reasoningConfig || modelOptions.reasoningConfig,
