@@ -58,7 +58,8 @@ interface ChatInputProps {
     contextSummary?: string,
     sourceConversationId?: ConversationId,
     personaId?: Id<"personas"> | null,
-    reasoningConfig?: ReasoningConfig
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
   ) => Promise<ConversationId | undefined>;
   conversationId?: ConversationId;
   hasExistingMessages?: boolean;
@@ -660,7 +661,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               contextSummary,
               conversationId,
               personaId,
-              reasoningConfig
+              reasoningConfig,
+              temperature
             );
 
             if (newConversationId) {
@@ -685,6 +687,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setAttachments,
         shouldUsePreservedState,
         clearChatInputState,
+        temperature,
       ]
     );
 
@@ -718,7 +721,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
 
     return (
-      <div className={cn("relative px-3 pb-2 pt-1 sm:px-6 sm:pb-3")}>
+      <div className={cn("relative px-3 pb-2 sm:px-6 sm:pb-3")}>
         <div className="mx-auto w-full max-w-3xl">
           <WarningBanners hasExistingMessages={hasExistingMessages} />
 

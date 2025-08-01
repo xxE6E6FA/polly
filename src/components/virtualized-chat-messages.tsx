@@ -76,7 +76,7 @@ const MessageItem = memo(
       <div className="px-4 sm:px-8">
         <div
           id={message.id}
-          className="mx-auto w-full max-w-3xl pb-1 sm:pb-2"
+          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4"
           style={{ maxWidth: "48rem" }}
         >
           {message.role === "context" ? (
@@ -194,10 +194,11 @@ export const VirtualizedChatMessages = memo(
           if (message.role === "assistant") {
             // Include assistant messages if they have content, reasoning, or if we're streaming
             // This ensures empty assistant messages appear when streaming starts
+            // Also include messages that are being typed to prevent flickering
             if (
               message.content ||
               message.reasoning ||
-              (isStreaming && !message.metadata?.finishReason)
+              !message.metadata?.finishReason
             ) {
               filtered.push(message);
             }
@@ -219,7 +220,7 @@ export const VirtualizedChatMessages = memo(
         }
 
         return [...contextMessages, ...otherMessages];
-      }, [messages, isStreaming]);
+      }, [messages]);
 
       // Helper function to get the scroll container
       const getScrollContainer = useCallback(() => {
@@ -363,10 +364,17 @@ export const VirtualizedChatMessages = memo(
           return;
         }
 
+        // Check if user is near the bottom (within 100px)
+        const isNearBottom =
+          container.scrollHeight -
+            container.scrollTop -
+            container.clientHeight <
+          100;
+
         // For assistant messages, only do initial partial scroll
         if (lastMessage.role === "assistant") {
           // Only scroll once per assistant message when it first appears
-          if (!hasScrolledForCurrentAssistant.current) {
+          if (!hasScrolledForCurrentAssistant.current && isNearBottom) {
             hasScrolledForCurrentAssistant.current = true;
             scrollToShowAssistantStart();
           }
@@ -374,8 +382,10 @@ export const VirtualizedChatMessages = memo(
           return;
         }
 
-        // For other cases, maintain existing behavior
-        container.scrollTop = container.scrollHeight;
+        // For other cases, only scroll if near bottom
+        if (isNearBottom) {
+          container.scrollTop = container.scrollHeight;
+        }
       }, [
         shouldScrollToBottom,
         getScrollContainer,
@@ -439,12 +449,7 @@ export const VirtualizedChatMessages = memo(
             overflow: "auto",
             contain: "strict",
             paddingTop: "24px",
-            paddingBottom: "120px", // Space for chat input area
-            maskImage:
-              "linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 120px), transparent 100%)",
-            // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
-            WebkitMaskImage:
-              "linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 120px), transparent 100%)",
+            paddingBottom: "24px",
           }}
           className="overscroll-contain"
           data-vlist-id={vlistId}
