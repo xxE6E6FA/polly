@@ -3,7 +3,6 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { PrivateToggle } from "@/components/private-toggle";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
@@ -35,8 +34,7 @@ export default function ConversationRoute() {
       contextSummary?: string,
       sourceConversationId?: ConversationId,
       personaId?: Id<"personas"> | null,
-      reasoningConfig?: ReasoningConfig,
-      temperature?: number
+      reasoningConfig?: ReasoningConfig
     ) => {
       try {
         const result = await createBranchingConversationAction({
@@ -44,7 +42,14 @@ export default function ConversationRoute() {
           sourceConversationId: sourceConversationId as Id<"conversations">,
           personaId: personaId ?? undefined,
           attachments,
-          reasoningConfig,
+          reasoningConfig:
+            reasoningConfig?.enabled && reasoningConfig.effort
+              ? {
+                  enabled: reasoningConfig.enabled,
+                  effort: reasoningConfig.effort,
+                  maxTokens: reasoningConfig.maxTokens,
+                }
+              : undefined,
           contextSummary,
           useWebSearch: true,
           generateTitle: true,
@@ -99,96 +104,93 @@ export default function ConversationRoute() {
   }
 
   return (
-    <>
-      <PrivateToggle />
-      <UnifiedChatView
-        conversationId={conversationId as ConversationId}
-        messages={messages}
-        isLoading={isLoading || hasApiKeys === undefined}
-        isLoadingMessages={conversation === undefined}
-        isStreaming={messageIsStreaming || (conversationIsStreaming ?? false)}
-        currentPersonaId={conversation?.personaId ?? null}
-        currentTemperature={currentTemperature}
-        canSavePrivateChat={false}
-        hasApiKeys={hasApiKeys === true}
-        isArchived={conversation?.isArchived}
-        onSendMessage={async (
-          content: string,
-          attachments?: Attachment[],
-          personaId?: Id<"personas"> | null,
-          reasoningConfig?: ReasoningConfig,
-          temperature?: number
-        ) => {
-          await sendMessage({
-            content,
-            attachments,
-            personaId,
-            reasoningConfig,
-            temperature,
-          });
-        }}
-        onSendAsNewConversation={handleSendAsNewConversation}
-        onDeleteMessage={deleteMessage}
-        onEditMessage={editMessage}
-        onStopGeneration={stopGeneration}
-        onTemperatureChange={setCurrentTemperature}
-        onRetryUserMessage={async (
-          messageId,
-          modelId,
-          provider,
+    <UnifiedChatView
+      conversationId={conversationId as ConversationId}
+      messages={messages}
+      isLoading={isLoading || hasApiKeys === undefined}
+      isLoadingMessages={conversation === undefined}
+      isStreaming={messageIsStreaming || (conversationIsStreaming ?? false)}
+      currentPersonaId={conversation?.personaId ?? null}
+      currentTemperature={currentTemperature}
+      canSavePrivateChat={false}
+      hasApiKeys={hasApiKeys === true}
+      isArchived={conversation?.isArchived}
+      onSendMessage={async (
+        content: string,
+        attachments?: Attachment[],
+        personaId?: Id<"personas"> | null,
+        reasoningConfig?: ReasoningConfig,
+        temperature?: number
+      ) => {
+        await sendMessage({
+          content,
+          attachments,
+          personaId,
           reasoningConfig,
-          temperature
-        ) => {
-          const options: Partial<{
-            model: string;
-            provider: string;
-            reasoningConfig: ReasoningConfig;
-            temperature: number;
-          }> = {};
-          if (modelId) {
-            options.model = modelId;
-          }
-          if (provider) {
-            options.provider = provider;
-          }
-          if (reasoningConfig) {
-            options.reasoningConfig = reasoningConfig;
-          }
-          if (temperature !== undefined) {
-            options.temperature = temperature;
-          }
+          temperature,
+        });
+      }}
+      onSendAsNewConversation={handleSendAsNewConversation}
+      onDeleteMessage={deleteMessage}
+      onEditMessage={editMessage}
+      onStopGeneration={stopGeneration}
+      onTemperatureChange={setCurrentTemperature}
+      onRetryUserMessage={async (
+        messageId,
+        modelId,
+        provider,
+        reasoningConfig,
+        temperature
+      ) => {
+        const options: Partial<{
+          model: string;
+          provider: string;
+          reasoningConfig: ReasoningConfig;
+          temperature: number;
+        }> = {};
+        if (modelId) {
+          options.model = modelId;
+        }
+        if (provider) {
+          options.provider = provider;
+        }
+        if (reasoningConfig) {
+          options.reasoningConfig = reasoningConfig;
+        }
+        if (temperature !== undefined) {
+          options.temperature = temperature;
+        }
 
-          await retryFromMessage(messageId, options);
-        }}
-        onRetryAssistantMessage={async (
-          messageId,
-          modelId,
-          provider,
-          reasoningConfig,
-          temperature
-        ) => {
-          const options: Partial<{
-            model: string;
-            provider: string;
-            reasoningConfig: ReasoningConfig;
-            temperature: number;
-          }> = {};
-          if (modelId) {
-            options.model = modelId;
-          }
-          if (provider) {
-            options.provider = provider;
-          }
-          if (reasoningConfig) {
-            options.reasoningConfig = reasoningConfig;
-          }
-          if (temperature !== undefined) {
-            options.temperature = temperature;
-          }
+        await retryFromMessage(messageId, options);
+      }}
+      onRetryAssistantMessage={async (
+        messageId,
+        modelId,
+        provider,
+        reasoningConfig,
+        temperature
+      ) => {
+        const options: Partial<{
+          model: string;
+          provider: string;
+          reasoningConfig: ReasoningConfig;
+          temperature: number;
+        }> = {};
+        if (modelId) {
+          options.model = modelId;
+        }
+        if (provider) {
+          options.provider = provider;
+        }
+        if (reasoningConfig) {
+          options.reasoningConfig = reasoningConfig;
+        }
+        if (temperature !== undefined) {
+          options.temperature = temperature;
+        }
 
-          await retryFromMessage(messageId, options);
-        }}
-      />
-    </>
+        await retryFromMessage(messageId, options);
+      }}
+    />
   );
 }

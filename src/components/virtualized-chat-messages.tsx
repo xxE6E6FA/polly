@@ -439,6 +439,12 @@ export const VirtualizedChatMessages = memo(
             overflow: "auto",
             contain: "strict",
             paddingTop: "24px",
+            paddingBottom: "120px", // Space for chat input area
+            maskImage:
+              "linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 120px), transparent 100%)",
+            // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent, #000 24px, #000 calc(100% - 120px), transparent 100%)",
           }}
           className="overscroll-contain"
           data-vlist-id={vlistId}
