@@ -3,7 +3,6 @@ import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { SearchQuery } from "@/components/search-query";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { Spinner } from "../spinner";
 import { AttachmentStrip } from "./AttachmentStrip";
@@ -63,7 +62,7 @@ export const AssistantBubble = memo(
                 <div className="text-sm text-muted-foreground py-2 space-y-1">
                   <div className="flex items-center gap-2">
                     <Spinner className="h-3 w-3" />
-                    <span>📄 {message.statusText || "Reading PDF..."}</span>
+                    <span>{message.statusText || "Reading PDF..."}</span>
                   </div>
                 </div>
               ) : isStreamingWithoutContent ? (

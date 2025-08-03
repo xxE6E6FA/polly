@@ -130,6 +130,35 @@ export const convertMessagePart = async (
           // Failed to convert Convex PDF, falling back to text
         }
       }
+      
+      // For PDFs that don't have native support, use extracted text if available
+      if (part.attachment?.type === "pdf") {
+        // Check for in-memory extracted text first
+        if (part.attachment.extractedText) {
+          return {
+            type: "text" as const,
+            text: part.attachment.extractedText,
+          };
+        }
+        
+        // Check for stored extracted text
+        if (part.attachment.textFileId) {
+          try {
+            const storageData = await convertStorageToData(
+              ctx,
+              part.attachment.textFileId,
+              "text/plain"
+            );
+            return {
+              type: "text" as const,
+              text: new TextDecoder().decode(storageData.arrayBuffer),
+            };
+          } catch (error) {
+            console.warn("Failed to retrieve stored extracted text:", error);
+          }
+        }
+      }
+      
       // Fallback to text format
       return {
         type: "text" as const,
@@ -461,7 +490,17 @@ export const streamResponse = internalAction({
             size: 0,
             storageId: part.attachment?.storageId,
             content: part.file?.file_data,
+            // Preserve PDF-specific fields for text extraction
+            extractedText: part.attachment?.extractedText,
+            textFileId: part.attachment?.textFileId,
           }));
+
+          // Debug logging to verify attachment conversion
+          attachments.forEach(att => {
+            if (att.type === "pdf") {
+              console.log(`[Message Processing] PDF attachment ${att.name}: extractedText=${!!att.extractedText} (${att.extractedText?.length || 0} chars), textFileId=${!!att.textFileId}`);
+            }
+          });
 
 
 

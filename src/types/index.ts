@@ -165,10 +165,15 @@ export type Attachment = {
   thumbnail?: string;
   storageId?: Id<"_storage">;
   mimeType?: string;
-  // PDF-specific fields for storing both original and extracted text
-  textFileId?: Id<"_storage">; // Reference to stored text file (replaces extractedText)
-  extractedText?: string; // For PDFs: cached text extraction (deprecated in favor of textFileId)
+  // PDF-specific fields
+  textFileId?: Id<"_storage">; // Reference to stored extracted text (persistent)
+  extractedText?: string; // For PDFs: temporary in-memory text (migration path only)
   extractionError?: string; // For PDFs: error message if extraction failed
+  extractionMetadata?: {
+    extractedAt: number;
+    wordCount: number;
+    contentLength: number;
+  };
 };
 
 // ============================================================================

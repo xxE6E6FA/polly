@@ -138,6 +138,8 @@ export const resolveAttachmentUrls = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
+    extractedText?: string;
+    textFileId?: Id<"_storage">;
   }>
 ) => {
   return await Promise.all(
@@ -166,6 +168,8 @@ export const buildUserMessageContent = async (
     content?: string;
     thumbnail?: string;
     storageId?: Id<"_storage">;
+    extractedText?: string;
+    textFileId?: Id<"_storage">;
   }>
 ): Promise<
   | string
@@ -178,6 +182,8 @@ export const buildUserMessageContent = async (
         storageId: Id<"_storage">;
         type: string;
         name: string;
+        extractedText?: string;
+        textFileId?: Id<"_storage">;
       };
     }>
 > => {
@@ -194,6 +200,8 @@ export const buildUserMessageContent = async (
       storageId: Id<"_storage">;
       type: string;
       name: string;
+      extractedText?: string;
+      textFileId?: Id<"_storage">;
     };
   }> = [];
 
@@ -241,6 +249,9 @@ export const buildUserMessageContent = async (
               storageId: attachment.storageId,
               type: attachment.type,
               name: attachment.name,
+              // Include extracted text for PDFs that don't have native support
+              extractedText: attachment.extractedText,
+              textFileId: (attachment as any).textFileId,
             }
           : undefined,
       });
@@ -451,6 +462,7 @@ export const processAttachmentsForStorage = async (
     thumbnail?: string;
     storageId?: Id<"_storage">;
     mimeType?: string;
+    extractedText?: string;
   }>
 ): Promise<
   | Array<{
@@ -461,6 +473,7 @@ export const processAttachmentsForStorage = async (
       content?: string;
       thumbnail?: string;
       storageId?: Id<"_storage">;
+      textFileId?: Id<"_storage">;
     }>
   | undefined
 > => {
@@ -471,8 +484,20 @@ export const processAttachmentsForStorage = async (
     attachments.map(async (attachment) => {
       // If attachment already has storageId (uploaded on client), preserve it
       if (attachment.storageId) {
-        const { mimeType, ...rest } = attachment;
-        return { ...rest, content: undefined };
+        const { mimeType, extractedText, ...rest } = attachment;
+        
+        // If this is a PDF with extracted text, store it
+        let textFileId: Id<"_storage"> | undefined;
+        if (attachment.type === "pdf" && extractedText) {
+          try {
+            const textBlob = new globalThis.Blob([extractedText], { type: "text/plain" });
+            textFileId = await ctx.storage.store(textBlob) as Id<"_storage">;
+          } catch (error) {
+            console.warn("Failed to store extracted text:", error);
+          }
+        }
+        
+        return { ...rest, content: undefined, textFileId };
       }
 
       const needsUpload =
@@ -543,6 +568,8 @@ export const buildContextMessages = async (
             storageId: Id<"_storage">;
             type: string;
             name: string;
+            extractedText?: string;
+            textFileId?: Id<"_storage">;
           };
         }>;
   }>;

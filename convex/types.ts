@@ -23,6 +23,8 @@ export type StreamMessage = {
           storageId: Id<"_storage">;
           type: string;
           name: string;
+          extractedText?: string;
+          textFileId?: Id<"_storage">;
         };
       }>;
 };
@@ -36,6 +38,8 @@ export type MessagePart = {
     storageId: Id<"_storage">;
     type: string;
     name: string;
+    extractedText?: string;
+    textFileId?: Id<"_storage">;
   };
 };
 
@@ -374,6 +378,8 @@ export type MessageDoc = {
     thumbnail?: string;
     storageId?: Id<"_storage">;
     mimeType?: string;
+    extractedText?: string;
+    textFileId?: Id<"_storage">;
   }>;
   citations?: Citation[];
   metadata?: {

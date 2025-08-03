@@ -19,6 +19,7 @@ import { useChatInputPreservation } from "@/hooks/use-chat-input-preservation";
 import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
+
 import {
   convertImageToWebP,
   readFileAsBase64,
@@ -198,6 +199,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               });
 
               const uploadResult = await uploadFile(file);
+
+              // Preserve extracted text for PDFs
+              if (attachment.type === "pdf" && attachment.extractedText) {
+                uploadResult.extractedText = attachment.extractedText;
+              }
+
               uploadedAttachments.push(uploadResult);
             } catch (error) {
               console.error("Failed to upload attachment:", error);
@@ -484,6 +491,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 size: file.size,
                 content: textContent,
               });
+            } else if (fileSupport.category === "pdf") {
+              // Always upload PDFs as PDF attachments
+              // Text extraction will happen on submit if needed
+              const base64Content = await readFileAsBase64(file);
+              newAttachments.push({
+                type: "pdf",
+                url: "",
+                name: file.name,
+                size: file.size,
+                content: base64Content,
+                mimeType: file.type,
+              });
             } else {
               let base64Content: string;
               let mimeType = file.type;
@@ -534,6 +553,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     const canSend = canSendMessage;
     const [isUploading, setIsUploading] = useState(false);
+    const isProcessing = isUploading;
 
     // Drag and drop event handlers
     const handleDragOver = useCallback(
@@ -590,13 +610,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setIsUploading(true);
 
       try {
+        // Skip PDF extraction - it will be done server-side with proper loading states
+        const processedAttachments = attachments;
+
         // Upload attachments to Convex storage if not in private mode
-        const processedAttachments =
-          await uploadAttachmentsToConvex(attachments);
+        const uploadedAttachments =
+          await uploadAttachmentsToConvex(processedAttachments);
 
         onSendMessage(
           input.trim(),
-          processedAttachments,
+          uploadedAttachments,
           selectedPersonaId,
           reasoningConfig.enabled ? reasoningConfig : undefined,
           temperature
@@ -650,9 +673,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               }
             }
 
+            // Skip PDF extraction - it will be done server-side with proper loading states
+            const processedPdfAttachments = attachments;
+
             // Upload attachments to Convex storage if not in private mode
-            const processedAttachments =
-              await uploadAttachmentsToConvex(attachments);
+            const processedAttachments = await uploadAttachmentsToConvex(
+              processedPdfAttachments
+            );
 
             const newConversationId = await onSendAsNewConversation(
               currentInput,
@@ -769,7 +796,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onSubmit={submit}
                   textareaRef={textareaRef}
                   placeholder={placeholder}
-                  disabled={isLoading || isStreaming || isUploading || !canSend}
+                  disabled={
+                    isLoading || isStreaming || isProcessing || !canSend
+                  }
                   onHistoryNavigation={handleHistoryNavigation}
                   onHistoryNavigationDown={handleHistoryNavigationDown}
                 />
@@ -806,13 +835,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   <FileUploadButton
                     disabled={isLoading || isStreaming || isUploading}
                     onAddAttachments={addAttachments}
-                    isSubmitting={false}
+                    isSubmitting={isProcessing}
                   />
                 )}
                 <SendButtonGroup
                   canSend={canSend}
                   isStreaming={Boolean(isStreaming)}
-                  isLoading={Boolean(isLoading || isUploading)}
+                  isLoading={Boolean(isLoading || isProcessing)}
                   isSummarizing={false}
                   hasExistingMessages={Boolean(hasExistingMessages)}
                   conversationId={conversationId}

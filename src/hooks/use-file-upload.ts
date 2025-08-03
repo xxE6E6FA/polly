@@ -5,7 +5,6 @@ import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import {
   convertImageToWebP,
-  getFileLanguage,
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
