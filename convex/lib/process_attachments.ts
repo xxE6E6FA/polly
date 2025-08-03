@@ -1,14 +1,14 @@
 
 import { type ActionCtx } from "../_generated/server";
 import type { Attachment } from "@/types";
-import { shouldExtractPdfText } from "../ai/pdf_extraction";
-
 import type { Id } from "../_generated/dataModel";
-import { getOrCreatePdfText } from "../ai/pdf_text_persistence";
+import { api, internal } from "../_generated/api";
+import { shouldExtractPdfText } from "../ai/pdf";
 import { updatePdfReadingStatus, clearPdfReadingStatus } from "../ai/pdf_status";
 
 /**
- * Process attachments for LLM requests with PDF text extraction and progress updates
+ * Process attachments for LLM requests
+ * Handles PDF text storage and retrieval optimization
  */
 export const processAttachmentsForLLM = async (
   ctx: ActionCtx,
@@ -22,116 +22,132 @@ export const processAttachmentsForLLM = async (
     return undefined;
   }
 
+  const processedAttachments: Attachment[] = [];
 
+  for (const attachment of attachments) {
+    if (attachment.type === "pdf") {
+      // Check if this model needs text extraction
+      const needsTextExtraction = shouldExtractPdfText(provider, modelId, modelSupportsFiles);
+      console.log(`[PDF Processing] Model ${provider}/${modelId} (supportsFiles=${modelSupportsFiles}) needsTextExtraction=${needsTextExtraction} for ${attachment.name}`);
+      
+      if (needsTextExtraction) {
+        // Show status update for PDF processing
+        if (messageId) {
+          await ctx.runMutation(internal.messages.updateMessageStatus, {
+            messageId,
+            status: "reading_pdf",
+          });
+        }
 
-  // Check if we have any PDFs that need text extraction
-  const pdfAttachments = attachments.filter(
-    attachment => attachment.type === "pdf" && shouldExtractPdfText(provider, modelId, modelSupportsFiles)
-  );
+        let textContent = "";
 
+        // Priority 1: Use existing textFileId (persistent storage)
+        if (attachment.textFileId) {
+          try {
+            const textBlob = await ctx.storage.get(attachment.textFileId);
+            if (textBlob) {
+              textContent = await textBlob.text();
+              console.log(`[PDF Processing] Retrieved cached text for ${attachment.name}: ${textContent.length} chars`);
+            }
+          } catch (error) {
+            console.warn("Failed to retrieve stored PDF text:", error);
+          }
+        }
 
+        // Priority 2: Fallback to extractedText (in-memory)
+        if (!textContent && attachment.extractedText) {
+          textContent = attachment.extractedText;
+          console.log(`[PDF Processing] Using in-memory text for ${attachment.name}: ${textContent.length} chars`);
+          
+          // Store the extracted text for future use
+          try {
+            const textBlob = new Blob([attachment.extractedText], { type: "text/plain" });
+            const textFileId = await ctx.storage.store(textBlob);
+            
+            // Update the attachment to include the stored text reference
+            processedAttachments.push({
+              ...attachment,
+              textFileId,
+              content: textContent, // Use for immediate processing
+            });
+            continue;
+          } catch (error) {
+            console.warn("Failed to store PDF text:", error);
+            // Continue with in-memory text
+          }
+        }
 
-  // If we have PDFs to process and a messageId, show reading status
-  if (pdfAttachments.length > 0 && messageId) {
-    const pdfNames = pdfAttachments.map(pdf => pdf.name).join(", ");
+        // Priority 3: Extract PDF server-side if no text available
+        if (!textContent && attachment.storageId) {
+          try {
+            // Update status to show we're extracting
+            if (messageId) {
+              await updatePdfReadingStatus(ctx, messageId, attachment.name, 10);
+            }
 
-    await updatePdfReadingStatus(ctx, messageId, pdfNames);
+            console.log(`[PDF Processing] Extracting text server-side for ${attachment.name}`);
+            
+            // Extract PDF text using server-side action
+            const extractionResult = await ctx.runAction(api.ai.pdf.extractPdfText, {
+              storageId: attachment.storageId,
+              filename: attachment.name,
+            });
+
+            textContent = extractionResult.text;
+            
+            // Update the attachment to include the extracted text
+            processedAttachments.push({
+              ...attachment,
+              textFileId: extractionResult.textFileId,
+              content: textContent,
+            });
+
+            console.log(`[PDF Processing] Server extraction complete for ${attachment.name}: ${textContent.length} chars`);
+            
+            // Clear the PDF reading status
+            if (messageId) {
+              await clearPdfReadingStatus(ctx, messageId);
+            }
+            continue;
+          } catch (error) {
+            console.error(`[PDF Processing] Server extraction failed for ${attachment.name}:`, error);
+            
+            // Clear the PDF reading status on error
+            if (messageId) {
+              await clearPdfReadingStatus(ctx, messageId);
+            }
+            
+            // Return with extraction error
+            processedAttachments.push({
+              ...attachment,
+              extractionError: error instanceof Error ? error.message : "PDF extraction failed",
+            });
+            continue;
+          }
+        }
+
+        if (textContent) {
+          processedAttachments.push({
+            ...attachment,
+            content: textContent,
+          });
+        } else {
+          // No text available - return original attachment with error
+          processedAttachments.push({
+            ...attachment,
+            extractionError: attachment.extractionError || "No text content available for this PDF",
+          });
+        }
+      } else {
+        // Model supports native PDF - use original attachment
+        console.log(`[PDF Processing] Model ${provider}/${modelId} supports PDFs natively - passing through ${attachment.name} without extraction`);
+        processedAttachments.push(attachment);
+      }
+    } else {
+      // Non-PDF attachments - pass through
+      processedAttachments.push(attachment);
+    }
   }
 
-  return await Promise.all(
-    attachments.map(async (attachment) => {
-      // For PDF attachments, decide whether to use native PDF or extracted text
-      if (attachment.type === "pdf") {
-        const shouldUseTextExtraction = shouldExtractPdfText(provider, modelId, modelSupportsFiles);
-        
-        if (shouldUseTextExtraction) {
-
-          
-          // Check if we already have extracted text
-          if (attachment.extractedText) {
-
-            return {
-              ...attachment,
-              type: "text" as const,
-              content: attachment.extractedText,
-              url: "",
-              thumbnail: undefined,
-            };
-          }
-
-          // If we have a storage ID, get or create persistent text file
-          if (attachment.storageId && messageId) {
-            try {
-              await updatePdfReadingStatus(ctx, messageId, attachment.name);
-
-              const result = await getOrCreatePdfText(
-                ctx,
-                attachment.storageId,
-                attachment.name,
-                attachment.textFileId,
-                async (progress: number) => {
-                  if (progress % 20 === 0) {
-                    await updatePdfReadingStatus(ctx, messageId, attachment.name, progress);
-                  }
-                }
-              );
-
-              await clearPdfReadingStatus(ctx, messageId);
-
-              if ("error" in result) {
-                console.error("PDF text extraction failed:", result.error);
-                return {
-                  ...attachment,
-                  type: "text" as const,
-                  content: `[Error processing PDF "${attachment.name}": ${result.error}]`,
-                  url: "",
-                  thumbnail: undefined,
-                  extractionError: result.error,
-                };
-              }
-
-
-
-              return {
-                ...attachment,
-                type: "text" as const,
-                content: result.extractedText,
-                url: "",
-                thumbnail: undefined,
-                textFileId: result.textFileId,
-                extractedText: undefined,
-              };
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : "Unknown error";
-              console.error("PDF text extraction failed during processing:", errorMessage);
-              
-              return {
-                ...attachment,
-                type: "text" as const,
-                content: `[Error processing PDF "${attachment.name}": ${errorMessage}]`,
-                url: "",
-                thumbnail: undefined,
-                extractionError: errorMessage,
-              };
-            }
-          }
-          const textContent = attachment.extractionError ? 
-            `[Error processing PDF "${attachment.name}": ${attachment.extractionError}]` :
-            `[PDF "${attachment.name}" - unable to extract text]`;
-
-          return {
-            ...attachment,
-            type: "text" as const,
-            content: textContent,
-            url: "",
-            thumbnail: undefined,
-          };
-        }
-        
-        return attachment;
-      }
-      
-      return attachment;
-    })
-  );
+  return processedAttachments;
 };

@@ -578,6 +578,16 @@ export const jobResultSchema = v.union(
   v.object({ type: v.literal("backup"), data: exportResult })
 );
 
+// PDF text extraction cache schema
+export const pdfTextCacheSchema = v.object({
+  cacheKey: v.string(), // Hash-based cache key for PDF content
+  textFileId: v.id("_storage"), // Reference to stored extracted text
+  extractedAt: v.number(), // Timestamp when text was extracted
+  contentLength: v.number(), // Length of extracted text
+  wordCount: v.number(), // Word count of extracted text
+  expiresAt: v.number(), // Cache expiration timestamp
+});
+
 // ============================================================================
 // TYPE ALIASES USING INFER
 // ============================================================================
@@ -592,6 +602,7 @@ export type BackgroundJobDoc = Infer<typeof backgroundJobSchema>;
 export type SharedConversationDoc = Infer<typeof sharedConversationSchema>;
 export type UserApiKeyDoc = Infer<typeof userApiKeySchema>;
 export type UserPersonaSettingsDoc = Infer<typeof userPersonaSettingsSchema>;
+export type PdfTextCacheDoc = Infer<typeof pdfTextCacheSchema>;
 
 // Argument types inferred from schemas
 export type CreateMessageArgs = Infer<typeof messageCreationSchema>;

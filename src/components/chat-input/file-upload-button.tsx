@@ -95,6 +95,18 @@ export function FileUploadButton({
             size: file.size,
             content: textContent,
           });
+        } else if (fileSupport.category === "pdf") {
+          // Always upload PDFs as PDF attachments
+          // Text extraction will happen on submit if needed
+          const base64Content = await readFileAsBase64(file);
+          newAttachments.push({
+            type: "pdf",
+            url: "",
+            name: file.name,
+            size: file.size,
+            content: base64Content,
+            mimeType: file.type,
+          });
         } else {
           let base64Content: string;
           let mimeType = file.type;

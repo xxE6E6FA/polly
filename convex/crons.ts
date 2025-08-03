@@ -43,4 +43,11 @@ crons.weekly(
   { batchSize: 100, daysOld: 90 }
 );
 
+// Clean up expired PDF text cache daily at 5 AM UTC
+crons.daily(
+  "cleanup expired PDF cache",
+  { hourUTC: 5, minuteUTC: 0 },
+  internal.ai.pdf_cache.batchCleanupExpired
+);
+
 export default crons;

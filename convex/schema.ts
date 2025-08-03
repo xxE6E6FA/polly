@@ -6,6 +6,7 @@ import {
   builtInModelSchema,
   conversationSchema,
   messageSchema,
+  pdfTextCacheSchema,
   personaSchema,
   sessionSchema,
   sharedConversationSchema,
@@ -99,4 +100,8 @@ export default defineSchema({
     .index("by_user_id_and_job_id", ["userId", "jobId"])
     .index("by_user_id", ["userId"])
     .index("by_job_id", ["jobId"]),
+
+  pdfTextCache: defineTable(pdfTextCacheSchema)
+    .index("by_cache_key", ["cacheKey"])
+    .index("by_expires_at", ["expiresAt"]),
 });
