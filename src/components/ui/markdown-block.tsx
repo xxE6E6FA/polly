@@ -63,7 +63,9 @@ function cleanupEscapes(text: string): string {
       const nums = numbers.split(",").map((n: string) => n.trim());
       return nums.map((num: string) => `[${num}]`).join("");
     })
-    .replace(/\[\s*(\d+)\s*\]/g, "[$1]"); // Then remove spaces within single citations: [ 1 ] -> [1]
+    .replace(/\[\s*(\d+)\s*\]/g, "[$1]") // Then remove spaces within single citations: [ 1 ] -> [1]
+    .replace(/\\(\s)/g, "$1") // Remove backslashes before spaces (common markdown parsing issue)
+    .replace(/\\$/gm, ""); // Remove backslashes at end of lines
 }
 
 // Component for rendering LaTeX math
