@@ -76,7 +76,7 @@ export default function ConversationRoute() {
   // Override the selected model to match the last used model in this conversation
   useConversationModelOverride(conversationId as ConversationId);
 
-  const conversation = useQuery(api.conversations.get, {
+  const conversationAccessInfo = useQuery(api.conversations.getWithAccessInfo, {
     id: conversationId as Id<"conversations">,
   });
 
@@ -99,16 +99,31 @@ export default function ConversationRoute() {
     conversationId: conversationId as ConversationId,
   });
 
-  if (conversation === null) {
+  // Handle conversation access scenarios
+  if (conversationAccessInfo === undefined) {
+    // Still loading
+    return null;
+  }
+
+  if (conversationAccessInfo.isDeleted) {
+    // Conversation was deleted, redirect to home
+    navigate(ROUTES.HOME);
+    return null;
+  }
+
+  if (!conversationAccessInfo.hasAccess) {
+    // User doesn't have access to this conversation, show 404
     return <NotFoundPage />;
   }
+
+  const conversation = conversationAccessInfo.conversation;
 
   return (
     <UnifiedChatView
       conversationId={conversationId as ConversationId}
       messages={messages}
       isLoading={isLoading || hasApiKeys === undefined}
-      isLoadingMessages={conversation === undefined}
+      isLoadingMessages={conversationAccessInfo === undefined}
       isStreaming={messageIsStreaming || (conversationIsStreaming ?? false)}
       currentPersonaId={conversation?.personaId ?? null}
       currentTemperature={currentTemperature}

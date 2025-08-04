@@ -811,20 +811,20 @@ export async function checkConversationAccess(
   ctx: QueryCtx | MutationCtx,
   conversationId: Id<"conversations">,
   allowShared: boolean = false
-): Promise<{ hasAccess: boolean; conversation?: Doc<"conversations"> }> {
+): Promise<{ hasAccess: boolean; conversation?: Doc<"conversations">; isDeleted: boolean }> {
   const userId = await getAuthUserId(ctx);
 
   // Use direct database operations since we have QueryCtx | MutationCtx
   const conversation = await ctx.db.get(conversationId);
 
   if (!conversation) {
-    return { hasAccess: false };
+    return { hasAccess: false, isDeleted: true };
   }
 
   // If no user is authenticated, only allow access to shared conversations
   if (!userId) {
     if (!allowShared) {
-      return { hasAccess: false };
+      return { hasAccess: false, isDeleted: false };
     }
 
     // Check if this conversation is shared using direct database query
@@ -836,16 +836,16 @@ export async function checkConversationAccess(
       .first();
 
     if (!sharedConversation) {
-      return { hasAccess: false };
+      return { hasAccess: false, isDeleted: false };
     }
 
-    return { hasAccess: true, conversation };
+    return { hasAccess: true, conversation, isDeleted: false };
   }
 
   // For authenticated users, check if they own the conversation
   if (conversation.userId !== userId) {
     if (!allowShared) {
-      return { hasAccess: false };
+      return { hasAccess: false, isDeleted: false };
     }
 
     const sharedConversation = await ctx.db
@@ -856,11 +856,11 @@ export async function checkConversationAccess(
       .first();
 
     if (!sharedConversation) {
-      return { hasAccess: false };
+      return { hasAccess: false, isDeleted: false };
     }
 
-    return { hasAccess: true, conversation };
+    return { hasAccess: true, conversation, isDeleted: false };
   }
 
-  return { hasAccess: true, conversation };
+  return { hasAccess: true, conversation, isDeleted: false };
 }
