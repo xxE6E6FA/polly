@@ -594,7 +594,13 @@ export default function PrivateChatPage() {
       onSendAsNewConversation={handleSendAsNewConversation}
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
-      onStopGeneration={stop}
+      onStopGeneration={() => {
+        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+        console.log(
+          "[PrivateChatPage] onStopGeneration called, calling AI SDK stop function"
+        );
+        stop();
+      }}
       onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={handleRetryUserMessage}
       onRetryAssistantMessage={handleRetryAssistantMessage}

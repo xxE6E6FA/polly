@@ -207,6 +207,12 @@ export const createConversation = mutation({
         reasoningConfig: args.reasoningConfig,
       });
 
+      // Mark conversation as streaming BEFORE scheduling the action
+      await ctx.db.patch(conversationId, {
+        isStreaming: true,
+      });
+      log("CONVERSATION_MARKED_AS_STREAMING");
+
       // Schedule streaming generation action for real-time updates
       await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
         messageId: assistantMessageId,
@@ -1484,6 +1490,7 @@ export const stopGeneration = mutation({
 
     // First, try to abort any active in-memory streams
     const wasAborted = abortStream(args.conversationId);
+    console.log(`[stopGeneration] abortStream returned: ${wasAborted}`);
 
     // Also mark the conversation as not streaming to signal completion
     await ctx.db.patch(args.conversationId, {
@@ -1511,6 +1518,7 @@ export const stopGeneration = mutation({
           `[stopGeneration] Marking message ${recentAssistantMessage._id} as stopped`
         );
         await ctx.db.patch(recentAssistantMessage._id, {
+          status: "done",
           metadata: {
             ...metadata,
             finishReason: "stop",
@@ -1657,6 +1665,12 @@ export const createBranchingConversation = action({
         selectedModel.modelId,
         actualProvider
       );
+
+      // Mark conversation as streaming BEFORE scheduling the action
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: createResult.conversationId,
+        updates: { isStreaming: true },
+      });
 
       // Schedule streaming generation action for real-time updates
       await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {

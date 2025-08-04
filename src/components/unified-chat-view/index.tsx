@@ -277,7 +277,13 @@ export const UnifiedChatView = memo(
                           : "Ask me anything..."
                       }
                       onSendMessage={handleSendMessage}
-                      onStop={onStopGeneration}
+                      onStop={() => {
+                        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+                        console.log(
+                          "[UnifiedChatView] onStop called, forwarding to onStopGeneration"
+                        );
+                        onStopGeneration();
+                      }}
                       onSendAsNewConversation={onSendAsNewConversation}
                       currentReasoningConfig={getCurrentReasoningConfig()}
                       currentTemperature={currentTemperature}

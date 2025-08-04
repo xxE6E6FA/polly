@@ -333,6 +333,25 @@ export const streamResponse = internalAction({
       args.conversationId
     );
 
+    // Check if conversation is still supposed to be streaming
+    // Use internal query since scheduled actions don't have user context
+    const conversation = await ctx.runQuery(internal.conversations.internalGet, {
+      id: args.conversationId,
+    });
+    
+    console.log(
+      "[stream_generation] Conversation streaming state check:",
+      "conversation.isStreaming =", conversation?.isStreaming,
+      "conversation exists =", !!conversation
+    );
+    
+    if (!conversation?.isStreaming) {
+      console.log(
+        "[stream_generation] Conversation already marked as not streaming, exiting early"
+      );
+      return;
+    }
+
     // Use the search availability determined by the calling action
     const isSearchEnabled = args.useWebSearch;
 
@@ -344,18 +363,47 @@ export const streamResponse = internalAction({
 
     // Optimized streaming state tracking
     let isStreamingStopped = false;
+    let isStreamingAborted = false;
 
     // Set up abort signal listener to update the flag
     abortController.signal.addEventListener("abort", () => {
       console.log(
-        "[stream_generation] Abort signal received, setting isStreamingStopped flag"
+        "[stream_generation] Abort signal received for conversation:",
+        args.conversationId,
+        "messageId:",
+        args.messageId
       );
+      console.log("[stream_generation] Setting isStreamingStopped flag to true");
       isStreamingStopped = true;
     });
 
-    // Create a robust abort checker function
-    const checkAbort = () => {
-      const aborted = abortController.signal.aborted || isStreamingStopped;
+    // Create a robust abort checker function that checks both memory and database
+    let lastAbortLogTime = 0;
+    const checkAbort = async () => {
+      // Check in-memory flags first (fastest)
+      const memoryAborted = abortController.signal.aborted || isStreamingStopped;
+      
+      // Also check if conversation was marked as not streaming in database
+      // Use internal query since scheduled actions don't have user context
+      const conversation = await ctx.runQuery(internal.conversations.internalGet, {
+        id: args.conversationId,
+      });
+      const dbAborted = !conversation?.isStreaming;
+      
+      const aborted = memoryAborted || dbAborted;
+      if (aborted) {
+        // Only log once per second to prevent spam
+        const now = Date.now();
+        if (now - lastAbortLogTime > 1000) {
+          console.log(
+            "[stream_generation] checkAbort: Stream should be stopped.",
+            "signal.aborted:", abortController.signal.aborted,
+            "isStreamingStopped:", isStreamingStopped,
+            "conversation.isStreaming:", conversation?.isStreaming
+          );
+          lastAbortLogTime = now;
+        }
+      }
       return aborted;
     };
 
@@ -806,9 +854,12 @@ When using information from these search results, you MUST include citations in 
         ...generationOptions,
         onChunk: async ({ chunk }) => {
           // Check for abort signal before processing any chunk
-          if (checkAbort()) {
-            log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
-            throw new Error("Stream aborted");
+          if (await checkAbort()) {
+            if (!isStreamingAborted) {
+              log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
+              isStreamingAborted = true;
+            }
+            return; // Exit gracefully instead of throwing error
           }
 
           // Only log reasoning chunks, not every text chunk to reduce noise
@@ -816,9 +867,12 @@ When using information from these search results, you MUST include citations in 
             log.streamReasoning(args.messageId, chunk.textDelta);
 
             // Double-check abort before processing reasoning
-            if (checkAbort()) {
-              log.streamAbort("Reasoning processing stopped");
-              throw new Error("Stream aborted during reasoning");
+            if (await checkAbort()) {
+              if (!isStreamingAborted) {
+                log.streamAbort("Reasoning processing stopped");
+                isStreamingAborted = true;
+              }
+              return; // Exit gracefully instead of throwing error
             }
 
             const reasoningBatchResult = addChunk(
@@ -831,9 +885,12 @@ When using information from these search results, you MUST include citations in 
               reasoningBatchResult.content
             ) {
               // Triple-check abort before sending to frontend
-              if (checkAbort()) {
-                log.streamAbort("Reasoning update blocked");
-                throw new Error("Stream aborted before reasoning update");
+              if (await checkAbort()) {
+                if (!isStreamingAborted) {
+                  log.streamAbort("Reasoning update blocked");
+                  isStreamingAborted = true;
+                }
+                return; // Exit gracefully instead of throwing error
               }
 
               try {
@@ -865,8 +922,12 @@ When using information from these search results, you MUST include citations in 
       let chunkCount = 0;
       for await (const chunk of result.textStream) {
         chunkCount++;
-        if (checkAbort()) {
-          log.streamAbort(`Text processing stopped at chunk ${chunkCount}`);
+        // Check both abort conditions and the flag set by onChunk
+        if (isStreamingAborted || await checkAbort()) {
+          if (!isStreamingAborted) {
+            log.streamAbort(`Text processing stopped at chunk ${chunkCount}`);
+            isStreamingAborted = true;
+          }
           break;
         }
 
@@ -939,9 +1000,28 @@ When using information from these search results, you MUST include citations in 
       finalizeBatching(contentBatcher);
       finalizeBatching(reasoningBatcher);
 
-      // Only finalize if not stopped
-      if (!isStreamingStopped && !abortController.signal.aborted) {
+      // Only finalize if not stopped (check both memory, database, and abort flag)
+      const finalAbortCheck = isStreamingAborted || await checkAbort();
+      if (!finalAbortCheck) {
         log.info(`Stream finalized: ${args.messageId.slice(-8)} completed`);
+      } else {
+        log.info(`Stream gracefully stopped: ${args.messageId.slice(-8)} was interrupted`);
+        // Immediately mark conversation as not streaming when interrupted
+        console.log(
+          "[stream_generation] Stream was interrupted, marking conversation as not streaming immediately"
+        );
+        try {
+          await ctx.runMutation(internal.conversations.internalPatch, {
+            id: args.conversationId,
+            updates: { isStreaming: false },
+          });
+          console.log("[stream_generation] Conversation marked as not streaming due to interruption");
+        } catch (error) {
+          console.warn("Failed to immediately clear streaming state:", error);
+        }
+      }
+      
+      if (!finalAbortCheck) {
 
         // Finalize the message with complete content and metadata
         await ctx.runMutation(internal.messages.updateContent, {
@@ -968,11 +1048,16 @@ When using information from these search results, you MUST include citations in 
       cleanup();
 
       // Always ensure conversation is no longer streaming
+      console.log(
+        "[stream_generation] Cleaning up: setting conversation isStreaming to false for",
+        args.conversationId
+      );
       try {
         await ctx.runMutation(internal.conversations.internalPatch, {
           id: args.conversationId,
           updates: { isStreaming: false },
         });
+        console.log("[stream_generation] Successfully marked conversation as not streaming");
       } catch (cleanupError) {
         console.warn(
           "[stream_generation] Failed to clear streaming state:",

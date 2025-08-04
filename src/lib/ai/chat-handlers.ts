@@ -271,6 +271,11 @@ export const createPrivateChatHandlers = (
     };
 
     currentAbortController = new AbortController();
+    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+    console.log(
+      "[PrivateChatHandlers] Created new AbortController for streaming:",
+      currentAbortController
+    );
     await streamChat(
       {
         messages: messageHistory.map(m => ({
@@ -431,9 +436,19 @@ export const createPrivateChatHandlers = (
     },
 
     stopGeneration(): void {
+      // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+      console.log(
+        "[PrivateChatHandlers] stopGeneration called, currentAbortController:",
+        currentAbortController
+      );
       if (currentAbortController) {
+        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+        console.log("[PrivateChatHandlers] Aborting current stream");
         currentAbortController.abort();
         currentAbortController = null;
+      } else {
+        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+        console.log("[PrivateChatHandlers] No active abort controller found");
       }
     },
 
