@@ -102,8 +102,8 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md}": [
-      "biome format --write --files-ignore-unknown=true",
-      "biome check --write --files-ignore-unknown=true",
+      "biome format --write --files-ignore-unknown=true --no-errors-on-unmatched",
+      "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched",
       "git add"
     ],
     "convex/_generated/**": []

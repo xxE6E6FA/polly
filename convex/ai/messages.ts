@@ -363,9 +363,8 @@ export const streamResponse = internalAction({
 
     // Optimized streaming state tracking
     let isStreamingStopped = false;
-    let isStreamingAborted = false;
 
-    // Set up abort signal listener to update the flag
+    // Set up abort signal listener to update the flags
     abortController.signal.addEventListener("abort", () => {
       console.log(
         "[stream_generation] Abort signal received for conversation:",
@@ -373,7 +372,7 @@ export const streamResponse = internalAction({
         "messageId:",
         args.messageId
       );
-      console.log("[stream_generation] Setting isStreamingStopped flag to true");
+      console.log("[stream_generation] Setting isStreamingStopped to true");
       isStreamingStopped = true;
     });
 
@@ -383,15 +382,19 @@ export const streamResponse = internalAction({
       // Check in-memory flags first (fastest)
       const memoryAborted = abortController.signal.aborted || isStreamingStopped;
       
-      // Also check if conversation was marked as not streaming in database
+      // If memory flags indicate abort, return immediately without database query
+      if (memoryAborted) {
+        return true;
+      }
+      
+      // Only check database if memory flags are clean
       // Use internal query since scheduled actions don't have user context
       const conversation = await ctx.runQuery(internal.conversations.internalGet, {
         id: args.conversationId,
       });
       const dbAborted = !conversation?.isStreaming;
       
-      const aborted = memoryAborted || dbAborted;
-      if (aborted) {
+      if (dbAborted) {
         // Only log once per second to prevent spam
         const now = Date.now();
         if (now - lastAbortLogTime > 1000) {
@@ -404,7 +407,7 @@ export const streamResponse = internalAction({
           lastAbortLogTime = now;
         }
       }
-      return aborted;
+      return dbAborted;
     };
 
     // Clean up function
@@ -855,10 +858,10 @@ When using information from these search results, you MUST include citations in 
         onChunk: async ({ chunk }) => {
           // Check for abort signal before processing any chunk
           if (await checkAbort()) {
-            if (!isStreamingAborted) {
-              log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
-              isStreamingAborted = true;
-            }
+                      if (!isStreamingStopped) {
+            log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
+            isStreamingStopped = true;
+          }
             return; // Exit gracefully instead of throwing error
           }
 
@@ -868,10 +871,10 @@ When using information from these search results, you MUST include citations in 
 
             // Double-check abort before processing reasoning
             if (await checkAbort()) {
-              if (!isStreamingAborted) {
-                log.streamAbort("Reasoning processing stopped");
-                isStreamingAborted = true;
-              }
+                          if (!isStreamingStopped) {
+              log.streamAbort("Reasoning processing stopped");
+              isStreamingStopped = true;
+            }
               return; // Exit gracefully instead of throwing error
             }
 
@@ -886,9 +889,9 @@ When using information from these search results, you MUST include citations in 
             ) {
               // Triple-check abort before sending to frontend
               if (await checkAbort()) {
-                if (!isStreamingAborted) {
+                if (!isStreamingStopped) {
                   log.streamAbort("Reasoning update blocked");
-                  isStreamingAborted = true;
+                  isStreamingStopped = true;
                 }
                 return; // Exit gracefully instead of throwing error
               }
@@ -923,10 +926,10 @@ When using information from these search results, you MUST include citations in 
       for await (const chunk of result.textStream) {
         chunkCount++;
         // Check both abort conditions and the flag set by onChunk
-        if (isStreamingAborted || await checkAbort()) {
-          if (!isStreamingAborted) {
+        if (isStreamingStopped || await checkAbort()) {
+          if (!isStreamingStopped) {
             log.streamAbort(`Text processing stopped at chunk ${chunkCount}`);
-            isStreamingAborted = true;
+            isStreamingStopped = true;
           }
           break;
         }
@@ -1001,7 +1004,7 @@ When using information from these search results, you MUST include citations in 
       finalizeBatching(reasoningBatcher);
 
       // Only finalize if not stopped (check both memory, database, and abort flag)
-      const finalAbortCheck = isStreamingAborted || await checkAbort();
+      const finalAbortCheck = isStreamingStopped || await checkAbort();
       if (!finalAbortCheck) {
         log.info(`Stream finalized: ${args.messageId.slice(-8)} completed`);
       } else {
