@@ -11,6 +11,11 @@ export async function streamChat(
   request: ChatStreamRequest,
   abortController: AbortController = new AbortController()
 ): Promise<void> {
+  // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+  console.log(
+    "[browser-streaming] streamChat called with abortController:",
+    abortController
+  );
   const { model, apiKeys, messages, options, callbacks } = request;
   const provider = model.provider;
   const apiKey = apiKeys[provider as keyof APIKeys];
@@ -18,6 +23,11 @@ export async function streamChat(
   if (!apiKey) {
     throw new Error(`No API key found for provider: ${provider}`);
   }
+
+  // Add abort signal listener
+  abortController.signal.addEventListener("abort", () => {
+    // Signal received - abort processing will be handled by the stream loop
+  });
 
   try {
     // Get reasoning configuration for this provider
@@ -50,9 +60,20 @@ export async function streamChat(
 
     const result = streamText(streamOptions);
 
+    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+    console.log("[browser-streaming] Starting text stream processing");
     for await (const chunk of result.textStream) {
+      if (abortController.signal.aborted) {
+        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+        console.log(
+          "[browser-streaming] Abort detected in stream loop, breaking"
+        );
+        break;
+      }
       callbacks.onContent(chunk);
     }
+    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+    console.log("[browser-streaming] Text stream processing completed");
 
     // Handle reasoning if available (AI SDK native support)
     try {
@@ -69,6 +90,9 @@ export async function streamChat(
 
     callbacks.onFinish("stop");
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      // Stream was aborted - this is expected behavior
+    }
     if (error instanceof Error) {
       callbacks.onError(error);
     } else {

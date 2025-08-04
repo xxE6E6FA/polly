@@ -251,6 +251,10 @@ export function useChat({ conversationId }: UseChatParams) {
   );
 
   const stopGeneration = useCallback(() => {
+    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+    console.log(
+      "[useChat] stopGeneration called, forwarding to chatHandlers.stopGeneration"
+    );
     chatHandlers.stopGeneration();
   }, [chatHandlers.stopGeneration]);
 

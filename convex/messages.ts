@@ -744,11 +744,22 @@ export const updateAssistantContent = internalMutation({
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
 
+    // Never overwrite "done" status - once a message is done, it stays done
+    let finalUpdates = filteredUpdates;
+    if (args.status && args.status !== "done") {
+      const currentMessage = await ctx.db.get(messageId);
+      if (currentMessage?.status === "done") {
+        // Don't overwrite "done" status with any other status
+        const { status: _, ...updatesWithoutStatus } = filteredUpdates;
+        finalUpdates = updatesWithoutStatus;
+      }
+    }
+
     if (!(appendContent || appendReasoning)) {
-      if (Object.keys(filteredUpdates).length === 0) {
+      if (Object.keys(finalUpdates).length === 0) {
         return;
       }
-      return await ctx.db.patch(messageId, filteredUpdates);
+      return await ctx.db.patch(messageId, finalUpdates);
     }
 
     return await withRetry(
@@ -764,16 +775,28 @@ export const updateAssistantContent = internalMutation({
           return;
         }
 
-        const appendUpdates = { ...filteredUpdates };
+        const appendUpdates = { ...finalUpdates };
+
+        // Never overwrite "done" status in append operations either
+        let finalAppendUpdates = appendUpdates;
+        if (
+          args.status &&
+          args.status !== "done" &&
+          message.status === "done"
+        ) {
+          const { status: _, ...updatesWithoutStatus } = appendUpdates;
+          finalAppendUpdates = updatesWithoutStatus;
+        }
 
         if (appendContent) {
-          appendUpdates.content = (message.content || "") + appendContent;
+          finalAppendUpdates.content = (message.content || "") + appendContent;
         }
         if (appendReasoning) {
-          appendUpdates.reasoning = (message.reasoning || "") + appendReasoning;
+          finalAppendUpdates.reasoning =
+            (message.reasoning || "") + appendReasoning;
         }
 
-        return await ctx.db.patch(messageId, appendUpdates);
+        return await ctx.db.patch(messageId, finalAppendUpdates);
       },
       2,
       10

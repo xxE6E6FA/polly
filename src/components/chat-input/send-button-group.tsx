@@ -284,7 +284,13 @@ export const SendButtonGroup = ({
             "transition-colors duration-200"
           )}
           title={getButtonTitle()}
-          onClick={isStreaming ? onStop : onSend}
+          onClick={() => {
+            if (isStreaming && onStop) {
+              onStop();
+            } else if (!isStreaming) {
+              onSend();
+            }
+          }}
         >
           {renderButtonContent}
         </button>
