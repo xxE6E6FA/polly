@@ -344,6 +344,12 @@ export const sendMessage = action({
       }
     );
 
+    // Mark conversation as streaming BEFORE scheduling the action
+    await ctx.runMutation(internal.conversations.internalPatch, {
+      id: args.conversationId,
+      updates: { isStreaming: true },
+    });
+
     // Start streaming response
     console.log(
       "[web_search_debug] Scheduling streamResponse - search determined by user auth status"
