@@ -607,6 +607,15 @@ export const get = query({
   },
 });
 
+export const getWithAccessInfo = query({
+  args: { id: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const { hasAccess, conversation, isDeleted } =
+      await checkConversationAccess(ctx, args.id, true);
+    return { hasAccess, conversation, isDeleted };
+  },
+});
+
 export const getForExport = query({
   args: {
     id: v.string(),
