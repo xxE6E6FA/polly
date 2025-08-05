@@ -61,7 +61,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
       <Sidebar />
       <main
         className={cn(
-          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-300 ease-out",
+          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-300 ease-out bg-background",
           showPrivateBackground && "private-mode-background",
           isExiting && "exiting"
         )}

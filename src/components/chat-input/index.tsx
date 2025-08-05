@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useConvex, useQuery } from "convex/react";
 import {
   forwardRef,
   useCallback,
@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { ModelPicker } from "@/components/model-picker";
 import { ReasoningPicker } from "@/components/reasoning-picker";
 import { TemperaturePicker } from "@/components/temperature-picker";
@@ -19,7 +20,7 @@ import { useChatInputPreservation } from "@/hooks/use-chat-input-preservation";
 import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-
+import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import {
   convertImageToWebP,
   readFileAsBase64,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/file-utils";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { getDefaultReasoningConfig } from "@/lib/message-reasoning-utils";
+import { ROUTES } from "@/lib/routes";
 import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -35,11 +37,17 @@ import type {
   Attachment,
   ChatMessage,
   ConversationId,
+  GenerationMode,
+  ImageGenerationParams,
   ReasoningConfig,
 } from "@/types";
+import { AspectRatioPicker } from "./aspect-ratio-picker";
 import { AttachmentDisplay } from "./attachment-display";
 import { ChatInputField } from "./chat-input-field";
 import { FileUploadButton } from "./file-upload-button";
+import { GenerationModeToggle } from "./generation-mode-toggle";
+import { ImageGenerationSettings } from "./image-generation-settings";
+import { ImageModelPicker } from "./image-model-picker";
 import { PersonaSelector } from "./persona-selector";
 import { SendButtonGroup } from "./send-button-group";
 import { WarningBanners } from "./warning-banners";
@@ -104,6 +112,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     ref
   ) => {
     const { user, canSendMessage } = useUserDataContext();
+    const navigate = useNavigate();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const { isPrivateMode } = usePrivateMode();
@@ -144,6 +153,18 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           : currentTemperature
     );
 
+    // Image generation state
+    const [generationMode, setGenerationMode] =
+      useState<GenerationMode>("text");
+    const [imageParams, setImageParams] = useState<ImageGenerationParams>({
+      prompt: "",
+      model: "black-forest-labs/flux-dev", // Default to FLUX Dev model
+      aspectRatio: "1:1",
+      steps: 28,
+      guidanceScale: 7.5,
+      count: 1, // Default to generating 1 image
+    });
+
     // Access conversation messages for history navigation
     const { messages: conversationMessages } = useChatMessages({
       conversationId,
@@ -159,6 +180,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
     const notificationDialog = useNotificationDialog();
+    const convex = useConvex();
 
     // Drag and drop state
     const [isDragOver, setIsDragOver] = useState(false);
@@ -610,20 +632,82 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setIsUploading(true);
 
       try {
-        // Skip PDF extraction - it will be done server-side with proper loading states
-        const processedAttachments = attachments;
+        if (generationMode === "image") {
+          // Handle image generation
+          if (!imageParams.model?.trim()) {
+            throw new Error(
+              "Please enter a Replicate model ID in the settings. You can copy model IDs from replicate.com."
+            );
+          }
 
-        // Upload attachments to Convex storage if not in private mode
-        const uploadedAttachments =
-          await uploadAttachmentsToConvex(processedAttachments);
+          if (conversationId) {
+            // Existing conversation, proceed normally
+            // Create only a user message for the prompt (no AI response)
+            const result = await convex.action(
+              api.conversations.createUserMessage,
+              {
+                conversationId,
+                content: input.trim(),
+                personaId: selectedPersonaId || undefined,
+              }
+            );
 
-        onSendMessage(
-          input.trim(),
-          uploadedAttachments,
-          selectedPersonaId,
-          reasoningConfig.enabled ? reasoningConfig : undefined,
-          temperature
-        );
+            // Trigger image generation with the user message ID
+            await handleImageGeneration(
+              convex,
+              conversationId,
+              result.userMessageId,
+              input.trim(),
+              imageParams
+            );
+          } else {
+            // No conversation exists, create a new one for image generation
+            const newConversation = await convex.action(
+              api.conversations.createConversationAction,
+              {
+                title: "Image Generation", // Title for the new conversation
+              }
+            );
+
+            // Create only a user message for the prompt (no AI response)
+            const result = await convex.action(
+              api.conversations.createUserMessage,
+              {
+                conversationId: newConversation.conversationId,
+                content: input.trim(),
+                personaId: selectedPersonaId || undefined,
+              }
+            );
+
+            // Trigger image generation with the user message ID
+            await handleImageGeneration(
+              convex,
+              newConversation.conversationId,
+              result.userMessageId,
+              input.trim(),
+              imageParams
+            );
+
+            // Navigate to the new conversation
+            navigate(ROUTES.CHAT_CONVERSATION(newConversation.conversationId));
+          }
+        } else {
+          // Handle text generation (existing logic)
+          // Skip PDF extraction - it will be done server-side with proper loading states
+          const processedAttachments = attachments;
+
+          // Upload attachments to Convex storage if not in private mode
+          const uploadedAttachments =
+            await uploadAttachmentsToConvex(processedAttachments);
+
+          onSendMessage(
+            input.trim(),
+            uploadedAttachments,
+            selectedPersonaId,
+            reasoningConfig.enabled ? reasoningConfig : undefined,
+            temperature
+          );
+        }
 
         setInput("");
         setAttachments([]);
@@ -631,14 +715,22 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         if (shouldUsePreservedState) {
           clearChatInputState();
         }
-      } catch (_error) {
-        // Chat error is handled by the streaming hook
+      } catch (error) {
+        console.error("Submit error:", error);
+        notificationDialog.notify({
+          title: "Error",
+          description:
+            error instanceof Error ? error.message : "Failed to send message",
+          type: "error",
+        });
       } finally {
         setIsUploading(false);
       }
     }, [
       input,
       attachments,
+      generationMode,
+      imageParams,
       selectedPersonaId,
       reasoningConfig,
       onSendMessage,
@@ -648,6 +740,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       clearChatInputState,
       uploadAttachmentsToConvex,
       temperature,
+      notificationDialog,
+      convex,
+      conversationId,
+      navigate,
     ]);
 
     const handleSendAsNewConversation = useCallback(
@@ -734,6 +830,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [setInput, reasoningConfig]
     );
 
+    // Determine dynamic placeholder based on generation mode
+    const dynamicPlaceholder = useMemo(() => {
+      if (generationMode === "image") {
+        return "Describe the image you want to generate...";
+      }
+      return placeholder;
+    }, [generationMode, placeholder]);
+
     if (user === undefined) {
       return null;
     }
@@ -748,7 +852,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
 
     return (
-      <div className={cn("relative px-3 pb-2 sm:px-6 sm:pb-3")}>
+      <div className={cn("relative px-3 pb-2 sm:px-6 sm:pb-3 bg-background")}>
         <div className="mx-auto w-full max-w-3xl">
           <WarningBanners hasExistingMessages={hasExistingMessages} />
 
@@ -795,7 +899,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   onChange={handleInputChange}
                   onSubmit={submit}
                   textareaRef={textareaRef}
-                  placeholder={placeholder}
+                  placeholder={dynamicPlaceholder}
                   disabled={
                     isLoading || isStreaming || isProcessing || !canSend
                   }
@@ -807,27 +911,70 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/20 pt-2">
               <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
-                <PersonaSelector
-                  conversationId={conversationId}
-                  hasExistingMessages={hasExistingMessages}
-                  selectedPersonaId={selectedPersonaId}
-                  onPersonaSelect={setSelectedPersonaId}
-                />
-                {canSend && <ModelPicker />}
                 {canSend && (
-                  <TemperaturePicker
-                    temperature={temperature}
-                    onTemperatureChange={setTemperature}
+                  <GenerationModeToggle
+                    mode={generationMode}
+                    onModeChange={setGenerationMode}
                     disabled={isLoading || isStreaming}
                   />
                 )}
-                {canSend && selectedModel && isUserModel(selectedModel) ? (
-                  <ReasoningPicker
-                    model={selectedModel}
-                    config={reasoningConfig}
-                    onConfigChange={setReasoningConfig}
-                  />
-                ) : null}
+
+                {/* Image generation controls */}
+                {canSend && generationMode === "image" && (
+                  <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                    <ImageModelPicker
+                      model={imageParams.model}
+                      onModelChange={model =>
+                        setImageParams(prev => ({ ...prev, model }))
+                      }
+                    />
+                    <AspectRatioPicker
+                      aspectRatio={imageParams.aspectRatio}
+                      onAspectRatioChange={aspectRatio =>
+                        setImageParams(prev => ({
+                          ...prev,
+                          aspectRatio: aspectRatio as
+                            | "1:1"
+                            | "16:9"
+                            | "9:16"
+                            | "4:3"
+                            | "3:4",
+                        }))
+                      }
+                    />
+                    <ImageGenerationSettings
+                      params={imageParams}
+                      onParamsChange={updates =>
+                        setImageParams(prev => ({ ...prev, ...updates }))
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Text generation controls */}
+                {canSend && generationMode === "text" && (
+                  <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                    <PersonaSelector
+                      conversationId={conversationId}
+                      hasExistingMessages={hasExistingMessages}
+                      selectedPersonaId={selectedPersonaId}
+                      onPersonaSelect={setSelectedPersonaId}
+                    />
+                    <ModelPicker />
+                    <TemperaturePicker
+                      temperature={temperature}
+                      onTemperatureChange={setTemperature}
+                      disabled={isLoading || isStreaming}
+                    />
+                    {selectedModel && isUserModel(selectedModel) ? (
+                      <ReasoningPicker
+                        model={selectedModel}
+                        config={reasoningConfig}
+                        onConfigChange={setReasoningConfig}
+                      />
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5">
