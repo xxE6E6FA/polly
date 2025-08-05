@@ -814,7 +814,7 @@ pre {
 /* Chat Input States */
 .chat-input-enabled {
     border: 1px solid hsl(var(--border));
-    background: hsl(var(--background));
+    background: hsl(var(--card));
 }
 
 .chat-input-disabled {
@@ -1117,4 +1117,117 @@ pre {
 
 .temperature-slider:disabled {
   @apply opacity-50 cursor-not-allowed;
+}
+
+/* Enhanced Number Input Spinner Styles */
+.number-input-with-spinners {
+  -moz-appearance: textfield;
+}
+
+.number-input-with-spinners::-webkit-outer-spin-button,
+.number-input-with-spinners::-webkit-inner-spin-button {
+  @apply appearance-none w-3 h-full cursor-pointer opacity-60 hover:opacity-100 transition-opacity;
+  background-image: 
+    linear-gradient(45deg, transparent 50%, hsl(var(--foreground)) 50%),
+    linear-gradient(135deg, hsl(var(--foreground)) 50%, transparent 50%);
+  background-position: 
+    calc(100% - 8px) calc(1em + 2px),
+    calc(100% - 4px) calc(1em + 2px);
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  margin: 0;
+  position: relative;
+}
+
+.number-input-with-spinners::-webkit-inner-spin-button {
+  background-image: 
+    /* Up arrow */
+    linear-gradient(135deg, transparent 40%, hsl(var(--foreground)) 40%, hsl(var(--foreground)) 60%, transparent 60%),
+    /* Down arrow */
+    linear-gradient(45deg, transparent 40%, hsl(var(--foreground)) 40%, hsl(var(--foreground)) 60%, transparent 60%);
+  background-position: 
+    50% 30%,
+    50% 70%;
+  background-size: 8px 8px, 8px 8px;
+  background-repeat: no-repeat;
+  min-height: 100%;
+  border-radius: 0 4px 4px 0;
+}
+
+.number-input-with-spinners::-webkit-inner-spin-button:hover {
+  @apply bg-accent/20;
+}
+
+.number-input-no-spinners::-webkit-outer-spin-button,
+.number-input-no-spinners::-webkit-inner-spin-button {
+  @apply appearance-none m-0;
+}
+
+.number-input-no-spinners {
+  -moz-appearance: textfield;
+}
+
+/* Image Gallery Overflow Styles */
+.image-gallery-wrapper {
+  @apply relative;
+}
+
+/* Gallery overflow container - allows images to extend beyond content width */
+.gallery-overflow-container {
+  position: relative;
+  width: calc(100% + min(12rem, 30vw));
+  margin-left: calc(-1 * min(6rem, 15vw));
+  padding-left: 0;
+}
+
+/* Smaller overflow on mobile */
+@media (max-width: 640px) {
+  .gallery-overflow-container {
+    width: calc(100% + 3rem);
+    margin-left: -1.5rem;
+  }
+}
+
+/* Medium screens */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .gallery-overflow-container {
+    width: calc(100% + 6rem);
+    margin-left: -3rem;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .gallery-overflow-container {
+    width: calc(100% + 8rem);
+    margin-left: -4rem;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1441px) {
+  .gallery-overflow-container {
+    width: calc(100% + 12rem);
+    margin-left: -6rem;
+  }
+}
+
+/* Gallery message container - special padding for messages with image galleries */
+.gallery-message-container {
+  @apply px-3 py-2 sm:px-6 sm:py-2.5;
+}
+
+/* Allow gallery to overflow on assistant messages */
+.gallery-message-container[data-message-role="assistant"] {
+  @apply px-0 py-2 sm:py-2.5;
+}
+
+/* Maintain padding for non-gallery content in gallery messages */
+.gallery-message-container .min-w-0.flex-1 > div:not(.image-gallery-wrapper) {
+  @apply px-3 sm:px-6;
+}
+
+/* Ensure image gallery wrapper has no padding constraints */
+.gallery-message-container .image-gallery-wrapper {
+  @apply px-0;
 }

@@ -66,6 +66,7 @@ type UnifiedChatViewProps = {
     reasoningConfig?: ReasoningConfig,
     temperature?: number
   ) => void;
+  onRetryImageGeneration?: (messageId: string) => void;
 };
 
 export const UnifiedChatView = memo(
@@ -89,6 +90,7 @@ export const UnifiedChatView = memo(
     onTemperatureChange,
     onRetryUserMessage,
     onRetryAssistantMessage,
+    onRetryImageGeneration,
   }: UnifiedChatViewProps) => {
     const { isPrivateMode } = usePrivateMode();
     const {
@@ -174,7 +176,7 @@ export const UnifiedChatView = memo(
 
     // CSS mask gradient for seamless scrolling
     const maskGradient =
-      "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.1) 16px, rgba(0,0,0,0.9) 32px, rgba(0,0,0,0.9) calc(100% - 32px), rgba(0,0,0,0.1) calc(100% - 16px), transparent 100%)";
+      "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 8px, rgba(0,0,0,0.8) 16px, rgba(0,0,0,1) 20px, rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0.8) calc(100% - 16px), rgba(0,0,0,0.3) calc(100% - 8px), transparent 100%)";
 
     const renderMessageArea = () => {
       if (isLoadingConversation) {
@@ -211,6 +213,9 @@ export const UnifiedChatView = memo(
           onRetryAssistantMessage={
             isArchived ? undefined : handleRetryAssistantMessage
           }
+          onRetryImageGeneration={
+            isArchived ? undefined : onRetryImageGeneration
+          }
           scrollElement={null}
           shouldScrollToBottom={isStreaming}
         />
@@ -219,13 +224,13 @@ export const UnifiedChatView = memo(
 
     return (
       <div className="flex h-full">
-        <div className="relative flex h-full flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-hidden">
-            <div className="relative flex h-full flex-col overflow-hidden">
-              <div className="relative z-10 flex h-full flex-col overflow-hidden">
+        <div className="relative flex h-full flex-1 flex-col overflow-y-hidden overflow-x-visible">
+          <div className="flex-1 overflow-y-hidden overflow-x-visible">
+            <div className="relative flex h-full flex-col overflow-y-hidden overflow-x-visible">
+              <div className="relative z-10 flex h-full flex-col overflow-y-hidden overflow-x-visible">
                 {/* Static Header */}
                 {(isLoadingConversation || !isEmpty) && (
-                  <div className="sticky top-0 z-20 h-12 flex-shrink-0">
+                  <div className="sticky top-0 z-20 h-12 flex-shrink-0 bg-background">
                     <div className="flex h-12 items-center px-4 lg:px-6">
                       <ChatHeader
                         conversationId={conversationId}
@@ -243,7 +248,7 @@ export const UnifiedChatView = memo(
                 <div
                   ref={messagesContainerRef}
                   className={cn(
-                    "flex-1 overflow-hidden",
+                    "flex-1 overflow-y-hidden overflow-x-visible",
                     isEmpty && "overflow-y-auto"
                   )}
                   style={{
