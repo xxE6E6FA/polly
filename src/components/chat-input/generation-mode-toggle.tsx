@@ -1,6 +1,8 @@
-import { ChatText, Image } from "@phosphor-icons/react";
+import { ChatText, Image, Plus } from "@phosphor-icons/react";
 import { memo } from "react";
+import { Link } from "react-router-dom";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type { GenerationMode } from "@/types";
@@ -9,16 +11,24 @@ interface GenerationModeToggleProps {
   mode: GenerationMode;
   onModeChange: (mode: GenerationMode) => void;
   disabled?: boolean;
+  hasReplicateApiKey?: boolean;
   className?: string;
 }
 
 export const GenerationModeToggle = memo<GenerationModeToggleProps>(
-  ({ mode, onModeChange, disabled = false, className = "" }) => {
+  ({
+    mode,
+    onModeChange,
+    disabled = false,
+    hasReplicateApiKey = true,
+    className = "",
+  }) => {
     const { isPrivateMode } = usePrivateMode();
-    const isImageModeDisabled = disabled || isPrivateMode;
+    const isImageModeDisabled =
+      disabled || isPrivateMode || !hasReplicateApiKey;
 
     const handleModeChange = (newMode: GenerationMode) => {
-      if (newMode === "image" && isPrivateMode) {
+      if (newMode === "image" && (isPrivateMode || !hasReplicateApiKey)) {
         return;
       }
       onModeChange(newMode);
@@ -61,9 +71,22 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
         {/* Image mode button */}
         <TooltipWrapper
           content={
-            isPrivateMode
-              ? "Image generation not available in private mode. Switch to regular mode to generate images."
-              : "Image Generation"
+            isPrivateMode ? (
+              "Image generation not available in private mode. Switch to regular mode to generate images."
+            ) : hasReplicateApiKey ? (
+              "Image Generation"
+            ) : (
+              <div className="flex flex-col gap-2 text-center">
+                <p>Image generation requires a Replicate API key.</p>
+                <Link
+                  to={ROUTES.SETTINGS.API_KEYS}
+                  className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 underline"
+                >
+                  <Plus size={12} />
+                  Add API Key
+                </Link>
+              </div>
+            )
           }
         >
           <button

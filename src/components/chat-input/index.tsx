@@ -21,6 +21,7 @@ import { useChatInputPreservation } from "@/hooks/use-chat-input-preservation";
 import { useChatMessages } from "@/hooks/use-chat-messages";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import {
   convertImageToWebP,
@@ -115,6 +116,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     ref
   ) => {
     const { user, canSendMessage } = useUserDataContext();
+    const { hasReplicateApiKey } = useReplicateApiKey();
     const navigate = useNavigate();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -184,12 +186,15 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [isMultiline, setIsMultiline] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
-    // Force text mode when in private mode
+    // Force text mode when in private mode or no Replicate API key
     useEffect(() => {
-      if (isPrivateMode && generationMode === "image") {
+      if (
+        (isPrivateMode || !hasReplicateApiKey) &&
+        generationMode === "image"
+      ) {
         setGenerationMode("text");
       }
-    }, [isPrivateMode, generationMode]);
+    }, [isPrivateMode, hasReplicateApiKey, generationMode]);
 
     // Sync negative prompt toggle state with imageParams.negativePrompt
     useEffect(() => {
@@ -1045,6 +1050,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               {/* Negative Prompt Area - Integrated below main prompt */}
               {canSend &&
                 generationMode === "image" &&
+                hasReplicateApiKey &&
                 selectedImageModel?.supportsNegativePrompt && (
                   <div className="relative mt-1">
                     {/* Subtle visual separator */}
@@ -1071,50 +1077,54 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     mode={generationMode}
                     onModeChange={setGenerationMode}
                     disabled={isLoading || isStreaming}
+                    hasReplicateApiKey={hasReplicateApiKey}
                   />
                 )}
 
                 {/* Image generation controls */}
-                {canSend && generationMode === "image" && !isPrivateMode && (
-                  <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-                    <ImageModelPicker
-                      model={imageParams.model}
-                      onModelChange={model =>
-                        setImageParams(prev => ({ ...prev, model }))
-                      }
-                    />
-                    <AspectRatioPicker
-                      aspectRatio={imageParams.aspectRatio}
-                      onAspectRatioChange={aspectRatio =>
-                        setImageParams(prev => ({
-                          ...prev,
-                          aspectRatio: aspectRatio as
-                            | "1:1"
-                            | "16:9"
-                            | "9:16"
-                            | "4:3"
-                            | "3:4",
-                        }))
-                      }
-                    />
-                    <ImageGenerationSettings
-                      params={imageParams}
-                      onParamsChange={updates =>
-                        setImageParams(prev => ({ ...prev, ...updates }))
-                      }
-                      selectedModel={
-                        selectedImageModel
-                          ? {
-                              modelId: selectedImageModel.modelId,
-                              supportsMultipleImages:
-                                selectedImageModel.supportsMultipleImages ??
-                                false,
-                            }
-                          : undefined
-                      }
-                    />
-                  </div>
-                )}
+                {canSend &&
+                  generationMode === "image" &&
+                  !isPrivateMode &&
+                  hasReplicateApiKey && (
+                    <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                      <ImageModelPicker
+                        model={imageParams.model}
+                        onModelChange={model =>
+                          setImageParams(prev => ({ ...prev, model }))
+                        }
+                      />
+                      <AspectRatioPicker
+                        aspectRatio={imageParams.aspectRatio}
+                        onAspectRatioChange={aspectRatio =>
+                          setImageParams(prev => ({
+                            ...prev,
+                            aspectRatio: aspectRatio as
+                              | "1:1"
+                              | "16:9"
+                              | "9:16"
+                              | "4:3"
+                              | "3:4",
+                          }))
+                        }
+                      />
+                      <ImageGenerationSettings
+                        params={imageParams}
+                        onParamsChange={updates =>
+                          setImageParams(prev => ({ ...prev, ...updates }))
+                        }
+                        selectedModel={
+                          selectedImageModel
+                            ? {
+                                modelId: selectedImageModel.modelId,
+                                supportsMultipleImages:
+                                  selectedImageModel.supportsMultipleImages ??
+                                  false,
+                              }
+                            : undefined
+                        }
+                      />
+                    </div>
+                  )}
 
                 {/* Text generation controls */}
                 {canSend && generationMode === "text" && (
