@@ -227,7 +227,6 @@ export const buildUserMessageContent = async (
       contentParts.push({
         type: "image_url",
         image_url: { url: imageUrl },
-        // Include attachment metadata for Convex storage optimization
         attachment: attachment.storageId
           ? {
               storageId: attachment.storageId,
@@ -243,7 +242,6 @@ export const buildUserMessageContent = async (
           filename: attachment.name,
           file_data: attachment.content || "",
         },
-        // Include attachment metadata for Convex storage optimization
         attachment: attachment.storageId
           ? {
               storageId: attachment.storageId,
@@ -575,35 +573,21 @@ export const buildContextMessages = async (
   }>;
   messages: any[];
 }> => {
-  // Development mode logging - simplified to reduce noise
-  // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
-  const log = (step: string, data?: any) => {
-    // Only log essential debugging info - remove verbose step tracking
-    if (step === "BUILD_CONTEXT_START" || step === "BUILD_CONTEXT_COMPLETE" || step.includes("ERROR")) {
-      console.log(
-        `[BUILD_CONTEXT] ${step}:`,
-        data ? JSON.stringify(data, null, 2) : ""
-      );
-    }
-  };
+  // OPTIMIZATION: Run conversation and messages queries in parallel
+  const [conversation, messagesResult] = await Promise.all([
+    ctx.runQuery(api.conversations.get, {
+      id: args.conversationId,
+    }),
+    ctx.runQuery(api.messages.list, {
+      conversationId: args.conversationId,
+    }),
+  ]);
 
-  log("BUILD_CONTEXT_START", {
-    conversationId: args.conversationId,
-  });
-
-  // Get the conversation to find its personaId
-  const conversation = await ctx.runQuery(api.conversations.get, {
-    id: args.conversationId,
-  });
-
-  const messagesResult: any = await ctx.runQuery(api.messages.list, {
-    conversationId: args.conversationId,
-  });
-  const messages: MessageDoc[] = Array.isArray(messagesResult)
+  const messages: any[] = Array.isArray(messagesResult)
     ? messagesResult
     : messagesResult.page;
 
-  const relevantMessages: MessageDoc[] =
+  const relevantMessages: any[] =
     args.includeUpToIndex !== undefined
       ? messages.slice(0, args.includeUpToIndex + 1)
       : messages;
@@ -611,37 +595,43 @@ export const buildContextMessages = async (
   // Use the personaId from the conversation (or fallback to args.personaId)
   const effectivePersonaId = conversation?.personaId || args.personaId;
 
-  const personaPrompt = effectivePersonaId
-    ? (await ctx.runQuery(api.personas.get, { id: effectivePersonaId }))?.prompt
-    : undefined;
-  const messagesWithResolvedUrls: MessageDoc[] = await Promise.all(
-    relevantMessages.map(async (msg: MessageDoc) => {
-      const message = msg;
-      if (message.attachments && message.attachments.length > 0) {
-        const resolvedAttachments = await resolveAttachmentUrls(
-          ctx,
-          message.attachments
-        );
-        return {
-          ...message,
-          attachments: resolvedAttachments,
-        };
-      }
-      return message;
-    })
-  );
+  // OPTIMIZATION: Parallelize persona prompt fetch and attachment URL resolution
+  const [personaPrompt, messagesWithResolvedUrls] = await Promise.all([
+    // Fetch persona prompt
+    effectivePersonaId
+      ? ctx.runQuery(api.personas.get, { id: effectivePersonaId }).then(p => p?.prompt)
+      : Promise.resolve(undefined),
+    
+    // Resolve attachment URLs only for messages that have attachments
+    Promise.all(
+      relevantMessages.map(async (msg: any) => {
+        const message = msg;
+        if (message.attachments && message.attachments.length > 0) {
+          const resolvedAttachments = await resolveAttachmentUrls(
+            ctx,
+            message.attachments
+          );
+          return {
+            ...message,
+            attachments: resolvedAttachments,
+          };
+        }
+        return message;
+      })
+    ),
+  ]);
   // Collect context messages separately to append to system prompt
   const contextMessageContents: string[] = [];
   
   const contextMessagesPromises = messagesWithResolvedUrls
-    .filter((msg: MessageDoc) => {
+    .filter((msg: any) => {
       const message = msg;
       return (
         message.content &&
         message.content.trim().length > 0
       );
     })
-    .map(async (msg: MessageDoc) => {
+    .map(async (msg: any) => {
       const message = msg;
       if (message.role === "system") {
         const isCitationInstruction =
@@ -687,7 +677,7 @@ export const buildContextMessages = async (
 
   // Get model name from the last assistant message or use a default
   const lastAssistantMessage = relevantMessages
-    .filter((msg: MessageDoc) => {
+    .filter((msg: any) => {
       const message = msg;
       return message.role === "assistant" && message.model;
     })
@@ -705,10 +695,6 @@ export const buildContextMessages = async (
   contextMessages.unshift({
     role: "system",
     content: mergedSystemPrompt,
-  });
-
-  log("BUILD_CONTEXT_COMPLETE", {
-    messagesCount: contextMessages.length,
   });
 
   return { contextMessages, messages: relevantMessages };
