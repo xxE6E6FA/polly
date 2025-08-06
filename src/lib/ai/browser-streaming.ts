@@ -4,7 +4,7 @@
  */
 import { createBasicLanguageModel } from "@shared/ai-provider-factory";
 import { getProviderReasoningConfig } from "@shared/reasoning-config";
-import { streamText } from "ai";
+import { smoothStream, streamText } from "ai";
 import type { APIKeys, ChatStreamRequest } from "@/types";
 
 export async function streamChat(
@@ -58,7 +58,14 @@ export async function streamChat(
       ...reasoningOptions, // Merge reasoning-specific options
     };
 
-    const result = streamText(streamOptions);
+    const result = streamText({
+      ...streamOptions,
+      // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
+      experimental_transform: smoothStream({
+        delayInMs: 20,
+        chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
+      }),
+    });
 
     // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
     console.log("[browser-streaming] Starting text stream processing");
