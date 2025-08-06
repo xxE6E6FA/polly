@@ -216,7 +216,7 @@ const ChatSection = () => {
         userLoading={isLoading}
         onQuickPrompt={handleQuickPrompt}
       />
-      <ChatInput ref={chatInputRef} {...chatInputProps} />
+      <ChatInput ref={chatInputRef} {...chatInputProps} autoFocus />
     </div>
   );
 };
