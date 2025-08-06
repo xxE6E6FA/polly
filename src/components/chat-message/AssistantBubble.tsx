@@ -265,7 +265,7 @@ export const AssistantBubble = ({
         {/* Handle image generation messages */}
         {message.imageGeneration ? (
           <div
-            key={`imageGen-${message.id}-${message.imageGeneration.status}-${message.imageGeneration.output?.length || 0}`}
+            key={`imageGen-${message.id}-${message.imageGeneration.status}-${message.imageGeneration.output?.length || 0}-${message.attachments?.filter(att => att.type === "image" && att.generatedImage?.isGenerated).length || 0}`}
             className="mb-3"
           >
             {message.imageGeneration.status === "failed" ||
