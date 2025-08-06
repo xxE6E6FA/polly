@@ -1,20 +1,24 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useQuery } from "convex/react";
+import { useAction, useConvex, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
+import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { useToast } from "@/providers/toast-context";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
   const { conversationId } = useParams();
   const { setPrivateMode } = usePrivateMode();
   const navigate = useNavigate();
+  const convex = useConvex();
+  const managedToast = useToast();
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
@@ -61,8 +65,8 @@ export default function ConversationRoute() {
           }
           return result.conversationId;
         }
-      } catch (error) {
-        console.error("Failed to create branching conversation:", error);
+      } catch {
+        // Handle error silently for branching conversation creation
       }
       return undefined;
     },
@@ -98,6 +102,75 @@ export default function ConversationRoute() {
   } = useChat({
     conversationId: conversationId as ConversationId,
   });
+
+  const handleRetryImageGeneration = useCallback(
+    async (messageId: string) => {
+      try {
+        const message = messages.find(m => m.id === messageId);
+        if (!message?.imageGeneration) {
+          throw new Error("Image generation message not found");
+        }
+
+        // Find the previous user message to get the prompt
+        const messageIndex = messages.findIndex(m => m.id === messageId);
+        let userMessage = null;
+
+        // Look backwards from the current message to find the most recent user message
+        for (let i = messageIndex - 1; i >= 0; i--) {
+          if (messages[i].role === "user") {
+            userMessage = messages[i];
+            break;
+          }
+        }
+
+        if (!userMessage?.content) {
+          throw new Error(
+            "Could not find the original user message with prompt"
+          );
+        }
+
+        // Use metadata for model and params, but user message content for prompt
+        const metadata = message.imageGeneration.metadata;
+
+        if (!metadata?.model) {
+          throw new Error(
+            "Missing model information. Please try generating a new image instead of retrying."
+          );
+        }
+        if (!metadata?.params) {
+          throw new Error(
+            "Missing generation parameters. Please try generating a new image instead of retrying."
+          );
+        }
+
+        await retryImageGeneration(
+          convex,
+          conversationId as Id<"conversations">,
+          messageId as Id<"messages">,
+          {
+            prompt: userMessage.content, // Use the previous user message content
+            model: metadata.model,
+            params: {
+              ...metadata.params,
+              aspectRatio: metadata.params?.aspectRatio as
+                | "1:1"
+                | "16:9"
+                | "9:16"
+                | "4:3"
+                | "3:4"
+                | undefined,
+            },
+          }
+        );
+      } catch (error) {
+        managedToast.error("Failed to retry image generation", {
+          description:
+            error instanceof Error ? error.message : "Please try again",
+        });
+      }
+    },
+    [messages, convex, conversationId, managedToast.error]
+  );
 
   // Handle conversation access scenarios
   if (conversationAccessInfo === undefined) {
@@ -206,6 +279,7 @@ export default function ConversationRoute() {
 
         await retryFromMessage(messageId, options);
       }}
+      onRetryImageGeneration={handleRetryImageGeneration}
     />
   );
 }

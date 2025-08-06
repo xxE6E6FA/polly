@@ -18,12 +18,14 @@ export type UserId = Id<"users">;
 // ============================================================================
 
 export type AIModel = Doc<"userModels">;
+export type ImageModel = Doc<"userImageModels">;
 export type AIProviderType =
   | "openai"
   | "anthropic"
   | "google"
   | "openrouter"
-  | "polly";
+  | "polly"
+  | "replicate";
 
 // ============================================================================
 // TYPE SAFETY HELPERS
@@ -44,6 +46,7 @@ export type ModelForCapabilities = {
   supportsImages?: boolean;
   supportsTools?: boolean;
   supportsFiles?: boolean;
+  supportsImageGeneration?: boolean;
   inputModalities?: string[];
 } & Partial<AIModel>;
 
@@ -116,6 +119,56 @@ export type ReasoningConfig = {
 };
 
 // ============================================================================
+// IMAGE GENERATION TYPES
+// ============================================================================
+
+export type GenerationMode = "text" | "image";
+
+export type ImageGenerationParams = {
+  prompt: string;
+  model: string;
+  width?: number;
+  height?: number;
+  aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
+  steps?: number;
+  guidanceScale?: number;
+  seed?: number;
+  negativePrompt?: string;
+  count?: number; // Number of images to generate (1-4)
+};
+
+// Type aliases for Replicate types (no re-exports)
+export type ReplicatePrediction = import("replicate").Prediction;
+export type ReplicatePredictionStatus =
+  import("replicate").Prediction["status"];
+
+export type ImageGenerationResult = {
+  id: string;
+  status: ReplicatePredictionStatus;
+  output?: string[];
+  error?: string;
+  progress?: number;
+  metadata?: {
+    model: string;
+    prompt: string;
+    params: ImageGenerationParams;
+    duration?: number;
+    cost?: number;
+  };
+};
+
+export type GeneratedImageAttachment = Attachment & {
+  type: "image";
+  isGenerated: true;
+  generationMetadata?: {
+    prompt: string;
+    model: string;
+    params: ImageGenerationParams;
+    replicateId: string;
+  };
+};
+
+// ============================================================================
 // CHAT & MESSAGING TYPES
 // ============================================================================
 
@@ -153,6 +206,27 @@ export type ChatMessage = {
     searchCategory?: string;
     status?: "pending" | "error";
   };
+  imageGeneration?: {
+    replicateId?: string;
+    status?: "starting" | "processing" | "succeeded" | "failed" | "canceled";
+    output?: string[]; // Array of image URLs from Replicate
+    error?: string;
+    progress?: number;
+    metadata?: {
+      duration?: number;
+      model?: string;
+      prompt?: string;
+      params?: {
+        aspectRatio?: string;
+        steps?: number;
+        guidanceScale?: number;
+        seed?: number;
+        negativePrompt?: string;
+        count?: number;
+      };
+    };
+    result?: ImageGenerationResult;
+  };
   createdAt: number;
 };
 
@@ -173,6 +247,13 @@ export type Attachment = {
     extractedAt: number;
     wordCount: number;
     contentLength: number;
+  };
+  // Generated image metadata
+  generatedImage?: {
+    isGenerated: boolean;
+    source: string; // "replicate", etc.
+    model?: string;
+    prompt?: string;
   };
 };
 
@@ -306,6 +387,7 @@ export type APIKeys = {
   anthropic?: string;
   google?: string;
   openrouter?: string;
+  replicate?: string;
 };
 
 // ============================================================================
@@ -399,6 +481,25 @@ export type FetchedModel = {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsFiles: boolean;
+};
+
+export type FetchedImageModel = {
+  modelId: string;
+  name: string;
+  provider: string;
+  description?: string;
+  modelVersion?: string;
+  owner?: string;
+  tags?: string[];
+  supportedAspectRatios?: string[];
+  supportsUpscaling?: boolean;
+  supportsInpainting?: boolean;
+  supportsOutpainting?: boolean;
+  supportsImageToImage?: boolean;
+  supportsMultipleImages?: boolean;
+  supportsNegativePrompt?: boolean;
+  coverImageUrl?: string;
+  exampleImages?: string[];
 };
 
 export type CreateConversationArgs = {

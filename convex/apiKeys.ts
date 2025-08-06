@@ -84,6 +84,8 @@ function validateApiKeyFormat(provider: string, key: string): boolean {
       return key.length > 20;
     case "openrouter":
       return key.startsWith("sk-or-") && key.length > 20;
+    case "replicate":
+      return key.startsWith("r8_") && key.length > 20;
     default:
       return false;
   }
@@ -96,7 +98,8 @@ export const storeApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("replicate")
     ),
     rawKey: v.string(),
   },
@@ -149,7 +152,8 @@ export const storeClientEncryptedApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("replicate")
     ),
     encryptedKey: v.string(), // Client-encrypted using CryptoJS or Web Crypto API
     partialKey: v.string(), // For display purposes
@@ -217,7 +221,8 @@ export const removeApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("replicate")
     ),
   },
   handler: async (ctx, args) => {
@@ -245,7 +250,8 @@ export const validateApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("replicate")
     ),
   },
   handler: async (ctx, args) => {
@@ -307,7 +313,8 @@ function hasEnvironmentApiKeys(): boolean {
     process.env.OPENAI_API_KEY ||
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
-      process.env.OPENROUTER_API_KEY
+      process.env.OPENROUTER_API_KEY ||
+      process.env.REPLICATE_API_TOKEN
   );
 }
 
@@ -319,7 +326,7 @@ export const getDecryptedApiKey = action({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("exa")
+      v.literal("replicate")
     ),
     modelId: v.optional(v.string()),
     conversationId: v.optional(v.id("conversations")), // For getting user ID from conversation
@@ -382,7 +389,8 @@ export const getClientEncryptedApiKey = query({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
-      v.literal("openrouter")
+      v.literal("openrouter"),
+      v.literal("replicate")
     ),
   },
   handler: async (ctx, args) => {
@@ -419,7 +427,7 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("exa")
+      v.literal("replicate")
     ),
   },
   handler: async (ctx, args) => {
@@ -435,7 +443,7 @@ export const getEncryptedApiKeyData = internalQuery({
               | "anthropic"
               | "google"
               | "openrouter"
-              | "exa"
+              | "replicate"
           )
       )
       .unique();

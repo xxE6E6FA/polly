@@ -21,5 +21,6 @@ export const CONFIG = {
     anthropic: "ANTHROPIC_API_KEY",
     google: "GEMINI_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
+    replicate: "REPLICATE_API_TOKEN",
   },
 } as const;

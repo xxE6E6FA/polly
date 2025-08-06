@@ -1,5 +1,5 @@
 import { memo, useCallback, useState } from "react";
-import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
+import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { cn, stripCitations } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AssistantBubble } from "./chat-message/AssistantBubble";
@@ -15,6 +15,7 @@ type ChatMessageProps = {
     provider?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onRetryImageGeneration?: (messageId: string) => void;
 };
 
 const ChatMessageComponent = ({
@@ -23,6 +24,7 @@ const ChatMessageComponent = ({
   onEditMessage,
   onRetryMessage,
   onDeleteMessage,
+  onRetryImageGeneration,
 }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const [isCopied, setIsCopied] = useState(false);
@@ -62,11 +64,33 @@ const ChatMessageComponent = ({
     }
   }, [onDeleteMessage, message.id, isDeleting]);
 
+  const handleRetryImageGeneration = useCallback(() => {
+    if (onRetryImageGeneration) {
+      onRetryImageGeneration(message.id);
+    }
+  }, [onRetryImageGeneration, message.id]);
+
   const handlePreviewFileClose = useCallback((open: boolean) => {
     if (!open) {
       setPreviewFile(null);
     }
   }, []);
+
+  const hasImageGallery =
+    message.role === "assistant" &&
+    message.imageGeneration?.status === "succeeded" &&
+    (() => {
+      // Look for generated images in main attachments field
+      const generatedImages =
+        message.attachments?.filter(
+          att => att.type === "image" && att.generatedImage?.isGenerated
+        ) || [];
+
+      // Fallback to output URLs if no stored images yet
+      const outputUrls = message.imageGeneration?.output || [];
+
+      return generatedImages.length > 0 || outputUrls.length > 0;
+    })();
 
   return (
     <>
@@ -74,8 +98,11 @@ const ChatMessageComponent = ({
         data-message-role={message.role}
         data-message-id={message.id}
         className={cn(
-          "group w-full px-3 py-2 sm:px-6 sm:py-2.5 transition-colors",
-          "bg-transparent"
+          "group w-full transition-colors",
+          "bg-transparent",
+          hasImageGallery
+            ? "gallery-message-container"
+            : "px-3 py-2 sm:px-6 sm:py-2.5"
         )}
       >
         {isUser ? (
@@ -102,18 +129,50 @@ const ChatMessageComponent = ({
             onRetryMessage={onRetryMessage ? handleRetry : undefined}
             onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
             onPreviewFile={setPreviewFile}
+            onRetryImageGeneration={
+              onRetryImageGeneration ? handleRetryImageGeneration : undefined
+            }
           />
         )}
       </div>
 
-      {/* File preview dialog */}
-      <FilePreviewDialog
-        attachment={previewFile}
+      {/* Attachment gallery dialog */}
+      <AttachmentGalleryDialog
+        attachments={message.attachments || []}
+        currentAttachment={previewFile}
         open={Boolean(previewFile)}
         onOpenChange={handlePreviewFileClose}
+        onAttachmentChange={setPreviewFile}
       />
     </>
   );
 };
 
-export const ChatMessage = memo(ChatMessageComponent);
+export const ChatMessage = memo(
+  ChatMessageComponent,
+  (prevProps, nextProps) => {
+    // Always re-render if image generation status changes
+    if (
+      prevProps.message.imageGeneration?.status !==
+      nextProps.message.imageGeneration?.status
+    ) {
+      return false;
+    }
+
+    // Always re-render if image generation output changes
+    if (
+      prevProps.message.imageGeneration?.output?.length !==
+      nextProps.message.imageGeneration?.output?.length
+    ) {
+      return false;
+    }
+
+    // Default memo comparison for other props
+    return (
+      prevProps.message.id === nextProps.message.id &&
+      prevProps.message.content === nextProps.message.content &&
+      prevProps.message.status === nextProps.message.status &&
+      prevProps.isStreaming === nextProps.isStreaming
+    );
+  }
+);

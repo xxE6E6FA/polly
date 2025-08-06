@@ -27,6 +27,7 @@ type VirtualizedChatMessagesProps = {
     provider?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onRetryImageGeneration?: (messageId: string) => void;
   scrollElement?: Element | null;
   shouldScrollToBottom?: boolean;
 };
@@ -52,6 +53,7 @@ interface MessageItemProps {
     provider?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
+  onRetryImageGeneration?: (messageId: string) => void;
   // Message selector for efficient re-renders
   messageSelector: (messageId: string) => ChatMessageType | undefined;
 }
@@ -64,6 +66,7 @@ const MessageItem = memo(
     onRetryUserMessage,
     onRetryAssistantMessage,
     onDeleteMessage,
+    onRetryImageGeneration,
     messageSelector,
   }: MessageItemProps) => {
     const message = messageSelector(messageId);
@@ -73,10 +76,10 @@ const MessageItem = memo(
     }
 
     return (
-      <div className="px-4 sm:px-8">
+      <div className="px-4 sm:px-8 overflow-visible">
         <div
           id={message.id}
-          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4"
+          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible"
           style={{ maxWidth: "48rem" }}
         >
           {message.role === "context" ? (
@@ -96,6 +99,7 @@ const MessageItem = memo(
                   : onRetryAssistantMessage
               }
               onDeleteMessage={onDeleteMessage}
+              onRetryImageGeneration={onRetryImageGeneration}
             />
           )}
         </div>
@@ -135,6 +139,7 @@ const MessageItem = memo(
       prevProps.onRetryUserMessage === nextProps.onRetryUserMessage &&
       prevProps.onRetryAssistantMessage === nextProps.onRetryAssistantMessage &&
       prevProps.onDeleteMessage === nextProps.onDeleteMessage &&
+      prevProps.onRetryImageGeneration === nextProps.onRetryImageGeneration &&
       prevProps.messageSelector === nextProps.messageSelector
     );
   }
@@ -152,6 +157,7 @@ export const VirtualizedChatMessages = memo(
         onRetryUserMessage,
         onRetryAssistantMessage,
         onDeleteMessage,
+        onRetryImageGeneration,
         scrollElement: _scrollElement,
         shouldScrollToBottom = false,
       },
@@ -192,12 +198,13 @@ export const VirtualizedChatMessages = memo(
           }
 
           if (message.role === "assistant") {
-            // Include assistant messages if they have content, reasoning, or if we're streaming
+            // Include assistant messages if they have content, reasoning, image generation, or if we're streaming
             // This ensures empty assistant messages appear when streaming starts
             // Also include messages that are being typed to prevent flickering
             if (
               message.content ||
               message.reasoning ||
+              message.imageGeneration ||
               !message.metadata?.finishReason
             ) {
               filtered.push(message);
@@ -473,6 +480,7 @@ export const VirtualizedChatMessages = memo(
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}
                 onDeleteMessage={onDeleteMessage}
+                onRetryImageGeneration={onRetryImageGeneration}
                 messageSelector={messageSelector}
               />
             );

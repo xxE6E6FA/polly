@@ -31,7 +31,12 @@ import { useToast } from "@/providers/toast-context";
 import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
 
-type ApiProvider = "openai" | "anthropic" | "google" | "openrouter";
+type ApiProvider =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "openrouter"
+  | "replicate";
 
 const API_KEY_INFO = {
   openai: {
@@ -53,6 +58,11 @@ const API_KEY_INFO = {
     name: "OpenRouter",
     url: "https://openrouter.ai/keys",
     placeholder: "sk-or-...",
+  },
+  replicate: {
+    name: "Replicate",
+    url: "https://replicate.com/account/api-tokens",
+    placeholder: "r8_...",
   },
 };
 

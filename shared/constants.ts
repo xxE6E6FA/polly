@@ -19,4 +19,14 @@ export const CHUNK_SIZE = 10; // Chunk size for export processing
 export const BATCH_SIZE = 20; // Batch size for import processing
 
 // Search
-export const WEB_SEARCH_MAX_RESULTS = 12; // Default max Exa search results - matches Exa demo default 
+export const WEB_SEARCH_MAX_RESULTS = 12; // Default max Exa search results - matches Exa demo default
+
+// Image Generation Defaults
+export const IMAGE_GENERATION_DEFAULTS = {
+  MODEL: "black-forest-labs/flux-dev",
+  ASPECT_RATIO: "1:1" as const,
+  STEPS: 28,
+  GUIDANCE_SCALE: 7.5,
+  COUNT: 1,
+  NEGATIVE_PROMPT: "",
+} as const; 

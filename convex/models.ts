@@ -333,6 +333,7 @@ type ModelResponse = {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsFiles: boolean;
+  supportsImageGeneration?: boolean;
 };
 
 // OpenRouter Models
@@ -470,6 +471,29 @@ function getGoogleContextWindow(modelName: string): number {
   return 32768;
 }
 
+// Replicate models fetcher - returns empty array since users will paste model identifiers
+async function fetchReplicateModels(apiKey: string): Promise<ModelResponse[]> {
+  try {
+    // Verify API key is valid by making a simple request
+    const response = await fetch("https://api.replicate.com/v1/account", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Replicate API error: ${response.status}`);
+    }
+
+    // Return empty array - users will manually add model identifiers
+    // This validates the API key is working
+    return [];
+  } catch (error) {
+    log.error("Error validating Replicate API key:", error);
+    return [];
+  }
+}
+
 export const fetchAllModels = action({
   args: {},
   handler: async ctx => {
@@ -491,7 +515,8 @@ export const fetchAllModels = action({
               | "openai"
               | "anthropic"
               | "google"
-              | "openrouter",
+              | "openrouter"
+              | "replicate",
           }
         );
 
@@ -513,6 +538,9 @@ export const fetchAllModels = action({
             break;
           case "openrouter":
             models = await fetchOpenRouterModels(decryptedKey);
+            break;
+          case "replicate":
+            models = await fetchReplicateModels(decryptedKey);
             break;
           default:
             log.warn(`Unknown provider: ${keyInfo.provider}`);
@@ -538,7 +566,12 @@ export const fetchProviderModels = action({
     try {
       // Get the decrypted API key for this provider
       const decryptedKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
-        provider: provider as "openai" | "anthropic" | "google" | "openrouter",
+        provider: provider as
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "openrouter"
+          | "replicate",
       });
 
       if (!decryptedKey) {
@@ -554,6 +587,8 @@ export const fetchProviderModels = action({
           return await fetchGoogleModels(decryptedKey);
         case "openrouter":
           return await fetchOpenRouterModels(decryptedKey);
+        case "replicate":
+          return await fetchReplicateModels(decryptedKey);
         default:
           return [];
       }

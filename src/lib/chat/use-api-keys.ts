@@ -18,7 +18,7 @@ export function useApiKeys() {
           | "anthropic"
           | "google"
           | "openrouter"
-          | "exa",
+          | "replicate",
         modelId: args.modelId,
       });
     },

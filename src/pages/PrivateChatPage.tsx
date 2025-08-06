@@ -595,16 +595,13 @@ export default function PrivateChatPage() {
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
       onStopGeneration={() => {
-        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-        console.log(
-          "[PrivateChatPage] onStopGeneration called, calling AI SDK stop function"
-        );
         stop();
       }}
       onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={handleRetryUserMessage}
       onRetryAssistantMessage={handleRetryAssistantMessage}
       onSavePrivateChat={handleSavePrivateChat}
+      onRetryImageGeneration={undefined} // Image generation not supported in private mode
     />
   );
 }

@@ -70,6 +70,27 @@ export const ProviderIcon = ({ provider, className }: ProviderIconProps) => {
           <path d="M8 12h8M12 8v8" />
         </svg>
       );
+    case "replicate":
+      return (
+        <svg
+          className={cn("h-6 w-6", className)}
+          fill="currentColor"
+          viewBox="0 0 726 726"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title>Replicate</title>
+          <g clipPath="url(#replicate_clip)">
+            <path d="M726 310.438V392.476H438.068V726H346.302V310.438H726Z" />
+            <path d="M726 155.219V237.402H264.845V726H173.078V155.219H726Z" />
+            <path d="M726 0V82.1832H91.7664V726H0V0H726Z" />
+          </g>
+          <defs>
+            <clipPath id="replicate_clip">
+              <rect width="726" height="726" />
+            </clipPath>
+          </defs>
+        </svg>
+      );
     case "polly":
       return (
         <div

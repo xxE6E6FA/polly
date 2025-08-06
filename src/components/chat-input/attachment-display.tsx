@@ -1,8 +1,8 @@
 import { XIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 import { ImageThumbnail } from "@/components/file-display";
+import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Button } from "@/components/ui/button";
-import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
@@ -115,14 +115,16 @@ export function AttachmentDisplay({
         </div>
       </div>
 
-      <FilePreviewDialog
-        attachment={previewFile}
+      <AttachmentGalleryDialog
+        attachments={attachments}
+        currentAttachment={previewFile}
         open={!!previewFile}
         onOpenChange={open => {
           if (!open) {
             setPreviewFile(null);
           }
         }}
+        onAttachmentChange={setPreviewFile}
       />
     </>
   );

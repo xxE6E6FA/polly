@@ -102,7 +102,7 @@ const SetupChecklist = () => {
                 Enable AI models
               </span>
               {hasUserApiKeys && !hasUserModels && (
-                <Link to={ROUTES.SETTINGS.MODELS}>
+                <Link to={ROUTES.SETTINGS.TEXT_MODELS}>
                   <Button
                     className="gap-1 bg-background/50 text-xs"
                     size="sm"

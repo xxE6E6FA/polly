@@ -209,6 +209,20 @@ export const routes: RouteObject[] = [
                 <RouteErrorBoundary />
               </Suspense>
             ),
+            children: [
+              {
+                index: true,
+                element: <Navigate to="text" replace />,
+              },
+              {
+                path: "text",
+                element: <div />, // Empty element since content is handled by parent
+              },
+              {
+                path: "image",
+                element: <div />, // Empty element since content is handled by parent
+              },
+            ],
           },
           {
             path: "personas",
