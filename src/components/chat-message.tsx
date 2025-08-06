@@ -167,6 +167,32 @@ export const ChatMessage = memo(
       return false;
     }
 
+    // Always re-render if attachments change (prevents skeleton flickering)
+    if (
+      prevProps.message.attachments?.length !==
+      nextProps.message.attachments?.length
+    ) {
+      return false;
+    }
+
+    // Check if attachment URLs have changed (storage URLs resolved)
+    if (prevProps.message.attachments && nextProps.message.attachments) {
+      const prevAttachmentUrls = prevProps.message.attachments.map(
+        att => att.url
+      );
+      const nextAttachmentUrls = nextProps.message.attachments.map(
+        att => att.url
+      );
+
+      if (
+        prevAttachmentUrls.some(
+          (url, index) => url !== nextAttachmentUrls[index]
+        )
+      ) {
+        return false;
+      }
+    }
+
     // Default memo comparison for other props
     return (
       prevProps.message.id === nextProps.message.id &&
