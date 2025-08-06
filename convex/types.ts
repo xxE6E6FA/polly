@@ -101,7 +101,8 @@ export type ProviderType =
   | "anthropic"
   | "google"
   | "openrouter"
-  | "polly";
+  | "polly"
+  | "replicate";
 
 export type ProviderMetadata = {
   openrouter?: {

@@ -4,7 +4,7 @@
 
 import type { GenericQueryCtx, GenericMutationCtx } from "convex/server";
 import type { DataModel, Id } from "../_generated/dataModel";
-import { log } from "./logger";
+
 
 type AnyCtx = GenericQueryCtx<DataModel> | GenericMutationCtx<DataModel>;
 

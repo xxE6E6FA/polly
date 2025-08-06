@@ -125,7 +125,9 @@ export const UserBubble = memo(
               <div className="whitespace-pre-wrap break-words text-sm transition-all duration-300 ease-out sm:text-base selectable-text">
                 {message.content}
                 <AttachmentStrip
-                  attachments={message.attachments}
+                  attachments={message.attachments?.filter(
+                    att => !att.generatedImage?.isGenerated
+                  )}
                   variant="user"
                   onPreviewFile={onPreviewFile}
                 />

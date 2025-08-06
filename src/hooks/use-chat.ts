@@ -45,7 +45,7 @@ export function useChat({ conversationId }: UseChatParams) {
           | "anthropic"
           | "google"
           | "openrouter"
-          | "exa",
+          | "replicate",
         modelId: args.modelId,
       });
     },
@@ -192,18 +192,16 @@ export function useChat({ conversationId }: UseChatParams) {
             attachments: msg.attachments,
             citations: msg.citations,
             metadata: msg.metadata,
+            imageGeneration: msg.imageGeneration, // Add imageGeneration field
             createdAt: msg.createdAt,
           })
         );
 
         setMessages(convertedMessages);
-        setIsLoading(false);
       } else {
-        setIsLoading(true);
+        // Private mode is never loading from a server
+        setIsLoading(false);
       }
-    } else {
-      // Private mode is never loading from a server
-      setIsLoading(false);
     }
   }, [serverMessages, conversationId]);
 

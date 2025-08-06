@@ -38,6 +38,60 @@ export const builtInModelSchema = v.object({
     createdAt: v.number(),
 });
 
+// Image models schema for Replicate image generation models
+export const userImageModelSchema = v.object({
+    userId: v.id("users"),
+    modelId: v.string(),
+    name: v.string(),
+    provider: v.string(),
+    description: v.optional(v.string()),
+    
+    // Image generation specific fields
+    supportedAspectRatios: v.optional(v.array(v.string())),
+    supportsUpscaling: v.optional(v.boolean()),
+    supportsInpainting: v.optional(v.boolean()),
+    supportsOutpainting: v.optional(v.boolean()),
+    supportsImageToImage: v.optional(v.boolean()),
+    supportsMultipleImages: v.optional(v.boolean()),
+    supportsNegativePrompt: v.optional(v.boolean()),
+    
+    // Model metadata
+    modelVersion: v.optional(v.string()),
+    owner: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    
+    selected: v.optional(v.boolean()),
+    createdAt: v.number(),
+});
+
+// Full image model definition schema - stores complete model details
+export const imageModelDefinitionSchema = v.object({
+    modelId: v.string(),
+    name: v.string(),
+    provider: v.string(),
+    description: v.string(),
+    modelVersion: v.string(),
+    owner: v.string(),
+    tags: v.array(v.string()),
+    
+    // Image generation specific fields
+    supportedAspectRatios: v.array(v.string()),
+    supportsUpscaling: v.boolean(),
+    supportsInpainting: v.boolean(),
+    supportsOutpainting: v.boolean(),
+    supportsImageToImage: v.boolean(),
+    supportsMultipleImages: v.boolean(),
+    supportsNegativePrompt: v.optional(v.boolean()),
+    
+    // Rich metadata not in userImageModels
+    coverImageUrl: v.optional(v.string()),
+    exampleImages: v.optional(v.array(v.string())),
+    
+    // Metadata
+    createdAt: v.number(),
+    lastUpdated: v.number(),
+});
+
 // Model schema for internal actions (handles both user models and built-in models)
 export const modelForInternalActionsSchema = v.object({
     modelId: v.string(),
@@ -72,6 +126,13 @@ export const attachmentSchema = v.object({
   textFileId: v.optional(v.id("_storage")), // Reference to stored text file
   extractedText: v.optional(v.string()), // Cached text extraction for PDFs (deprecated in favor of textFileId)
   extractionError: v.optional(v.string()), // Error message if extraction failed
+  // Generated image metadata
+  generatedImage: v.optional(v.object({
+    isGenerated: v.boolean(),
+    source: v.string(), // "replicate", etc.
+    model: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+  })),
 });
 
 // Reasoning configuration schema
@@ -94,7 +155,8 @@ export const providerSchema = v.union(
   v.literal("openai"),
   v.literal("anthropic"),
   v.literal("google"),
-  v.literal("openrouter")
+  v.literal("openrouter"),
+  v.literal("replicate")
 );
 
 // Web search citation schema
@@ -493,6 +555,27 @@ export const messageStatusSchema = v.union(
   v.literal("error")
 );
 
+// Image generation schema
+export const imageGenerationSchema = v.object({
+  replicateId: v.optional(v.string()),
+  status: v.optional(v.string()),
+  output: v.optional(v.array(v.string())), // Array of image URLs from Replicate
+  error: v.optional(v.string()),
+  metadata: v.optional(v.object({
+    duration: v.optional(v.number()),
+    model: v.optional(v.string()),
+    prompt: v.optional(v.string()),
+    params: v.optional(v.object({
+      aspectRatio: v.optional(v.string()),
+      steps: v.optional(v.number()),
+      guidanceScale: v.optional(v.number()),
+      seed: v.optional(v.number()),
+      negativePrompt: v.optional(v.string()),
+      count: v.optional(v.number()),
+    })),
+  })),
+});
+
 // Message schema
 export const messageSchema = v.object({
   conversationId: v.id("conversations"),
@@ -511,6 +594,7 @@ export const messageSchema = v.object({
   attachments: v.optional(v.array(attachmentSchema)),
   citations: v.optional(v.array(webCitationSchema)),
   metadata: v.optional(extendedMessageMetadataSchema),
+  imageGeneration: v.optional(imageGenerationSchema), // Add image generation support
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });

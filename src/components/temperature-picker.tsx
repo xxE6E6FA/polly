@@ -2,6 +2,7 @@ import { ThermometerIcon } from "@phosphor-icons/react";
 import { memo, useState } from "react";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
+import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -22,7 +23,6 @@ const TemperaturePickerComponent = ({
   disabled = false,
 }: TemperaturePickerProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   const currentValue = temperature ?? 0.7;
   const isActive = temperature !== undefined;
@@ -93,41 +93,21 @@ const TemperaturePickerComponent = ({
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  {getTemperatureLabel(currentValue)}
-                </span>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {currentValue.toFixed(1)}
-                </span>
-              </div>
-
-              <input
-                type="range"
-                min="0"
-                max="2"
-                step="0.1"
-                value={currentValue}
-                onChange={e => handleSliderChange(parseFloat(e.target.value))}
-                onMouseDown={() => setIsDragging(true)}
-                onMouseUp={() => setIsDragging(false)}
-                disabled={disabled}
-                className={cn(
-                  "temperature-slider w-full",
-                  isDragging && "bg-accent/60"
-                )}
-                style={{
-                  background: `linear-gradient(to right, hsl(var(--accent)) 0%, hsl(var(--accent)) ${(currentValue / 2) * 100}%, hsl(var(--accent) / 0.4) ${(currentValue / 2) * 100}%, hsl(var(--accent) / 0.4) 100%)`,
-                }}
-              />
-
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <span>0.0</span>
-                <span>1.0</span>
-                <span>2.0</span>
-              </div>
-            </div>
+            <EnhancedSlider
+              label="Temperature"
+              value={currentValue}
+              defaultValue={0.7}
+              min={0}
+              max={2}
+              step={0.1}
+              onValueChange={handleSliderChange}
+              disabled={disabled}
+              formatValue={value =>
+                `${value.toFixed(1)} (${getTemperatureLabel(value)})`
+              }
+              showSpinners={true}
+              className="space-y-2"
+            />
 
             <div className="flex justify-center pt-2">
               <Button

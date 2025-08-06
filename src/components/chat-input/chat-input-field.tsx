@@ -1,5 +1,12 @@
 import type React from "react";
-import { memo, useCallback, useLayoutEffect, useRef } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputFieldProps {
@@ -27,6 +34,25 @@ export const ChatInputField = memo(
     onHistoryNavigation,
     onHistoryNavigationDown,
   }: ChatInputFieldProps) {
+    // State for animated placeholder
+    const [currentPlaceholder, setCurrentPlaceholder] = useState(placeholder);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Handle placeholder transitions
+    useEffect(() => {
+      if (currentPlaceholder !== placeholder) {
+        setIsTransitioning(true);
+
+        // Start the transition after a brief delay to ensure the fade-out happens
+        const timer = setTimeout(() => {
+          setCurrentPlaceholder(placeholder);
+          setIsTransitioning(false);
+        }, 150); // Half of the transition duration
+
+        return () => clearTimeout(timer);
+      }
+    }, [placeholder, currentPlaceholder]);
+
     // Optimized keydown handler with efficient history navigation
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
@@ -89,13 +115,15 @@ export const ChatInputField = memo(
       resizeRafRef.current = requestAnimationFrame(() => {
         const textarea = textareaRef.current;
         if (textarea) {
-          // Optimize resize with direct style updates
-          const currentHeight = textarea.scrollHeight;
-          const newHeight = Math.min(currentHeight, 100);
-
-          // Only update if height actually changed
-          if (textarea.style.height !== `${newHeight}px`) {
+          // Special handling for empty content - reset to minimum height
+          if (value === "") {
             textarea.style.height = "auto";
+            textarea.style.height = "24px"; // Match min-h-[24px]
+          } else {
+            // Optimize resize with direct style updates
+            textarea.style.height = "auto";
+            const currentHeight = textarea.scrollHeight;
+            const newHeight = Math.min(currentHeight, 100);
             textarea.style.height = `${newHeight}px`;
           }
         }
@@ -111,49 +139,64 @@ export const ChatInputField = memo(
     }); // Run on every render but with change detection for performance
 
     return (
-      <textarea
-        ref={textareaRef}
-        className={cn(
-          // Core layout & appearance
-          "w-full resize-none bg-transparent border-0 outline-none ring-0",
-          "text-base sm:text-sm leading-relaxed",
-          "min-h-[24px] max-h-[100px] overflow-y-auto px-1.5 py-1 sm:px-2",
-          "placeholder:text-muted-foreground/60",
-          // Enhanced focus experience - subtle visual feedback
-          "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+      <div className="relative w-full">
+        <textarea
+          ref={textareaRef}
+          className={cn(
+            // Core layout & appearance
+            "w-full resize-none bg-transparent border-0 outline-none ring-0",
+            "text-base sm:text-sm leading-relaxed",
+            "min-h-[24px] max-h-[100px] overflow-y-auto px-1.5 py-1 sm:px-2",
+            // Enhanced focus experience - subtle visual feedback
+            "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+            // Performance optimizations
+            "will-change-[height] contain-layout transform-gpu",
+            // Browser performance hints
+            "[content-visibility:auto] [contain-intrinsic-size:24px_100px]",
+            // States
+            disabled && "cursor-not-allowed opacity-50",
+            className
+          )}
+          style={{
+            // Force GPU acceleration and composition layer
+            transform: "translate3d(0, 0, 0)",
+            // Remove transitions during active typing for better performance
+            transition: "none",
+            // Additional browser performance hints
+            contentVisibility: "auto",
+            containIntrinsicSize: "24px 100px",
+          }}
+          disabled={disabled}
+          placeholder="" // Remove native placeholder
+          rows={1}
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
           // Performance optimizations
-          "will-change-[height] contain-layout transform-gpu",
-          // Browser performance hints
-          "[content-visibility:auto] [contain-intrinsic-size:24px_100px]",
-          // States
-          disabled && "cursor-not-allowed opacity-50",
-          className
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false} // Disable during typing for performance
+          inputMode="text"
+          // Enhanced focus accessibility
+          tabIndex={0}
+          aria-label="Chat message input"
+        />
+
+        {/* Custom animated placeholder */}
+        {!value && (
+          <div
+            className={cn(
+              "absolute left-1.5 top-1 sm:left-2 pointer-events-none select-none",
+              "text-base sm:text-sm leading-relaxed text-muted-foreground/60",
+              "transition-opacity duration-300 ease-in-out",
+              isTransitioning ? "opacity-0" : "opacity-100"
+            )}
+          >
+            {currentPlaceholder}
+          </div>
         )}
-        style={{
-          // Force GPU acceleration and composition layer
-          transform: "translate3d(0, 0, 0)",
-          // Remove transitions during active typing for better performance
-          transition: "none",
-          // Additional browser performance hints
-          contentVisibility: "auto",
-          containIntrinsicSize: "24px 100px",
-        }}
-        disabled={disabled}
-        placeholder={placeholder}
-        rows={1}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        // Performance optimizations
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false} // Disable during typing for performance
-        inputMode="text"
-        // Enhanced focus accessibility
-        tabIndex={0}
-        aria-label="Chat message input"
-      />
+      </div>
     );
   },
   (prevProps, nextProps) => {

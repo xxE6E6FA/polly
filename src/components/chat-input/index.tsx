@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
 import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
 import { useAction, useConvex, useQuery } from "convex/react";
@@ -48,6 +49,7 @@ import { FileUploadButton } from "./file-upload-button";
 import { GenerationModeToggle } from "./generation-mode-toggle";
 import { ImageGenerationSettings } from "./image-generation-settings";
 import { ImageModelPicker } from "./image-model-picker";
+import { NegativePromptToggle } from "./negative-prompt-toggle";
 import { PersonaSelector } from "./persona-selector";
 import { SendButtonGroup } from "./send-button-group";
 import { WarningBanners } from "./warning-banners";
@@ -125,6 +127,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
       return get(CACHE_KEYS.selectedModel, null);
     }, [selectedModelRaw]);
+
+    // Query enabled image models to check capabilities
+    const enabledImageModels = useQuery(
+      api.imageModels.getUserImageModels,
+      user?._id ? {} : "skip"
+    );
+
     const _generateSummaryAction = useAction(
       api.conversationSummary.generateConversationSummary
     );
@@ -158,12 +167,57 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       useState<GenerationMode>("text");
     const [imageParams, setImageParams] = useState<ImageGenerationParams>({
       prompt: "",
-      model: "black-forest-labs/flux-dev", // Default to FLUX Dev model
-      aspectRatio: "1:1",
-      steps: 28,
-      guidanceScale: 7.5,
-      count: 1, // Default to generating 1 image
+      model: IMAGE_GENERATION_DEFAULTS.MODEL,
+      aspectRatio: IMAGE_GENERATION_DEFAULTS.ASPECT_RATIO,
+      steps: IMAGE_GENERATION_DEFAULTS.STEPS,
+      guidanceScale: IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE,
+      count: IMAGE_GENERATION_DEFAULTS.COUNT,
+      negativePrompt: IMAGE_GENERATION_DEFAULTS.NEGATIVE_PROMPT,
     });
+
+    // Negative prompt toggle state (separate from imageParams for better UX)
+    const [negativePromptEnabled, setNegativePromptEnabled] = useState(false);
+
+    // Force text mode when in private mode
+    useEffect(() => {
+      if (isPrivateMode && generationMode === "image") {
+        setGenerationMode("text");
+      }
+    }, [isPrivateMode, generationMode]);
+
+    // Sync negative prompt toggle state with imageParams.negativePrompt
+    useEffect(() => {
+      const hasNegativePrompt =
+        imageParams.negativePrompt &&
+        imageParams.negativePrompt.trim().length > 0;
+      setNegativePromptEnabled(!!hasNegativePrompt);
+    }, [imageParams.negativePrompt]);
+
+    // Find the selected image model to check its capabilities
+    const selectedImageModel = useMemo(() => {
+      if (!imageParams.model) {
+        return null;
+      }
+
+      // First check enabled models for accurate capability detection
+      if (enabledImageModels) {
+        const foundModel = enabledImageModels.find(
+          model => model.modelId === imageParams.model
+        );
+
+        if (foundModel) {
+          return foundModel;
+        }
+      }
+
+      // For models not in user's enabled list, return basic info without capability detection
+      // This ensures we don't show capability options unless we're certain they're supported
+      return {
+        modelId: imageParams.model,
+        supportsMultipleImages: false, // Conservative default - only show if we know it's supported
+        supportsNegativePrompt: false, // Conservative default - only show if we know it's supported
+      };
+    }, [enabledImageModels, imageParams.model]);
 
     // Access conversation messages for history navigation
     const { messages: conversationMessages } = useChatMessages({
@@ -445,6 +499,21 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [shouldUsePreservedState, setChatInputState, onTemperatureChange]
     );
 
+    // Negative prompt handlers
+    const handleNegativePromptEnabledChange = useCallback(
+      (enabled: boolean) => {
+        setNegativePromptEnabled(enabled);
+        if (!enabled) {
+          setImageParams(prev => ({ ...prev, negativePrompt: "" }));
+        }
+      },
+      []
+    );
+
+    const handleNegativePromptValueChange = useCallback((value: string) => {
+      setImageParams(prev => ({ ...prev, negativePrompt: value }));
+    }, []);
+
     const addAttachments = useCallback(
       (newAttachments: Attachment[]) => {
         setAttachments(prev => [...prev, ...newAttachments]);
@@ -711,12 +780,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
         setInput("");
         setAttachments([]);
+        // Clear negative prompt
+        setImageParams(prev => ({ ...prev, negativePrompt: "" }));
+        setNegativePromptEnabled(false);
         textareaRef.current?.focus();
         if (shouldUsePreservedState) {
           clearChatInputState();
         }
       } catch (error) {
-        console.error("Submit error:", error);
         notificationDialog.notify({
           title: "Error",
           description:
@@ -791,6 +862,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             if (newConversationId) {
               setInput("");
               setAttachments([]);
+              // Clear negative prompt
+              setImageParams(prev => ({ ...prev, negativePrompt: "" }));
+              setNegativePromptEnabled(false);
               if (shouldUsePreservedState) {
                 clearChatInputState();
               }
@@ -892,21 +966,45 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               onRemoveAttachment={removeAttachment}
             />
 
-            <div className="flex items-end gap-3">
-              <div className="flex-1 flex items-center">
-                <ChatInputField
-                  value={input}
-                  onChange={handleInputChange}
-                  onSubmit={submit}
-                  textareaRef={textareaRef}
-                  placeholder={dynamicPlaceholder}
-                  disabled={
-                    isLoading || isStreaming || isProcessing || !canSend
-                  }
-                  onHistoryNavigation={handleHistoryNavigation}
-                  onHistoryNavigationDown={handleHistoryNavigationDown}
-                />
+            {/* Unified input container for main prompt and negative prompt */}
+            <div className="flex flex-col">
+              <div className="flex items-end gap-3">
+                <div className="flex-1 flex items-center">
+                  <ChatInputField
+                    value={input}
+                    onChange={handleInputChange}
+                    onSubmit={submit}
+                    textareaRef={textareaRef}
+                    placeholder={dynamicPlaceholder}
+                    disabled={
+                      isLoading || isStreaming || isProcessing || !canSend
+                    }
+                    onHistoryNavigation={handleHistoryNavigation}
+                    onHistoryNavigationDown={handleHistoryNavigationDown}
+                  />
+                </div>
               </div>
+
+              {/* Negative Prompt Area - Integrated below main prompt */}
+              {canSend &&
+                generationMode === "image" &&
+                selectedImageModel?.supportsNegativePrompt && (
+                  <div className="relative mt-1">
+                    {/* Subtle visual separator */}
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-border/20 to-transparent" />
+
+                    <div className="pt-1">
+                      <NegativePromptToggle
+                        enabled={negativePromptEnabled}
+                        value={imageParams.negativePrompt || ""}
+                        onEnabledChange={handleNegativePromptEnabledChange}
+                        onValueChange={handleNegativePromptValueChange}
+                        disabled={isLoading || isStreaming || isProcessing}
+                        onSubmit={submit}
+                      />
+                    </div>
+                  </div>
+                )}
             </div>
 
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/20 pt-2">
@@ -920,7 +1018,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 )}
 
                 {/* Image generation controls */}
-                {canSend && generationMode === "image" && (
+                {canSend && generationMode === "image" && !isPrivateMode && (
                   <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                     <ImageModelPicker
                       model={imageParams.model}
@@ -946,6 +1044,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                       params={imageParams}
                       onParamsChange={updates =>
                         setImageParams(prev => ({ ...prev, ...updates }))
+                      }
+                      selectedModel={
+                        selectedImageModel
+                          ? {
+                              modelId: selectedImageModel.modelId,
+                              supportsMultipleImages:
+                                selectedImageModel.supportsMultipleImages ??
+                                false,
+                            }
+                          : undefined
                       }
                     />
                   </div>

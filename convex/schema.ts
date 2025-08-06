@@ -5,12 +5,14 @@ import {
   backgroundJobSchema,
   builtInModelSchema,
   conversationSchema,
+  imageModelDefinitionSchema,
   messageSchema,
   pdfTextCacheSchema,
   personaSchema,
   sessionSchema,
   sharedConversationSchema,
   userApiKeySchema,
+  userImageModelSchema,
   userModelSchema,
   userPersonaSettingsSchema,
   userSchema,
@@ -73,6 +75,15 @@ export default defineSchema({
   ]),
 
   userModels: defineTable(userModelSchema).index("by_user", ["userId"]),
+
+  userImageModels: defineTable(userImageModelSchema).index("by_user", [
+    "userId",
+  ]),
+
+  imageModelDefinitions: defineTable(imageModelDefinitionSchema)
+    .index("by_model_id", ["modelId"])
+    .index("by_provider", ["provider"])
+    .index("by_created_at", ["createdAt"]),
 
   builtInModels: defineTable(builtInModelSchema)
     .index("by_provider", ["provider"])

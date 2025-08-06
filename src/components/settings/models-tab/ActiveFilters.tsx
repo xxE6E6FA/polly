@@ -80,7 +80,7 @@ export const ActiveFilters = ({
             Selected only
           </FilterTag>
         )}
-        {filterState.selectedProviders.map(provider => (
+        {filterState.selectedProviders.map((provider: string) => (
           <FilterTag
             key={provider}
             className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
@@ -92,7 +92,7 @@ export const ActiveFilters = ({
             </span>
           </FilterTag>
         ))}
-        {filterState.selectedCapabilities.map(capability => {
+        {filterState.selectedCapabilities.map((capability: string) => {
           const capabilityInfo =
             CAPABILITY_REGISTRY[capability as keyof typeof CAPABILITY_REGISTRY];
           return (

@@ -1,6 +1,7 @@
 import {
   BrainIcon,
   EyeIcon,
+  Image as ImageIcon,
   UploadIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
@@ -14,7 +15,8 @@ export type CapabilityKey =
   | "supportsReasoning"
   | "supportsImages"
   | "supportsTools"
-  | "supportsFiles";
+  | "supportsFiles"
+  | "supportsImageGeneration";
 
 export interface CapabilityDefinition {
   key: CapabilityKey;
@@ -59,6 +61,13 @@ export const CAPABILITY_REGISTRY: Record<CapabilityKey, CapabilityDefinition> =
       description: "Can process file uploads",
       icon: UploadIcon,
       checkCapability: createCapabilityChecker("supportsFiles"),
+    },
+    supportsImageGeneration: {
+      key: "supportsImageGeneration",
+      label: "Image Generation",
+      description: "Can generate images from text prompts",
+      icon: ImageIcon,
+      checkCapability: createCapabilityChecker("supportsImageGeneration"),
     },
   };
 

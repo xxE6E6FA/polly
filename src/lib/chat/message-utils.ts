@@ -43,6 +43,7 @@ export function convertServerMessage(msg: Doc<"messages">): ChatMessage {
     metadata: isMessageMetadata(msg.metadata)
       ? (msg.metadata as ChatMessage["metadata"])
       : undefined,
+    imageGeneration: msg.imageGeneration as ChatMessage["imageGeneration"],
     createdAt: msg.createdAt || msg._creationTime,
   };
 }

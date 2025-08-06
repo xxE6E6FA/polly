@@ -9,6 +9,8 @@ export const ROUTES = {
     ROOT: "/settings",
     API_KEYS: "/settings/api-keys",
     MODELS: "/settings/models",
+    TEXT_MODELS: "/settings/models/text",
+    IMAGE_MODELS: "/settings/models/image",
     PERSONAS: "/settings/personas",
     PERSONAS_NEW: "/settings/personas/new",
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,

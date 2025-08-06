@@ -131,7 +131,9 @@ export interface PrivateChatConfig {
 
 // --- Chat Handlers Interface ---
 export interface ChatHandlers {
-  sendMessage: (params: SendMessageParams) => Promise<void>;
+  sendMessage: (
+    params: SendMessageParams
+  ) => Promise<{ userMessageId: string; assistantMessageId: string } | void>;
   retryFromMessage: (
     messageId: string,
     options?: ModelOptions
@@ -153,12 +155,14 @@ export const createServerChatHandlers = (
   modelOptions: ModelOptions
 ): ChatHandlers => {
   return {
-    async sendMessage(params: SendMessageParams): Promise<void> {
+    async sendMessage(
+      params: SendMessageParams
+    ): Promise<{ userMessageId: string; assistantMessageId: string } | void> {
       if (!(modelOptions.model && modelOptions.provider)) {
         throw new Error("Model and provider are required");
       }
 
-      await actions.sendMessage({
+      const result = await actions.sendMessage({
         conversationId,
         content: params.content,
         attachments: cleanAttachmentsForConvex(params.attachments),
@@ -173,6 +177,11 @@ export const createServerChatHandlers = (
         webSearchMaxResults: modelOptions.webSearchMaxResults,
         useWebSearch: params.useWebSearch,
       });
+
+      return {
+        userMessageId: result.userMessageId,
+        assistantMessageId: result.assistantMessageId,
+      };
     },
 
     async retryFromMessage(
@@ -346,7 +355,9 @@ export const createPrivateChatHandlers = (
   };
 
   return {
-    async sendMessage(params: SendMessageParams): Promise<void> {
+    async sendMessage(
+      params: SendMessageParams
+    ): Promise<{ userMessageId: string; assistantMessageId: string } | void> {
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "user",
