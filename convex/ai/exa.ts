@@ -8,7 +8,7 @@ export const exaSearchArgs = v.object({
   query: v.string(),
   maxResults: v.optional(v.number()),
   searchType: v.optional(
-    v.union(v.literal("keyword"), v.literal("neural"), v.literal("auto"))
+    v.union(v.literal("keyword"), v.literal("neural"), v.literal("auto"), v.literal("fast"))
   ),
   category: v.optional(
     v.union(
@@ -81,12 +81,14 @@ export async function searchWithExa(
 
     const searchOptions: Record<string, unknown> = {
       numResults: args.maxResults || WEB_SEARCH_MAX_RESULTS,
-      type: args.searchType || "auto",
+      type: args.searchType || "fast",
       useAutoprompt: true,
       category: args.category,
       startPublishedDate: args.startPublishedDate,
       endPublishedDate: args.endPublishedDate,
       ...(args.excludeDomains && { excludeDomains: args.excludeDomains }),
+      // Optimize for fast search type by using cached content
+      ...(args.searchType === "fast" && { livecrawl: "never" }),
       text:
         args.includeText !== false
           ? {
@@ -321,7 +323,7 @@ export async function performWebSearch(
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
-          searchType: "auto",
+          searchType: "fast",
           category: args.category as
             | "company"
             | "research paper"
@@ -347,7 +349,7 @@ export async function performWebSearch(
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
-          searchType: "auto",
+          searchType: "fast",
           category: args.category as
             | "company"
             | "research paper"
