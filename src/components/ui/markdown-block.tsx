@@ -364,20 +364,10 @@ const SpanOverride: React.FC<React.ComponentPropsWithoutRef<"span">> =
 
 SpanOverride.displayName = "SpanOverride";
 
-// Emphasis Override component for handling multi-word italics
+// Emphasis Override component for handling italics
 const EmphasisOverride: React.FC<React.ComponentPropsWithoutRef<"em">> =
   React.memo(({ children, ...props }) => {
-    // Check if this is a single word or multiple words
-    const textContent = React.Children.toArray(children)
-      .map(child => (typeof child === "string" ? child : ""))
-      .join("");
-
-    // If it's a single word, let default markdown handle it
-    if (!isMultiWord(textContent)) {
-      return null; // Return null to use default markdown handling
-    }
-
-    // Apply custom styling for multi-word italics
+    // Always render italic text properly
     return <em {...props}>{children}</em>;
   });
 
@@ -449,7 +439,7 @@ export const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => {
                 </MathComponent>
               ),
             },
-            // Custom italic text styling - only for multi-word italics
+            // Custom italic text styling
             em: {
               component: EmphasisOverride,
             },
