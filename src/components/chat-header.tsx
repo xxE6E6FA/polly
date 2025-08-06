@@ -6,16 +6,19 @@ import {
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
+  PlusIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   downloadFile,
   exportAsJSON,
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
@@ -56,6 +59,7 @@ export const ChatHeader = ({
   const { user } = useUserDataContext();
   const { isSidebarVisible } = useUI();
   const managedToast = useToast();
+  const navigate = useNavigate();
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
   );
@@ -243,6 +247,17 @@ export const ChatHeader = ({
       {/* Only show actions for authenticated users */}
       {user && !user.isAnonymous && (
         <div className="flex items-center gap-1 sm:gap-2">
+          {/* New Chat button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(ROUTES.HOME)}
+            className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+          >
+            <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">New Chat</span>
+          </Button>
+
           {/* Save private chat button */}
           {isPrivateMode && (
             <Button

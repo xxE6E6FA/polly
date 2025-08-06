@@ -21,6 +21,7 @@ interface ChatInputFieldProps {
   onHistoryNavigationDown?: () => boolean;
   onHeightChange?: (isMultiline: boolean) => void;
   isTransitioning?: boolean;
+  autoFocus?: boolean;
 }
 
 // Memoized for maximum performance - prevents unnecessary re-renders
@@ -37,6 +38,7 @@ export const ChatInputField = memo(
     onHistoryNavigationDown,
     onHeightChange,
     isTransitioning = false,
+    autoFocus = false,
   }: ChatInputFieldProps) {
     // State for animated placeholder
     const [currentPlaceholder, setCurrentPlaceholder] = useState(placeholder);
@@ -193,6 +195,8 @@ export const ChatInputField = memo(
           // Enhanced focus accessibility
           tabIndex={0}
           aria-label="Chat message input"
+          // biome-ignore lint/a11y/noAutofocus: Needed for chat input auto-focus on home page
+          autoFocus={autoFocus}
         />
 
         {/* Custom animated placeholder */}

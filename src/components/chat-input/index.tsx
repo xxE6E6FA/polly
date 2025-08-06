@@ -84,6 +84,7 @@ interface ChatInputProps {
   currentTemperature?: number;
   onTemperatureChange?: (temperature: number | undefined) => void;
   messages?: ChatMessage[]; // Add messages prop for history navigation
+  autoFocus?: boolean;
 }
 
 export type ChatInputRef = {
@@ -112,6 +113,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       currentTemperature,
       onTemperatureChange,
       messages,
+      autoFocus = false,
     },
     ref
   ) => {
@@ -1034,6 +1036,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     onHistoryNavigationDown={handleHistoryNavigationDown}
                     onHeightChange={handleHeightChange}
                     isTransitioning={isTransitioning}
+                    autoFocus={autoFocus}
                     className={
                       isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined
                     }
