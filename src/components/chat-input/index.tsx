@@ -45,6 +45,7 @@ import type {
 import { AspectRatioPicker } from "./aspect-ratio-picker";
 import { AttachmentDisplay } from "./attachment-display";
 import { ChatInputField } from "./chat-input-field";
+import { ExpandToggleButton } from "./expand-toggle-button";
 import { FileUploadButton } from "./file-upload-button";
 import { GenerationModeToggle } from "./generation-mode-toggle";
 import { ImageGenerationSettings } from "./image-generation-settings";
@@ -177,6 +178,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Negative prompt toggle state (separate from imageParams for better UX)
     const [negativePromptEnabled, setNegativePromptEnabled] = useState(false);
+
+    // Fullscreen input state
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [isMultiline, setIsMultiline] = useState(false);
+    const [isTransitioning, setIsTransitioning] = useState(false);
 
     // Force text mode when in private mode
     useEffect(() => {
@@ -467,6 +473,46 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       },
       [historyIndex, userMessages, setInput]
     );
+
+    // Fullscreen input handlers
+    const handleHeightChange = useCallback((multiline: boolean) => {
+      setIsMultiline(multiline);
+    }, []);
+
+    const handleToggleFullscreen = useCallback(() => {
+      setIsTransitioning(true);
+      setIsFullscreen(!isFullscreen);
+
+      // Reset transition state after animation completes
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 300);
+    }, [isFullscreen]);
+
+    const handleCloseFullscreen = useCallback(() => {
+      setIsTransitioning(true);
+      setIsFullscreen(false);
+
+      // Reset transition state after animation completes
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 300);
+    }, []);
+
+    // Handle escape key when in fullscreen mode
+    useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape" && isFullscreen) {
+          e.preventDefault();
+          handleCloseFullscreen();
+        }
+      };
+
+      if (isFullscreen) {
+        document.addEventListener("keydown", handleKeyDown);
+        return () => document.removeEventListener("keydown", handleKeyDown);
+      }
+    }, [isFullscreen, handleCloseFullscreen]);
 
     const setSelectedPersonaId = useCallback(
       (value: Id<"personas"> | null) => {
@@ -969,7 +1015,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             {/* Unified input container for main prompt and negative prompt */}
             <div className="flex flex-col">
               <div className="flex items-end gap-3">
-                <div className="flex-1 flex items-center">
+                <div className="flex-1 flex items-center relative">
                   <ChatInputField
                     value={input}
                     onChange={handleInputChange}
@@ -981,6 +1027,17 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     }
                     onHistoryNavigation={handleHistoryNavigation}
                     onHistoryNavigationDown={handleHistoryNavigationDown}
+                    onHeightChange={handleHeightChange}
+                    isTransitioning={isTransitioning}
+                    className={
+                      isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined
+                    }
+                  />
+                  <ExpandToggleButton
+                    onToggle={handleToggleFullscreen}
+                    isVisible={(isMultiline || isFullscreen) && canSend}
+                    isExpanded={isFullscreen}
+                    disabled={isLoading || isStreaming || isProcessing}
                   />
                 </div>
               </div>

@@ -19,6 +19,8 @@ interface ChatInputFieldProps {
   className?: string;
   onHistoryNavigation?: () => boolean;
   onHistoryNavigationDown?: () => boolean;
+  onHeightChange?: (isMultiline: boolean) => void;
+  isTransitioning?: boolean;
 }
 
 // Memoized for maximum performance - prevents unnecessary re-renders
@@ -33,20 +35,23 @@ export const ChatInputField = memo(
     className,
     onHistoryNavigation,
     onHistoryNavigationDown,
+    onHeightChange,
+    isTransitioning = false,
   }: ChatInputFieldProps) {
     // State for animated placeholder
     const [currentPlaceholder, setCurrentPlaceholder] = useState(placeholder);
-    const [isTransitioning, setIsTransitioning] = useState(false);
+    const [isPlaceholderTransitioning, setIsPlaceholderTransitioning] =
+      useState(false);
 
     // Handle placeholder transitions
     useEffect(() => {
       if (currentPlaceholder !== placeholder) {
-        setIsTransitioning(true);
+        setIsPlaceholderTransitioning(true);
 
         // Start the transition after a brief delay to ensure the fade-out happens
         const timer = setTimeout(() => {
           setCurrentPlaceholder(placeholder);
-          setIsTransitioning(false);
+          setIsPlaceholderTransitioning(false);
         }, 150); // Half of the transition duration
 
         return () => clearTimeout(timer);
@@ -119,12 +124,17 @@ export const ChatInputField = memo(
           if (value === "") {
             textarea.style.height = "auto";
             textarea.style.height = "24px"; // Match min-h-[24px]
+            onHeightChange?.(false);
           } else {
             // Optimize resize with direct style updates
             textarea.style.height = "auto";
             const currentHeight = textarea.scrollHeight;
             const newHeight = Math.min(currentHeight, 100);
             textarea.style.height = `${newHeight}px`;
+
+            // Check if content is multiline (height > ~48px indicates 2+ lines)
+            const isMultiline = currentHeight > 48;
+            onHeightChange?.(isMultiline);
           }
         }
         resizeRafRef.current = null;
@@ -160,8 +170,10 @@ export const ChatInputField = memo(
           style={{
             // Force GPU acceleration and composition layer
             transform: "translate3d(0, 0, 0)",
-            // Remove transitions during active typing for better performance
-            transition: "none",
+            // Conditionally enable transitions - only for fullscreen changes, not during typing
+            transition: isTransitioning
+              ? "max-height 300ms ease-in-out, min-height 300ms ease-in-out"
+              : "none",
             // Additional browser performance hints
             contentVisibility: "auto",
             containIntrinsicSize: "24px 100px",
@@ -190,7 +202,7 @@ export const ChatInputField = memo(
               "absolute left-1.5 top-1 sm:left-2 pointer-events-none select-none",
               "text-base sm:text-sm leading-relaxed text-muted-foreground/60",
               "transition-opacity duration-300 ease-in-out",
-              isTransitioning ? "opacity-0" : "opacity-100"
+              isPlaceholderTransitioning ? "opacity-0" : "opacity-100"
             )}
           >
             {currentPlaceholder}
@@ -210,7 +222,9 @@ export const ChatInputField = memo(
       prevProps.onChange === nextProps.onChange &&
       prevProps.onSubmit === nextProps.onSubmit &&
       prevProps.onHistoryNavigation === nextProps.onHistoryNavigation &&
-      prevProps.onHistoryNavigationDown === nextProps.onHistoryNavigationDown
+      prevProps.onHistoryNavigationDown === nextProps.onHistoryNavigationDown &&
+      prevProps.onHeightChange === nextProps.onHeightChange &&
+      prevProps.isTransitioning === nextProps.isTransitioning
     );
   }
 );
