@@ -1,4 +1,4 @@
-import { type CoreMessage, streamText, generateText } from "ai";
+import { type CoreMessage, streamText, generateText, smoothStream } from "ai";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
@@ -832,6 +832,11 @@ When using information from these search results, you MUST include citations in 
       // Generate streaming response using AI SDK with onChunk for incremental reasoning
       const result = streamText({
         ...generationOptions,
+        // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
+        experimental_transform: smoothStream({
+          delayInMs: 20,
+          chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
+        }),
         onChunk: async ({ chunk }) => {
           // Check for abort signal before processing any chunk
           if (await checkAbort()) {

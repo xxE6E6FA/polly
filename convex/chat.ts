@@ -2,7 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { createBasicLanguageModel } from "@shared/ai-provider-factory";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { getProviderReasoningConfig } from "@shared/reasoning-config";
-import { streamText } from "ai";
+import { smoothStream, streamText } from "ai";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import {
@@ -311,7 +311,14 @@ export const chatStream = httpAction(
           : baseOptions;
 
       // Start streaming
-      const result = streamText(streamOptions);
+      const result = streamText({
+        ...streamOptions,
+        // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
+        experimental_transform: smoothStream({
+          delayInMs: 20,
+          chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
+        }),
+      });
 
       // Return the proper data stream for AI SDK useChat with CORS headers
       const response = result.toDataStreamResponse({
