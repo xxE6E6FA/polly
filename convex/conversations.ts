@@ -54,78 +54,30 @@ export const createConversation = mutation({
     temperature: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    // Determine search availability based on user authentication
-    const authUserId = await getAuthUserId(ctx);
+    const [authUserId, fullModel] = await Promise.all([
+      getAuthUserId(ctx),
+      getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
+    ]);
+
     const useWebSearch = !!authUserId; // Search enabled only for authenticated users
 
-    console.log(
-      "[web_search_debug] createConversation - useWebSearch:",
-      useWebSearch,
-      "for user:",
-      authUserId
-    );
-
-    // Development mode logging (always enabled for now to debug streaming issues)
-    // biome-ignore lint/suspicious/noExplicitAny: Logging data can be various types
-    const log = (step: string, data?: any) => {
-      console.log(
-        `[CREATE_CONVERSATION] ${step}:`,
-        data ? JSON.stringify(data, null, 2) : ""
-      );
-    };
-
-    log("CREATE_CONVERSATION_START", {
-      title: args.title,
-      firstMessage: args.firstMessage
-        ? `${args.firstMessage.substring(0, 100)}...`
-        : "empty",
-      hasAttachments: !!args.attachments?.length,
-      model: args.model,
-      provider: args.provider,
-    });
-
-    // Get authenticated user
-    const userId = await getAuthUserId(ctx);
-    log("USER_AUTH_CHECK", { userId: !!userId });
-    if (!userId) {
+    if (!authUserId) {
       throw new Error("User not authenticated");
     }
-    const user = await ctx.db.get(userId);
-    log("USER_FETCH", { hasUser: !!user });
+
+    // Get user data (already have authUserId from parallel call above)
+    const user = await ctx.db.get(authUserId);
     if (!user) {
       throw new Error("User not found");
     }
 
-    // Get user's effective model with full capabilities
-    console.log("[CREATE_CONVERSATION] About to resolve model with args:", {
-      model: args.model,
-      provider: args.provider,
-    });
-    const fullModel = await getUserEffectiveModelWithCapabilities(
-      ctx,
-      args.model,
-      args.provider
-    );
-    console.log("[CREATE_CONVERSATION] Resolved model:", {
-      fullModel,
-    });
-
     // Check if this is a built-in free model and enforce limits
     // If model has 'free' field, it's from builtInModels table and is a built-in model
     const isBuiltInModelResult = fullModel.free === true;
-    log("BUILTIN_MODEL_CHECK", {
-      isBuiltInModel: isBuiltInModelResult,
-      hasUnlimitedCalls: user.hasUnlimitedCalls,
-    });
 
     if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
       const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
       const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
-      log("MONTHLY_LIMIT_CHECK", {
-        monthlyLimit,
-        monthlyMessagesSent,
-        withinLimit: monthlyMessagesSent < monthlyLimit,
-      });
       if (monthlyMessagesSent >= monthlyLimit) {
         throw new Error("Monthly built-in model message limit reached.");
       }
@@ -143,95 +95,78 @@ export const createConversation = mutation({
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-    log("CONVERSATION_CREATED", { conversationId });
 
-    await ctx.db.patch(user._id, {
-      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
-    });
+    const [, userMessageId, assistantMessageId] = await Promise.all([
+      // Update user conversation count
+      ctx.db.patch(user._id, {
+        conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
+      }),
 
-    // Create user message (count this one)
-    const userMessageId = await ctx.db.insert("messages", {
-      conversationId,
-      role: "user",
-      content: args.firstMessage,
-      attachments: args.attachments,
-      reasoningConfig: args.reasoningConfig,
-      isMainBranch: true,
-      createdAt: Date.now(),
-      metadata:
-        args.temperature !== undefined
-          ? { temperature: args.temperature }
-          : undefined,
-    });
-    log("USER_MESSAGE_CREATED", { userMessageId });
+      // Create user message
+      ctx.db.insert("messages", {
+        conversationId,
+        role: "user",
+        content: args.firstMessage,
+        attachments: args.attachments,
+        reasoningConfig: args.reasoningConfig,
+        isMainBranch: true,
+        createdAt: Date.now(),
+        metadata:
+          args.temperature !== undefined
+            ? { temperature: args.temperature }
+            : undefined,
+      }),
 
-    // Only increment stats if this is a new conversation with a first message
-    // (not for private conversation imports which have pre-existing messages)
-    if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await incrementUserMessageStats(ctx, fullModel.free === true);
-      log("USER_STATS_INCREMENTED");
-    }
-
-    // Create empty assistant message for streaming (don't count assistant messages)
-    const assistantMessageId: Id<"messages"> = await ctx.runMutation(
-      api.messages.create,
-      {
+      // Create assistant message directly (avoid extra mutation call)
+      ctx.db.insert("messages", {
         conversationId,
         role: "assistant",
         content: "",
         status: "thinking",
         model: fullModel.modelId,
         provider: fullModel.provider,
-      }
-    );
-    log("ASSISTANT_MESSAGE_CREATED", { assistantMessageId });
+        isMainBranch: true,
+        createdAt: Date.now(),
+      }),
 
-    // Schedule title generation in the background
+      // Increment stats if needed
+      args.firstMessage && args.firstMessage.trim().length > 0
+        ? incrementUserMessageStats(ctx, fullModel.free === true)
+        : Promise.resolve(void 0),
+    ]);
+
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await ctx.scheduler.runAfter(
-        100,
-        api.titleGeneration.generateTitleBackground,
-        {
+      await Promise.all([
+        // Mark conversation as streaming (required for stream to start)
+        ctx.db.patch(conversationId, {
+          isStreaming: true,
+        }),
+
+        // Schedule streaming generation with zero delay
+        ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
+          messageId: assistantMessageId,
           conversationId,
-          message: args.firstMessage,
-        }
-      );
-      log("TITLE_GENERATION_SCHEDULED");
-    }
+          model: fullModel, // Pass the full model object
+          personaId: args.personaId,
+          reasoningConfig: args.reasoningConfig,
+          temperature: args.temperature,
+          maxTokens: undefined,
+          topP: undefined,
+          frequencyPenalty: undefined,
+          presencePenalty: undefined,
+          useWebSearch, // Pass the search availability determined by user auth
+        }),
 
-    // **CRITICAL**: Trigger streaming for the assistant response!
-    // We need to start streaming after creating the assistant message
-    if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      log("TRIGGERING_STREAMING", {
-        assistantMessageId,
-        reasoningConfig: args.reasoningConfig,
-      });
-
-      // Mark conversation as streaming BEFORE scheduling the action
-      await ctx.db.patch(conversationId, {
-        isStreaming: true,
-      });
-      log("CONVERSATION_MARKED_AS_STREAMING");
-
-      // Schedule streaming generation action for real-time updates
-      await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-        messageId: assistantMessageId,
-        conversationId,
-        model: fullModel, // Pass the full model object
-        personaId: args.personaId,
-        reasoningConfig: args.reasoningConfig,
-        // Include generation parameters that might be passed through
-        temperature: args.temperature,
-        maxTokens: undefined,
-        topP: undefined,
-        frequencyPenalty: undefined,
-        presencePenalty: undefined,
-        useWebSearch, // Pass the search availability determined by user auth
-      });
-
-      log("STREAMING_SCHEDULED_SUCCESSFULLY");
-    } else {
-      log("STREAMING_SKIPPED", { reason: "No first message" });
+        // Schedule title generation in background (can be delayed)
+        ctx.scheduler.runAfter(
+          100,
+          api.titleGeneration.generateTitleBackground,
+          {
+            conversationId,
+            message: args.firstMessage,
+          }
+        ),
+      ]);
     }
 
     return {
@@ -396,80 +331,57 @@ export const sendMessage = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
-    // Determine search availability based on user authentication
-    const authUserId = await getAuthUserId(ctx);
+    const [authUserId, conversation, fullModel] = await Promise.all([
+      getAuthUserId(ctx),
+      ctx.runQuery(api.conversations.get, { id: args.conversationId }),
+      getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
+    ]);
+
     const useWebSearch = !!authUserId; // Search enabled only for authenticated users
-
-    console.log(
-      "[web_search_debug] sendMessage - useWebSearch:",
-      useWebSearch,
-      "for user:",
-      authUserId
-    );
-
-    // Get the conversation to determine effective persona ID
-    const conversation = await ctx.runQuery(api.conversations.get, {
-      id: args.conversationId,
-    });
 
     // Use provided personaId, or fall back to conversation's existing personaId
     const effectivePersonaId =
       args.personaId !== undefined ? args.personaId : conversation?.personaId;
 
-    // Get user's effective model with full capabilities
-    const fullModel = await getUserEffectiveModelWithCapabilities(
-      ctx,
-      args.model,
-      args.provider
-    );
-
     // Store attachments as-is during message creation
     // PDF text extraction will happen during assistant response with progress indicators
     const processedAttachments = args.attachments;
 
-    // Create user message
-    const userMessageId: Id<"messages"> = await ctx.runMutation(
-      api.messages.create,
-      {
-        conversationId: args.conversationId,
-        role: "user",
-        content: args.content,
-        attachments: processedAttachments,
-        reasoningConfig: args.reasoningConfig,
-        model: fullModel.modelId,
-        provider: fullModel.provider,
-        metadata:
-          args.temperature !== undefined
-            ? { temperature: args.temperature }
-            : undefined,
-      }
-    );
+    // Create user message first to maintain proper order
+    const userMessageId = await ctx.runMutation(api.messages.create, {
+      conversationId: args.conversationId,
+      role: "user",
+      content: args.content,
+      attachments: processedAttachments,
+      reasoningConfig: args.reasoningConfig,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      metadata:
+        args.temperature !== undefined
+          ? { temperature: args.temperature }
+          : undefined,
+    });
 
-    // The streaming state will be tracked via message status rather than conversation flag
-
-    // Create assistant placeholder with thinking status
-    const assistantMessageId: Id<"messages"> = await ctx.runMutation(
-      api.messages.create,
-      {
+    // Then create assistant message and update streaming in parallel
+    const [assistantMessageId] = await Promise.all([
+      // Create assistant placeholder with thinking status
+      ctx.runMutation(api.messages.create, {
         conversationId: args.conversationId,
         role: "assistant",
         content: "",
         status: "thinking",
         model: fullModel.modelId,
         provider: fullModel.provider,
-      }
-    );
+      }),
 
-    // Mark conversation as streaming BEFORE scheduling the action
-    await ctx.runMutation(internal.conversations.internalPatch, {
-      id: args.conversationId,
-      updates: { isStreaming: true },
-    });
+      // Mark conversation as streaming
+      ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: true },
+      }),
+    ]);
 
-    // Start streaming response
-    console.log(
-      "[web_search_debug] Scheduling streamResponse - search determined by user auth status"
-    );
+    // Start streaming response immediately
     await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
       messageId: assistantMessageId,
       conversationId: args.conversationId,
@@ -1706,21 +1618,21 @@ export const createBranchingConversation = action({
       isNewUser = true;
     }
 
-    // Get user's selected model
-    const selectedModel = await ctx.runQuery(
-      api.userModels.getUserSelectedModel
-    );
+    const [selectedModel, user] = await Promise.all([
+      ctx.runQuery(api.userModels.getUserSelectedModel),
+      ctx.runQuery(api.users.getById, { id: actualUserId }),
+    ]);
+
     if (!selectedModel) {
       throw new Error("No model selected. Please select a model in Settings.");
+    }
+    if (!user) {
+      throw new Error("User not found");
     }
 
     // Check if it's a built-in free model and enforce limits
     // If model has 'free' field, it's from builtInModels table and is a built-in model
     const isBuiltInModelResult = selectedModel.free === true;
-    const user = await ctx.runQuery(api.users.getById, { id: actualUserId });
-    if (!user) {
-      throw new Error("User not found");
-    }
 
     if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
       const monthlyLimit = user.monthlyLimit ?? MONTHLY_MESSAGE_LIMIT;
@@ -1781,18 +1693,19 @@ export const createBranchingConversation = action({
     // **CRITICAL**: Trigger streaming for the assistant response!
     // This happens AFTER context is added so AI can see the full conversation
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      // Get the full model object with capabilities for streaming
-      const fullModel = await getUserEffectiveModelWithCapabilities(
-        ctx,
-        selectedModel.modelId,
-        actualProvider
-      );
+      const [fullModel] = await Promise.all([
+        getUserEffectiveModelWithCapabilities(
+          ctx,
+          selectedModel.modelId,
+          actualProvider
+        ),
 
-      // Mark conversation as streaming BEFORE scheduling the action
-      await ctx.runMutation(internal.conversations.internalPatch, {
-        id: createResult.conversationId,
-        updates: { isStreaming: true },
-      });
+        // Mark conversation as streaming
+        ctx.runMutation(internal.conversations.internalPatch, {
+          id: createResult.conversationId,
+          updates: { isStreaming: true },
+        }),
+      ]);
 
       // Schedule streaming generation action for real-time updates
       await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
