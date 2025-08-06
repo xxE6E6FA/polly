@@ -5,7 +5,10 @@ import { getProviderReasoningConfig } from "@shared/reasoning-config";
 import { streamText } from "ai";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
-import { incrementUserMessageStats } from "./lib/conversation_utils";
+import {
+  incrementUserMessageStats,
+  mergeSystemPrompts,
+} from "./lib/conversation_utils";
 import { log } from "./lib/logger";
 
 export const chatStream = httpAction(
@@ -242,15 +245,15 @@ export const chatStream = httpAction(
         );
       }
 
-      // Get persona system prompt if available
-      let systemPrompt = "You are a helpful AI assistant."; // Default
+      // Get persona prompt and merge with baseline instructions
+      let personaPrompt: string | undefined;
       if (personaId) {
         try {
           const persona = await ctx.runQuery(api.personas.get, {
             id: personaId,
           });
           if (persona?.prompt) {
-            systemPrompt = persona.prompt;
+            personaPrompt = persona.prompt;
             console.log(`[chatStream] Using persona: ${persona.name}`);
           }
         } catch (error) {
@@ -258,19 +261,22 @@ export const chatStream = httpAction(
         }
       }
 
+      // Merge baseline instructions with persona prompt
+      const mergedSystemPrompt = mergeSystemPrompts(modelId, personaPrompt);
+
       // Ensure messages have proper system prompt
       const processedMessages = [...messages];
       if (
         processedMessages.length > 0 &&
         processedMessages[0].role === "system"
       ) {
-        // Override existing system message with persona prompt
-        processedMessages[0].content = systemPrompt;
+        // Override existing system message with merged prompt
+        processedMessages[0].content = mergedSystemPrompt;
       } else {
         // Prepend system message if not present
         processedMessages.unshift({
           role: "system",
-          content: systemPrompt,
+          content: mergedSystemPrompt,
         });
       }
 

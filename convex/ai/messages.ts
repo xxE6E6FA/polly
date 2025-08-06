@@ -485,19 +485,7 @@ export const streamResponse = internalAction({
     };
 
     try {
-      // Get persona system prompt if available
-      let systemPrompt = "You are a helpful AI assistant."; // Default
-      if (args.personaId) {
-        const persona = await ctx.runQuery(api.personas.get, {
-          id: args.personaId,
-        });
-        if (persona?.prompt) {
-          systemPrompt = persona.prompt;
-          log.debug(`Using persona: ${persona.name}`);
-        }
-      }
-
-            // Get conversation context
+      // Get conversation context (this will handle persona prompts properly)
       const contextResult = await buildContextMessages(ctx, {
         conversationId: args.conversationId,
         personaId: args.personaId,
@@ -595,17 +583,6 @@ export const streamResponse = internalAction({
       }
 
       log.debug("Search enabled:", isSearchEnabled, "determined by calling action");
-
-      // Override the system message with the persona prompt
-      if (processedContextMessages.length > 0 && processedContextMessages[0].role === "system") {
-        processedContextMessages[0].content = systemPrompt;
-      } else {
-        // Prepend system message if not present
-        processedContextMessages.unshift({
-          role: "system",
-          content: systemPrompt,
-        });
-      }
 
       // Use the model object properties
       const effectiveProvider = args.model.provider;

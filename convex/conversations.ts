@@ -244,6 +244,113 @@ export const createConversation = mutation({
 });
 
 /**
+ * Create a user message without triggering AI response (for image generation)
+ *
+ * Note: If this is the first user message in a conversation with a generic title
+ * (like "Image Generation"), it will schedule title generation based on the user message.
+ */
+export const createUserMessage = action({
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.string(),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          type: v.union(
+            v.literal("image"),
+            v.literal("pdf"),
+            v.literal("text")
+          ),
+          url: v.string(),
+          name: v.string(),
+          size: v.number(),
+          content: v.optional(v.string()),
+          thumbnail: v.optional(v.string()),
+          storageId: v.optional(v.id("_storage")),
+        })
+      )
+    ),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+  },
+  returns: v.object({
+    userMessageId: v.id("messages"),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    userMessageId: Id<"messages">;
+  }> => {
+    // Get user's effective model with full capabilities
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
+    // Create user message only
+    const userMessageId: Id<"messages"> = await ctx.runMutation(
+      api.messages.create,
+      {
+        conversationId: args.conversationId,
+        role: "user",
+        content: args.content,
+        attachments: args.attachments,
+        reasoningConfig: args.reasoningConfig,
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+        metadata:
+          args.temperature !== undefined
+            ? { temperature: args.temperature }
+            : undefined,
+      }
+    );
+
+    // Check if this is the first user message in the conversation
+    // If so, and the conversation has a generic title, schedule title generation
+    // This handles image generation conversations which create empty conversations first
+    const conversation = await ctx.runQuery(api.conversations.get, {
+      id: args.conversationId,
+    });
+
+    if (conversation) {
+      const messages = await ctx.runQuery(api.messages.getAllInConversation, {
+        conversationId: args.conversationId,
+      });
+
+      // Check if this is the first user message and the title looks generic
+      const userMessages = messages.filter(m => m.role === "user");
+      const hasGenericTitle =
+        conversation.title === "Image Generation" ||
+        conversation.title === "New Conversation" ||
+        conversation.title === "New conversation";
+
+      if (
+        userMessages.length === 1 &&
+        hasGenericTitle &&
+        args.content.trim().length > 0
+      ) {
+        // Schedule title generation based on the user message
+        await ctx.scheduler.runAfter(
+          100,
+          api.titleGeneration.generateTitleBackground,
+          {
+            conversationId: args.conversationId,
+            message: args.content,
+          }
+        );
+      }
+    }
+
+    return { userMessageId };
+  },
+});
+
+/**
  * Send a message with dynamic model and persona selection (moved from agent_conversations)
  */
 export const sendMessage = action({
@@ -299,6 +406,15 @@ export const sendMessage = action({
       "for user:",
       authUserId
     );
+
+    // Get the conversation to determine effective persona ID
+    const conversation = await ctx.runQuery(api.conversations.get, {
+      id: args.conversationId,
+    });
+
+    // Use provided personaId, or fall back to conversation's existing personaId
+    const effectivePersonaId =
+      args.personaId !== undefined ? args.personaId : conversation?.personaId;
 
     // Get user's effective model with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
@@ -358,7 +474,7 @@ export const sendMessage = action({
       messageId: assistantMessageId,
       conversationId: args.conversationId,
       model: fullModel, // Pass the full model object
-      personaId: args.personaId,
+      personaId: effectivePersonaId,
       reasoningConfig: args.reasoningConfig,
       temperature: args.temperature,
       maxTokens: args.maxTokens,
