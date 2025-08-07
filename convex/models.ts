@@ -255,15 +255,37 @@ async function fetchGoogleModels(apiKey: string) {
         const displayName = model.displayName || modelId;
 
         // Use Google API data where possible, conservative defaults otherwise
-        const modelSupportsReasoning = supportsReasoning("google", modelId); // Use centralized reasoning detection
+        const modelSupportsReasoning = supportsReasoning("google", modelId);
+
+        // Updated tool support based on Gemini 2.5 documentation
         const supportsTools =
-          modelId.includes("pro") || modelId.includes("gemini-1.5"); // Pro models support tools
+          modelId.includes("2.5-pro") ||
+          modelId.includes("2.5-flash") ||
+          modelId.includes("2.0-flash") ||
+          modelId.includes("1.5-pro") ||
+          modelId.includes("pro");
+
+        // Updated image support based on Gemini 2.5 documentation
         const supportsImages =
-          modelId.includes("pro") || modelId.includes("vision"); // Pro and vision models
-        const supportsFiles =
-          (model.inputTokenLimit && model.inputTokenLimit >= 32000) ||
+          modelId.includes("2.5-pro") ||
+          modelId.includes("2.5-flash") ||
+          modelId.includes("2.5-flash-lite") ||
+          modelId.includes("2.0-flash") ||
+          modelId.includes("2.0-flash-lite") ||
+          modelId.includes("1.5-pro") ||
+          modelId.includes("1.5-flash") ||
           modelId.includes("pro") ||
-          modelId.includes("gemini-1.5"); // Large context or pro models
+          modelId.includes("vision");
+
+        // Updated file support based on Gemini 2.5 documentation
+        const supportsFiles =
+          modelId.includes("2.5-pro") ||
+          modelId.includes("2.5-flash") ||
+          modelId.includes("2.0-flash") ||
+          modelId.includes("1.5-pro") ||
+          modelId.includes("1.5-flash") ||
+          (model.inputTokenLimit && model.inputTokenLimit >= 32000) ||
+          modelId.includes("pro");
 
         const contextWindow =
           model.inputTokenLimit || getGoogleContextWindow(model.name);
@@ -459,15 +481,39 @@ function getAnthropicContextWindow(modelId: string): number {
 }
 
 function getGoogleContextWindow(modelName: string): number {
+  // Gemini 2.5 Pro - 2M tokens
+  if (modelName.includes("gemini-2.5-pro")) {
+    return 2097152;
+  }
+  // Gemini 2.5 Flash - 1M tokens
+  if (modelName.includes("gemini-2.5-flash")) {
+    return 1048576;
+  }
+  // Gemini 2.5 Flash-Lite - 1M tokens
+  if (modelName.includes("gemini-2.5-flash-lite")) {
+    return 1048576;
+  }
+  // Gemini 2.0 Flash - 1M tokens
+  if (modelName.includes("gemini-2.0-flash")) {
+    return 1048576;
+  }
+  // Gemini 2.0 Flash-Lite - 1M tokens
+  if (modelName.includes("gemini-2.0-flash-lite")) {
+    return 1048576;
+  }
+  // Gemini 1.5 Pro - 2M tokens
   if (modelName.includes("gemini-1.5-pro")) {
     return 2097152;
   }
+  // Gemini 1.5 Flash - 1M tokens
   if (modelName.includes("gemini-1.5-flash")) {
     return 1048576;
   }
+  // Gemini Pro - 32K tokens
   if (modelName.includes("gemini-pro")) {
     return 32768;
   }
+  // Default fallback
   return 32768;
 }
 

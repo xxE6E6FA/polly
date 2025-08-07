@@ -630,11 +630,11 @@ export const streamResponse = internalAction({
             const needAssessmentPrompt = generateSearchNeedAssessment(searchContext);
             
             // Use built-in Gemini for search detection to ensure we have API keys
-            const searchDetectionApiKey = await getApiKey(ctx, "google", "gemini-2.0-flash-exp", args.conversationId);
+            const searchDetectionApiKey = await getApiKey(ctx, "google", "gemini-2.5-flash-lite", args.conversationId);
             const searchDetectionModel = await createLanguageModel(
               ctx,
               "google",
-              "gemini-2.0-flash-exp", 
+              "gemini-2.5-flash-lite", 
               searchDetectionApiKey
             );
             
