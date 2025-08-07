@@ -41,6 +41,9 @@ import {
 } from "./search_detection";
 import { performWebSearch } from "./exa";
 
+// URL processing imports
+import { processUrlsInMessage } from "./url_processing";
+
 // Unified storage converter
 export const convertStorageToData = async (
   ctx: ActionCtx,
@@ -764,10 +767,60 @@ When using information from these search results, you MUST include citations in 
         }
       }
 
+      // Process URLs in the latest user message
+      if (latestUserMessage && typeof latestUserMessage.content === "string") {
+        log.debug("Processing URLs in latest user message");
+        
+        const exaApiKey = process.env.EXA_API_KEY;
+        if (exaApiKey) {
+          try {
+            const urlResult = await processUrlsInMessage(exaApiKey, latestUserMessage.content);
+            
+            if (urlResult && urlResult.contents.length > 0) {
+              log.debug("Found URLs in message, processing content:", urlResult.contents.length, "URLs");
+              
+              // Set status to indicate URL processing
+              await ctx.runMutation(internal.messages.updateMessageStatus, {
+                messageId: args.messageId,
+                status: "reading_pdf", // Reuse existing status for URL processing
+              });
+              
+              // Store URL contents for natural reference without formal citations
+              // The AI will reference them conversationally like "that article you shared" or "the post you linked"
+              log.debug("URL content available for natural reference:", urlResult.contents.length, "URLs");
+              
+              // Add URL content as conversational context (not formal citations)
+              const urlContextMessage = {
+                role: "system" as const,
+                content: `I have access to content from the links you shared:\n\n${urlResult.contents.map((content, idx) => 
+                  `**${content.title}** (${content.url})\n${content.summary}`
+                ).join('\n\n')}\n\nI can reference this content naturally in our conversation without formal citations. Feel free to ask me about anything from these sources or share more links!`,
+              };
+              
+              // Insert URL context after system message but before conversation
+              contextMessages.splice(1, 0, urlContextMessage);
+            } else {
+              log.debug("No URLs found in latest user message to process");
+            }
+          } catch (error) {
+            log.error("Error processing URLs:", error);
+            // Continue without URL processing - don't break the conversation flow
+          } finally {
+            // Reset status to thinking after URL processing is complete
+            await ctx.runMutation(internal.messages.updateMessageStatus, {
+              messageId: args.messageId,
+              status: "thinking",
+            });
+          }
+        } else {
+          log.debug("No EXA API key configured, skipping URL processing");
+        }
+      }
+
       // Convert messages to AI SDK format using processed context messages
       const convertedMessages = await convertMessages(
         ctx,
-        processedContextMessages,
+        contextMessages,
         effectiveProvider as any
       );
 

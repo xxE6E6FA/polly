@@ -28,6 +28,7 @@ import type * as ai_search_detection from "../ai/search_detection.js";
 import type * as ai_server_citations from "../ai/server_citations.js";
 import type * as ai_server_streaming from "../ai/server_streaming.js";
 import type * as ai_server_utils from "../ai/server_utils.js";
+import type * as ai_url_processing from "../ai/url_processing.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as backgroundJobs from "../backgroundJobs.js";
@@ -92,6 +93,7 @@ declare const fullApi: ApiFromModules<{
   "ai/server_citations": typeof ai_server_citations;
   "ai/server_streaming": typeof ai_server_streaming;
   "ai/server_utils": typeof ai_server_utils;
+  "ai/url_processing": typeof ai_url_processing;
   apiKeys: typeof apiKeys;
   auth: typeof auth;
   backgroundJobs: typeof backgroundJobs;
