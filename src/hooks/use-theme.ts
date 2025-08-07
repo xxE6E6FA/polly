@@ -38,8 +38,12 @@ export function useTheme() {
     }
 
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
+    // Only update if the theme actually changed
+    const currentTheme = root.classList.contains("light") ? "light" : "dark";
+    if (currentTheme !== theme) {
+      root.classList.remove("light", "dark");
+      root.classList.add(theme);
+    }
   }, [theme, mounted]);
 
   const setTheme = useCallback((newTheme: Theme) => {

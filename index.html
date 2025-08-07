@@ -36,6 +36,42 @@
       href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Apply theme and sidebar state immediately to prevent flash
+      (function() {
+        // Disable animations initially
+        document.documentElement.classList.add('disable-animations');
+        
+        // Apply theme from localStorage
+        const themeKey = 'polly:theme/v1';
+        const storedTheme = localStorage.getItem(themeKey);
+        let theme = 'dark'; // Default theme
+        
+        if (storedTheme) {
+          try {
+            const parsed = JSON.parse(storedTheme);
+            if (parsed === 'light' || parsed === 'dark') {
+              theme = parsed;
+            }
+          } catch (e) {
+            // Fallback to system preference
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            theme = prefersDark ? 'dark' : 'light';
+          }
+        } else {
+          // Use system preference if no stored theme
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          theme = prefersDark ? 'dark' : 'light';
+        }
+        
+        document.documentElement.classList.add(theme);
+        
+        // Remove disable-animations class after a short delay
+        setTimeout(() => {
+          document.documentElement.classList.remove('disable-animations');
+        }, 100);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

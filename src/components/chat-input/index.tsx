@@ -979,7 +979,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
 
     return (
-      <div className={cn("relative px-3 pb-2 sm:px-6 sm:pb-3 bg-background")}>
+      <div className="relative px-3 pb-2 sm:px-6 sm:pb-3">
         <div className="mx-auto w-full max-w-3xl">
           <WarningBanners hasExistingMessages={hasExistingMessages} />
 
