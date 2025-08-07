@@ -1,6 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useRef } from "react";
-import type { Attachment, ReasoningConfig } from "@/types";
+import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 interface ChatInputState {
   input: string;
@@ -22,27 +22,63 @@ const defaultChatInputState: ChatInputState = {
 };
 
 /**
- * Hook for preserving chat input state when navigating between regular and private chat.
+ * Hook for preserving chat input state when navigating between conversations.
  * Uses useRef to avoid causing re-renders when input changes.
+ * Maintains separate state for each conversation and global state for new conversations.
  */
 export function useChatInputPreservation() {
-  const chatInputStateRef = useRef<ChatInputState>(defaultChatInputState);
+  // Global state for new conversations and fallback
+  const globalStateRef = useRef<ChatInputState>(defaultChatInputState);
 
-  const setChatInputState = useCallback((state: Partial<ChatInputState>) => {
-    chatInputStateRef.current = { ...chatInputStateRef.current, ...state };
+  // Per-conversation state storage
+  const conversationStatesRef = useRef<Map<ConversationId, ChatInputState>>(
+    new Map()
+  );
+
+  const setChatInputState = useCallback(
+    (state: Partial<ChatInputState>, conversationId?: ConversationId) => {
+      if (conversationId) {
+        // Update conversation-specific state
+        const currentState =
+          conversationStatesRef.current.get(conversationId) ||
+          defaultChatInputState;
+        conversationStatesRef.current.set(conversationId, {
+          ...currentState,
+          ...state,
+        });
+      } else {
+        // Update global state
+        globalStateRef.current = { ...globalStateRef.current, ...state };
+      }
+    },
+    []
+  );
+
+  const getChatInputState = useCallback((conversationId?: ConversationId) => {
+    if (conversationId && conversationStatesRef.current.has(conversationId)) {
+      const state = conversationStatesRef.current.get(conversationId);
+      return state || defaultChatInputState;
+    }
+    return globalStateRef.current;
   }, []);
 
-  const getChatInputState = useCallback(() => {
-    return chatInputStateRef.current;
+  const clearChatInputState = useCallback((conversationId?: ConversationId) => {
+    if (conversationId) {
+      conversationStatesRef.current.delete(conversationId);
+    } else {
+      globalStateRef.current = defaultChatInputState;
+    }
   }, []);
 
-  const clearChatInputState = useCallback(() => {
-    chatInputStateRef.current = defaultChatInputState;
+  const clearAllConversationStates = useCallback(() => {
+    conversationStatesRef.current.clear();
+    globalStateRef.current = defaultChatInputState;
   }, []);
 
   return {
     setChatInputState,
     getChatInputState,
     clearChatInputState,
+    clearAllConversationStates,
   };
 }

@@ -8,6 +8,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { useConversationPreload } from "@/hooks/use-conversation-preload";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
   downloadFile,
@@ -61,6 +62,7 @@ export const ConversationItem = ({
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
   const backgroundJobs = useBackgroundJobs();
+  const { preloadConversation } = useConversationPreload();
 
   const isCurrentConversation = currentConversationId === conversation._id;
   const isItemSelected = isSelected(conversation._id);
@@ -340,7 +342,13 @@ export const ConversationItem = ({
                 ? "bg-accent text-foreground shadow-sm"
                 : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
             )}
-            onMouseEnter={() => !isMobile && setIsHovered(true)}
+            onMouseEnter={() => {
+              if (!isMobile) {
+                setIsHovered(true);
+                // Preload conversation data on hover for faster navigation
+                preloadConversation(conversation._id);
+              }
+            }}
             onMouseLeave={() => !isMobile && setIsHovered(false)}
           >
             {/* Selection checkbox - positioned absolutely, slides in from left when in bulk mode */}

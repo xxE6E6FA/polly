@@ -198,6 +198,7 @@ export function useChat({ conversationId }: UseChatParams) {
         );
 
         setMessages(convertedMessages);
+        setIsLoading(false); // Set loading to false when we have messages
       } else {
         // Private mode is never loading from a server
         setIsLoading(false);

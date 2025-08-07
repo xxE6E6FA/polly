@@ -15,6 +15,7 @@ import type { ChatMessage as ChatMessageType } from "@/types";
 type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
   isStreaming?: boolean;
+  isLoading?: boolean;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (
     messageId: string,
@@ -153,6 +154,7 @@ export const VirtualizedChatMessages = memo(
       {
         messages,
         isStreaming,
+        isLoading = false,
         onEditMessage,
         onRetryUserMessage,
         onRetryAssistantMessage,
@@ -167,6 +169,7 @@ export const VirtualizedChatMessages = memo(
       const prevMessagesLengthRef = useRef(messages.length);
       const hasScrolledForCurrentAssistant = useRef(false);
       const lastAssistantMessageId = useRef<string | null>(null);
+      const hasInitialScrolled = useRef(false);
 
       // Create a memoized message selector for efficient lookups
       const messagesMap = useMemo(() => {
@@ -356,6 +359,12 @@ export const VirtualizedChatMessages = memo(
             hasScrolledForCurrentAssistant.current = false;
           }
         }
+
+        // Reset initial scroll flag when messages change significantly (new conversation)
+        if (processedMessages.length !== prevMessagesLengthRef.current) {
+          hasInitialScrolled.current = false;
+        }
+        prevMessagesLengthRef.current = processedMessages.length;
       }, [processedMessages]);
 
       // Auto-scroll logic for streaming messages
@@ -428,16 +437,26 @@ export const VirtualizedChatMessages = memo(
         prevMessagesLengthRef.current = messages.length;
       }, [messages, getScrollContainer]);
 
-      // Initial scroll to bottom using Virtua's API
+      // Initial scroll to bottom when conversation first loads and messages are available
       useEffect(() => {
-        if (processedMessages.length > 0 && vlistRef.current) {
-          // Use Virtua's scrollToIndex with immediate behavior
-          vlistRef.current.scrollToIndex(processedMessages.length - 1, {
-            align: "end",
-            smooth: false,
+        if (
+          processedMessages.length > 0 &&
+          vlistRef.current &&
+          !hasInitialScrolled.current &&
+          !isLoading
+        ) {
+          hasInitialScrolled.current = true;
+          // Use requestAnimationFrame to ensure the list has rendered
+          requestAnimationFrame(() => {
+            if (vlistRef.current) {
+              vlistRef.current.scrollToIndex(processedMessages.length - 1, {
+                align: "end",
+                smooth: false,
+              });
+            }
           });
         }
-      }, [processedMessages.length]);
+      }, [processedMessages.length, isLoading]);
 
       if (processedMessages.length === 0) {
         return (

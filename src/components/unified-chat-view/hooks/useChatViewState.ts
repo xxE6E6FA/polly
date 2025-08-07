@@ -54,21 +54,6 @@ export function useChatViewState({
 
   // Computed state
   const isEmpty = messages.length === 0;
-  const isLoadingConversation = conversationId && isLoadingMessages;
-
-  // Handle initial scroll to bottom when opening an existing conversation
-  useEffect(() => {
-    if (
-      !isLoadingMessages &&
-      messages.length > 0 &&
-      !hasInitializedScroll.current &&
-      virtualizedMessagesRef.current
-    ) {
-      // Scroll immediately without delay
-      virtualizedMessagesRef.current.scrollToBottom();
-      hasInitializedScroll.current = true;
-    }
-  }, [isLoadingMessages, messages.length]);
 
   // Reset scroll initialization when conversation changes
   useEffect(() => {
@@ -203,7 +188,6 @@ export function useChatViewState({
     selection,
     confirmationDialog,
     isEmpty,
-    isLoadingConversation,
 
     // Handlers
     handleOutlineNavigate,

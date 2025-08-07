@@ -103,7 +103,6 @@ export const UnifiedChatView = memo(
       selection,
       confirmationDialog,
       isEmpty,
-      isLoadingConversation,
 
       // Handlers
       handleOutlineNavigate,
@@ -179,14 +178,6 @@ export const UnifiedChatView = memo(
       "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 8px, rgba(0,0,0,0.8) 16px, rgba(0,0,0,1) 20px, rgba(0,0,0,1) calc(100% - 20px), rgba(0,0,0,0.8) calc(100% - 16px), rgba(0,0,0,0.3) calc(100% - 8px), transparent 100%)";
 
     const renderMessageArea = () => {
-      if (isLoadingConversation) {
-        return (
-          <div className="flex h-full items-center justify-center">
-            <Spinner size="lg" />
-          </div>
-        );
-      }
-
       if (isEmpty) {
         if (!(isPrivateMode || conversationId)) {
           return <ChatZeroState />;
@@ -194,7 +185,7 @@ export const UnifiedChatView = memo(
         if (isPrivateMode) {
           return <ConversationZeroState />;
         }
-        // For regular conversations that are empty (after loading), show blank
+        // For regular conversations that are empty, show empty state (no loading)
         return <div className="h-full" />;
       }
 
@@ -203,6 +194,7 @@ export const UnifiedChatView = memo(
           ref={virtualizedMessagesRef}
           messages={messages}
           isStreaming={isStreaming}
+          isLoading={isLoading}
           onDeleteMessage={
             isPrivateMode || isArchived ? undefined : handleDeleteMessage
           }
@@ -228,22 +220,20 @@ export const UnifiedChatView = memo(
           <div className="flex-1 overflow-y-hidden overflow-x-visible">
             <div className="relative flex h-full flex-col overflow-y-hidden overflow-x-visible">
               <div className="relative z-10 flex h-full flex-col overflow-y-hidden overflow-x-visible">
-                {/* Static Header */}
-                {(isLoadingConversation || !isEmpty) && (
-                  <div className="sticky top-0 z-20 h-12 flex-shrink-0 bg-background">
-                    <div className="flex h-12 items-center px-4 lg:px-6">
-                      <ChatHeader
-                        conversationId={conversationId}
-                        isPrivateMode={!conversationId}
-                        isArchived={isArchived}
-                        onSavePrivateChat={onSavePrivateChat}
-                        canSavePrivateChat={canSavePrivateChat}
-                        privateMessages={messages}
-                        privatePersonaId={currentPersonaId || undefined}
-                      />
-                    </div>
+                {/* Static Header - always visible */}
+                <div className="sticky top-0 z-20 h-12 flex-shrink-0 bg-background">
+                  <div className="flex h-12 items-center px-4 lg:px-6">
+                    <ChatHeader
+                      conversationId={conversationId}
+                      isPrivateMode={!conversationId}
+                      isArchived={isArchived}
+                      onSavePrivateChat={onSavePrivateChat}
+                      canSavePrivateChat={canSavePrivateChat}
+                      privateMessages={messages}
+                      privatePersonaId={currentPersonaId || undefined}
+                    />
                   </div>
-                )}
+                </div>
 
                 <div
                   ref={messagesContainerRef}
@@ -267,36 +257,46 @@ export const UnifiedChatView = memo(
                   onUnarchive={handleUnarchive}
                 />
 
-                {/* Chat input and controls */}
-                {hasApiKeys && !isArchived && (
-                  <div className="relative flex-shrink-0">
-                    <ChatInput
-                      ref={chatInputRef}
-                      conversationId={conversationId}
-                      hasExistingMessages={messages.length > 0}
-                      isLoading={isLoading}
-                      isStreaming={isStreaming}
-                      placeholder={
-                        isPrivateMode
-                          ? "Private mode: messages won't be saved..."
+                {/* Chat input and controls - always visible */}
+                <div className="relative flex-shrink-0">
+                  <ChatInput
+                    ref={chatInputRef}
+                    conversationId={conversationId}
+                    hasExistingMessages={messages.length > 0}
+                    isLoading={isLoading || !hasApiKeys}
+                    isStreaming={isStreaming}
+                    placeholder={
+                      isPrivateMode
+                        ? "Private mode: messages won't be saved..."
+                        : isArchived
+                          ? "This conversation is archived"
                           : "Ask me anything..."
-                      }
-                      onSendMessage={handleSendMessage}
-                      onStop={() => {
-                        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-                        console.log(
-                          "[UnifiedChatView] onStop called, forwarding to onStopGeneration"
-                        );
-                        onStopGeneration();
-                      }}
-                      onSendAsNewConversation={onSendAsNewConversation}
-                      currentReasoningConfig={getCurrentReasoningConfig()}
-                      currentTemperature={currentTemperature}
-                      onTemperatureChange={onTemperatureChange}
-                      messages={messages}
-                    />
-                  </div>
-                )}
+                    }
+                    onSendMessage={
+                      hasApiKeys && !isArchived
+                        ? handleSendMessage
+                        : async () => {
+                            // No-op when API keys not loaded or archived
+                          }
+                    }
+                    onStop={() => {
+                      // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
+                      console.log(
+                        "[UnifiedChatView] onStop called, forwarding to onStopGeneration"
+                      );
+                      onStopGeneration();
+                    }}
+                    onSendAsNewConversation={
+                      hasApiKeys && !isArchived
+                        ? onSendAsNewConversation
+                        : undefined
+                    }
+                    currentReasoningConfig={getCurrentReasoningConfig()}
+                    currentTemperature={currentTemperature}
+                    onTemperatureChange={onTemperatureChange}
+                    messages={messages}
+                  />
+                </div>
 
                 {/* Quote button overlay */}
                 {selection?.text && (
