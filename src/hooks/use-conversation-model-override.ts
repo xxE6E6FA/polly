@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
 
@@ -12,6 +12,7 @@ import type { ConversationId } from "@/types";
 export function useConversationModelOverride(conversationId?: ConversationId) {
   const { user } = useUserDataContext();
   const selectModelMutation = useMutation(api.userModels.selectModel);
+  const lastProcessedConversationId = useRef<ConversationId | null>(null);
 
   // Get the last used model from the conversation
   const lastUsedModel = useQuery(
@@ -27,34 +28,50 @@ export function useConversationModelOverride(conversationId?: ConversationId) {
     {}
   );
 
-  // Check if we need to override the model
-  const shouldOverride = useMemo(() => {
-    // Don't override for anonymous users or if we don't have necessary data
-    if (!(lastUsedModel && currentSelectedModel && user) || user.isAnonymous) {
-      return false;
-    }
-
-    // Don't override if the current model is already the same as the last used model
-    return !(
-      currentSelectedModel.modelId === lastUsedModel.modelId &&
-      currentSelectedModel.provider === lastUsedModel.provider
-    );
-  }, [lastUsedModel, currentSelectedModel, user]);
-
-  // Override the model when entering the conversation
+  // Override the model when entering a new conversation
   useEffect(() => {
-    if (shouldOverride && lastUsedModel && conversationId) {
-      selectModelMutation({
-        modelId: lastUsedModel.modelId,
-        provider: lastUsedModel.provider,
-      }).catch(error => {
-        console.warn("Failed to override model for conversation:", error);
-      });
+    if (
+      conversationId &&
+      lastUsedModel &&
+      currentSelectedModel &&
+      user &&
+      !user.isAnonymous &&
+      lastProcessedConversationId.current !== conversationId
+    ) {
+      // Only override if the models are different
+      if (
+        currentSelectedModel.modelId !== lastUsedModel.modelId ||
+        currentSelectedModel.provider !== lastUsedModel.provider
+      ) {
+        lastProcessedConversationId.current = conversationId;
+        selectModelMutation({
+          modelId: lastUsedModel.modelId,
+          provider: lastUsedModel.provider,
+        }).catch(error => {
+          console.warn("Failed to override model for conversation:", error);
+        });
+      } else {
+        // Mark as processed even if no override was needed
+        lastProcessedConversationId.current = conversationId;
+      }
     }
-  }, [shouldOverride, lastUsedModel, conversationId, selectModelMutation]);
+  }, [
+    conversationId,
+    lastUsedModel,
+    currentSelectedModel,
+    user,
+    selectModelMutation,
+  ]);
+
+  // Reset the tracking when conversationId becomes null (user navigates away)
+  useEffect(() => {
+    if (!conversationId) {
+      lastProcessedConversationId.current = null;
+    }
+  }, [conversationId]);
 
   return {
     lastUsedModel,
-    shouldOverride,
+    shouldOverride: false, // Always return false since we handle override logic internally
   };
 }
