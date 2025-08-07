@@ -3,6 +3,7 @@ import {
   CloudArrowDownIcon,
   GearIcon,
   KeyIcon,
+  PaperclipIcon,
   RobotIcon,
   ShareNetworkIcon,
   UsersIcon,
@@ -60,6 +61,11 @@ const settingsNavItems = [
     label: "Chat History",
     icon: CloudArrowDownIcon,
   },
+  {
+    href: ROUTES.SETTINGS.ATTACHMENTS,
+    label: "Attachments",
+    icon: PaperclipIcon,
+  },
 ];
 
 export const SettingsContainer = ({
@@ -74,7 +80,7 @@ export const SettingsContainer = ({
   );
 
   return (
-    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
       {/* Mobile Navigation */}
       <div className="mb-6 sm:hidden">
         <Select value={location.pathname} onValueChange={navigate}>
@@ -107,9 +113,9 @@ export const SettingsContainer = ({
       {/* Desktop Horizontal Tabs */}
       <div className="hidden sm:block">
         <nav className="mb-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-muted/60 border border-border/50 rounded-lg p-4 mb-6">
-              <div className="flex space-x-3 overflow-x-auto">
+          <div className="w-fit">
+            <div className="bg-muted/60 border border-border/50 rounded-lg p-2 mb-6">
+              <div className="flex space-x-2 overflow-x-auto">
                 {settingsNavItems.map(item => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.href;
@@ -119,13 +125,13 @@ export const SettingsContainer = ({
                       key={item.href}
                       to={item.href}
                       className={cn(
-                        "flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                        "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-all duration-200",
                         isActive
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-3.5 w-3.5" />
                       {item.label}
                     </Link>
                   );
