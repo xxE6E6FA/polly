@@ -20,7 +20,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -74,7 +74,6 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
 
     return (
       <div className={className}>
-        {open && <Backdrop className="z-40" />}
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button

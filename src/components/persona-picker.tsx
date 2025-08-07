@@ -18,7 +18,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import {
   Tooltip,
   TooltipContent,
@@ -110,24 +110,21 @@ export const PersonaPicker = ({
     );
 
     const content = (
-      <>
-        {open && <Backdrop className="z-40" />}
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
-          <PopoverContent
-            avoidCollisions
-            className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
-            side="top"
-            sideOffset={4}
-          >
-            <PersonaList
-              personas={availablePersonas}
-              currentPersona={currentPersona}
-              onPersonaSelect={handlePersonaSelect}
-            />
-          </PopoverContent>
-        </Popover>
-      </>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+        <PopoverContent
+          avoidCollisions
+          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
+          side="top"
+          sideOffset={4}
+        >
+          <PersonaList
+            personas={availablePersonas}
+            currentPersona={currentPersona}
+            onPersonaSelect={handlePersonaSelect}
+          />
+        </PopoverContent>
+      </Popover>
     );
 
     if (tooltip) {

@@ -6,7 +6,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { useToast } from "@/providers/toast-context";
@@ -105,28 +105,25 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   }
 
   return (
-    <>
-      {open && <Backdrop className="z-40" />}
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <div className={className}>
-            <ModelPickerTrigger open={open} selectedModel={displayModel} />
-          </div>
-        </PopoverTrigger>
-        <PopoverContent
-          avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
-          side="top"
-          sideOffset={4}
-        >
-          <ModelList
-            modelGroups={modelGroups}
-            handleSelect={handleSelect}
-            hasReachedPollyLimit={hasReachedPollyLimit}
-          />
-        </PopoverContent>
-      </Popover>
-    </>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className={className}>
+          <ModelPickerTrigger open={open} selectedModel={displayModel} />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        avoidCollisions
+        className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
+        side="top"
+        sideOffset={4}
+      >
+        <ModelList
+          modelGroups={modelGroups}
+          handleSelect={handleSelect}
+          hasReachedPollyLimit={hasReachedPollyLimit}
+        />
+      </PopoverContent>
+    </Popover>
   );
 };
 
