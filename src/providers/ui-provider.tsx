@@ -7,8 +7,9 @@ function setSidebarVisibility(isVisible: boolean): void {
 }
 
 function getSidebarVisibility(): boolean {
-  const defaultVisible = window.innerWidth >= 768;
-  return getLS<boolean>(CACHE_KEYS.sidebar, defaultVisible);
+  // Always default to false to prevent flash - user can open it if needed
+  const stored = getLS<boolean>(CACHE_KEYS.sidebar, false);
+  return stored;
 }
 
 type UIContextValue = {
@@ -48,19 +49,26 @@ export const UIProvider = ({
   children,
   serverSidebarVisible = false,
 }: UIProviderProps) => {
-  const [isSidebarVisible, setSidebarVisible] = useState(serverSidebarVisible);
-  const [isMobile, setIsMobile] = useState(false);
+  // Initialize state from localStorage immediately to prevent flash
+  const [isSidebarVisible, setSidebarVisible] = useState(() => {
+    // Only use serverSidebarVisible if we're on the server (no window object)
+    if (typeof window === "undefined") {
+      return serverSidebarVisible;
+    }
+    // On client, always read from localStorage
+    return getSidebarVisibility();
+  });
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    return window.innerWidth < 768;
+  });
   const [mounted, setMounted] = useState(false);
   const prevIsMobile = useRef(false);
 
-  // Initialize sidebar state
+  // Mark as mounted
   useEffect(() => {
-    const storedSidebarState = getSidebarVisibility();
-    const defaultSidebarState = false;
-
-    setSidebarVisible(
-      storedSidebarState !== null ? storedSidebarState : defaultSidebarState
-    );
     setMounted(true);
   }, []);
 
