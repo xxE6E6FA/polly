@@ -142,28 +142,33 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const _generateSummaryAction = useAction(
       api.conversationSummary.generateConversationSummary
     );
-    const shouldUsePreservedState = !(conversationId || hasExistingMessages);
+    // Always preserve state per conversation, use global state for new conversations
+    const shouldUsePreservedState = !hasExistingMessages; // Preserve input for empty conversations
     const [input, setInputState] = useState(() =>
-      shouldUsePreservedState ? getChatInputState().input : ""
+      shouldUsePreservedState ? getChatInputState(conversationId).input : ""
     );
     const [attachments, setAttachmentsState] = useState<Attachment[]>(() =>
-      shouldUsePreservedState ? getChatInputState().attachments : []
+      shouldUsePreservedState
+        ? getChatInputState(conversationId).attachments
+        : []
     );
     const [selectedPersonaId, setSelectedPersonaIdState] =
       useState<Id<"personas"> | null>(() =>
-        shouldUsePreservedState ? getChatInputState().selectedPersonaId : null
+        shouldUsePreservedState
+          ? getChatInputState(conversationId).selectedPersonaId
+          : null
       );
     const [reasoningConfig, setReasoningConfigState] =
       useState<ReasoningConfig>(() => {
         if (shouldUsePreservedState) {
-          return getChatInputState().reasoningConfig;
+          return getChatInputState(conversationId).reasoningConfig;
         }
         return getDefaultReasoningConfig();
       });
     const [temperature, setTemperatureState] = useState<number | undefined>(
       () =>
         shouldUsePreservedState
-          ? getChatInputState().temperature
+          ? getChatInputState(conversationId).temperature
           : currentTemperature
     );
 
@@ -323,13 +328,16 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         return;
       }
 
-      setChatInputState({
-        selectedPersonaId,
-        input,
-        reasoningConfig,
-        attachments,
-        temperature,
-      });
+      setChatInputState(
+        {
+          selectedPersonaId,
+          input,
+          reasoningConfig,
+          attachments,
+          temperature,
+        },
+        conversationId
+      );
     }, [
       shouldUsePreservedState,
       setChatInputState,
@@ -338,6 +346,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       reasoningConfig,
       attachments,
       temperature,
+      conversationId,
     ]);
 
     useEffect(() => {
@@ -353,10 +362,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       (value: string) => {
         setInputState(value);
         if (shouldUsePreservedState) {
-          setChatInputState({ input: value });
+          setChatInputState({ input: value }, conversationId);
         }
       },
-      [shouldUsePreservedState, setChatInputState]
+      [shouldUsePreservedState, setChatInputState, conversationId]
     );
 
     const setAttachments = useCallback(
@@ -365,10 +374,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           typeof newValue === "function" ? newValue(attachments) : newValue;
         setAttachmentsState(value);
         if (shouldUsePreservedState) {
-          setChatInputState({ attachments: value });
+          setChatInputState({ attachments: value }, conversationId);
         }
       },
-      [shouldUsePreservedState, setChatInputState, attachments]
+      [shouldUsePreservedState, setChatInputState, conversationId, attachments]
     );
 
     // Get user messages for history navigation
@@ -525,31 +534,36 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       (value: Id<"personas"> | null) => {
         setSelectedPersonaIdState(value);
         if (shouldUsePreservedState) {
-          setChatInputState({ selectedPersonaId: value });
+          setChatInputState({ selectedPersonaId: value }, conversationId);
         }
       },
-      [shouldUsePreservedState, setChatInputState]
+      [shouldUsePreservedState, setChatInputState, conversationId]
     );
 
     const setReasoningConfig = useCallback(
       (value: ReasoningConfig) => {
         setReasoningConfigState(value);
         if (shouldUsePreservedState) {
-          setChatInputState({ reasoningConfig: value });
+          setChatInputState({ reasoningConfig: value }, conversationId);
         }
       },
-      [shouldUsePreservedState, setChatInputState]
+      [shouldUsePreservedState, setChatInputState, conversationId]
     );
 
     const setTemperature = useCallback(
       (value: number | undefined) => {
         setTemperatureState(value);
         if (shouldUsePreservedState) {
-          setChatInputState({ temperature: value });
+          setChatInputState({ temperature: value }, conversationId);
         }
         onTemperatureChange?.(value);
       },
-      [shouldUsePreservedState, setChatInputState, onTemperatureChange]
+      [
+        shouldUsePreservedState,
+        setChatInputState,
+        conversationId,
+        onTemperatureChange,
+      ]
     );
 
     // Negative prompt handlers
@@ -1089,7 +1103,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   generationMode === "image" &&
                   !isPrivateMode &&
                   hasReplicateApiKey && (
-                    <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                    <div className="flex items-center gap-0.5 sm:gap-1">
                       <ImageModelPicker
                         model={imageParams.model}
                         onModelChange={model =>
@@ -1131,7 +1145,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
                 {/* Text generation controls */}
                 {canSend && generationMode === "text" && (
-                  <div className="flex items-center gap-0.5 sm:gap-1 animate-in fade-in-0 slide-in-from-top-2 duration-300">
+                  <div className="flex items-center gap-0.5 sm:gap-1">
                     <PersonaSelector
                       conversationId={conversationId}
                       hasExistingMessages={hasExistingMessages}

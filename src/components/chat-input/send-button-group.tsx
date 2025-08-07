@@ -209,10 +209,7 @@ export const SendButtonGroup = ({
           <DropdownMenuContent
             align="end"
             sideOffset={8}
-            className={cn(
-              "w-64 p-1",
-              "animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-300"
-            )}
+            className={cn("w-64 p-1")}
           >
             <DropdownMenuItem
               disabled={isLoading || isSummarizing}

@@ -1,10 +1,12 @@
 import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router";
 import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
+import { ConversationView } from "./components/conversation-view/ConversationView";
 import ChatLayout from "./components/layouts/ChatLayout";
+import PersistentChatLayout from "./components/layouts/PersistentChatLayout";
 import RootLayout from "./components/layouts/RootLayout";
 import { Spinner } from "./components/spinner";
-import ChatConversationPage from "./pages/ChatConversationPage";
+
 import HomePage from "./pages/HomePage";
 import PrivateChatPage from "./pages/PrivateChatPage";
 
@@ -86,6 +88,9 @@ export const preloadSettings = () => {
 export const preloadAuth = () => {
   import("./pages/AuthPage");
 };
+export const preloadChatConversation = () => {
+  import("./pages/ChatConversationPage");
+};
 
 export const routes: RouteObject[] = [
   {
@@ -130,7 +135,7 @@ export const routes: RouteObject[] = [
       },
       {
         path: "chat",
-        element: <ChatLayout />,
+        element: <PersistentChatLayout />,
         errorElement: (
           <Suspense fallback={<PageLoader size="full" />}>
             <RouteErrorBoundary />
@@ -139,12 +144,7 @@ export const routes: RouteObject[] = [
         children: [
           {
             path: ":conversationId",
-            element: <ChatConversationPage />,
-            errorElement: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <RouteErrorBoundary />
-              </Suspense>
-            ),
+            element: <ConversationView />,
           },
         ],
       },
