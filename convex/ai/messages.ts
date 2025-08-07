@@ -29,7 +29,7 @@ import {
 } from "./server_utils";
 import { setStreamActive, clearStream } from "../lib/streaming_utils";
 import { log } from "../lib/logger";
-import { processAttachmentsForLLM } from "../lib/process_attachments";
+
 
 // Web search imports
 import {
@@ -492,6 +492,10 @@ export const streamResponse = internalAction({
       const contextResult = await buildContextMessages(ctx, {
         conversationId: args.conversationId,
         personaId: args.personaId,
+        modelCapabilities: {
+          supportsImages: args.model.supportsImages,
+          supportsFiles: args.model.supportsFiles,
+        },
       });
 
       const { contextMessages } = contextResult;
@@ -499,91 +503,7 @@ export const streamResponse = internalAction({
         `Built context with ${contextMessages.length} messages`
       );
 
-      // Process attachments for the latest user message with PDF text extraction and progress updates
-      // This happens here so we can show "Reading PDF..." status in the assistant message
-      let processedContextMessages = contextMessages;
-      
-      // Find the latest user message that has file attachments
-      const latestUserMessage = contextMessages.find(msg => {
-        if (msg.role !== "user" || typeof msg.content === "string") return false;
-        return Array.isArray(msg.content) && msg.content.some(part => 
-          part.type === "file" && part.attachment?.storageId
-        );
-      });
 
-
-
-      if (latestUserMessage && Array.isArray(latestUserMessage.content)) {
-        log.debug("Processing attachments for latest user message");
-        
-        // Extract attachments from content parts
-        const attachmentParts = latestUserMessage.content.filter(part => 
-          part.type === "file" && part.attachment?.storageId
-        );
-        
-
-        
-        if (attachmentParts.length > 0) {
-          // Convert content parts to attachment format for processing
-          const attachments = attachmentParts.map(part => ({
-            type: part.attachment?.type === "pdf" ? "pdf" as const : "text" as const,
-            url: "",
-            name: part.attachment?.name || part.file?.filename || "unknown",
-            size: 0,
-            storageId: part.attachment?.storageId,
-            content: part.file?.file_data,
-            // Preserve PDF-specific fields for text extraction
-            extractedText: part.attachment?.extractedText,
-            textFileId: part.attachment?.textFileId,
-          }));
-
-          // Debug logging to verify attachment conversion
-          attachments.forEach(att => {
-            if (att.type === "pdf") {
-              console.log(`[Message Processing] PDF attachment ${att.name}: extractedText=${!!att.extractedText} (${att.extractedText?.length || 0} chars), textFileId=${!!att.textFileId}`);
-            }
-          });
-
-
-
-          const processedAttachments = await processAttachmentsForLLM(
-            ctx,
-            attachments,
-            args.model.provider,
-            args.model.modelId,
-            args.model.supportsFiles ?? false,
-            args.messageId // Pass assistant messageId for progress updates
-          );
-
-
-
-          // Update the content parts with processed attachments
-          const updatedContent = latestUserMessage.content.map(part => {
-            if (part.type === "file" && part.attachment?.storageId) {
-              const processedAttachment = processedAttachments?.find((att: any) => 
-                att.storageId === part.attachment?.storageId
-              );
-              if (processedAttachment) {
-                return {
-                  ...part,
-                  file: {
-                    filename: processedAttachment.name,
-                    file_data: processedAttachment.content || "",
-                  },
-                };
-              }
-            }
-            return part;
-          });
-
-          // Update the context messages with processed content
-          processedContextMessages = contextMessages.map(msg => 
-            msg === latestUserMessage 
-              ? { ...msg, content: updatedContent }
-              : msg
-          );
-        }
-      }
 
       log.debug("Search enabled:", isSearchEnabled, "determined by calling action");
 
@@ -768,6 +688,9 @@ When using information from these search results, you MUST include citations in 
       }
 
       // Process URLs in the latest user message
+      const userMessages = contextMessages.filter(msg => msg.role === "user");
+      const latestUserMessage = userMessages[userMessages.length - 1];
+      
       if (latestUserMessage && typeof latestUserMessage.content === "string") {
         log.debug("Processing URLs in latest user message");
         
@@ -792,7 +715,7 @@ When using information from these search results, you MUST include citations in 
               // Add URL content as conversational context (not formal citations)
               const urlContextMessage = {
                 role: "system" as const,
-                content: `I have access to content from the links you shared:\n\n${urlResult.contents.map((content, idx) => 
+                content: `I have access to content from the links you shared:\n\n${urlResult.contents.map((content) => 
                   `**${content.title}** (${content.url})\n${content.summary}`
                 ).join('\n\n')}\n\nI can reference this content naturally in our conversation without formal citations. Feel free to ask me about anything from these sources or share more links!`,
               };

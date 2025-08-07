@@ -551,6 +551,10 @@ export const buildContextMessages = async (
     conversationId: Id<"conversations">;
     personaId?: Id<"personas">;
     includeUpToIndex?: number;
+    modelCapabilities?: {
+      supportsImages?: boolean;
+      supportsFiles?: boolean;
+    };
   }
 ): Promise<{
   contextMessages: Array<{
@@ -607,9 +611,23 @@ export const buildContextMessages = async (
       relevantMessages.map(async (msg: any) => {
         const message = msg;
         if (message.attachments && message.attachments.length > 0) {
+          // Filter attachments based on model capabilities
+          let filteredAttachments = message.attachments;
+          if (args.modelCapabilities) {
+            filteredAttachments = message.attachments.filter((attachment: any) => {
+              if (attachment.type === "image" && args.modelCapabilities?.supportsImages === false) {
+                return false;
+              }
+              if ((attachment.type === "pdf" || attachment.type === "text") && args.modelCapabilities?.supportsFiles === false) {
+                return false;
+              }
+              return true;
+            });
+          }
+          
           const resolvedAttachments = await resolveAttachmentUrls(
             ctx,
-            message.attachments
+            filteredAttachments
           );
           return {
             ...message,
