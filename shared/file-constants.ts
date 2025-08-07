@@ -4,7 +4,7 @@ export const FILE_LIMITS = {
   MAX_SIZE_BYTES: 20 * 1024 * 1024, // 20MB (default for images and text files)
   PDF_MAX_SIZE_BYTES: 50 * 1024 * 1024, // 50MB (larger limit for PDFs)
   MAX_DIMENSION: 1920,
-  THUMBNAIL_SIZE: 80,
+  THUMBNAIL_SIZE: 200, // Increased from 80 to 200 for better quality
   IMAGE_QUALITY: 0.85,
 } as const;
 

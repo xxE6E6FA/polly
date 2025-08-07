@@ -47,6 +47,9 @@ const SettingsSharedConversationsPage = lazy(
 const SettingsArchivedConversationsPage = lazy(
   () => import("./pages/settings/ArchivedConversationsPage")
 );
+const SettingsAttachmentsPage = lazy(
+  () => import("./pages/settings/AttachmentsPage")
+);
 const SettingsChatHistoryPage = lazy(
   () => import("./pages/settings/ChatHistoryPage")
 );
@@ -268,6 +271,19 @@ export const routes: RouteObject[] = [
             element: (
               <Suspense fallback={<PageLoader size="partial" />}>
                 <SettingsChatHistoryPage />
+              </Suspense>
+            ),
+            errorElement: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <RouteErrorBoundary />
+              </Suspense>
+            ),
+          },
+          {
+            path: "attachments",
+            element: (
+              <Suspense fallback={<PageLoader size="partial" />}>
+                <SettingsAttachmentsPage />
               </Suspense>
             ),
             errorElement: (

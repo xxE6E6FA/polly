@@ -84,7 +84,7 @@ export const AttachmentStrip = ({
           >
             <ImageThumbnail
               attachment={attachment}
-              className={attachment.type === "image" ? "h-8 w-8" : "h-4 w-4"}
+              className={attachment.type === "image" ? "h-12 w-12" : "h-4 w-4"}
               onClick={() => handleFileClick(attachment)}
             />
             {/* Only show name for non-image attachments with middle truncation */}

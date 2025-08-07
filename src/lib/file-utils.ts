@@ -93,11 +93,20 @@ export function generateThumbnail(
       canvas.width = width;
       canvas.height = height;
 
-      // Draw the image on canvas with new dimensions
-      ctx?.drawImage(img, 0, 0, width, height);
+      if (!ctx) {
+        reject(new Error("Failed to get canvas context"));
+        return;
+      }
 
-      // Convert to base64
-      const thumbnail = canvas.toDataURL("image/jpeg", 0.8);
+      // Use better image smoothing for thumbnails
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      // Draw the image on canvas with new dimensions
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert to base64 with better quality
+      const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
       resolve(thumbnail);
     };
 

@@ -953,6 +953,55 @@ export const clearImageGenerationAttachments = internalMutation({
   },
 });
 
+export const removeAttachment = mutation({
+  args: {
+    messageId: v.id("messages"),
+    attachmentName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { messageId, attachmentName } = args;
+
+    try {
+      const message = await ctx.db.get(messageId);
+      if (!message) {
+        throw new Error("Message not found");
+      }
+
+      // Check access to the conversation this message belongs to
+      const { hasAccess } = await checkConversationAccess(
+        ctx,
+        message.conversationId,
+        false
+      );
+      if (!hasAccess) {
+        throw new Error("Access denied");
+      }
+
+      // Filter out the specific attachment by name
+      const updatedAttachments = (message.attachments || []).filter(
+        attachment => attachment.name !== attachmentName
+      );
+
+      // Update the message with the filtered attachments
+      await ctx.db.patch(messageId, {
+        attachments: updatedAttachments,
+      });
+
+      console.log("[removeAttachment] Removed attachment:", {
+        messageId,
+        attachmentName,
+        originalCount: message.attachments?.length || 0,
+        remainingCount: updatedAttachments.length,
+      });
+    } catch (error) {
+      console.error("[removeAttachment] Error:", error);
+      throw new ConvexError(
+        `Failed to remove attachment from message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  },
+});
+
 export const updateImageGeneration = internalMutation({
   args: {
     messageId: v.id("messages"),

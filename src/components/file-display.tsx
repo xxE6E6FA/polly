@@ -152,10 +152,20 @@ export const ImageThumbnail = ({
       : "skip"
   );
 
-  // For thumbnails, prefer local thumbnail if available, then Convex URL, then fallback URL
-  let thumbnailUrl =
-    attachment.thumbnail ||
-    (attachment.storageId ? convexFileUrl : attachment.url);
+  // For small thumbnails (chat input), use full image when available for better quality
+  // Only use generated thumbnail as fallback if no full image is available
+  let thumbnailUrl: string | undefined;
+
+  if (attachment.storageId && convexFileUrl) {
+    // Prefer full image from storage for better quality
+    thumbnailUrl = convexFileUrl;
+  } else if (attachment.url && !attachment.url.startsWith("data:")) {
+    // Use direct URL if available
+    thumbnailUrl = attachment.url;
+  } else if (attachment.thumbnail) {
+    // Use generated thumbnail as fallback
+    thumbnailUrl = attachment.thumbnail;
+  }
 
   // For private mode files with Base64 content, create a data URL
   if (!thumbnailUrl && attachment.content && attachment.mimeType) {
