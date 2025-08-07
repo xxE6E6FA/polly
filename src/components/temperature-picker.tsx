@@ -8,7 +8,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { cn } from "@/lib/utils";
 
 interface TemperaturePickerProps {
@@ -54,75 +54,72 @@ const TemperaturePickerComponent = ({
   const displayValue = isActive ? getTemperatureLabel(currentValue) : "Default";
 
   return (
-    <>
-      {isOpen && <Backdrop className="z-40" />}
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={disabled}
-            className={cn(
-              "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-              "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-              isActive
-                ? "bg-accent/40 dark:bg-accent/20 text-foreground/90"
-                : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
-              isOpen && "bg-accent/40 dark:bg-accent/20 text-foreground/90"
-            )}
-          >
-            <ThermometerIcon
-              className={cn(
-                "h-3 w-3",
-                isActive ? "text-foreground/90" : "text-muted-foreground/70"
-              )}
-            />
-            <span className="hidden sm:inline">{displayValue}</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-64 p-4 border-border/50 shadow-lg"
-          align="start"
-          sideOffset={4}
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={disabled}
+          className={cn(
+            "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+            "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+            isActive
+              ? "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+              : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
+            isOpen && "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+          )}
         >
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Temperature</Label>
-              <div className="text-xs text-muted-foreground">
-                Controls response randomness. Higher = more varied and creative.
-              </div>
-            </div>
-
-            <EnhancedSlider
-              label="Temperature"
-              value={currentValue}
-              defaultValue={0.7}
-              min={0}
-              max={2}
-              step={0.1}
-              onValueChange={handleSliderChange}
-              disabled={disabled}
-              formatValue={value =>
-                `${value.toFixed(1)} (${getTemperatureLabel(value)})`
-              }
-              showSpinners={true}
-              className="space-y-2"
-            />
-
-            <div className="flex justify-center pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleReset}
-                className="text-xs h-7"
-              >
-                Reset to Default
-              </Button>
+          <ThermometerIcon
+            className={cn(
+              "h-3 w-3",
+              isActive ? "text-foreground/90" : "text-muted-foreground/70"
+            )}
+          />
+          <span className="hidden sm:inline">{displayValue}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-64 p-4 border-border/50 shadow-lg"
+        align="start"
+        sideOffset={4}
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Temperature</Label>
+            <div className="text-xs text-muted-foreground">
+              Controls response randomness. Higher = more varied and creative.
             </div>
           </div>
-        </PopoverContent>
-      </Popover>
-    </>
+
+          <EnhancedSlider
+            label="Temperature"
+            value={currentValue}
+            defaultValue={0.7}
+            min={0}
+            max={2}
+            step={0.1}
+            onValueChange={handleSliderChange}
+            disabled={disabled}
+            formatValue={value =>
+              `${value.toFixed(1)} (${getTemperatureLabel(value)})`
+            }
+            showSpinners={true}
+            className="space-y-2"
+          />
+
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleReset}
+              className="text-xs h-7"
+            >
+              Reset to Default
+            </Button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 

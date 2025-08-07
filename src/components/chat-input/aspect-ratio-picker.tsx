@@ -13,7 +13,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { cn } from "@/lib/utils";
 
 interface AspectRatioPickerProps {
@@ -53,7 +53,6 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
 
     return (
       <div className={className}>
-        {isOpen && <Backdrop className="z-40" />}
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button

@@ -10,7 +10,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 
 import { cn } from "@/lib/utils";
 import type { ImageGenerationParams } from "@/types";
@@ -58,7 +58,6 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
 
     return (
       <div className={className}>
-        {isOpen && <Backdrop className="z-40" />}
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
             <Button
