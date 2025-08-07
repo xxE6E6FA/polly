@@ -1269,18 +1269,22 @@ export const editAndResendMessage = action({
     // Delete all messages after the edited message
     await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
-    // Build context messages including the edited message
-    const { contextMessages } = await buildContextMessages(ctx, {
-      conversationId: message.conversationId,
-      personaId: conversation.personaId,
-    });
-
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
       args.model,
       args.provider
     );
+
+    // Build context messages including the edited message
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: message.conversationId,
+      personaId: conversation.personaId,
+      modelCapabilities: {
+        supportsImages: fullModel.supportsImages,
+        supportsFiles: fullModel.supportsFiles,
+      },
+    });
 
     // Execute streaming action
     const result = await executeStreamingAction(ctx, {
@@ -1396,19 +1400,23 @@ export const retryFromMessage = action({
     // Handle message deletion based on retry type
     await handleMessageDeletion(ctx, messages, messageIndex, retryType);
 
-    // Build context messages up to the retry point
-    const { contextMessages } = await buildContextMessages(ctx, {
-      conversationId: args.conversationId,
-      personaId: conversation.personaId,
-      includeUpToIndex: contextEndIndex,
-    });
-
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
       args.model,
       args.provider
     );
+
+    // Build context messages up to the retry point
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
+      includeUpToIndex: contextEndIndex,
+      modelCapabilities: {
+        supportsImages: fullModel.supportsImages,
+        supportsFiles: fullModel.supportsFiles,
+      },
+    });
 
     // Execute streaming action
     const result = await executeStreamingAction(ctx, {
@@ -1485,18 +1493,22 @@ export const editMessage = action({
     // Delete all messages after the edited message (use user retry logic)
     await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
-    // Build context messages including the edited message
-    const { contextMessages } = await buildContextMessages(ctx, {
-      conversationId: args.conversationId,
-      personaId: conversation.personaId,
-    });
-
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
       args.model,
       args.provider
     );
+
+    // Build context messages including the edited message
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: conversation.personaId,
+      modelCapabilities: {
+        supportsImages: fullModel.supportsImages,
+        supportsFiles: fullModel.supportsFiles,
+      },
+    });
 
     // Execute streaming action
     const result = await executeStreamingAction(ctx, {
