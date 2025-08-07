@@ -37,7 +37,7 @@ export const PrivateToggle = () => {
               )}
               weight={isPrivateMode ? "fill" : "regular"}
             />
-            <span>Private</span>
+            <span className={cn(isPrivateMode && "text-white")}>Private</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={8}>
