@@ -3,9 +3,10 @@ import {
   ArchiveIcon,
   ArrowsClockwiseIcon,
   EyeIcon,
+  LinkIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
-import type { PaginatedQueryReference } from "convex/react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
 import { Link } from "react-router";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -13,9 +14,12 @@ import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout"
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
@@ -36,6 +40,11 @@ export const ArchivedConversationsPage = () => {
 
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  // Query all archived conversations
+  const archivedConversations = useQuery(api.conversations.list, {
+    archivedOnly: true,
+  });
 
   const unarchiveMutation = useMutation(api.conversations.patch);
   const deleteConversationMutation = useMutation(api.conversations.remove);
@@ -110,55 +119,118 @@ export const ArchivedConversationsPage = () => {
       const isDeletingConversation = isDeleting === conversation._id;
 
       return (
-        <Card className="flex items-center justify-between p-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate font-medium">{conversation.title}</h3>
-            <p className="text-sm text-muted-foreground">
-              Archived {new Date(conversation.updatedAt).toLocaleDateString()}
-            </p>
+        <div className="flex items-center p-3 hover:bg-muted/30 transition-all">
+          {/* Title and metadata */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="truncate font-medium" title={conversation.title}>
+                {conversation.title}
+              </div>
+            </div>
+
+            {/* Metadata */}
+            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+              <span className="flex-shrink-0">
+                Archived {new Date(conversation.updatedAt).toLocaleDateString()}
+              </span>
+            </div>
           </div>
-          <div className="ml-4 flex gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link to={ROUTES.CHAT_CONVERSATION(conversation._id)}>
-                <EyeIcon className="mr-2 h-3.5 w-3.5" />
-                View
-              </Link>
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleRestore(conversation._id)}
-              disabled={isRestoring}
-            >
-              {isRestoring ? (
-                <>
-                  <Spinner size="sm" className="mr-2 h-3.5 w-3.5" />
-                  Restoring...
-                </>
-              ) : (
-                <>
-                  <ArrowsClockwiseIcon className="mr-2 h-3.5 w-3.5" />
-                  Restore
-                </>
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-              onClick={() =>
-                handlePermanentDelete(conversation._id, conversation.title)
-              }
-              disabled={isDeletingConversation}
-            >
-              {isDeletingConversation ? "Deleting..." : "Delete"}
-            </Button>
+
+          {/* Actions */}
+          <div className="w-32 flex-shrink-0 ml-4 flex items-center justify-end gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild size="sm" variant="ghost" className="h-8 px-2">
+                  <Link to={ROUTES.CHAT_CONVERSATION(conversation._id)}>
+                    <EyeIcon className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View conversation</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2"
+                  onClick={() => handleRestore(conversation._id)}
+                  disabled={isRestoring}
+                >
+                  {isRestoring ? (
+                    <Spinner size="sm" className="h-4 w-4" />
+                  ) : (
+                    <ArrowsClockwiseIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isRestoring ? "Restoring..." : "Restore conversation"}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() =>
+                    handlePermanentDelete(conversation._id, conversation.title)
+                  }
+                  disabled={isDeletingConversation}
+                >
+                  {isDeletingConversation ? (
+                    <Spinner size="sm" className="h-4 w-4" />
+                  ) : (
+                    <TrashIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
+                  {isDeletingConversation
+                    ? "Deleting..."
+                    : "Delete permanently"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        </Card>
+        </div>
       );
     },
     [handleRestore, handlePermanentDelete, isUnarchiving, isDeleting]
   );
+
+  if (!archivedConversations) {
+    return (
+      <SettingsPageLayout>
+        <SettingsHeader
+          title="Archived Conversations"
+          description="Manage your archived conversations"
+        />
+        <div className="border rounded-lg overflow-hidden divide-y">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div
+              key={`archived-skeleton-${Date.now()}-${i}`}
+              className="flex items-center p-3"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="h-4 bg-muted/30 rounded animate-pulse mb-2" />
+                <div className="h-3 bg-muted/20 rounded animate-pulse" />
+              </div>
+              <div className="w-32 flex-shrink-0 ml-4 flex gap-1">
+                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
+                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
+                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </SettingsPageLayout>
+    );
+  }
 
   return (
     <SettingsPageLayout>
@@ -167,24 +239,19 @@ export const ArchivedConversationsPage = () => {
         description="Manage your archived conversations"
       />
 
-      <VirtualizedPaginatedList
-        query={api.conversations.list as PaginatedQueryReference}
-        queryArgs={{
-          archivedOnly: true,
-        }}
-        renderItem={renderArchivedConversation}
-        getItemKey={item => item._id}
-        zeroState={
-          <SettingsZeroState
-            icon={<ArchiveIcon className="h-12 w-12" />}
-            title="No archived conversations"
-            description="Conversations you archive will appear here"
-          />
-        }
-        className="h-96"
-        itemHeight={120}
-        initialNumItems={20}
-      />
+      {Array.isArray(archivedConversations) &&
+      archivedConversations.length === 0 ? (
+        <SettingsZeroState
+          icon={<ArchiveIcon className="h-12 w-12" />}
+          title="No archived conversations"
+          description="Conversations you archive will appear here"
+        />
+      ) : (
+        <div className="border rounded-lg overflow-hidden divide-y">
+          {Array.isArray(archivedConversations) &&
+            archivedConversations.map(renderArchivedConversation)}
+        </div>
+      )}
 
       <ConfirmationDialog
         open={confirmationDialog.state.isOpen}
