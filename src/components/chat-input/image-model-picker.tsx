@@ -3,7 +3,6 @@ import { GearIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { memo, useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import {
   Command,
