@@ -3,7 +3,6 @@ import { memo, useCallback } from "react";
 import { ChatHeader } from "@/components/chat-header";
 import { ChatOutline } from "@/components/chat-outline";
 import { ChatZeroState } from "@/components/chat-zero-state";
-import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";

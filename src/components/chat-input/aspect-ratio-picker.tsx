@@ -7,7 +7,6 @@ import {
   Square,
 } from "@phosphor-icons/react";
 import { memo, useCallback, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

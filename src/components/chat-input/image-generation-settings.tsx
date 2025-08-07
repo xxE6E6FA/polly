@@ -1,7 +1,6 @@
 import { ArrowCounterClockwise, Gear } from "@phosphor-icons/react";
 import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
 import { memo, useCallback, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Input } from "@/components/ui/input";

@@ -1,4 +1,3 @@
-import { Outlet } from "react-router";
 import ChatLayout from "./ChatLayout";
 
 /**
@@ -6,9 +5,5 @@ import ChatLayout from "./ChatLayout";
  * while dynamically loading conversation content based on URL params
  */
 export default function PersistentChatLayout() {
-  return (
-    <ChatLayout>
-      <Outlet />
-    </ChatLayout>
-  );
+  return <ChatLayout />;
 }

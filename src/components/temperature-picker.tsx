@@ -1,6 +1,5 @@
 import { ThermometerIcon } from "@phosphor-icons/react";
 import { memo, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Label } from "@/components/ui/label";

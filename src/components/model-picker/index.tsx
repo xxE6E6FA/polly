@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import {
   Popover,
   PopoverContent,

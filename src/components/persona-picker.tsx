@@ -3,7 +3,6 @@ import type { Id } from "@convex/_generated/dataModel";
 import { CheckIcon, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useMemo, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

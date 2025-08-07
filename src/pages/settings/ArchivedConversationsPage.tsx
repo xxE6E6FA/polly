@@ -3,7 +3,6 @@ import {
   ArchiveIcon,
   ArrowsClockwiseIcon,
   EyeIcon,
-  LinkIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
