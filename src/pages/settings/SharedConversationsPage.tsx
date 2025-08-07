@@ -3,10 +3,11 @@ import type { Id } from "@convex/_generated/dataModel";
 import {
   ArrowSquareOutIcon,
   CopyIcon,
+  LinkIcon,
   ShareNetworkIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
-import type { PaginatedQueryReference } from "convex/react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -15,14 +16,12 @@ import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout"
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -43,6 +42,12 @@ export default function SharedConversationsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const managedToast = useToast();
   const confirmDialog = useConfirmationDialog();
+
+  // Query all shared conversations
+  const sharedConversations = useQuery(
+    api.sharedConversations.listUserSharedConversations,
+    {}
+  );
 
   // Mutations
   const unshareConversation = useMutation(
@@ -91,108 +96,168 @@ export default function SharedConversationsPage() {
     const isCopied = copiedId === conversation.shareId;
 
     return (
-      <Card className="overflow-hidden">
-        <CardContent className="p-4 sm:p-6">
-          <div className="space-y-4">
-            {/* Title and metadata */}
-            <div>
-              <h3 className="font-medium text-foreground">
-                {conversation.title || "Untitled Conversation"}
-              </h3>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span>
-                  Shared{" "}
-                  {formatDistanceToNow(new Date(conversation.sharedAt), {
+      <div className="flex items-center p-3 hover:bg-muted/30 transition-all">
+        {/* Title and metadata */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <div
+              className="truncate font-medium"
+              title={conversation.title || "Untitled Conversation"}
+            >
+              {conversation.title || "Untitled Conversation"}
+            </div>
+          </div>
+
+          {/* Metadata */}
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+            <span className="flex-shrink-0">
+              Shared{" "}
+              {formatDistanceToNow(new Date(conversation.sharedAt), {
+                addSuffix: true,
+              })}
+            </span>
+            {conversation.lastUpdated > conversation.sharedAt && (
+              <>
+                <span className="flex-shrink-0">•</span>
+                <span className="flex-shrink-0">
+                  Updated{" "}
+                  {formatDistanceToNow(new Date(conversation.lastUpdated), {
                     addSuffix: true,
                   })}
                 </span>
-                {conversation.lastUpdated > conversation.sharedAt && (
-                  <span>
-                    • Updated{" "}
-                    {formatDistanceToNow(new Date(conversation.lastUpdated), {
-                      addSuffix: true,
-                    })}
-                  </span>
-                )}
-                <span>• {conversation.messageCount} messages</span>
-              </div>
-            </div>
+              </>
+            )}
+            <span className="flex-shrink-0">•</span>
+            <span className="flex-shrink-0">
+              {conversation.messageCount} messages
+            </span>
+          </div>
+        </div>
 
-            {/* URL field with copy and view buttons */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative flex-1 sm:flex-initial sm:w-96">
-                <input
-                  readOnly
-                  className="w-full rounded-lg border bg-muted/30 px-3 py-2 pr-20 font-mono text-xs sm:text-sm"
-                  value={shareUrl}
-                />
-                <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        className={cn(
-                          "h-7 w-7 p-0",
-                          isCopied && "text-primary"
-                        )}
-                        variant="ghost"
-                        onClick={() => handleCopyUrl(conversation.shareId)}
-                      >
-                        <CopyIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{isCopied ? "Copied!" : "Copy link"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button asChild className="h-7 w-7 p-0" variant="ghost">
-                        <a
-                          href={shareUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ArrowSquareOutIcon className="h-3.5 w-3.5" />
-                        </a>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Open shared view</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 sm:ml-4">
-                <Button asChild size="sm" variant="outline">
-                  <Link
-                    to={ROUTES.CHAT_CONVERSATION(
-                      conversation.originalConversationId
-                    )}
+        {/* URL field with copy and view buttons */}
+        <div className="w-96 flex-shrink-0 ml-4">
+          <div className="relative">
+            <input
+              readOnly
+              className="w-full rounded-lg border bg-muted/30 px-3 py-2 pr-20 font-mono text-xs"
+              value={shareUrl}
+            />
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className={cn("h-7 w-7 p-0", isCopied && "text-primary")}
+                    variant="ghost"
+                    onClick={() => handleCopyUrl(conversation.shareId)}
                   >
-                    Go to conversation
-                  </Link>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() =>
-                    handleUnshare(
-                      conversation.originalConversationId,
-                      conversation.title
-                    )
-                  }
-                >
-                  Unshare
-                </Button>
-              </div>
+                    <CopyIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isCopied ? "Copied!" : "Copy link"}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild className="h-7 w-7 p-0" variant="ghost">
+                    <a
+                      href={shareUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <ArrowSquareOutIcon className="h-3.5 w-3.5" />
+                    </a>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Open shared view</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Actions */}
+        <div className="w-24 flex-shrink-0 ml-4 flex items-center justify-end gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild size="sm" variant="ghost" className="h-8 px-2">
+                <Link
+                  to={ROUTES.CHAT_CONVERSATION(
+                    conversation.originalConversationId
+                  )}
+                >
+                  <LinkIcon className="h-4 w-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Go to conversation</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() =>
+                  handleUnshare(
+                    conversation.originalConversationId,
+                    conversation.title
+                  )
+                }
+              >
+                <TrashIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Stop sharing</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
     );
   };
+
+  if (!sharedConversations) {
+    return (
+      <SettingsPageLayout>
+        <SettingsHeader
+          title="Shared Conversations"
+          description="Manage your publicly shared conversations"
+        />
+        <div className="space-y-6">
+          <Alert>
+            <AlertDescription>
+              Shared conversations are automatically deleted after 90 days of
+              inactivity to maintain system performance.
+            </AlertDescription>
+          </Alert>
+          <div className="border rounded-lg overflow-hidden divide-y">
+            {Array.from({ length: 3 }, (_, i) => (
+              <div
+                key={`shared-skeleton-${Date.now()}-${i}`}
+                className="flex items-center p-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="h-4 bg-muted/30 rounded animate-pulse mb-2" />
+                  <div className="h-3 bg-muted/20 rounded animate-pulse" />
+                </div>
+                <div className="w-96 flex-shrink-0 ml-4">
+                  <div className="h-8 bg-muted/30 rounded animate-pulse" />
+                </div>
+                <div className="w-24 flex-shrink-0 ml-4 flex gap-1">
+                  <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
+                  <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </SettingsPageLayout>
+    );
+  }
 
   return (
     <SettingsPageLayout>
@@ -208,30 +273,24 @@ export default function SharedConversationsPage() {
         </AlertDescription>
       </Alert>
 
-      <VirtualizedPaginatedList<SharedConversation>
-        query={
-          api.sharedConversations
-            .listUserSharedConversationsPaginated as PaginatedQueryReference
-        }
-        queryArgs={{}}
-        renderItem={renderSharedConversation}
-        getItemKey={item => item._id}
-        zeroState={
-          <SettingsZeroState
-            icon={<ShareNetworkIcon className="h-12 w-12" />}
-            title="No shared conversations"
-            description="Share a conversation to make it publicly accessible via a link"
-            cta={
-              <Button asChild variant="outline">
-                <Link to={ROUTES.HOME}>Go to conversations</Link>
-              </Button>
-            }
-          />
-        }
-        className="h-96"
-        itemHeight={200}
-        initialNumItems={15}
-      />
+      {Array.isArray(sharedConversations) &&
+      sharedConversations.length === 0 ? (
+        <SettingsZeroState
+          icon={<ShareNetworkIcon className="h-12 w-12" />}
+          title="No shared conversations"
+          description="Share a conversation to make it publicly accessible via a link"
+          cta={
+            <Button asChild variant="outline">
+              <Link to={ROUTES.HOME}>Go to conversations</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <div className="border rounded-lg overflow-hidden divide-y">
+          {Array.isArray(sharedConversations) &&
+            sharedConversations.map(renderSharedConversation)}
+        </div>
+      )}
 
       <ConfirmationDialog
         open={confirmDialog.state.isOpen}
