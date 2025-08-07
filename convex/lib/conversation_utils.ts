@@ -641,13 +641,24 @@ export const buildContextMessages = async (
   // Collect context messages separately to append to system prompt
   const contextMessageContents: string[] = [];
   
+  let carriedAssistantAttachments: Array<{
+    type: "image" | "pdf" | "text";
+    url: string;
+    name: string;
+    size: number;
+    content?: string;
+    thumbnail?: string;
+    storageId?: Id<"_storage">;
+    extractedText?: string;
+    textFileId?: Id<"_storage">;
+  }> = [];
+
   const contextMessagesPromises = messagesWithResolvedUrls
     .filter((msg: any) => {
       const message = msg;
-      return (
-        message.content &&
-        message.content.trim().length > 0
-      );
+      const hasText = typeof message.content === "string" && message.content.trim().length > 0;
+      const hasAttachments = Array.isArray(message.attachments) && message.attachments.length > 0;
+      return hasText || hasAttachments;
     })
     .map(async (msg: any) => {
       const message = msg;
@@ -670,10 +681,19 @@ export const buildContextMessages = async (
         return undefined; // Don't create separate system messages for context
       }
       if (message.role === "user") {
+        // Merge any carried attachments from the previous assistant message
+        const mergedAttachments = [
+          ...(Array.isArray(message.attachments) ? message.attachments : []),
+          ...carriedAssistantAttachments,
+        ];
+
+        // Clear carried attachments after merging into this user message
+        carriedAssistantAttachments = [];
+
         const content = await buildUserMessageContent(
           ctx,
           message.content,
-          message.attachments
+          mergedAttachments
         );
         return {
           role: "user" as const,
@@ -681,6 +701,19 @@ export const buildContextMessages = async (
         };
       }
       if (message.role === "assistant") {
+        // Carry assistant attachments forward to the next user message so that
+        // the AI SDK receives image/file parts on user role (which is required
+        // by the schema for multimodal inputs).
+        if (Array.isArray(message.attachments) && message.attachments.length > 0) {
+          carriedAssistantAttachments = message.attachments;
+        }
+
+        // If there is no assistant text content, omit this message entirely.
+        const hasText = typeof message.content === "string" && message.content.trim().length > 0;
+        if (!hasText) {
+          return undefined;
+        }
+
         return {
           role: "assistant" as const,
           content: message.content,
