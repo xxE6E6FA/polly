@@ -15,6 +15,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
+          "Manrope",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
@@ -24,8 +25,8 @@ const config: Config = {
           "sans-serif",
         ],
         mono: [
-          "var(--font-geist-mono)",
-          "ui-monospace",
+          "IBM Plex Mono",
+          "ui-m onospace",
           "SFMono-Regular",
           "SF Mono",
           "Monaco",
@@ -391,7 +392,7 @@ const config: Config = {
               fontWeight: "600",
             },
             code: {
-              fontFamily: "var(--font-geist-mono)",
+              fontFamily: "var(--font-mono)",
               fontWeight: "500",
               fontSize: "0.875em",
               padding: "0.25em 0.375em",
@@ -406,7 +407,7 @@ const config: Config = {
               content: '""',
             },
             pre: {
-              fontFamily: "var(--font-geist-mono)",
+              fontFamily: "var(--font-mono)",
               backgroundColor: "hsl(var(--muted))",
               borderRadius: "0.75rem",
               padding: "1rem",
