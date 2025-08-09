@@ -1,13 +1,14 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
+
 @layer base {
     :root {
         /* Font families */
-        --font-geist-mono:
-            "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco,
+        --font-mono:
+            "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco,
             Consolas, "Liberation Mono", "Courier New", monospace;
 
         --background: 0 0% 100%;
@@ -202,7 +203,8 @@
 }
 
 body {
-    font-family: "Inter", sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Ensure all code elements use mono font */
