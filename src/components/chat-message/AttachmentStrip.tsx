@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { FileDisplay, ImageThumbnail } from "@/components/file-display";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
@@ -27,7 +27,7 @@ type AttachmentStripProps = {
   className?: string;
 };
 
-export const AttachmentStrip = ({
+const AttachmentStripComponent = ({
   attachments,
   variant = "user",
   onPreviewFile,
@@ -102,3 +102,20 @@ export const AttachmentStrip = ({
     </div>
   );
 };
+
+export const AttachmentStrip = memo(AttachmentStripComponent, (prev, next) => {
+  if (prev.variant !== next.variant || prev.className !== next.className) {
+    return false;
+  }
+  const a = prev.attachments || [];
+  const b = next.attachments || [];
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]?.url !== b[i]?.url || a[i]?.name !== b[i]?.name) {
+      return false;
+    }
+  }
+  return prev.onPreviewFile === next.onPreviewFile;
+});
