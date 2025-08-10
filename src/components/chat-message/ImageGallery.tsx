@@ -43,7 +43,8 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
                   aspectRatio === "3:4" && "aspect-[3/4]",
                   !aspectRatio && "aspect-square"
                 )}
-                loading="eager"
+                loading="lazy"
+                decoding="async"
               />
             </button>
           </div>

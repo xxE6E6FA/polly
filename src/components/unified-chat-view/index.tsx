@@ -240,11 +240,16 @@ export const UnifiedChatView = memo(
                     "flex-1 overflow-y-hidden overflow-x-visible",
                     isEmpty && "overflow-y-auto"
                   )}
-                  style={{
-                    maskImage: maskGradient,
-                    // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
-                    WebkitMaskImage: maskGradient,
-                  }}
+                  style={
+                    // Avoid costly mask on small screens (mobile)
+                    window.innerWidth < 768
+                      ? undefined
+                      : {
+                          maskImage: maskGradient,
+                          // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
+                          WebkitMaskImage: maskGradient,
+                        }
+                  }
                 >
                   {renderMessageArea()}
                 </div>
@@ -313,7 +318,7 @@ export const UnifiedChatView = memo(
         </div>
 
         {/* Chat outline */}
-        {messages.length > 1 && (
+        {messages.length > 1 && !isStreaming && (
           <ChatOutline messages={messages} onNavigate={handleOutlineNavigate} />
         )}
 

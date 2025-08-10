@@ -16,6 +16,7 @@ export const Reasoning = ({
 }: ReasoningProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const lastReasoningLenRef = useRef<number>(0);
 
   // Auto-expand when streaming starts, auto-collapse when streaming ends
   useEffect(() => {
@@ -27,27 +28,18 @@ export const Reasoning = ({
     }
   }, [isLoading]);
 
-  // Simplified scroll effect
+  // Scroll to bottom when content grows while expanded
+  const reasoningLength = reasoning?.length ?? 0;
   useEffect(() => {
     const element = contentRef.current;
     if (!(element && isExpanded)) {
       return;
     }
-
-    const scrollToBottom = () => {
+    if (lastReasoningLenRef.current !== reasoningLength) {
       element.scrollTop = element.scrollHeight;
-    };
-
-    // Scroll immediately when content changes or expansion happens
-    scrollToBottom();
-
-    if (isLoading) {
-      const interval = setInterval(scrollToBottom, 100);
-      return () => {
-        clearInterval(interval);
-      };
+      lastReasoningLenRef.current = reasoningLength;
     }
-  }, [isExpanded, isLoading]);
+  }, [reasoningLength, isExpanded]);
 
   // Only render if we have actual reasoning content or if we're loading
   if (!reasoning?.trim()) {

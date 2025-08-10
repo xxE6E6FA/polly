@@ -160,6 +160,13 @@ function ConversationContent({
     conversationId: conversationId as Id<"conversations">,
   });
 
+  // Defer redirect if conversation was deleted
+  useEffect(() => {
+    if (conversationAccessInfo?.isDeleted) {
+      navigate(ROUTES.HOME);
+    }
+  }, [conversationAccessInfo?.isDeleted, navigate]);
+
   const {
     messages,
     isLoading,
@@ -392,30 +399,9 @@ function ConversationContent({
   }
 
   if (conversationAccessInfo.isDeleted) {
-    navigate(ROUTES.HOME);
-    return (
-      <UnifiedChatView
-        conversationId={conversationId}
-        messages={[]}
-        isLoading={false}
-        isLoadingMessages={false}
-        isStreaming={false}
-        currentPersonaId={null}
-        currentTemperature={currentTemperature}
-        canSavePrivateChat={false}
-        hasApiKeys={false}
-        isArchived={false}
-        onSendMessage={async () => {
-          // No-op during redirect
-        }}
-        onDeleteMessage={async () => {
-          // No-op during redirect
-        }}
-        onStopGeneration={() => {
-          // No-op during redirect
-        }}
-      />
-    );
+    // Defer navigation to an effect to avoid side effects during render
+    // The effect below will handle redirection
+    return null;
   }
 
   if (!conversationAccessInfo.hasAccess) {

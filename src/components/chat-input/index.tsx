@@ -7,6 +7,7 @@ import { useAction, useConvex, useQuery } from "convex/react";
 import {
   forwardRef,
   useCallback,
+  useDeferredValue,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -760,6 +761,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [canSend, isLoading, isStreaming, processFiles]
     );
 
+    const deferredInputHasText = useDeferredValue(
+      input.trim().length > 0 || attachments.length > 0
+    );
+
     const submit = useCallback(async () => {
       if (input.trim().length === 0 && attachments.length === 0) {
         return;
@@ -1184,9 +1189,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   isSummarizing={false}
                   hasExistingMessages={Boolean(hasExistingMessages)}
                   conversationId={conversationId}
-                  hasInputText={
-                    input.trim().length > 0 || attachments.length > 0
-                  }
+                  hasInputText={deferredInputHasText}
                   onSend={submit}
                   onStop={onStop}
                   onSendAsNewConversation={
