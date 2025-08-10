@@ -143,7 +143,8 @@ const ImageContainer = ({
             alt={altText}
             className="w-full h-full object-cover rounded-lg shadow-lg"
             onLoad={() => setIsImageLoaded(true)}
-            loading="eager"
+            loading="lazy"
+            decoding="async"
           />
         </button>
       )}

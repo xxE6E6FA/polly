@@ -232,7 +232,9 @@ export const ChatZeroState = () => {
                 <img
                   alt="Polly AI Mascot"
                   className="w-28 h-28 relative z-10 object-contain drop-shadow-lg"
-                  loading="eager"
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
                   src="/polly-mascot.png"
                 />
                 <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
@@ -251,7 +253,9 @@ export const ChatZeroState = () => {
                 <img
                   alt="Polly AI Mascot"
                   className="w-16 h-16 sm:w-20 sm:h-20 relative z-10 object-contain drop-shadow-lg"
-                  loading="eager"
+                  loading="lazy"
+                  decoding="async"
+                  fetchpriority="low"
                   src="/polly-mascot.png"
                 />
                 <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />

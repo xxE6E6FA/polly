@@ -232,6 +232,18 @@ export const VirtualizedChatMessages = memo(
         return [...contextMessages, ...otherMessages];
       }, [messages]);
 
+      // Adaptive overscan for mobile vs desktop to reduce work on mobile
+      const overscan = useMemo(() => {
+        if (typeof window === "undefined") {
+          return 10;
+        }
+        const isMobile = window.innerWidth < 768;
+        if (isStreaming) {
+          return isMobile ? 2 : 6;
+        }
+        return isMobile ? 4 : 10;
+      }, [isStreaming]);
+
       // Helper function to get the scroll container
       const getScrollContainer = useCallback(() => {
         // Use the unique data attribute to reliably find the scroll container
@@ -480,7 +492,7 @@ export const VirtualizedChatMessages = memo(
           className="overscroll-contain"
           data-vlist-id={vlistId}
           reverse // This makes it a chat-like interface
-          overscan={10}
+          overscan={overscan}
         >
           {processedMessages.map((message, index) => {
             const isMessageStreaming =
