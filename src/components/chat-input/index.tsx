@@ -85,6 +85,8 @@ interface ChatInputProps {
   currentTemperature?: number;
   onTemperatureChange?: (temperature: number | undefined) => void;
   messages?: ChatMessage[]; // Add messages prop for history navigation
+  // Optimized: provide just user message contents to avoid full re-render coupling
+  userMessageContents?: string[];
   autoFocus?: boolean;
 }
 
@@ -114,6 +116,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       currentTemperature,
       onTemperatureChange,
       messages,
+      userMessageContents,
       autoFocus = false,
     },
     ref
@@ -239,8 +242,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }, [enabledImageModels, imageParams.model]);
 
     // Access conversation messages for history navigation
+    const shouldFetchMessages =
+      messages === undefined && userMessageContents === undefined;
     const { messages: conversationMessages } = useChatMessages({
-      conversationId,
+      conversationId: shouldFetchMessages ? conversationId : undefined,
       onError: () => {
         // Handle errors gracefully - history navigation is optional
       },
@@ -383,8 +388,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Get user messages for history navigation
     const userMessages = useMemo(() => {
-      // Use messages prop if provided (works for both server and private mode)
-      // Otherwise fallback to conversationMessages for backward compatibility
+      if (userMessageContents) {
+        return userMessageContents;
+      }
       const sourceMessages = messages || conversationMessages;
       if (!sourceMessages) {
         return [];
@@ -392,8 +398,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       return sourceMessages
         .filter(msg => msg.role === "user")
         .map(msg => msg.content)
-        .reverse(); // Most recent first
-    }, [messages, conversationMessages]);
+        .reverse();
+    }, [userMessageContents, messages, conversationMessages]);
 
     // Handle history navigation (Up = older messages)
     const handleHistoryNavigation = useCallback(() => {
@@ -1114,6 +1120,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                         onModelChange={model =>
                           setImageParams(prev => ({ ...prev, model }))
                         }
+                        enabledImageModels={enabledImageModels || []}
                       />
                       <AspectRatioPicker
                         aspectRatio={imageParams.aspectRatio}
@@ -1180,6 +1187,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     disabled={isLoading || isStreaming || isUploading}
                     onAddAttachments={addAttachments}
                     isSubmitting={isProcessing}
+                    selectedModel={selectedModel}
                   />
                 )}
                 <SendButtonGroup

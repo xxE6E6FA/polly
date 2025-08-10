@@ -1,8 +1,6 @@
-import { api } from "@convex/_generated/api";
 import { PaperclipIcon } from "@phosphor-icons/react";
 import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
-import { useQuery } from "convex/react";
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
@@ -20,16 +18,16 @@ interface FileUploadButtonProps {
   disabled?: boolean;
   onAddAttachments: (attachments: Attachment[]) => void;
   isSubmitting: boolean;
+  selectedModel?: unknown;
 }
 
 export function FileUploadButton({
   disabled = false,
   onAddAttachments,
   isSubmitting,
+  selectedModel,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-  const selectedModel = isUserModel(selectedModelRaw) ? selectedModelRaw : null;
   const notificationDialog = useNotificationDialog();
 
   const handleFileSelect = useCallback(async () => {

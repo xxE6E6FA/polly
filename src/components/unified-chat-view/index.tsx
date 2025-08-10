@@ -1,5 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { ChatHeader } from "@/components/chat-header";
 import { ChatOutline } from "@/components/chat-outline";
 import { ChatZeroState } from "@/components/chat-zero-state";
@@ -119,6 +119,18 @@ export const UnifiedChatView = memo(
       onDeleteMessage,
       onSendMessage,
     });
+    const userMessageContents = useMemo(
+      () =>
+        messages
+          .filter(m => m.role === "user")
+          .map(m => m.content)
+          .reverse(),
+      [messages]
+    );
+
+    const handleStop = useCallback(() => {
+      onStopGeneration();
+    }, [onStopGeneration]);
 
     // Create wrapper handlers for retry functions
     const handleRetryUserMessage = useCallback(
@@ -283,13 +295,7 @@ export const UnifiedChatView = memo(
                             // No-op when API keys not loaded or archived
                           }
                     }
-                    onStop={() => {
-                      // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-                      console.log(
-                        "[UnifiedChatView] onStop called, forwarding to onStopGeneration"
-                      );
-                      onStopGeneration();
-                    }}
+                    onStop={handleStop}
                     onSendAsNewConversation={
                       hasApiKeys && !isArchived
                         ? onSendAsNewConversation
@@ -298,7 +304,7 @@ export const UnifiedChatView = memo(
                     currentReasoningConfig={getCurrentReasoningConfig()}
                     currentTemperature={currentTemperature}
                     onTemperatureChange={onTemperatureChange}
-                    messages={messages}
+                    userMessageContents={userMessageContents}
                   />
                 </div>
 

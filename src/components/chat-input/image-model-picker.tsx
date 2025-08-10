@@ -29,6 +29,7 @@ interface ImageModelPickerProps {
   onModelChange: (model: string) => void;
   disabled?: boolean;
   className?: string;
+  enabledImageModels?: ImageModel[];
 }
 
 interface ImageModel {
@@ -38,21 +39,29 @@ interface ImageModel {
 }
 
 export const ImageModelPicker = memo<ImageModelPickerProps>(
-  ({ model, onModelChange, disabled = false, className = "" }) => {
+  ({
+    model,
+    onModelChange,
+    disabled = false,
+    className = "",
+    enabledImageModels: enabledImageModelsProp,
+  }) => {
     const [open, setOpen] = useState(false);
     const [customModel, setCustomModel] = useState("");
 
     const { user } = useUserDataContext();
+    const shouldQuery = !enabledImageModelsProp && user?._id;
     const enabledImageModelsRaw = useQuery(
       api.imageModels.getUserImageModels,
-      user?._id ? {} : "skip"
+      shouldQuery ? {} : "skip"
     );
 
-    const enabledImageModels: ImageModel[] = Array.isArray(
-      enabledImageModelsRaw
-    )
-      ? enabledImageModelsRaw
-      : [];
+    const enabledImageModels: ImageModel[] =
+      enabledImageModelsProp && Array.isArray(enabledImageModelsProp)
+        ? enabledImageModelsProp
+        : Array.isArray(enabledImageModelsRaw)
+          ? enabledImageModelsRaw
+          : [];
 
     const handleModelSelect = useCallback(
       (selectedModel: string) => {

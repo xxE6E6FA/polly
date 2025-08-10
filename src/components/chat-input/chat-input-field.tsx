@@ -148,7 +148,7 @@ export const ChatInputField = memo(
           cancelAnimationFrame(resizeRafRef.current);
         }
       };
-    }); // Run on every render but with change detection for performance
+    }, [value, textareaRef, onHeightChange]);
 
     return (
       <div className="relative w-full">
