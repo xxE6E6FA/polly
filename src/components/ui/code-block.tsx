@@ -131,15 +131,15 @@ const CodeBlockComponent = ({
     <div className="group" ref={componentRef}>
       <div className={cn("relative mt-2 flex w-full flex-col pt-9", className)}>
         {/* Header with language and actions */}
-        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-gray-50 px-4 py-2 text-sm dark:bg-gray-800">
-          <span className="font-mono font-medium text-gray-700 dark:text-gray-300">
+        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-surface-variant px-4 py-2 text-sm">
+          <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
           <div className="flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="h-7 w-7 p-0 text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="h-7 w-7 p-0 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
                   size="sm"
                   variant="ghost"
                   onClick={handleDownload}
@@ -157,9 +157,8 @@ const CodeBlockComponent = ({
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-7 w-7 p-0 text-gray-600 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200",
-                    wordWrap &&
-                      "bg-gray-200 text-gray-800 dark:bg-gray-600 dark:text-gray-200"
+                    "h-7 w-7 p-0 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+                    wordWrap && "bg-accent/50 text-foreground"
                   )}
                   onClick={() => setWordWrap(!wordWrap)}
                 >
@@ -173,14 +172,14 @@ const CodeBlockComponent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="h-7 w-7 p-0 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="h-7 w-7 p-0 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
                   size="sm"
                   variant="ghost"
                   onClick={handleCopy}
                 >
                   <div className="relative h-4 w-4">
                     {copied ? (
-                      <CheckIcon className="absolute inset-0 h-3 w-3 text-[hsl(220_95%_55%)] transition-all duration-200" />
+                      <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
                     ) : (
                       <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
                     )}
@@ -200,7 +199,7 @@ const CodeBlockComponent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="h-7 w-7 p-0 border-none relative top-[0.5px] -left-[1px] rounded border bg-gray-50 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="h-7 w-7 p-0 border-none relative top-[0.5px] -left-[1px] rounded border bg-surface text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
                   size="sm"
                   variant="ghost"
                   onClick={handleCopy}
@@ -208,7 +207,7 @@ const CodeBlockComponent = ({
                 >
                   <div className="relative h-4 w-4">
                     {copied ? (
-                      <CheckIcon className="absolute inset-0 h-3 w-3 text-[hsl(220_95%_55%)] transition-all duration-200" />
+                      <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
                     ) : (
                       <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
                     )}
@@ -228,7 +227,7 @@ const CodeBlockComponent = ({
         {/* Code content */}
         <div
           ref={codeContainerRef}
-          className="relative rounded-b-lg border bg-gray-50/50 dark:bg-gray-900"
+          className="relative rounded-b-lg border bg-muted"
         >
           <Highlight
             code={processedCode.trim()}
@@ -251,8 +250,6 @@ const CodeBlockComponent = ({
                 )}
                 style={{
                   ...style,
-                  fontFamily:
-                    'var(--font-geist-mono), "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
                   backgroundColor: "transparent",
                 }}
               >

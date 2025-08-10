@@ -212,9 +212,7 @@ code,
 kbd,
 samp,
 pre {
-    font-family:
-        var(--font-geist-mono), ui-monospace, SFMono-Regular, "SF Mono", Monaco,
-        Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family: var(--font-mono);
 }
 
 /* Custom scrollbar */
@@ -287,11 +285,11 @@ pre {
 
 /* Code block styling */
 .prose pre {
-    @apply bg-black/[0.02] dark:bg-white/[0.04] rounded-lg p-4 overflow-x-auto font-mono;
+    @apply bg-muted text-foreground rounded-lg p-4 overflow-x-auto font-mono;
 }
 
 .prose code {
-    @apply bg-black/[0.03] dark:bg-white/[0.06] px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply bg-surface-variant text-foreground px-1.5 py-0.5 rounded text-sm font-mono;
 }
 
 /* Math rendering */

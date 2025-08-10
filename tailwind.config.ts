@@ -26,7 +26,7 @@ const config: Config = {
         ],
         mono: [
           "IBM Plex Mono",
-          "ui-m onospace",
+          "ui-monospace",
           "SFMono-Regular",
           "SF Mono",
           "Monaco",
