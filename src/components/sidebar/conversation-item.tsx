@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { CheckIcon, CircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -35,7 +35,7 @@ type ConversationItemProps = {
   allVisibleIds: ConversationId[];
 };
 
-export const ConversationItem = ({
+const ConversationItemComponent = ({
   conversation,
   currentConversationId,
   allVisibleIds,
@@ -483,3 +483,33 @@ export const ConversationItem = ({
     </>
   );
 };
+
+export const ConversationItem = memo(
+  ConversationItemComponent,
+  (prevProps, nextProps) => {
+    // Re-render if this specific conversation doc changed in a meaningful way
+    const prev = prevProps.conversation;
+    const next = nextProps.conversation;
+
+    if (
+      prev._id !== next._id ||
+      prev.title !== next.title ||
+      prev.isPinned !== next.isPinned ||
+      prev.isArchived !== next.isArchived ||
+      prev.updatedAt !== next.updatedAt ||
+      Boolean(prev.isStreaming) !== Boolean(next.isStreaming)
+    ) {
+      return false;
+    }
+
+    // Only the previously-selected and newly-selected rows need to update
+    const prevWasCurrent = prevProps.currentConversationId === prev._id;
+    const nextIsCurrent = nextProps.currentConversationId === next._id;
+    if (prevWasCurrent !== nextIsCurrent) {
+      return false;
+    }
+
+    // Ignore changes to allVisibleIds to avoid list-wide re-renders
+    return true;
+  }
+);

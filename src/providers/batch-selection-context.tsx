@@ -6,8 +6,6 @@ type BatchSelectionContextValue = {
   selectedConversationIds: Set<ConversationId>;
   isSelectionMode: boolean;
   isShiftPressed: boolean;
-  isHoveringOverSidebar: boolean;
-  setHoveringOverSidebar: (hovering: boolean) => void;
   toggleSelection: (conversationId: ConversationId) => void;
   selectConversation: (conversationId: ConversationId) => void;
   deselectConversation: (conversationId: ConversationId) => void;
@@ -33,10 +31,6 @@ const BatchSelectionContext = React.createContext<BatchSelectionContextValue>({
   selectedConversationIds: new Set(),
   isSelectionMode: false,
   isShiftPressed: false,
-  isHoveringOverSidebar: false,
-  setHoveringOverSidebar: () => {
-    // Default no-op
-  },
   toggleSelection: () => {
     // Default no-op
   },
@@ -73,6 +67,23 @@ export function useBatchSelection() {
     );
   }
   return context;
+}
+
+// Lightweight context solely for the sidebar hover setter to avoid re-renders
+const SidebarHoverSetterContext = React.createContext<
+  (hovering: boolean) => void
+>(() => {
+  // Default no-op
+});
+
+export function useSidebarHoverSetter() {
+  const setter = React.useContext(SidebarHoverSetterContext);
+  if (!setter) {
+    throw new Error(
+      "useSidebarHoverSetter must be used within a BatchSelectionProvider"
+    );
+  }
+  return setter;
 }
 
 export const BatchSelectionProvider = ({
@@ -123,6 +134,8 @@ export const BatchSelectionProvider = ({
   }, [selectedConversationIds.size]);
 
   const isSelectionMode = isShiftPressed && isHoveringOverSidebar;
+  // Note: we only expose shift state to consumers to avoid list-wide rerenders
+  // when the mouse moves across the sidebar. Hover state is kept internal.
   const hasSelection = selectedConversationIds.size > 0;
   const selectionCount = selectedConversationIds.size;
 
@@ -214,9 +227,27 @@ export const BatchSelectionProvider = ({
     setHoveringOverSidebar(false);
   }, []);
 
+  // Throttle hover state updates to avoid sidebar-wide re-renders when moving the mouse
+  const hoverThrottleRef = React.useRef<number | null>(null);
+  const pendingHoverRef = React.useRef<boolean | null>(null);
+
+  const flushHover = useCallback(() => {
+    if (pendingHoverRef.current === null) {
+      return;
+    }
+    setHoveringOverSidebar(pendingHoverRef.current);
+    pendingHoverRef.current = null;
+    hoverThrottleRef.current = null;
+  }, []);
+
   const setHoveringOverSidebarCallback = useCallback(
-    (hovering: boolean) => setHoveringOverSidebar(hovering),
-    []
+    (hovering: boolean) => {
+      pendingHoverRef.current = hovering;
+      if (hoverThrottleRef.current == null) {
+        hoverThrottleRef.current = window.setTimeout(flushHover, 50);
+      }
+    },
+    [flushHover]
   );
 
   const value = useMemo(
@@ -224,8 +255,6 @@ export const BatchSelectionProvider = ({
       selectedConversationIds,
       isSelectionMode,
       isShiftPressed,
-      isHoveringOverSidebar,
-      setHoveringOverSidebar: setHoveringOverSidebarCallback,
       toggleSelection,
       selectConversation,
       deselectConversation,
@@ -243,8 +272,6 @@ export const BatchSelectionProvider = ({
       selectedConversationIds,
       isSelectionMode,
       isShiftPressed,
-      isHoveringOverSidebar,
-      setHoveringOverSidebarCallback,
       toggleSelection,
       selectConversation,
       deselectConversation,
@@ -261,8 +288,10 @@ export const BatchSelectionProvider = ({
   );
 
   return (
-    <BatchSelectionContext.Provider value={value}>
-      {children}
-    </BatchSelectionContext.Provider>
+    <SidebarHoverSetterContext.Provider value={setHoveringOverSidebarCallback}>
+      <BatchSelectionContext.Provider value={value}>
+        {children}
+      </BatchSelectionContext.Provider>
+    </SidebarHoverSetterContext.Provider>
   );
 };
