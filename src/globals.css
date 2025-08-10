@@ -502,7 +502,8 @@ pre {
         /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
     );
     background-size: 200% 200%;
-    animation: polly-gradient-move 8s ease-in-out infinite;
+    /* Disable continuous animation by default to avoid idle CPU usage */
+    /* Animation will be enabled on hover/focus via group selector below */
     filter: brightness(1.05) saturate(1.1);
 }
 
@@ -517,7 +518,7 @@ pre {
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
-    animation: polly-gradient-move 8s ease-in-out infinite;
+    /* Disable continuous animation by default to avoid idle CPU usage */
     filter: brightness(1.05) saturate(1.1);
 }
 
@@ -641,7 +642,6 @@ pre {
         hsl(280 70% 75%)
     );
     background-size: 200% 200%;
-    animation: polly-gradient-move 10s ease-in-out infinite;
 }
 
 .dark .polly-logo-text-unified {
@@ -656,12 +656,34 @@ pre {
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
-    animation: polly-gradient-move 10s ease-in-out infinite;
 }
 
 /* Refined dividers */
 .dark hr {
     border-color: hsl(var(--border));
+}
+
+/*
+  Only animate the Polly logo gradients on interaction to prevent idle CPU usage.
+  The parent link in the sidebar uses the `group` class, so we hook into that.
+*/
+.group:hover .polly-logo-gradient-unified,
+.group:focus-visible .polly-logo-gradient-unified {
+    animation: polly-gradient-move 8s ease-in-out infinite;
+}
+
+.group:hover .polly-logo-text-unified,
+.group:focus-visible .polly-logo-text-unified {
+    animation: polly-gradient-move 8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .group:hover .polly-logo-gradient-unified,
+    .group:focus-visible .polly-logo-gradient-unified,
+    .group:hover .polly-logo-text-unified,
+    .group:focus-visible .polly-logo-text-unified {
+        animation: none !important;
+    }
 }
 
 /* Refined New Chat button */
