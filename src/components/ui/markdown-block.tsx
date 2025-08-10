@@ -420,7 +420,7 @@ export const MarkdownBlock: LLMOutputComponent = ({ blockMatch }) => {
   );
 
   return (
-    <div className="prose prose-base max-w-none dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+    <div className="prose prose-base dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <Markdown
         options={{
           forceBlock: true,

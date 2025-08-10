@@ -15,7 +15,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "Manrope",
+          "Arimo",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
@@ -334,6 +334,14 @@ const config: Config = {
       typography: {
         DEFAULT: {
           css: {
+            "--tw-prose-body": "hsl(var(--foreground))",
+            "--tw-prose-headings": "hsl(var(--foreground))",
+            "--tw-prose-links": "hsl(var(--primary))",
+            "--tw-prose-bold": "hsl(var(--foreground))",
+            "--tw-prose-code": "hsl(var(--foreground))",
+            "--tw-prose-quotes": "hsl(var(--muted-foreground))",
+            "--tw-prose-counters": "hsl(var(--muted-foreground))",
+            "--tw-prose-bullets": "hsl(var(--muted-foreground))",
             maxWidth: "none",
             color: "hsl(var(--foreground))",
             lineHeight: "1.6",
@@ -397,7 +405,7 @@ const config: Config = {
               fontSize: "0.875em",
               padding: "0.25em 0.375em",
               borderRadius: "0.375rem",
-              backgroundColor: "hsl(var(--muted))",
+              backgroundColor: "hsl(var(--color-surface-variant))",
               color: "hsl(var(--foreground))",
             },
             "code::before": {

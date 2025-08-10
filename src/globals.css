@@ -203,7 +203,7 @@
 }
 
 body {
-    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    font-family: "Arimo", -apple-system, BlinkMacSystemFont, "Segoe UI",
         Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -284,13 +284,7 @@ pre {
 }
 
 /* Code block styling */
-.prose pre {
-    @apply bg-muted text-foreground rounded-lg p-4 overflow-x-auto font-mono;
-}
-
-.prose code {
-    @apply bg-surface-variant text-foreground px-1.5 py-0.5 rounded text-sm font-mono;
-}
+ 
 
 /* Math rendering */
 .katex-display {
@@ -1073,14 +1067,6 @@ pre {
 
 /* Message Content Styles */
 .prose {
-    --tw-prose-body: hsl(var(--foreground));
-    --tw-prose-headings: hsl(var(--foreground));
-    --tw-prose-links: hsl(var(--primary));
-    --tw-prose-bold: hsl(var(--foreground));
-    --tw-prose-code: hsl(var(--foreground));
-    --tw-prose-quotes: hsl(var(--muted-foreground));
-    --tw-prose-counters: hsl(var(--muted-foreground));
-    --tw-prose-bullets: hsl(var(--muted-foreground));
     user-select: text !important;
 }
 
