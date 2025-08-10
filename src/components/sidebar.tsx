@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { useBatchSelection } from "@/providers/batch-selection-context";
+import { useSidebarHoverSetter } from "@/providers/batch-selection-context";
 import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -37,7 +37,7 @@ export const Sidebar = () => {
     mounted,
   } = useUI();
   const { sidebarWidth, setSidebarWidth, setIsResizing } = useSidebarWidth();
-  const { setHoveringOverSidebar } = useBatchSelection();
+  const setHoveringOverSidebar = useSidebarHoverSetter();
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();

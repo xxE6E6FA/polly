@@ -102,42 +102,45 @@ const ChatOutlineComponent = ({
           messageIndex: i,
         });
 
-        const nextMessage = messages[i + 1];
-        if (
-          nextMessage &&
-          nextMessage.role === "assistant" &&
-          nextMessage.content
-        ) {
-          const lines = nextMessage.content.split("\n");
-          let inCodeBlock = false;
+        // Only parse assistant headings when expanded to reduce work on navigation
+        if (isExpanded) {
+          const nextMessage = messages[i + 1];
+          if (
+            nextMessage &&
+            nextMessage.role === "assistant" &&
+            nextMessage.content
+          ) {
+            const lines = nextMessage.content.split("\n");
+            let inCodeBlock = false;
 
-          for (const line of lines) {
-            if (line.trim().startsWith("```")) {
-              inCodeBlock = !inCodeBlock;
-              continue;
-            }
+            for (const line of lines) {
+              if (line.trim().startsWith("```")) {
+                inCodeBlock = !inCodeBlock;
+                continue;
+              }
 
-            if (inCodeBlock) {
-              continue;
-            }
+              if (inCodeBlock) {
+                continue;
+              }
 
-            const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-            if (headingMatch) {
-              const level = headingMatch[1].length;
-              const rawText = headingMatch[2].trim();
-              const cleanText = removeMarkdown(rawText);
-              const headingId = generateHeadingId(rawText, nextMessage.id);
+              const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+              if (headingMatch) {
+                const level = headingMatch[1].length;
+                const rawText = headingMatch[2].trim();
+                const cleanText = removeMarkdown(rawText);
+                const headingId = generateHeadingId(rawText, nextMessage.id);
 
-              items.push({
-                id: headingId,
-                messageId: nextMessage.id,
-                text: cleanText,
-                preview: "",
-                level,
-                type: "assistant-section",
-                messageIndex: i + 1,
-                parentMessageId: message.id,
-              });
+                items.push({
+                  id: headingId,
+                  messageId: nextMessage.id,
+                  text: cleanText,
+                  preview: "",
+                  level,
+                  type: "assistant-section",
+                  messageIndex: i + 1,
+                  parentMessageId: message.id,
+                });
+              }
             }
           }
         }
@@ -145,7 +148,7 @@ const ChatOutlineComponent = ({
     }
 
     return items;
-  }, [messages, stripAndTruncate]);
+  }, [messages, stripAndTruncate, isExpanded]);
 
   const handleItemClick = useCallback(
     (item: OutlineItem) => {

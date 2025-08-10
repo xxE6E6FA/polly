@@ -235,13 +235,15 @@ export const VirtualizedChatMessages = memo(
       // Adaptive overscan for mobile vs desktop to reduce work on mobile
       const overscan = useMemo(() => {
         if (typeof window === "undefined") {
-          return 10;
+          return 2;
         }
         const isMobile = window.innerWidth < 768;
+        // Minimize initial work during conversation switches by rendering
+        // only the closest items around the viewport. Increase slightly on desktop.
         if (isStreaming) {
-          return isMobile ? 2 : 6;
+          return isMobile ? 1 : 2;
         }
-        return isMobile ? 4 : 10;
+        return isMobile ? 1 : 3;
       }, [isStreaming]);
 
       // Helper function to get the scroll container
