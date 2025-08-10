@@ -1,14 +1,14 @@
 // Light theme for syntax highlighting
 export const lightSyntaxTheme = {
   plain: {
-    color: "#24292e",
+    color: "hsl(var(--foreground))",
     backgroundColor: "transparent",
   },
   styles: [
     {
       types: ["comment", "prolog", "doctype", "cdata"],
       style: {
-        color: "#6a737d",
+        color: "hsl(var(--muted-foreground))",
         fontStyle: "italic" as const,
       },
     },
@@ -21,13 +21,13 @@ export const lightSyntaxTheme = {
     {
       types: ["string", "attr-value"],
       style: {
-        color: "#032f62",
+        color: "hsl(var(--accent-emerald))",
       },
     },
     {
       types: ["punctuation", "operator"],
       style: {
-        color: "#24292e",
+        color: "hsl(var(--muted-foreground))",
       },
     },
     {
@@ -44,31 +44,31 @@ export const lightSyntaxTheme = {
         "inserted",
       ],
       style: {
-        color: "#005cc5",
+        color: "hsl(var(--accent-purple))",
       },
     },
     {
       types: ["atrule", "keyword", "attr-name", "selector"],
       style: {
-        color: "#d73a49",
+        color: "hsl(var(--primary))",
       },
     },
     {
       types: ["function", "deleted", "tag"],
       style: {
-        color: "#6f42c1",
+        color: "hsl(var(--accent-blue))",
       },
     },
     {
       types: ["function-variable"],
       style: {
-        color: "#6f42c1",
+        color: "hsl(var(--accent-blue))",
       },
     },
     {
       types: ["tag", "selector", "keyword"],
       style: {
-        color: "#d73a49",
+        color: "hsl(var(--primary))",
       },
     },
   ],
@@ -77,14 +77,14 @@ export const lightSyntaxTheme = {
 // Dark theme for syntax highlighting
 export const darkSyntaxTheme = {
   plain: {
-    color: "#f8f8f2",
+    color: "hsl(var(--foreground))",
     backgroundColor: "transparent",
   },
   styles: [
     {
       types: ["comment", "prolog", "doctype", "cdata"],
       style: {
-        color: "#8292a2",
+        color: "hsl(var(--muted-foreground))",
         fontStyle: "italic" as const,
       },
     },
@@ -97,13 +97,13 @@ export const darkSyntaxTheme = {
     {
       types: ["string", "attr-value"],
       style: {
-        color: "#a3be8c",
+        color: "hsl(var(--accent-emerald))",
       },
     },
     {
       types: ["punctuation", "operator"],
       style: {
-        color: "#81a1c1",
+        color: "hsl(var(--muted-foreground))",
       },
     },
     {
@@ -120,31 +120,31 @@ export const darkSyntaxTheme = {
         "inserted",
       ],
       style: {
-        color: "#b48ead",
+        color: "hsl(var(--accent-purple))",
       },
     },
     {
       types: ["atrule", "keyword", "attr-name", "selector"],
       style: {
-        color: "#81a1c1",
+        color: "hsl(var(--primary))",
       },
     },
     {
       types: ["function", "deleted", "tag"],
       style: {
-        color: "#88c0d0",
+        color: "hsl(var(--accent-cyan))",
       },
     },
     {
       types: ["function-variable"],
       style: {
-        color: "#88c0d0",
+        color: "hsl(var(--accent-cyan))",
       },
     },
     {
       types: ["tag", "selector", "keyword"],
       style: {
-        color: "#81a1c1",
+        color: "hsl(var(--primary))",
       },
     },
   ],
