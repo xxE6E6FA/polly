@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ConversationId } from "@/types";
 
 type BatchSelectionContextValue = {
-  selectedConversationIds: Set<ConversationId>;
   isSelectionMode: boolean;
   isShiftPressed: boolean;
   toggleSelection: (conversationId: ConversationId) => void;
@@ -28,7 +27,6 @@ type BatchSelectionProviderProps = {
 };
 
 const BatchSelectionContext = React.createContext<BatchSelectionContextValue>({
-  selectedConversationIds: new Set(),
   isSelectionMode: false,
   isShiftPressed: false,
   toggleSelection: () => {
@@ -68,6 +66,9 @@ export function useBatchSelection() {
   }
   return context;
 }
+
+// Separate hook to access selected IDs without putting the raw Set on the public context
+// Removed specialized selected-IDs hook; use useBatchSelection().getSelectedIds when needed
 
 // Lightweight context solely for the sidebar hover setter to avoid re-renders
 const SidebarHoverSetterContext = React.createContext<
@@ -252,7 +253,6 @@ export const BatchSelectionProvider = ({
 
   const value = useMemo(
     () => ({
-      selectedConversationIds,
       isSelectionMode,
       isShiftPressed,
       toggleSelection,
@@ -269,7 +269,6 @@ export const BatchSelectionProvider = ({
       resetHoverStates,
     }),
     [
-      selectedConversationIds,
       isSelectionMode,
       isShiftPressed,
       toggleSelection,

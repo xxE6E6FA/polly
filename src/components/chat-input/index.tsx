@@ -55,7 +55,6 @@ import { ImageModelPicker } from "./image-model-picker";
 import { NegativePromptToggle } from "./negative-prompt-toggle";
 import { PersonaSelector } from "./persona-selector";
 import { SendButtonGroup } from "./send-button-group";
-import { WarningBanners } from "./warning-banners";
 
 interface ChatInputProps {
   onSendMessage: (
@@ -1006,7 +1005,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     return (
       <div className="relative px-3 pb-2 sm:px-6 sm:pb-3">
         <div className="mx-auto w-full max-w-3xl">
-          <WarningBanners hasExistingMessages={hasExistingMessages} />
+          {/* Warning banners moved to UnifiedChatView to decouple input from usage updates */}
 
           <div
             className={cn(

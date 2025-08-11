@@ -1,6 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChatWarningBanner } from "@/components/ui/chat-warning-banner";
-import { useUserDataContext } from "@/providers/user-data-context";
+import {
+  useUserCapabilities,
+  useUserIdentity,
+  useUserUsage,
+} from "@/providers/user-data-context";
 
 type WarningMessage = {
   text: string;
@@ -19,14 +23,9 @@ interface WarningBannersProps {
 }
 
 export function WarningBanners({ hasExistingMessages }: WarningBannersProps) {
-  const {
-    hasMessageLimit,
-    canSendMessage,
-    monthlyUsage,
-    hasUserApiKeys,
-    hasUnlimitedCalls,
-    user,
-  } = useUserDataContext();
+  const { hasMessageLimit, monthlyUsage, hasUnlimitedCalls } = useUserUsage();
+  const { user } = useUserIdentity();
+  const { canSendMessage, hasUserApiKeys } = useUserCapabilities();
 
   const isNoUser = user === null;
 

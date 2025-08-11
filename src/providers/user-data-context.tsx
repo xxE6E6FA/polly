@@ -52,6 +52,31 @@ const UserDataContext = createContext<UserDataProviderValue | undefined>(
   undefined
 );
 
+// Split contexts to minimize re-renders in consumers
+type UserIdentity = {
+  user: Doc<"users"> | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+};
+
+type UserCapabilities = {
+  canSendMessage: boolean;
+  hasUserApiKeys: boolean;
+  hasUserModels: boolean;
+};
+
+type UserUsage = {
+  hasMessageLimit: boolean;
+  hasUnlimitedCalls: boolean;
+  monthlyUsage?: MonthlyUsage;
+};
+
+const UserIdentityContext = createContext<UserIdentity | undefined>(undefined);
+const UserCapabilitiesContext = createContext<UserCapabilities | undefined>(
+  undefined
+);
+const UserUsageContext = createContext<UserUsage | undefined>(undefined);
+
 const DEFAULT_USER_DATA: UserData = {
   canSendMessage: false,
   hasMessageLimit: true,
@@ -293,7 +318,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [authState, isOAuthCallback]);
 
-  const value = useMemo(() => {
+  const combinedValue = useMemo(() => {
     if (isLoading) {
       return {
         ...DEFAULT_USER_DATA,
@@ -318,8 +343,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
       ),
       user: userRecord,
     };
-
-    set(CACHE_KEYS.userData, computedValue);
     return computedValue;
   }, [
     userRecord,
@@ -329,10 +352,78 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     monthlyMessagesSent,
   ]);
 
+  // Debounce cache write to avoid synchronous storage churn
+  const cacheWriteTimeout = useRef<number | null>(null);
+  const lastCachedUserIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!combinedValue?.user) {
+      return;
+    }
+    const currentUserId = String(combinedValue.user._id);
+    if (currentUserId === lastCachedUserIdRef.current) {
+      return;
+    }
+    if (cacheWriteTimeout.current) {
+      clearTimeout(cacheWriteTimeout.current);
+    }
+    cacheWriteTimeout.current = window.setTimeout(() => {
+      set(CACHE_KEYS.userData, combinedValue);
+      lastCachedUserIdRef.current = currentUserId;
+    }, 50);
+    return () => {
+      if (cacheWriteTimeout.current) {
+        clearTimeout(cacheWriteTimeout.current);
+      }
+    };
+  }, [combinedValue]);
+
+  // Derived split values with stable memos
+  const identityValue = useMemo<UserIdentity>(() => {
+    return {
+      user: combinedValue.user,
+      isAuthenticated: combinedValue.isAuthenticated,
+      isLoading: combinedValue.isLoading,
+    };
+  }, [
+    combinedValue.user,
+    combinedValue.isAuthenticated,
+    combinedValue.isLoading,
+  ]);
+
+  const capabilitiesValue = useMemo<UserCapabilities>(() => {
+    return {
+      canSendMessage: combinedValue.canSendMessage,
+      hasUserApiKeys: combinedValue.hasUserApiKeys,
+      hasUserModels: combinedValue.hasUserModels,
+    };
+  }, [
+    combinedValue.canSendMessage,
+    combinedValue.hasUserApiKeys,
+    combinedValue.hasUserModels,
+  ]);
+
+  const usageValue = useMemo<UserUsage>(() => {
+    return {
+      hasMessageLimit: combinedValue.hasMessageLimit,
+      hasUnlimitedCalls: combinedValue.hasUnlimitedCalls,
+      monthlyUsage: combinedValue.monthlyUsage,
+    };
+  }, [
+    combinedValue.hasMessageLimit,
+    combinedValue.hasUnlimitedCalls,
+    combinedValue.monthlyUsage,
+  ]);
+
   return (
-    <UserDataContext.Provider value={value}>
-      {children}
-    </UserDataContext.Provider>
+    <UserIdentityContext.Provider value={identityValue}>
+      <UserCapabilitiesContext.Provider value={capabilitiesValue}>
+        <UserUsageContext.Provider value={usageValue}>
+          <UserDataContext.Provider value={combinedValue}>
+            {children}
+          </UserDataContext.Provider>
+        </UserUsageContext.Provider>
+      </UserCapabilitiesContext.Provider>
+    </UserIdentityContext.Provider>
   );
 };
 
@@ -342,6 +433,32 @@ export function useUserDataContext() {
     throw new Error(
       "useUserDataContext must be used within a UserDataProvider"
     );
+  }
+  return ctx;
+}
+
+export function useUserIdentity(): UserIdentity {
+  const ctx = useContext(UserIdentityContext);
+  if (!ctx) {
+    throw new Error("useUserIdentity must be used within a UserDataProvider");
+  }
+  return ctx;
+}
+
+export function useUserCapabilities(): UserCapabilities {
+  const ctx = useContext(UserCapabilitiesContext);
+  if (!ctx) {
+    throw new Error(
+      "useUserCapabilities must be used within a UserDataProvider"
+    );
+  }
+  return ctx;
+}
+
+export function useUserUsage(): UserUsage {
+  const ctx = useContext(UserUsageContext);
+  if (!ctx) {
+    throw new Error("useUserUsage must be used within a UserDataProvider");
   }
   return ctx;
 }
