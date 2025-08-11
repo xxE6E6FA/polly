@@ -1,7 +1,8 @@
-import { GearIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import { api } from "@convex/_generated/api";
+import { GearIcon, HeartIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-
 import { ConversationList } from "@/components/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/sidebar/search";
 import { UserSection } from "@/components/sidebar/user-section";
@@ -42,6 +43,10 @@ export const Sidebar = () => {
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();
   const [hasInitialized, setHasInitialized] = useState(false);
+  const favorites = useQuery(
+    api.messages.listFavorites,
+    user ? { limit: 1 } : "skip"
+  );
 
   useEffect(() => {
     if (mounted && !hasInitialized) {
@@ -254,6 +259,28 @@ export const Sidebar = () => {
               onMouseEnter={() => setHoveringOverSidebar(true)}
               onMouseLeave={() => setHoveringOverSidebar(false)}
             >
+              {user &&
+                !user.isAnonymous &&
+                favorites &&
+                favorites.total > 0 && (
+                  <div className="pb-2">
+                    <Link to={ROUTES.FAVORITES}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start gap-1 h-auto py-1.5 px-0 hover:bg-accent/50"
+                      >
+                        <HeartIcon
+                          className="h-3.5 w-3.5 text-destructive"
+                          weight="fill"
+                        />
+                        <span className="text-xs font-medium uppercase tracking-wider text-foreground/70">
+                          Favorites
+                        </span>
+                      </Button>
+                    </Link>
+                  </div>
+                )}
               <ConversationList
                 currentConversationId={currentConversationId}
                 searchQuery={searchQuery}

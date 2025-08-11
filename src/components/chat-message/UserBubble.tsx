@@ -137,6 +137,7 @@ export const UserBubble = memo(
 
           <MessageActions
             isUser
+            messageId={message.id}
             copyToClipboard={copyToClipboard}
             isCopied={isCopied}
             isDeleting={isDeleting}

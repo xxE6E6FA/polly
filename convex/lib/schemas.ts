@@ -601,6 +601,15 @@ export const messageSchema = v.object({
 
 
 
+// Favorites schema for user-favorited messages
+export const messageFavoriteSchema = v.object({
+  userId: v.id("users"),
+  messageId: v.id("messages"),
+  conversationId: v.id("conversations"),
+  createdAt: v.number(),
+});
+
+ 
 // Background job manifest schema (for database storage)
 export const backgroundJobManifestSchema = v.object({
   totalConversations: v.number(),

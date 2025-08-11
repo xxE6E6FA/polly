@@ -10,6 +10,8 @@ import { Spinner } from "./components/spinner";
 import HomePage from "./pages/HomePage";
 import PrivateChatPage from "./pages/PrivateChatPage";
 
+const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
+
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const NotFoundPage = lazy(() =>
   import("./components/ui/not-found-page").then(m => ({
@@ -146,8 +148,19 @@ export const routes: RouteObject[] = [
             path: ":conversationId",
             element: <ConversationView />,
           },
+          {
+            path: "favorites",
+            element: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <ProtectedSuspense fallback={<PageLoader size="full" />}>
+                  <FavoritesPage />
+                </ProtectedSuspense>
+              </Suspense>
+            ),
+          },
         ],
       },
+
       {
         path: "share/:shareId",
         element: (
