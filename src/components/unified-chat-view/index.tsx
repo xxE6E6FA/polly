@@ -15,6 +15,7 @@ import type {
   ReasoningConfig,
 } from "@/types";
 import { ChatInput } from "../chat-input";
+import { WarningBanners } from "../chat-input/warning-banners";
 import { ArchivedBanner } from "./ArchivedBanner";
 import { useChatViewState } from "./hooks/useChatViewState";
 
@@ -272,6 +273,11 @@ export const UnifiedChatView = memo(
                   hasApiKeys={hasApiKeys}
                   onUnarchive={handleUnarchive}
                 />
+
+                {/* Usage warnings - moved here to avoid re-rendering input */}
+                <div className="px-3 sm:px-6">
+                  <WarningBanners hasExistingMessages={messages.length > 0} />
+                </div>
 
                 {/* Chat input and controls - always visible */}
                 <div className="relative flex-shrink-0">
