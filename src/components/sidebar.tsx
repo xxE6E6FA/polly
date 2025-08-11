@@ -140,8 +140,8 @@ export const Sidebar = () => {
   );
 
   const handleDoubleClick = useCallback(() => {
-    setSidebarWidth(320);
-  }, [setSidebarWidth]);
+    setSidebarVisible(false);
+  }, [setSidebarVisible]);
 
   const sidebarStyle = useMemo(
     () =>
@@ -319,6 +319,7 @@ export const Sidebar = () => {
               title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
               variant="ghost"
               className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+              style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
               onClick={toggleSidebar}
             >
               <SidebarSimpleIcon className="h-5 w-5" />
@@ -336,6 +337,7 @@ export const Sidebar = () => {
                 size="icon-sm"
                 title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
                 variant="ghost"
+                style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
                 onClick={toggleSidebar}
               >
                 <SidebarSimpleIcon className="h-4 w-4" />
