@@ -6,6 +6,7 @@ import {
   builtInModelSchema,
   conversationSchema,
   imageModelDefinitionSchema,
+  messageFavoriteSchema,
   messageSchema,
   pdfTextCacheSchema,
   personaSchema,
@@ -115,4 +116,9 @@ export default defineSchema({
   pdfTextCache: defineTable(pdfTextCacheSchema)
     .index("by_cache_key", ["cacheKey"])
     .index("by_expires_at", ["expiresAt"]),
+
+  messageFavorites: defineTable(messageFavoriteSchema)
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_message", ["userId", "messageId"])
+    .index("by_user_conversation", ["userId", "conversationId", "createdAt"]),
 });

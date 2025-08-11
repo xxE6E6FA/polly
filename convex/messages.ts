@@ -1,3 +1,4 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -8,7 +9,6 @@ import {
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
-
 import {
   checkConversationAccess,
   incrementUserMessageStats,
@@ -683,6 +683,119 @@ export const hasStreamingMessage = query({
       hasStreaming: Boolean(streamingMessage),
       streamingMessageId: streamingMessage?._id || null,
     };
+  },
+});
+
+// --- Favorites ---
+
+export const toggleFavorite = mutation({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      throw new Error("Message not found");
+    }
+
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied");
+    }
+
+    const existing = await ctx.db
+      .query("messageFavorites")
+      .withIndex("by_user_message", q =>
+        q.eq("userId", userId).eq("messageId", args.messageId)
+      )
+      .first();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+      return { favorited: false } as const;
+    }
+
+    await ctx.db.insert("messageFavorites", {
+      userId,
+      messageId: args.messageId,
+      conversationId: message.conversationId,
+      createdAt: Date.now(),
+    });
+    return { favorited: true } as const;
+  },
+});
+
+export const isFavorited = query({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return false;
+    }
+    const fav = await ctx.db
+      .query("messageFavorites")
+      .withIndex("by_user_message", q =>
+        q.eq("userId", userId).eq("messageId", args.messageId)
+      )
+      .first();
+    return Boolean(fav);
+  },
+});
+
+export const listFavorites = query({
+  args: {
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const limit = args.limit ?? 50;
+    const start = args.cursor ? parseInt(args.cursor) : 0;
+
+    const all = await ctx.db
+      .query("messageFavorites")
+      .withIndex("by_user_created", q => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    const slice = all.slice(start, start + limit);
+
+    const items = await Promise.all(
+      slice.map(async fav => {
+        const message = await ctx.db.get(fav.messageId);
+        const conversation = message
+          ? await ctx.db.get(message.conversationId)
+          : null;
+        return {
+          favoriteId: fav._id,
+          createdAt: fav.createdAt,
+          message,
+          conversation,
+        };
+      })
+    );
+
+    return {
+      items: items.filter(m => m.message && m.conversation),
+      hasMore: start + limit < all.length,
+      nextCursor: start + limit < all.length ? String(start + limit) : null,
+      total: all.length,
+    } as const;
   },
 });
 

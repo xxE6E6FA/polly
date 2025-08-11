@@ -576,6 +576,7 @@ export const AssistantBubble = ({
         ) : (
           /* Regular message actions for text messages */
           <MessageActions
+            messageId={message.id}
             copyToClipboard={copyToClipboard}
             isCopied={isCopied}
             isDeleting={isDeleting}

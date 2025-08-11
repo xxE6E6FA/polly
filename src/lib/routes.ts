@@ -20,5 +20,6 @@ export const ROUTES = {
     ATTACHMENTS: "/settings/attachments",
     GENERAL: "/settings/general",
   },
+  FAVORITES: "/chat/favorites",
   NOT_FOUND: "/404",
 } as const;

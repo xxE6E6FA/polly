@@ -1,14 +1,15 @@
 import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
   CopyIcon,
+  HeartIcon,
   NotePencilIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useState } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
@@ -39,6 +40,7 @@ import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
 
 // Union type for models from getAvailableModels
@@ -592,6 +594,7 @@ type MessageActionsProps = {
   isCopied: boolean;
   isRetrying: boolean;
   isDeleting: boolean;
+  messageId?: string;
   copyToClipboard: () => void;
   onEditMessage?: () => void;
   onRetryMessage?: (modelId?: string, provider?: string) => void;
@@ -609,6 +612,7 @@ export const MessageActions = memo(
     isCopied,
     isRetrying,
     isDeleting,
+    messageId,
     copyToClipboard,
     onEditMessage,
     onRetryMessage,
@@ -618,6 +622,37 @@ export const MessageActions = memo(
     className,
   }: MessageActionsProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const { isPrivateMode } = usePrivateMode();
+    const managedToast = useToast();
+    const toggleFavorite = useMutation(api.messages.toggleFavorite);
+    const isFavorited = useQuery(
+      api.messages.isFavorited,
+      !isPrivateMode && messageId && !messageId.startsWith("private-")
+        ? ({ messageId: messageId as Id<"messages"> } as const)
+        : ("skip" as const)
+    );
+
+    const handleToggleFavorite = useCallback(async () => {
+      if (!messageId || isPrivateMode || messageId.startsWith("private-")) {
+        return;
+      }
+      try {
+        const result = await toggleFavorite({
+          messageId: messageId as Id<"messages">,
+        });
+        managedToast.success(
+          result.favorited ? "Added to favorites" : "Removed from favorites"
+        );
+      } catch {
+        managedToast.error("Failed to update favorite");
+      }
+    }, [
+      messageId,
+      isPrivateMode,
+      toggleFavorite,
+      managedToast.success,
+      managedToast.error,
+    ]);
 
     if (isStreaming) {
       return null;
@@ -637,6 +672,27 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
+          {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
+            <ActionButton
+              disabled={isEditing}
+              tooltip={isFavorited ? "Unfavorite" : "Favorite"}
+              ariaLabel={
+                isFavorited ? "Remove from favorites" : "Add to favorites"
+              }
+              icon={
+                isFavorited ? (
+                  <HeartIcon
+                    className="h-3.5 w-3.5 text-destructive"
+                    weight="fill"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <HeartIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                )
+              }
+              onClick={handleToggleFavorite}
+            />
+          )}
           <ActionButton
             disabled={isEditing}
             tooltip="Copy message"
