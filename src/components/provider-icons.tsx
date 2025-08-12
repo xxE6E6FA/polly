@@ -91,6 +91,21 @@ export const ProviderIcon = ({ provider, className }: ProviderIconProps) => {
           </defs>
         </svg>
       );
+    case "elevenlabs":
+      return (
+        <svg
+          className={cn("h-6 w-6", className)}
+          fill="currentColor"
+          fill-rule="evenodd"
+          height="1em"
+          viewBox="0 0 24 24"
+          width="1em"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <title>ElevenLabs</title>
+          <path d="M5 0h5v24H5V0zM14 0h5v24h-5V0z" />
+        </svg>
+      );
     case "polly":
       return (
         <div
@@ -107,6 +122,15 @@ export const ProviderIcon = ({ provider, className }: ProviderIconProps) => {
         />
       );
     default:
-      return null;
+      return (
+        <svg
+          className={cn("h-6 w-6", className)}
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="currentColor"
+        >
+          <circle cx="12" cy="12" r="10" />
+        </svg>
+      );
   }
 };
