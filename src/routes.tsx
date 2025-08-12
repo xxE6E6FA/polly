@@ -238,6 +238,10 @@ export const routes: RouteObject[] = [
                 path: "image",
                 element: <div />, // Empty element since content is handled by parent
               },
+              {
+                path: "tts",
+                element: <div />, // Empty element since content is handled by parent
+              },
             ],
           },
           {
