@@ -27,7 +27,6 @@
     "@anthropic-ai/sdk": "^0.55.0",
     "@auth/core": "^0.39.1",
     "@convex-dev/auth": "^0.0.87",
-    "@fontsource/geist-mono": "^5.0.2",
     "@llm-ui/code": "^0.13.3",
     "@llm-ui/markdown": "^0.13.3",
     "@llm-ui/react": "^0.13.3",
