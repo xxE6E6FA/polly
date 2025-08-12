@@ -45,7 +45,7 @@ export const Sidebar = () => {
   const [hasInitialized, setHasInitialized] = useState(false);
   const favorites = useQuery(
     api.messages.listFavorites,
-    user ? { limit: 1 } : "skip"
+    user && !user.isAnonymous ? { limit: 1 } : "skip"
   );
 
   useEffect(() => {
