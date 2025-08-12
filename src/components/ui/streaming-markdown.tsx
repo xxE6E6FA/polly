@@ -101,12 +101,8 @@ const StreamingMarkdownInner = memo(
     const renderedBlocks = useMemo(() => {
       return blockMatches.map((blockMatch, index) => {
         const Component = blockMatch.block.component;
-        return (
-          <Component
-            key={`${index}-${Component.name || "component"}-${blockMatch.output.length}`}
-            blockMatch={blockMatch}
-          />
-        );
+        const stableKey = `${Component.name || "component"}-${index}`;
+        return <Component key={stableKey} blockMatch={blockMatch} />;
       });
     }, [blockMatches]);
 
