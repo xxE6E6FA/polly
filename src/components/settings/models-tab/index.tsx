@@ -1,28 +1,40 @@
-import { ChatTextIcon, ImageIcon } from "@phosphor-icons/react";
+import {
+  ChatTextIcon,
+  ImageIcon,
+  SpeakerHighIcon,
+} from "@phosphor-icons/react";
 import { Link, useLocation } from "react-router";
 import { SettingsPageLayout } from "../ui/SettingsPageLayout";
 import { ImageModelsTab } from "./ImageModelsTab";
 import { TextModelsTab } from "./TextModelsTab";
-
-// Re-export types
-export type { FilterState } from "./TextModelsTab";
+import { TTSTab } from "./TTSTab";
 
 export const ModelsTab = () => {
   const location = useLocation();
-  const activeTab = location.pathname.includes("/image") ? "image" : "text";
+  const activeTab = location.pathname.includes("/image")
+    ? "image"
+    : location.pathname.includes("/tts")
+      ? "tts"
+      : "text";
 
   const tabs = [
     {
       id: "text" as const,
-      label: "Text Models",
+      label: "Text",
       icon: <ChatTextIcon className="h-4 w-4" />,
       href: "/settings/models/text",
     },
     {
       id: "image" as const,
-      label: "Image Models",
+      label: "Image",
       icon: <ImageIcon className="h-4 w-4" />,
       href: "/settings/models/image",
+    },
+    {
+      id: "tts" as const,
+      label: "Text-to-Speech",
+      icon: <SpeakerHighIcon className="h-4 w-4" />,
+      href: "/settings/models/tts",
     },
   ];
 
@@ -52,7 +64,13 @@ export const ModelsTab = () => {
 
       {/* Tab Content */}
       <div className="mt-6">
-        {activeTab === "text" ? <TextModelsTab /> : <ImageModelsTab />}
+        {activeTab === "text" ? (
+          <TextModelsTab />
+        ) : activeTab === "image" ? (
+          <ImageModelsTab />
+        ) : (
+          <TTSTab />
+        )}
       </div>
     </SettingsPageLayout>
   );
