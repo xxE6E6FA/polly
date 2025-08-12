@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as ai_config from "../ai/config.js";
+import type * as ai_elevenlabs from "../ai/elevenlabs.js";
 import type * as ai_encryption from "../ai/encryption.js";
 import type * as ai_error_handlers from "../ai/error_handlers.js";
 import type * as ai_exa from "../ai/exa.js";
@@ -79,6 +80,7 @@ import type * as users from "../users.js";
  */
 declare const fullApi: ApiFromModules<{
   "ai/config": typeof ai_config;
+  "ai/elevenlabs": typeof ai_elevenlabs;
   "ai/encryption": typeof ai_encryption;
   "ai/error_handlers": typeof ai_error_handlers;
   "ai/exa": typeof ai_exa;
