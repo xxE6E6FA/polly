@@ -12,6 +12,7 @@ import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 
 type FavoriteItem = {
   favoriteId: Id<"messageFavorites">;
@@ -30,16 +31,22 @@ type FavoriteItem = {
 };
 
 export default function FavoritesPage() {
+  const { user } = useUserDataContext();
   const [cursor, setCursor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const managedToast = useToast();
 
-  const data = useQuery(api.messages.listFavorites, {
-    cursor: cursor ?? undefined,
-    limit: 50,
-  });
+  const data = useQuery(
+    api.messages.listFavorites,
+    user && !user.isAnonymous
+      ? {
+          cursor: cursor ?? undefined,
+          limit: 50,
+        }
+      : "skip"
+  );
 
   const toggleFavorite = useMutation(api.messages.toggleFavorite);
 
@@ -82,6 +89,19 @@ export default function FavoritesPage() {
   const toggleExpand = useCallback((id: string) => {
     setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
   }, []);
+
+  if (!user || user.isAnonymous) {
+    return (
+      <div className="h-full overflow-y-auto">
+        <div className="p-6 max-w-4xl mx-auto">
+          <h1 className="text-lg font-semibold mb-2">Favorites</h1>
+          <div className="text-sm text-muted-foreground">
+            Sign in to view your favorites.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (data === undefined) {
     return (
