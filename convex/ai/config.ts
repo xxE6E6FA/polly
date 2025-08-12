@@ -22,5 +22,6 @@ export const CONFIG = {
     google: "GEMINI_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     replicate: "REPLICATE_API_TOKEN",
+    elevenlabs: "ELEVENLABS_API_KEY",
   },
 } as const;

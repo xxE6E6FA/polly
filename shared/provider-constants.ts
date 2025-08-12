@@ -7,6 +7,7 @@ export const PROVIDER_NAMES = {
   anthropic: "Anthropic", 
   google: "Google",
   openrouter: "OpenRouter",
+  elevenlabs: "ElevenLabs",
 } as const;
 
 export type ProviderType = keyof typeof PROVIDER_NAMES;
@@ -17,4 +18,5 @@ export const PROVIDER_CONFIG = {
   anthropic: { title: "Anthropic" },
   google: { title: "Google AI" },
   openrouter: { title: "OpenRouter" },
+  elevenlabs: { title: "ElevenLabs" },
 } as const; 

@@ -156,7 +156,8 @@ export const providerSchema = v.union(
   v.literal("anthropic"),
   v.literal("google"),
   v.literal("openrouter"),
-  v.literal("replicate")
+  v.literal("replicate"),
+  v.literal("elevenlabs")
 );
 
 // Web search citation schema
@@ -531,6 +532,14 @@ export const userSettingsSchema = v.object({
   anonymizeForDemo: v.optional(v.boolean()),
   autoArchiveEnabled: v.optional(v.boolean()),
   autoArchiveDays: v.optional(v.number()),
+  // TTS (ElevenLabs) settings
+  ttsVoiceId: v.optional(v.string()),
+  ttsModelId: v.optional(v.string()),
+  ttsUseAudioTags: v.optional(v.boolean()),
+  // removed voice hint
+  ttsStabilityMode: v.optional(
+    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -543,6 +552,14 @@ export const userSettingsUpdateSchema = v.object({
   anonymizeForDemo: v.optional(v.boolean()),
   autoArchiveEnabled: v.optional(v.boolean()),
   autoArchiveDays: v.optional(v.number()),
+  // TTS (ElevenLabs) settings
+  ttsVoiceId: v.optional(v.string()),
+  ttsModelId: v.optional(v.string()),
+  ttsUseAudioTags: v.optional(v.boolean()),
+  // removed voice hint
+  ttsStabilityMode: v.optional(
+    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
+  ),
 });
 
 // Message status for production-grade AI chat

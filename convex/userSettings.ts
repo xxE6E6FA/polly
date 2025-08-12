@@ -24,6 +24,10 @@ export const getUserSettings = query({
         anonymizeForDemo: false, // Default to disabled
         autoArchiveEnabled: false, // Default to disabled
         autoArchiveDays: 30, // Default to 30 days
+        ttsUseAudioTags: true,
+        ttsStabilityMode: "creative" as const,
+        ttsVoiceId: undefined,
+        ttsModelId: "eleven_v3",
       };
     }
 
@@ -34,6 +38,10 @@ export const getUserSettings = query({
       anonymizeForDemo: settings.anonymizeForDemo ?? false, // Default to disabled
       autoArchiveEnabled: settings.autoArchiveEnabled ?? false, // Default to disabled
       autoArchiveDays: settings.autoArchiveDays ?? 30, // Default to 30 days
+      ttsUseAudioTags: settings.ttsUseAudioTags ?? true,
+      ttsStabilityMode: settings.ttsStabilityMode ?? ("creative" as const),
+      ttsVoiceId: settings.ttsVoiceId,
+      ttsModelId: settings.ttsModelId ?? "eleven_v3",
     };
   },
 });
@@ -52,6 +60,12 @@ export const updateUserSettings = mutation({
     anonymizeForDemo: v.optional(v.boolean()),
     autoArchiveEnabled: v.optional(v.boolean()),
     autoArchiveDays: v.optional(v.number()),
+    ttsVoiceId: v.optional(v.string()),
+    ttsModelId: v.optional(v.string()),
+    ttsUseAudioTags: v.optional(v.boolean()),
+    ttsStabilityMode: v.optional(
+      v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -84,6 +98,14 @@ export const updateUserSettings = mutation({
         ...(args.autoArchiveDays !== undefined && {
           autoArchiveDays: args.autoArchiveDays,
         }),
+        ...(args.ttsVoiceId !== undefined && { ttsVoiceId: args.ttsVoiceId }),
+        ...(args.ttsModelId !== undefined && { ttsModelId: args.ttsModelId }),
+        ...(args.ttsUseAudioTags !== undefined && {
+          ttsUseAudioTags: args.ttsUseAudioTags,
+        }),
+        ...(args.ttsStabilityMode !== undefined && {
+          ttsStabilityMode: args.ttsStabilityMode,
+        }),
         updatedAt: now,
       });
     } else {
@@ -95,6 +117,10 @@ export const updateUserSettings = mutation({
         anonymizeForDemo: args.anonymizeForDemo ?? false,
         autoArchiveEnabled: args.autoArchiveEnabled ?? false,
         autoArchiveDays: args.autoArchiveDays ?? 30,
+        ttsVoiceId: args.ttsVoiceId,
+        ttsModelId: args.ttsModelId,
+        ttsUseAudioTags: args.ttsUseAudioTags ?? true,
+        ttsStabilityMode: args.ttsStabilityMode ?? "creative",
         createdAt: now,
         updatedAt: now,
       });

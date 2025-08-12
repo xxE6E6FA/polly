@@ -86,6 +86,8 @@ function validateApiKeyFormat(provider: string, key: string): boolean {
       return key.startsWith("sk-or-") && key.length > 20;
     case "replicate":
       return key.startsWith("r8_") && key.length > 20;
+    case "elevenlabs":
+      return key.length > 20;
     default:
       return false;
   }
@@ -99,7 +101,8 @@ export const storeApiKey = mutation({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
     rawKey: v.string(),
   },
@@ -153,7 +156,8 @@ export const storeClientEncryptedApiKey = mutation({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
     encryptedKey: v.string(), // Client-encrypted using CryptoJS or Web Crypto API
     partialKey: v.string(), // For display purposes
@@ -222,7 +226,8 @@ export const removeApiKey = mutation({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
   },
   handler: async (ctx, args) => {
@@ -251,7 +256,8 @@ export const validateApiKey = mutation({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
   },
   handler: async (ctx, args) => {
@@ -314,7 +320,8 @@ function hasEnvironmentApiKeys(): boolean {
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
       process.env.OPENROUTER_API_KEY ||
-      process.env.REPLICATE_API_TOKEN
+      process.env.REPLICATE_API_TOKEN ||
+      process.env.ELEVENLABS_API_KEY
   );
 }
 
@@ -326,7 +333,8 @@ export const getDecryptedApiKey = action({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
     modelId: v.optional(v.string()),
     conversationId: v.optional(v.id("conversations")), // For getting user ID from conversation
@@ -390,7 +398,8 @@ export const getClientEncryptedApiKey = query({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
   },
   handler: async (ctx, args) => {
@@ -427,7 +436,8 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("anthropic"),
       v.literal("google"),
       v.literal("openrouter"),
-      v.literal("replicate")
+      v.literal("replicate"),
+      v.literal("elevenlabs")
     ),
   },
   handler: async (ctx, args) => {
@@ -444,6 +454,7 @@ export const getEncryptedApiKeyData = internalQuery({
               | "google"
               | "openrouter"
               | "replicate"
+              | "elevenlabs"
           )
       )
       .unique();
