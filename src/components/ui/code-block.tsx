@@ -100,15 +100,14 @@ const CodeBlockComponent = ({
 
   // Handle keyboard shortcut for copying (Cmd+Shift+C / Ctrl+Shift+C)
   useEffect(() => {
+    const element = componentRef.current;
+    if (!element) {
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!componentRef.current) {
-        return;
-      }
-
-      // Check if the code block is in view or focused
-      const rect = componentRef.current.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
-
       if (
         (e.metaKey || e.ctrlKey) &&
         e.shiftKey &&
@@ -121,7 +120,6 @@ const CodeBlockComponent = ({
     };
 
     document.addEventListener("keydown", handleKeyDown);
-
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
