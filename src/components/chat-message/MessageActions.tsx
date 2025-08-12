@@ -1,18 +1,22 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
+// import { useAuthToken } from "@convex-dev/auth/react";
 import {
   ArrowCounterClockwiseIcon,
   CheckIcon,
   CopyIcon,
   HeartIcon,
   NotePencilIcon,
+  SpeakerHighIcon,
+  Square,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -624,6 +628,14 @@ export const MessageActions = memo(
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
+
+    const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
+      "idle"
+    );
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+    const createTTSStreamUrl = useAction(api.ai.elevenlabs.createTTSStreamUrl);
+    const abortControllerRef = useRef<AbortController | null>(null);
+    const isCancelledRef = useRef(false);
     const toggleFavorite = useMutation(api.messages.toggleFavorite);
     const isFavorited = useQuery(
       api.messages.isFavorited,
@@ -653,6 +665,97 @@ export const MessageActions = memo(
       managedToast.success,
       managedToast.error,
     ]);
+
+    const handleTTS = useCallback(async () => {
+      if (!messageId) {
+        return;
+      }
+
+      // If currently playing, stop the audio
+      if (ttsState === "playing") {
+        isCancelledRef.current = true; // Mark as intentionally cancelled
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+          // Ensure network fetch is aborted by clearing the source
+          try {
+            audioRef.current.src = "";
+            audioRef.current.load();
+          } catch {
+            // no-op
+          }
+          audioRef.current = null;
+        }
+        setTtsState("idle");
+        return;
+      }
+
+      // If currently loading, cancel the request
+      if (ttsState === "loading") {
+        isCancelledRef.current = true; // Mark as intentionally cancelled
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+        setTtsState("idle");
+        managedToast.success("TTS generation cancelled");
+        return;
+      }
+
+      // Stream TTS via server (Convex HTTP endpoint)
+      try {
+        isCancelledRef.current = false;
+        setTtsState("loading");
+        // Build signed URL from server
+        const urlResult = await createTTSStreamUrl({
+          messageId: messageId as Id<"messages">,
+          ttlSeconds: 60,
+        });
+
+        const audioEl = new Audio();
+        audioEl.preload = "auto";
+        audioEl.src = urlResult.url;
+        audioEl.onended = () => {
+          setTtsState("idle");
+          audioRef.current = null;
+        };
+        audioEl.onerror = () => {
+          setTtsState("idle");
+          audioRef.current = null;
+          managedToast.error("Text-to-speech failed");
+        };
+
+        audioRef.current = audioEl;
+        await audioEl.play();
+        setTtsState("playing");
+      } catch (error) {
+        if (!isCancelledRef.current) {
+          const errorMessage =
+            error instanceof Error ? error.message : "TTS generation failed";
+          managedToast.error(`Text-to-speech failed: ${errorMessage}`);
+        }
+        setTtsState("idle");
+        audioRef.current = null;
+        abortControllerRef.current = null;
+      }
+    }, [messageId, managedToast, ttsState, createTTSStreamUrl]);
+
+    // Server-side streaming is now the canonical path for TTS
+
+    // Cleanup audio and abort controller on component unmount
+    useEffect(() => {
+      return () => {
+        isCancelledRef.current = true; // Mark as cancelled on unmount
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+          abortControllerRef.current = null;
+        }
+      };
+    }, []);
 
     if (isStreaming) {
       return null;
@@ -691,6 +794,44 @@ export const MessageActions = memo(
                 )
               }
               onClick={handleToggleFavorite}
+            />
+          )}
+          {!isUser && messageId && (
+            <ActionButton
+              disabled={isEditing}
+              tooltip={
+                ttsState === "loading"
+                  ? "Cancel generation"
+                  : ttsState === "playing"
+                    ? "Stop audio"
+                    : "Listen"
+              }
+              ariaLabel={
+                ttsState === "loading"
+                  ? "Cancel TTS generation"
+                  : ttsState === "playing"
+                    ? "Stop audio playback"
+                    : "Listen to assistant response"
+              }
+              icon={
+                ttsState === "loading" ? (
+                  <Spinner size="sm" className="h-3.5 w-3.5" />
+                ) : ttsState === "playing" ? (
+                  <Square
+                    className="h-3.5 w-3.5 text-red-500"
+                    weight="fill"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <SpeakerHighIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                )
+              }
+              onClick={handleTTS}
+              className={
+                ttsState === "playing"
+                  ? "hover:bg-red-50 dark:hover:bg-red-950/20"
+                  : undefined
+              }
             />
           )}
           <ActionButton
