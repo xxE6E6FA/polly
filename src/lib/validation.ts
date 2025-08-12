@@ -14,6 +14,9 @@ export function validateApiKey(provider: string, key: string): boolean {
       return key.startsWith("sk-or-") && key.length > 20;
     case "replicate":
       return key.startsWith("r8_") && key.length > 20;
+    case "elevenlabs":
+      // ElevenLabs keys vary; accept length > 20
+      return key.length > 20;
     default:
       return false;
   }
