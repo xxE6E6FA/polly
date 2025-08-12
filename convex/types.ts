@@ -102,7 +102,8 @@ export type ProviderType =
   | "google"
   | "openrouter"
   | "polly"
-  | "replicate";
+  | "replicate"
+  | "elevenlabs";
 
 export type ProviderMetadata = {
   openrouter?: {

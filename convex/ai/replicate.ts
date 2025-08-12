@@ -50,8 +50,6 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
   }
 }
 
-
-
 export const generateImage = action({
   args: {
     conversationId: v.id("conversations"),

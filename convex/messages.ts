@@ -544,6 +544,13 @@ export const getById = query({
   },
 });
 
+export const getByIdInternal = internalQuery({
+  args: { id: v.id("messages") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+
 export const getAllInConversation = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
@@ -695,7 +702,12 @@ export const toggleFavorite = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      return {
+        items: [],
+        hasMore: false,
+        nextCursor: null,
+        total: 0,
+      } as const;
     }
 
     const message = await ctx.db.get(args.messageId);

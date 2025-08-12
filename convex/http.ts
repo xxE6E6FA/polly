@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import type { Prediction } from "replicate";
 import { internal } from "./_generated/api.js";
 import { httpAction } from "./_generated/server";
+import { streamTTS } from "./ai/elevenlabs.js";
 import { auth } from "./auth.js";
 import { chatStream } from "./chat.js";
 import { log } from "./lib/logger.js";
@@ -23,6 +24,20 @@ http.route({
   method: "OPTIONS",
   handler: chatStream,
 });
+
+// ElevenLabs low-latency streaming proxy
+http.route({
+  path: "/tts/stream",
+  method: "GET",
+  handler: streamTTS,
+});
+http.route({
+  path: "/tts/stream",
+  method: "OPTIONS",
+  handler: streamTTS,
+});
+
+// Removed LLM→TTS WebSocket pipeline in favor of server HTTP streaming
 
 // Replicate webhook handler following API specification
 const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
