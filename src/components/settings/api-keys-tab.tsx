@@ -36,7 +36,8 @@ type ApiProvider =
   | "anthropic"
   | "google"
   | "openrouter"
-  | "replicate";
+  | "replicate"
+  | "elevenlabs";
 
 const API_KEY_INFO = {
   openai: {
@@ -63,6 +64,11 @@ const API_KEY_INFO = {
     name: "Replicate",
     url: "https://replicate.com/account/api-tokens",
     placeholder: "r8_...",
+  },
+  elevenlabs: {
+    name: "ElevenLabs",
+    url: "https://elevenlabs.io/app/settings/api-keys",
+    placeholder: "sk-...",
   },
 };
 
