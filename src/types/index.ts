@@ -25,7 +25,8 @@ export type AIProviderType =
   | "google"
   | "openrouter"
   | "polly"
-  | "replicate";
+  | "replicate"
+  | "elevenlabs";
 
 // ============================================================================
 // TYPE SAFETY HELPERS
@@ -388,6 +389,7 @@ export type APIKeys = {
   google?: string;
   openrouter?: string;
   replicate?: string;
+  elevenlabs?: string;
 };
 
 // ============================================================================
