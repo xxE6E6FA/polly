@@ -28,6 +28,11 @@ type AssistantBubbleProps = {
   isDeleting: boolean;
   copyToClipboard: () => void;
   onRetryMessage?: (modelId?: string, provider?: string) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
   onRetryImageGeneration?: (messageId: string) => void;
@@ -160,6 +165,7 @@ export const AssistantBubble = ({
   isDeleting,
   copyToClipboard,
   onRetryMessage,
+  onRefineMessage,
   onDeleteMessage,
   onPreviewFile,
   onRetryImageGeneration,
@@ -587,6 +593,7 @@ export const AssistantBubble = ({
             provider={message.provider}
             onDeleteMessage={onDeleteMessage}
             onRetryMessage={onRetryMessage}
+            onRefineMessage={onRefineMessage}
           />
         )}
 

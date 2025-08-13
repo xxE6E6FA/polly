@@ -147,6 +147,7 @@ export const UserBubble = memo(
             onDeleteMessage={onDeleteMessage}
             onEditMessage={onEditMessage ? handleEditStart : undefined}
             onRetryMessage={onRetryMessage}
+            onRefineMessage={undefined}
           />
         </div>
       </div>

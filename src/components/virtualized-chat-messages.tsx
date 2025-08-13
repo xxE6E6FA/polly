@@ -27,6 +27,11 @@ type VirtualizedChatMessagesProps = {
     modelId?: string,
     provider?: string
   ) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
   onRetryImageGeneration?: (messageId: string) => void;
   scrollElement?: Element | null;
@@ -53,6 +58,11 @@ interface MessageItemProps {
     modelId?: string,
     provider?: string
   ) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
   onRetryImageGeneration?: (messageId: string) => void;
   // Message selector for efficient re-renders
@@ -66,6 +76,7 @@ const MessageItem = memo(
     onEditMessage,
     onRetryUserMessage,
     onRetryAssistantMessage,
+    onRefineMessage,
     onDeleteMessage,
     onRetryImageGeneration,
     messageSelector,
@@ -99,6 +110,7 @@ const MessageItem = memo(
                   ? onRetryUserMessage
                   : onRetryAssistantMessage
               }
+              onRefineMessage={onRefineMessage}
               onDeleteMessage={onDeleteMessage}
               onRetryImageGeneration={onRetryImageGeneration}
             />
@@ -158,6 +170,7 @@ export const VirtualizedChatMessages = memo(
         onEditMessage,
         onRetryUserMessage,
         onRetryAssistantMessage,
+        onRefineMessage,
         onDeleteMessage,
         onRetryImageGeneration,
         scrollElement: _scrollElement,
@@ -512,6 +525,7 @@ export const VirtualizedChatMessages = memo(
                 onEditMessage={onEditMessage}
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}
+                onRefineMessage={onRefineMessage}
                 onDeleteMessage={onDeleteMessage}
                 onRetryImageGeneration={onRetryImageGeneration}
                 messageSelector={messageSelector}

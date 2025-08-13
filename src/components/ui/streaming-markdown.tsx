@@ -37,13 +37,13 @@ const createOptimizedThrottle = (contentLength: number) => {
   });
 };
 
-// Default throttle for initial render
+// Default throttle tuned for responsive streaming
 const defaultThrottle = throttleBasic({
   readAheadChars: 1,
-  targetBufferChars: 20,
-  adjustPercentage: 0.1,
-  frameLookBackMs: 1000,
-  windowLookBackMs: 500,
+  targetBufferChars: 6,
+  adjustPercentage: 0.2,
+  frameLookBackMs: 200,
+  windowLookBackMs: 120,
 });
 
 type StreamingMarkdownProps = {
@@ -191,36 +191,20 @@ const StreamingMarkdownComponent = ({
 export const StreamingMarkdown = memo(
   StreamingMarkdownComponent,
   (prevProps, nextProps) => {
-    // Enhanced comparison for streaming performance
+    // Simpler comparison to ensure smooth streaming updates
     if (prevProps.isStreaming !== nextProps.isStreaming) {
-      return false; // Always re-render when streaming state changes
+      return false;
     }
-
-    if (nextProps.isStreaming) {
-      // During streaming, implement smart batching
-      const prevLength = prevProps.children.length;
-      const nextLength = nextProps.children.length;
-      const lengthDiff = nextLength - prevLength;
-
-      // Only re-render if we have meaningful content growth
-      if (
-        lengthDiff >= 15 || // Batch threshold for better performance
-        (lengthDiff > 0 && nextLength % 100 === 0) || // Periodic updates for long content
-        (nextProps.children !== prevProps.children && nextLength < 50)
-      ) {
-        // Always update for short content
-        return false;
-      }
-
-      return true; // Skip re-render for small changes
+    if (prevProps.children !== nextProps.children) {
+      return false;
     }
-
-    // Not streaming, compare normally
-    return (
-      prevProps.children === nextProps.children &&
-      prevProps.className === nextProps.className &&
-      prevProps.messageId === nextProps.messageId
-    );
+    if (prevProps.className !== nextProps.className) {
+      return false;
+    }
+    if (prevProps.messageId !== nextProps.messageId) {
+      return false;
+    }
+    return true;
   }
 );
 

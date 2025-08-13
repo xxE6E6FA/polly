@@ -14,6 +14,11 @@ type ChatMessageProps = {
     modelId?: string,
     provider?: string
   ) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDeleteMessage?: (messageId: string) => void;
   onRetryImageGeneration?: (messageId: string) => void;
 };
@@ -23,6 +28,7 @@ const ChatMessageComponent = ({
   isStreaming = false,
   onEditMessage,
   onRetryMessage,
+  onRefineMessage,
   onDeleteMessage,
   onRetryImageGeneration,
 }: ChatMessageProps) => {
@@ -115,6 +121,7 @@ const ChatMessageComponent = ({
             copyToClipboard={copyToClipboard}
             onEditMessage={onEditMessage}
             onRetryMessage={onRetryMessage ? handleRetry : undefined}
+            onRefineMessage={onRefineMessage}
             onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
             onPreviewFile={setPreviewFile}
           />
@@ -127,6 +134,7 @@ const ChatMessageComponent = ({
             isDeleting={isDeleting}
             copyToClipboard={copyToClipboard}
             onRetryMessage={onRetryMessage ? handleRetry : undefined}
+            onRefineMessage={onRefineMessage}
             onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
             onPreviewFile={setPreviewFile}
             onRetryImageGeneration={
