@@ -3,6 +3,9 @@ import type { Doc, Id } from "@convex/_generated/dataModel";
 // import { useAuthToken } from "@convex-dev/auth/react";
 import {
   ArrowCounterClockwiseIcon,
+  ArrowsInSimpleIcon,
+  ArrowsOutSimpleIcon,
+  ArrowUpIcon,
   CheckIcon,
   CopyIcon,
   HeartIcon,
@@ -28,12 +31,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +60,13 @@ type RetryDropdownProps = {
   isRetrying: boolean;
   isStreaming: boolean;
   isEditing: boolean;
+  messageId?: string;
   onRetry: (modelId?: string, provider?: string) => void;
+  onRefine?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDropdownOpenChange?: (open: boolean) => void;
 };
 
@@ -65,11 +76,16 @@ const RetryDropdown = memo(
     isRetrying,
     isStreaming,
     isEditing,
+    messageId,
     onRetry,
+    onRefine,
     onDropdownOpenChange,
   }: RetryDropdownProps) => {
     const [open, setOpen] = useState(false);
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const [isRefineDialogOpen, setIsRefineDialogOpen] = useState(false);
+    const [refineText, setRefineText] = useState("");
+    // no local ref needed; we move focus via element id
     const { modelGroups, userModels } = useModelSelection();
     const selectModelMutation = useMutation(api.userModels.selectModel);
     const managedToast = useToast();
@@ -127,6 +143,22 @@ const RetryDropdown = memo(
       setIsMobileSheetOpen(false);
       onDropdownOpenChange?.(false);
       onRetry();
+    };
+
+    const handleRefine = (
+      type: "custom" | "add_details" | "more_concise",
+      instruction?: string
+    ) => {
+      if (!messageId) {
+        return;
+      }
+      if (!onRefine) {
+        return;
+      }
+      setOpen(false);
+      setIsMobileSheetOpen(false);
+      onDropdownOpenChange?.(false);
+      onRefine(messageId, type, instruction);
     };
 
     const renderModelList = () => (
@@ -327,8 +359,84 @@ const RetryDropdown = memo(
             </Tooltip>
             <DropdownMenuContent
               align="end"
-              className="w-auto min-w-[200px] max-w-[300px]"
+              className="w-auto min-w-[240px] max-w-[300px]"
             >
+              {!isUser && (
+                <>
+                  <DropdownMenuLabel className="pl-0 pr-1">
+                    <div className="relative flex items-center">
+                      <Input
+                        id="refine-input"
+                        autoFocus
+                        value={refineText}
+                        onChange={e => setRefineText(e.target.value)}
+                        placeholder="Ask to change response"
+                        className="h-6 w-full border-none px-3 font-normal text-foreground placeholder:text-muted-foreground shadow-none outline-none focus:ring-0 focus-visible:ring-0"
+                        onKeyDown={e => {
+                          if (
+                            e.key === "Enter" &&
+                            refineText.trim().length > 0
+                          ) {
+                            handleRefine("custom", refineText.trim());
+                            setRefineText("");
+                            setOpen(false);
+                            onDropdownOpenChange?.(false);
+                          }
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            const firstAction =
+                              document.getElementById("add-details-action");
+                            (firstAction as HTMLElement | null)?.focus();
+                          }
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 rounded-full p-0 shrink-0"
+                        aria-label="Submit instruction"
+                        title="Submit"
+                        onClick={() => {
+                          if (refineText.trim().length === 0) {
+                            return;
+                          }
+                          handleRefine("custom", refineText.trim());
+                          setRefineText("");
+                          setOpen(false);
+                          onDropdownOpenChange?.(false);
+                        }}
+                      >
+                        <ArrowUpIcon className="h-2 w-2" />
+                      </Button>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="my-1" />
+
+                  <DropdownMenuItem
+                    id="add-details-action"
+                    onClick={() => handleRefine("add_details")}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        const inputEl = document.getElementById("refine-input");
+                        (inputEl as HTMLElement | null)?.focus();
+                      }
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowsOutSimpleIcon className="h-4 w-4" />
+                    Add details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleRefine("more_concise")}
+                    className="flex items-center gap-2"
+                  >
+                    <ArrowsInSimpleIcon className="h-4 w-4" />
+                    More concise
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem
                 onClick={handleRetrySame}
                 className="flex items-center gap-2"
@@ -530,10 +638,74 @@ const RetryDropdown = memo(
                   {isUser ? "Retry from this message" : "Retry this response"}
                 </DialogTitle>
               </DialogHeader>
+              {/* Refinement options for mobile */}
+              <div className="flex flex-col">
+                <button
+                  onClick={() => {
+                    setIsMobileSheetOpen(false);
+                    setRefineText("");
+                    setIsRefineDialogOpen(true);
+                  }}
+                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                >
+                  Ask to change response
+                </button>
+                <button
+                  onClick={() => handleRefine("add_details")}
+                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                >
+                  Add details
+                </button>
+                <button
+                  onClick={() => handleRefine("more_concise")}
+                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                >
+                  More concise
+                </button>
+              </div>
               {renderModelList()}
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Refine dialog (shared) */}
+        <Dialog open={isRefineDialogOpen} onOpenChange={setIsRefineDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>How should I change the response?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Input
+                value={refineText}
+                onChange={e => setRefineText(e.target.value)}
+                placeholder="e.g., Use bullet points and clarify step 3"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsRefineDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    if (refineText.trim().length === 0) {
+                      setIsRefineDialogOpen(false);
+                      return;
+                    }
+                    handleRefine("custom", refineText.trim());
+                    setIsRefineDialogOpen(false);
+                  }}
+                >
+                  Apply and retry
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </>
     );
   }
@@ -602,6 +774,11 @@ type MessageActionsProps = {
   copyToClipboard: () => void;
   onEditMessage?: () => void;
   onRetryMessage?: (modelId?: string, provider?: string) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onDeleteMessage?: () => void;
   model?: string;
   provider?: string;
@@ -620,6 +797,7 @@ export const MessageActions = memo(
     copyToClipboard,
     onEditMessage,
     onRetryMessage,
+    onRefineMessage,
     onDeleteMessage,
     model,
     provider,
@@ -870,7 +1048,9 @@ export const MessageActions = memo(
               isRetrying={isRetrying}
               isStreaming={isStreaming}
               isEditing={isEditing}
+              messageId={messageId}
               onRetry={onRetryMessage}
+              onRefine={onRefineMessage}
               onDropdownOpenChange={setIsDropdownOpen}
             />
           )}

@@ -221,6 +221,18 @@ export default function ConversationRoute() {
       onSendAsNewConversation={handleSendAsNewConversation}
       onDeleteMessage={deleteMessage}
       onEditMessage={editMessage}
+      onRefineMessage={async (messageId, type, instruction) => {
+        await convex.action(api.messages.refineAssistantMessage, {
+          messageId: messageId as Id<"messages">,
+          mode:
+            type === "custom"
+              ? "custom"
+              : type === "more_concise"
+                ? "more_concise"
+                : "add_details",
+          instruction,
+        });
+      }}
       onStopGeneration={stopGeneration}
       onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={async (

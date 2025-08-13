@@ -66,6 +66,11 @@ type UnifiedChatViewProps = {
     reasoningConfig?: ReasoningConfig,
     temperature?: number
   ) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
   onRetryImageGeneration?: (messageId: string) => void;
 };
 
@@ -90,6 +95,7 @@ export const UnifiedChatView = memo(
     onTemperatureChange,
     onRetryUserMessage,
     onRetryAssistantMessage,
+    onRefineMessage,
     onRetryImageGeneration,
   }: UnifiedChatViewProps) => {
     const { isPrivateMode } = usePrivateMode();
@@ -217,6 +223,7 @@ export const UnifiedChatView = memo(
           onRetryAssistantMessage={
             isArchived ? undefined : handleRetryAssistantMessage
           }
+          onRefineMessage={isArchived ? undefined : onRefineMessage}
           onRetryImageGeneration={
             isArchived ? undefined : onRetryImageGeneration
           }

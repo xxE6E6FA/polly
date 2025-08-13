@@ -317,6 +317,26 @@ function ConversationContent({
     [clearConversationCache, conversationId, editMessage]
   );
 
+  const handleRefineMessage = useCallback(
+    async (
+      messageId: string,
+      type: "custom" | "add_details" | "more_concise",
+      instruction?: string
+    ) => {
+      await convex.action(api.messages.refineAssistantMessage, {
+        messageId: messageId as Id<"messages">,
+        mode:
+          type === "custom"
+            ? "custom"
+            : type === "more_concise"
+              ? "more_concise"
+              : "add_details",
+        instruction,
+      });
+    },
+    [convex]
+  );
+
   const createRetryHandler = useCallback(
     (
       messageId: string,
@@ -446,6 +466,7 @@ function ConversationContent({
       onSendAsNewConversation={onSendAsNewConversation}
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
+      onRefineMessage={handleRefineMessage}
       onStopGeneration={stopGeneration}
       onTemperatureChange={onTemperatureChange}
       onRetryUserMessage={createRetryHandler}

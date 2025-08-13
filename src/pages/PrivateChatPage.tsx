@@ -594,6 +594,38 @@ export default function PrivateChatPage() {
       onSendAsNewConversation={handleSendAsNewConversation}
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
+      onRefineMessage={async (messageId, type, instruction) => {
+        const idx = messages.findIndex(m => m.id === messageId);
+        if (idx === -1) {
+          return;
+        }
+        let targetIndex = idx;
+        if (messages[idx].role === "assistant") {
+          for (let i = idx - 1; i >= 0; i--) {
+            if (messages[i].role === "user") {
+              targetIndex = i;
+              break;
+            }
+          }
+        }
+        const target = messages[targetIndex];
+        if (!target || target.role !== "user") {
+          return;
+        }
+        let newContent = target.content as string;
+        if (type === "custom" && instruction && instruction.trim().length > 0) {
+          newContent = `${target.content}\n\n[Refine request]: ${instruction.trim()}`;
+        } else if (type === "add_details") {
+          newContent = `${target.content}\n\nPlease provide a more detailed and comprehensive response.`;
+        } else if (type === "more_concise") {
+          newContent = `${target.content}\n\nPlease provide a much more concise summary.`;
+        }
+        // In private mode, we cannot edit past messages via AI SDK; append a new instruction
+        await append(
+          { role: "user", content: newContent },
+          { body: apiBody, headers: apiHeaders }
+        );
+      }}
       onStopGeneration={() => {
         stop();
       }}
