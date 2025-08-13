@@ -1,7 +1,8 @@
 import { api } from "@convex/_generated/api";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
+import { ModelPicker } from "@/components/ui/model-picker";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { VoicePicker } from "@/components/ui/voice-picker";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -24,7 +26,6 @@ type ApiKeyInfo = {
 export const TTSTab = () => {
   const userSettings = useUserSettings();
   const updateUserSettings = useMutation(api.userSettings.updateUserSettings);
-  const fetchAllTTSDataAction = useAction(api.ai.elevenlabs.fetchAllTTSData);
   const { user } = useUserDataContext();
   const apiKeysRaw = useQuery(
     api.apiKeys.getUserApiKeys,
@@ -51,52 +52,7 @@ export const TTSTab = () => {
     return apiKeys.filter(hasKey).some(key => key.provider === "elevenlabs");
   }, [apiKeys]);
 
-  const [voiceOptions, setVoiceOptions] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-  const [modelOptions, setModelOptions] = useState<
-    Array<{
-      id: string;
-      name: string;
-      description?: string;
-      recommended?: boolean;
-      tier?: string;
-    }>
-  >([]);
-
-  const renderModelOption = useCallback(
-    (m: { id: string; name: string; description?: string }) => {
-      return (
-        <div className="flex flex-col gap-1" title={m.description || m.name}>
-          <span className="font-medium">{m.name}</span>
-          {m.description && (
-            <span className="text-xs text-muted-foreground leading-relaxed">
-              {m.description}
-            </span>
-          )}
-        </div>
-      );
-    },
-    []
-  );
-
-  const fetchAllTTSData = useCallback(async () => {
-    if (!hasElevenLabs) {
-      return;
-    }
-
-    const result = await fetchAllTTSDataAction({});
-    setVoiceOptions(result.voices.map(v => ({ id: v.id, name: v.name })));
-    setModelOptions(result.models);
-  }, [fetchAllTTSDataAction, hasElevenLabs]);
-
-  useEffect(() => {
-    if (hasElevenLabs) {
-      fetchAllTTSData();
-    }
-  }, [hasElevenLabs, fetchAllTTSData]);
-
-  if (!userSettings) {
+  if (!(userSettings && hasElevenLabs)) {
     return null;
   }
 
@@ -104,56 +60,27 @@ export const TTSTab = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <Label>Voice</Label>
-          <Select
-            value={userSettings.ttsVoiceId || ""}
-            onValueChange={async v => {
+          <ModelPicker
+            label="Model"
+            value={userSettings.ttsModelId || "eleven_v3"}
+            onChange={async v => {
+              await updateUserSettings({ ttsModelId: v || undefined });
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <VoicePicker
+            label="Voice"
+            value={userSettings.ttsVoiceId}
+            onChange={async v => {
               await updateUserSettings({ ttsVoiceId: v || undefined });
             }}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a voice" />
-            </SelectTrigger>
-            <SelectContent>
-              {voiceOptions.length > 0
-                ? voiceOptions.map(v => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.name}
-                    </SelectItem>
-                  ))
-                : userSettings.ttsVoiceId && (
-                    <SelectItem value={userSettings.ttsVoiceId}>
-                      {userSettings.ttsVoiceId}
-                    </SelectItem>
-                  )}
-            </SelectContent>
-          </Select>
+            includeDefaultItem
+            defaultLabel="Default (no override)"
+          />
           <p className="text-xs text-muted-foreground">
             Pick from your ElevenLabs voices
           </p>
-        </div>
-        <div className="space-y-1.5 max-w-[280px]">
-          <Label>Model</Label>
-          <Select
-            value={userSettings.ttsModelId || "eleven_v3"}
-            onValueChange={async v => {
-              await updateUserSettings({ ttsModelId: v || undefined });
-            }}
-          >
-            <SelectTrigger className="w-full text-left">
-              <SelectValue placeholder="Select a model">
-                {modelOptions.find(m => m.id === userSettings.ttsModelId)
-                  ?.name || userSettings.ttsModelId}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="max-w-[400px]">
-              {modelOptions.map(m => (
-                <SelectItem key={m.id} value={m.id}>
-                  {renderModelOption(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       </div>
 

@@ -68,6 +68,8 @@ export const create = mutation({
     description: v.string(),
     prompt: v.string(),
     icon: v.optional(v.string()),
+    // TTS override
+    ttsVoiceId: v.optional(v.string()),
     // Advanced sampling params (all optional)
     temperature: v.optional(v.number()),
     topP: v.optional(v.number()),
@@ -90,6 +92,7 @@ export const create = mutation({
       description: args.description,
       prompt: args.prompt,
       icon: args.icon,
+      ttsVoiceId: args.ttsVoiceId,
       temperature: args.temperature,
       topP: args.topP,
       topK: args.topK,
@@ -111,6 +114,8 @@ export const update = mutation({
     description: v.optional(v.string()),
     prompt: v.optional(v.string()),
     icon: v.optional(v.string()),
+    // TTS override
+    ttsVoiceId: v.optional(v.string()),
     temperature: v.optional(v.number()),
     topP: v.optional(v.number()),
     topK: v.optional(v.number()),
@@ -139,6 +144,7 @@ export const update = mutation({
       ...(args.description !== undefined && { description: args.description }),
       ...(args.prompt !== undefined && { prompt: args.prompt }),
       ...(args.icon !== undefined && { icon: args.icon }),
+      ...(args.ttsVoiceId !== undefined && { ttsVoiceId: args.ttsVoiceId }),
       ...(args.temperature !== undefined && { temperature: args.temperature }),
       ...(args.topP !== undefined && { topP: args.topP }),
       ...(args.topK !== undefined && { topK: args.topK }),

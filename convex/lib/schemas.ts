@@ -499,6 +499,8 @@ export const personaSchema = v.object({
   description: v.string(),
   prompt: v.string(),
   icon: v.optional(v.string()),
+  // TTS (ElevenLabs) persona-level overrides
+  ttsVoiceId: v.optional(v.string()),
   // Advanced sampling parameters (optional)
   temperature: v.optional(v.number()),
   topP: v.optional(v.number()),

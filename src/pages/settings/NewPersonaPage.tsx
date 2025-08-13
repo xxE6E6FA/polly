@@ -23,6 +23,7 @@ export default function NewPersonaPage() {
     description: "",
     prompt: "",
     icon: "🤖",
+    ttsVoiceId: undefined,
   });
 
   const createPersonaMutation = useMutation(api.personas.create);
@@ -39,6 +40,7 @@ export default function NewPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        ttsVoiceId: formData.ttsVoiceId || undefined,
         temperature: formData.temperature,
         topP: formData.topP,
         topK: formData.topK,
