@@ -10,30 +10,31 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary-hover",
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:bg-destructive/90",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover focus-visible:bg-secondary-hover",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
         action: "btn-action",
-        link: "text-primary underline-offset-4 hover:underline",
+        link: "text-primary underline-offset-4 hover:underline focus-visible:underline",
         tropical:
-          "bg-gradient-tropical text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl",
+          "bg-gradient-tropical text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl focus-visible:scale-105 focus-visible:shadow-xl",
         // Semantic variants
         primary:
-          "bg-primary text-primary-foreground shadow hover:bg-primary-hover",
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
         success:
-          "bg-success text-success-foreground shadow-md transition-all duration-200 hover:bg-success-hover hover:shadow-lg",
+          "bg-success text-success-foreground shadow-md transition-all duration-200 hover:bg-success-hover hover:shadow-lg focus-visible:bg-success-hover focus-visible:shadow-lg",
         warning:
-          "bg-warning text-warning-foreground shadow-md transition-all duration-200 hover:bg-warning-hover hover:shadow-lg",
-        info: "bg-info text-info-foreground shadow-md transition-all duration-200 hover:bg-info-hover hover:shadow-lg",
+          "bg-warning text-warning-foreground shadow-md transition-all duration-200 hover:bg-warning-hover hover:shadow-lg focus-visible:bg-warning-hover focus-visible:shadow-lg",
+        info: "bg-info text-info-foreground shadow-md transition-all duration-200 hover:bg-info-hover hover:shadow-lg focus-visible:bg-info-hover focus-visible:shadow-lg",
         danger:
-          "bg-danger text-danger-foreground shadow-md transition-all duration-200 hover:bg-danger-hover hover:shadow-lg",
+          "bg-danger text-danger-foreground shadow-md transition-all duration-200 hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg",
         purple:
-          "bg-[hsl(260_85%_60%)] text-white shadow-md transition-all duration-200 hover:bg-[hsl(260_85%_55%)] hover:shadow-lg dark:text-white",
+          "bg-[hsl(260_85%_60%)] text-white shadow-md transition-all duration-200 hover:bg-[hsl(260_85%_55%)] hover:shadow-lg focus-visible:bg-[hsl(260_85%_55%)] focus-visible:shadow-lg dark:text-white",
       },
       size: {
         default: "h-9 px-4 py-2",

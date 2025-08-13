@@ -322,10 +322,28 @@ export const generateTTS = action({
 
     const stability: StabilityMode = userSettings?.ttsStabilityMode ?? (resolvedUseTags ? "creative" : undefined);
 
+    // Persona-level voice override
+    let personaVoiceId: string | undefined;
+    try {
+      const convo = await ctx.runQuery(internal.conversations.internalGet, { id: conversationId });
+      let pid: Id<"personas"> | undefined;
+      if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
+        pid = (convo as { personaId: Id<"personas"> }).personaId;
+      }
+      if (pid) {
+        const persona = await ctx.runQuery(api.personas.get, { id: pid });
+        if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
+          personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const result: { storageId: Id<"_storage">; mimeType: string } = await ctx.runAction(internal.ai.elevenlabs.generateTTSInternal, {
       conversationId,
       text: processedText,
-      voiceId: args.voiceId ?? userSettings?.ttsVoiceId ?? undefined,
+      voiceId: args.voiceId ?? personaVoiceId ?? userSettings?.ttsVoiceId ?? undefined,
       modelId:
         args.modelId ??
         userSettings?.ttsModelId ??
@@ -428,8 +446,17 @@ export const generateTTSInternal = internalAction({
 export const fetchAllTTSData = action({
   args: {},
   returns: v.object({
-    voices: v.array(
-      v.object({ id: v.string(), name: v.string(), category: v.optional(v.string()) })
+  voices: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        category: v.optional(v.string()),
+        previewUrl: v.optional(v.string()),
+        description: v.optional(v.string()),
+        imageUrl: v.optional(v.string()),
+        likedCount: v.optional(v.number()),
+        languages: v.optional(v.array(v.string())),
+      })
     ),
     models: v.array(
       v.object({
@@ -475,10 +502,37 @@ export const fetchAllTTSData = action({
             const id: unknown = voice?.voice_id;
             const name: unknown = voice?.name;
             const category: unknown = voice?.category;
+            // Prefer top-level preview, else first verified language preview
+            let preview: unknown = voice?.preview_url;
+            if (!preview) {
+              const vlangs = Array.isArray(voice?.verified_languages)
+                ? voice.verified_languages
+                : [];
+              const firstPreview = vlangs?.find((v: any) => typeof v?.preview_url === "string")?.preview_url;
+              preview = firstPreview;
+            }
+            const description: unknown = voice?.description;
+            const sharing = voice?.sharing || {};
+            const imageUrl: unknown = sharing?.image_url;
+            const likedCount: unknown = sharing?.liked_by_count;
+            const languagesRaw: any[] = Array.isArray(voice?.verified_languages)
+              ? voice.verified_languages
+              : [];
+            const languages: string[] = languagesRaw
+              .map((l: any) => {
+                const parts = [l?.language, l?.accent].filter((x: unknown) => typeof x === "string") as string[];
+                return parts.join(" · ");
+              })
+              .filter((s: string) => s.length > 0);
             return {
               id: typeof id === "string" ? id : "",
               name: typeof name === "string" ? name : "Unnamed Voice",
               category: typeof category === "string" ? category : undefined,
+              previewUrl: typeof preview === "string" ? preview : undefined,
+              description: typeof description === "string" ? description : undefined,
+              imageUrl: typeof imageUrl === "string" ? imageUrl : undefined,
+              likedCount: typeof likedCount === "number" ? likedCount : undefined,
+              languages: languages.length > 0 ? languages : undefined,
             };
           })
           .filter((v) => v.id);
@@ -715,7 +769,32 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       : { text: baseText };
 
     // Honor the selected voice and model exactly
-    const selectedVoiceId = voiceIdParam || userSettings?.ttsVoiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
+    // Persona-level override (if conversation has a persona with ttsVoiceId)
+    let personaVoiceId: string | undefined;
+    try {
+      const convo = await ctx.runQuery(internal.conversations.internalGet, {
+        id: conversationId,
+      });
+      let pid: Id<"personas"> | undefined;
+      if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
+        pid = (convo as { personaId: Id<"personas"> }).personaId;
+      }
+      if (pid) {
+        const persona = await ctx.runQuery(api.personas.get, { id: pid });
+        if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
+          personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    const selectedVoiceId =
+      voiceIdParam ||
+      personaVoiceId ||
+      userSettings?.ttsVoiceId ||
+      process.env.ELEVENLABS_DEFAULT_VOICE_ID ||
+      "JBFqnCBsd6RMkjVDRZzb";
     const selectedModelId = modelIdParam || userSettings?.ttsModelId || process.env.ELEVENLABS_TTS_MODEL_ID || "eleven_v3";
     const normalizedOutputFormat = ensureOutputFormat(outputFormatParam || undefined, "mp3_44100_128");
 
@@ -869,7 +948,31 @@ export const createTTSStreamUrl = action({
     if (!effectiveVoiceId || !effectiveModelId || !effectiveOutputFormat || !effectiveOptimizeLatency) {
       try {
         const userSettings = await ctx.runQuery(api.userSettings.getUserSettings, {});
-        effectiveVoiceId = effectiveVoiceId || userSettings?.ttsVoiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
+        // Persona override for signed URL as well
+        let personaVoiceId: string | undefined;
+        try {
+          const messageRec = await ctx.runQuery(api.messages.getById, { id: args.messageId });
+          let convId: Id<"conversations"> | undefined;
+          if (messageRec && typeof (messageRec as Record<string, unknown>).conversationId === "string") {
+            convId = (messageRec as { conversationId: Id<"conversations"> }).conversationId;
+          }
+          if (convId) {
+            const convo = await ctx.runQuery(internal.conversations.internalGet, { id: convId });
+            let pid: Id<"personas"> | undefined;
+            if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
+              pid = (convo as { personaId: Id<"personas"> }).personaId;
+            }
+            if (pid) {
+              const persona = await ctx.runQuery(api.personas.get, { id: pid });
+              if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
+                personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+              }
+            }
+          }
+        } catch {
+          // ignore
+        }
+        effectiveVoiceId = effectiveVoiceId || personaVoiceId || userSettings?.ttsVoiceId || process.env.ELEVENLABS_DEFAULT_VOICE_ID || "JBFqnCBsd6RMkjVDRZzb";
         effectiveModelId = effectiveModelId || userSettings?.ttsModelId || process.env.ELEVENLABS_TTS_MODEL_ID || "eleven_v3";
         effectiveOutputFormat = effectiveOutputFormat || "mp3_44100_128";
         effectiveOptimizeLatency = effectiveOptimizeLatency || "4";

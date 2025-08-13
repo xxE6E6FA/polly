@@ -1,9 +1,13 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
+import type { EmojiClickData } from "emoji-picker-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { PersonaForm } from "@/components/settings/persona-form";
+import {
+  PersonaForm,
+  type PersonaFormData,
+} from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
@@ -11,22 +15,7 @@ import { ROUTES } from "@/lib/routes";
 import { isPersona } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 
-type PersonaFormData = {
-  name: string;
-  description: string;
-  prompt: string;
-  icon: string;
-  temperature?: number;
-  topP?: number;
-  topK?: number;
-  frequencyPenalty?: number;
-  presencePenalty?: number;
-  repetitionPenalty?: number;
-};
-
-type EmojiClickData = {
-  emoji: string;
-};
+// Using shared PersonaFormData type from PersonaForm
 
 export default function EditPersonaPage() {
   const navigate = useNavigate();
@@ -55,6 +44,7 @@ export default function EditPersonaPage() {
         description: persona.description || "",
         prompt: persona.prompt,
         icon: persona.icon || "🤖",
+        ttsVoiceId: (persona as unknown as { ttsVoiceId?: string }).ttsVoiceId,
         temperature: (persona as unknown as { temperature?: number })
           .temperature,
         topP: (persona as unknown as { topP?: number }).topP,
@@ -88,6 +78,7 @@ export default function EditPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        ttsVoiceId: formData.ttsVoiceId || undefined,
         temperature: formData.temperature,
         topP: formData.topP,
         topK: formData.topK,

@@ -7,9 +7,9 @@ import {
   SparkleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,10 @@ import {
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { VoicePicker } from "@/components/ui/voice-picker";
+import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {
@@ -30,6 +33,8 @@ export type PersonaFormData = {
   description: string;
   prompt: string;
   icon: string;
+  // TTS override (optional)
+  ttsVoiceId?: string;
   // Advanced sampling parameters (optional)
   temperature?: number;
   topP?: number;
@@ -70,6 +75,32 @@ export const PersonaForm = ({
   const managedToast = useToast();
   const improvePromptAction = useAction(api.personas.improvePrompt);
   const suggestSamplingAction = useAction(api.personas.suggestSampling);
+
+  // Check if user has ElevenLabs API key to show TTS section
+  const { user } = useUserDataContext();
+  const apiKeysRaw = useQuery(
+    api.apiKeys.getUserApiKeys,
+    user && !user.isAnonymous ? {} : "skip"
+  );
+  const apiKeys = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
+  const hasElevenLabs = useMemo(() => {
+    return apiKeys.some(k => {
+      if (k.provider !== "elevenlabs") {
+        return false;
+      }
+      const obj = k as unknown as Record<string, unknown>;
+      if ("hasKey" in obj && typeof obj.hasKey === "boolean") {
+        return obj.hasKey as boolean;
+      }
+      if ("encryptedKey" in obj && obj.encryptedKey !== undefined) {
+        return true;
+      }
+      if ("clientEncryptedKey" in obj && obj.clientEncryptedKey !== undefined) {
+        return true;
+      }
+      return false;
+    });
+  }, [apiKeys]);
 
   const updateFormField = useCallback(
     <K extends keyof PersonaFormData>(field: K, value: PersonaFormData[K]) => {
@@ -260,7 +291,6 @@ export const PersonaForm = ({
           </div>
         </div>
       </div>
-
       {/* Personality & Instructions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -378,176 +408,169 @@ export const PersonaForm = ({
             </a>{" "}
             for tips and best practices.
           </p>
-
-          {/* Advanced Sampling Options */}
-          <div className="mt-6 space-y-3 rounded-lg border p-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium">
-                  Advanced sampling options
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Control decoding behavior. These apply when using this
-                  persona.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleAutoTuneClick}
-                >
-                  Auto-tune for this prompt
-                </Button>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs">Show</Label>
-                  <Switch
-                    checked={showAdvanced}
-                    onCheckedChange={setShowAdvanced}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {showAdvanced && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {/* Temperature */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Temperature</Label>
-                  <div className="text-xs text-muted-foreground">
-                    0 = deterministic, 2 = highly creative
-                  </div>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={2}
-                    step={0.1}
-                    value={formData.temperature ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "temperature",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-                {/* top_p */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Top P</Label>
-                  <div className="text-xs text-muted-foreground">
-                    0-1 nucleus sampling
-                  </div>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={formData.topP ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "topP",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-                {/* top_k */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Top K</Label>
-                  <div className="text-xs text-muted-foreground">
-                    0-100+ (provider dependent)
-                  </div>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={formData.topK ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "topK",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-                {/* frequency penalty */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Frequency Penalty
-                  </Label>
-                  <div className="text-xs text-muted-foreground">
-                    Discourage repeated tokens
-                  </div>
-                  <Input
-                    type="number"
-                    step={0.1}
-                    value={formData.frequencyPenalty ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "frequencyPenalty",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-                {/* presence penalty */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Presence Penalty
-                  </Label>
-                  <div className="text-xs text-muted-foreground">
-                    Encourage new topics
-                  </div>
-                  <Input
-                    type="number"
-                    step={0.1}
-                    value={formData.presencePenalty ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "presencePenalty",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-                {/* repetition penalty */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    Repetition Penalty
-                  </Label>
-                  <div className="text-xs text-muted-foreground">
-                    {">"}1 penalizes repetition
-                  </div>
-                  <Input
-                    type="number"
-                    step={0.1}
-                    value={formData.repetitionPenalty ?? ""}
-                    onChange={e =>
-                      updateFormField(
-                        "repetitionPenalty",
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value)
-                      )
-                    }
-                  />
-                </div>
-              </div>
-            )}
+        </div>
+      </div>
+      {/* Advanced Sampling Options */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium">Advanced sampling options</h3>
+          <p className="text-xs text-muted-foreground">
+            Control decoding behavior. These apply when using this persona.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleAutoTuneClick}>
+            Auto-tune for this prompt
+          </Button>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs">Show</Label>
+            <Switch checked={showAdvanced} onCheckedChange={setShowAdvanced} />
           </div>
         </div>
       </div>
 
+      {showAdvanced && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {/* Temperature */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Temperature</Label>
+            <div className="text-xs text-muted-foreground">
+              0 = deterministic, 2 = highly creative
+            </div>
+            <Input
+              type="number"
+              min={0}
+              max={2}
+              step={0.1}
+              value={formData.temperature ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "temperature",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+          {/* top_p */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Top P</Label>
+            <div className="text-xs text-muted-foreground">
+              0-1 nucleus sampling
+            </div>
+            <Input
+              type="number"
+              min={0}
+              max={1}
+              step={0.01}
+              value={formData.topP ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "topP",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+          {/* top_k */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Top K</Label>
+            <div className="text-xs text-muted-foreground">
+              0-100+ (provider dependent)
+            </div>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              value={formData.topK ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "topK",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+          {/* frequency penalty */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Frequency Penalty</Label>
+            <div className="text-xs text-muted-foreground">
+              Discourage repeated tokens
+            </div>
+            <Input
+              type="number"
+              step={0.1}
+              value={formData.frequencyPenalty ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "frequencyPenalty",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+          {/* presence penalty */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Presence Penalty</Label>
+            <div className="text-xs text-muted-foreground">
+              Encourage new topics
+            </div>
+            <Input
+              type="number"
+              step={0.1}
+              value={formData.presencePenalty ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "presencePenalty",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+          {/* repetition penalty */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Repetition Penalty</Label>
+            <div className="text-xs text-muted-foreground">
+              {">"}1 penalizes repetition
+            </div>
+            <Input
+              type="number"
+              step={0.1}
+              value={formData.repetitionPenalty ?? ""}
+              onChange={e =>
+                updateFormField(
+                  "repetitionPenalty",
+                  e.target.value === "" ? undefined : Number(e.target.value)
+                )
+              }
+            />
+          </div>
+        </div>
+      )}
+      {hasElevenLabs && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-medium">Text-to-speech</h3>
+              <p className="text-xs text-muted-foreground">
+                Override the default ElevenLabs voice for this persona
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <VoicePicker
+              value={formData.ttsVoiceId}
+              onChange={id =>
+                updateFormField(
+                  "ttsVoiceId",
+                  (id || undefined) as unknown as string | undefined
+                )
+              }
+              includeDefaultItem
+              defaultLabel="Default (from Settings)"
+            />
+          </div>
+        </div>
+      )}
       {isFullScreenEditor && (
         <div className="fixed inset-0 z-50 flex flex-col bg-background">
           {/* Header */}
