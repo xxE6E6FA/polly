@@ -30,6 +30,9 @@ export interface ModelOptions {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  // Optional extra knobs (provider-dependent)
+  topK?: number;
+  repetitionPenalty?: number;
   webSearchMaxResults?: number;
 }
 
@@ -300,6 +303,10 @@ export const createPrivateChatHandlers = (
           topP: options.topP,
           frequencyPenalty: options.frequencyPenalty,
           presencePenalty: options.presencePenalty,
+          // Provider-specific extras (will be ignored by others)
+          topK: (options as { topK?: number }).topK,
+          repetitionPenalty: (options as { repetitionPenalty?: number })
+            .repetitionPenalty,
           reasoningConfig: options.reasoningConfig,
         },
         callbacks: {

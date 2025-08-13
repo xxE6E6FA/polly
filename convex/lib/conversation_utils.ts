@@ -427,6 +427,38 @@ export const executeStreamingAction = async (
 ): Promise<StreamingActionResult> => {
   let assistantMessageId: Id<"messages"> | undefined;
   try {
+    // Determine persona sampling parameters if any
+    let samplingParams:
+      | {
+          temperature?: number;
+          topP?: number;
+          topK?: number;
+          frequencyPenalty?: number;
+          presencePenalty?: number;
+          repetitionPenalty?: number;
+        }
+      | undefined;
+
+    if (args.conversation.personaId) {
+      try {
+        const persona = await ctx.runQuery(api.personas.get, {
+          id: args.conversation.personaId,
+        });
+        if (persona) {
+          samplingParams = {
+            temperature: (persona as { temperature?: number }).temperature,
+            topP: (persona as { topP?: number }).topP,
+            topK: (persona as { topK?: number }).topK,
+            frequencyPenalty: (persona as { frequencyPenalty?: number }).frequencyPenalty,
+            presencePenalty: (persona as { presencePenalty?: number }).presencePenalty,
+            repetitionPenalty: (persona as { repetitionPenalty?: number }).repetitionPenalty,
+          };
+        }
+      } catch (_ignored) {
+        // Ignore persona fetch failures
+      }
+    }
+
     assistantMessageId = await setupAndStartStreaming(ctx, {
       conversationId: args.conversationId,
       contextMessages: args.contextMessages,
@@ -436,6 +468,7 @@ export const executeStreamingAction = async (
       personaId: args.conversation.personaId,
       useWebSearch: args.useWebSearch, // Pass through useWebSearch
       reasoningConfig: args.reasoningConfig,
+      sampling: samplingParams,
     });
     return {
       userMessageId: args.userMessageId,
@@ -781,6 +814,14 @@ export const setupAndStartStreaming = async (
       effort: "low" | "medium" | "high";
       maxTokens?: number;
     };
+    sampling?: {
+      temperature?: number;
+      topP?: number;
+      topK?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+      repetitionPenalty?: number;
+    };
   }
 ): Promise<Id<"messages">> => {
   await ctx.runMutation(internal.conversations.internalPatch, {
@@ -806,8 +847,13 @@ export const setupAndStartStreaming = async (
     conversationId: args.conversationId,
     model: fullModel, // Pass the full model object
     personaId: args.personaId,
-    temperature: DEFAULT_TEMPERATURE,
+    temperature: args.sampling?.temperature ?? DEFAULT_TEMPERATURE,
     maxTokens: DEFAULT_MAX_TOKENS,
+    topP: args.sampling?.topP,
+    topK: args.sampling?.topK,
+    frequencyPenalty: args.sampling?.frequencyPenalty,
+    presencePenalty: args.sampling?.presencePenalty,
+    repetitionPenalty: args.sampling?.repetitionPenalty,
     useWebSearch: args.useWebSearch, // Pass through the useWebSearch parameter
     reasoningConfig: args.reasoningConfig?.enabled
       ? {

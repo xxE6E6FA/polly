@@ -16,6 +16,12 @@ type PersonaFormData = {
   description: string;
   prompt: string;
   icon: string;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  repetitionPenalty?: number;
 };
 
 type EmojiClickData = {
@@ -49,6 +55,17 @@ export default function EditPersonaPage() {
         description: persona.description || "",
         prompt: persona.prompt,
         icon: persona.icon || "🤖",
+        temperature: (persona as unknown as { temperature?: number })
+          .temperature,
+        topP: (persona as unknown as { topP?: number }).topP,
+        topK: (persona as unknown as { topK?: number }).topK,
+        frequencyPenalty: (persona as unknown as { frequencyPenalty?: number })
+          .frequencyPenalty,
+        presencePenalty: (persona as unknown as { presencePenalty?: number })
+          .presencePenalty,
+        repetitionPenalty: (
+          persona as unknown as { repetitionPenalty?: number }
+        ).repetitionPenalty,
       };
       setFormData(data);
     }
@@ -71,6 +88,12 @@ export default function EditPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        temperature: formData.temperature,
+        topP: formData.topP,
+        topK: formData.topK,
+        frequencyPenalty: formData.frequencyPenalty,
+        presencePenalty: formData.presencePenalty,
+        repetitionPenalty: formData.repetitionPenalty,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {

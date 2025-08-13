@@ -499,6 +499,13 @@ export const personaSchema = v.object({
   description: v.string(),
   prompt: v.string(),
   icon: v.optional(v.string()),
+  // Advanced sampling parameters (optional)
+  temperature: v.optional(v.number()),
+  topP: v.optional(v.number()),
+  topK: v.optional(v.number()),
+  frequencyPenalty: v.optional(v.number()),
+  presencePenalty: v.optional(v.number()),
+  repetitionPenalty: v.optional(v.number()),
   isBuiltIn: v.boolean(),
   isActive: v.boolean(),
   order: v.optional(v.number()),

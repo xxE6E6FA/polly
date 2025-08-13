@@ -20,6 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SkeletonText } from "@/components/ui/skeleton-text";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/providers/toast-context";
 import { useWordBasedUndo } from "./use-word-based-undo";
@@ -29,6 +30,13 @@ export type PersonaFormData = {
   description: string;
   prompt: string;
   icon: string;
+  // Advanced sampling parameters (optional)
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  repetitionPenalty?: number;
 };
 
 type PersonaFormProps = {
@@ -48,11 +56,23 @@ export const PersonaForm = ({
 }: PersonaFormProps) => {
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
+    // Show by default if any advanced params are set
+    return (
+      formData.temperature !== undefined ||
+      formData.topP !== undefined ||
+      formData.topK !== undefined ||
+      formData.frequencyPenalty !== undefined ||
+      formData.presencePenalty !== undefined ||
+      formData.repetitionPenalty !== undefined
+    );
+  });
   const managedToast = useToast();
   const improvePromptAction = useAction(api.personas.improvePrompt);
+  const suggestSamplingAction = useAction(api.personas.suggestSampling);
 
   const updateFormField = useCallback(
-    (field: keyof PersonaFormData, value: string) => {
+    <K extends keyof PersonaFormData>(field: K, value: PersonaFormData[K]) => {
       setFormData(prev => (prev ? { ...prev, [field]: value } : null));
     },
     [setFormData]
@@ -110,12 +130,61 @@ export const PersonaForm = ({
     managedToast.error,
   ]);
 
+  const handleAutoTuneClick = useCallback(async () => {
+    if (!promptValue.trim()) {
+      managedToast.error("No prompt to analyze", {
+        description:
+          "Enter a system prompt before auto-tuning sampling parameters.",
+      });
+      return;
+    }
+    const toastId = managedToast.loading("Tuning parameters...");
+    try {
+      const suggestion = await suggestSamplingAction({
+        systemPrompt: promptValue,
+      });
+      setShowAdvanced(true);
+      setFormData(prev =>
+        prev
+          ? {
+              ...prev,
+              temperature: suggestion.temperature ?? prev.temperature,
+              topP: suggestion.topP ?? prev.topP,
+              topK: suggestion.topK ?? prev.topK,
+              frequencyPenalty:
+                suggestion.frequencyPenalty ?? prev.frequencyPenalty,
+              presencePenalty:
+                suggestion.presencePenalty ?? prev.presencePenalty,
+              repetitionPenalty:
+                suggestion.repetitionPenalty ?? prev.repetitionPenalty,
+            }
+          : prev
+      );
+      managedToast.success("Parameters updated", {
+        id: String(toastId),
+        description: "Applied tuned sampling parameters.",
+      });
+    } catch (_e) {
+      managedToast.error("Failed to tune parameters", {
+        id: String(toastId),
+      });
+    }
+  }, [
+    promptValue,
+    suggestSamplingAction,
+    setFormData,
+    managedToast.error,
+    managedToast.loading,
+    managedToast.success,
+  ]);
+
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-      {/* Left Column - Basic Information */}
-      <div className="space-y-6">
-        <div>
-          <h2 className="mb-4 text-xl font-semibold">Basic Information</h2>
+    <div className="space-y-10">
+      {/* Basic Information + Icon (responsive grid) */}
+      <div className="space-y-4">
+        <h2 className="mb-2 text-xl font-semibold">Basic Information</h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Name & Description */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium" htmlFor="name">
@@ -146,11 +215,7 @@ export const PersonaForm = ({
               />
             </div>
           </div>
-        </div>
 
-        {/* Icon Selection Section */}
-        <div className="space-y-3">
-          <h3 className="text-lg font-medium">Icon</h3>
           <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
             <div className="relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-background shadow-sm">
               <span
@@ -196,7 +261,7 @@ export const PersonaForm = ({
         </div>
       </div>
 
-      {/* Right Column - System Prompt */}
+      {/* Personality & Instructions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Personality & Instructions</h2>
@@ -313,6 +378,173 @@ export const PersonaForm = ({
             </a>{" "}
             for tips and best practices.
           </p>
+
+          {/* Advanced Sampling Options */}
+          <div className="mt-6 space-y-3 rounded-lg border p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-medium">
+                  Advanced sampling options
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Control decoding behavior. These apply when using this
+                  persona.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAutoTuneClick}
+                >
+                  Auto-tune for this prompt
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs">Show</Label>
+                  <Switch
+                    checked={showAdvanced}
+                    onCheckedChange={setShowAdvanced}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {showAdvanced && (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {/* Temperature */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Temperature</Label>
+                  <div className="text-xs text-muted-foreground">
+                    0 = deterministic, 2 = highly creative
+                  </div>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    value={formData.temperature ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "temperature",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                {/* top_p */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Top P</Label>
+                  <div className="text-xs text-muted-foreground">
+                    0-1 nucleus sampling
+                  </div>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={formData.topP ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "topP",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                {/* top_k */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Top K</Label>
+                  <div className="text-xs text-muted-foreground">
+                    0-100+ (provider dependent)
+                  </div>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={formData.topK ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "topK",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                {/* frequency penalty */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Frequency Penalty
+                  </Label>
+                  <div className="text-xs text-muted-foreground">
+                    Discourage repeated tokens
+                  </div>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={formData.frequencyPenalty ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "frequencyPenalty",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                {/* presence penalty */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Presence Penalty
+                  </Label>
+                  <div className="text-xs text-muted-foreground">
+                    Encourage new topics
+                  </div>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={formData.presencePenalty ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "presencePenalty",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+                {/* repetition penalty */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Repetition Penalty
+                  </Label>
+                  <div className="text-xs text-muted-foreground">
+                    {">"}1 penalizes repetition
+                  </div>
+                  <Input
+                    type="number"
+                    step={0.1}
+                    value={formData.repetitionPenalty ?? ""}
+                    onChange={e =>
+                      updateFormField(
+                        "repetitionPenalty",
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value)
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
