@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,18 @@ export default function SharedConversationPage() {
     api.sharedConversations.getSharedConversation,
     shareId ? { shareId } : "skip"
   );
+
+  const sharedTitle = sharedData?.conversation?.title as string | undefined;
+
+  useEffect(() => {
+    if (sharedTitle && sharedTitle !== document.title) {
+      document.title = sharedTitle;
+    }
+
+    return () => {
+      document.title = "Polly";
+    };
+  }, [sharedTitle]);
 
   if (!shareId) {
     return <NotFoundPage />;
