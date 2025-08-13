@@ -39,6 +39,12 @@ export default function NewPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        temperature: formData.temperature,
+        topP: formData.topP,
+        topK: formData.topK,
+        frequencyPenalty: formData.frequencyPenalty,
+        presencePenalty: formData.presencePenalty,
+        repetitionPenalty: formData.repetitionPenalty,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {

@@ -315,6 +315,9 @@ export type StreamOptions = {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  // Provider-dependent extras
+  topK?: number;
+  repetitionPenalty?: number;
   reasoningConfig?: ReasoningConfig;
 };
 

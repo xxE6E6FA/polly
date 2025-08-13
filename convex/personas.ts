@@ -68,6 +68,13 @@ export const create = mutation({
     description: v.string(),
     prompt: v.string(),
     icon: v.optional(v.string()),
+    // Advanced sampling params (all optional)
+    temperature: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    topK: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
+    repetitionPenalty: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -83,6 +90,12 @@ export const create = mutation({
       description: args.description,
       prompt: args.prompt,
       icon: args.icon,
+      temperature: args.temperature,
+      topP: args.topP,
+      topK: args.topK,
+      frequencyPenalty: args.frequencyPenalty,
+      presencePenalty: args.presencePenalty,
+      repetitionPenalty: args.repetitionPenalty,
       isBuiltIn: false,
       isActive: true,
       createdAt: now,
@@ -98,6 +111,12 @@ export const update = mutation({
     description: v.optional(v.string()),
     prompt: v.optional(v.string()),
     icon: v.optional(v.string()),
+    temperature: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    topK: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
+    repetitionPenalty: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -120,6 +139,18 @@ export const update = mutation({
       ...(args.description !== undefined && { description: args.description }),
       ...(args.prompt !== undefined && { prompt: args.prompt }),
       ...(args.icon !== undefined && { icon: args.icon }),
+      ...(args.temperature !== undefined && { temperature: args.temperature }),
+      ...(args.topP !== undefined && { topP: args.topP }),
+      ...(args.topK !== undefined && { topK: args.topK }),
+      ...(args.frequencyPenalty !== undefined && {
+        frequencyPenalty: args.frequencyPenalty,
+      }),
+      ...(args.presencePenalty !== undefined && {
+        presencePenalty: args.presencePenalty,
+      }),
+      ...(args.repetitionPenalty !== undefined && {
+        repetitionPenalty: args.repetitionPenalty,
+      }),
       updatedAt: Date.now(),
     });
   },
@@ -214,6 +245,7 @@ export const importPersonas = mutation({
         description: persona.description,
         prompt: persona.prompt,
         icon: persona.icon,
+        // Imported personas don't include advanced params by default
         isBuiltIn: false,
         isActive: true,
         createdAt: now,
@@ -224,6 +256,126 @@ export const importPersonas = mutation({
     }
 
     return createdPersonas;
+  },
+});
+
+// Auto-tune sampling parameters from a system prompt using a built-in model
+export const suggestSampling = action({
+  args: {
+    systemPrompt: v.string(),
+  },
+  handler: async (
+    _ctx,
+    args
+  ): Promise<{
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+    repetitionPenalty?: number;
+  }> => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API key not configured");
+    }
+
+    const systemPrompt =
+      "ROLE: You are an Intuitive Sampling Tuner for LLM decoding.\n" +
+      "GOAL: Read the system prompt, feel its vibe, and choose decoding parameters that best fit the intent and tone. Favor your gut over rigid rules.\n\n" +
+      "OUTPUT: Return ONLY a compact JSON object with any of these numeric keys (omit those that don't feel necessary):\n" +
+      "- temperature (0.0–2.0)\n" +
+      "- topP (0.0–1.0)\n" +
+      "- topK (integer ≥ 0; only when useful)\n" +
+      "- frequencyPenalty (e.g., -2.0 to 2.0)\n" +
+      "- presencePenalty (e.g., -2.0 to 2.0)\n" +
+      "- repetitionPenalty (e.g., 0.8–1.5; >1 penalizes repetition)\n" +
+      "Use numbers only. No code fences or commentary.\n\n" +
+      "GUIDANCE:\n" +
+      "- Let the prompt's style lead you. If it wants creativity or exploration, be bolder; if it wants precision or compliance, be steadier.\n" +
+      "- Choose a coherent set of values that you would personally prefer for this prompt.\n" +
+      "- Only include parameters that add value for this prompt. If unsure, leave it out.";
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // biome-ignore lint/style/useNamingConvention: Gemini API uses snake_case
+          system_instruction: {
+            parts: [{ text: systemPrompt }],
+          },
+          contents: [
+            {
+              parts: [
+                {
+                  text: `Read this system prompt and intuitively choose decoding parameters that best fit it. Return only JSON.\n\n${args.systemPrompt}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.85,
+            topP: 0.95,
+            maxOutputTokens: 200,
+            // Request JSON-like output if supported by provider
+            responseMimeType: "application/json",
+          },
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Gemini API error: ${res.status}`);
+    }
+    type GeminiResponse = {
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+      }>;
+    };
+    const data: GeminiResponse = await res.json();
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const cleaned = raw
+      .replace(/^```(?:json)?/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    let jsonText: string;
+    try {
+      JSON.parse(cleaned);
+      jsonText = cleaned;
+    } catch (_parseError) {
+      const start = cleaned.indexOf("{");
+      const end = cleaned.lastIndexOf("}");
+      if (start !== -1 && end !== -1 && end > start) {
+        jsonText = cleaned.slice(start, end + 1);
+      } else {
+        jsonText = "{}";
+      }
+    }
+    try {
+      const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+      const asNumber = (v: unknown): number | undefined => {
+        if (typeof v === "number") {
+          return v;
+        }
+        if (typeof v === "string") {
+          const n = Number(v);
+          return Number.isFinite(n) ? n : undefined;
+        }
+        return undefined;
+      };
+      return {
+        temperature: asNumber(parsed.temperature),
+        topP: asNumber(parsed.topP),
+        topK: asNumber(parsed.topK),
+        frequencyPenalty: asNumber(parsed.frequencyPenalty),
+        presencePenalty: asNumber(parsed.presencePenalty),
+        repetitionPenalty: asNumber(parsed.repetitionPenalty),
+      };
+    } catch (_e) {
+      return {};
+    }
   },
 });
 

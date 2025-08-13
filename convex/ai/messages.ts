@@ -323,6 +323,8 @@ export const streamResponse = internalAction({
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
+    topK: v.optional(v.number()),
+    repetitionPenalty: v.optional(v.number()),
     useWebSearch: v.boolean(), // Determined by calling action based on user auth
   },
   returns: v.null(),
@@ -782,6 +784,9 @@ When using information from these search results, you MUST include citations in 
         generationOptions.frequencyPenalty = args.frequencyPenalty;
       if (args.presencePenalty !== undefined)
         generationOptions.presencePenalty = args.presencePenalty;
+      if (args.topK !== undefined) (generationOptions as any).topK = args.topK;
+      if (args.repetitionPenalty !== undefined)
+        (generationOptions as any).repetitionPenalty = args.repetitionPenalty;
 
       // Set initial status to thinking
       await ctx.runMutation(internal.messages.updateMessageStatus, {

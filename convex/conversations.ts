@@ -52,6 +52,10 @@ export const createConversation = mutation({
     provider: v.optional(providerSchema),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
+    topP: v.optional(v.number()),
+    topK: v.optional(v.number()),
+    frequencyPenalty: v.optional(v.number()),
+    presencePenalty: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const [authUserId, fullModel] = await Promise.all([
@@ -151,9 +155,10 @@ export const createConversation = mutation({
           reasoningConfig: args.reasoningConfig,
           temperature: args.temperature,
           maxTokens: undefined,
-          topP: undefined,
-          frequencyPenalty: undefined,
-          presencePenalty: undefined,
+          topP: args.topP,
+          frequencyPenalty: args.frequencyPenalty,
+          presencePenalty: args.presencePenalty,
+          topK: args.topK,
           useWebSearch, // Pass the search availability determined by user auth
         }),
 
@@ -318,7 +323,8 @@ export const sendMessage = action({
     topP: v.optional(v.number()),
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
-    // Removed useWebSearch and webSearchMaxResults - determined by user auth status
+    topK: v.optional(v.number()),
+    repetitionPenalty: v.optional(v.number()),
   },
   returns: v.object({
     userMessageId: v.id("messages"),
@@ -381,6 +387,36 @@ export const sendMessage = action({
       }),
     ]);
 
+    // Load persona parameters if set and not explicitly overridden
+    let personaParams: {
+      temperature?: number;
+      maxTokens?: number;
+      topP?: number;
+      frequencyPenalty?: number;
+      presencePenalty?: number;
+      topK?: number;
+      repetitionPenalty?: number;
+    } = {};
+    if (effectivePersonaId) {
+      const persona = await ctx.runQuery(api.personas.get, {
+        id: effectivePersonaId,
+      });
+      if (persona) {
+        personaParams = {
+          // These fields are optional in the schema
+          temperature: (persona as { temperature?: number }).temperature,
+          topP: (persona as { topP?: number }).topP,
+          topK: (persona as { topK?: number }).topK,
+          frequencyPenalty: (persona as { frequencyPenalty?: number })
+            .frequencyPenalty,
+          presencePenalty: (persona as { presencePenalty?: number })
+            .presencePenalty,
+          repetitionPenalty: (persona as { repetitionPenalty?: number })
+            .repetitionPenalty,
+        };
+      }
+    }
+
     // Start streaming response immediately
     await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
       messageId: assistantMessageId,
@@ -388,11 +424,15 @@ export const sendMessage = action({
       model: fullModel, // Pass the full model object
       personaId: effectivePersonaId,
       reasoningConfig: args.reasoningConfig,
-      temperature: args.temperature,
+      temperature: args.temperature ?? personaParams.temperature,
       maxTokens: args.maxTokens,
-      topP: args.topP,
-      frequencyPenalty: args.frequencyPenalty,
-      presencePenalty: args.presencePenalty,
+      topP: args.topP ?? personaParams.topP,
+      frequencyPenalty: args.frequencyPenalty ?? personaParams.frequencyPenalty,
+      presencePenalty: args.presencePenalty ?? personaParams.presencePenalty,
+      // Provider extras
+      topK: args.topK ?? personaParams.topK,
+      repetitionPenalty:
+        args.repetitionPenalty ?? personaParams.repetitionPenalty,
       useWebSearch, // Pass the search availability determined by user auth
     });
 

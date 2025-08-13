@@ -54,6 +54,11 @@ export async function streamChat(
       topP: options?.topP,
       frequencyPenalty: options?.frequencyPenalty,
       presencePenalty: options?.presencePenalty,
+      // provider-dependent extras (ignored by others)
+      // We cast narrowly to the extended options interface
+      topK: (options as { topK?: number } | undefined)?.topK,
+      repetitionPenalty: (options as { repetitionPenalty?: number } | undefined)
+        ?.repetitionPenalty,
       abortSignal: abortController.signal,
       ...reasoningOptions, // Merge reasoning-specific options
     };
