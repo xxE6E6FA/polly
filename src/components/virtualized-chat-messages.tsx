@@ -92,7 +92,7 @@ const MessageItem = memo(
         <div
           id={message.id}
           className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible"
-          style={{ maxWidth: "48rem" }}
+          style={{ maxWidth: "48rem", contentVisibility: "auto" }}
         >
           {message.role === "context" ? (
             <ContextMessage message={message} />

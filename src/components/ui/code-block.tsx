@@ -35,6 +35,7 @@ const CodeBlockComponent = ({
   const managedToast = useToast();
   const codeContainerRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
   const processedCode = code;
   const processedLanguage = language;
@@ -124,6 +125,28 @@ const CodeBlockComponent = ({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [handleCopy]);
+
+  // Defer heavy Prism highlighting until the block is near the viewport
+  useEffect(() => {
+    const node = codeContainerRef.current;
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { root: null, rootMargin: "200px 0px", threshold: 0.01 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className="group" ref={componentRef}>
@@ -227,43 +250,54 @@ const CodeBlockComponent = ({
           ref={codeContainerRef}
           className="relative rounded-b-lg border bg-muted"
         >
-          <Highlight
-            code={processedCode.trim()}
-            language={processedLanguage}
-            theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
-          >
-            {({
-              className: highlightClassName,
-              style,
-              tokens,
-              getLineProps,
-              getTokenProps,
-            }) => (
-              <pre
-                className={cn(
-                  highlightClassName,
-                  "m-0 overflow-x-auto p-4 text-sm font-mono",
-                  wordWrap &&
-                    "whitespace-pre-wrap break-words overflow-x-visible"
-                )}
-                style={{
-                  ...style,
-                  backgroundColor: "transparent",
-                }}
-              >
-                {tokens.map((line, i) => (
-                  <div key={`line-${i}`} {...getLineProps({ line })}>
-                    {line.map((token, key) => (
-                      <span
-                        key={`token-${i}-${key}`}
-                        {...getTokenProps({ token })}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </pre>
-            )}
-          </Highlight>
+          {isVisible ? (
+            <Highlight
+              code={processedCode.trim()}
+              language={processedLanguage}
+              theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
+            >
+              {({
+                className: highlightClassName,
+                style,
+                tokens,
+                getLineProps,
+                getTokenProps,
+              }) => (
+                <pre
+                  className={cn(
+                    highlightClassName,
+                    "m-0 overflow-x-auto p-4 text-sm font-mono",
+                    wordWrap &&
+                      "whitespace-pre-wrap break-words overflow-x-visible"
+                  )}
+                  style={{
+                    ...style,
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  {tokens.map((line, i) => (
+                    <div key={`line-${i}`} {...getLineProps({ line })}>
+                      {line.map((token, key) => (
+                        <span
+                          key={`token-${i}-${key}`}
+                          {...getTokenProps({ token })}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </pre>
+              )}
+            </Highlight>
+          ) : (
+            <pre
+              className={cn(
+                "m-0 overflow-x-auto p-4 text-sm font-mono opacity-60",
+                wordWrap && "whitespace-pre-wrap break-words overflow-x-visible"
+              )}
+            >
+              {processedCode.trim()}
+            </pre>
+          )}
         </div>
       </div>
     </div>
