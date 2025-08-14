@@ -1,12 +1,14 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createGroq } from "@ai-sdk/groq";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 export const createProviderModel = {
   openai: (apiKey: string, model: string) => createOpenAI({ apiKey })(model),
   anthropic: (apiKey: string, model: string) => createAnthropic({ apiKey })(model),
   google: (apiKey: string, model: string) => createGoogleGenerativeAI({ apiKey })(model),
+  groq: (apiKey: string, model: string) => createGroq({ apiKey })(model),
   openrouter: (apiKey: string, model: string) => createOpenRouter({ apiKey })(model),
 };
 

@@ -92,6 +92,17 @@ function getProviderSpecificPatterns(
       case "anthropic":
         return patternLower.includes("claude");
       
+      case "groq":
+        // Groq hosts many models; limit to well-known patterns from Groq docs
+        return (
+          patternLower.includes("qwen") ||
+          patternLower.includes("qwq") ||
+          patternLower.includes("deepseek") ||
+          patternLower.includes("gpt-oss") ||
+          patternLower.includes("llama") ||
+          patternLower.includes("grok")
+        );
+      
       default:
         return false;
     }

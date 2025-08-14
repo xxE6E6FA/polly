@@ -23,6 +23,7 @@ export type AIProviderType =
   | "openai"
   | "anthropic"
   | "google"
+  | "groq"
   | "openrouter"
   | "polly"
   | "replicate"
@@ -390,6 +391,7 @@ export type APIKeys = {
   openai?: string;
   anthropic?: string;
   google?: string;
+  groq?: string;
   openrouter?: string;
   replicate?: string;
   elevenlabs?: string;

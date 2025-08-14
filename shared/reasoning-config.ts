@@ -129,6 +129,23 @@ export function getProviderReasoningOptions(
       };
     }
 
+    case "groq": {
+      // Groq uses providerOptions.groq for reasoning controls in AI SDK
+      // We map our generic config to Groq options
+      const effort = reasoningConfig?.effort ?? "medium";
+      const maxTokens = reasoningConfig?.maxTokens;
+      return {
+        providerOptions: {
+          groq: {
+            reasoningFormat: "parsed",
+            reasoningEffort: effort === "low" ? "low" : effort === "high" ? "high" : "default",
+            ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+            parallelToolCalls: true,
+          } as any,
+        },
+      } as any;
+    }
+
     case "openrouter": {
       // OpenRouter's unified reasoning API supports:
       // - effort: "low", "medium", "high" (for o-series, Grok models)

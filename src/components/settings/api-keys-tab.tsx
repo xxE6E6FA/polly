@@ -35,6 +35,7 @@ type ApiProvider =
   | "openai"
   | "anthropic"
   | "google"
+  | "groq"
   | "openrouter"
   | "replicate"
   | "elevenlabs";
@@ -54,6 +55,11 @@ const API_KEY_INFO = {
     name: "Google",
     url: "https://makersuite.google.com/app/apikey",
     placeholder: "AI...",
+  },
+  groq: {
+    name: "Groq",
+    url: "https://console.groq.com/keys",
+    placeholder: "gsk_...",
   },
   openrouter: {
     name: "OpenRouter",

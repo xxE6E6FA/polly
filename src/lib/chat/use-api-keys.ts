@@ -17,6 +17,7 @@ export function useApiKeys() {
           | "openai"
           | "anthropic"
           | "google"
+          | "groq"
           | "openrouter"
           | "replicate",
         modelId: args.modelId,

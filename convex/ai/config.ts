@@ -20,6 +20,7 @@ export const CONFIG = {
     openai: "OPENAI_API_KEY",
     anthropic: "ANTHROPIC_API_KEY",
     google: "GEMINI_API_KEY",
+    groq: "GROQ_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     replicate: "REPLICATE_API_TOKEN",
     elevenlabs: "ELEVENLABS_API_KEY",

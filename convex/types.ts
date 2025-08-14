@@ -100,6 +100,7 @@ export type ProviderType =
   | "openai"
   | "anthropic"
   | "google"
+  | "groq"
   | "openrouter"
   | "polly"
   | "replicate"
