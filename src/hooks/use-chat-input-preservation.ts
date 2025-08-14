@@ -38,17 +38,36 @@ export function useChatInputPreservation() {
   const setChatInputState = useCallback(
     (state: Partial<ChatInputState>, conversationId?: ConversationId) => {
       if (conversationId) {
-        // Update conversation-specific state
-        const currentState =
-          conversationStatesRef.current.get(conversationId) ||
-          defaultChatInputState;
-        conversationStatesRef.current.set(conversationId, {
-          ...currentState,
-          ...state,
-        });
+        const currentState = conversationStatesRef.current.get(conversationId);
+        if (currentState) {
+          // Only update if there are actual changes
+          const hasChanges = Object.keys(state).some(
+            key =>
+              currentState[key as keyof ChatInputState] !==
+              state[key as keyof ChatInputState]
+          );
+          if (hasChanges) {
+            conversationStatesRef.current.set(conversationId, {
+              ...currentState,
+              ...state,
+            });
+          }
+        } else {
+          conversationStatesRef.current.set(conversationId, {
+            ...defaultChatInputState,
+            ...state,
+          });
+        }
       } else {
-        // Update global state
-        globalStateRef.current = { ...globalStateRef.current, ...state };
+        // Update global state - optimized to avoid unnecessary object creation
+        const hasChanges = Object.keys(state).some(
+          key =>
+            globalStateRef.current[key as keyof ChatInputState] !==
+            state[key as keyof ChatInputState]
+        );
+        if (hasChanges) {
+          globalStateRef.current = { ...globalStateRef.current, ...state };
+        }
       }
     },
     []

@@ -207,26 +207,28 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
     const [personaChipWidth, setPersonaChipWidth] = useState<number>(0);
 
-    // Fetch personas to render chip info
     const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
     const personas = useMemo(
       () => (Array.isArray(personasRaw) ? personasRaw : []),
       [personasRaw]
     );
+
     const mentionItems = useMemo(() => {
       const q = mentionQuery.trim().toLowerCase();
-      const base: Array<{
-        id: Id<"personas"> | null;
-        name: string;
-        icon?: string;
-      }> = [{ id: null, name: "Default", icon: "🤖" }];
-      const filtered = q
-        ? personas.filter(p => p.name.toLowerCase().includes(q))
-        : personas;
-      return base.concat(
-        filtered.map(p => ({ id: p._id, name: p.name, icon: p.icon }))
-      );
+      if (!q) {
+        return [
+          { id: null, name: "Default", icon: "🤖" },
+          ...personas.map(p => ({ id: p._id, name: p.name, icon: p.icon })),
+        ];
+      }
+
+      const filtered = personas.filter(p => p.name.toLowerCase().includes(q));
+      return [
+        { id: null, name: "Default", icon: "🤖" },
+        ...filtered.map(p => ({ id: p._id, name: p.name, icon: p.icon })),
+      ];
     }, [mentionQuery, personas]);
+
     const currentPersona = useMemo(
       () =>
         selectedPersonaId
@@ -235,14 +237,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [personas, selectedPersonaId]
     );
 
-    // Reset active index when menu opens
     useEffect(() => {
       if (mentionOpen) {
         setMentionActiveIndex(0);
       }
     }, [mentionOpen]);
 
-    // Measure persona chip width to indent first line accordingly
     useEffect(() => {
       if (!selectedPersonaId) {
         setPersonaChipWidth(0);
@@ -260,7 +260,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       };
     }, [selectedPersonaId]);
 
-    // Force text mode when in private mode or no Replicate API key
     useEffect(() => {
       if (
         (isPrivateMode || !hasReplicateApiKey) &&
@@ -278,65 +277,58 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       setNegativePromptEnabled(!!hasNegativePrompt);
     }, [imageParams.negativePrompt]);
 
-    // Find the selected image model to check its capabilities
     const selectedImageModel = useMemo(() => {
       if (!imageParams.model) {
         return null;
       }
 
-      // First check enabled models for accurate capability detection
-      if (enabledImageModels) {
-        const foundModel = enabledImageModels.find(
-          model => model.modelId === imageParams.model
-        );
-
-        if (foundModel) {
-          return foundModel;
-        }
+      if (!enabledImageModels) {
+        return {
+          modelId: imageParams.model,
+          supportsMultipleImages: false,
+          supportsNegativePrompt: false,
+        };
       }
 
-      // For models not in user's enabled list, return basic info without capability detection
-      // This ensures we don't show capability options unless we're certain they're supported
+      const foundModel = enabledImageModels.find(
+        model => model.modelId === imageParams.model
+      );
+
+      if (foundModel) {
+        return foundModel;
+      }
+
       return {
         modelId: imageParams.model,
-        supportsMultipleImages: false, // Conservative default - only show if we know it's supported
-        supportsNegativePrompt: false, // Conservative default - only show if we know it's supported
+        supportsMultipleImages: false,
+        supportsNegativePrompt: false,
       };
     }, [enabledImageModels, imageParams.model]);
 
-    // Access conversation messages for history navigation
     const shouldFetchMessages =
       messages === undefined && userMessageContents === undefined;
     const { messages: conversationMessages } = useChatMessages({
       conversationId: shouldFetchMessages ? conversationId : undefined,
-      onError: () => {
-        // Handle errors gracefully - history navigation is optional
-      },
     });
 
-    // History navigation state
     const [historyIndex, setHistoryIndex] = useState(-1);
     const [originalInput, setOriginalInput] = useState("");
 
-    // Initialize file upload hook
     const { uploadFile } = useConvexFileUpload();
     const notificationDialog = useNotificationDialog();
     const convex = useConvex();
 
-    // Drag and drop state
     const [isDragOver, setIsDragOver] = useState(false);
 
-    // Custom function to upload attachments to Convex storage
     const uploadAttachmentsToConvex = useCallback(
       async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
         if (isPrivateMode) {
-          // In private mode, convert base64 content to data URLs for local use
           return attachmentsToUpload.map(attachment => {
             if (attachment.content && attachment.mimeType && !attachment.url) {
               return {
                 ...attachment,
                 url: `data:${attachment.mimeType};base64,${attachment.content}`,
-                contentType: attachment.mimeType, // AI SDK expects contentType field
+                contentType: attachment.mimeType,
               };
             }
             return attachment;
@@ -350,7 +342,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             uploadedAttachments.push(attachment);
           } else if (attachment.content && attachment.mimeType) {
             try {
-              // Convert Base64 back to File object for upload
               const byteCharacters = atob(attachment.content);
               const byteNumbers = new Array(byteCharacters.length);
               for (let i = 0; i < byteCharacters.length; i++) {
@@ -363,7 +354,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
               const uploadResult = await uploadFile(file);
 
-              // Preserve extracted text for PDFs
               if (attachment.type === "pdf" && attachment.extractedText) {
                 uploadResult.extractedText = attachment.extractedText;
               }
@@ -371,14 +361,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               uploadedAttachments.push(uploadResult);
             } catch (error) {
               console.error("Failed to upload attachment:", error);
-              // For large files, don't fall back to base64 content as it exceeds Convex limits
               if (attachment.size > 1024 * 1024) {
-                // 1MB limit
                 throw new Error(
                   `Failed to upload large file "${attachment.name}". File uploads to storage are required for files over 1MB.`
                 );
               }
-              // For smaller files, keep the original attachment as fallback
               uploadedAttachments.push(attachment);
             }
           } else {
@@ -391,7 +378,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [isPrivateMode, uploadFile]
     );
 
-    // Sync state updates to preserved state
     useEffect(() => {
       if (!shouldUsePreservedState) {
         return;
@@ -426,7 +412,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [conversationId, shouldUsePreservedState, currentReasoningConfig]);
 
-    // State setters with preservation
     const setInput = useCallback(
       (value: string) => {
         setInputState(value);
@@ -449,28 +434,32 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       [shouldUsePreservedState, setChatInputState, conversationId, attachments]
     );
 
-    // Get user messages for history navigation
     const userMessages = useMemo(() => {
       if (userMessageContents) {
         return userMessageContents;
       }
+
       const sourceMessages = messages || conversationMessages;
-      if (!sourceMessages) {
+      if (!sourceMessages || sourceMessages.length === 0) {
         return [];
       }
-      return sourceMessages
-        .filter(msg => msg.role === "user")
-        .map(msg => msg.content)
-        .reverse();
+
+      const userMessages: string[] = [];
+      for (let i = sourceMessages.length - 1; i >= 0; i--) {
+        const msg = sourceMessages[i];
+        if (msg.role === "user") {
+          userMessages.push(msg.content);
+        }
+      }
+
+      return userMessages;
     }, [userMessageContents, messages, conversationMessages]);
 
-    // Handle history navigation (Up = older messages)
     const handleHistoryNavigation = useCallback(() => {
       if (userMessages.length === 0) {
         return false;
       }
 
-      // Store original input on first navigation
       if (historyIndex === -1) {
         setOriginalInput(input);
       }
@@ -480,7 +469,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         setHistoryIndex(nextIndex);
         setInput(userMessages[nextIndex]);
 
-        // Move cursor to end after setting text
         setTimeout(() => {
           if (textareaRef.current) {
             const textarea = textareaRef.current;
@@ -497,9 +485,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       return false;
     }, [historyIndex, input, userMessages, setInput]);
 
-    // Handle reverse history navigation (Down = newer messages)
     const handleHistoryNavigationDown = useCallback(() => {
-      // Only allow down navigation if we're already in history mode
       if (historyIndex <= -1) {
         return false;
       }
@@ -899,7 +885,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
           if (conversationId) {
             // Existing conversation, proceed normally
-            // Create only a user message for the prompt (no AI response)
             const result = await convex.action(
               api.conversations.createUserMessage,
               {
@@ -909,7 +894,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               }
             );
 
-            // Trigger image generation with the user message ID
             await handleImageGeneration(
               convex,
               conversationId,
@@ -922,11 +906,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             const newConversation = await convex.action(
               api.conversations.createConversationAction,
               {
-                title: "Image Generation", // Title for the new conversation
+                title: "Image Generation",
               }
             );
 
-            // Create only a user message for the prompt (no AI response)
             const result = await convex.action(
               api.conversations.createUserMessage,
               {
@@ -936,7 +919,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               }
             );
 
-            // Trigger image generation with the user message ID
             await handleImageGeneration(
               convex,
               newConversation.conversationId,
@@ -945,15 +927,11 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               imageParams
             );
 
-            // Navigate to the new conversation
             navigate(ROUTES.CHAT_CONVERSATION(newConversation.conversationId));
           }
         } else {
-          // Handle text generation (existing logic)
-          // Skip PDF extraction - it will be done server-side with proper loading states
+          // Handle text generation
           const processedAttachments = attachments;
-
-          // Upload attachments to Convex storage if not in private mode
           const uploadedAttachments =
             await uploadAttachmentsToConvex(processedAttachments);
 
@@ -966,11 +944,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           );
         }
 
+        // Batch state updates for better performance
         setInput("");
         setAttachments([]);
-        // Clear negative prompt
         setImageParams(prev => ({ ...prev, negativePrompt: "" }));
         setNegativePromptEnabled(false);
+
         textareaRef.current?.focus();
         if (shouldUsePreservedState) {
           clearChatInputState();
