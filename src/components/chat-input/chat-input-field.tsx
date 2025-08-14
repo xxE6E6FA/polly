@@ -1,5 +1,5 @@
 import type React from "react";
-import { memo, useCallback, useLayoutEffect, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputFieldProps {
@@ -40,6 +40,32 @@ export const ChatInputField = memo(
     onMentionCancel,
     firstLineIndentPx,
   }: ChatInputFieldProps) {
+    // Ensure proper initial height on mount
+    useEffect(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+
+      // Small delay to ensure textarea is fully rendered
+      const timer = setTimeout(() => {
+        // Force initial height calculation for empty input
+        if (value.trim().length === 0) {
+          textarea.style.height = "auto";
+          // Force a reflow to get accurate scrollHeight
+          textarea.offsetHeight;
+          const initialHeight = textarea.scrollHeight;
+          const collapsedHeight = Math.min(initialHeight, 100);
+          textarea.style.height = `${collapsedHeight}px`;
+          lastHeightRef.current = collapsedHeight;
+          // Always start collapsed for empty input
+          onHeightChange?.(false);
+        }
+      }, 10);
+
+      return () => clearTimeout(timer);
+    }, [onHeightChange, textareaRef, value]); // Only run on mount
+
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -119,6 +145,8 @@ export const ChatInputField = memo(
       }
 
       textarea.style.height = "auto";
+      // Force a reflow to get accurate scrollHeight
+      textarea.offsetHeight;
       const currentHeight = textarea.scrollHeight;
       const newHeight = Math.min(currentHeight, 100);
 
@@ -126,12 +154,13 @@ export const ChatInputField = memo(
       if (newHeight !== lastHeightRef.current) {
         textarea.style.height = `${newHeight}px`;
         lastHeightRef.current = newHeight;
-        const isMultiline = currentHeight > 48;
+        // For empty input, always treat as single line (collapsed)
+        const isMultiline = value.trim().length > 0 && currentHeight > 48;
         onHeightChange?.(isMultiline);
       }
 
       resizeRafRef.current = null;
-    }, [onHeightChange, textareaRef.current]);
+    }, [onHeightChange, textareaRef.current, value]);
 
     useLayoutEffect(() => {
       const textarea = textareaRef.current;
@@ -143,14 +172,24 @@ export const ChatInputField = memo(
         cancelAnimationFrame(resizeRafRef.current);
       }
 
-      resizeRafRef.current = requestAnimationFrame(performResize);
+      // Ensure initial height is set correctly
+      if (value.trim().length === 0) {
+        textarea.style.height = "auto";
+        const initialHeight = textarea.scrollHeight;
+        textarea.style.height = `${Math.min(initialHeight, 100)}px`;
+        lastHeightRef.current = Math.min(initialHeight, 100);
+        // Always start collapsed for empty input
+        onHeightChange?.(false);
+      } else {
+        resizeRafRef.current = requestAnimationFrame(performResize);
+      }
 
       return () => {
         if (resizeRafRef.current) {
           cancelAnimationFrame(resizeRafRef.current);
         }
       };
-    }, [performResize, textareaRef.current]);
+    }, [performResize, textareaRef.current, value, onHeightChange]);
 
     useLayoutEffect(() => {
       // Only resize if value actually changed
@@ -174,10 +213,13 @@ export const ChatInputField = memo(
         if (textarea) {
           // Always size to exact scrollHeight for both empty and non-empty values
           textarea.style.height = "auto";
+          // Force a reflow to get accurate scrollHeight
+          textarea.offsetHeight;
           const currentHeight = textarea.scrollHeight;
           const newHeight = Math.min(currentHeight, 100);
           textarea.style.height = `${newHeight}px`;
-          const isMultiline = currentHeight > 48;
+          // For empty input, always treat as single line (collapsed)
+          const isMultiline = value.trim().length > 0 && currentHeight > 48;
           onHeightChange?.(isMultiline);
         }
         resizeRafRef.current = null;
@@ -251,7 +293,8 @@ export const ChatInputField = memo(
       prevProps.onHistoryNavigation === nextProps.onHistoryNavigation &&
       prevProps.onHistoryNavigationDown === nextProps.onHistoryNavigationDown &&
       prevProps.onHeightChange === nextProps.onHeightChange &&
-      prevProps.isTransitioning === nextProps.isTransitioning
+      prevProps.isTransitioning === nextProps.isTransitioning &&
+      prevProps.autoFocus === nextProps.autoFocus
     );
   }
 );
