@@ -56,6 +56,36 @@ function decodeMinimalEntities(text: string): string {
   return text.replace(/&#x20;|&#32;/g, " ").replace(/&#x0A;|&#10;/g, "\n");
 }
 
+// Convert plain [n] citations into markdown links so they always render as anchors
+function convertCitationsToMarkdownLinks(text: string): string {
+  if (!text) {
+    return text;
+  }
+
+  // Normalize escaped and grouped patterns first
+  let normalized = text
+    // Remove backslashes before brackets: \[1] -> [1]
+    .replace(/\\(\[|\])/g, "$1")
+    // Convert double brackets: [[1]] -> [1]
+    .replace(/\[\[(\d+)\]\]/g, "[$1]")
+    // Expand grouped citations: [1, 2,3] -> [1][2][3]
+    .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
+      nums
+        .split(",")
+        .map(n => `[${n.trim()}]`)
+        .join("")
+    )
+    // Normalize spaces: [ 3 ] -> [3]
+    .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
+
+  // Replace each [n] with [n](#cite-n)
+  normalized = normalized.replace(/\[(\d+)\]/g, (_m, n: string) => {
+    return `[${n}](#cite-${n})`;
+  });
+
+  return normalized;
+}
+
 // Render LaTeX ($...$ and $$...$$) to KaTeX HTML before markdown parsing
 // removed renderLatexToHtml (math handled in renderRule)
 
@@ -224,7 +254,8 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
     const parenthesesRemoved = removeParenthesesAroundItalics(buffered);
     const normalizedLatex = normalizeLatexDelimiters(parenthesesRemoved);
     const decoded = decodeMinimalEntities(normalizedLatex);
-    return decoded;
+    const withCitationLinks = convertCitationsToMarkdownLinks(decoded);
+    return withCitationLinks;
   }, [markdown]);
 
   const overrides = useMemo(() => {

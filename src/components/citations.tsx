@@ -29,6 +29,7 @@ export const Citations = ({
   citations,
   className,
   messageId,
+  content,
   activeDuration = 3000,
 }: CitationsProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -66,9 +67,22 @@ export const Citations = ({
         }
       });
 
+      // Fallback: parse raw message content if DOM links not present yet
+      if (usedIndices.size === 0 && content) {
+        const regex = /\[(\d+)\]/g;
+        let match: RegExpExecArray | null = regex.exec(content);
+        while (match !== null) {
+          const num = parseInt(match[1]);
+          if (!Number.isNaN(num) && num >= 1 && num <= citations.length) {
+            usedIndices.add(num - 1);
+          }
+          match = regex.exec(content);
+        }
+      }
+
       setCitedIndices(usedIndices);
     }
-  }, [messageId, citations.length]);
+  }, [messageId, citations.length, content]);
 
   // Use requestAnimationFrame for better performance
   const scheduleScanning = useCallback(() => {
@@ -222,10 +236,8 @@ export const Citations = ({
   const citedCount = citedIndices.size;
   const totalCount = citations.length;
 
-  // Don't render if no citations were actually used in the response
-  if (citedCount === 0) {
-    return null;
-  }
+  // Always show citations if they exist, even if not explicitly referenced in text
+  // This ensures web search sources are always visible to users
 
   return (
     <div ref={containerRef} className={cn("mt-4", className)}>
