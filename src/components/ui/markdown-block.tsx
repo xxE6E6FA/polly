@@ -244,6 +244,52 @@ function removeParenthesesAroundItalics(text: string): string {
     .replace(/\(\s*_([\s\S]*?)_\s*\)/g, processItalicPattern("_"));
 }
 
+// Convert Markdown hard line breaks to explicit <br /> while collapsing other newlines
+function applyHardLineBreaksToString(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Match either:
+  // - two or more spaces before a newline
+  // - a backslash before a newline (CommonMark)
+  // - a backslash followed by spaces (models sometimes emit this without a newline)
+  const re = /(?: {2,}|\\)[ \t]*\r?\n|\\[ \t]+/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null = re.exec(text);
+  while (match) {
+    const chunk = text.slice(lastIndex, match.index);
+    if (chunk) {
+      nodes.push(chunk.replace(/\r?\n/g, " "));
+    }
+    nodes.push(<br key={`br-${lastIndex}`} />);
+    lastIndex = re.lastIndex;
+    match = re.exec(text);
+  }
+  const tail = text.slice(lastIndex);
+  if (tail) {
+    nodes.push(tail.replace(/\r?\n/g, " "));
+  }
+  return nodes.length > 0 ? nodes : [text];
+}
+
+function applyHardLineBreaks(node: React.ReactNode): React.ReactNode {
+  if (typeof node === "string") {
+    return applyHardLineBreaksToString(node);
+  }
+  if (Array.isArray(node)) {
+    return node.flatMap((child, index) => {
+      const processed = applyHardLineBreaks(child);
+      if (Array.isArray(processed)) {
+        return processed.map((n, i) =>
+          React.isValidElement(n)
+            ? React.cloneElement(n, { key: n.key ?? `n-${index}-${i}` })
+            : n
+        );
+      }
+      return processed;
+    });
+  }
+  return node;
+}
+
 // Markdown component for llm-ui
 const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
   const markdown = blockMatch.output;
@@ -282,7 +328,8 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
           overrides,
           renderRule(next, node) {
             if (node.type === RuleType.text && typeof node.text === "string") {
-              return renderTextWithMathAndCitations(node.text);
+              const transformed = renderTextWithMathAndCitations(node.text);
+              return applyHardLineBreaks(transformed);
             }
             return next();
           },
