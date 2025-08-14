@@ -151,31 +151,39 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       api.conversationSummary.generateConversationSummary
     );
     // Always preserve state per conversation, use global state for new conversations
-    const shouldUsePreservedState = !hasExistingMessages; // Preserve input for empty conversations
+    // Only use preserved state if we have a conversationId (existing conversation)
+    // For new conversations (no conversationId), always start fresh
+    const shouldUsePreservedState = conversationId && !hasExistingMessages;
     const [input, setInputState] = useState(() =>
-      shouldUsePreservedState ? getChatInputState(conversationId).input : ""
+      // For new conversations, always start with empty input
+      conversationId && shouldUsePreservedState
+        ? getChatInputState(conversationId).input
+        : ""
     );
     const [attachments, setAttachmentsState] = useState<Attachment[]>(() =>
-      shouldUsePreservedState
+      // For new conversations, always start with empty attachments
+      conversationId && shouldUsePreservedState
         ? getChatInputState(conversationId).attachments
         : []
     );
     const [selectedPersonaId, setSelectedPersonaIdState] =
       useState<Id<"personas"> | null>(() =>
-        shouldUsePreservedState
+        // For new conversations, always start with no persona
+        conversationId && shouldUsePreservedState
           ? getChatInputState(conversationId).selectedPersonaId
           : null
       );
     const [reasoningConfig, setReasoningConfigState] =
       useState<ReasoningConfig>(() => {
-        if (shouldUsePreservedState) {
+        if (conversationId && shouldUsePreservedState) {
           return getChatInputState(conversationId).reasoningConfig;
         }
         return getDefaultReasoningConfig();
       });
     const [temperature, setTemperatureState] = useState<number | undefined>(
       () =>
-        shouldUsePreservedState
+        // For new conversations, use current temperature or undefined
+        conversationId && shouldUsePreservedState
           ? getChatInputState(conversationId).temperature
           : currentTemperature
     );
@@ -200,6 +208,22 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMultiline, setIsMultiline] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Reset multiline state when starting a new conversation
+    useEffect(() => {
+      if (!conversationId && input.trim().length === 0) {
+        setIsMultiline(false);
+      }
+    }, [conversationId, input]);
+
+    // Force reset multiline state when conversationId changes
+    useEffect(() => {
+      if (!conversationId) {
+        setIsMultiline(false);
+        // Clear global preserved state when starting a new conversation
+        clearChatInputState();
+      }
+    }, [conversationId, clearChatInputState]);
 
     // @persona mention typeahead state
     const [mentionOpen, setMentionOpen] = useState(false);
@@ -1164,6 +1188,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     </div>
                   )}
                   <ChatInputField
+                    key={conversationId || "new-conversation"}
                     value={input}
                     onChange={handleInputChange}
                     onSubmit={submit}
