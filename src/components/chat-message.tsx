@@ -201,6 +201,11 @@ export const ChatMessage = memo(
       }
     }
 
+    // Re-render when reasoning changes to ensure live updates
+    if (prevProps.message.reasoning !== nextProps.message.reasoning) {
+      return false;
+    }
+
     // Default memo comparison for other props
     return (
       prevProps.message.id === nextProps.message.id &&
