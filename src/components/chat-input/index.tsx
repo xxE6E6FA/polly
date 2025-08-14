@@ -556,10 +556,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         }
         setInput(value);
 
-        // Disable @ mentions in ongoing conversations that already have a persona
-        const mentionsDisabled = Boolean(
-          hasExistingMessages && conversationPersonaId
-        );
+        // Disable @ mentions in all existing conversations
+        const mentionsDisabled = hasExistingMessages;
         if (mentionsDisabled) {
           if (mentionOpen) {
             setMentionOpen(false);
@@ -603,7 +601,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         mentionOpen,
         selectedPersonaId,
         hasExistingMessages,
-        conversationPersonaId,
       ]
     );
 
