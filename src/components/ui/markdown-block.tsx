@@ -47,6 +47,15 @@ function normalizeLatexDelimiters(text: string): string {
   return convertInline;
 }
 
+// Decode only minimal numeric entities we see from the streaming parser
+function decodeMinimalEntities(text: string): string {
+  if (!text) {
+    return text;
+  }
+  // Replace numeric space and newline entities
+  return text.replace(/&#x20;|&#32;/g, " ").replace(/&#x0A;|&#10;/g, "\n");
+}
+
 // Render LaTeX ($...$ and $$...$$) to KaTeX HTML before markdown parsing
 // removed renderLatexToHtml (math handled in renderRule)
 
@@ -214,7 +223,8 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
     const buffered = bufferIncompleteEntities(markdown);
     const parenthesesRemoved = removeParenthesesAroundItalics(buffered);
     const normalizedLatex = normalizeLatexDelimiters(parenthesesRemoved);
-    return normalizedLatex;
+    const decoded = decodeMinimalEntities(normalizedLatex);
+    return decoded;
   }, [markdown]);
 
   const overrides = useMemo(() => {
@@ -230,6 +240,8 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
       span: { component: SpanOverride },
     } as const;
   }, [messageId]);
+
+  // debug logs removed
 
   return (
     <div className="prose prose-base dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
