@@ -264,13 +264,20 @@ export function useChat({ conversationId }: UseChatParams) {
     [chatHandlers.saveConversation]
   );
 
-  // Check if any message is currently streaming
   const isStreaming = useMemo(() => {
-    return messages.some(
-      m =>
+    if (messages.length === 0) {
+      return false;
+    }
+
+    for (const m of messages) {
+      if (
         m.role === "assistant" &&
         (!m.metadata?.finishReason || m.metadata?.finishReason === "streaming")
-    );
+      ) {
+        return true;
+      }
+    }
+    return false;
   }, [messages]);
 
   // Check if we can save (private mode only)

@@ -1,12 +1,5 @@
 import type React from "react";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface ChatInputFieldProps {
@@ -28,7 +21,6 @@ interface ChatInputFieldProps {
   firstLineIndentPx?: number;
 }
 
-// Memoized for maximum performance - prevents unnecessary re-renders
 export const ChatInputField = memo(
   function ChatInputField({
     value,
@@ -48,27 +40,6 @@ export const ChatInputField = memo(
     onMentionCancel,
     firstLineIndentPx,
   }: ChatInputFieldProps) {
-    // State for animated placeholder
-    const [currentPlaceholder, setCurrentPlaceholder] = useState(placeholder);
-    const [isPlaceholderTransitioning, setIsPlaceholderTransitioning] =
-      useState(false);
-
-    // Handle placeholder transitions
-    useEffect(() => {
-      if (currentPlaceholder !== placeholder) {
-        setIsPlaceholderTransitioning(true);
-
-        // Start the transition after a brief delay to ensure the fade-out happens
-        const timer = setTimeout(() => {
-          setCurrentPlaceholder(placeholder);
-          setIsPlaceholderTransitioning(false);
-        }, 150); // Half of the transition duration
-
-        return () => clearTimeout(timer);
-      }
-    }, [placeholder, currentPlaceholder]);
-
-    // Optimized keydown handler with efficient history navigation
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -91,7 +62,6 @@ export const ChatInputField = memo(
             return;
           }
         } else if (e.key === "ArrowUp" && onHistoryNavigation) {
-          // Optimized history navigation - only check cursor position when needed
           const textarea = e.target as HTMLTextAreaElement;
           if (textarea.selectionStart === 0) {
             const handled = onHistoryNavigation();
@@ -100,7 +70,6 @@ export const ChatInputField = memo(
             }
           }
         } else if (e.key === "ArrowDown" && onHistoryNavigationDown) {
-          // Optimized down navigation - efficient end-of-text check
           const textarea = e.target as HTMLTextAreaElement;
           if (textarea.selectionStart === textarea.value.length) {
             const handled = onHistoryNavigationDown();
@@ -132,43 +101,56 @@ export const ChatInputField = memo(
       ]
     );
 
-    // Ultra-optimized change handler with direct value extraction
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        // Direct value extraction for maximum performance
         onChange(e.target.value);
       },
       [onChange]
     );
 
-    // Highly optimized auto-resize using requestAnimationFrame for 60fps performance
     const resizeRafRef = useRef<number | null>(null);
     const lastValueRef = useRef(value);
+    const lastHeightRef = useRef<number>(0);
 
-    // Set initial height on mount to the exact single-line height
+    const performResize = useCallback(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+
+      textarea.style.height = "auto";
+      const currentHeight = textarea.scrollHeight;
+      const newHeight = Math.min(currentHeight, 100);
+
+      // Only update if height actually changed
+      if (newHeight !== lastHeightRef.current) {
+        textarea.style.height = `${newHeight}px`;
+        lastHeightRef.current = newHeight;
+        const isMultiline = currentHeight > 48;
+        onHeightChange?.(isMultiline);
+      }
+
+      resizeRafRef.current = null;
+    }, [onHeightChange, textareaRef.current]);
+
     useLayoutEffect(() => {
       const textarea = textareaRef.current;
       if (!textarea) {
         return;
       }
+
       if (resizeRafRef.current) {
         cancelAnimationFrame(resizeRafRef.current);
       }
-      resizeRafRef.current = requestAnimationFrame(() => {
-        textarea.style.height = "auto";
-        const currentHeight = textarea.scrollHeight;
-        const newHeight = Math.min(currentHeight, 100);
-        textarea.style.height = `${newHeight}px`;
-        const isMultiline = currentHeight > 48;
-        onHeightChange?.(isMultiline);
-        resizeRafRef.current = null;
-      });
+
+      resizeRafRef.current = requestAnimationFrame(performResize);
+
       return () => {
         if (resizeRafRef.current) {
           cancelAnimationFrame(resizeRafRef.current);
         }
       };
-    }, [textareaRef.current, onHeightChange]);
+    }, [performResize, textareaRef.current]);
 
     useLayoutEffect(() => {
       // Only resize if value actually changed
@@ -243,42 +225,21 @@ export const ChatInputField = memo(
               : undefined,
           }}
           disabled={disabled}
-          placeholder="" // Remove native placeholder
+          placeholder={placeholder}
           rows={1}
           value={value}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          // Performance optimizations
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false} // Disable during typing for performance
           inputMode="text"
-          // Enhanced focus accessibility
           tabIndex={0}
           aria-label="Chat message input"
           // biome-ignore lint/a11y/noAutofocus: Needed for chat input auto-focus on home page
           autoFocus={autoFocus}
         />
-
-        {/* Custom animated placeholder */}
-        {!value && (
-          <div
-            className={cn(
-              "absolute left-1.5 top-1 sm:left-2 pointer-events-none select-none",
-              "text-base sm:text-sm leading-relaxed text-muted-foreground/60",
-              "transition-opacity duration-300 ease-in-out",
-              isPlaceholderTransitioning ? "opacity-0" : "opacity-100"
-            )}
-          >
-            {currentPlaceholder}
-          </div>
-        )}
       </div>
     );
   },
   (prevProps, nextProps) => {
-    // Custom comparison for optimal performance - only re-render when essential props change
     return (
       prevProps.value === nextProps.value &&
       prevProps.disabled === nextProps.disabled &&
