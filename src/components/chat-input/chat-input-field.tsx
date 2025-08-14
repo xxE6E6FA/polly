@@ -22,6 +22,10 @@ interface ChatInputFieldProps {
   onHeightChange?: (isMultiline: boolean) => void;
   isTransitioning?: boolean;
   autoFocus?: boolean;
+  onMentionNavigate?: (direction: "up" | "down") => boolean;
+  onMentionConfirm?: () => boolean;
+  onMentionCancel?: () => boolean;
+  firstLineIndentPx?: number;
 }
 
 // Memoized for maximum performance - prevents unnecessary re-renders
@@ -39,6 +43,10 @@ export const ChatInputField = memo(
     onHeightChange,
     isTransitioning = false,
     autoFocus = false,
+    onMentionNavigate,
+    onMentionConfirm,
+    onMentionCancel,
+    firstLineIndentPx,
   }: ChatInputFieldProps) {
     // State for animated placeholder
     const [currentPlaceholder, setCurrentPlaceholder] = useState(placeholder);
@@ -64,8 +72,24 @@ export const ChatInputField = memo(
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
         if (e.key === "Enter" && !e.shiftKey) {
+          if (onMentionConfirm?.()) {
+            e.preventDefault();
+            return;
+          }
           e.preventDefault();
           onSubmit();
+        } else if (e.key === "ArrowUp" && onMentionNavigate) {
+          const handled = onMentionNavigate?.("up") ?? false;
+          if (handled) {
+            e.preventDefault();
+            return;
+          }
+        } else if (e.key === "ArrowDown" && onMentionNavigate) {
+          const handled = onMentionNavigate?.("down") ?? false;
+          if (handled) {
+            e.preventDefault();
+            return;
+          }
         } else if (e.key === "ArrowUp" && onHistoryNavigation) {
           // Optimized history navigation - only check cursor position when needed
           const textarea = e.target as HTMLTextAreaElement;
@@ -84,9 +108,28 @@ export const ChatInputField = memo(
               e.preventDefault();
             }
           }
+        } else if (e.key === "Escape" && onMentionCancel) {
+          const handled = onMentionCancel?.() ?? false;
+          if (handled) {
+            e.preventDefault();
+          }
+        } else if (e.key === "Backspace") {
+          const textarea = e.target as HTMLTextAreaElement;
+          if (textarea.value.length === 0) {
+            if (onMentionCancel?.()) {
+              e.preventDefault();
+            }
+          }
         }
       },
-      [onSubmit, onHistoryNavigation, onHistoryNavigationDown]
+      [
+        onSubmit,
+        onHistoryNavigation,
+        onHistoryNavigationDown,
+        onMentionNavigate,
+        onMentionConfirm,
+        onMentionCancel,
+      ]
     );
 
     // Ultra-optimized change handler with direct value extraction
@@ -101,6 +144,31 @@ export const ChatInputField = memo(
     // Highly optimized auto-resize using requestAnimationFrame for 60fps performance
     const resizeRafRef = useRef<number | null>(null);
     const lastValueRef = useRef(value);
+
+    // Set initial height on mount to the exact single-line height
+    useLayoutEffect(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+      }
+      resizeRafRef.current = requestAnimationFrame(() => {
+        textarea.style.height = "auto";
+        const currentHeight = textarea.scrollHeight;
+        const newHeight = Math.min(currentHeight, 100);
+        textarea.style.height = `${newHeight}px`;
+        const isMultiline = currentHeight > 48;
+        onHeightChange?.(isMultiline);
+        resizeRafRef.current = null;
+      });
+      return () => {
+        if (resizeRafRef.current) {
+          cancelAnimationFrame(resizeRafRef.current);
+        }
+      };
+    }, [textareaRef.current, onHeightChange]);
 
     useLayoutEffect(() => {
       // Only resize if value actually changed
@@ -122,22 +190,13 @@ export const ChatInputField = memo(
       resizeRafRef.current = requestAnimationFrame(() => {
         const textarea = textareaRef.current;
         if (textarea) {
-          // Special handling for empty content - reset to minimum height
-          if (value === "") {
-            textarea.style.height = "auto";
-            textarea.style.height = "24px"; // Match min-h-[24px]
-            onHeightChange?.(false);
-          } else {
-            // Optimize resize with direct style updates
-            textarea.style.height = "auto";
-            const currentHeight = textarea.scrollHeight;
-            const newHeight = Math.min(currentHeight, 100);
-            textarea.style.height = `${newHeight}px`;
-
-            // Check if content is multiline (height > ~48px indicates 2+ lines)
-            const isMultiline = currentHeight > 48;
-            onHeightChange?.(isMultiline);
-          }
+          // Always size to exact scrollHeight for both empty and non-empty values
+          textarea.style.height = "auto";
+          const currentHeight = textarea.scrollHeight;
+          const newHeight = Math.min(currentHeight, 100);
+          textarea.style.height = `${newHeight}px`;
+          const isMultiline = currentHeight > 48;
+          onHeightChange?.(isMultiline);
         }
         resizeRafRef.current = null;
       });
@@ -179,6 +238,9 @@ export const ChatInputField = memo(
             // Additional browser performance hints
             contentVisibility: "auto",
             containIntrinsicSize: "24px 100px",
+            textIndent: firstLineIndentPx
+              ? `${firstLineIndentPx}px`
+              : undefined,
           }}
           disabled={disabled}
           placeholder="" // Remove native placeholder
