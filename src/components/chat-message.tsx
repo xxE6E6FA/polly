@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { cn, stripCitations } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
@@ -82,21 +82,20 @@ const ChatMessageComponent = ({
     }
   }, []);
 
-  const hasImageGallery =
-    message.role === "assistant" &&
-    message.imageGeneration?.status === "succeeded" &&
-    (() => {
-      // Look for generated images in main attachments field
-      const generatedImages =
-        message.attachments?.filter(
-          att => att.type === "image" && att.generatedImage?.isGenerated
-        ) || [];
-
-      // Fallback to output URLs if no stored images yet
-      const outputUrls = message.imageGeneration?.output || [];
-
-      return generatedImages.length > 0 || outputUrls.length > 0;
-    })();
+  const hasImageGallery = useMemo(() => {
+    if (
+      message.role !== "assistant" ||
+      message.imageGeneration?.status !== "succeeded"
+    ) {
+      return false;
+    }
+    const generatedImages =
+      message.attachments?.filter(
+        att => att.type === "image" && att.generatedImage?.isGenerated
+      ) || [];
+    const outputUrls = message.imageGeneration?.output || [];
+    return generatedImages.length > 0 || outputUrls.length > 0;
+  }, [message]);
 
   return (
     <>
@@ -144,14 +143,15 @@ const ChatMessageComponent = ({
         )}
       </div>
 
-      {/* Attachment gallery dialog */}
-      <AttachmentGalleryDialog
-        attachments={message.attachments || []}
-        currentAttachment={previewFile}
-        open={Boolean(previewFile)}
-        onOpenChange={handlePreviewFileClose}
-        onAttachmentChange={setPreviewFile}
-      />
+      {previewFile && (
+        <AttachmentGalleryDialog
+          attachments={message.attachments || []}
+          currentAttachment={previewFile}
+          open={Boolean(previewFile)}
+          onOpenChange={handlePreviewFileClose}
+          onAttachmentChange={setPreviewFile}
+        />
+      )}
     </>
   );
 };

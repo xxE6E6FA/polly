@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { SearchQuery } from "@/components/search-query";
@@ -172,31 +172,48 @@ export const AssistantBubble = ({
 }: AssistantBubbleProps) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
-  // Get all generated image attachments for gallery navigation
-  const generatedImageAttachments =
-    message.attachments?.filter(
-      att => att.type === "image" && att.generatedImage?.isGenerated
-    ) || [];
+  // Memoized image lists derived from message
+  const generatedImageAttachments = useMemo(
+    () =>
+      message.attachments?.filter(
+        att => att.type === "image" && att.generatedImage?.isGenerated
+      ) || [],
+    [message.attachments]
+  );
 
-  // If no stored attachments, create attachments from output URLs
-  const imageAttachments =
-    generatedImageAttachments.length > 0
-      ? generatedImageAttachments
-      : (message.imageGeneration?.output || []).map(
-          (url, index) =>
-            ({
-              type: "image" as const,
-              name: `Generated Image ${index + 1}`,
-              url,
-              size: 0,
-              generatedImage: {
-                isGenerated: true,
-                source: "replicate",
-                model: message.imageGeneration?.metadata?.model,
-                prompt: message.imageGeneration?.metadata?.prompt,
-              },
-            }) satisfies Attachment
-        );
+  const outputUrls = useMemo(
+    () => message.imageGeneration?.output || [],
+    [message.imageGeneration]
+  );
+
+  const hasStoredImages = generatedImageAttachments.length > 0;
+  const hasAnyGeneratedImages = hasStoredImages || outputUrls.length > 0;
+
+  const imageAttachments = useMemo(() => {
+    if (hasStoredImages) {
+      return generatedImageAttachments;
+    }
+    return outputUrls.map(
+      (url, index) =>
+        ({
+          type: "image" as const,
+          name: `Generated Image ${index + 1}`,
+          url,
+          size: 0,
+          generatedImage: {
+            isGenerated: true,
+            source: "replicate",
+            model: message.imageGeneration?.metadata?.model,
+            prompt: message.imageGeneration?.metadata?.prompt,
+          },
+        }) satisfies Attachment
+    );
+  }, [
+    hasStoredImages,
+    generatedImageAttachments,
+    outputUrls,
+    message.imageGeneration,
+  ]);
 
   const reasoning = message.reasoning;
   const displayContent = message.content;
@@ -321,32 +338,13 @@ export const AssistantBubble = ({
                 </div>
               </div>
             ) : message.imageGeneration.status === "succeeded" &&
-              (() => {
-                // Look for generated images in main attachments field
-                const generatedImages =
-                  message.attachments?.filter(
-                    att =>
-                      att.type === "image" && att.generatedImage?.isGenerated
-                  ) || [];
-
-                // Fallback to output URLs if no stored images yet
-                const outputUrls = message.imageGeneration.output || [];
-                const hasStoredImages = generatedImages.length > 0;
-
-                return hasStoredImages || outputUrls.length > 0;
-              })() ? (
+              hasAnyGeneratedImages ? (
               <ImageViewToggle
-                images={(() => {
-                  const generatedImages =
-                    message.attachments?.filter(
-                      att =>
-                        att.type === "image" && att.generatedImage?.isGenerated
-                    ) || [];
-
-                  return generatedImages.length > 0
-                    ? generatedImages.map(att => att.url)
-                    : message.imageGeneration.output || [];
-                })()}
+                images={
+                  hasStoredImages
+                    ? generatedImageAttachments.map(att => att.url)
+                    : outputUrls
+                }
                 aspectRatio={
                   message.imageGeneration.metadata?.params?.aspectRatio
                 }
@@ -354,16 +352,8 @@ export const AssistantBubble = ({
                 messageId={message.id}
                 className="image-gallery-wrapper"
                 gridComponent={(() => {
-                  const generatedImages =
-                    message.attachments?.filter(
-                      att =>
-                        att.type === "image" && att.generatedImage?.isGenerated
-                    ) || [];
-                  const outputUrls = message.imageGeneration.output || [];
-                  const hasStoredImages = generatedImages.length > 0;
-
                   const items = hasStoredImages
-                    ? generatedImages
+                    ? generatedImageAttachments
                     : outputUrls.map(url => ({ url }));
 
                   return (
@@ -478,12 +468,14 @@ export const AssistantBubble = ({
         ) : (
           /* Regular text message content */
           <div className="relative">
-            <StreamingMarkdown
-              isStreaming={isStreaming || message.status === "streaming"}
-              messageId={message.id}
-            >
-              {displayContent}
-            </StreamingMarkdown>
+            {(displayContent && displayContent.length > 0) || isStreaming ? (
+              <StreamingMarkdown
+                isStreaming={isStreaming || message.status === "streaming"}
+                messageId={message.id}
+              >
+                {displayContent}
+              </StreamingMarkdown>
+            ) : null}
 
             {message.status === "error" && (
               <div className="mt-2 text-xs text-red-500">
