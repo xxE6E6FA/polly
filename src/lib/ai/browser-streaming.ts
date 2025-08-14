@@ -60,7 +60,7 @@ export async function streamChat(
       repetitionPenalty: (options as { repetitionPenalty?: number } | undefined)
         ?.repetitionPenalty,
       abortSignal: abortController.signal,
-      ...reasoningOptions, // Merge reasoning-specific options
+      ...reasoningOptions, // Merge reasoning-specific options (includes groq providerOptions when applicable)
     };
 
     const result = streamText({

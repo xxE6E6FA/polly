@@ -155,6 +155,7 @@ export const providerSchema = v.union(
   v.literal("openai"),
   v.literal("anthropic"),
   v.literal("google"),
+  v.literal("groq"),
   v.literal("openrouter"),
   v.literal("replicate"),
   v.literal("elevenlabs")

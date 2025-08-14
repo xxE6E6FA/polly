@@ -24,6 +24,7 @@ export function getEnvironmentApiKey(provider: string): string | null {
     openai: "OPENAI_API_KEY",
     anthropic: "ANTHROPIC_API_KEY",
     google: "GEMINI_API_KEY",
+    groq: "GROQ_API_KEY",
     openrouter: "OPENROUTER_API_KEY",
     exa: "EXA_API_KEY",
   };

@@ -358,6 +358,57 @@ type ModelResponse = {
   supportsImageGeneration?: boolean;
 };
 
+// Groq Models
+async function fetchGroqModels(apiKey: string) {
+  try {
+    const response = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const models = Array.isArray(data.data) ? data.data : [];
+
+    return models
+      .filter((m: { id?: string }) => typeof m?.id === "string")
+      .map((m: { id: string; created?: number }) => {
+        const modelId = m.id;
+
+        // Reasonable capability guesses; refined heuristics as needed
+        const supportsReasoning =
+          /qwen|qwq|deepseek|r1|kimi|gpt-oss|llama-4-maverick|llama-guard/i.test(
+            modelId
+          );
+        const supportsImages = /llama-4-scout|vision|image|mm|multimodal/i.test(
+          modelId
+        );
+        const supportsTools = true; // Groq supports tool use across most chat models via AI SDK
+        const supportsFiles = supportsImages;
+        const contextWindow = 131072; // Default; Groq docs list many at 131,072
+
+        return {
+          modelId,
+          name: modelId,
+          provider: "groq",
+          contextWindow,
+          supportsReasoning,
+          supportsTools,
+          supportsImages,
+          supportsFiles,
+        } as ModelResponse;
+      });
+  } catch (error) {
+    log.error("Failed to fetch Groq models", error);
+    return [];
+  }
+}
+
 // OpenRouter Models
 
 async function fetchOpenRouterModels(apiKey: string) {
@@ -561,6 +612,7 @@ export const fetchAllModels = action({
               | "openai"
               | "anthropic"
               | "google"
+              | "groq"
               | "openrouter"
               | "replicate",
           }
@@ -581,6 +633,9 @@ export const fetchAllModels = action({
             break;
           case "google":
             models = await fetchGoogleModels(decryptedKey);
+            break;
+          case "groq":
+            models = await fetchGroqModels(decryptedKey);
             break;
           case "openrouter":
             models = await fetchOpenRouterModels(decryptedKey);
@@ -616,6 +671,7 @@ export const fetchProviderModels = action({
           | "openai"
           | "anthropic"
           | "google"
+          | "groq"
           | "openrouter"
           | "replicate",
       });
@@ -631,6 +687,8 @@ export const fetchProviderModels = action({
           return await fetchAnthropicModels(decryptedKey);
         case "google":
           return await fetchGoogleModels(decryptedKey);
+        case "groq":
+          return await fetchGroqModels(decryptedKey);
         case "openrouter":
           return await fetchOpenRouterModels(decryptedKey);
         case "replicate":

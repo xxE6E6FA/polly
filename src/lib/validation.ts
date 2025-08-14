@@ -10,6 +10,8 @@ export function validateApiKey(provider: string, key: string): boolean {
       return key.startsWith("sk-ant-") && key.length > 20;
     case "google":
       return key.length > 20; // Google API keys vary in format
+    case "groq":
+      return key.length > 20; // Groq keys vary; accept reasonable length
     case "openrouter":
       return key.startsWith("sk-or-") && key.length > 20;
     case "replicate":

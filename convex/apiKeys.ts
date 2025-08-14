@@ -82,6 +82,8 @@ function validateApiKeyFormat(provider: string, key: string): boolean {
       return key.startsWith("sk-ant-") && key.length > 20;
     case "google":
       return key.length > 20;
+    case "groq":
+      return key.length > 20; // Groq keys vary; AI SDK uses Authorization: Bearer
     case "openrouter":
       return key.startsWith("sk-or-") && key.length > 20;
     case "replicate":
@@ -100,6 +102,7 @@ export const storeApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -155,6 +158,7 @@ export const storeClientEncryptedApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -225,6 +229,7 @@ export const removeApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -255,6 +260,7 @@ export const validateApiKey = mutation({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -319,6 +325,7 @@ function hasEnvironmentApiKeys(): boolean {
     process.env.OPENAI_API_KEY ||
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
+      process.env.GROQ_API_KEY ||
       process.env.OPENROUTER_API_KEY ||
       process.env.REPLICATE_API_TOKEN ||
       process.env.ELEVENLABS_API_KEY
@@ -332,6 +339,7 @@ export const getDecryptedApiKey = action({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -397,6 +405,7 @@ export const getClientEncryptedApiKey = query({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
@@ -435,6 +444,7 @@ export const getEncryptedApiKeyData = internalQuery({
       v.literal("openai"),
       v.literal("anthropic"),
       v.literal("google"),
+      v.literal("groq"),
       v.literal("openrouter"),
       v.literal("replicate"),
       v.literal("elevenlabs")
