@@ -6,13 +6,29 @@ function stripDanglingClosers(text: string): string {
 }
 
 function renderCitationsForPlainText(text: string): ReactNode {
+  // Normalize common escaped or malformed citation patterns first
+  const normalized = text
+    // Remove backslashes before brackets: \[1] -> [1]
+    .replace(/\\(\[|\])/g, "$1")
+    // Convert double brackets to single: [[1]] -> [1]
+    .replace(/\[\[(\d+)\]\]/g, "[$1]")
+    // Normalize grouped citations: [1, 2,3] -> [1][2][3]
+    .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
+      nums
+        .split(",")
+        .map(n => `[${n.trim()}]`)
+        .join("")
+    )
+    // Normalize single citation spacing: [ 1 ] -> [1]
+    .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
+
   const parts: ReactNode[] = [];
   let start = 0;
   let group: React.ReactNode[] = [];
   const re = /\[(\d+)\]/g;
-  let m: RegExpExecArray | null = re.exec(text);
+  let m: RegExpExecArray | null = re.exec(normalized);
   while (m) {
-    const between = text.slice(start, m.index);
+    const between = normalized.slice(start, m.index);
     if (between) {
       if (group.length > 0 && between.trim() === "") {
         // keep grouping contiguous citations
@@ -37,12 +53,12 @@ function renderCitationsForPlainText(text: string): ReactNode {
       </a>
     );
     start = re.lastIndex;
-    m = re.exec(text);
+    m = re.exec(normalized);
   }
   if (group.length > 0) {
     parts.push(<CitationGroup key={`grp-${start}`}>{group}</CitationGroup>);
   }
-  const tail = text.slice(start);
+  const tail = normalized.slice(start);
   if (tail) {
     parts.push(tail);
   }
