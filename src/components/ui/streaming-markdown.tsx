@@ -46,6 +46,21 @@ const defaultThrottle = throttleBasic({
   windowLookBackMs: 120,
 });
 
+// Remove common streaming cursor/indicator glyphs that some renderers append
+// We only strip these when actively streaming to avoid altering legitimate output
+const TRAILING_ZERO_WIDTH = /(?:\u200B|\u200C|\u200D|\uFEFF|\u2060|\u00AD)+$/;
+const TRAILING_BOX_DRAWING = /[\u2500-\u257F\u2580-\u259F\u2758-\u275A]+$/;
+
+function stripTrailingStreamingArtifacts(text: string): string {
+  if (!text) {
+    return text;
+  }
+  // Remove zero-width/control artifacts first, then heavy box/cursor glyphs
+  return text
+    .replace(TRAILING_ZERO_WIDTH, "")
+    .replace(TRAILING_BOX_DRAWING, "");
+}
+
 type StreamingMarkdownProps = {
   children: string;
   className?: string;
@@ -96,6 +111,8 @@ const StreamingMarkdownInner = memo(
       isStreamFinished: !isStreaming,
       throttle: optimizedThrottle,
     });
+
+    // debug logs removed
 
     // Memoize the rendered components to reduce re-renders
     const renderedBlocks = useMemo(() => {
@@ -175,15 +192,19 @@ const StreamingMarkdownComponent = ({
 
   // Use frozen content when available (after stop), otherwise use live content
   const contentToRender = frozenContent !== null ? frozenContent : children;
+  const isLiveStreaming = isStreaming && frozenContent === null;
+  const sanitizedContent = isLiveStreaming
+    ? stripTrailingStreamingArtifacts(contentToRender)
+    : contentToRender;
 
   return (
     <StreamingMarkdownInner
       key={`${messageId}-${streamKey}`}
       className={className}
-      isStreaming={isStreaming && frozenContent === null}
+      isStreaming={isLiveStreaming}
       messageId={messageId}
     >
-      {contentToRender}
+      {sanitizedContent}
     </StreamingMarkdownInner>
   );
 };
