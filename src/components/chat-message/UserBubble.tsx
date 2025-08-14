@@ -17,6 +17,11 @@ type UserBubbleProps = {
   onRetryMessage?: (modelId?: string, provider?: string) => void;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
+  onRefineMessage?: (
+    messageId: string,
+    type: "custom" | "add_details" | "more_concise",
+    instruction?: string
+  ) => void;
 };
 
 export const UserBubble = memo(

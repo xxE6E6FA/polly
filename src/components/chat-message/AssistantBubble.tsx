@@ -209,6 +209,7 @@ export const AssistantBubble = ({
     message.status === "streaming" &&
     (!displayContent || displayContent.length === 0) &&
     !isImageGeneration;
+  const hasReasoningText = Boolean(reasoning && reasoning.trim().length > 0);
 
   // Get the model name for display
   const getModelDisplayName = (modelId: string | undefined): string => {
@@ -221,11 +222,11 @@ export const AssistantBubble = ({
   return (
     <div className="w-full">
       <div className="min-w-0 flex-1">
-        {/* Unified Loading Status Area - Search has highest priority */}
+        {/* Unified Loading Status Area - show only one loader at a time */}
         {(isSearching ||
           isPdfReading ||
-          isThinking ||
-          isStreamingWithoutContent) && (
+          (isThinking && !hasReasoningText) ||
+          (isStreamingWithoutContent && !hasReasoningText)) && (
           <div className="mb-2.5">
             {isSearching ? (
               <SearchQuery
@@ -241,14 +242,14 @@ export const AssistantBubble = ({
                   <span>{message.statusText || "Reading PDF..."}</span>
                 </div>
               </div>
-            ) : isStreamingWithoutContent ? (
+            ) : isStreamingWithoutContent && !hasReasoningText ? (
               <div className="text-sm text-muted-foreground py-2 space-y-1">
                 <div className="flex items-center gap-2">
                   <Spinner className="h-3 w-3" />
                   <span>Thinking...</span>
                 </div>
               </div>
-            ) : isThinking ? (
+            ) : isThinking && !hasReasoningText ? (
               <div className="text-sm text-muted-foreground py-2 space-y-1">
                 <div className="flex items-center gap-2">
                   <Spinner className="h-3 w-3" />
@@ -259,11 +260,11 @@ export const AssistantBubble = ({
           </div>
         )}
 
-        {reasoning && (
+        {hasReasoningText && (
           <div className="mb-2.5">
             <Reasoning
               isLoading={isStreaming}
-              reasoning={reasoning}
+              reasoning={reasoning || ""}
               hasSearch={hasSearch}
             />
           </div>

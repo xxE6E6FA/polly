@@ -319,10 +319,12 @@ export const createPrivateChatHandlers = (
               )
             );
           },
-          onReasoning: (reasoning: string) => {
+          onReasoning: (delta: string) => {
             setMessages(prev =>
               prev.map(m =>
-                m.id === assistantMessageId ? { ...m, reasoning } : m
+                m.id === assistantMessageId
+                  ? { ...m, reasoning: (m.reasoning || "") + delta }
+                  : m
               )
             );
           },

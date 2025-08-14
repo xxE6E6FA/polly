@@ -70,6 +70,17 @@ export async function streamChat(
         delayInMs: 20,
         chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
       }),
+      // Stream reasoning deltas concurrently with text
+      onChunk: ({ chunk }) => {
+        // Reasoning deltas arrive with type "reasoning" in the AI SDK
+        if (
+          callbacks.onReasoning &&
+          (chunk as { type?: string }).type === "reasoning" &&
+          (chunk as { textDelta?: string }).textDelta
+        ) {
+          callbacks.onReasoning((chunk as { textDelta: string }).textDelta);
+        }
+      },
     });
 
     // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
@@ -87,18 +98,7 @@ export async function streamChat(
     // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
     console.log("[browser-streaming] Text stream processing completed");
 
-    // Handle reasoning if available (AI SDK native support)
-    try {
-      // @ts-expect-error - experimental_reasoningStream is not yet in the official type
-      if (result.experimental_reasoningStream && callbacks.onReasoning) {
-        // @ts-expect-error - experimental_reasoningStream is not yet in the official type
-        for await (const reasoningChunk of result.experimental_reasoningStream) {
-          callbacks.onReasoning(reasoningChunk);
-        }
-      }
-    } catch (reasoningError) {
-      console.warn("Failed to process reasoning:", reasoningError);
-    }
+    // Reasoning is handled live via onChunk above
 
     callbacks.onFinish("stop");
   } catch (error) {

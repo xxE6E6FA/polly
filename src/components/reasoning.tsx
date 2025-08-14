@@ -41,21 +41,8 @@ export const Reasoning = ({
     }
   }, [reasoningLength, isExpanded]);
 
-  // Only render if we have actual reasoning content or if we're loading
+  // Don't show a secondary "thinking" state; only render when there is content
   if (!reasoning?.trim()) {
-    // If search is happening, don't show the initial loading state
-    // Let SearchQuery show first
-    if (isLoading && !hasSearch) {
-      // Show loading state even without content yet
-      return (
-        <div className="text-sm text-muted-foreground py-2 space-y-1">
-          <div className="flex items-center gap-2">
-            <Spinner className="h-3 w-3" />
-            <span>Thinking through your request...</span>
-          </div>
-        </div>
-      );
-    }
     return null;
   }
 
