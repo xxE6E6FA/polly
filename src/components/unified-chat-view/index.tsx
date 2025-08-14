@@ -318,6 +318,7 @@ export const UnifiedChatView = memo(
                     currentTemperature={currentTemperature}
                     onTemperatureChange={onTemperatureChange}
                     userMessageContents={userMessageContents}
+                    conversationPersonaId={currentPersonaId}
                   />
                 </div>
 

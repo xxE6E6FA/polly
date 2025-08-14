@@ -10,6 +10,8 @@ export default function HomePage() {
   const { user } = useUserDataContext();
 
   useEffect(() => {
+    document.title = "Polly";
+
     setPrivateMode(false);
   }, [setPrivateMode]);
 

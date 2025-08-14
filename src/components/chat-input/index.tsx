@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { UserIcon, XIcon } from "@phosphor-icons/react";
 import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
 import { FILE_LIMITS } from "@shared/file-constants";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
@@ -53,6 +54,7 @@ import { GenerationModeToggle } from "./generation-mode-toggle";
 import { ImageGenerationSettings } from "./image-generation-settings";
 import { ImageModelPicker } from "./image-model-picker";
 import { NegativePromptToggle } from "./negative-prompt-toggle";
+import { PersonaMentionTypeahead } from "./persona-mention-typeahead";
 import { PersonaSelector } from "./persona-selector";
 import { SendButtonGroup } from "./send-button-group";
 
@@ -87,6 +89,7 @@ interface ChatInputProps {
   // Optimized: provide just user message contents to avoid full re-render coupling
   userMessageContents?: string[];
   autoFocus?: boolean;
+  conversationPersonaId?: Id<"personas"> | null;
 }
 
 export type ChatInputRef = {
@@ -117,6 +120,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       messages,
       userMessageContents,
       autoFocus = false,
+      conversationPersonaId,
     },
     ref
   ) => {
@@ -125,6 +129,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const navigate = useNavigate();
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const personaChipRef = useRef<HTMLSpanElement>(null);
     const { isPrivateMode } = usePrivateMode();
     const { setChatInputState, getChatInputState, clearChatInputState } =
       useChatInputPreservation();
@@ -195,6 +200,65 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isMultiline, setIsMultiline] = useState(false);
     const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // @persona mention typeahead state
+    const [mentionOpen, setMentionOpen] = useState(false);
+    const [mentionQuery, setMentionQuery] = useState("");
+    const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+    const [personaChipWidth, setPersonaChipWidth] = useState<number>(0);
+
+    // Fetch personas to render chip info
+    const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
+    const personas = useMemo(
+      () => (Array.isArray(personasRaw) ? personasRaw : []),
+      [personasRaw]
+    );
+    const mentionItems = useMemo(() => {
+      const q = mentionQuery.trim().toLowerCase();
+      const base: Array<{
+        id: Id<"personas"> | null;
+        name: string;
+        icon?: string;
+      }> = [{ id: null, name: "Default", icon: "🤖" }];
+      const filtered = q
+        ? personas.filter(p => p.name.toLowerCase().includes(q))
+        : personas;
+      return base.concat(
+        filtered.map(p => ({ id: p._id, name: p.name, icon: p.icon }))
+      );
+    }, [mentionQuery, personas]);
+    const currentPersona = useMemo(
+      () =>
+        selectedPersonaId
+          ? personas.find(p => p._id === selectedPersonaId) || null
+          : null,
+      [personas, selectedPersonaId]
+    );
+
+    // Reset active index when menu opens
+    useEffect(() => {
+      if (mentionOpen) {
+        setMentionActiveIndex(0);
+      }
+    }, [mentionOpen]);
+
+    // Measure persona chip width to indent first line accordingly
+    useEffect(() => {
+      if (!selectedPersonaId) {
+        setPersonaChipWidth(0);
+        return;
+      }
+      const measure = () => {
+        const w = personaChipRef.current?.getBoundingClientRect().width;
+        setPersonaChipWidth(Math.ceil(w || 0));
+      };
+      measure();
+      const onResize = () => measure();
+      window.addEventListener("resize", onResize);
+      return () => {
+        window.removeEventListener("resize", onResize);
+      };
+    }, [selectedPersonaId]);
 
     // Force text mode when in private mode or no Replicate API key
     useEffect(() => {
@@ -486,14 +550,61 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     // Reset history when input changes (user typing)
     const handleInputChange = useCallback(
       (value: string) => {
-        // If we're not navigating history, reset history state
         if (historyIndex !== -1 && value !== userMessages[historyIndex]) {
           setHistoryIndex(-1);
           setOriginalInput("");
         }
         setInput(value);
+
+        // Disable @ mentions in ongoing conversations that already have a persona
+        const mentionsDisabled = Boolean(
+          hasExistingMessages && conversationPersonaId
+        );
+        if (mentionsDisabled) {
+          if (mentionOpen) {
+            setMentionOpen(false);
+            setMentionQuery("");
+          }
+          return;
+        }
+
+        // If persona already selected, do not allow new mentions
+        if (selectedPersonaId) {
+          if (mentionOpen) {
+            setMentionOpen(false);
+            setMentionQuery("");
+          }
+          return;
+        }
+
+        // Detect @ mention start: open minimal persona picker
+        const selStart = textareaRef.current?.selectionStart ?? value.length;
+        const upto = value.slice(0, selStart);
+        const atIndex = Math.max(upto.lastIndexOf(" @"), upto.lastIndexOf("@"));
+        const spaceAfter = upto.lastIndexOf(" ");
+        const isAtStart = atIndex === 0 || upto[atIndex - 1] === " ";
+        const hasCloserSpace = spaceAfter > atIndex;
+
+        if (atIndex !== -1 && isAtStart && !hasCloserSpace) {
+          const afterAt = upto.slice(atIndex + 1);
+          // stop on whitespace/newline
+          const q = afterAt.split(/\s|\n/)[0];
+          setMentionQuery(q);
+          setMentionOpen(true);
+        } else if (mentionOpen) {
+          setMentionOpen(false);
+          setMentionQuery("");
+        }
       },
-      [historyIndex, userMessages, setInput]
+      [
+        historyIndex,
+        userMessages,
+        setInput,
+        mentionOpen,
+        selectedPersonaId,
+        hasExistingMessages,
+        conversationPersonaId,
+      ]
     );
 
     // Fullscreen input handlers
@@ -771,6 +882,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     );
 
     const submit = useCallback(async () => {
+      if (mentionOpen) {
+        return;
+      }
       if (input.trim().length === 0 && attachments.length === 0) {
         return;
       }
@@ -892,6 +1006,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       convex,
       conversationId,
       navigate,
+      mentionOpen,
     ]);
 
     const handleSendAsNewConversation = useCallback(
@@ -1047,12 +1162,102 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             <div className="flex flex-col">
               <div className="flex items-end gap-3">
                 <div className="flex-1 flex items-center relative">
+                  {selectedPersonaId && (
+                    <div className="absolute left-1 top-1 z-10 flex items-center gap-1 text-xs text-muted-foreground">
+                      <span
+                        ref={personaChipRef}
+                        className="inline-flex items-center gap-1 rounded-md bg-accent/40 px-1.5 py-0.5"
+                      >
+                        {currentPersona?.icon ? (
+                          <span className="text-xs">{currentPersona.icon}</span>
+                        ) : (
+                          <UserIcon className="h-3.5 w-3.5" />
+                        )}
+                        <span className="max-w-[140px] truncate">
+                          {currentPersona?.name || "Persona"}
+                        </span>
+                        <button
+                          type="button"
+                          className="ml-1 text-muted-foreground hover:text-foreground"
+                          onClick={() => setSelectedPersonaId(null)}
+                          aria-label="Clear persona"
+                        >
+                          <XIcon className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  )}
                   <ChatInputField
                     value={input}
                     onChange={handleInputChange}
                     onSubmit={submit}
                     textareaRef={textareaRef}
-                    placeholder={dynamicPlaceholder}
+                    placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
+                    firstLineIndentPx={
+                      selectedPersonaId
+                        ? Math.max(personaChipWidth + 8, 0)
+                        : undefined
+                    }
+                    onMentionNavigate={direction => {
+                      if (!mentionOpen) {
+                        return false;
+                      }
+                      setMentionActiveIndex(prev => {
+                        const next = direction === "up" ? prev - 1 : prev + 1;
+                        const max = Math.max(mentionItems.length - 1, 0);
+                        if (next < 0) {
+                          return max;
+                        }
+                        if (next > max) {
+                          return 0;
+                        }
+                        return next;
+                      });
+                      return true;
+                    }}
+                    onMentionConfirm={() => {
+                      if (!mentionOpen) {
+                        return false;
+                      }
+                      const item = mentionItems[mentionActiveIndex];
+                      if (!item) {
+                        return true;
+                      }
+                      const textarea = textareaRef.current;
+                      const text = textarea ? textarea.value : input;
+                      const caret = textarea?.selectionStart ?? text.length;
+                      const upto = text.slice(0, caret);
+                      const atIndex = Math.max(
+                        upto.lastIndexOf(" @"),
+                        upto.lastIndexOf("@")
+                      );
+                      const before = text.slice(0, atIndex);
+                      const after = text.slice(caret);
+                      const newText = `${before}${after}`.trimStart();
+                      setInput(newText);
+                      setSelectedPersonaId(item.id);
+                      setMentionOpen(false);
+                      setMentionQuery("");
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                      return true;
+                    }}
+                    onMentionCancel={() => {
+                      // Case 1: close the mention picker if open
+                      if (mentionOpen) {
+                        setMentionOpen(false);
+                        setMentionQuery("");
+                        return true;
+                      }
+                      // Case 2: when input is empty and a persona chip is set, clear the chip
+                      const isEmpty =
+                        (textareaRef.current?.value || "").trim().length === 0;
+                      if (isEmpty && selectedPersonaId) {
+                        setSelectedPersonaId(null);
+                        setPersonaChipWidth(0);
+                        return true;
+                      }
+                      return false;
+                    }}
                     disabled={
                       isLoading || isStreaming || isProcessing || !canSend
                     }
@@ -1062,8 +1267,77 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     isTransitioning={isTransitioning}
                     autoFocus={autoFocus}
                     className={
-                      isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined
+                      isFullscreen
+                        ? selectedPersonaId
+                          ? "min-h-[50vh] max-h-[85vh] pl-28"
+                          : "min-h-[50vh] max-h-[85vh]"
+                        : selectedPersonaId
+                          ? "pl-28"
+                          : undefined
                     }
+                  />
+                  {mentionOpen && (
+                    <div className="absolute -top-7 left-0 flex items-center gap-1 text-xs text-muted-foreground">
+                      {selectedPersonaId && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-accent/40 px-1.5 py-0.5">
+                          {currentPersona?.icon ? (
+                            <span className="text-xs">
+                              {currentPersona.icon}
+                            </span>
+                          ) : (
+                            <UserIcon className="h-3.5 w-3.5" />
+                          )}
+                          <span className="max-w-[140px] truncate">
+                            {currentPersona?.name || "Persona"}
+                          </span>
+                          <button
+                            type="button"
+                            className="ml-1 text-muted-foreground hover:text-foreground"
+                            onClick={() => setSelectedPersonaId(null)}
+                            aria-label="Clear persona"
+                          >
+                            <XIcon className="h-3.5 w-3.5" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <PersonaMentionTypeahead
+                    open={mentionOpen}
+                    items={mentionItems}
+                    activeIndex={mentionActiveIndex}
+                    onHoverIndex={setMentionActiveIndex}
+                    onSelect={pid => {
+                      const textarea = textareaRef.current;
+                      const text = textarea ? textarea.value : input;
+                      const caret = textarea?.selectionStart ?? text.length;
+                      const upto = text.slice(0, caret);
+                      const atIndex = Math.max(
+                        upto.lastIndexOf(" @"),
+                        upto.lastIndexOf("@")
+                      );
+                      const before = text.slice(0, atIndex);
+                      const after = text.slice(caret);
+                      const newText = `${before}${after}`.trimStart();
+                      setInput(newText);
+                      setSelectedPersonaId(pid);
+                      setMentionOpen(false);
+                      setMentionQuery("");
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    onClose={() => setMentionOpen(false)}
+                    className="left-0"
+                    placement={(function () {
+                      const rect = textareaRef.current?.getBoundingClientRect();
+                      if (!rect) {
+                        return "bottom" as const;
+                      }
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      const dropdownHeight = 260; // approx max height inc. paddings
+                      return spaceBelow < dropdownHeight
+                        ? ("top" as const)
+                        : ("bottom" as const);
+                    })()}
                   />
                   <ExpandToggleButton
                     onToggle={handleToggleFullscreen}
