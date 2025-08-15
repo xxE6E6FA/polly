@@ -6,14 +6,9 @@ import { Spinner } from "@/components/spinner";
 type ReasoningProps = {
   reasoning: string;
   isLoading: boolean;
-  hasSearch?: boolean;
 };
 
-export const Reasoning = ({
-  reasoning,
-  isLoading,
-  hasSearch,
-}: ReasoningProps) => {
+export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const lastReasoningLenRef = useRef<number>(0);

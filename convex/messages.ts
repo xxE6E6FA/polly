@@ -699,6 +699,20 @@ export const hasStreamingMessage = query({
   },
 });
 
+export const getMessageCount = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect();
+
+    return messages.length;
+  },
+});
+
 // --- Favorites ---
 
 export const toggleFavorite = mutation({

@@ -414,6 +414,23 @@ export const sendMessage = action({
       useWebSearch, // Pass the search availability determined by user auth
     });
 
+    // Trigger summary generation in background if conversation is getting long
+    const messageCount = await ctx.runQuery(api.messages.getMessageCount, {
+      conversationId: args.conversationId,
+    });
+
+    if (messageCount > 30) {
+      // Only generate summaries for longer conversations
+      await ctx.scheduler.runAfter(
+        5000,
+        internal.conversationSummary.generateMissingSummaries,
+        {
+          conversationId: args.conversationId,
+          forceRegenerate: false,
+        }
+      );
+    }
+
     return { userMessageId, assistantMessageId };
   },
 });

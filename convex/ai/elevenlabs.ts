@@ -638,7 +638,6 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     const voiceIdParam = url.searchParams.get("voiceId") || undefined;
     const modelIdParam = url.searchParams.get("modelId") || undefined;
     const outputFormatParam = url.searchParams.get("outputFormat") || undefined;
-    const optimizeLatency = url.searchParams.get("optimizeLatency");
 
     // Determine auth mode: either cookie auth or signed URL
     let hasValidSignature = false;

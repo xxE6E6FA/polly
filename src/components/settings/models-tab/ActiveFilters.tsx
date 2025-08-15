@@ -3,7 +3,7 @@ import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import { CAPABILITY_REGISTRY } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
-import type { FilterState } from "./";
+import type { FilterState } from "./TextModelsTab";
 
 const FilterTag = ({
   children,
