@@ -1,5 +1,6 @@
 import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 import {
   accountSchema,
   backgroundJobSchema,
@@ -98,6 +99,20 @@ export default defineSchema({
     "by_user_persona",
     ["userId", "personaId"]
   ),
+
+  // Conversation summaries for efficient context management
+  conversationSummaries: defineTable({
+    conversationId: v.id("conversations"),
+    chunkIndex: v.number(), // Which chunk this summarizes (0, 1, 2, etc.)
+    summary: v.string(),
+    messageCount: v.number(), // How many messages this chunk contains
+    firstMessageId: v.id("messages"), // First message in this chunk
+    lastMessageId: v.id("messages"), // Last message in this chunk
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_conversation_chunk", ["conversationId", "chunkIndex"])
+    .index("by_conversation_updated", ["conversationId", "updatedAt"]),
 
   userSettings: defineTable(userSettingsSchema)
     .index("by_user", ["userId"])

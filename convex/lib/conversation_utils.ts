@@ -17,6 +17,46 @@ import { getBaselineInstructions, DEFAULT_POLLY_PERSONA } from "../constants";
 
 import { CreateMessageArgs, CreateConversationArgs } from "./schemas";
 import { getUserEffectiveModelWithCapabilities } from "./model_resolution";
+import { api as conversationSummaryApi } from "../_generated/api";
+
+// Hierarchical summarization configuration
+const CONTEXT_CONFIG = {
+  CHUNK_SIZE: 15, // Messages per chunk
+  SUMMARY_THRESHOLD: 20, // When to start summarizing
+  MAX_SUMMARY_LENGTH: 400, // Max characters per summary (increased for richer summaries)
+  MAX_SUMMARY_CHUNKS: 5, // Max summaries before creating meta-summary
+  MIN_CHUNK_SIZE: 10, // Minimum chunk size
+  MAX_CHUNK_SIZE: 25, // Maximum chunk size
+  // LLM summarization settings
+  MAX_API_TOKENS: 1000, // Maximum tokens for API calls
+  TEMPERATURE: 0.2, // Temperature for consistent summaries
+  TOP_P: 0.9, // Top-p for focused generation
+  TOP_K: 40, // Top-k for quality variety
+  // Fallback settings
+  FALLBACK_SUMMARY_LENGTH: 300, // Length for fallback summaries
+  TRUNCATE_BUFFER: 20, // Buffer space for truncation
+} as const;
+
+// Dynamic chunk size calculation based on model context window
+function calculateOptimalChunkSize(modelContextWindow?: number): number {
+  if (!modelContextWindow) {
+    return CONTEXT_CONFIG.CHUNK_SIZE;
+  }
+
+  // Adjust chunk size based on context window
+  // Larger context windows can handle bigger chunks
+  if (modelContextWindow >= 200000) { // Claude 3.5/3.7, GPT-4o
+    return Math.min(CONTEXT_CONFIG.MAX_CHUNK_SIZE, 25);
+  } else if (modelContextWindow >= 128000) { // GPT-4 Turbo
+    return Math.min(CONTEXT_CONFIG.MAX_CHUNK_SIZE, 22);
+  } else if (modelContextWindow >= 32000) { // GPT-4, Gemini 2.5
+    return Math.min(CONTEXT_CONFIG.MAX_CHUNK_SIZE, 18);
+  } else if (modelContextWindow >= 16000) { // GPT-3.5 Turbo
+    return Math.min(CONTEXT_CONFIG.MAX_CHUNK_SIZE, 15);
+  } else {
+    return Math.max(CONTEXT_CONFIG.MIN_CHUNK_SIZE, 12);
+  }
+}
 
 export type StreamingActionResult = {
   userMessageId?: Id<"messages">;
@@ -946,4 +986,659 @@ export async function checkConversationAccess(
   }
 
   return { hasAccess: true, conversation, isDeleted: false };
+}
+
+// Improved type definitions for hierarchical summarization
+export type ChunkSummary = {
+  chunkIndex: number;
+  summary: string;
+  messageCount: number;
+  firstMessageId: Id<"messages">;
+  lastMessageId: Id<"messages">;
+};
+
+// More flexible type for API responses that may have string roles
+type ApiMessageDoc = Omit<MessageDoc, 'role' | 'citations'> & {
+  role: string;
+  citations?: Array<{
+    image?: string;
+    cited_text?: string;
+    snippet?: string;
+    description?: string;
+    favicon?: string;
+    siteName?: string;
+    title: string;
+    url: string;
+    score?: number;
+    publishedDate?: string;
+    author?: string;
+    text?: string;
+  }>;
+};
+
+// Update ProcessedChunk to handle both string summaries and API message arrays
+export type ProcessedChunk = string | ApiMessageDoc[];
+
+export type HierarchicalContextArgs = {
+  conversationId: Id<"conversations">;
+  personaId?: Id<"personas">;
+  maxTokens?: number;
+  modelCapabilities?: {
+    supportsImages?: boolean;
+    supportsFiles?: boolean;
+    contextWindow?: number;
+  };
+};
+
+export type HierarchicalContextResult = {
+  contextMessages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string | Array<any>;
+  }>;
+  messages: ApiMessageDoc[];
+};
+
+// Type for summary messages used in recursive processing
+type SummaryMessage = {
+  role: "system";
+  content: string;
+  createdAt: number;
+};
+
+export const buildHierarchicalContextMessages = async (
+  ctx: ActionCtx,
+  args: HierarchicalContextArgs
+): Promise<HierarchicalContextResult> => {
+  const messagesResult = await ctx.runQuery(api.messages.list, { conversationId: args.conversationId });
+
+  const messages: ApiMessageDoc[] = Array.isArray(messagesResult)
+    ? messagesResult
+    : messagesResult.page;
+
+  // If conversation is short, use full context
+  if (messages.length <= CONTEXT_CONFIG.SUMMARY_THRESHOLD) {
+    log.debug(`Using full context for conversation ${args.conversationId} (${messages.length} messages)`);
+    return buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: args.personaId,
+      modelCapabilities: args.modelCapabilities,
+    });
+  }
+
+  log.debug(`Building hierarchical context for conversation ${args.conversationId} (${messages.length} messages)`);
+
+  // Get model context window from model capabilities if available
+  const modelContextWindow = args.modelCapabilities?.contextWindow;
+  const optimalChunkSize = calculateOptimalChunkSize(modelContextWindow);
+  log.debug(`Model context window: ${modelContextWindow}, optimal chunk size: ${optimalChunkSize}`);
+
+  // Build hierarchical context with automatic summarization
+  const { contextMessages, processedMessages } = await buildHierarchicalContext(
+    ctx,
+    messages,
+    args,
+    optimalChunkSize
+  );
+
+  log.debug(`Built hierarchical context: ${contextMessages.length} context messages, ${processedMessages.length} processed messages`);
+
+  return { contextMessages, messages: processedMessages };
+};
+
+async function processChunksWithStoredSummaries(
+  ctx: ActionCtx,
+  chunks: ApiMessageDoc[][],
+  storedSummaries: ChunkSummary[],
+  optimalChunkSize: number
+): Promise<ProcessedChunk[]> {
+  if (chunks.length === 1) {
+    return chunks;
+  }
+
+  log.debug(`Processing ${chunks.length} chunks with ${storedSummaries.length} stored summaries`);
+
+  // Process each chunk using stored summaries when available
+  const processedChunks: ProcessedChunk[] = [];
+  
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const chunk = chunks[i];
+    const chunkIndex = i;
+    
+    // Look for stored summary for this chunk
+    const storedSummary = storedSummaries.find(s => s.chunkIndex === chunkIndex);
+    
+    if (storedSummary && storedSummary.messageCount === chunk.length) {
+      // Use stored summary
+      processedChunks.push(storedSummary.summary);
+      log.debug(`Using stored summary for chunk ${chunkIndex}: ${storedSummary.summary.length} chars`);
+    } else {
+      // Generate new summary if stored one doesn't match
+      log.debug(`Generating new summary for chunk ${chunkIndex} (${chunk.length} messages)`);
+      const summary = await summarizeChunk(chunk, CONTEXT_CONFIG.MAX_SUMMARY_LENGTH);
+      processedChunks.push(summary);
+      
+      // Store the new summary for future use
+      await storeChunkSummary(ctx, chunk, chunkIndex, summary);
+    }
+  }
+
+  // Keep the last chunk in full (most recent messages)
+  processedChunks.push(chunks[chunks.length - 1]);
+  log.debug(`Last chunk: ${chunks[chunks.length - 1].length} messages (kept in full)`);
+
+  // If we have too many summaries, create meta-summaries recursively
+  if (processedChunks.length > CONTEXT_CONFIG.MAX_SUMMARY_CHUNKS) {
+    log.debug(`Too many summaries (${processedChunks.length}), creating recursive meta-summary`);
+    return await createRecursiveMetaSummary(ctx, processedChunks, optimalChunkSize);
+  }
+
+  return processedChunks;
+}
+
+// Extract summary storage logic into separate function
+async function storeChunkSummary(
+  ctx: ActionCtx,
+  chunk: ApiMessageDoc[],
+  chunkIndex: number,
+  summary: string
+): Promise<void> {
+  try {
+    await ctx.runMutation(conversationSummaryApi.conversationSummary.upsertConversationSummary, {
+      conversationId: chunk[0].conversationId,
+      chunkIndex,
+      summary,
+      messageCount: chunk.length,
+      firstMessageId: chunk[0]._id,
+      lastMessageId: chunk[chunk.length - 1]._id,
+    });
+    log.debug(`Stored new summary for chunk ${chunkIndex}`);
+  } catch (error) {
+    log.error(`Failed to store summary for chunk ${chunkIndex}:`, error);
+  }
+}
+
+// Extract recursive meta-summary creation into separate function
+async function createRecursiveMetaSummary(
+  ctx: ActionCtx,
+  processedChunks: ProcessedChunk[],
+  optimalChunkSize: number
+): Promise<ProcessedChunk[]> {
+  // Create a new level of summarization by combining the existing string summaries
+  const summaryChunks = processedChunks.slice(0, -1); // Exclude the last full chunk
+
+  const summaryTexts: string[] = summaryChunks
+    .filter((chunk): chunk is string => typeof chunk === "string")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const combinedText = summaryTexts.join("\n\n");
+
+  // Build a meta-summary from the summaries above
+  let metaSummary: string;
+  try {
+    const prompt = buildMetaSummaryPrompt(combinedText, CONTEXT_CONFIG.MAX_SUMMARY_LENGTH);
+    metaSummary = await generateLLMSummary(prompt, CONTEXT_CONFIG.MAX_SUMMARY_LENGTH);
+    log.debug(`Recursive meta-summary created: ${metaSummary.length} chars`);
+  } catch {
+    // Fallback to intelligent truncation if LLM unavailable or fails
+    metaSummary = intelligentTruncateSummary(combinedText, CONTEXT_CONFIG.MAX_SUMMARY_LENGTH);
+    log.debug(`Recursive meta-summary (fallback) created: ${metaSummary.length} chars`);
+  }
+
+  return [metaSummary, processedChunks[processedChunks.length - 1]];
+}
+
+async function buildHierarchicalContext(
+  ctx: ActionCtx,
+  messages: ApiMessageDoc[],
+  args: {
+    personaId?: Id<"personas">;
+    maxTokens?: number;
+    modelCapabilities?: {
+      supportsImages?: boolean;
+      supportsFiles?: boolean;
+      contextWindow?: number;
+    };
+  },
+  optimalChunkSize: number
+): Promise<{
+  contextMessages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string | Array<any>;
+  }>;
+  processedMessages: ApiMessageDoc[];
+}> {
+  // If under threshold, return full context
+  if (messages.length <= CONTEXT_CONFIG.SUMMARY_THRESHOLD) {
+    const result = await buildContextMessages(ctx, {
+      conversationId: messages[0]?.conversationId || ("" as Id<"conversations">),
+      personaId: args.personaId,
+      modelCapabilities: args.modelCapabilities,
+    });
+    return {
+      contextMessages: result.contextMessages,
+      processedMessages: result.messages as unknown as ApiMessageDoc[],
+    };
+  }
+
+  // Get stored summaries for this conversation
+  const storedSummaries = await ctx.runQuery(conversationSummaryApi.conversationSummary.getConversationSummaries, {
+    conversationId: messages[0]?.conversationId || ("" as Id<"conversations">),
+    limit: 100, // Get up to 100 summaries
+  });
+
+  log.debug(`Found ${storedSummaries.length} stored summaries for conversation`);
+
+  // Split into chunks
+  const chunks: ApiMessageDoc[][] = [];
+  for (let i = 0; i < messages.length; i += optimalChunkSize) {
+    chunks.push(messages.slice(i, i + optimalChunkSize));
+  }
+
+  // Process chunks using stored summaries when available
+  const processedChunks = await processChunksWithStoredSummaries(
+    ctx,
+    chunks,
+    storedSummaries,
+    optimalChunkSize
+  );
+
+  // Determine model name from last assistant message
+  const lastAssistant = messages
+    .filter((m) => (m as any).role === "assistant" && (m as any).model)
+    .pop();
+  const modelName = (lastAssistant as any)?.model || "an AI model";
+
+  // Fetch persona prompt (if any)
+  const personaPrompt = await getPersonaPrompt({ runQuery: ctx.runQuery }, args.personaId);
+
+  // Build final context with summaries and recent messages
+  const contextMessages = await buildFinalContext(
+    ctx,
+    processedChunks,
+    {
+      modelName,
+      personaPrompt,
+      modelCapabilities: args.modelCapabilities,
+    }
+  );
+
+  return {
+    contextMessages,
+    processedMessages: messages.slice(-optimalChunkSize), // Return recent messages for reference
+  };
+}
+
+async function summarizeChunk(
+  chunk: ApiMessageDoc[],
+  maxLength: number
+): Promise<string> {
+  // Use LLM to create intelligent, rich summaries
+  try {
+    const conversationText = buildConversationText(chunk);
+
+    // If the text is short enough, return it as-is
+    if (conversationText.length <= maxLength) {
+      return conversationText;
+    }
+
+    const summaryPrompt = buildSummaryPrompt(conversationText, maxLength);
+    const summary = await generateLLMSummary(summaryPrompt, maxLength);
+
+    if (summary && summary.length > 0) {
+      // Ensure the summary doesn't exceed our target length
+      if (summary.length <= maxLength) {
+        return summary;
+      } else {
+        // If it's too long, intelligently truncate while preserving structure
+        return intelligentTruncateSummary(summary, maxLength);
+      }
+    }
+
+    throw new Error("No summary generated or empty response");
+    
+  } catch (error) {
+    log.error("Error creating LLM summary:", error);
+    // Fallback to intelligent truncation
+    const fallbackText = buildConversationText(chunk);
+    return createFallbackSummary(fallbackText, maxLength);
+  }
+}
+
+// Extract conversation text building into separate function
+function buildConversationText(chunk: ApiMessageDoc[]): string {
+  return chunk
+    .filter((msg) => msg.role !== "system")
+    .map((msg) => {
+      const role = msg.role === "user" ? "User" : "Assistant";
+      const content = typeof msg.content === "string" ? msg.content : "Content";
+      return `${role}: ${content}`;
+    })
+    .join("\n\n");
+}
+
+// Extract summary prompt building into separate function
+function buildSummaryPrompt(conversationText: string, maxLength: number): string {
+  return `You are an expert at summarizing conversations between users and AI assistants. Your task is to create a rich, comprehensive summary that preserves the most important information for conversation continuity.
+
+Please analyze the following conversation excerpt and create a summary that captures:
+
+1. **Main Topics & Themes**: What subjects were discussed? What was the primary focus?
+2. **Key Questions & Requests**: What did the user want to know or accomplish?
+3. **Important Insights & Explanations**: What key information, concepts, or conclusions were shared?
+4. **Context & Background**: What context or setup was established?
+5. **Conversation Flow**: How did the discussion progress? What was the logical sequence?
+
+Guidelines:
+- Be comprehensive but concise (aim for ${Math.floor(maxLength / 3)} characters)
+- Preserve technical accuracy and domain-specific terminology
+- Maintain the conversational tone and context
+- Focus on information that would be useful for continuing the conversation
+- If the conversation covers multiple topics, organize them logically
+- Use clear, structured language that another AI can easily understand
+- Adapt your summary style to the domain (technical, casual, academic, etc.)
+
+Conversation excerpt:
+${conversationText}
+
+Rich Summary:`;
+}
+
+// Extract LLM summary generation into separate function
+async function generateLLMSummary(prompt: string, maxLength: number): Promise<string> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    // Fallback to intelligent truncation if no API key
+    log.warn("No Gemini API key available, using fallback summarization");
+    throw new Error("No API key available");
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          maxOutputTokens: Math.min(CONTEXT_CONFIG.MAX_API_TOKENS, Math.floor(maxLength / 2)),
+          temperature: CONTEXT_CONFIG.TEMPERATURE,
+          topP: CONTEXT_CONFIG.TOP_P,
+          topK: CONTEXT_CONFIG.TOP_K,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          text?: string;
+        }>;
+      };
+    }>;
+  };
+  
+  const summary: string | undefined =
+    data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+  if (!summary || summary.length === 0) {
+    throw new Error("No summary generated or empty response");
+  }
+
+  return summary;
+}
+
+// Build a prompt for summarizing previously generated chunk summaries into a single coherent summary
+function buildMetaSummaryPrompt(summaries: string, maxLength: number): string {
+  return `You are an expert at synthesizing multiple summaries into a single, coherent meta-summary suitable for conditioning a conversational AI.
+
+Please read the following summaries of earlier conversation segments and produce ONE consolidated summary that preserves:
+
+1. Main topics and themes across all segments
+2. Key user goals, constraints, and decisions made
+3. Important technical details and definitions
+4. Any follow-ups or unresolved questions to be aware of
+
+Guidelines:
+- Target length: ~${Math.floor(maxLength / 3)} characters (concise but information-dense)
+- Maintain accuracy; avoid repetition
+- Structure clearly so another AI can use it as context
+
+Summaries:
+${summaries}
+
+Consolidated Meta-Summary:`;
+}
+
+function createFallbackSummary(text: string, maxLength: number): string {
+  // Create a structured fallback summary when LLM is unavailable
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  // Try to preserve complete sentences and logical breaks
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  let result = "";
+  
+  for (const sentence of sentences) {
+    const trimmedSentence = sentence.trim();
+    if ((result + trimmedSentence + ". ").length <= maxLength - CONTEXT_CONFIG.TRUNCATE_BUFFER) {
+      result += trimmedSentence + ". ";
+    } else {
+      break;
+    }
+  }
+  
+  if (result.length === 0) {
+    // If we can't fit even one sentence, just truncate
+    return text.substring(0, maxLength - 3) + "...";
+  }
+  
+  return result.trim() + "\n\n[Summary truncated - LLM unavailable]";
+}
+
+function intelligentTruncateSummary(summary: string, maxLength: number): string {
+  // Intelligently truncate LLM-generated summaries while preserving structure
+  if (summary.length <= maxLength) {
+    return summary;
+  }
+
+  // Try to preserve complete sections by looking for natural breaks
+  const sections = summary.split(/\n+/);
+  let result = "";
+  
+  for (const section of sections) {
+    const trimmedSection = section.trim();
+    if (trimmedSection.length === 0) continue;
+    
+    if ((result + trimmedSection + "\n").length <= maxLength - CONTEXT_CONFIG.TRUNCATE_BUFFER) {
+      result += trimmedSection + "\n";
+    } else {
+      // Try to fit part of this section if there's enough space
+      const remainingLength = maxLength - result.length - CONTEXT_CONFIG.TRUNCATE_BUFFER;
+      if (remainingLength > 30) {
+        result += trimmedSection.substring(0, remainingLength) + "...";
+      }
+      break;
+    }
+  }
+  
+  if (result.length === 0) {
+    // If we can't fit even one section, just truncate
+    return summary.substring(0, maxLength - 3) + "...";
+  }
+  
+  return result.trim();
+}
+
+async function buildFinalContext(
+  ctx: ActionCtx,
+  processedChunks: ProcessedChunk[],
+  options?: {
+    modelName?: string;
+    personaPrompt?: string;
+    modelCapabilities?: {
+      supportsImages?: boolean;
+      supportsFiles?: boolean;
+    };
+  }
+): Promise<Array<{
+  role: "user" | "assistant" | "system";
+  content: string | Array<any>;
+}>> {
+  const contextMessages: Array<{
+    role: "user" | "assistant" | "system";
+    content: string | Array<any>;
+  }> = [];
+
+  // Count how many layers of summarization we have
+  const summaryLayers = processedChunks.filter(chunk => typeof chunk === "string").length;
+  
+  // Build summary context content
+  const contextContent = buildContextContent(processedChunks, summaryLayers);
+
+  // Merge baseline instructions with persona, then append our summary context
+  const mergedSystemPrompt = mergeSystemPrompts(options?.modelName || "an AI model", options?.personaPrompt);
+  const systemContent = `${mergedSystemPrompt}\n\n${contextContent}`;
+
+  contextMessages.push({
+    role: "system",
+    content: systemContent,
+  });
+
+  // Add the last chunk (most recent messages) in full, with attachment handling similar to buildContextMessages
+  const lastChunk = processedChunks[processedChunks.length - 1];
+  if (Array.isArray(lastChunk)) {
+    let carriedAssistantAttachments: Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      extractedText?: string;
+      textFileId?: Id<"_storage">;
+    }> = [];
+
+    for (const msg of lastChunk) {
+      if (msg.role === "system" || msg.role === "context") continue; // Skip system/context messages
+
+      if (msg.role === "assistant") {
+        // Carry assistant attachments forward
+        if (Array.isArray(msg.attachments) && msg.attachments.length > 0) {
+          carriedAssistantAttachments = msg.attachments;
+        }
+
+        // Only include assistant text content
+        const hasText = typeof msg.content === "string" && msg.content.trim().length > 0;
+        if (!hasText) {
+          continue;
+        }
+
+        contextMessages.push({
+          role: "assistant",
+          content: msg.content,
+        });
+      } else if (msg.role === "user") {
+        // Filter attachments based on model capabilities
+        let filteredAttachments = msg.attachments;
+        if (options?.modelCapabilities) {
+          filteredAttachments = (msg.attachments || []).filter((attachment: any) => {
+            if (attachment.type === "image" && options.modelCapabilities?.supportsImages === false) {
+              return false;
+            }
+            if ((attachment.type === "pdf" || attachment.type === "text") && options.modelCapabilities?.supportsFiles === false) {
+              return false;
+            }
+            return true;
+          });
+        }
+
+        const mergedAttachments = [
+          ...(Array.isArray(filteredAttachments) ? filteredAttachments : []),
+          ...carriedAssistantAttachments,
+        ];
+        carriedAssistantAttachments = [];
+
+        const content = await buildUserMessageContent(
+          ctx,
+          typeof msg.content === "string" ? msg.content : "",
+          mergedAttachments
+        );
+
+        contextMessages.push({
+          role: "user",
+          content,
+        });
+      }
+    }
+  }
+
+  return contextMessages;
+}
+
+// Extract context content building into separate function
+function buildContextContent(processedChunks: ProcessedChunk[], summaryLayers: number): string {
+  let contextContent = `Previous conversation context (${summaryLayers} layer${summaryLayers !== 1 ? 's' : ''} of AI-generated summarization):\n\n`;
+  
+  let layerIndex = 1;
+  for (let i = 0; i < processedChunks.length - 1; i++) {
+    const chunk = processedChunks[i];
+    if (typeof chunk === "string") {
+      // Truncate very long summaries to keep context manageable
+      const truncatedSummary = chunk.length > 500 ? chunk.substring(0, 500) + "..." : chunk;
+      contextContent += `Layer ${layerIndex}: ${truncatedSummary}\n\n`;
+      layerIndex++;
+    }
+  }
+
+  // Add intelligent instructions for the AI based on summarization depth
+  contextContent += buildAIInstructions(summaryLayers);
+
+  // Add specific guidance for using the rich summaries effectively
+  if (summaryLayers > 1) {
+    contextContent += buildSummaryGuidance();
+  }
+
+  return contextContent;
+}
+
+// Extract AI instructions building into separate function
+function buildAIInstructions(summaryLayers: number): string {
+  if (summaryLayers > 3) {
+    return `IMPORTANT: This conversation has been summarized through ${summaryLayers} layers due to extreme length. The AI-generated summaries above contain rich, structured information about earlier parts of the conversation.\n\nYour task: Use this context to maintain conversation continuity while focusing primarily on the recent messages below. If the user references something from earlier in the conversation, acknowledge the context from the summaries above and connect it to the current discussion.\n\n`;
+  } else if (summaryLayers > 2) {
+    return `Note: This conversation has been summarized through ${summaryLayers} layers. The AI-generated summaries above preserve key topics, questions, and insights in a structured format.\n\nYour task: Use this context to maintain conversation continuity while focusing on the recent messages below. Be aware of the broader context and reference relevant information from the summaries when appropriate.\n\n`;
+  } else if (summaryLayers > 1) {
+    return `Note: This conversation has been summarized to manage length. The AI-generated summaries above contain rich, structured information about earlier discussion points.\n\nYour task: Continue naturally from the recent messages below while being aware of the broader context. Use the summaries to understand what has already been discussed and avoid repetition.\n\n`;
+  } else {
+    return `Continue the conversation naturally from the recent messages below.\n\n`;
+  }
+}
+
+// Extract summary guidance building into separate function
+function buildSummaryGuidance(): string {
+  return `How to use the summaries above:\n` +
+    `• Each summary is AI-generated and structured to preserve key information\n` +
+    `• They maintain technical accuracy and domain-specific terminology\n` +
+    `• They capture the logical flow and progression of ideas\n` +
+    `• Use them to understand context, avoid repetition, and maintain continuity\n` +
+    `• If the user references earlier topics, use the summaries to provide relevant context\n\n`;
 }

@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getAllCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
-import type { FilterState } from "./";
+import type { FilterState } from "./TextModelsTab";
 
 interface ModelFiltersProps {
   filterState: FilterState;

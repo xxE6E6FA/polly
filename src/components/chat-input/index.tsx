@@ -120,7 +120,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       messages,
       userMessageContents,
       autoFocus = false,
-      conversationPersonaId,
     },
     ref
   ) => {

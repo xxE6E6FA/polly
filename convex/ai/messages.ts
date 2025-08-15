@@ -9,7 +9,7 @@ import {
   type StorageData,
   type StreamMessage,
 } from "../types";
-import { buildContextMessages } from "../lib/conversation_utils";
+
 import {
   reasoningConfigForActionSchema,
   modelForInternalActionsSchema,
@@ -29,6 +29,7 @@ import {
 } from "./server_utils";
 import { setStreamActive, clearStream } from "../lib/streaming_utils";
 import { log } from "../lib/logger";
+import { buildHierarchicalContextMessages } from "../lib/conversation_utils";
 
 
 // Web search imports
@@ -490,15 +491,20 @@ export const streamResponse = internalAction({
     };
 
     try {
-      // Get conversation context (this will handle persona prompts properly)
-      const contextResult = await buildContextMessages(ctx, {
-        conversationId: args.conversationId,
-        personaId: args.personaId,
-        modelCapabilities: {
-          supportsImages: args.model.supportsImages,
-          supportsFiles: args.model.supportsFiles,
-        },
-      });
+      // Get conversation context using hierarchical summarization
+      const contextResult = await buildHierarchicalContextMessages(
+        ctx,
+        {
+          conversationId: args.conversationId,
+          personaId: args.personaId,
+          maxTokens: 200, // Adjust based on your model's context window
+          modelCapabilities: {
+            supportsImages: args.model.supportsImages,
+            supportsFiles: args.model.supportsFiles,
+            contextWindow: args.model.contextLength,
+          },
+        }
+      );
 
       const { contextMessages } = contextResult;
       log.debug(

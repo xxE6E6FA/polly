@@ -217,7 +217,6 @@ export const AssistantBubble = ({
 
   const reasoning = message.reasoning;
   const displayContent = message.content;
-  const hasSearch = Boolean(message.metadata?.searchQuery);
   const isImageGeneration = Boolean(message.imageGeneration);
   const isThinking = message.status === "thinking" && !isImageGeneration;
   const isSearching = message.status === "searching";
@@ -279,11 +278,7 @@ export const AssistantBubble = ({
 
         {hasReasoningText && (
           <div className="mb-2.5">
-            <Reasoning
-              isLoading={isStreaming}
-              reasoning={reasoning || ""}
-              hasSearch={hasSearch}
-            />
+            <Reasoning isLoading={isStreaming} reasoning={reasoning || ""} />
           </div>
         )}
 
