@@ -401,8 +401,13 @@ export const sendMessage = action({
       const persona = await ctx.runQuery(api.personas.get, {
         id: effectivePersonaId,
       });
-      if (persona) {
-        personaParams = {
+      if (
+        persona &&
+        (persona as { advancedSamplingEnabled?: boolean })
+          .advancedSamplingEnabled
+      ) {
+        // Only apply persona parameters if advanced sampling is enabled
+        const rawParams = {
           // These fields are optional in the schema
           temperature: (persona as { temperature?: number }).temperature,
           topP: (persona as { topP?: number }).topP,
@@ -414,6 +419,11 @@ export const sendMessage = action({
           repetitionPenalty: (persona as { repetitionPenalty?: number })
             .repetitionPenalty,
         };
+
+        // Filter out undefined values
+        personaParams = Object.fromEntries(
+          Object.entries(rawParams).filter(([_, value]) => value !== undefined)
+        ) as typeof personaParams;
       }
     }
 

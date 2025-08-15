@@ -9,7 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
 import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,6 @@ export type PersonaFormData = {
   description: string;
   prompt: string;
   icon: string;
-  // TTS override (optional)
   ttsVoiceId?: string;
   // Advanced sampling parameters (optional)
   temperature?: number;
@@ -42,6 +41,8 @@ export type PersonaFormData = {
   frequencyPenalty?: number;
   presencePenalty?: number;
   repetitionPenalty?: number;
+  // Whether advanced sampling is enabled
+  advancedSamplingEnabled?: boolean;
 };
 
 type PersonaFormProps = {
@@ -62,8 +63,9 @@ export const PersonaForm = ({
   const [isFullScreenEditor, setIsFullScreenEditor] = useState(false);
   const [isImprovingPrompt, setIsImprovingPrompt] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState<boolean>(() => {
-    // Show by default if any advanced params are set
+    // Show by default if any advanced params are set or if advanced sampling is enabled
     return (
+      formData.advancedSamplingEnabled === true ||
       formData.temperature !== undefined ||
       formData.topP !== undefined ||
       formData.topK !== undefined ||
@@ -72,6 +74,13 @@ export const PersonaForm = ({
       formData.repetitionPenalty !== undefined
     );
   });
+
+  // Sync the UI state with the form data
+  useEffect(() => {
+    if (formData.advancedSamplingEnabled !== undefined) {
+      setShowAdvanced(formData.advancedSamplingEnabled);
+    }
+  }, [formData.advancedSamplingEnabled]);
   const managedToast = useToast();
   const improvePromptAction = useAction(api.personas.improvePrompt);
   const suggestSamplingAction = useAction(api.personas.suggestSampling);
@@ -107,6 +116,33 @@ export const PersonaForm = ({
       setFormData(prev => (prev ? { ...prev, [field]: value } : null));
     },
     [setFormData]
+  );
+
+  // Handle advanced sampling toggle
+  const handleAdvancedSamplingToggle = useCallback(
+    (enabled: boolean) => {
+      setShowAdvanced(enabled);
+      updateFormField("advancedSamplingEnabled", enabled);
+
+      // If disabling, clear all advanced parameters
+      if (!enabled) {
+        setFormData(prev =>
+          prev
+            ? {
+                ...prev,
+                temperature: undefined,
+                topP: undefined,
+                topK: undefined,
+                frequencyPenalty: undefined,
+                presencePenalty: undefined,
+                repetitionPenalty: undefined,
+                advancedSamplingEnabled: false,
+              }
+            : null
+        );
+      }
+    },
+    [updateFormField, setFormData]
   );
 
   const {
@@ -163,10 +199,7 @@ export const PersonaForm = ({
 
   const handleAutoTuneClick = useCallback(async () => {
     if (!promptValue.trim()) {
-      managedToast.error("No prompt to analyze", {
-        description:
-          "Enter a system prompt before auto-tuning sampling parameters.",
-      });
+      managedToast.error("Please enter a system prompt first");
       return;
     }
     const toastId = managedToast.loading("Tuning parameters...");
@@ -179,6 +212,7 @@ export const PersonaForm = ({
         prev
           ? {
               ...prev,
+              advancedSamplingEnabled: true,
               temperature: suggestion.temperature ?? prev.temperature,
               topP: suggestion.topP ?? prev.topP,
               topK: suggestion.topK ?? prev.topK,
@@ -423,8 +457,11 @@ export const PersonaForm = ({
             Auto-tune for this prompt
           </Button>
           <div className="flex items-center gap-2">
-            <Label className="text-xs">Show</Label>
-            <Switch checked={showAdvanced} onCheckedChange={setShowAdvanced} />
+            <Label className="text-xs">Enable</Label>
+            <Switch
+              checked={showAdvanced}
+              onCheckedChange={handleAdvancedSamplingToggle}
+            />
           </div>
         </div>
       </div>
@@ -543,6 +580,23 @@ export const PersonaForm = ({
                 )
               }
             />
+          </div>
+        </div>
+      )}
+
+      {showAdvanced && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/20">
+          <div className="flex items-start gap-2">
+            <div className="text-amber-600 dark:text-amber-400">⚠️</div>
+            <div className="text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-200">
+                Provider Compatibility Note
+              </p>
+              <p className="text-amber-700 dark:text-amber-300">
+                Not all AI providers support every parameter. Unsupported
+                parameters will be automatically filtered out to prevent errors.
+              </p>
+            </div>
           </div>
         </div>
       )}

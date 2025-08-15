@@ -24,6 +24,7 @@ export default function NewPersonaPage() {
     prompt: "",
     icon: "🤖",
     ttsVoiceId: undefined,
+    advancedSamplingEnabled: false,
   });
 
   const createPersonaMutation = useMutation(api.personas.create);
@@ -47,6 +48,7 @@ export default function NewPersonaPage() {
         frequencyPenalty: formData.frequencyPenalty,
         presencePenalty: formData.presencePenalty,
         repetitionPenalty: formData.repetitionPenalty,
+        advancedSamplingEnabled: formData.advancedSamplingEnabled,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {

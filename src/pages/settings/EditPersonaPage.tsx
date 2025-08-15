@@ -56,6 +56,9 @@ export default function EditPersonaPage() {
         repetitionPenalty: (
           persona as unknown as { repetitionPenalty?: number }
         ).repetitionPenalty,
+        advancedSamplingEnabled: (
+          persona as unknown as { advancedSamplingEnabled?: boolean }
+        ).advancedSamplingEnabled,
       };
       setFormData(data);
     }
@@ -85,6 +88,7 @@ export default function EditPersonaPage() {
         frequencyPenalty: formData.frequencyPenalty,
         presencePenalty: formData.presencePenalty,
         repetitionPenalty: formData.repetitionPenalty,
+        advancedSamplingEnabled: formData.advancedSamplingEnabled,
       });
       navigate(ROUTES.SETTINGS.PERSONAS);
     } catch (_error) {

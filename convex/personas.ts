@@ -77,6 +77,8 @@ export const create = mutation({
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
     repetitionPenalty: v.optional(v.number()),
+    // Whether advanced sampling is enabled
+    advancedSamplingEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -99,6 +101,7 @@ export const create = mutation({
       frequencyPenalty: args.frequencyPenalty,
       presencePenalty: args.presencePenalty,
       repetitionPenalty: args.repetitionPenalty,
+      advancedSamplingEnabled: args.advancedSamplingEnabled,
       isBuiltIn: false,
       isActive: true,
       createdAt: now,
@@ -122,6 +125,8 @@ export const update = mutation({
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
     repetitionPenalty: v.optional(v.number()),
+    // Whether advanced sampling is enabled
+    advancedSamplingEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -156,6 +161,9 @@ export const update = mutation({
       }),
       ...(args.repetitionPenalty !== undefined && {
         repetitionPenalty: args.repetitionPenalty,
+      }),
+      ...(args.advancedSamplingEnabled !== undefined && {
+        advancedSamplingEnabled: args.advancedSamplingEnabled,
       }),
       updatedAt: Date.now(),
     });
