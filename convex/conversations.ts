@@ -196,23 +196,7 @@ export const createUserMessage = action({
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
   },
@@ -300,23 +284,7 @@ export const sendMessage = action({
     model: v.optional(v.string()),
     provider: v.optional(v.string()),
     personaId: v.optional(v.id("personas")),
-    attachments: v.optional(
-      v.array(
-        v.object({
-          type: v.union(
-            v.literal("image"),
-            v.literal("pdf"),
-            v.literal("text")
-          ),
-          url: v.string(),
-          name: v.string(),
-          size: v.number(),
-          content: v.optional(v.string()),
-          thumbnail: v.optional(v.string()),
-          storageId: v.optional(v.id("_storage")),
-        })
-      )
-    ),
+    attachments: v.optional(v.array(attachmentSchema)),
     reasoningConfig: v.optional(reasoningConfigSchema),
     temperature: v.optional(v.number()),
     maxTokens: v.optional(v.number()),
