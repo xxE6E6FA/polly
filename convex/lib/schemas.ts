@@ -509,6 +509,8 @@ export const personaSchema = v.object({
   frequencyPenalty: v.optional(v.number()),
   presencePenalty: v.optional(v.number()),
   repetitionPenalty: v.optional(v.number()),
+  // Whether advanced sampling is enabled
+  advancedSamplingEnabled: v.optional(v.boolean()),
   isBuiltIn: v.boolean(),
   isActive: v.boolean(),
   order: v.optional(v.number()),
