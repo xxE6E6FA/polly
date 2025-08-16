@@ -467,7 +467,7 @@ export const AssistantBubble = ({
               <StreamingMarkdown
                 isStreaming={isStreaming || message.status === "streaming"}
                 messageId={message.id}
-                className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[72ch]"
+                className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
               >
                 {displayContent}
               </StreamingMarkdown>

@@ -642,6 +642,11 @@ pre {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
+/* Tooltip content sizing */
+[role="tooltip"] {
+    font-size: 13px;
+}
+
 /* Refined Polly logo styling */
 .dark .polly-logo-gradient-unified {
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
@@ -737,15 +742,16 @@ pre {
 
 /* Dark mode chat input - Clean, refined states */
 .dark .chat-input-container {
-    background: hsl(var(--card));
+    background: hsl(var(--card) / 0.85);
     border: 1px solid hsl(var(--border));
+    backdrop-filter: blur(2px);
     transition: all 0.2s ease;
 }
 
 /* Hover state - subtle enhancement */
 .dark .chat-input-container:hover {
     border-color: hsl(var(--border));
-    background: hsl(var(--card));
+    background: hsl(var(--card) / 0.9);
 }
 
 /* Focus state - single clean border */
@@ -786,15 +792,16 @@ pre {
 /* Chat Input Container States */
 .chat-input-container {
     position: relative;
-    background: hsl(var(--card));
+    background: hsl(var(--card) / 0.9);
     border: 1px solid hsl(var(--border));
+    backdrop-filter: blur(2px);
     transition: all 0.2s ease;
 }
 
 /* Hover state - clean, no glow */
 .chat-input-container:hover {
     border-color: hsl(var(--border));
-    background: hsl(var(--card));
+    background: hsl(var(--card) / 0.95);
 }
 
 /* Focus state - single clean border */

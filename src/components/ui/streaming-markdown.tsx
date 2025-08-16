@@ -126,7 +126,7 @@ const StreamingMarkdownInner = memo(
     return (
       <MessageContext.Provider value={messageId}>
         <div
-          className={`${className ?? ""} selectable-text text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[72ch]`}
+          className={`${className ?? ""} selectable-text break-words text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[72ch]`}
         >
           {renderedBlocks}
         </div>

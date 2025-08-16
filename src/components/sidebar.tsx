@@ -3,6 +3,7 @@ import { GearIcon, HeartIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
+import { BatchActions } from "@/components/sidebar/batch-actions";
 import { ConversationList } from "@/components/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/sidebar/search";
 import { UserSection } from "@/components/sidebar/user-section";
@@ -16,7 +17,10 @@ import {
 } from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { useSidebarHoverSetter } from "@/providers/batch-selection-context";
+import {
+  useBatchSelection,
+  useSidebarHoverSetter,
+} from "@/providers/batch-selection-context";
 import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -42,6 +46,7 @@ export const Sidebar = () => {
   const params = useParams();
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();
+  const { isSelectionMode, hasSelection } = useBatchSelection();
   const [hasInitialized, setHasInitialized] = useState(false);
   const favorites = useQuery(
     api.messages.listFavorites,
@@ -209,7 +214,7 @@ export const Sidebar = () => {
                         WebkitMaskPosition: "center",
                       }}
                     />
-                    <h1 className="leading-none font-bold polly-logo-text-unified text-lg">
+                    <h1 className="leading-none font-semibold polly-logo-text-unified text-base">
                       Polly
                     </h1>
                   </div>
@@ -245,10 +250,14 @@ export const Sidebar = () => {
               </div>
 
               <div className="space-y-3 px-3 pb-3">
-                <SidebarSearch
-                  searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
-                />
+                {isSelectionMode || hasSelection ? (
+                  <BatchActions />
+                ) : (
+                  <SidebarSearch
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                  />
+                )}
               </div>
             </div>
 

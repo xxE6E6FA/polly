@@ -31,7 +31,7 @@ export const ContextMessage = ({ message, className }: ContextMessageProps) => {
   return (
     <div
       className={cn(
-        "w-full px-6 py-4 mb-6 border border-accent-coral/20 rounded-xl bg-gradient-to-br from-accent-coral/5 to-accent-cyan/5",
+        "w-full px-6 py-4 mb-6 border rounded-xl bg-gradient-to-br from-primary/5 to-accent-blue/5 border-primary/20",
         className
       )}
     >
@@ -47,7 +47,7 @@ export const ContextMessage = ({ message, className }: ContextMessageProps) => {
                 to={ROUTES.CHAT_CONVERSATION(message.sourceConversationId)}
               >
                 <Button
-                  className="h-6 px-2 text-xs text-accent-coral/80 hover:bg-accent-coral/10 hover:text-accent-coral"
+                  className="h-6 px-2 text-xs text-primary/80 hover:bg-primary/10 hover:text-primary"
                   size="sm"
                   variant="ghost"
                 >

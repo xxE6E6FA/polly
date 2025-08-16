@@ -152,7 +152,7 @@ const CodeBlockComponent = ({
     <div className="group" ref={componentRef}>
       <div className={cn("relative mt-2 flex w-full flex-col pt-9", className)}>
         {/* Header with language and actions */}
-        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-surface-variant px-4 py-2 text-sm">
+        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-surface-variant/80 backdrop-blur-xs px-4 py-2 text-[13px]">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -266,7 +266,7 @@ const CodeBlockComponent = ({
                 <pre
                   className={cn(
                     highlightClassName,
-                    "m-0 overflow-x-auto p-4 text-sm font-mono",
+                    "m-0 overflow-x-auto p-4 text-[13px] leading-6 font-mono",
                     wordWrap &&
                       "whitespace-pre-wrap break-words overflow-x-visible"
                   )}
