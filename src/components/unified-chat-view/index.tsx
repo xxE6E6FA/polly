@@ -241,7 +241,7 @@ export const UnifiedChatView = memo(
               <div className="relative z-10 flex h-full flex-col overflow-y-hidden overflow-x-visible">
                 {/* Static Header - always visible */}
                 <div className="sticky top-0 z-20 h-12 flex-shrink-0 bg-background">
-                  <div className="flex h-12 items-center px-4 lg:px-6">
+                  <div className="flex h-12 items-center px-3">
                     <ChatHeader
                       conversationId={conversationId}
                       isPrivateMode={!conversationId}

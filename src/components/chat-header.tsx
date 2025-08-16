@@ -2,22 +2,23 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
-  DotsThreeVerticalIcon,
+  DotsThreeIcon,
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
-  PlusIcon,
+  NotePencilIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
   downloadFile,
   exportAsJSON,
   exportAsMarkdown,
   generateFilename,
 } from "@/lib/export";
+import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -26,6 +27,7 @@ import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,7 +36,6 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { ControlledShareConversationDialog } from "./ui/share-conversation-dialog";
-import { Skeleton } from "./ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 type ChatHeaderProps = {
@@ -65,6 +66,7 @@ export const ChatHeader = ({
   );
   const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
 
   const conversation = useQuery(
     api.conversations.get,
@@ -84,6 +86,8 @@ export const ChatHeader = ({
         ? { id: privatePersonaId }
         : "skip"
   );
+
+  const patchConversation = useMutation(api.conversations.patch);
 
   const handleExport = (format: "json" | "md") => {
     // Handle private chat export
@@ -201,40 +205,24 @@ export const ChatHeader = ({
   return (
     <div
       className={cn(
-        "relative flex min-h-[2rem] w-full items-center justify-between gap-2 bg-background py-3 sm:gap-4",
+        "relative flex w-full items-center justify-between gap-1.5 bg-background/80 backdrop-blur-xs py-0 sm:gap-2",
         !isSidebarVisible && "pl-12 sm:pl-14",
         isSidebarVisible && "transition-[padding] duration-300 ease-out",
-        "z-10",
-        "after:pointer-events-none after:absolute after:-bottom-6 after:left-0 after:right-0 after:h-6 after:bg-gradient-to-b after:from-background after:to-transparent"
+        "z-10"
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        {isPrivateMode ? (
-          <div className="h-4" />
-        ) : conversation ? (
-          conversation.title ? (
-            <h1 className="truncate text-xs font-medium text-foreground sm:text-sm">
-              {conversation.title}
-            </h1>
-          ) : (
-            <div className="h-4" />
-          )
-        ) : (
-          <Skeleton className="h-4 w-[120px] sm:w-[200px]" />
-        )}
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         {persona && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Badge
-                className="flex-shrink-0 cursor-default gap-1 sm:gap-2"
+                className="flex-shrink-0 cursor-default gap-1.5"
                 variant="info"
               >
-                <span className="text-xs sm:text-sm">
-                  {persona.icon || "🤖"}
-                </span>
-                <span className="text-xxs hidden sm:inline">
-                  {persona.name}
-                </span>
+                {persona.icon && (
+                  <span className="text-sm">{persona.icon}</span>
+                )}
+                <span className="text-xxs">{persona.name}</span>
               </Badge>
             </TooltipTrigger>
             <TooltipContent className="sm:hidden">
@@ -242,62 +230,56 @@ export const ChatHeader = ({
             </TooltipContent>
           </Tooltip>
         )}
+        {isArchived && (
+          <Badge
+            variant="warning-subtle"
+            size="sm"
+            className="flex-shrink-0 gap-1"
+          >
+            <ArchiveIcon className="h-3.5 w-3.5" />
+            <span className="text-xxs">Archived</span>
+          </Badge>
+        )}
       </div>
 
       {/* Only show actions for authenticated users */}
       {user && !user.isAnonymous && (
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* New Chat button */}
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <Button
             variant="ghost"
-            size="sm"
-            onClick={() => navigate(ROUTES.HOME)}
-            className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
+            size="icon-sm"
+            aria-label="More actions"
+            asChild
           >
-            <PlusIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">New Chat</span>
+            <Link to={ROUTES.HOME}>
+              <NotePencilIcon className="h-4 w-4" />
+            </Link>
           </Button>
-
-          {/* Save private chat button */}
-          {isPrivateMode && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSavePrivateChat}
-              disabled={!canSavePrivateChat}
-              className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
-            >
-              <FloppyDiskIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Save</span>
-            </Button>
-          )}
-
-          {/* Share button - only for regular conversations */}
-          {!isPrivateMode && conversationId && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsShareDialogOpen(true)}
-              className="h-7 px-2 text-xs sm:h-8 sm:px-3 sm:text-sm"
-            >
-              <ShareNetworkIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span className="hidden sm:inline">Share</span>
-            </Button>
-          )}
-
-          {/* More actions dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 sm:h-8 sm:w-8"
-              >
-                <DotsThreeVerticalIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="sr-only">More actions</span>
+              <Button variant="ghost" size="icon-sm" aria-label="More actions">
+                <DotsThreeIcon weight="bold" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {isPrivateMode && (
+                <DropdownMenuItem
+                  onClick={onSavePrivateChat}
+                  disabled={!canSavePrivateChat}
+                >
+                  <FloppyDiskIcon className="mr-2 h-4 w-4" />
+                  Save Private Chat
+                </DropdownMenuItem>
+              )}
+
+              {!isPrivateMode && conversationId && (
+                <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
+                  <ShareNetworkIcon className="mr-2 h-4 w-4" />
+                  Share Conversation
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => handleExport("json")}
                 disabled={exportingFormat !== null}
@@ -312,12 +294,15 @@ export const ChatHeader = ({
                 <DownloadIcon className="mr-2 h-4 w-4" />
                 Export as Markdown
               </DropdownMenuItem>
+
               {!isPrivateMode && conversation && !isArchived && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setIsArchiveDialogOpen(true)}
+                  >
                     <ArchiveIcon className="mr-2 h-4 w-4" />
-                    Archive
+                    Archive Conversation
                   </DropdownMenuItem>
                 </>
               )}
@@ -332,6 +317,41 @@ export const ChatHeader = ({
           conversationId={conversationId}
           open={isShareDialogOpen}
           onOpenChange={setIsShareDialogOpen}
+        />
+      )}
+
+      {/* Archive confirmation */}
+      {!isPrivateMode && conversationId && (
+        <ConfirmationDialog
+          open={isArchiveDialogOpen}
+          onOpenChange={setIsArchiveDialogOpen}
+          title="Archive Conversation"
+          description={`Are you sure you want to archive "${conversation?.title ?? "this conversation"}"? You can restore it later from Archived Conversations.`}
+          confirmText="Archive"
+          onConfirm={async () => {
+            try {
+              // Navigate away first if archiving the current conversation view
+              navigate(ROUTES.HOME);
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+              await patchConversation({
+                id: conversationId as Id<"conversations">,
+                updates: { isArchived: true },
+              });
+
+              del(CACHE_KEYS.conversations);
+              managedToast.success("Conversation archived", {
+                description: "The conversation has been moved to archive.",
+                id: `archive-${conversationId}`,
+              });
+            } catch (_err) {
+              managedToast.error("Failed to archive conversation", {
+                description:
+                  "Unable to archive conversation. Please try again.",
+                id: `archive-error-${conversationId}`,
+              });
+            }
+          }}
         />
       )}
     </div>
