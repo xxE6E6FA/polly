@@ -1117,10 +1117,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
 
     return (
-      <div className="relative px-3 pb-2 sm:px-6 sm:pb-3">
+      <div className="relative px-3 pb-3">
         <div className="mx-auto w-full max-w-3xl">
-          {/* Warning banners moved to UnifiedChatView to decouple input from usage updates */}
-
           <div
             className={cn(
               "relative chat-input-container rounded-xl p-2 sm:p-2.5 transition-all duration-700",
