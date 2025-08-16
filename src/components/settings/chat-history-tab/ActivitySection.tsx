@@ -69,7 +69,7 @@ function DetailedJobCard({
 
   const getStatusIcon = () => {
     if (isCompleted) {
-      return <CheckCircleIcon className="h-5 w-5 text-green-600" />;
+      return <CheckCircleIcon className="h-5 w-5 text-emerald-600" />;
     }
     if (isFailed) {
       return <Warning className="h-5 w-5 text-red-600" />;

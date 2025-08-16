@@ -2,7 +2,6 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
 import type { ConversationId } from "@/types";
-import { BatchActions } from "./batch-actions";
 import { ConversationGroup } from "./conversation-group";
 import { ConversationItem } from "./conversation-item";
 
@@ -125,8 +124,6 @@ export const ConversationListContent = ({
 
   return (
     <div className="space-y-0 pb-4">
-      <BatchActions />
-
       {groupedConversations.pinned.length > 0 && (
         <ConversationGroup title="Pinned">
           {groupedConversations.pinned.map(conversation => (

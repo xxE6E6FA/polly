@@ -501,8 +501,8 @@ export const VirtualizedChatMessages = memo(
             width: "100%",
             overflow: "auto",
             contain: "strict",
-            paddingTop: "24px",
-            paddingBottom: "24px",
+            paddingTop: "16px",
+            paddingBottom: "20px",
           }}
           className="overscroll-contain"
           data-vlist-id={vlistId}

@@ -337,7 +337,7 @@ const ConversationItemComponent = ({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "group relative flex items-center rounded-lg transition-all duration-200 ease-in-out my-0.5",
+              "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0.5",
               isCurrentConversation || isEditing
                 ? "bg-accent text-foreground shadow-sm"
                 : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
@@ -390,7 +390,7 @@ const ConversationItemComponent = ({
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               className={cn(
-                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out",
+                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
                 isMobile ? "py-2.5" : "py-2",
                 // Adjust padding dynamically based on checkbox visibility
                 isBulkMode ? "px-3 pl-8" : "px-3"
@@ -398,6 +398,7 @@ const ConversationItemComponent = ({
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
               }
+              data-conversation-id={conversation._id}
             >
               <div
                 className={cn(
@@ -420,7 +421,7 @@ const ConversationItemComponent = ({
 
               {conversation.isStreaming && (!isHovered || isMobile) && (
                 <div className="mr-1 flex items-center">
-                  <Spinner className="text-foreground/60" size="sm" />
+                  <Spinner className="text-muted-foreground" size="sm" />
                 </div>
               )}
             </Link>

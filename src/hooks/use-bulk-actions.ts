@@ -56,7 +56,8 @@ function generateExportFilename(manifest?: {
 }
 
 export function useBulkActions() {
-  const { getSelectedIds, clearSelection } = useBatchSelection();
+  const batch = useBatchSelection();
+  const { getSelectedIds, clearSelection } = batch;
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
 
@@ -234,9 +235,20 @@ export function useBulkActions() {
   );
 
   const performBulkAction = useCallback(
-    (actionKey: string) => {
+    (actionKey: string, payload?: unknown) => {
       const selectedIds = getSelectedIds();
       const config = BULK_ACTION_CONFIGS[actionKey];
+
+      if (actionKey === "select-all-visible") {
+        const visible =
+          (payload as { visibleIds: ConversationId[] } | undefined)
+            ?.visibleIds || [];
+        if (visible.length === 0) {
+          return;
+        }
+        batch.selectAllVisible(visible);
+        return;
+      }
 
       if (!config) {
         managedToast.error(`Unknown action: ${actionKey}`);
@@ -273,6 +285,7 @@ export function useBulkActions() {
       executeBulkAction,
       clearSelection,
       managedToast,
+      batch,
     ]
   );
 

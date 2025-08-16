@@ -25,12 +25,14 @@ export const NotFoundPage = ({
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold">{title}</h1>
-            <p className="text-muted-foreground">{description}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <p className="text-muted-foreground leading-relaxed">
+              {description}
+            </p>
           </div>
         </div>
 
-        <Button asChild>
+        <Button asChild size="lg">
           <Link to="/">New Chat</Link>
         </Button>
       </div>
