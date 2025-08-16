@@ -321,7 +321,7 @@ const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {
   // debug logs removed
 
   return (
-    <div className="prose prose-base dark:prose-invert prose-p:leading-7 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+    <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none prose-headings:tracking-tight prose-headings:font-semibold prose-p:leading-[1.75] prose-li:my-1.5 prose-ul:my-3 prose-ol:my-3 prose-hr:my-6 prose-a:underline-offset-2 hover:prose-a:underline prose-code:rounded-md prose-code:px-1.5 prose-code:py-0.5 prose-pre:bg-muted prose-pre:rounded-lg prose-pre:p-4 prose-blockquote:border-l-border prose-blockquote:text-muted-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <Markdown
         options={{
           disableParsingRawHTML: true,
