@@ -15,7 +15,7 @@ const config: Config = {
     extend: {
       fontFamily: {
         sans: [
-          "Arimo",
+          "Inter",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",

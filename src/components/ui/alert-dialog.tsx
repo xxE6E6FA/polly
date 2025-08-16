@@ -30,7 +30,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full gap-4 border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "fixed z-50 grid w-full gap-4 border bg-background/95 backdrop-blur-xs shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         // Mobile: full width, positioned at bottom, slide up animation
         "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
         "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
