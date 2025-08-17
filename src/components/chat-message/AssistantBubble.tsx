@@ -252,21 +252,21 @@ export const AssistantBubble = ({
                 isLoading={true}
               />
             ) : isPdfReading ? (
-              <div className="text-sm text-muted-foreground py-2 space-y-1">
+              <div className="text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Spinner className="h-3 w-3" />
                   <span>{message.statusText || "Reading PDF..."}</span>
                 </div>
               </div>
             ) : isStreamingWithoutContent && !hasReasoningText ? (
-              <div className="text-sm text-muted-foreground py-2 space-y-1">
+              <div className="text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Spinner className="h-3 w-3" />
                   <span>Thinking...</span>
                 </div>
               </div>
             ) : isThinking && !hasReasoningText ? (
-              <div className="text-sm text-muted-foreground py-2 space-y-1">
+              <div className="text-sm text-muted-foreground space-y-1">
                 <div className="flex items-center gap-2">
                   <Spinner className="h-3 w-3" />
                   <span>Thinking...</span>

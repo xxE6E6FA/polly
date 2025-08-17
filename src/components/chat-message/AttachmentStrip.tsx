@@ -53,7 +53,6 @@ const AttachmentStripComponent = ({
           <FileDisplay
             key={attachment.name || attachment.url || `attachment-${index}`}
             attachment={attachment}
-            className="mb-2"
             onClick={() => handleFileClick(attachment)}
           />
         ))}
