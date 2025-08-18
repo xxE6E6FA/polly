@@ -245,7 +245,7 @@ export const ChatInputField = memo(
             // Enhanced focus experience - subtle visual feedback
             "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
             // Performance optimizations
-            "will-change-[height] contain-layout transform-gpu hide-scrollbar sm:scrollbar-thin",
+            "will-change-[height] contain-layout transform-gpu hide-scrollbar md:scrollbar-thin",
             // Browser performance hints
             "[content-visibility:auto] [contain-intrinsic-size:24px_100px]",
             // States

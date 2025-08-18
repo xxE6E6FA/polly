@@ -263,8 +263,8 @@ export const UnifiedChatView = memo(
                     "flex-1 overflow-y-hidden overflow-x-visible",
                     isEmpty && "overflow-y-auto",
                     // Mobile scrolling behavior: hide scrollbar, momentum scroll, contain overscroll
-                    "[&_[data-vlist-id]]:overscroll-contain sm:[&_[data-vlist-id]]:overscroll-auto",
-                    "[&_[data-vlist-id]]:hide-scrollbar sm:[&_[data-vlist-id]]:scrollbar-thin"
+                    "[&_[data-vlist-id]]:overscroll-contain md:[&_[data-vlist-id]]:overscroll-auto",
+                    "[&_[data-vlist-id]]:hide-scrollbar md:[&_[data-vlist-id]]:scrollbar-thin"
                   )}
                   style={
                     // Avoid costly mask on small screens (mobile)

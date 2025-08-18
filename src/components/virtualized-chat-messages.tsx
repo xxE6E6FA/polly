@@ -506,7 +506,7 @@ export const VirtualizedChatMessages = memo(
             // biome-ignore lint/style/useNamingConvention: vendor-specific property
             WebkitOverflowScrolling: "touch",
           }}
-          className="overscroll-contain hide-scrollbar sm:scrollbar-thin"
+          className="overscroll-contain hide-scrollbar md:scrollbar-thin"
           data-vlist-id={vlistId}
           reverse // This makes it a chat-like interface
           overscan={overscan}
