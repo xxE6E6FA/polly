@@ -240,7 +240,7 @@ export const ChatInputField = memo(
           className={cn(
             // Core layout & appearance
             "w-full resize-none bg-transparent border-0 outline-none ring-0",
-            "text-sm sm:text-base leading-relaxed",
+            "text-sm leading-relaxed",
             "min-h-[24px] max-h-[100px] overflow-y-auto px-1.5 py-1 sm:px-2",
             // Enhanced focus experience - subtle visual feedback
             "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
