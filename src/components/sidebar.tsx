@@ -91,12 +91,17 @@ export const Sidebar = () => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+      if (e.key === "Escape" && isMobile && isSidebarVisible) {
+        e.preventDefault();
+        setSidebarVisible(false);
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, isMobile, isSidebarVisible, setSidebarVisible]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -117,6 +122,19 @@ export const Sidebar = () => {
       setSidebarVisible(false);
     }
   }, [isMobile, isSidebarVisible, setSidebarVisible]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+    if (isMobile && isSidebarVisible) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isMobile, isSidebarVisible, mounted]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent) => {
@@ -177,15 +195,18 @@ export const Sidebar = () => {
     <>
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 bg-background dark:bg-card dark:border-r dark:border-border shadow-xl",
+          "fixed inset-y-0 left-0 z-40 bg-background dark:bg-card",
+          isSidebarVisible && "dark:border-r dark:border-border",
           isMobile
-            ? "w-full transform transition-transform duration-300 ease-out"
-            : "transition-[width] duration-300 ease-out"
+            ? "transform transition-transform duration-300 ease-out rounded-r-xl"
+            : "transition-[width] duration-300 ease-out",
+          isSidebarVisible &&
+            (isMobile ? "mobile-sidebar-elevation" : "shadow-xl")
         )}
         style={{
           ...sidebarStyle,
           width: isMobile
-            ? "100%"
+            ? "clamp(280px, 88vw, 420px)"
             : isSidebarVisible
               ? "var(--sidebar-width)"
               : "0",
@@ -194,11 +215,34 @@ export const Sidebar = () => {
               ? "translateX(-100%)"
               : "translateX(0)",
         }}
+        role={isMobile ? "dialog" : undefined}
+        aria-modal={isMobile ? true : undefined}
+        aria-hidden={!isSidebarVisible}
       >
         {isSidebarVisible && (
           <div className="flex h-full flex-col">
             <div className="flex-shrink-0 pb-2">
-              <div className="relative flex h-12 items-center justify-center px-3">
+              <div
+                className="relative flex h-12 items-center justify-center px-3"
+                style={
+                  isMobile
+                    ? { paddingTop: "env(safe-area-inset-top)" }
+                    : undefined
+                }
+              >
+                {isMobile && (
+                  <div className="absolute left-3">
+                    <Button
+                      size="icon-sm"
+                      title="Close sidebar"
+                      variant="ghost"
+                      className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                      onClick={() => setSidebarVisible(false)}
+                    >
+                      <SidebarSimpleIcon className="h-5 w-5 -scale-x-100" />
+                    </Button>
+                  </div>
+                )}
                 <Link className="group" to={ROUTES.HOME}>
                   <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
                     <div
@@ -263,7 +307,12 @@ export const Sidebar = () => {
 
             <div
               ref={scrollContainerRef}
-              className="flex-1 overflow-y-auto min-h-0 scrollbar-thin px-3 relative"
+              className={cn(
+                "flex-1 overflow-y-auto min-h-0 px-3 relative",
+                isMobile
+                  ? "hide-scrollbar overscroll-contain"
+                  : "scrollbar-thin"
+              )}
               style={scrollContainerStyle}
               onMouseEnter={() => setHoveringOverSidebar(true)}
               onMouseLeave={() => setHoveringOverSidebar(false)}
@@ -296,7 +345,15 @@ export const Sidebar = () => {
               />
             </div>
 
-            <UserSection />
+            <div
+              style={
+                isMobile
+                  ? { paddingBottom: "env(safe-area-inset-bottom)" }
+                  : undefined
+              }
+            >
+              <UserSection />
+            </div>
           </div>
         )}
 
@@ -322,18 +379,23 @@ export const Sidebar = () => {
             onClick={handleBackdropClick}
           />
 
-          <div className="fixed left-1.5 top-1.5 z-[60]">
-            <Button
-              size="icon-sm"
-              title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-              variant="ghost"
-              className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
-              style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
-              onClick={toggleSidebar}
+          {!isSidebarVisible && (
+            <div
+              className="fixed left-1.5 z-[60]"
+              style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
             >
-              <SidebarSimpleIcon className="h-5 w-5" />
-            </Button>
-          </div>
+              <Button
+                size="icon-sm"
+                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+                variant="ghost"
+                className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
+                onClick={toggleSidebar}
+              >
+                <SidebarSimpleIcon className="h-5 w-5" />
+              </Button>
+            </div>
+          )}
         </>
       )}
 

@@ -29,6 +29,14 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "./ui/drawer";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -255,59 +263,147 @@ export const ChatHeader = ({
               <NotePencilIcon className="h-4 w-4" />
             </Link>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="More actions">
-                <DotsThreeIcon weight="bold" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {isPrivateMode && (
-                <DropdownMenuItem
-                  onClick={onSavePrivateChat}
-                  disabled={!canSavePrivateChat}
+          {/* Desktop menu */}
+          <div className="hidden sm:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="More actions"
                 >
-                  <FloppyDiskIcon className="mr-2 h-4 w-4" />
-                  Save Private Chat
-                </DropdownMenuItem>
-              )}
-
-              {!isPrivateMode && conversationId && (
-                <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
-                  <ShareNetworkIcon className="mr-2 h-4 w-4" />
-                  Share Conversation
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleExport("json")}
-                disabled={exportingFormat !== null}
-              >
-                <FileCodeIcon className="mr-2 h-4 w-4" />
-                Export as JSON
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleExport("md")}
-                disabled={exportingFormat !== null}
-              >
-                <DownloadIcon className="mr-2 h-4 w-4" />
-                Export as Markdown
-              </DropdownMenuItem>
-
-              {!isPrivateMode && conversation && !isArchived && (
-                <>
-                  <DropdownMenuSeparator />
+                  <DotsThreeIcon weight="bold" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {isPrivateMode && (
                   <DropdownMenuItem
-                    onClick={() => setIsArchiveDialogOpen(true)}
+                    onClick={onSavePrivateChat}
+                    disabled={!canSavePrivateChat}
                   >
-                    <ArchiveIcon className="mr-2 h-4 w-4" />
-                    Archive Conversation
+                    <FloppyDiskIcon className="mr-2 h-4 w-4" />
+                    Save Private Chat
                   </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                )}
+
+                {!isPrivateMode && conversationId && (
+                  <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
+                    <ShareNetworkIcon className="mr-2 h-4 w-4" />
+                    Share Conversation
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleExport("json")}
+                  disabled={exportingFormat !== null}
+                >
+                  <FileCodeIcon className="mr-2 h-4 w-4" />
+                  Export as JSON
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleExport("md")}
+                  disabled={exportingFormat !== null}
+                >
+                  <DownloadIcon className="mr-2 h-4 w-4" />
+                  Export as Markdown
+                </DropdownMenuItem>
+
+                {!isPrivateMode && conversation && !isArchived && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setIsArchiveDialogOpen(true)}
+                    >
+                      <ArchiveIcon className="mr-2 h-4 w-4" />
+                      Archive Conversation
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Mobile drawer */}
+          <div className="sm:hidden">
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="More actions"
+                >
+                  <DotsThreeIcon weight="bold" />
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent>
+                <DrawerHeader>
+                  <DrawerTitle>Conversation actions</DrawerTitle>
+                </DrawerHeader>
+                <DrawerBody>
+                  <div className="flex flex-col">
+                    {isPrivateMode && (
+                      <Button
+                        className="h-10 justify-start gap-2 px-3 text-sm"
+                        size="sm"
+                        variant="ghost"
+                        onClick={onSavePrivateChat}
+                        disabled={!canSavePrivateChat}
+                      >
+                        <FloppyDiskIcon className="h-4 w-4" />
+                        Save Private Chat
+                      </Button>
+                    )}
+
+                    {!isPrivateMode && conversationId && (
+                      <Button
+                        className="h-10 justify-start gap-2 px-3 text-sm"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsShareDialogOpen(true)}
+                      >
+                        <ShareNetworkIcon className="h-4 w-4" />
+                        Share Conversation
+                      </Button>
+                    )}
+
+                    <Button
+                      className="h-10 justify-start gap-2 px-3 text-sm"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleExport("json")}
+                      disabled={exportingFormat !== null}
+                    >
+                      <FileCodeIcon className="h-4 w-4" />
+                      Export as JSON
+                    </Button>
+                    <Button
+                      className="h-10 justify-start gap-2 px-3 text-sm"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleExport("md")}
+                      disabled={exportingFormat !== null}
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                      Export as Markdown
+                    </Button>
+
+                    {!isPrivateMode && conversation && !isArchived && (
+                      <Button
+                        className="h-10 justify-start gap-2 px-3 text-sm"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsArchiveDialogOpen(true)}
+                      >
+                        <ArchiveIcon className="h-4 w-4" />
+                        Archive Conversation
+                      </Button>
+                    )}
+                  </div>
+                </DrawerBody>
+              </DrawerContent>
+            </Drawer>
+          </div>
         </div>
       )}
 

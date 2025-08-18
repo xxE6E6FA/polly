@@ -28,6 +28,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -163,13 +171,9 @@ const RetryDropdown = memo(
 
     const renderModelList = () => (
       <>
-        <button
-          onClick={handleRetrySame}
-          className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
-        >
-          <ArrowCounterClockwiseIcon className="h-4 w-4" />
-          <span className="font-medium">Retry same</span>
-        </button>
+        <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+          Try a different model
+        </div>
         <div className="max-h-[60vh] overflow-y-auto">
           {/* Free Models Group */}
           {modelGroups.freeModels.length > 0 && (
@@ -364,13 +368,16 @@ const RetryDropdown = memo(
               {!isUser && (
                 <>
                   <DropdownMenuLabel className="pl-0 pr-1">
+                    <div className="text-xs font-medium text-muted-foreground px-3 mb-1">
+                      Refine response
+                    </div>
                     <div className="relative flex items-center">
                       <Input
                         id="refine-input"
                         autoFocus
                         value={refineText}
                         onChange={e => setRefineText(e.target.value)}
-                        placeholder="Ask to change response"
+                        placeholder="Type a change request…"
                         className="h-6 w-full border-none px-3 font-normal text-foreground placeholder:text-muted-foreground shadow-none outline-none focus:ring-0 focus-visible:ring-0"
                         onKeyDown={e => {
                           if (
@@ -425,26 +432,35 @@ const RetryDropdown = memo(
                     className="flex items-center gap-2"
                   >
                     <ArrowsOutSimpleIcon className="h-4 w-4" />
-                    Add details
+                    Add more detail
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleRefine("more_concise")}
                     className="flex items-center gap-2"
                   >
                     <ArrowsInSimpleIcon className="h-4 w-4" />
-                    More concise
+                    Make more concise
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
               )}
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                Retry
+              </DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={handleRetrySame}
                 className="flex items-center gap-2"
               >
                 <ArrowCounterClockwiseIcon className="h-4 w-4" />
-                Retry same
+                Retry with current model
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              {(modelGroups.freeModels.length > 0 ||
+                Object.keys(modelGroups.providerModels).length > 0) && (
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  Try a different model
+                </DropdownMenuLabel>
+              )}
               {/* Free Models Group */}
               {modelGroups.freeModels.length > 0 && (
                 <DropdownMenuSub>
@@ -588,84 +604,102 @@ const RetryDropdown = memo(
           </DropdownMenu>
         </div>
 
-        {/* Mobile: Bottom Sheet */}
+        {/* Mobile: Drawer */}
         <div className="sm:hidden">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className={cn(
-                  "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                  "motion-safe:hover:scale-105",
-                  "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                )}
-                disabled={isEditing || isRetrying || isStreaming}
-                size="sm"
-                title={
-                  isUser ? "Retry from this message" : "Retry this response"
-                }
-                variant="ghost"
-                aria-label={
-                  isUser
-                    ? "Retry conversation from this message"
-                    : "Regenerate this response"
-                }
-                onClick={() => setIsMobileSheetOpen(true)}
-              >
-                <ArrowCounterClockwiseIcon
-                  className={cn(
-                    "h-3.5 w-3.5",
-                    isRetrying && "motion-safe:animate-spin-reverse",
-                    "@media (prefers-reduced-motion: reduce) { animation: none }"
-                  )}
-                  aria-hidden="true"
-                />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>
-                {isUser ? "Retry from this message" : "Retry this response"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <Dialog
+          <Drawer
             open={isMobileSheetOpen}
             onOpenChange={handleMobileSheetOpenChange}
           >
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DrawerTrigger asChild>
+                  <Button
+                    className={cn(
+                      "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                      "motion-safe:hover:scale-105",
+                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                    )}
+                    disabled={isEditing || isRetrying || isStreaming}
+                    size="sm"
+                    title={
+                      isUser ? "Retry from this message" : "Retry this response"
+                    }
+                    variant="ghost"
+                    aria-label={
+                      isUser
+                        ? "Retry conversation from this message"
+                        : "Regenerate this response"
+                    }
+                  >
+                    <ArrowCounterClockwiseIcon
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        isRetrying && "motion-safe:animate-spin-reverse",
+                        "@media (prefers-reduced-motion: reduce) { animation: none }"
+                      )}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </DrawerTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>
                   {isUser ? "Retry from this message" : "Retry this response"}
-                </DialogTitle>
-              </DialogHeader>
-              {/* Refinement options for mobile */}
-              <div className="flex flex-col">
-                <button
-                  onClick={() => {
-                    setIsMobileSheetOpen(false);
-                    setRefineText("");
-                    setIsRefineDialogOpen(true);
-                  }}
-                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
-                >
-                  Ask to change response
-                </button>
-                <button
-                  onClick={() => handleRefine("add_details")}
-                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
-                >
-                  Add details
-                </button>
-                <button
-                  onClick={() => handleRefine("more_concise")}
-                  className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
-                >
-                  More concise
-                </button>
-              </div>
-              {renderModelList()}
-            </DialogContent>
-          </Dialog>
+                </p>
+              </TooltipContent>
+            </Tooltip>
+
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>
+                  {isUser ? "Retry from this message" : "Retry this response"}
+                </DrawerTitle>
+              </DrawerHeader>
+              <DrawerBody>
+                <div className="flex flex-col">
+                  <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+                    Refine response
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsMobileSheetOpen(false);
+                      setRefineText("");
+                      setIsRefineDialogOpen(true);
+                    }}
+                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                  >
+                    <NotePencilIcon className="h-4 w-4" />
+                    Edit instruction…
+                  </button>
+                  <button
+                    onClick={() => handleRefine("add_details")}
+                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                  >
+                    <ArrowsOutSimpleIcon className="h-4 w-4" />
+                    Add more detail
+                  </button>
+                  <button
+                    onClick={() => handleRefine("more_concise")}
+                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                  >
+                    <ArrowsInSimpleIcon className="h-4 w-4" />
+                    Make more concise
+                  </button>
+                  <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+                    Retry
+                  </div>
+                  <button
+                    onClick={handleRetrySame}
+                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                  >
+                    <ArrowCounterClockwiseIcon className="h-4 w-4" />
+                    Retry with current model
+                  </button>
+                </div>
+                {renderModelList()}
+              </DrawerBody>
+            </DrawerContent>
+          </Drawer>
         </div>
 
         {/* Refine dialog (shared) */}

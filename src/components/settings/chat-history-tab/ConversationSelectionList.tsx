@@ -8,11 +8,18 @@ import {
 } from "@phosphor-icons/react";
 import type { PaginatedQueryReference } from "convex/react";
 import { useMutation } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
@@ -52,6 +59,22 @@ export function ConversationSelectionList({
   includeAttachments,
   onIncludeAttachmentsChange,
 }: ConversationSelectionListProps) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const mql = window.matchMedia("(max-width: 640px)");
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      const matches =
+        "matches" in e ? e.matches : (e as MediaQueryList).matches;
+      setIsMobile(matches);
+    };
+    handler(mql);
+    const listener = (e: MediaQueryListEvent) => handler(e);
+    mql.addEventListener?.("change", listener);
+    return () => mql.removeEventListener?.("change", listener);
+  }, []);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const bulkRemove = useMutation(api.conversations.bulkRemove);
@@ -316,7 +339,11 @@ export function ConversationSelectionList({
         </CardContent>
       </Card>
 
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* Desktop Dialog */}
+      <Dialog
+        open={!isMobile && showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+      >
         <DialogContent>
           <DialogTitle>Delete Conversations</DialogTitle>
           <div className="space-y-4">
@@ -352,6 +379,51 @@ export function ConversationSelectionList({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Drawer */}
+      <Drawer
+        open={isMobile && showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+      >
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Delete Conversations</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete {selectedConversations.size}{" "}
+                conversation{selectedConversations.size === 1 ? "" : "s"}? This
+                action cannot be undone.
+              </p>
+              {selectedConversations.size > 10 && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
+                  <p className="text-blue-800 dark:text-blue-200 text-sm">
+                    Large deletions will be processed in the background. You'll
+                    be notified when complete.
+                  </p>
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </>
   );
 }

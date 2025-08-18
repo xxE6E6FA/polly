@@ -45,6 +45,7 @@ import type {
   ImageGenerationParams,
   ReasoningConfig,
 } from "@/types";
+import { AspectRatioDrawer } from "./aspect-ratio-drawer";
 import { AspectRatioPicker } from "./aspect-ratio-picker";
 import { AttachmentDisplay } from "./attachment-display";
 import { ChatInputField } from "./chat-input-field";
@@ -52,11 +53,18 @@ import { ExpandToggleButton } from "./expand-toggle-button";
 import { FileUploadButton } from "./file-upload-button";
 import { GenerationModeToggle } from "./generation-mode-toggle";
 import { ImageGenerationSettings } from "./image-generation-settings";
+import { ImageModelDrawer } from "./image-model-drawer";
 import { ImageModelPicker } from "./image-model-picker";
+import { ImageSettingsDrawer } from "./image-settings-drawer";
+import { ModelDrawer } from "./model-drawer";
+import { NegativePromptDrawer } from "./negative-prompt-drawer";
 import { NegativePromptToggle } from "./negative-prompt-toggle";
+import { PersonaDrawer } from "./persona-drawer";
 import { PersonaMentionTypeahead } from "./persona-mention-typeahead";
 import { PersonaSelector } from "./persona-selector";
+import { ReasoningDrawer } from "./reasoning-drawer";
 import { SendButtonGroup } from "./send-button-group";
+import { TemperatureDrawer } from "./temperature-drawer";
 
 interface ChatInputProps {
   onSendMessage: (
@@ -1117,7 +1125,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     }
 
     return (
-      <div className="relative px-3 pb-3">
+      <div
+        className="relative px-3 pb-3"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
+      >
         <div className="mx-auto w-full max-w-3xl">
           <div
             className={cn(
@@ -1363,6 +1374,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                         onValueChange={handleNegativePromptValueChange}
                         disabled={isLoading || isStreaming || isProcessing}
                         onSubmit={submit}
+                        className="hidden sm:block"
                       />
                     </div>
                   </div>
@@ -1371,6 +1383,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
             <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/20 pt-2">
               <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
+                {/* Generation Mode Toggle - Always visible */}
                 {canSend && (
                   <GenerationModeToggle
                     mode={generationMode}
@@ -1380,12 +1393,102 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   />
                 )}
 
-                {/* Image generation controls */}
+                {/* Mobile: Individual drawer controls */}
+                {canSend && generationMode === "text" && (
+                  <>
+                    <PersonaDrawer
+                      conversationId={conversationId}
+                      hasExistingMessages={hasExistingMessages}
+                      selectedPersonaId={selectedPersonaId}
+                      onPersonaSelect={setSelectedPersonaId}
+                      disabled={isLoading || isStreaming || isProcessing}
+                    />
+                    <ModelDrawer
+                      disabled={isLoading || isStreaming || isProcessing}
+                    />
+                    <TemperatureDrawer
+                      temperature={temperature}
+                      onTemperatureChange={setTemperature}
+                      disabled={isLoading || isStreaming || isProcessing}
+                    />
+                    {selectedModel &&
+                      isUserModel(selectedModel) &&
+                      selectedModel.supportsReasoning && (
+                        <ReasoningDrawer
+                          model={selectedModel}
+                          config={reasoningConfig}
+                          onConfigChange={setReasoningConfig}
+                          disabled={isLoading || isStreaming || isProcessing}
+                        />
+                      )}
+                  </>
+                )}
+
+                {/* Mobile: Image generation drawer controls */}
                 {canSend &&
                   generationMode === "image" &&
                   !isPrivateMode &&
                   hasReplicateApiKey && (
-                    <div className="flex items-center gap-0.5 sm:gap-1">
+                    <>
+                      <ImageModelDrawer
+                        model={imageParams.model}
+                        onModelChange={model =>
+                          setImageParams(prev => ({ ...prev, model }))
+                        }
+                        enabledImageModels={enabledImageModels || []}
+                        disabled={isLoading || isStreaming || isProcessing}
+                      />
+                      <AspectRatioDrawer
+                        aspectRatio={imageParams.aspectRatio || "1:1"}
+                        onAspectRatioChange={aspectRatio =>
+                          setImageParams(prev => ({
+                            ...prev,
+                            aspectRatio: aspectRatio as
+                              | "1:1"
+                              | "16:9"
+                              | "9:16"
+                              | "4:3"
+                              | "3:4",
+                          }))
+                        }
+                        disabled={isLoading || isStreaming || isProcessing}
+                      />
+                      <ImageSettingsDrawer
+                        params={imageParams}
+                        onParamsChange={updates =>
+                          setImageParams(prev => ({ ...prev, ...updates }))
+                        }
+                        selectedModel={
+                          selectedImageModel
+                            ? {
+                                modelId: selectedImageModel.modelId,
+                                supportsMultipleImages:
+                                  selectedImageModel.supportsMultipleImages ??
+                                  false,
+                              }
+                            : undefined
+                        }
+                        disabled={isLoading || isStreaming || isProcessing}
+                      />
+                      {selectedImageModel?.supportsNegativePrompt && (
+                        <NegativePromptDrawer
+                          enabled={negativePromptEnabled}
+                          value={imageParams.negativePrompt || ""}
+                          onEnabledChange={handleNegativePromptEnabledChange}
+                          onValueChange={handleNegativePromptValueChange}
+                          disabled={isLoading || isStreaming || isProcessing}
+                          onSubmit={submit}
+                        />
+                      )}
+                    </>
+                  )}
+
+                {/* Desktop: Image generation controls */}
+                {canSend &&
+                  generationMode === "image" &&
+                  !isPrivateMode &&
+                  hasReplicateApiKey && (
+                    <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
                       <ImageModelPicker
                         model={imageParams.model}
                         onModelChange={model =>
@@ -1426,9 +1529,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     </div>
                   )}
 
-                {/* Text generation controls */}
+                {/* Desktop: Text generation controls */}
                 {canSend && generationMode === "text" && (
-                  <div className="flex items-center gap-0.5 sm:gap-1">
+                  <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
                     <PersonaSelector
                       conversationId={conversationId}
                       hasExistingMessages={hasExistingMessages}
