@@ -240,8 +240,11 @@ export const UnifiedChatView = memo(
             <div className="relative flex h-full flex-col overflow-y-hidden overflow-x-visible">
               <div className="relative z-10 flex h-full flex-col overflow-y-hidden overflow-x-visible">
                 {/* Static Header - always visible */}
-                <div className="sticky top-0 z-20 h-12 flex-shrink-0 bg-background">
-                  <div className="flex h-12 items-center px-3">
+                <div
+                  className="sticky top-0 z-20 flex-shrink-0 bg-background"
+                  style={{ paddingTop: "env(safe-area-inset-top)" }}
+                >
+                  <div className="flex min-h-12 items-center px-3">
                     <ChatHeader
                       conversationId={conversationId}
                       isPrivateMode={!conversationId}
@@ -258,7 +261,10 @@ export const UnifiedChatView = memo(
                   ref={messagesContainerRef}
                   className={cn(
                     "flex-1 overflow-y-hidden overflow-x-visible",
-                    isEmpty && "overflow-y-auto"
+                    isEmpty && "overflow-y-auto",
+                    // Mobile scrolling behavior: hide scrollbar, momentum scroll, contain overscroll
+                    "[&_[data-vlist-id]]:overscroll-contain sm:[&_[data-vlist-id]]:overscroll-auto",
+                    "[&_[data-vlist-id]]:hide-scrollbar sm:[&_[data-vlist-id]]:scrollbar-thin"
                   )}
                   style={
                     // Avoid costly mask on small screens (mobile)
@@ -287,7 +293,10 @@ export const UnifiedChatView = memo(
                 </div>
 
                 {/* Chat input and controls - always visible */}
-                <div className="relative flex-shrink-0">
+                <div
+                  className="relative flex-shrink-0"
+                  style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                >
                   <ChatInput
                     ref={chatInputRef}
                     conversationId={conversationId}

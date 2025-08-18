@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -34,6 +41,27 @@ export const ConfirmationDialog = ({
   variant = "default",
   autoFocusConfirm = true,
 }: ConfirmationDialogProps) => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const mql = window.matchMedia("(max-width: 640px)");
+    const handleChange = (e: MediaQueryListEvent | MediaQueryList) => {
+      // Support both event and initial list
+      const matches =
+        "matches" in e ? e.matches : (e as MediaQueryList).matches;
+      setIsMobile(matches);
+    };
+    handleChange(mql);
+    const listener = (e: MediaQueryListEvent) => handleChange(e);
+    mql.addEventListener?.("change", listener);
+    return () => {
+      mql.removeEventListener?.("change", listener);
+    };
+  }, []);
+
   const handleConfirm = useCallback(() => {
     onConfirm();
     onOpenChange(false);
@@ -47,26 +75,56 @@ export const ConfirmationDialog = ({
   const buttonVariant = variant === "destructive" ? "destructive" : "default";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md [&>button]:hidden">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} type="button">
-            {cancelText}
-          </Button>
-          <Button
-            variant={buttonVariant}
-            onClick={handleConfirm}
-            autoFocus={autoFocusConfirm}
-            type="button"
-          >
-            {confirmText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      {/* Desktop: Dialog */}
+      <Dialog open={!isMobile && open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md [&>button]:hidden">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel} type="button">
+              {cancelText}
+            </Button>
+            <Button
+              variant={buttonVariant}
+              onClick={handleConfirm}
+              autoFocus={autoFocusConfirm}
+              type="button"
+            >
+              {confirmText}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile: Drawer */}
+      <Drawer open={isMobile && open} onOpenChange={onOpenChange}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>{title}</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">{description}</p>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleCancel} type="button">
+                  {cancelText}
+                </Button>
+                <Button
+                  variant={buttonVariant}
+                  onClick={handleConfirm}
+                  autoFocus={autoFocusConfirm}
+                  type="button"
+                >
+                  {confirmText}
+                </Button>
+              </div>
+            </div>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
+    </>
   );
 };

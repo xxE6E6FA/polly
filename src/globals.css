@@ -260,6 +260,18 @@ pre {
         scrollbar-width: thin;
         scrollbar-color: hsl(var(--border)) transparent;
     }
+
+    /* Hide scrollbar utility (keeps scrolling) */
+    .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+        background: transparent;
+    }
 }
 
 /* Smooth scrolling for sidebar */
@@ -1255,4 +1267,12 @@ pre {
 /* Ensure image gallery wrapper has no padding constraints */
 .gallery-message-container .image-gallery-wrapper {
   @apply px-0;
+}
+
+/* Mobile sidebar elevation - stronger, right-biased drop shadows using theme tokens */
+.mobile-sidebar-elevation {
+    box-shadow:
+        0 0 0 1px hsl(var(--border) / 1),
+        8px 0 24px -10px hsl(var(--foreground) / 0.14),
+        18px 0 48px -16px hsl(var(--foreground) / 0.18);
 }

@@ -1,6 +1,7 @@
 import { ChatText, Image, Plus } from "@phosphor-icons/react";
 import { memo } from "react";
 import { Link } from "react-router-dom";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -27,48 +28,40 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
     const isImageModeDisabled =
       disabled || isPrivateMode || !hasReplicateApiKey;
 
-    const handleModeChange = (newMode: GenerationMode) => {
-      if (newMode === "image" && (isPrivateMode || !hasReplicateApiKey)) {
+    const handleValueChange = (value: string) => {
+      if (value !== "text" && value !== "image") {
         return;
       }
-      onModeChange(newMode);
+      if (value === "image" && (isPrivateMode || !hasReplicateApiKey)) {
+        return;
+      }
+      if (value !== mode) {
+        onModeChange(value);
+      }
     };
 
     return (
-      <div
+      <ToggleGroup
+        type="single"
+        value={mode}
+        onValueChange={handleValueChange}
         className={cn(
-          "relative inline-flex items-center h-8 rounded-full bg-muted border shadow-sm transition-all duration-200 p-0.5",
+          "h-8 w-16 border border-primary/30 bg-primary/20 shadow-sm p-0.5",
+          "dark:bg-primary/15 dark:border-primary/25",
+          "rounded-full transition-all duration-200 hover:shadow-md",
           disabled && "opacity-50 cursor-not-allowed",
-          "hover:shadow-md",
           className
         )}
       >
-        {/* Sliding background indicator */}
-        <div
-          className={cn(
-            "absolute top-0.5 bottom-0.5 w-7 rounded-full bg-background shadow-sm transition-all duration-300 ease-out border",
-            mode === "text" ? "left-0.5" : "left-[calc(100%-1.875rem)]"
-          )}
-        />
-
-        {/* Text mode button */}
-        <button
-          type="button"
-          onClick={() => handleModeChange("text")}
-          disabled={disabled}
-          className={cn(
-            "relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200",
-            mode === "text"
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-            disabled && "cursor-not-allowed"
-          )}
-          title="Text Generation"
-        >
-          <ChatText size={16} weight={mode === "text" ? "fill" : "regular"} />
-        </button>
-
-        {/* Image mode button */}
+        <TooltipWrapper content="Text Generation">
+          <ToggleGroupItem
+            value="text"
+            disabled={disabled}
+            aria-pressed={mode === "text"}
+          >
+            <ChatText size={14} weight={mode === "text" ? "fill" : "regular"} />
+          </ToggleGroupItem>
+        </TooltipWrapper>
         <TooltipWrapper
           content={
             isPrivateMode ? (
@@ -89,22 +82,16 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
             )
           }
         >
-          <button
-            type="button"
-            onClick={() => handleModeChange("image")}
+          <ToggleGroupItem
+            value="image"
             disabled={isImageModeDisabled}
-            className={cn(
-              "relative z-10 flex items-center justify-center w-7 h-7 rounded-full transition-colors duration-200",
-              mode === "image"
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-              isImageModeDisabled && "cursor-not-allowed opacity-40"
-            )}
+            aria-pressed={mode === "image"}
+            title="Image Generation"
           >
-            <Image size={16} weight={mode === "image" ? "fill" : "regular"} />
-          </button>
+            <Image size={14} weight={mode === "image" ? "fill" : "regular"} />
+          </ToggleGroupItem>
         </TooltipWrapper>
-      </div>
+      </ToggleGroup>
     );
   }
 );

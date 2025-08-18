@@ -16,6 +16,14 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu";
 import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -88,11 +96,11 @@ export const ConversationActions = ({
     <>
       {isMobile ? (
         <div className="flex-shrink-0">
-          <Popover
+          <Drawer
             open={isMobilePopoverOpen}
             onOpenChange={onMobilePopoverChange}
           >
-            <PopoverTrigger asChild>
+            <DrawerTrigger asChild>
               <Button
                 className={cn(
                   "h-8 w-8 text-foreground/70 transition-opacity hover:text-foreground",
@@ -103,57 +111,56 @@ export const ConversationActions = ({
               >
                 <DotsThreeVerticalIcon className="h-4 w-4" weight="bold" />
               </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={5}
-              className="w-40 p-1"
-              onClick={popoverStopPropagation}
-              onInteractOutside={handleInteractOutside}
-            >
-              <div className="flex flex-col gap-0.5">
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onPinToggle()}
-                >
-                  <PushPinIcon
-                    className="h-3.5 w-3.5"
-                    weight={conversation.isPinned ? "fill" : "regular"}
-                  />
-                  {conversation.isPinned ? "Unpin" : "Pin"}
-                </Button>
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  size="sm"
-                  variant="ghost"
-                  onClick={onStartEdit}
-                >
-                  <PencilSimpleIcon className="h-3.5 w-3.5" />
-                  Edit title
-                </Button>
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onArchive()}
-                >
-                  <ArchiveIcon className="h-3.5 w-3.5" />
-                  Archive
-                </Button>
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onDelete()}
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                  Delete
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+            </DrawerTrigger>
+            <DrawerContent>
+              <DrawerHeader>
+                <DrawerTitle>Conversation actions</DrawerTitle>
+              </DrawerHeader>
+              <DrawerBody>
+                <div className="flex flex-col">
+                  <Button
+                    className="h-10 justify-start gap-2 px-3 text-sm"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onPinToggle()}
+                  >
+                    <PushPinIcon
+                      className="h-4 w-4"
+                      weight={conversation.isPinned ? "fill" : "regular"}
+                    />
+                    {conversation.isPinned ? "Unpin" : "Pin"}
+                  </Button>
+                  <Button
+                    className="h-10 justify-start gap-2 px-3 text-sm"
+                    size="sm"
+                    variant="ghost"
+                    onClick={onStartEdit}
+                  >
+                    <PencilSimpleIcon className="h-4 w-4" />
+                    Edit title
+                  </Button>
+                  <Button
+                    className="h-10 justify-start gap-2 px-3 text-sm"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onArchive()}
+                  >
+                    <ArchiveIcon className="h-4 w-4" />
+                    Archive
+                  </Button>
+                  <Button
+                    className="h-10 justify-start gap-2 px-3 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onDelete()}
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </div>
+              </DrawerBody>
+            </DrawerContent>
+          </Drawer>
         </div>
       ) : (
         <div
