@@ -1,12 +1,34 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import {
   internalMutation,
   internalQuery,
+  type MutationCtx,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import { log } from "./lib/logger";
+
+// Shared handler for creating anonymous users
+async function handleCreateAnonymousUser(ctx: MutationCtx) {
+  const now = Date.now();
+
+  return await ctx.db.insert("users", {
+    isAnonymous: true,
+    createdAt: now,
+    messagesSent: 0,
+    monthlyMessagesSent: 0,
+    conversationCount: 0,
+    totalMessageCount: 0,
+  });
+}
+
+// Shared handler for getting user by ID
+async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
+  return await ctx.db.get(id);
+}
 
 export const current = query({
   args: {},
@@ -27,33 +49,41 @@ export const current = query({
 // Internal version for system operations
 export const internalCreateAnonymous = internalMutation({
   args: {},
-  handler: async ctx => {
-    const now = Date.now();
-
-    return await ctx.db.insert("users", {
-      isAnonymous: true,
-      createdAt: now,
-      messagesSent: 0,
-      monthlyMessagesSent: 0,
-      conversationCount: 0,
-      totalMessageCount: 0,
-    });
-  },
+  handler: handleCreateAnonymousUser,
 });
 
 export const createAnonymous = mutation({
   args: {},
-  handler: async ctx => {
-    const now = Date.now();
+  handler: handleCreateAnonymousUser,
+});
 
-    return await ctx.db.insert("users", {
-      isAnonymous: true,
-      createdAt: now,
-      messagesSent: 0,
-      monthlyMessagesSent: 0,
-      conversationCount: 0,
-      totalMessageCount: 0,
-    });
+/**
+ * Increment user message statistics
+ */
+export const incrementMessage = mutation({
+  args: {
+    userId: v.id("users"),
+    model: v.string(),
+    provider: v.string(),
+    tokensUsed: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const updates: {
+      messagesSent: number;
+      monthlyMessagesSent: number;
+      totalMessageCount: number;
+    } = {
+      messagesSent: (user.messagesSent || 0) + 1,
+      monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
+      totalMessageCount: (user.totalMessageCount || 0) + 1,
+    };
+
+    await ctx.db.patch(args.userId, updates);
   },
 });
 
@@ -126,9 +156,7 @@ export const graduateAnonymousUser = mutation({
 
 export const getById = query({
   args: { id: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
+  handler: (ctx, args) => handleGetUserById(ctx, args.id),
 });
 
 export const patch = mutation({
@@ -144,9 +172,7 @@ export const patch = mutation({
 
 export const internalGetById = internalQuery({
   args: { id: v.id("users") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
-  },
+  handler: (ctx, args) => handleGetUserById(ctx, args.id),
 });
 
 export const getMessageSentCount = query({

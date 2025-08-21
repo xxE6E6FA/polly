@@ -101,10 +101,6 @@ export function ConversationSelectionList({
       await backgroundJobs.startExport(conversationIds, {
         includeAttachmentContent: includeAttachments,
       });
-      // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-      console.trace(
-        `🚀 ConversationSelectionList export started toast: ${conversationIds.length} conversations`
-      );
       managedToast.success(
         `Started exporting ${conversationIds.length} conversation${conversationIds.length === 1 ? "" : "s"}`
       );
@@ -130,19 +126,11 @@ export function ConversationSelectionList({
 
       if (ids.length > BackgroundThreshold) {
         await backgroundJobs.startBulkDelete(ids);
-        // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-        console.trace(
-          `🗑️ ConversationSelectionList background delete toast: ${ids.length} conversations`
-        );
         managedToast.success(
           `Started deleting ${ids.length} conversations in background. You'll be notified when complete.`
         );
       } else {
         await bulkRemove({ ids });
-        // biome-ignore lint/suspicious/noConsole: Debug trace for toast debugging
-        console.trace(
-          `🗑️ ConversationSelectionList direct delete toast: ${ids.length} conversations`
-        );
         managedToast.success("Conversations Deleted", {
           description: `${ids.length} conversation${
             ids.length === 1 ? "" : "s"

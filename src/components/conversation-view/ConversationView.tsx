@@ -156,10 +156,6 @@ function ConversationContent({
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  const conversationIsStreaming = useQuery(api.conversations.isStreaming, {
-    conversationId: conversationId as Id<"conversations">,
-  });
-
   const conversationTitle = (
     conversationAccessInfo?.conversation as { title?: string } | undefined
   )?.title;
@@ -456,7 +452,7 @@ function ConversationContent({
       messages={messages}
       isLoading={isLoading}
       isLoadingMessages={false}
-      isStreaming={messageIsStreaming || (conversationIsStreaming ?? false)}
+      isStreaming={messageIsStreaming}
       currentPersonaId={conversation?.personaId ?? null}
       currentTemperature={currentTemperature}
       canSavePrivateChat={false}

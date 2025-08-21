@@ -480,13 +480,13 @@ export const storeGeneratedImages = internalAction({
     
     if (existingMessage?.attachments) {
       const existingGeneratedImages = existingMessage.attachments.filter(
-        att => att.type === "image" && att.generatedImage?.isGenerated
+        (att: any) => att.type === "image" && att.generatedImage?.isGenerated
       );
-      
+
       // Also check if any existing generated images have URLs that match what we're about to store
       const urlsToStore = new Set(args.imageUrls);
-      const existingUrls = existingGeneratedImages.map(att => att.url);
-      const hasMatchingUrls = existingUrls.some(url => urlsToStore.has(url));
+      const existingUrls = existingGeneratedImages.map((att: any) => att.url);
+      const hasMatchingUrls = existingUrls.some((url: any) => urlsToStore.has(url));
       
       if (existingGeneratedImages.length > 0 || hasMatchingUrls) {
         log.debug("Skipping image storage - images already exist", {

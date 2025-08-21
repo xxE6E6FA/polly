@@ -1,5 +1,5 @@
-import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
+import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
 import { action, internalMutation } from "./_generated/server";

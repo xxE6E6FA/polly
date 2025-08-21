@@ -16,20 +16,24 @@ This guide covers deploying the Polly app to Vercel.
 2. Go to https://vercel.com/new
 3. Import your Git repository
 4. Configure environment variables:
-   - `VITE_CONVEX_URL`: Your Convex deployment URL
+    - `VITE_CONVEX_URL`: Your Convex deployment URL
+    - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
 5. Click "Deploy"
 
 ### Option 2: Deploy via CLI
 
 1. Run `vercel` in your project directory
 2. Follow the prompts
-3. Set environment variables when prompted
+3. Set environment variables when prompted:
+    - `VITE_CONVEX_URL`: Your Convex deployment URL
+    - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
 
 ## Environment Variables
 
 Required environment variables for production:
 
 - `VITE_CONVEX_URL`: Your Convex deployment URL (e.g., https://your-app.convex.cloud)
+- `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction (required for PDF upload support)
 
 ## Post-Deployment
 

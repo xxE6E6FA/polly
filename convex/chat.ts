@@ -1,8 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { createBasicLanguageModel } from "@shared/ai-provider-factory";
-import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
-import { getProviderReasoningConfig } from "@shared/reasoning-config";
 import { smoothStream, streamText } from "ai";
+import { createBasicLanguageModel } from "../shared/ai-provider-factory";
+import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
+import { getProviderReasoningConfig } from "../shared/reasoning-config";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import {
@@ -137,7 +137,7 @@ export const chatStream = httpAction(
             }
 
             // Increment user message stats - model is built-in if it has the 'free' field set to true
-            await incrementUserMessageStats(ctx, model?.free === true);
+            await incrementUserMessageStats(ctx, userId, modelId, provider);
             console.log("[chatStream] Message stats incremented:", {
               modelId,
               provider,

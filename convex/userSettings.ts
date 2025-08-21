@@ -1,6 +1,58 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  type MutationCtx,
+  mutation,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
+
+// Shared handler for user authentication
+async function handleGetAuthenticatedUser(
+  ctx: MutationCtx | QueryCtx
+): Promise<Id<"users">> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("User not authenticated");
+  }
+  return userId;
+}
+
+// Shared handler for getting user settings
+async function handleGetUserSettings(
+  ctx: MutationCtx | QueryCtx,
+  userId: Id<"users">
+): Promise<Doc<"userSettings"> | null> {
+  return await ctx.db
+    .query("userSettings")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .first();
+}
+
+// Shared handler for upserting user settings
+async function handleUpsertUserSettings(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  updates: Partial<Doc<"userSettings">>
+): Promise<void> {
+  const existingSettings = await handleGetUserSettings(ctx, userId);
+  const now = Date.now();
+
+  if (existingSettings) {
+    await ctx.db.patch(existingSettings._id, {
+      ...updates,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.insert("userSettings", {
+      userId,
+      ...updates,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+}
 
 export const getUserSettings = query({
   args: {},
@@ -68,64 +120,51 @@ export const updateUserSettings = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not found");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
-    const existingSettings = await ctx.db
-      .query("userSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
+    const existingSettings = await handleGetUserSettings(ctx, userId);
 
-    const now = Date.now();
+    // Build updates object with conditional properties
+    const updates: Partial<Doc<"userSettings">> = {
+      ...(args.personasEnabled !== undefined && {
+        personasEnabled: args.personasEnabled,
+      }),
+      ...(args.openRouterSorting !== undefined && {
+        openRouterSorting: args.openRouterSorting,
+      }),
+      ...(args.anonymizeForDemo !== undefined && {
+        anonymizeForDemo: args.anonymizeForDemo,
+      }),
+      ...(args.autoArchiveEnabled !== undefined && {
+        autoArchiveEnabled: args.autoArchiveEnabled,
+      }),
+      ...(args.autoArchiveDays !== undefined && {
+        autoArchiveDays: args.autoArchiveDays,
+      }),
+      ...(args.ttsVoiceId !== undefined && { ttsVoiceId: args.ttsVoiceId }),
+      ...(args.ttsModelId !== undefined && { ttsModelId: args.ttsModelId }),
+      ...(args.ttsUseAudioTags !== undefined && {
+        ttsUseAudioTags: args.ttsUseAudioTags,
+      }),
+      ...(args.ttsStabilityMode !== undefined && {
+        ttsStabilityMode: args.ttsStabilityMode,
+      }),
+    };
 
-    if (existingSettings) {
-      // Update existing settings
-      await ctx.db.patch(existingSettings._id, {
-        ...(args.personasEnabled !== undefined && {
-          personasEnabled: args.personasEnabled,
-        }),
-        ...(args.openRouterSorting !== undefined && {
-          openRouterSorting: args.openRouterSorting,
-        }),
-        ...(args.anonymizeForDemo !== undefined && {
-          anonymizeForDemo: args.anonymizeForDemo,
-        }),
-        ...(args.autoArchiveEnabled !== undefined && {
-          autoArchiveEnabled: args.autoArchiveEnabled,
-        }),
-        ...(args.autoArchiveDays !== undefined && {
-          autoArchiveDays: args.autoArchiveDays,
-        }),
-        ...(args.ttsVoiceId !== undefined && { ttsVoiceId: args.ttsVoiceId }),
-        ...(args.ttsModelId !== undefined && { ttsModelId: args.ttsModelId }),
-        ...(args.ttsUseAudioTags !== undefined && {
-          ttsUseAudioTags: args.ttsUseAudioTags,
-        }),
-        ...(args.ttsStabilityMode !== undefined && {
-          ttsStabilityMode: args.ttsStabilityMode,
-        }),
-        updatedAt: now,
-      });
-    } else {
-      // Create new settings
-      await ctx.db.insert("userSettings", {
-        userId,
+    // Add defaults for new settings creation if no settings exist
+    if (!existingSettings) {
+      Object.assign(updates, {
         personasEnabled: args.personasEnabled ?? true,
         openRouterSorting: args.openRouterSorting ?? "default",
         anonymizeForDemo: args.anonymizeForDemo ?? false,
         autoArchiveEnabled: args.autoArchiveEnabled ?? false,
         autoArchiveDays: args.autoArchiveDays ?? 30,
-        ttsVoiceId: args.ttsVoiceId,
-        ttsModelId: args.ttsModelId,
         ttsUseAudioTags: args.ttsUseAudioTags ?? true,
         ttsStabilityMode: args.ttsStabilityMode ?? "creative",
-        createdAt: now,
-        updatedAt: now,
       });
     }
 
+    await handleUpsertUserSettings(ctx, userId, updates);
     return { success: true };
   },
 });
@@ -154,34 +193,8 @@ export const updateUserSettingsForImport = mutation({
     settings: userSettingsUpdateSchema,
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not found");
-    }
-
-    const existingSettings = await ctx.db
-      .query("userSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    const now = Date.now();
-
-    if (existingSettings) {
-      // Update existing settings
-      await ctx.db.patch(existingSettings._id, {
-        ...args.settings,
-        updatedAt: now,
-      });
-    } else {
-      // Create new settings
-      await ctx.db.insert("userSettings", {
-        userId,
-        ...args.settings,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
+    const userId = await handleGetAuthenticatedUser(ctx);
+    await handleUpsertUserSettings(ctx, userId, args.settings);
     return { success: true };
   },
 });
@@ -191,30 +204,10 @@ export const togglePersonasEnabled = mutation({
     enabled: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not found");
-    }
-
-    const existingSettings = await ctx.db
-      .query("userSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    const now = Date.now();
-
-    await (existingSettings
-      ? ctx.db.patch(existingSettings._id, {
-          personasEnabled: args.enabled,
-          updatedAt: now,
-        })
-      : ctx.db.insert("userSettings", {
-          userId,
-          personasEnabled: args.enabled,
-          createdAt: now,
-          updatedAt: now,
-        }));
-
+    const userId = await handleGetAuthenticatedUser(ctx);
+    await handleUpsertUserSettings(ctx, userId, {
+      personasEnabled: args.enabled,
+    });
     return { success: true };
   },
 });
@@ -225,39 +218,17 @@ export const updateArchiveSettings = mutation({
     autoArchiveDays: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not found");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
     // Validate autoArchiveDays range (1-365 days)
     if (args.autoArchiveDays < 1 || args.autoArchiveDays > 365) {
       throw new Error("Archive days must be between 1 and 365");
     }
 
-    const existingSettings = await ctx.db
-      .query("userSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    const now = Date.now();
-
-    if (existingSettings) {
-      await ctx.db.patch(existingSettings._id, {
-        autoArchiveEnabled: args.autoArchiveEnabled,
-        autoArchiveDays: args.autoArchiveDays,
-        updatedAt: now,
-      });
-    } else {
-      await ctx.db.insert("userSettings", {
-        userId,
-        autoArchiveEnabled: args.autoArchiveEnabled,
-        autoArchiveDays: args.autoArchiveDays,
-        createdAt: now,
-        updatedAt: now,
-      });
-    }
-
+    await handleUpsertUserSettings(ctx, userId, {
+      autoArchiveEnabled: args.autoArchiveEnabled,
+      autoArchiveDays: args.autoArchiveDays,
+    });
     return { success: true };
   },
 });

@@ -29,6 +29,25 @@ import { SettingsHeader } from "../settings-header";
 import { SettingsZeroState } from "../ui/SettingsZeroState";
 import { VirtualizedImageModelList } from "./VirtualizedImageModelList";
 
+type ImageModelResult = {
+  modelId: string;
+  name: string;
+  provider: string;
+  description: string;
+  modelVersion: string;
+  owner: string;
+  tags: string[];
+  supportedAspectRatios: string[];
+  supportsUpscaling: boolean;
+  supportsInpainting: boolean;
+  supportsOutpainting: boolean;
+  supportsImageToImage: boolean;
+  supportsMultipleImages: boolean;
+  supportsNegativePrompt: boolean;
+  coverImageUrl?: string;
+  exampleImages?: string[];
+};
+
 export type ImageFilterState = {
   searchQuery: string;
   showOnlySelected: boolean;
@@ -184,7 +203,7 @@ export const ImageModelsTab = () => {
 
         // Transform API results to FetchedImageModel format
         const transformedModels: FetchedImageModel[] = result.models.map(
-          model => ({
+          (model: ImageModelResult) => ({
             modelId: model.modelId,
             name: model.name,
             provider: model.provider,
@@ -229,7 +248,7 @@ export const ImageModelsTab = () => {
 
       // Transform API results to FetchedImageModel format
       const transformedModels: FetchedImageModel[] = result.models.map(
-        model => ({
+        (model: ImageModelResult) => ({
           modelId: model.modelId,
           name: model.name,
           provider: model.provider,
@@ -464,7 +483,7 @@ export const ImageModelsTab = () => {
         success(result.message);
         if (result.errors) {
           // Show warnings for individual errors
-          result.errors.forEach(error => {
+          result.errors.forEach((error: string) => {
             console.warn("Model refresh error:", error);
           });
         }

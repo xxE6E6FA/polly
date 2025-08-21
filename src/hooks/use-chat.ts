@@ -191,7 +191,11 @@ export function useChat({ conversationId }: UseChatParams) {
             useWebSearch: msg.useWebSearch,
             attachments: msg.attachments,
             citations: msg.citations,
-            metadata: msg.metadata,
+            // Ensure UI sees finishReason consistently: mirror top-level finishReason into metadata
+            metadata: {
+              ...(msg.metadata || {}),
+              finishReason: msg.finishReason,
+            },
             imageGeneration: msg.imageGeneration, // Add imageGeneration field
             createdAt: msg.createdAt,
           })
@@ -250,10 +254,6 @@ export function useChat({ conversationId }: UseChatParams) {
   );
 
   const stopGeneration = useCallback(() => {
-    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-    console.log(
-      "[useChat] stopGeneration called, forwarding to chatHandlers.stopGeneration"
-    );
     chatHandlers.stopGeneration();
   }, [chatHandlers.stopGeneration]);
 
@@ -269,15 +269,42 @@ export function useChat({ conversationId }: UseChatParams) {
       return false;
     }
 
-    for (const m of messages) {
-      if (
-        m.role === "assistant" &&
-        (!m.metadata?.finishReason || m.metadata?.finishReason === "streaming")
-      ) {
-        return true;
+    // Check for any assistant message that is actively streaming
+    // A message is streaming if it has no finishReason AND is not explicitly stopped
+    // Only check the most recent assistant message to avoid issues with multiple messages
+    let lastAssistantMessage: ChatMessage | null = null;
+
+    // Find the most recent assistant message
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") {
+        lastAssistantMessage = messages[i];
+        break;
       }
     }
-    return false;
+
+    if (!lastAssistantMessage) {
+      return false;
+    }
+
+    // Only the most recent assistant message determines streaming state
+    // A message is considered streaming if:
+    // 1. It has no finishReason (completion reason)
+    // 2. It hasn't been explicitly stopped
+    // 3. Its status is not 'done' (completed)
+    // 4. It was created recently (within last 30 seconds) to avoid false positives on old messages
+    const now = Date.now();
+    const messageAge = now - (lastAssistantMessage.createdAt || 0);
+    const isRecent = messageAge < 30000; // 30 seconds
+
+    const hasFinishReason = lastAssistantMessage.metadata?.finishReason;
+    const isStopped = lastAssistantMessage.metadata?.stopped;
+    const isDone = lastAssistantMessage.status === "done";
+
+    // For existing conversations, we should not show streaming state for old completed messages
+    // Only show streaming if the message is recent AND has no termination indicators
+    const result = isRecent && !(hasFinishReason || isStopped || isDone);
+
+    return result;
   }, [messages]);
 
   // Check if we can save (private mode only)

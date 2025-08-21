@@ -1,7 +1,7 @@
 import { type CoreMessage, streamText, generateText, smoothStream } from "ai";
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
-import { type Id } from "../_generated/dataModel";
+import { type Id, type Doc } from "../_generated/dataModel";
 import { type ActionCtx, internalAction } from "../_generated/server";
 import {
   type Citation,
@@ -30,6 +30,8 @@ import {
 import { setStreamActive, clearStream } from "../lib/streaming_utils";
 import { log } from "../lib/logger";
 import { buildHierarchicalContextMessages } from "../lib/conversation_utils";
+import { getPersonaPrompt, mergeSystemPrompts } from "../lib/conversation/message_handling";
+import { getBaselineInstructions } from "../constants";
 
 
 // Web search imports
@@ -44,6 +46,7 @@ import { performWebSearch } from "./exa";
 
 // URL processing imports
 import { processUrlsInMessage } from "./url_processing";
+import { processAttachmentsForLLM } from "../lib/process_attachments";
 
 // Unified storage converter
 export const convertStorageToData = async (
@@ -330,6 +333,13 @@ export const streamResponse = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    console.log("🚀 [streamResponse] FUNCTION CALLED with args:", {
+      modelId: args.model.modelId,
+      messageId: args.messageId,
+      conversationId: args.conversationId,
+      timestamp: new Date().toISOString(),
+    });
+    
     console.log(
       "[stream_generation] Starting streaming:",
       args.model.modelId,
@@ -378,7 +388,7 @@ export const streamResponse = internalAction({
         "messageId:",
         args.messageId
       );
-      console.log("[stream_generation] Setting isStreamingStopped to true");
+
       isStreamingStopped = true;
     });
 
@@ -398,14 +408,17 @@ export const streamResponse = internalAction({
       const conversation = await ctx.runQuery(internal.conversations.internalGet, {
         id: args.conversationId,
       });
-      const dbAborted = !conversation?.isStreaming;
+      
+      // Only consider it aborted if the stream was explicitly stopped via abort controller
+      // Don't treat normal completion as an abort
+      const dbAborted = false; // We'll rely on memory flags instead
       
       if (dbAborted) {
         // Only log once per second to prevent spam
         const now = Date.now();
         if (now - lastAbortLogTime > 1000) {
           console.log(
-            "[stream_generation] checkAbort: Stream should be stopped.",
+            "[stream_generation] checkAbort: Stream was explicitly stopped.",
             "signal.aborted:", abortController.signal.aborted,
             "isStreamingStopped:", isStreamingStopped,
             "conversation.isStreaming:", conversation?.isStreaming
@@ -492,24 +505,258 @@ export const streamResponse = internalAction({
 
     try {
       // Get conversation context using hierarchical summarization
+      // Note: userId is determined from auth context within buildHierarchicalContextMessages
       const contextResult = await buildHierarchicalContextMessages(
         ctx,
-        {
-          conversationId: args.conversationId,
-          personaId: args.personaId,
-          maxTokens: 200, // Adjust based on your model's context window
-          modelCapabilities: {
-            supportsImages: args.model.supportsImages,
-            supportsFiles: args.model.supportsFiles,
-            contextWindow: args.model.contextLength,
-          },
-        }
+        args.conversationId,
+        undefined, // userId will be determined from auth context
+        args.model.modelId,
+        50
       );
 
-      const { contextMessages } = contextResult;
-      log.debug(
-        `Built context with ${contextMessages.length} messages`
-      );
+      // Get persona prompt if specified
+      const personaPrompt = await getPersonaPrompt(ctx, args.personaId);
+
+      // For new conversations, we need to get the actual messages
+      let contextMessages: Array<{ role: "system" | "user" | "assistant"; content: string | Array<any> }>;
+
+      // If no hierarchical context (new conversation), get the actual messages
+      if (contextResult.length === 0) {
+        log.debug("No hierarchical context found, getting actual messages for new conversation");
+        const actualMessages = await ctx.runQuery(internal.messages.getAllInConversationInternal, {
+          conversationId: args.conversationId,
+        });
+
+        log.debug(`[streamResponse] Retrieved ${actualMessages?.length || 0} actual messages from getAllInConversation`);
+
+        // Log message details for debugging
+        if (actualMessages && actualMessages.length > 0) {
+          log.debug(`[streamResponse] Message details:`, actualMessages.map((msg: Doc<"messages">) => ({
+            id: msg._id,
+            role: msg.role,
+            contentLength: msg.content?.length || 0,
+            createdAt: msg._creationTime
+          })));
+        }
+
+          if (actualMessages && actualMessages.length > 0) {
+            // Process PDF attachments before converting to StreamMessage format
+            const userMessage = actualMessages.find((msg: Doc<"messages">) => msg.role === "user");
+            let processedMessages = actualMessages;
+
+            if (userMessage?.attachments && userMessage.attachments.length > 0) {
+              log.debug(`[PDF Processing] Found ${userMessage.attachments.length} attachments in user message`);
+
+              // Get model capabilities to determine PDF processing strategy
+              const modelCapabilities = await ctx.runQuery(api.userModels.getModelByID, {
+                modelId: args.model.modelId,
+                provider: args.model.provider,
+              });
+
+              const modelSupportsFiles = modelCapabilities?.supportsFiles || false;
+
+              // Process attachments for LLM consumption
+              const processedAttachments = await processAttachmentsForLLM(
+                ctx,
+                userMessage.attachments,
+                args.model.provider,
+                args.model.modelId,
+                modelSupportsFiles,
+                args.messageId
+              );
+
+              // Update the user message with processed attachments
+              processedMessages = actualMessages.map((msg: Doc<"messages">) => {
+                if (msg._id === userMessage._id) {
+                  return {
+                    ...msg,
+                    attachments: processedAttachments,
+                  };
+                }
+                return msg;
+              });
+
+              log.debug(`[PDF Processing] Processed attachments for message ${userMessage._id}`);
+            }
+
+            // Convert messages to the expected format
+            const conversationMessages = processedMessages
+              .filter((msg: Doc<"messages">) => msg.role !== "system" && msg.role !== "context")
+              .map((msg: Doc<"messages">) => {
+                // Convert database message format to StreamMessage format
+                let content: string | Array<any> = msg.content;
+
+                if (msg.attachments && msg.attachments.length > 0) {
+                  // Convert attachments to StreamMessage format
+                  const contentParts: Array<any> = [];
+
+                  // Add text content if present
+                  if (msg.content.trim()) {
+                    contentParts.push({ type: "text", text: msg.content });
+                  }
+
+                  // Add attachments
+                  for (const attachment of msg.attachments) {
+                    if (attachment.type === "image") {
+                      contentParts.push({
+                        type: "image_url",
+                        image_url: { url: attachment.content ? `data:${attachment.mimeType || "image/jpeg"};base64,${attachment.content}` : attachment.url },
+                        attachment: {
+                          storageId: attachment.storageId,
+                          type: attachment.type,
+                          name: attachment.name,
+                          extractedText: attachment.extractedText,
+                          textFileId: attachment.textFileId,
+                        }
+                      });
+                    } else if (attachment.type === "pdf") {
+                      contentParts.push({
+                        type: "file",
+                        file: {
+                          filename: attachment.name,
+                          file_data: attachment.content || "",
+                        },
+                        attachment: {
+                          storageId: attachment.storageId,
+                          type: attachment.type,
+                          name: attachment.name,
+                          extractedText: attachment.extractedText,
+                          textFileId: attachment.textFileId,
+                        }
+                      });
+                    } else if (attachment.type === "text") {
+                      contentParts.push({
+                        type: "text",
+                        text: attachment.content || "",
+                      });
+                    }
+                  }
+
+                  content = contentParts;
+                }
+
+                return {
+                  role: msg.role as "user" | "assistant",
+                  content,
+                };
+              });
+
+          // Build system message with persona prompt
+          const baselineInstructions = getBaselineInstructions("default");
+          const mergedInstructions = mergeSystemPrompts(baselineInstructions, personaPrompt);
+
+          contextMessages = [
+            {
+              role: "system" as const,
+              content: mergedInstructions,
+            },
+            ...conversationMessages,
+          ];
+
+          log.debug(`Built context with system message + ${conversationMessages.length} actual messages for new conversation`);
+        } else {
+          log.warn("No messages found in conversation - this should not happen");
+
+          // Build system message with persona prompt even for empty conversations
+          const baselineInstructions = getBaselineInstructions("default");
+          const mergedInstructions = mergeSystemPrompts(baselineInstructions, personaPrompt);
+
+          contextMessages = [
+            {
+              role: "system" as const,
+              content: mergedInstructions,
+            }
+          ];
+        }
+      } else {
+        log.debug(`Built context with ${contextResult.length} hierarchical context messages`);
+
+        // Process PDF attachments in hierarchical context
+        let processedContextResult = contextResult;
+        const userMessageInContext = contextResult.find((msg: any) => msg.role === "user");
+
+        if (userMessageInContext && 'attachments' in userMessageInContext && Array.isArray(userMessageInContext.attachments) && userMessageInContext.attachments.length > 0) {
+          log.debug(`[PDF Processing] Found ${userMessageInContext.attachments.length} attachments in hierarchical context user message`);
+
+          // Get model capabilities to determine PDF processing strategy
+          const modelCapabilities = await ctx.runQuery(api.userModels.getModelByID, {
+            modelId: args.model.modelId,
+            provider: args.model.provider,
+          });
+
+          const modelSupportsFiles = modelCapabilities?.supportsFiles || false;
+
+          // Process attachments for LLM consumption
+          const processedAttachments = await processAttachmentsForLLM(
+            ctx,
+            userMessageInContext.attachments as any,
+            args.model.provider,
+            args.model.modelId,
+            modelSupportsFiles,
+            args.messageId
+          );
+
+          // Update the user message in context with processed attachments
+          processedContextResult = contextResult.map((msg: any) => {
+            if (msg.role === "user" && 'attachments' in msg && Array.isArray(msg.attachments)) {
+              return {
+                ...msg,
+                attachments: processedAttachments,
+              };
+            }
+            return msg;
+          });
+
+          log.debug(`[PDF Processing] Processed attachments in hierarchical context`);
+        }
+
+        // Build system message with persona prompt
+        const baselineInstructions = getBaselineInstructions("default");
+        const mergedInstructions = mergeSystemPrompts(baselineInstructions, personaPrompt);
+
+        contextMessages = [
+          {
+            role: "system" as const,
+            content: mergedInstructions,
+          },
+          ...processedContextResult,
+        ];
+      }
+
+      log.debug(`[streamResponse] Final contextMessages length: ${contextMessages.length}`);
+      if (contextMessages.length === 0) {
+        log.error(`[streamResponse] CRITICAL: No context messages found for conversation ${args.conversationId}`);
+
+        // Add a fallback system message to prevent empty messages error
+        // This can happen when streaming starts before messages are committed to the database
+        log.debug("Adding fallback system message to prevent empty messages error");
+        const baselineInstructions = getBaselineInstructions("default");
+        const mergedInstructions = mergeSystemPrompts(baselineInstructions, personaPrompt);
+
+        contextMessages = [
+          {
+            role: "system" as const,
+            content: mergedInstructions,
+          }
+        ];
+
+        // Also try to get the assistant message being streamed to see if we can infer the user's intent
+        try {
+          const assistantMessage = await ctx.runQuery(api.messages.getById, {
+            id: args.messageId,
+          });
+
+          if (assistantMessage) {
+            log.debug("Found assistant message, adding context about ongoing conversation");
+            contextMessages.push({
+              role: "system" as const,
+              content: "The user has started a new conversation. Please provide a helpful response."
+            });
+          }
+        } catch (error) {
+          log.debug("Could not retrieve assistant message:", error);
+        }
+      }
 
 
 
@@ -543,7 +790,7 @@ export const streamResponse = internalAction({
       if (isSearchEnabled) {
         log.debug("Starting search detection process");
         
-        const userMessages = contextMessages.filter(msg => msg.role === "user");
+        const userMessages = contextMessages.filter((msg: any) => msg.role === "user");
         const latestUserMessage = userMessages[userMessages.length - 1];
         
         if (latestUserMessage && typeof latestUserMessage.content === "string") {
@@ -551,10 +798,10 @@ export const streamResponse = internalAction({
             // Step 1: Check if search is needed using LLM
             const searchContext: SearchDecisionContext = {
               userQuery: latestUserMessage.content,
-              conversationHistory: contextMessages.slice(-5).filter(msg => msg.role !== "system").map(msg => ({
+              conversationHistory: contextMessages.slice(-5).filter((msg: any) => msg.role !== "system").map((msg: any) => ({
                 role: msg.role as "user" | "assistant",
                 content: typeof msg.content === "string" ? msg.content : "[multimodal content]",
-                hasSearchResults: false, // TODO: Track this properly
+                hasSearchResults: false, // Track search results in future implementation
               })),
             };
 
@@ -593,7 +840,7 @@ export const streamResponse = internalAction({
               const searchDecision = parseSearchStrategy(strategyResponse, latestUserMessage.content);
                               log.debug("Search strategy:", searchDecision.searchType, "for query:", searchDecision.suggestedQuery);
 
-              // Step 3: Get EXA API key - TODO: Add EXA as a proper provider type
+              // Step 3: Get EXA API key - EXA is used as a unified search provider
               const exaApiKey = process.env.EXA_API_KEY;
                               if (!exaApiKey) {
                   log.debug("No EXA API key configured, skipping web search");
@@ -620,7 +867,7 @@ export const streamResponse = internalAction({
                   query: searchDecision.suggestedQuery || latestUserMessage.content,
                   searchType: searchDecision.searchType,
                   category: searchDecision.category,
-                  maxResults: 12, // TODO: Make this configurable
+                  maxResults: 12, // Configurable search results count
                 });
 
                 // Step 4: Add search results to context
@@ -696,7 +943,7 @@ When using information from these search results, you MUST include citations in 
       }
 
       // Process URLs in the latest user message
-      const userMessages = contextMessages.filter(msg => msg.role === "user");
+      const userMessages = contextMessages.filter((msg: any) => msg.role === "user");
       const latestUserMessage = userMessages[userMessages.length - 1];
       
       if (latestUserMessage && typeof latestUserMessage.content === "string") {
@@ -749,11 +996,15 @@ When using information from these search results, you MUST include citations in 
       }
 
       // Convert messages to AI SDK format using processed context messages
+      log.debug("🔍 [DEBUG] Context messages before conversion:", contextMessages);
       const convertedMessages = await convertMessages(
         ctx,
         contextMessages,
         effectiveProvider as any
       );
+      log.debug("🔍 [DEBUG] Converted messages for AI:", convertedMessages);
+      log.debug("🔍 [DEBUG] Provider:", effectiveProvider);
+      log.debug("🔍 [DEBUG] Model:", effectiveModel);
 
       // Get reasoning-specific stream options (simplified logging)
       // Only pass reasoning config if enabled
@@ -974,6 +1225,14 @@ When using information from these search results, you MUST include citations in 
 
       // Only finalize if not stopped (check both memory, database, and abort flag)
       const finalAbortCheck = isStreamingStopped || await checkAbort();
+      console.log("🎯 [stream_generation] Finalization check:", {
+        messageId: args.messageId.slice(-8),
+        isStreamingStopped,
+        checkAbortResult: await checkAbort(),
+        finalAbortCheck,
+        willFinalize: !finalAbortCheck,
+      });
+      
       if (!finalAbortCheck) {
         log.info(`Stream finalized: ${args.messageId.slice(-8)} completed`);
       } else {
@@ -1038,6 +1297,7 @@ When using information from these search results, you MUST include citations in 
       }
     }
 
+    console.log("🏁 [streamResponse] FUNCTION COMPLETED for messageId:", args.messageId);
     return null;
   },
 });

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +40,7 @@ export const UserBubble = memo(
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
     const [showPendingSpinner, setShowPendingSpinner] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const isPending = message.metadata?.status === "pending";
 
@@ -56,6 +57,18 @@ export const UserBubble = memo(
       setIsEditing(true);
       setEditContent(message.content);
     }, [message.content]);
+
+    // Focus textarea when entering edit mode
+    useEffect(() => {
+      if (isEditing && textareaRef.current) {
+        textareaRef.current.focus();
+        // Move cursor to end of text
+        textareaRef.current.setSelectionRange(
+          textareaRef.current.value.length,
+          textareaRef.current.value.length
+        );
+      }
+    }, [isEditing]);
 
     const handleEditCancel = useCallback(() => {
       setIsEditing(false);
@@ -92,6 +105,7 @@ export const UserBubble = memo(
             {isEditing ? (
               <div className="space-y-4">
                 <textarea
+                  ref={textareaRef}
                   className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base selectable-auto"
                   placeholder="Edit your message..."
                   value={editContent}
@@ -105,6 +119,16 @@ export const UserBubble = memo(
                     const target = e.target as HTMLTextAreaElement;
                     target.style.height = "auto";
                     target.style.height = `${target.scrollHeight}px`;
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      handleEditCancel();
+                    } else if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleEditSave();
+                    }
+                    // Shift+Enter will naturally create a newline (default behavior)
                   }}
                 />
                 <div className="flex translate-y-0 transform justify-end gap-3 opacity-100 transition-all duration-200">

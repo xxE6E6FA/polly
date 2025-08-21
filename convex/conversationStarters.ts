@@ -1,5 +1,5 @@
-import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
+import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { action } from "./_generated/server";
 import { log } from "./lib/logger";

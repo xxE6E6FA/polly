@@ -30,8 +30,8 @@ export const PersonaMentionTypeahead = memo(function PersonaMentionTypeahead({
   placement = "bottom",
 }: PersonaMentionTypeaheadProps) {
   const listRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Ensure the active option stays in view when navigating with keyboard
   useEffect(() => {
     const container = listRef.current;
     if (!container) {
@@ -51,6 +51,7 @@ export const PersonaMentionTypeahead = memo(function PersonaMentionTypeahead({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "absolute left-0 z-50 w-[min(calc(100vw-2rem),360px)] overflow-hidden",
         placement === "bottom" ? "top-full mt-1" : "bottom-full mb-1",
@@ -59,6 +60,7 @@ export const PersonaMentionTypeahead = memo(function PersonaMentionTypeahead({
         className
       )}
       aria-label="Persona suggestions"
+      tabIndex={-1}
     >
       <Command className="p-1" shouldFilter={false}>
         <CommandList

@@ -66,7 +66,7 @@ export const seedBuiltInModels = internalMutation({
         supportsImages: true,
         supportsTools: true,
         supportsReasoning: false,
-        supportsFiles: false,
+        supportsFiles: true, // Claude 3 Haiku supports PDF files
         free: true,
         builtIn: true,
         selected: false,
