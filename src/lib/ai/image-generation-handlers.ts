@@ -79,37 +79,6 @@ export async function handleImageGeneration(
 }
 
 /**
- * Cancel an ongoing image generation
- */
-export function cancelImageGeneration(
-  _convexClient: ConvexReactClient,
-  messageId: Id<"messages">,
-  replicateId: string
-): void {
-  try {
-    // biome-ignore lint/suspicious/noConsole: Development debugging
-    console.log("[cancelImageGeneration] Canceling image generation", {
-      messageId,
-      replicateId,
-    });
-
-    // Note: cancelPrediction is an internal action, so we'll need to handle cancellation through the UI
-    // For now, we'll just log the cancellation attempt
-    // biome-ignore lint/suspicious/noConsole: Development debugging
-    console.log(
-      "[cancelImageGeneration] Would cancel prediction:",
-      replicateId
-    );
-
-    // biome-ignore lint/suspicious/noConsole: Development debugging
-    console.log("[cancelImageGeneration] Cancellation request sent");
-  } catch (error) {
-    console.error("[cancelImageGeneration] Failed to cancel:", error);
-    // Don't throw here - cancellation is best effort
-  }
-}
-
-/**
  * Retry failed image generation by updating the existing message
  */
 export async function retryImageGeneration(
@@ -122,9 +91,6 @@ export async function retryImageGeneration(
     params: Omit<ImageGenerationParams, "prompt" | "model">;
   }
 ): Promise<void> {
-  // The action will handle updating the message state internally
-
-  // Call Convex action for image generation with the existing message
   await convexClient.action(api.ai.replicate.generateImage, {
     conversationId,
     messageId,

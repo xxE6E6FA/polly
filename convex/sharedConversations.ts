@@ -1,10 +1,57 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
-
-import type { Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { api } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  type MutationCtx,
+  mutation,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
+
+// Shared handler for user authentication
+async function handleGetAuthenticatedUser(
+  ctx: MutationCtx | QueryCtx
+): Promise<Id<"users">> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new ConvexError("User not authenticated");
+  }
+  return userId;
+}
+
+// Shared handler for conversation ownership validation
+async function handleValidateConversationOwnership(
+  ctx: MutationCtx | QueryCtx,
+  conversationId: Id<"conversations">,
+  userId: Id<"users">
+): Promise<Doc<"conversations">> {
+  const conversation = await ctx.db.get(conversationId);
+  if (!conversation) {
+    throw new ConvexError("Conversation not found");
+  }
+
+  if (conversation.userId !== userId) {
+    throw new ConvexError("You can only access your own conversations");
+  }
+
+  return conversation;
+}
+
+// Shared handler for getting shared conversation by original conversation ID
+async function handleGetSharedConversation(
+  ctx: MutationCtx | QueryCtx,
+  conversationId: Id<"conversations">
+): Promise<Doc<"sharedConversations"> | null> {
+  return await ctx.db
+    .query("sharedConversations")
+    .withIndex("by_original_conversation", q =>
+      q.eq("originalConversationId", conversationId)
+    )
+    .first();
+}
 
 // Generate a random share ID
 
@@ -21,43 +68,26 @@ export const shareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    // Require authentication
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
-
-    // Verify the user owns this conversation
-    const conversation = await ctx.db.get(args.conversationId);
-    if (!conversation) {
-      throw new ConvexError("Conversation not found");
-    }
-
-    // Ensure the user owns the conversation
-    if (conversation.userId !== userId) {
-      throw new ConvexError("You can only share your own conversations");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
+    const conversation = await handleValidateConversationOwnership(
+      ctx,
+      args.conversationId,
+      userId
+    );
 
     // Check if already shared
-    const existingShare = await ctx.db
-      .query("sharedConversations")
-      .withIndex("by_original_conversation", q =>
-        q.eq("originalConversationId", args.conversationId)
-      )
-      .first();
-
+    const existingShare = await handleGetSharedConversation(
+      ctx,
+      args.conversationId
+    );
     if (existingShare) {
       return existingShare.shareId;
     }
 
     // Get message count for this conversation
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .filter(q => q.eq(q.field("isMainBranch"), true))
-      .collect();
+    const messageCount = await ctx.runQuery(api.messages.getMessageCount, {
+      conversationId: args.conversationId,
+    });
 
     const shareId = generateShareId();
     const now = Date.now();
@@ -69,7 +99,7 @@ export const shareConversation = mutation({
       title: conversation.title,
       sharedAt: now,
       lastUpdated: now,
-      messageCount: messages.length,
+      messageCount,
     });
 
     return shareId;
@@ -82,51 +112,32 @@ export const updateSharedConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    // Require authentication
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
-
-    // Verify the user owns this conversation
-    const conversation = await ctx.db.get(args.conversationId);
-    if (!conversation) {
-      throw new ConvexError("Conversation not found");
-    }
-
-    // Ensure the user owns the conversation
-    if (conversation.userId !== userId) {
-      throw new ConvexError(
-        "You can only update your own shared conversations"
-      );
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
+    const conversation = await handleValidateConversationOwnership(
+      ctx,
+      args.conversationId,
+      userId
+    );
 
     // Get the shared conversation record
-    const sharedConversation = await ctx.db
-      .query("sharedConversations")
-      .withIndex("by_original_conversation", q =>
-        q.eq("originalConversationId", args.conversationId)
-      )
-      .first();
-
+    const sharedConversation = await handleGetSharedConversation(
+      ctx,
+      args.conversationId
+    );
     if (!sharedConversation) {
       throw new ConvexError("Conversation is not currently shared");
     }
 
     // Get current message count
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .filter(q => q.eq(q.field("isMainBranch"), true))
-      .collect();
+    const messageCount = await ctx.runQuery(api.messages.getMessageCount, {
+      conversationId: args.conversationId,
+    });
 
     // Update the shared conversation
     await ctx.db.patch(sharedConversation._id, {
       title: conversation.title,
       lastUpdated: Date.now(),
-      messageCount: messages.length,
+      messageCount,
     });
 
     return sharedConversation.shareId;
@@ -139,31 +150,14 @@ export const unshareConversation = mutation({
     conversationId: v.id("conversations"),
   },
   handler: async (ctx, args) => {
-    // Require authentication
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new ConvexError("User not authenticated");
-    }
-
-    // Verify the user owns this conversation
-    const conversation = await ctx.db.get(args.conversationId);
-    if (!conversation) {
-      throw new ConvexError("Conversation not found");
-    }
-
-    // Ensure the user owns the conversation
-    if (conversation.userId !== userId) {
-      throw new ConvexError("You can only unshare your own conversations");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
+    await handleValidateConversationOwnership(ctx, args.conversationId, userId);
 
     // Find and delete the shared conversation record
-    const sharedConversation = await ctx.db
-      .query("sharedConversations")
-      .withIndex("by_original_conversation", q =>
-        q.eq("originalConversationId", args.conversationId)
-      )
-      .first();
-
+    const sharedConversation = await handleGetSharedConversation(
+      ctx,
+      args.conversationId
+    );
     if (sharedConversation) {
       await ctx.db.delete(sharedConversation._id);
     }
@@ -177,37 +171,43 @@ export const getSharedStatus = query({
   args: {
     conversationId: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    shareId: string;
+    sharedAt: number;
+    lastUpdated: number;
+    sharedMessageCount: number;
+    currentMessageCount: number;
+    hasNewMessages: boolean;
+  } | null> => {
     try {
       const conversationId = args.conversationId as Id<"conversations">;
-      const sharedConversation = await ctx.db
-        .query("sharedConversations")
-        .withIndex("by_original_conversation", q =>
-          q.eq("originalConversationId", conversationId)
-        )
-        .first();
+      const sharedConversation = await handleGetSharedConversation(
+        ctx,
+        conversationId
+      );
 
       if (!sharedConversation) {
         return null;
       }
 
       // Get current message count to see if there are new messages
-      const currentMessages = await ctx.db
-        .query("messages")
-        .withIndex("by_conversation", q =>
-          q.eq("conversationId", conversationId)
-        )
-        .filter(q => q.eq(q.field("isMainBranch"), true))
-        .collect();
+      const currentMessageCount: number = await ctx.runQuery(
+        api.messages.getMessageCount,
+        {
+          conversationId,
+        }
+      );
 
       return {
         shareId: sharedConversation.shareId,
         sharedAt: sharedConversation.sharedAt,
         lastUpdated: sharedConversation.lastUpdated,
         sharedMessageCount: sharedConversation.messageCount,
-        currentMessageCount: currentMessages.length,
-        hasNewMessages:
-          currentMessages.length > sharedConversation.messageCount,
+        currentMessageCount,
+        hasNewMessages: currentMessageCount > sharedConversation.messageCount,
       };
     } catch {
       // Invalid ID format or any other error - return null
@@ -275,10 +275,7 @@ export const listUserSharedConversations = query({
     paginationOpts: paginationOptsSchema,
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return [];
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
     const query = ctx.db
       .query("sharedConversations")
@@ -298,10 +295,7 @@ export const listUserSharedConversationsPaginated = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return { page: [], isDone: true, continueCursor: null };
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
     const query = ctx.db
       .query("sharedConversations")

@@ -465,6 +465,10 @@ export const conversationSchema = v.object({
   isStreaming: v.optional(v.boolean()),
   isPinned: v.optional(v.boolean()),
   isArchived: v.optional(v.boolean()),
+  // Legacy branching fields (for backward compatibility)
+  activeBranchId: v.optional(v.string()),
+  activeForkDefaultBranchId: v.optional(v.string()),
+  activeForkRootId: v.optional(v.id("messages")),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -618,6 +622,8 @@ export const messageSchema = v.object({
   reasoningConfig: v.optional(reasoningConfigSchema),
   parentId: v.optional(v.id("messages")),
   isMainBranch: v.boolean(),
+  // Legacy branching field (for backward compatibility)
+  branchId: v.optional(v.string()),
   sourceConversationId: v.optional(v.id("conversations")),
   useWebSearch: v.optional(v.boolean()),
   attachments: v.optional(v.array(attachmentSchema)),

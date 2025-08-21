@@ -7,8 +7,24 @@
       "Bash(npm run dev:*)",
       "Bash(npm run build:*)",
       "Bash(npm uninstall:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(pnpm install:*)",
+      "Bash(rg:*)",
+      "Bash(npx biome lint:*)",
+      "Bash(pnpm check:*)",
+      "Bash(pnpm build:*)",
+      "Bash(npx vite:*)",
+      "Bash(find:*)",
+      "Bash(pnpm format:*)",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(mv:*)",
+      "Bash(pnpm imports:organize:*)",
+      "Bash(npx biome check:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }

@@ -1,5 +1,5 @@
-import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { v } from "convex/values";
+import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
@@ -8,10 +8,107 @@ import {
   internalAction,
   internalMutation,
   internalQuery,
+  type MutationCtx,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import { log } from "./lib/logger";
+
+// Shared handler function for getting conversation summaries
+async function handleGetConversationSummaries(
+  ctx: QueryCtx,
+  args: {
+    conversationId: Doc<"conversations">["_id"];
+    limit?: number;
+  }
+): Promise<Doc<"conversationSummaries">[]> {
+  const limit = args.limit || 50;
+
+  return await ctx.db
+    .query("conversationSummaries")
+    .withIndex("by_conversation_chunk", q =>
+      q.eq("conversationId", args.conversationId)
+    )
+    .order("asc")
+    .take(limit);
+}
+
+// Shared handler function for upserting conversation summary
+async function handleUpsertConversationSummary(
+  ctx: MutationCtx,
+  args: {
+    conversationId: Doc<"conversations">["_id"];
+    chunkIndex: number;
+    summary: string;
+    messageCount: number;
+    firstMessageId: Doc<"messages">["_id"];
+    lastMessageId: Doc<"messages">["_id"];
+  }
+) {
+  const now = Date.now();
+
+  // Check if summary already exists
+  const existingSummary = await ctx.db
+    .query("conversationSummaries")
+    .withIndex("by_conversation_chunk", q =>
+      q
+        .eq("conversationId", args.conversationId)
+        .eq("chunkIndex", args.chunkIndex)
+    )
+    .first();
+
+  if (existingSummary) {
+    // Update existing summary
+    await ctx.db.patch(existingSummary._id, {
+      summary: args.summary,
+      messageCount: args.messageCount,
+      firstMessageId: args.firstMessageId,
+      lastMessageId: args.lastMessageId,
+      updatedAt: now,
+    });
+    return existingSummary._id;
+  }
+
+  // Create new summary
+  return await ctx.db.insert("conversationSummaries", {
+    conversationId: args.conversationId,
+    chunkIndex: args.chunkIndex,
+    summary: args.summary,
+    messageCount: args.messageCount,
+    firstMessageId: args.firstMessageId,
+    lastMessageId: args.lastMessageId,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+/**
+ * Store a chunk summary for a conversation
+ */
+export const storeChunkSummary = mutation({
+  args: {
+    conversationId: v.id("conversations"),
+    chunkIndex: v.number(),
+    summary: v.string(),
+    messageCount: v.number(),
+    firstMessageId: v.id("messages"),
+    lastMessageId: v.id("messages"),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    await ctx.db.insert("conversationSummaries", {
+      conversationId: args.conversationId,
+      chunkIndex: args.chunkIndex,
+      summary: args.summary,
+      messageCount: args.messageCount,
+      firstMessageId: args.firstMessageId,
+      lastMessageId: args.lastMessageId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
 
 export const generateConversationSummary = action({
   args: {
@@ -115,17 +212,8 @@ export const getConversationSummaries = query({
     conversationId: v.id("conversations"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<Doc<"conversationSummaries">[]> => {
-    const limit = args.limit || 50;
-
-    return await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_chunk", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .order("asc")
-      .take(limit);
-  },
+  handler: (ctx, args): Promise<Doc<"conversationSummaries">[]> =>
+    handleGetConversationSummaries(ctx, args),
 });
 
 export const getConversationSummary = query({
@@ -154,66 +242,7 @@ export const upsertConversationSummary = mutation({
     firstMessageId: v.id("messages"),
     lastMessageId: v.id("messages"),
   },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-
-    // Check if summary already exists
-    const existingSummary = await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_chunk", q =>
-        q
-          .eq("conversationId", args.conversationId)
-          .eq("chunkIndex", args.chunkIndex)
-      )
-      .first();
-
-    if (existingSummary) {
-      // Update existing summary
-      await ctx.db.patch(existingSummary._id, {
-        summary: args.summary,
-        messageCount: args.messageCount,
-        firstMessageId: args.firstMessageId,
-        lastMessageId: args.lastMessageId,
-        updatedAt: now,
-      });
-      return existingSummary._id;
-    }
-
-    // Create new summary
-    return await ctx.db.insert("conversationSummaries", {
-      conversationId: args.conversationId,
-      chunkIndex: args.chunkIndex,
-      summary: args.summary,
-      messageCount: args.messageCount,
-      firstMessageId: args.firstMessageId,
-      lastMessageId: args.lastMessageId,
-      createdAt: now,
-      updatedAt: now,
-    });
-  },
-});
-
-export const deleteConversationSummaries = mutation({
-  args: {
-    conversationId: v.id("conversations"),
-  },
-  handler: async (ctx, args) => {
-    const summaries = await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_chunk", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .collect();
-
-    // Delete all summaries for this conversation
-    for (const summary of summaries) {
-      await ctx.db.delete(summary._id);
-    }
-
-    log.debug(
-      `Deleted ${summaries.length} summaries for conversation ${args.conversationId}`
-    );
-  },
+  handler: (ctx, args) => handleUpsertConversationSummary(ctx, args),
 });
 
 // ==================== Internal Functions ====================
@@ -223,17 +252,8 @@ export const internalGetConversationSummaries = internalQuery({
     conversationId: v.id("conversations"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args): Promise<Doc<"conversationSummaries">[]> => {
-    const limit = args.limit || 50;
-
-    return await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_chunk", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .order("asc")
-      .take(limit);
-  },
+  handler: (ctx, args): Promise<Doc<"conversationSummaries">[]> =>
+    handleGetConversationSummaries(ctx, args),
 });
 
 export const internalUpsertConversationSummary = internalMutation({
@@ -245,43 +265,7 @@ export const internalUpsertConversationSummary = internalMutation({
     firstMessageId: v.id("messages"),
     lastMessageId: v.id("messages"),
   },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-
-    // Check if summary already exists
-    const existingSummary = await ctx.db
-      .query("conversationSummaries")
-      .withIndex("by_conversation_chunk", q =>
-        q
-          .eq("conversationId", args.conversationId)
-          .eq("chunkIndex", args.chunkIndex)
-      )
-      .first();
-
-    if (existingSummary) {
-      // Update existing summary
-      await ctx.db.patch(existingSummary._id, {
-        summary: args.summary,
-        messageCount: args.messageCount,
-        firstMessageId: args.firstMessageId,
-        lastMessageId: args.lastMessageId,
-        updatedAt: now,
-      });
-      return existingSummary._id;
-    }
-
-    // Create new summary
-    return await ctx.db.insert("conversationSummaries", {
-      conversationId: args.conversationId,
-      chunkIndex: args.chunkIndex,
-      summary: args.summary,
-      messageCount: args.messageCount,
-      firstMessageId: args.firstMessageId,
-      lastMessageId: args.lastMessageId,
-      createdAt: now,
-      updatedAt: now,
-    });
-  },
+  handler: (ctx, args) => handleUpsertConversationSummary(ctx, args),
 });
 
 // ==================== Background Summary Generation ====================
@@ -296,13 +280,9 @@ export const generateMissingSummaries = internalAction({
       const { conversationId, forceRegenerate = false } = args;
 
       // Get all messages for the conversation
-      const messagesResult = await ctx.runQuery(api.messages.list, {
+      const messages = await ctx.runQuery(api.messages.getAllInConversation, {
         conversationId,
       });
-
-      const messages = Array.isArray(messagesResult)
-        ? messagesResult
-        : messagesResult.page;
 
       if (!messages || messages.length === 0) {
         log.debug(`No messages found for conversation ${conversationId}`);

@@ -1,9 +1,74 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import type { Id } from "./_generated/dataModel";
-import { action, internalQuery, mutation, query } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
+import {
+  action,
+  internalQuery,
+  type MutationCtx,
+  mutation,
+  type QueryCtx,
+  query,
+} from "./_generated/server";
 import { log } from "./lib/logger";
+
+// Provider type definition
+type ProviderType =
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "groq"
+  | "openrouter"
+  | "replicate"
+  | "elevenlabs";
+
+// Shared handler for user authentication
+async function handleGetAuthenticatedUser(
+  ctx: MutationCtx | QueryCtx
+): Promise<Id<"users">> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("User not authenticated");
+  }
+  return userId;
+}
+
+// Shared handler for getting user API key record
+async function handleGetUserApiKey(
+  ctx: MutationCtx | QueryCtx,
+  userId: Id<"users">,
+  provider: ProviderType
+): Promise<Doc<"userApiKeys"> | null> {
+  return await ctx.db
+    .query("userApiKeys")
+    .withIndex("by_user_provider", q =>
+      q.eq("userId", userId).eq("provider", provider)
+    )
+    .unique();
+}
+
+// Shared handler for upserting API key data
+async function handleUpsertApiKey(
+  ctx: MutationCtx,
+  userId: Id<"users">,
+  provider: ProviderType,
+  updates: Partial<Doc<"userApiKeys">> & { partialKey?: string }
+): Promise<void> {
+  const existing = await handleGetUserApiKey(ctx, userId, provider);
+
+  if (existing) {
+    await ctx.db.patch(existing._id, updates);
+  } else {
+    await ctx.db.insert("userApiKeys", {
+      userId,
+      provider,
+      isValid: false,
+      createdAt: Date.now(),
+      partialKey: updates.partialKey || "",
+      ...updates,
+    });
+  }
+}
 
 // Server-side encryption for operations that need server access
 const ALGORITHM = { name: "AES-GCM", length: 256 };
@@ -110,10 +175,7 @@ export const storeApiKey = mutation({
     rawKey: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
     if (!validateApiKeyFormat(args.provider, args.rawKey)) {
       throw new Error(`Invalid API key format for ${args.provider}`);
@@ -124,30 +186,13 @@ export const storeApiKey = mutation({
     );
     const partialKey = createPartialKey(args.rawKey);
 
-    const existing = await ctx.db
-      .query("userApiKeys")
-      .withIndex("by_user_provider", q =>
-        q.eq("userId", userId).eq("provider", args.provider)
-      )
-      .unique();
-
-    await (existing
-      ? ctx.db.patch(existing._id, {
-          encryptedKey,
-          initializationVector,
-          partialKey,
-          isValid: false,
-          lastValidated: undefined,
-        })
-      : ctx.db.insert("userApiKeys", {
-          userId,
-          provider: args.provider,
-          encryptedKey,
-          initializationVector,
-          partialKey,
-          isValid: false,
-          createdAt: Date.now(),
-        }));
+    await handleUpsertApiKey(ctx, userId, args.provider, {
+      encryptedKey,
+      initializationVector,
+      partialKey,
+      isValid: false,
+      lastValidated: undefined,
+    });
   },
 });
 
@@ -167,33 +212,14 @@ export const storeClientEncryptedApiKey = mutation({
     partialKey: v.string(), // For display purposes
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
+    const userId = await handleGetAuthenticatedUser(ctx);
 
-    const existing = await ctx.db
-      .query("userApiKeys")
-      .withIndex("by_user_provider", q =>
-        q.eq("userId", userId).eq("provider", args.provider)
-      )
-      .unique();
-
-    await (existing
-      ? ctx.db.patch(existing._id, {
-          clientEncryptedKey: args.encryptedKey,
-          partialKey: args.partialKey,
-          isValid: false,
-          lastValidated: undefined,
-        })
-      : ctx.db.insert("userApiKeys", {
-          userId,
-          provider: args.provider,
-          clientEncryptedKey: args.encryptedKey,
-          partialKey: args.partialKey,
-          isValid: false,
-          createdAt: Date.now(),
-        }));
+    await handleUpsertApiKey(ctx, userId, args.provider, {
+      clientEncryptedKey: args.encryptedKey,
+      partialKey: args.partialKey,
+      isValid: false,
+      lastValidated: undefined,
+    });
   },
 });
 
@@ -236,17 +262,8 @@ export const removeApiKey = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    const existing = await ctx.db
-      .query("userApiKeys")
-      .withIndex("by_user_provider", q =>
-        q.eq("userId", userId).eq("provider", args.provider)
-      )
-      .unique();
+    const userId = await handleGetAuthenticatedUser(ctx);
+    const existing = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (existing) {
       await ctx.db.delete(existing._id);
@@ -267,17 +284,8 @@ export const validateApiKey = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    const apiKeyRecord = await ctx.db
-      .query("userApiKeys")
-      .withIndex("by_user_provider", q =>
-        q.eq("userId", userId).eq("provider", args.provider)
-      )
-      .unique();
+    const userId = await handleGetAuthenticatedUser(ctx);
+    const apiKeyRecord = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (!apiKeyRecord) {
       throw new Error(`No API key found for ${args.provider}`);
@@ -418,12 +426,7 @@ export const getClientEncryptedApiKey = query({
       return null;
     }
 
-    const apiKey = await ctx.db
-      .query("userApiKeys")
-      .withIndex("by_user_provider", q =>
-        q.eq("userId", userId).eq("provider", args.provider)
-      )
-      .unique();
+    const apiKey = await handleGetUserApiKey(ctx, userId, args.provider);
 
     if (!apiKey?.clientEncryptedKey) {
       return null;

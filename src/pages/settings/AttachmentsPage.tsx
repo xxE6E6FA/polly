@@ -99,7 +99,7 @@ export default function AttachmentsPage() {
       return [];
     }
 
-    const filtered = filesData.files.filter(file => {
+    const filtered = filesData.files.filter((file: UserFile | null) => {
       if (!file) {
         return false;
       }

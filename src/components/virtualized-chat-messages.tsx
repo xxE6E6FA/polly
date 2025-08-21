@@ -214,14 +214,16 @@ export const VirtualizedChatMessages = memo(
           }
 
           if (message.role === "assistant") {
-            // Include assistant messages if they have content, reasoning, image generation, or if we're streaming
+            // Include assistant messages if they have content, reasoning, image generation,
+            // or if the message is not finalized yet according to status.
             // This ensures empty assistant messages appear when streaming starts
-            // Also include messages that are being typed to prevent flickering
+            // and disappear once marked done.
+            const notFinalized = message.status !== "done";
             if (
               message.content ||
               message.reasoning ||
               message.imageGeneration ||
-              !message.metadata?.finishReason
+              notFinalized
             ) {
               filtered.push(message);
             }

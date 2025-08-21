@@ -8,7 +8,9 @@ import {
   action,
   internalMutation,
   internalQuery,
+  type MutationCtx,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import { getApiKey } from "./ai/encryption";
@@ -28,6 +30,87 @@ import {
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
+
+// Shared handler function for getting message by ID
+async function handleGetMessageById(
+  ctx: QueryCtx,
+  id: Id<"messages">,
+  checkAccess = true
+) {
+  const message = await ctx.db.get(id);
+  if (!message) {
+    return null;
+  }
+
+  if (checkAccess) {
+    // Check access to the conversation this message belongs to
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      true
+    );
+    if (!hasAccess) {
+      return null;
+    }
+  }
+
+  return message;
+}
+
+// Shared handler function for deleting message attachments and updating stats
+async function handleMessageDeletion(
+  ctx: MutationCtx,
+  message: {
+    conversationId?: Id<"conversations">;
+    role?: string;
+    attachments?: Array<{ storageId?: Id<"_storage"> }>;
+  },
+  operations: Promise<void>[]
+) {
+  if (message.conversationId) {
+    operations.push(
+      ctx.db
+        .patch(message.conversationId, {
+          isStreaming: false,
+        })
+        .catch(error => {
+          console.warn(
+            `Failed to clear streaming state for conversation ${message.conversationId}:`,
+            error
+          );
+        })
+    );
+
+    if (message.role === "user") {
+      const conversation = await ctx.db.get(message.conversationId);
+      if (conversation) {
+        const user = await ctx.db.get(conversation.userId);
+        if (user) {
+          operations.push(
+            ctx.db.patch(conversation.userId, {
+              totalMessageCount: Math.max(0, (user.totalMessageCount || 0) - 1),
+            })
+          );
+        }
+      }
+    }
+  }
+
+  if (message.attachments) {
+    for (const attachment of message.attachments) {
+      if (attachment.storageId) {
+        operations.push(
+          ctx.storage.delete(attachment.storageId).catch(error => {
+            console.warn(
+              `Failed to delete file ${attachment.storageId}:`,
+              error
+            );
+          })
+        );
+      }
+    }
+  }
+}
 
 export const create = mutation({
   args: {
@@ -59,12 +142,12 @@ export const create = mutation({
       if (conversation) {
         // Only increment stats if model and provider are provided
         if (args.model && args.provider) {
-          // Check if this is a built-in model
-          const model = await ctx.runQuery(api.userModels.getModelByID, {
-            modelId: args.model,
-            provider: args.provider,
-          });
-          await incrementUserMessageStats(ctx, model?.free === true);
+          await incrementUserMessageStats(
+            ctx,
+            conversation.userId,
+            args.model,
+            args.provider
+          );
         }
       }
     }
@@ -98,11 +181,15 @@ export const createUserMessageBatched = mutation({
 
     // Check if this is a built-in model
     if (args.model && args.provider) {
-      const model = await ctx.runQuery(api.userModels.getModelByID, {
-        modelId: args.model,
-        provider: args.provider,
-      });
-      await incrementUserMessageStats(ctx, model?.free === true);
+      const conversation = await ctx.db.get(args.conversationId);
+      if (conversation) {
+        await incrementUserMessageStats(
+          ctx,
+          conversation.userId,
+          args.model,
+          args.provider
+        );
+      }
     }
 
     return messageId;
@@ -298,14 +385,18 @@ export const updateContent = internalMutation({
     const updateData = {
       ...updates,
       completedAt: Date.now(),
-      ...(usage &&
-        finishReason && {
-          metadata: {
-            finishReason,
-            usage,
-          },
-        }),
+      ...(finishReason && {
+        metadata: {
+          ...(message.metadata || {}),
+          finishReason,
+          ...(usage && { usage }),
+        },
+      }),
     };
+
+    if (finishReason) {
+      // Log finishReason setting for debugging
+    }
 
     await ctx.db.patch(messageId, updateData);
   },
@@ -370,52 +461,8 @@ export const remove = mutation({
 
     const operations: Promise<void>[] = [];
 
-    if (message.conversationId) {
-      operations.push(
-        ctx.db
-          .patch(message.conversationId, {
-            isStreaming: false,
-          })
-          .catch(error => {
-            console.warn(
-              `Failed to clear streaming state for conversation ${message.conversationId}:`,
-              error
-            );
-          })
-      );
-
-      if (message.role === "user") {
-        const conversation = await ctx.db.get(message.conversationId);
-        if (conversation) {
-          const user = await ctx.db.get(conversation.userId);
-          if (user) {
-            operations.push(
-              ctx.db.patch(conversation.userId, {
-                totalMessageCount: Math.max(
-                  0,
-                  (user.totalMessageCount || 0) - 1
-                ),
-              })
-            );
-          }
-        }
-      }
-    }
-
-    if (message.attachments) {
-      for (const attachment of message.attachments) {
-        if (attachment.storageId) {
-          operations.push(
-            ctx.storage.delete(attachment.storageId).catch(error => {
-              console.warn(
-                `Failed to delete file ${attachment.storageId}:`,
-                error
-              );
-            })
-          );
-        }
-      }
-    }
+    // Use shared handler for deletion logic
+    await handleMessageDeletion(ctx, message, operations);
 
     operations.push(ctx.db.delete(args.id));
 
@@ -530,30 +577,48 @@ export const removeMultiple = mutation({
 
 export const getById = query({
   args: { id: v.id("messages") },
-  handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.id);
-    if (!message) {
-      return null;
-    }
-
-    // Check access to the conversation this message belongs to
-    const { hasAccess } = await checkConversationAccess(
-      ctx,
-      message.conversationId,
-      true
-    );
-    if (!hasAccess) {
-      return null;
-    }
-
-    return message;
-  },
+  handler: (ctx, args) => handleGetMessageById(ctx, args.id, true),
 });
 
 export const getByIdInternal = internalQuery({
   args: { id: v.id("messages") },
+  handler: (ctx, args) => handleGetMessageById(ctx, args.id, false),
+});
+
+export const getAllInConversationInternal = internalQuery({
+  args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .order("asc")
+      .collect();
+
+    return await Promise.all(
+      messages.map(async message => {
+        if (message.attachments) {
+          const resolvedAttachments = await Promise.all(
+            message.attachments.map(async attachment => {
+              if (attachment.storageId) {
+                const url = await ctx.storage.getUrl(attachment.storageId);
+                return {
+                  ...attachment,
+                  url: url || attachment.url, // Fallback to original URL if getUrl fails
+                };
+              }
+              return attachment;
+            })
+          );
+          return {
+            ...message,
+            attachments: resolvedAttachments,
+          };
+        }
+        return message;
+      })
+    );
   },
 });
 
@@ -867,9 +932,39 @@ export const updateMessageStatus = internalMutation({
     status: messageStatusSchema,
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.messageId, {
+    // Get current message to check if it's an assistant message
+    const message = await ctx.db.get(args.messageId);
+    if (!message) {
+      console.error("[updateMessageStatus] Message not found:", args.messageId);
+      return;
+    }
+
+    const updateData: {
+      status:
+        | "error"
+        | "thinking"
+        | "searching"
+        | "reading_pdf"
+        | "streaming"
+        | "done";
+      metadata?: Record<string, unknown>;
+    } = {
       status: args.status,
-    });
+    };
+
+    // For assistant messages with status "done", ensure finishReason is set
+    if (message.role === "assistant" && args.status === "done") {
+      const currentMetadata = message.metadata || {};
+      const finalFinishReason = currentMetadata.finishReason || "stop";
+      updateData.metadata = {
+        ...currentMetadata,
+        finishReason: finalFinishReason,
+      };
+
+      // Update finish reason for debugging
+    }
+
+    await ctx.db.patch(args.messageId, updateData);
   },
 });
 
@@ -961,11 +1056,49 @@ export const updateAssistantStatus = internalMutation({
     const { messageId, status, statusText } = args;
 
     try {
-      // Update the message status and statusText in database
-      await ctx.db.patch(messageId, {
-        status,
+      // Get current message to preserve existing metadata
+      const message = await ctx.db.get(messageId);
+      if (!message) {
+        console.error("[updateAssistantStatus] Message not found:", messageId);
+        return;
+      }
+
+      // Build the update object
+      const updateData: {
+        status:
+          | "error"
+          | "thinking"
+          | "searching"
+          | "reading_pdf"
+          | "streaming"
+          | "done";
+        statusText?: string;
+        metadata?: Record<string, unknown>;
+      } = {
+        status: status as
+          | "error"
+          | "thinking"
+          | "searching"
+          | "reading_pdf"
+          | "streaming"
+          | "done",
         statusText,
-      });
+      };
+
+      // If setting status to "done", ensure finishReason is set for proper streaming detection
+      if (status === "done") {
+        const currentMetadata = message.metadata || {};
+        const finalFinishReason = currentMetadata.finishReason || "stop";
+        updateData.metadata = {
+          ...currentMetadata,
+          finishReason: finalFinishReason,
+        };
+
+        // Update finish reason for debugging
+      }
+
+      // Update the message status and statusText in database
+      await ctx.db.patch(messageId, updateData);
     } catch (error) {
       console.error(
         "[updateAssistantStatus] Message not found, messageId:",
@@ -1056,13 +1189,14 @@ export const refineAssistantMessage = action({
     const personaPrompt = await getPersonaPrompt(ctx, conversation.personaId);
 
     // Get the previous user message (if any) for additional context
-    const convoMessages = await ctx.runQuery(api.messages.list, {
-      conversationId: message.conversationId,
-    });
+    const convoMessages = await ctx.runQuery(
+      api.messages.getAllInConversation,
+      {
+        conversationId: message.conversationId,
+      }
+    );
     type MessageRow = { _id: Id<"messages">; role: string; content: string };
-    const convoArray: MessageRow[] = Array.isArray(convoMessages)
-      ? (convoMessages as MessageRow[])
-      : (convoMessages.page as unknown as MessageRow[]);
+    const convoArray: MessageRow[] = convoMessages as MessageRow[];
     const targetIndex = convoArray.findIndex(
       (m: MessageRow) => m._id === args.messageId
     );
@@ -1151,16 +1285,10 @@ export const refineAssistantMessage = action({
 
     try {
       // Delete the current assistant message and subsequent messages (preserve context)
-      const allMessagesRes = await ctx.runQuery(api.messages.list, {
-        conversationId: message.conversationId,
-      });
       const allMessages: Array<{ _id: Id<"messages">; role: string }> =
-        Array.isArray(allMessagesRes)
-          ? (allMessagesRes as Array<{ _id: Id<"messages">; role: string }>)
-          : (allMessagesRes.page as unknown as Array<{
-              _id: Id<"messages">;
-              role: string;
-            }>);
+        await ctx.runQuery(api.messages.getAllInConversation, {
+          conversationId: message.conversationId,
+        });
       const currentIndex = allMessages.findIndex(m => m._id === args.messageId);
       if (currentIndex >= 0) {
         for (const msg of allMessages.slice(currentIndex)) {
@@ -1211,6 +1339,14 @@ export const refineAssistantMessage = action({
 
       if (receivedAny) {
         // Finalize message content and mark finishReason so UI knows stream is complete
+        console.log(
+          "🎯 [server-streaming] Finalizing message with finishReason:",
+          {
+            messageId: newAssistantId,
+            contentLength: fullContent.length,
+            finishReason: "stop",
+          }
+        );
         await ctx.runMutation(internal.messages.updateContent, {
           messageId: newAssistantId,
           content: fullContent,

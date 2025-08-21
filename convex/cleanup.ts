@@ -1,8 +1,7 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import { api, internal } from "./_generated/api";
+import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { internalMutation, mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 export const archiveOldConversations = internalMutation({
   args: {
@@ -207,78 +206,6 @@ export const archiveConversationsForAllUsers = internalMutation({
       usersProcessed: usersWithAutoArchive.length,
       hasMore: usersWithAutoArchive.length === batchSize,
       results,
-    };
-  },
-});
-
-export const scheduleCleanup = mutation({
-  args: {},
-  handler: async ctx => {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.cleanup.archiveConversationsForAllUsers,
-      {
-        batchSize: 10,
-      }
-    );
-
-    await ctx.scheduler.runAfter(
-      60 * 1000,
-      internal.cleanup.cleanupOrphanedMessages,
-      {
-        batchSize: 100,
-        daysOld: 7,
-      }
-    );
-
-    return { scheduled: true };
-  },
-});
-
-export const archiveMyOldConversations = mutation({
-  args: {},
-  handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    const userSettings = await ctx.db
-      .query("userSettings")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .first();
-
-    if (!userSettings?.autoArchiveEnabled) {
-      throw new Error("Auto-archive is not enabled");
-    }
-
-    const daysOld = userSettings.autoArchiveDays ?? 30;
-    const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
-
-    const oldConversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .filter(q =>
-        q.and(
-          q.lt(q.field("updatedAt"), cutoffDate),
-          q.neq(q.field("isArchived"), true),
-          q.neq(q.field("isPinned"), true)
-        )
-      )
-      .collect();
-
-    const archiveOperations = oldConversations.map(conv =>
-      ctx.db.patch(conv._id, {
-        isArchived: true,
-        updatedAt: Date.now(),
-      })
-    );
-
-    await Promise.all(archiveOperations);
-
-    return {
-      archivedCount: oldConversations.length,
-      daysOld,
     };
   },
 });

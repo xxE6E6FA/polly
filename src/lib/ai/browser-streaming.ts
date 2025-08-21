@@ -4,18 +4,102 @@
  */
 import { createBasicLanguageModel } from "@shared/ai-provider-factory";
 import { getProviderReasoningConfig } from "@shared/reasoning-config";
-import { smoothStream, streamText } from "ai";
-import type { APIKeys, ChatStreamRequest } from "@/types";
+import { type CoreMessage, smoothStream, streamText } from "ai";
+import type { APIKeys, Attachment, ChatStreamRequest } from "@/types";
+
+/**
+ * Converts Attachment objects to AI SDK compatible format
+ */
+function convertAttachmentsForAI(
+  attachments: Attachment[] | undefined
+): Array<{ type: string; data?: string; text?: string }> {
+  if (!attachments || attachments.length === 0) {
+    return [];
+  }
+
+  return attachments.map(attachment => {
+    switch (attachment.type) {
+      case "image": {
+        if (!attachment.content) {
+          throw new Error(`Image attachment ${attachment.name} has no content`);
+        }
+        // Convert base64 to data URL format expected by AI SDK
+        const mimeType = attachment.mimeType || "image/jpeg";
+        const dataUrl = `data:${mimeType};base64,${attachment.content}`;
+        return {
+          type: "image",
+          data: dataUrl,
+        };
+      }
+
+      case "text":
+        if (!attachment.content) {
+          throw new Error(`Text attachment ${attachment.name} has no content`);
+        }
+        return {
+          type: "text",
+          text: attachment.content,
+        };
+
+      case "pdf": {
+        // For PDFs, use extracted text if available, otherwise use the base64 content
+        const pdfText = attachment.extractedText || attachment.content;
+        if (!pdfText) {
+          throw new Error(`PDF attachment ${attachment.name} has no content`);
+        }
+        return {
+          type: "text",
+          text: pdfText,
+        };
+      }
+
+      default:
+        throw new Error(`Unsupported attachment type: ${attachment.type}`);
+    }
+  });
+}
+
+/**
+ * Converts message with attachments to AI SDK message format
+ */
+function convertMessageForAI(message: {
+  role: string;
+  content: string;
+  attachments?: Attachment[];
+}) {
+  const attachments = convertAttachmentsForAI(message.attachments);
+
+  if (attachments.length === 0) {
+    // No attachments, return simple text message
+    return {
+      role: message.role,
+      content: message.content,
+    };
+  }
+
+  // Combine text content with attachments
+  const contentParts: Array<
+    string | { type: string; data?: string; text?: string }
+  > = [];
+
+  // Add text content if present
+  if (message.content.trim()) {
+    contentParts.push(message.content);
+  }
+
+  // Add attachments
+  contentParts.push(...attachments);
+
+  return {
+    role: message.role,
+    content: contentParts,
+  };
+}
 
 export async function streamChat(
   request: ChatStreamRequest,
   abortController: AbortController = new AbortController()
 ): Promise<void> {
-  // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-  console.log(
-    "[browser-streaming] streamChat called with abortController:",
-    abortController
-  );
   const { model, apiKeys, messages, options, callbacks } = request;
   const provider = model.provider;
   const apiKey = apiKeys[provider as keyof APIKeys];
@@ -46,9 +130,14 @@ export async function streamChat(
       apiKey
     );
 
+    // Convert messages to AI SDK format with proper attachment handling
+    const convertedMessages = messages.map(msg =>
+      convertMessageForAI(msg)
+    ) as CoreMessage[];
+
     const streamOptions = {
       model: languageModel,
-      messages,
+      messages: convertedMessages,
       temperature: options?.temperature,
       maxTokens: options?.maxTokens || -1,
       topP: options?.topP,
@@ -83,27 +172,25 @@ export async function streamChat(
       },
     });
 
-    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-    console.log("[browser-streaming] Starting text stream processing");
+    let wasAborted = false;
     for await (const chunk of result.textStream) {
       if (abortController.signal.aborted) {
-        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-        console.log(
-          "[browser-streaming] Abort detected in stream loop, breaking"
-        );
+        wasAborted = true;
         break;
       }
       callbacks.onContent(chunk);
     }
-    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-    console.log("[browser-streaming] Text stream processing completed");
 
     // Reasoning is handled live via onChunk above
 
-    callbacks.onFinish("stop");
+    // Always call onFinish to ensure the message metadata is updated
+    callbacks.onFinish(wasAborted ? "stop" : "stop");
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       // Stream was aborted - this is expected behavior
+      // Still call onFinish to mark the message as stopped
+      callbacks.onFinish("stop");
+      return; // Don't throw for abort errors
     }
     if (error instanceof Error) {
       callbacks.onError(error);

@@ -283,11 +283,6 @@ export const createPrivateChatHandlers = (
     };
 
     currentAbortController = new AbortController();
-    // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-    console.log(
-      "[PrivateChatHandlers] Created new AbortController for streaming:",
-      currentAbortController
-    );
     await streamChat(
       {
         messages: messageHistory.map(m => ({
@@ -408,6 +403,47 @@ export const createPrivateChatHandlers = (
         return;
       }
 
+      const targetMessage = messages[messageIndex];
+
+      if (targetMessage.role === "assistant") {
+        // For assistant retry: clear the assistant message and stream into the same message
+        // First stop any ongoing streaming
+        if (currentAbortController) {
+          currentAbortController.abort();
+          currentAbortController = null;
+        }
+
+        // Find previous user message for context
+        const previousUserMessageIndex = messageIndex - 1;
+        const previousUserMessage = messages[previousUserMessageIndex];
+
+        if (!previousUserMessage || previousUserMessage.role !== "user") {
+          return;
+        }
+
+        // Get messages up to (and including) the previous user message
+        const contextMessages = messages.slice(0, previousUserMessageIndex + 1);
+
+        // Clear the assistant message content and reset streaming state
+        const clearedAssistantMessage: ChatMessage = {
+          ...targetMessage,
+          content: "",
+          reasoning: undefined,
+          citations: undefined,
+          metadata: { ...targetMessage.metadata, finishReason: undefined },
+        };
+
+        // Update state: remove messages after the assistant message and clear assistant content
+        const updatedMessages = [...contextMessages, clearedAssistantMessage];
+        setMessages(updatedMessages);
+
+        // Stream into the existing assistant message
+        const mergedOptions = { ...modelOptions, ...options };
+        await streamMessage(contextMessages, targetMessage.id, mergedOptions);
+        return;
+      }
+
+      // For user message retry: use existing logic
       const newMessages = prepareMessagesForRetry(messages, messageIndex);
       if (!newMessages) {
         return;
@@ -432,13 +468,18 @@ export const createPrivateChatHandlers = (
         return;
       }
 
+      // Update the user message content
       const updatedMessages = [...messages];
       updatedMessages[messageIndex] = {
         ...updatedMessages[messageIndex],
         content: newContent,
       };
 
+      // Delete all messages after the edited user message
       const newMessages = updatedMessages.slice(0, messageIndex + 1);
+
+      // Update the messages state to remove subsequent messages
+      setMessages(newMessages);
 
       await generateNewAssistantResponse(
         newMessages,
@@ -456,19 +497,9 @@ export const createPrivateChatHandlers = (
     },
 
     stopGeneration(): void {
-      // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-      console.log(
-        "[PrivateChatHandlers] stopGeneration called, currentAbortController:",
-        currentAbortController
-      );
       if (currentAbortController) {
-        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-        console.log("[PrivateChatHandlers] Aborting current stream");
         currentAbortController.abort();
         currentAbortController = null;
-      } else {
-        // biome-ignore lint/suspicious/noConsole: Debugging stream interruption
-        console.log("[PrivateChatHandlers] No active abort controller found");
       }
     },
 

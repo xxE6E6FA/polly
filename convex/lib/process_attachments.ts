@@ -1,7 +1,27 @@
 
 import { type ActionCtx } from "../_generated/server";
-import type { Attachment } from "@/types";
 import type { Id } from "../_generated/dataModel";
+
+// Define Attachment type based on attachmentSchema
+type Attachment = {
+  type: "image" | "pdf" | "text";
+  url: string;
+  name: string;
+  size: number;
+  content?: string;
+  thumbnail?: string;
+  storageId?: Id<"_storage">;
+  mimeType?: string;
+  textFileId?: Id<"_storage">;
+  extractedText?: string;
+  extractionError?: string;
+  generatedImage?: {
+    isGenerated: boolean;
+    source: string;
+    model?: string;
+    prompt?: string;
+  };
+};
 import { api, internal } from "../_generated/api";
 import { shouldExtractPdfText } from "../ai/pdf";
 import { updatePdfReadingStatus, clearPdfReadingStatus } from "../ai/pdf_status";

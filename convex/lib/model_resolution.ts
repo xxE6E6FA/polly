@@ -5,7 +5,7 @@
 
 import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
-import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
+import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { log } from "./logger";
 
 export interface EffectiveModel {
