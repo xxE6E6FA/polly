@@ -16,14 +16,7 @@ type Theme = "light" | "dark" | "system";
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = getLS<Theme>(CACHE_KEYS.theme, "system");
-    if (stored === "light" || stored === "dark") {
-      return stored;
-    }
-
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    return prefersDark ? "dark" : "light";
+    return stored;
   });
 
   const [mounted, setMounted] = useState(false);
@@ -37,12 +30,24 @@ export function useTheme() {
       return;
     }
 
+    // Resolve the actual theme for DOM application
+    let actualTheme: "light" | "dark";
+    if (theme === "light" || theme === "dark") {
+      actualTheme = theme;
+    } else {
+      // theme is "system" - resolve to actual preference
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      actualTheme = prefersDark ? "dark" : "light";
+    }
+
     const root = document.documentElement;
     // Only update if the theme actually changed
     const currentTheme = root.classList.contains("light") ? "light" : "dark";
-    if (currentTheme !== theme) {
+    if (currentTheme !== actualTheme) {
       root.classList.remove("light", "dark");
-      root.classList.add(theme);
+      root.classList.add(actualTheme);
     }
   }, [theme, mounted]);
 
