@@ -40,7 +40,7 @@
       rel="stylesheet"
     />
     <script>
-      // Apply theme and sidebar state immediately to prevent flash
+      // Apply theme immediately to prevent flash
       (function() {
         // Disable animations initially
         document.documentElement.classList.add('disable-animations');
@@ -48,26 +48,32 @@
         // Apply theme from localStorage
         const themeKey = 'polly:theme/v1';
         const storedTheme = localStorage.getItem(themeKey);
-        let theme = 'dark'; // Default theme
+        let resolvedTheme = 'system'; // Default to system
         
         if (storedTheme) {
           try {
             const parsed = JSON.parse(storedTheme);
-            if (parsed === 'light' || parsed === 'dark') {
-              theme = parsed;
+            // Check if it's the versioned format
+            if (parsed && typeof parsed === 'object' && 'version' in parsed && 'data' in parsed) {
+              resolvedTheme = parsed.data;
             }
           } catch (e) {
-            // Fallback to system preference
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            theme = prefersDark ? 'dark' : 'light';
+            // If parsing fails, fall back to system
+            resolvedTheme = 'system';
           }
-        } else {
-          // Use system preference if no stored theme
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          theme = prefersDark ? 'dark' : 'light';
         }
         
-        document.documentElement.classList.add(theme);
+        // Resolve system theme to actual theme
+        let actualTheme;
+        if (resolvedTheme === 'light' || resolvedTheme === 'dark') {
+          actualTheme = resolvedTheme;
+        } else {
+          // resolvedTheme is 'system' or invalid - use system preference
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          actualTheme = prefersDark ? 'dark' : 'light';
+        }
+        
+        document.documentElement.classList.add(actualTheme);
         
         // Remove disable-animations class after a short delay
         setTimeout(() => {
