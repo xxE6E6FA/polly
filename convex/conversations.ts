@@ -26,6 +26,7 @@ import {
   incrementUserMessageStats,
   processAttachmentsForStorage,
 } from "./lib/conversation_utils";
+import { log } from "./lib/logger";
 import { getUserEffectiveModelWithCapabilities } from "./lib/model_resolution";
 import {
   createEmptyPaginationResult,
@@ -489,7 +490,7 @@ export const savePrivateConversation = action({
       } catch (error) {
         // If the model doesn't exist in the user's database, skip stats increment
         // This can happen when importing private conversations with models the user no longer has
-        console.warn(
+        log.warn(
           `Skipping stats increment for model ${firstUserMessage.model}/${firstUserMessage.provider}: ${error}`
         );
       }
@@ -645,19 +646,78 @@ export const search = query({
       return [];
     }
 
-    const conversations = await ctx.db
-      .query("conversations")
-      .withSearchIndex("search_title", q =>
-        q
-          .search("title", args.searchQuery)
-          .eq("userId", userId)
-          .eq("isArchived", args.includeArchived === false ? false : undefined)
-      )
-      .collect();
-
-    // Apply limit if specified
     const limit = args.limit || 50;
-    return conversations.slice(0, limit);
+
+    // Search both conversation titles and message content
+    const [titleResults, messageResults] = await Promise.all([
+      // Search conversation titles
+      ctx.db
+        .query("conversations")
+        .withSearchIndex("search_title", q =>
+          q
+            .search("title", args.searchQuery)
+            .eq("userId", userId)
+            .eq(
+              "isArchived",
+              args.includeArchived === false ? false : undefined
+            )
+        )
+        .take(limit),
+
+      // Search message content
+      ctx.db
+        .query("messages")
+        .withSearchIndex(
+          "search_content",
+          q => q.search("content", args.searchQuery).eq("isMainBranch", true) // Only search main branch messages
+        )
+        .take(limit * 3), // Take more messages since we'll need to filter and dedupe
+    ]);
+
+    // Get conversation IDs from message results and filter by user access
+    const messageConversationIds = new Set(
+      messageResults.map(msg => msg.conversationId)
+    );
+
+    // Get conversations from message matches, filtered by user and archive status
+    const conversationsFromMessages = await Promise.all(
+      Array.from(messageConversationIds).map(async convId => {
+        const conv = await ctx.db.get(convId);
+        if (!conv) {
+          return null;
+        }
+        if (conv.userId !== userId) {
+          return null;
+        }
+        if (args.includeArchived === false && conv.isArchived) {
+          return null;
+        }
+        return conv;
+      })
+    );
+
+    const validConversationsFromMessages = conversationsFromMessages.filter(
+      (conv): conv is NonNullable<typeof conv> => conv !== null
+    );
+
+    // Combine and deduplicate results (title matches first, then message matches)
+    const conversationMap = new Map();
+
+    // Add title matches first (higher priority)
+    for (const conv of titleResults) {
+      conversationMap.set(conv._id, conv);
+    }
+
+    // Add message matches (only if not already included)
+    for (const conv of validConversationsFromMessages) {
+      if (!conversationMap.has(conv._id)) {
+        conversationMap.set(conv._id, conv);
+      }
+    }
+
+    // Convert back to array and apply limit
+    const finalResults = Array.from(conversationMap.values());
+    return finalResults.slice(0, limit);
   },
 });
 
@@ -774,11 +834,6 @@ export const internalPatch = internalMutation({
     // Check if conversation exists before patching
     const conversation = await ctx.db.get(args.id);
     if (!conversation) {
-      console.log(
-        "[internalPatch] Conversation not found, id:",
-        args.id,
-        "- likely already deleted"
-      );
       return; // Return silently instead of throwing
     }
 
@@ -929,7 +984,7 @@ export const remove = mutation({
     try {
       await setConversationStreaming(ctx, args.id, false);
     } catch (error) {
-      console.warn(
+      log.warn(
         `Failed to clear streaming state for conversation ${args.id}:`,
         error
       );
@@ -987,7 +1042,7 @@ export const bulkRemove = mutation({
         try {
           await setConversationStreaming(ctx, id, false);
         } catch (error) {
-          console.warn(
+          log.warn(
             `Failed to clear streaming state for conversation ${id}:`,
             error
           );
@@ -1103,44 +1158,20 @@ export const editAndResendMessage = action({
       .filter(msg => msg.role !== "context") // Don't delete context messages
       .map(msg => msg._id);
 
-    console.log("[editAndResendMessage] Messages to delete:", {
-      messageIndex,
-      totalMessages: messages.length,
-      messagesToDelete: messagesToDelete.map(m => ({
-        id: m._id,
-        role: m.role,
-        content: m.content?.substring(0, 50),
-      })),
-      messageIdsToDelete,
-    });
-
     if (messageIdsToDelete.length > 0) {
       await ctx.runMutation(api.messages.removeMultiple, {
         ids: messageIdsToDelete,
       });
-      console.log(
-        "[editAndResendMessage] Deleted messages:",
-        messageIdsToDelete
-      );
-    } else {
-      console.log("[editAndResendMessage] No messages to delete");
     }
 
     // Create a new user message with the edited content
-    const newMessageId = await ctx.runMutation(api.messages.create, {
+    await ctx.runMutation(api.messages.create, {
       conversationId: message.conversationId,
       role: "user",
       content: args.newContent,
       model: message.model,
       provider: message.provider,
       attachments: message.attachments,
-      reasoningConfig: message.reasoningConfig,
-      metadata: message.metadata,
-    });
-    console.log("[editAndResendMessage] Created new user message:", {
-      newMessageId,
-      content: args.newContent,
-      conversationId: message.conversationId,
     });
 
     // Get user's effective model using centralized resolution with full capabilities
@@ -1447,14 +1478,8 @@ export const editMessage = action({
 export const stopGeneration = mutation({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    console.log(
-      `[stopGeneration] Stopping generation for conversation: ${args.conversationId}`
-    );
-
     // First, try to abort any active in-memory streams
-    const wasAborted = abortStream(args.conversationId);
-    console.log(`[stopGeneration] abortStream returned: ${wasAborted}`);
-
+    abortStream(args.conversationId);
     // Also mark the conversation as not streaming to signal completion
     await setConversationStreaming(ctx, args.conversationId, false);
 
@@ -1490,7 +1515,7 @@ export const createBranchingConversation = action({
       const { userId } = await getAuthenticatedUserWithDataForAction(ctx);
       authenticatedUserId = userId;
     } catch (error) {
-      console.warn("Failed to get authenticated user:", error);
+      log.warn("Failed to get authenticated user:", error);
     }
 
     // Create user if needed or use provided user ID

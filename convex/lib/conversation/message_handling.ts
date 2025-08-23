@@ -5,6 +5,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_POLLY_PERSONA } from "../../constants";
 import { CreateMessageArgs, CreateConversationArgs } from "../schemas";
 import { api } from "../../_generated/api";
+import { log } from "../logger";
 
 // Helper function to handle message deletion logic for retry and edit operations
 export const handleMessageDeletion = async (
@@ -263,7 +264,7 @@ export async function incrementUserMessageStats(
     });
   } catch (error) {
     // Log error but don't fail the operation
-    console.warn("Failed to increment user message stats:", error);
+    log.warn("Failed to increment user message stats:", error);
   }
 }
 

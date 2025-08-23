@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
 import { mutation, query } from "./_generated/server";
+import { log } from "./lib/logger";
 
 /**
  * Generate an upload URL for a file
@@ -89,26 +90,24 @@ export const getUserFiles = query({
 
     const limit = args.limit || 50;
 
-    console.log(`[getUserFiles] Starting query for user: ${userId}`);
-
     // Get user's conversations first
     const conversations = await ctx.db
       .query("conversations")
       .withIndex("by_user_recent", q => q.eq("userId", userId))
       .collect();
 
-    console.log(`[getUserFiles] Auth user ID: ${userId}`);
-    console.log(
+    log.info(
       `[getUserFiles] Found ${conversations.length} conversations for user`
     );
 
     // Debug: Let's see what user IDs actually exist in conversations
     const allConversations = await ctx.db.query("conversations").collect();
     const uniqueUserIds = [...new Set(allConversations.map(c => c.userId))];
-    console.log(
-      `[getUserFiles] All unique user IDs in database: ${JSON.stringify(uniqueUserIds)}`
+    log.info(
+      "[getUserFiles] All unique user IDs in conversations:",
+      uniqueUserIds
     );
-    console.log(
+    log.info(
       `[getUserFiles] Total conversations in database: ${allConversations.length}`
     );
 
@@ -130,13 +129,11 @@ export const getUserFiles = query({
       .flat()
       .sort((a, b) => b._creationTime - a._creationTime);
 
-    console.log(`[getUserFiles] Found ${messages.length} total messages`);
-
     // Count messages with attachments
     const messagesWithAttachments = messages.filter(
       m => m.attachments && m.attachments.length > 0
     );
-    console.log(
+    log.info(
       `[getUserFiles] Found ${messagesWithAttachments.length} messages with attachments`
     );
 
@@ -150,7 +147,7 @@ export const getUserFiles = query({
       if (message.attachments) {
         for (const attachment of message.attachments) {
           totalAttachments++;
-          console.log(
+          log.info(
             `[getUserFiles] Attachment: ${attachment.name}, type: ${attachment.type}, hasStorageId: ${!!attachment.storageId}`
           );
 
@@ -185,7 +182,7 @@ export const getUserFiles = query({
       }
     }
 
-    console.log(
+    log.info(
       `[getUserFiles] Total attachments: ${totalAttachments}, with storageId: ${attachmentsWithStorageId}, unique files: ${attachmentsMap.size}`
     );
 
@@ -258,7 +255,7 @@ export const getUserFiles = query({
             metadata: fileMetadata,
           };
         } catch (error) {
-          console.error(`Failed to get metadata for file ${key}:`, error);
+          log.error(`Failed to get metadata for file ${key}:`, error);
           return null;
         }
       })

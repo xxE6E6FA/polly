@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { userModelSchema } from "./lib/schemas";
 
@@ -290,6 +291,151 @@ export const toggleModel = mutation({
       action: "added",
       overridesBuiltIn: Boolean(builtInModel),
     };
+  },
+});
+
+export const getRecentlyUsedModels = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    const limit = args.limit ?? 10;
+
+    if (!userId) {
+      // For anonymous users, just return built-in models
+      return await ctx.db
+        .query("builtInModels")
+        .filter(q => q.eq(q.field("isActive"), true))
+        .order("desc")
+        .take(Math.min(limit, 5));
+    }
+
+    // Get recent assistant messages with model info from user's conversations
+    const recentMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation_role")
+      .filter(q => q.eq(q.field("role"), "assistant"))
+      .filter(q =>
+        q.and(
+          q.neq(q.field("model"), undefined),
+          q.neq(q.field("provider"), undefined)
+        )
+      )
+      .order("desc")
+      .take(limit * 3); // Get more to deduplicate
+
+    // Filter to only include messages from user's conversations
+    const userConversations = new Set();
+    const userConversationsList = await ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .collect();
+
+    for (const conv of userConversationsList) {
+      userConversations.add(conv._id);
+    }
+
+    const userMessages = recentMessages.filter(msg =>
+      userConversations.has(msg.conversationId)
+    );
+
+    // Deduplicate by model+provider combination while preserving order
+    const seenModels = new Set<string>();
+    const uniqueModels: Array<{
+      modelId: string;
+      provider: string;
+      lastUsed: number;
+    }> = [];
+
+    for (const message of userMessages) {
+      if (!(message.model && message.provider)) {
+        continue;
+      }
+
+      const modelKey = `${message.provider}:${message.model}`;
+      if (!seenModels.has(modelKey)) {
+        seenModels.add(modelKey);
+        uniqueModels.push({
+          modelId: message.model,
+          provider: message.provider,
+          lastUsed: message.createdAt,
+        });
+
+        if (uniqueModels.length >= limit) {
+          break;
+        }
+      }
+    }
+
+    // Get model details for each recent model
+    const recentModelDetails: Array<{
+      _id: Id<"userModels"> | Id<"builtInModels">;
+      _creationTime: number;
+      modelId: string;
+      name: string;
+      provider: string;
+      contextLength: number;
+      maxOutputTokens?: number;
+      supportsImages: boolean;
+      supportsTools: boolean;
+      supportsReasoning: boolean;
+      supportsFiles?: boolean;
+      inputModalities?: string[];
+      free?: boolean;
+      selected?: boolean;
+      lastUsed: number;
+    }> = [];
+    for (const recentModel of uniqueModels) {
+      // First try to find user model
+      let modelDetails: Doc<"userModels"> | Doc<"builtInModels"> | null =
+        await ctx.db
+          .query("userModels")
+          .withIndex("by_user", q => q.eq("userId", userId))
+          .filter(q =>
+            q.and(
+              q.eq(q.field("modelId"), recentModel.modelId),
+              q.eq(q.field("provider"), recentModel.provider)
+            )
+          )
+          .unique();
+
+      // If not found, try built-in models
+      if (!modelDetails) {
+        modelDetails = await ctx.db
+          .query("builtInModels")
+          .filter(q =>
+            q.and(
+              q.eq(q.field("modelId"), recentModel.modelId),
+              q.eq(q.field("provider"), recentModel.provider),
+              q.eq(q.field("isActive"), true)
+            )
+          )
+          .unique();
+      }
+
+      if (modelDetails) {
+        recentModelDetails.push({
+          _id: modelDetails._id,
+          _creationTime: modelDetails._creationTime,
+          modelId: modelDetails.modelId,
+          name: modelDetails.name,
+          provider: modelDetails.provider,
+          contextLength: modelDetails.contextLength,
+          maxOutputTokens: modelDetails.maxOutputTokens,
+          supportsImages: modelDetails.supportsImages,
+          supportsTools: modelDetails.supportsTools,
+          supportsReasoning: modelDetails.supportsReasoning,
+          supportsFiles: modelDetails.supportsFiles,
+          inputModalities: modelDetails.inputModalities,
+          free: "free" in modelDetails ? modelDetails.free : false,
+          selected: "selected" in modelDetails ? modelDetails.selected : false,
+          lastUsed: recentModel.lastUsed,
+        });
+      }
+    }
+
+    return recentModelDetails;
   },
 });
 
