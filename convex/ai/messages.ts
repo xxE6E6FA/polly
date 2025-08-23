@@ -332,15 +332,8 @@ export const streamResponse = internalAction({
     useWebSearch: v.boolean(), // Determined by calling action based on user auth
   },
   returns: v.null(),
-  handler: async (ctx, args) => {
-    console.log("🚀 [streamResponse] FUNCTION CALLED with args:", {
-      modelId: args.model.modelId,
-      messageId: args.messageId,
-      conversationId: args.conversationId,
-      timestamp: new Date().toISOString(),
-    });
-    
-    console.log(
+   handler: async (ctx, args) => {
+    log.info(
       "[stream_generation] Starting streaming:",
       args.model.modelId,
       "messageId:",
@@ -355,14 +348,14 @@ export const streamResponse = internalAction({
       id: args.conversationId,
     });
     
-    console.log(
+    log.info(
       "[stream_generation] Conversation streaming state check:",
       "conversation.isStreaming =", conversation?.isStreaming,
       "conversation exists =", !!conversation
     );
     
     if (!conversation?.isStreaming) {
-      console.log(
+      log.info(
         "[stream_generation] Conversation already marked as not streaming, exiting early"
       );
       return;
@@ -1225,13 +1218,6 @@ When using information from these search results, you MUST include citations in 
 
       // Only finalize if not stopped (check both memory, database, and abort flag)
       const finalAbortCheck = isStreamingStopped || await checkAbort();
-      console.log("🎯 [stream_generation] Finalization check:", {
-        messageId: args.messageId.slice(-8),
-        isStreamingStopped,
-        checkAbortResult: await checkAbort(),
-        finalAbortCheck,
-        willFinalize: !finalAbortCheck,
-      });
       
       if (!finalAbortCheck) {
         log.info(`Stream finalized: ${args.messageId.slice(-8)} completed`);
@@ -1246,9 +1232,9 @@ When using information from these search results, you MUST include citations in 
             id: args.conversationId,
             updates: { isStreaming: false },
           });
-          console.log("[stream_generation] Conversation marked as not streaming due to interruption");
+          log.info("[stream_generation] Conversation marked as not streaming due to interruption");
         } catch (error) {
-          console.warn("Failed to immediately clear streaming state:", error);
+          log.warn("Failed to immediately clear streaming state:", error);
         }
       }
       
@@ -1288,17 +1274,14 @@ When using information from these search results, you MUST include citations in 
           id: args.conversationId,
           updates: { isStreaming: false },
         });
-        console.log("[stream_generation] Successfully marked conversation as not streaming");
-      } catch (cleanupError) {
-        console.warn(
-          "[stream_generation] Failed to clear streaming state:",
-          cleanupError
-        );
-      }
-    }
-
-    console.log("🏁 [streamResponse] FUNCTION COMPLETED for messageId:", args.messageId);
-    return null;
-  },
+        log.info("[stream_generation] Successfully marked conversation as not streaming");
+       } catch (cleanupError) {
+         log.warn(
+           "[stream_generation] Failed to clear streaming state:",
+           cleanupError
+         );
+       }
+     }
+   }
 });
 

@@ -21,6 +21,7 @@ import {
   getPersonaPrompt,
   incrementUserMessageStats,
 } from "./lib/conversation_utils";
+import { log } from "./lib/logger";
 import { paginationOptsSchema, validatePaginationOpts } from "./lib/pagination";
 import {
   attachmentSchema,
@@ -74,7 +75,7 @@ async function handleMessageDeletion(
           isStreaming: false,
         })
         .catch(error => {
-          console.warn(
+          log.warn(
             `Failed to clear streaming state for conversation ${message.conversationId}:`,
             error
           );
@@ -101,10 +102,7 @@ async function handleMessageDeletion(
       if (attachment.storageId) {
         operations.push(
           ctx.storage.delete(attachment.storageId).catch(error => {
-            console.warn(
-              `Failed to delete file ${attachment.storageId}:`,
-              error
-            );
+            log.warn(`Failed to delete file ${attachment.storageId}:`, error);
           })
         );
       }
@@ -325,7 +323,7 @@ export const internalUpdate = internalMutation({
         // Check if message exists before patching
         const message = await ctx.db.get(id);
         if (!message) {
-          console.log(
+          log.info(
             "[internalUpdate] Message not found, id:",
             id,
             "- likely already finalized or deleted"
@@ -373,7 +371,7 @@ export const updateContent = internalMutation({
     // Check if message exists before patching
     const message = await ctx.db.get(messageId);
     if (!message) {
-      console.log(
+      log.info(
         "[updateContent] Message not found, messageId:",
         messageId,
         "- likely already finalized or deleted"
@@ -516,7 +514,7 @@ export const removeMultiple = mutation({
             if (attachment.storageId) {
               storageDeletePromises.push(
                 ctx.storage.delete(attachment.storageId).catch(error => {
-                  console.warn(
+                  log.warn(
                     `Failed to delete file ${attachment.storageId}:`,
                     error
                   );
@@ -537,7 +535,7 @@ export const removeMultiple = mutation({
             isStreaming: false,
           })
           .catch(error => {
-            console.warn(
+            log.warn(
               `Failed to clear streaming state for conversation ${conversationId}:`,
               error
             );
@@ -564,7 +562,7 @@ export const removeMultiple = mutation({
     operations.push(
       ...args.ids.map(id =>
         ctx.db.delete(id).catch(error => {
-          console.warn(`Failed to delete message ${id}:`, error);
+          log.warn(`Failed to delete message ${id}:`, error);
         })
       )
     );
@@ -935,7 +933,7 @@ export const updateMessageStatus = internalMutation({
     // Get current message to check if it's an assistant message
     const message = await ctx.db.get(args.messageId);
     if (!message) {
-      console.error("[updateMessageStatus] Message not found:", args.messageId);
+      log.error("[updateMessageStatus] Message not found:", args.messageId);
       return;
     }
 
@@ -1008,7 +1006,7 @@ export const updateAssistantContent = internalMutation({
       async () => {
         const message = await ctx.db.get(messageId);
         if (!message) {
-          console.log(
+          log.info(
             "[updateAssistantContent] Message not found, messageId:",
             messageId,
             "- likely already finalized or deleted"
@@ -1059,7 +1057,7 @@ export const updateAssistantStatus = internalMutation({
       // Get current message to preserve existing metadata
       const message = await ctx.db.get(messageId);
       if (!message) {
-        console.error("[updateAssistantStatus] Message not found:", messageId);
+        log.error("[updateAssistantStatus] Message not found:", messageId);
         return;
       }
 
@@ -1100,7 +1098,7 @@ export const updateAssistantStatus = internalMutation({
       // Update the message status and statusText in database
       await ctx.db.patch(messageId, updateData);
     } catch (error) {
-      console.error(
+      log.error(
         "[updateAssistantStatus] Message not found, messageId:",
         messageId,
         error
@@ -1339,7 +1337,7 @@ export const refineAssistantMessage = action({
 
       if (receivedAny) {
         // Finalize message content and mark finishReason so UI knows stream is complete
-        console.log(
+        log.info(
           "🎯 [server-streaming] Finalizing message with finishReason:",
           {
             messageId: newAssistantId,
@@ -1418,7 +1416,6 @@ export const addAttachments = internalMutation({
       // Get current message to preserve existing attachments
       const message = await ctx.db.get(messageId);
       if (!message) {
-        console.log("[addAttachments] Message not found:", messageId);
         return;
       }
 
@@ -1429,14 +1426,8 @@ export const addAttachments = internalMutation({
       await ctx.db.patch(messageId, {
         attachments: updatedAttachments,
       });
-
-      console.log("[addAttachments] Successfully added attachments:", {
-        messageId,
-        newCount: attachments.length,
-        totalCount: updatedAttachments.length,
-      });
     } catch (error) {
-      console.error("[addAttachments] Error:", error);
+      log.error("[addAttachments] Error:", error);
       throw new ConvexError(
         `Failed to add attachments to message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -1454,7 +1445,7 @@ export const clearImageGenerationAttachments = internalMutation({
     try {
       const message = await ctx.db.get(messageId);
       if (!message) {
-        console.log(
+        log.info(
           "[clearImageGenerationAttachments] Message not found:",
           messageId
         );
@@ -1462,17 +1453,6 @@ export const clearImageGenerationAttachments = internalMutation({
       }
 
       // Log current attachments for debugging
-      console.log("[clearImageGenerationAttachments] Current attachments:", {
-        messageId,
-        totalCount: message.attachments?.length || 0,
-        attachments: (message.attachments || []).map(att => ({
-          type: att.type,
-          name: att.name,
-          hasGeneratedMetadata: !!att.generatedImage?.isGenerated,
-          generatedSource: att.generatedImage?.source,
-          url: `${att.url?.substring(0, 50)}...`,
-        })),
-      });
 
       // Filter out image attachments that were generated by looking for the generatedImage metadata
       // Keep all non-image attachments and user-uploaded images
@@ -1487,16 +1467,13 @@ export const clearImageGenerationAttachments = internalMutation({
             attachment.generatedImage?.isGenerated === true;
           const shouldKeep = !hasGeneratedMetadata; // Keep only non-generated images
 
-          console.log(
-            "[clearImageGenerationAttachments] Processing attachment:",
-            {
-              name: attachment.name,
-              type: attachment.type,
-              hasGeneratedMetadata,
-              shouldKeep,
-              generatedSource: attachment.generatedImage?.source,
-            }
-          );
+          log.info("[clearImageGenerationAttachments] Processing attachment:", {
+            name: attachment.name,
+            type: attachment.type,
+            hasGeneratedMetadata,
+            shouldKeep,
+            generatedSource: attachment.generatedImage?.source,
+          });
 
           return shouldKeep;
         }
@@ -1506,7 +1483,7 @@ export const clearImageGenerationAttachments = internalMutation({
         attachments: filteredAttachments,
       });
 
-      console.log(
+      log.info(
         "[clearImageGenerationAttachments] Cleared image generation attachments:",
         {
           messageId,
@@ -1517,7 +1494,7 @@ export const clearImageGenerationAttachments = internalMutation({
         }
       );
     } catch (error) {
-      console.error("[clearImageGenerationAttachments] Error:", error);
+      log.error("[clearImageGenerationAttachments] Error:", error);
       throw new ConvexError(
         `Failed to clear image generation attachments for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -1558,15 +1535,8 @@ export const removeAttachment = mutation({
       await ctx.db.patch(messageId, {
         attachments: updatedAttachments,
       });
-
-      console.log("[removeAttachment] Removed attachment:", {
-        messageId,
-        attachmentName,
-        originalCount: message.attachments?.length || 0,
-        remainingCount: updatedAttachments.length,
-      });
     } catch (error) {
-      console.error("[removeAttachment] Error:", error);
+      log.error("[removeAttachment] Error:", error);
       throw new ConvexError(
         `Failed to remove attachment from message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -1606,7 +1576,6 @@ export const updateImageGeneration = internalMutation({
       // Get current message to preserve existing imageGeneration data
       const message = await ctx.db.get(messageId);
       if (!message) {
-        console.log("[updateImageGeneration] Message not found:", messageId);
         return;
       }
 
@@ -1677,13 +1646,10 @@ export const updateImageGeneration = internalMutation({
           ...message.metadata,
           finishReason: "stop",
         };
-        console.log(
-          "[updateImageGeneration] Setting message status to 'done'",
-          {
-            messageId,
-            imageStatus: args.status,
-          }
-        );
+        log.info("[updateImageGeneration] Setting message status to 'done'", {
+          messageId,
+          imageStatus: args.status,
+        });
       } else if (args.status === "failed" || args.status === "canceled") {
         updateData.status = "error";
         // Also update metadata to mark streaming as complete
@@ -1691,20 +1657,17 @@ export const updateImageGeneration = internalMutation({
           ...message.metadata,
           finishReason: "error",
         };
-        console.log(
-          "[updateImageGeneration] Setting message status to 'error'",
-          {
-            messageId,
-            imageStatus: args.status,
-          }
-        );
+        log.info("[updateImageGeneration] Setting message status to 'error'", {
+          messageId,
+          imageStatus: args.status,
+        });
       }
 
       await ctx.db.patch(messageId, updateData);
 
       // Get the updated message to verify it was saved correctly
       const updatedMessage = await ctx.db.get(messageId);
-      console.log("[updateImageGeneration] Successfully updated message", {
+      log.info("[updateImageGeneration] Updated message verification", {
         messageId,
         imageStatus: args.status,
         messageStatus: updateData.status,
@@ -1718,7 +1681,7 @@ export const updateImageGeneration = internalMutation({
         actualImageGenOutput: updatedMessage?.imageGeneration?.output,
       });
     } catch (error) {
-      console.error("[updateImageGeneration] Error:", error);
+      log.error("[updateImageGeneration] Error:", error);
       throw new ConvexError(
         `Failed to update image generation for message ${messageId}: ${error instanceof Error ? error.message : String(error)}`
       );

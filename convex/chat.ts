@@ -45,12 +45,12 @@ export const chatStream = httpAction(
         messages,
         modelId,
         provider,
-        temperature,
-        maxTokens,
-        topP,
-        frequencyPenalty,
-        presencePenalty,
-        reasoningConfig,
+        _temperature,
+        _maxTokens,
+        _topP,
+        _frequencyPenalty,
+        _presencePenalty,
+        _reasoningConfig,
         personaId,
       } = body;
 
@@ -138,17 +138,9 @@ export const chatStream = httpAction(
 
             // Increment user message stats - model is built-in if it has the 'free' field set to true
             await incrementUserMessageStats(ctx, userId, modelId, provider);
-            console.log("[chatStream] Message stats incremented:", {
-              modelId,
-              provider,
-              isBuiltInModel: model?.free === true,
-            });
           } catch (error) {
             // Don't fail the entire request if stats tracking fails
-            console.warn(
-              "[chatStream] Failed to increment message stats:",
-              error
-            );
+            log.warn("[chatStream] Failed to increment message stats:", error);
           }
         }
 
@@ -158,20 +150,20 @@ export const chatStream = httpAction(
               provider,
               modelId,
             });
-            console.log(
+            log.info(
               "[chatStream] User API key lookup:",
               userApiKey ? "found" : "not found"
             );
           } catch (error) {
-            console.log("[chatStream] User API key lookup failed:", error);
+            // User API key lookup failed, will fallback to environment variables
+            log.warn("[chatStream] Failed to get user API key:", error);
           }
         } else {
-          console.log("[chatStream] No authenticated user found");
+          // User not authenticated, will use environment variables
         }
 
         if (userApiKey) {
           apiKey = userApiKey;
-          console.log("[chatStream] Using user API key");
         } else {
           // Fallback to environment variables
           let envKeyName: string | null = null;
@@ -198,7 +190,7 @@ export const chatStream = httpAction(
           }
 
           const envKey = process.env[envKeyName];
-          console.log(
+          log.info(
             `[chatStream] Checking environment variable ${envKeyName}:`,
             envKey ? "found" : "not found"
           );
@@ -224,7 +216,6 @@ export const chatStream = httpAction(
           }
 
           apiKey = envKey;
-          console.log(`[chatStream] Using environment API key for ${provider}`);
         }
       } catch (apiKeyError) {
         log.error("Failed to get API key:", apiKeyError);
@@ -254,7 +245,6 @@ export const chatStream = httpAction(
           });
           if (persona?.prompt) {
             personaPrompt = persona.prompt;
-            console.log(`[chatStream] Using persona: ${persona.name}`);
           }
         } catch (error) {
           console.warn("[chatStream] Failed to load persona:", error);
@@ -287,7 +277,7 @@ export const chatStream = httpAction(
           provider,
           supportsReasoning: true, // We'll assume true for now
         },
-        reasoningConfig
+        _reasoningConfig
       );
 
       // Create language model
@@ -297,17 +287,17 @@ export const chatStream = httpAction(
       const baseOptions = {
         model: languageModel,
         messages: processedMessages,
-        temperature,
-        topP,
-        frequencyPenalty,
-        presencePenalty,
+        temperature: _temperature,
+        topP: _topP,
+        frequencyPenalty: _frequencyPenalty,
+        presencePenalty: _presencePenalty,
         ...reasoningOptions,
       };
 
       // Add maxTokens conditionally
       const streamOptions =
-        maxTokens && maxTokens > 0
-          ? { ...baseOptions, maxTokens }
+        _maxTokens && _maxTokens > 0
+          ? { ...baseOptions, maxTokens: _maxTokens }
           : baseOptions;
 
       // Start streaming

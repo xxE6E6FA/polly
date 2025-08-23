@@ -16,6 +16,7 @@ export const CACHE_KEYS = {
   setupChecklistDismissed: "setup-checklist-dismissed",
   userData: "user-data",
   anonymousUserGraduation: "anonymous-user-graduation",
+  recentModels: "recent-models",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];

@@ -19,11 +19,6 @@ export const SidebarSearch = ({ searchQuery, onSearchChange }: SearchProps) => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K to focus search
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
       // Escape to clear search when search is focused
       if (
         e.key === "Escape" &&
