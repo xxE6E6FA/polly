@@ -8,10 +8,17 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
-import EmojiPicker, { type EmojiClickData } from "emoji-picker-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import {
+  EmojiPicker,
+  EmojiPickerContent,
+  EmojiPickerFooter,
+  EmojiPickerSearch,
+} from "@/components/ui/emoji-picker";
+import { EmojiPickerDrawer } from "@/components/ui/emoji-picker-drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -50,7 +57,31 @@ type PersonaFormProps = {
   setFormData: React.Dispatch<React.SetStateAction<PersonaFormData | null>>;
   isEmojiPickerOpen: boolean;
   setIsEmojiPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  handleEmojiClick: (emojiData: EmojiClickData) => void;
+  handleEmojiClick: (emoji: string) => void;
+};
+
+// Clean emoji picker using shadcn component
+const SimpleEmojiPicker = ({
+  onEmojiSelect,
+  onClose,
+}: {
+  onEmojiSelect: (emoji: string) => void;
+  onClose?: () => void;
+}) => {
+  return (
+    <EmojiPicker
+      className="h-96 w-80 border shadow-lg"
+      onClose={onClose}
+      onEmojiSelect={({ emoji }: { emoji: string }) => {
+        onEmojiSelect(emoji);
+        onClose?.();
+      }}
+    >
+      <EmojiPickerSearch placeholder="Search emojis..." />
+      <EmojiPickerContent />
+      <EmojiPickerFooter />
+    </EmojiPicker>
+  );
 };
 
 export const PersonaForm = ({
@@ -301,26 +332,37 @@ export const PersonaForm = ({
               <p className="mb-3 text-sm text-muted-foreground">
                 Choose an emoji to represent your persona
               </p>
-              <Popover
-                open={isEmojiPickerOpen}
-                onOpenChange={setIsEmojiPickerOpen}
-              >
-                <PopoverTrigger asChild>
+
+              {/* Desktop/Tablet: Popover */}
+              <div className="hidden sm:block">
+                <Popover
+                  open={isEmojiPickerOpen}
+                  onOpenChange={setIsEmojiPickerOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button size="default" variant="outline">
+                      <SmileyIcon className="mr-2 h-4 w-4" />
+                      Choose Emoji
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-auto p-0">
+                    <SimpleEmojiPicker
+                      onEmojiSelect={handleEmojiClick}
+                      onClose={() => setIsEmojiPickerOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Mobile: Drawer */}
+              <div className="block sm:hidden">
+                <EmojiPickerDrawer onEmojiSelect={handleEmojiClick}>
                   <Button size="default" variant="outline">
                     <SmileyIcon className="mr-2 h-4 w-4" />
                     Choose Emoji
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-0">
-                  <EmojiPicker
-                    skinTonesDisabled
-                    height={400}
-                    searchDisabled={false}
-                    width={350}
-                    onEmojiClick={handleEmojiClick}
-                  />
-                </PopoverContent>
-              </Popover>
+                </EmojiPickerDrawer>
+              </div>
             </div>
           </div>
         </div>

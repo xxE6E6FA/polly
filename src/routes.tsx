@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router";
 import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
-import { ConversationView } from "./components/conversation-view/ConversationView";
 import ChatLayout from "./components/layouts/ChatLayout";
 import PersistentChatLayout from "./components/layouts/PersistentChatLayout";
 import RootLayout from "./components/layouts/RootLayout";
@@ -9,6 +8,8 @@ import { Spinner } from "./components/spinner";
 
 import HomePage from "./pages/HomePage";
 import PrivateChatPage from "./pages/PrivateChatPage";
+
+const ChatConversationPage = lazy(() => import("./pages/ChatConversationPage"));
 
 const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
 
@@ -146,7 +147,11 @@ export const routes: RouteObject[] = [
         children: [
           {
             path: ":conversationId",
-            element: <ConversationView />,
+            element: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <ChatConversationPage />
+              </Suspense>
+            ),
           },
           {
             path: "favorites",

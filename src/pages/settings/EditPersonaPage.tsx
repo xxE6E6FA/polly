@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import type { EmojiClickData } from "emoji-picker-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
@@ -122,8 +121,8 @@ export default function EditPersonaPage() {
     }
   };
 
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    setFormData(prev => (prev ? { ...prev, icon: emojiData.emoji } : null));
+  const handleEmojiClick = (emoji: string) => {
+    setFormData(prev => (prev ? { ...prev, icon: emoji } : null));
     setIsEmojiPickerOpen(false);
   };
 
