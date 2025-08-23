@@ -76,7 +76,7 @@ export const ChatInputField = memo(
     onChange,
     onSubmit,
     textareaRef,
-    placeholder = "Type a message...",
+    placeholder = "Type message...",
     disabled = false,
     className,
     autoFocus = false,
