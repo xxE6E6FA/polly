@@ -14,6 +14,7 @@ type TooltipWrapperProps = {
   side?: "top" | "right" | "bottom" | "left";
   delayDuration?: number;
   className?: string;
+  disableOnTouch?: boolean;
 };
 
 /**
@@ -38,6 +39,7 @@ export const TooltipWrapper = ({
   side = "top",
   delayDuration = 700,
   className,
+  disableOnTouch = true,
 }: TooltipWrapperProps) => {
   const [isTooltipOpen, setIsTooltipOpen] = useState(false);
   const [hasRecentlyClosedInteractive, setHasRecentlyClosedInteractive] =
@@ -83,6 +85,7 @@ export const TooltipWrapper = ({
       open={tooltipOpen}
       onOpenChange={setIsTooltipOpen}
       delayDuration={delayDuration}
+      disableOnTouch={disableOnTouch}
     >
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent side={side} className={className}>
