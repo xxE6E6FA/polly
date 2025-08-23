@@ -305,10 +305,10 @@ export const UnifiedChatView = memo(
                     isStreaming={isStreaming}
                     placeholder={
                       isPrivateMode
-                        ? "Private mode: messages won't be saved..."
+                        ? "Private mode..."
                         : isArchived
-                          ? "This conversation is archived"
-                          : "Ask me anything..."
+                          ? "Archived conversation"
+                          : "Ask anything..."
                     }
                     onSendMessage={
                       hasApiKeys && !isArchived

@@ -97,7 +97,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       isLoading = false,
       isStreaming = false,
       onStop,
-      placeholder = "Ask me anything...",
+      placeholder = "Ask anything...",
       messages,
       userMessageContents,
       autoFocus = false,
@@ -278,7 +278,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     // Determine dynamic placeholder based on generation mode
     const dynamicPlaceholder = useMemo(() => {
       if (generationMode === "image") {
-        return "Describe the image you want to generate...";
+        return "Describe your image...";
       }
       return placeholder;
     }, [generationMode, placeholder]);
