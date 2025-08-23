@@ -23,6 +23,8 @@ export function useTextareaStyling({
         "min-h-[24px] max-h-[100px] overflow-y-auto px-1.5 py-1 sm:px-2",
         // Enhanced focus experience - subtle visual feedback
         "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+        // Prevent zoom on mobile Chrome
+        "touch-action: manipulation",
         // Performance optimizations
         "will-change-[height] contain-layout transform-gpu hide-scrollbar md:scrollbar-thin",
         // Browser performance hints
@@ -46,6 +48,8 @@ export function useTextareaStyling({
       contentVisibility: "auto" as const,
       containIntrinsicSize: "24px 100px",
       textIndent: firstLineIndentPx ? `${firstLineIndentPx}px` : undefined,
+      // Prevent zoom on mobile Chrome
+      touchAction: "manipulation",
     }),
     [isTransitioning, firstLineIndentPx]
   );
