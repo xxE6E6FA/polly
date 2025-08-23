@@ -167,7 +167,9 @@ const ModelCard = memo(
         </div>
 
         <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="truncate">{model.modelId}</span>
+          <TooltipWrapper content={model.modelId}>
+            <span className="truncate">{model.modelId}</span>
+          </TooltipWrapper>
         </div>
       </div>
     );
