@@ -31,88 +31,81 @@ export default defineConfig(({ mode }) => {
     build: {
       reportCompressedSize: true,
       sourcemap: false,
-      // Set reasonable chunk size warning threshold
-      chunkSizeWarningLimit: 800,
+      // Increased a bit because we now intentionally create a few domain chunks
+      chunkSizeWarningLimit: 900,
       // Minification options
       minify: "esbuild",
       cssMinify: true,
+      // Safe manual chunk strategy: keep all React core pieces together (avoid circular
+      // evaluation issues that previously caused undefined hook exports), and split other
+      // large independent domains for better parallel loading.
       rollupOptions: {
         output: {
-          manualChunks: id => {
-            // Vendor chunks
-            if (id.includes("node_modules")) {
-              // Split React ecosystem into smaller chunks
-              if (id.includes("react-dom")) {
-                return "react-dom";
-              }
-              if (id.includes("react-router")) {
-                return "react-router";
-              }
-              if (id.includes("/react/") && !id.includes("react-")) {
-                return "react";
-              }
-
-              // AI/LLM libraries - split further
-              if (id.includes("@llm-ui")) {
-                return "llm-ui";
-              }
-              if (
-                id.includes("prism-react-renderer") ||
-                id.includes("katex") ||
-                id.includes("rehype") ||
-                id.includes("remark")
-              ) {
-                return "markdown";
-              }
-
-              // UI libraries - split Radix from icons
-              if (id.includes("@radix-ui")) {
-                return "radix-ui";
-              }
-              if (id.includes("@phosphor-icons")) {
-                return "icons";
-              }
-              if (id.includes("cmdk") || id.includes("vaul")) {
-                return "ui-misc";
-              }
-
-              // AI SDKs - split by provider
-              if (id.includes("@ai-sdk")) {
-                return "ai-sdk-core";
-              }
-              if (id.includes("@anthropic") || id.includes("@openrouter")) {
-                return "ai-providers";
-              }
-              if (id.includes("replicate")) {
-                return "ai-misc";
-              }
-
-              // Convex
-              if (id.includes("convex")) {
-                return "convex";
-              }
-
-              // Utilities - split into smaller groups
-              if (id.includes("zod")) {
-                return "validation";
-              }
-              if (id.includes("date-fns")) {
-                return "date";
-              }
-              if (
-                id.includes("clsx") ||
-                id.includes("class-variance-authority") ||
-                id.includes("tailwind-merge")
-              ) {
-                return "styling";
-              }
-
-              // Everything else
-              return "vendor";
+          manualChunks(id) {
+            if (!id.includes("node_modules")) {
+              return;
             }
+
+            // Framework (React + router + scheduler)
+            if (
+              /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(
+                id
+              )
+            ) {
+              return "framework";
+            }
+
+            // Convex
+            if (/[\\/]node_modules[\\/]convex[\\/]/.test(id)) {
+              return "convex";
+            }
+
+            // Markdown / rendering toolchain
+            if (
+              /[\\/]node_modules[\\/](react-markdown|markdown-to-jsx|remark|rehype|katex|prism-react-renderer)[\\/]/.test(
+                id
+              )
+            ) {
+              return "markdown";
+            }
+
+            // UI libraries
+            if (
+              /[\\/]node_modules[\\/](?:@radix-ui|@phosphor-icons|cmdk|vaul)[\\/]/.test(
+                id
+              )
+            ) {
+              return "ui-lib";
+            }
+
+            // Styling helpers
+            if (
+              /[\\/]node_modules[\\/](?:clsx|class-variance-authority|tailwind-merge)[\\/]/.test(
+                id
+              )
+            ) {
+              return "styling";
+            }
+
+            // Validation
+            if (/[\\/]node_modules[\\/]zod[\\/]/.test(id)) {
+              return "validation";
+            }
+
+            // Date utilities
+            if (/[\\/]node_modules[\\/]date-fns[\\/]/.test(id)) {
+              return "date";
+            }
+
+            // Fallback vendor bucket
+            return "vendor";
           },
         },
       },
+    },
+    // Ensure single React instance (avoid duplicated copies in chunks)
+    resolve: {
+      dedupe: ["react", "react-dom", "react-router", "react-router-dom"],
     },
     optimizeDeps: {
       include: ["react", "react-dom", "react-router-dom", "react-router"],
