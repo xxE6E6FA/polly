@@ -24,7 +24,6 @@ import type {
 } from "@/types";
 import { ChatInputBottomBar } from "./components/chat-input-bottom-bar";
 import { ChatInputContainer } from "./components/chat-input-container";
-import { ChatInputMainArea } from "./components/chat-input-main-area";
 import {
   AttachmentProvider,
   useAttachments,
@@ -32,13 +31,15 @@ import {
 import {
   ChatInputProvider,
   useChatInputContext,
+  useChatInputUIContext,
 } from "./context/chat-input-context";
 import {
   useChatInputDragDrop,
   useChatInputImageGeneration,
   useChatInputSubmission,
-  useMentionState,
 } from "./hooks";
+import { useMentionItems } from "./hooks/use-mention-items";
+import { TextInputSection } from "./sections/text-input-section";
 import { stripMentionText } from "./utils/mention-text-utils";
 
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -117,15 +118,21 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const {
       input,
       selectedPersonaId,
-      generationMode,
-      imageParams,
       reasoningConfig,
       temperature,
+      mentionOpen,
+      mentionQuery,
+      mentionActiveIndex,
       setInput,
       setSelectedPersonaId,
-      setGenerationMode,
       resetInputState,
+      handleMentionStateChange,
+      handleMentionNavigate,
+      handleMentionConfirm,
+      handleMentionCancel,
     } = useChatInputContext();
+    const { generationMode, imageParams, setGenerationMode } =
+      useChatInputUIContext();
 
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -174,20 +181,10 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         onProcessFiles: processFiles,
       });
 
-    // Use the mention state hook
-    const {
-      mentionOpen,
-      mentionQuery,
-      mentionActiveIndex,
-      mentionItems,
-      handleMentionStateChange,
-      handleMentionNavigate,
-      handleMentionConfirm,
-      handleMentionCancel,
-    } = useMentionState({
+    // Use the mention items hook
+    const { mentionItems } = useMentionItems({
       personas,
-      selectedPersonaId,
-      hasExistingMessages,
+      mentionQuery,
     });
 
     // Create mention select handler that mimics the behavior in chat-input-field.tsx
@@ -323,7 +320,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <ChatInputMainArea
+        <TextInputSection
           onSubmit={handleSubmit}
           textareaRef={textareaRef}
           placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
@@ -335,8 +332,10 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
           mentionActiveIndex={mentionActiveIndex}
           mentionItems={mentionItems}
           onMentionStateChange={handleMentionStateChange}
-          onMentionNavigate={handleMentionNavigate}
-          onMentionConfirm={handleMentionConfirm}
+          onMentionNavigate={direction =>
+            handleMentionNavigate(direction, mentionItems)
+          }
+          onMentionConfirm={() => handleMentionConfirm(mentionItems)}
           onMentionCancel={handleMentionCancel}
           personas={personas}
           onMentionSelect={handleMentionSelect}

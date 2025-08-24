@@ -5,6 +5,7 @@ interface UseTextareaHeightOptions {
   onHeightChange?: (isMultiline: boolean) => void;
   maxHeight?: number;
   minHeight?: number;
+  debounceMs?: number;
 }
 
 export function useTextareaHeight({
@@ -12,13 +13,26 @@ export function useTextareaHeight({
   onHeightChange,
   maxHeight = 100,
   minHeight = 24,
+  debounceMs = 16, // ~60fps
 }: UseTextareaHeightOptions) {
+  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const resizeRafRef = useRef<number | null>(null);
   const lastValueRef = useRef(value);
   const lastHeightRef = useRef<number>(0);
+  const lastMultilineRef = useRef<boolean>(false);
 
   const performResize = useCallback(
     (textarea: HTMLTextAreaElement) => {
+      // Clear any pending timeouts/animations
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = null;
+      }
+
       textarea.style.height = "auto";
       // Force a reflow to get accurate scrollHeight
       textarea.offsetHeight;
@@ -29,15 +43,23 @@ export function useTextareaHeight({
       if (newHeight !== lastHeightRef.current) {
         textarea.style.height = `${newHeight}px`;
         lastHeightRef.current = newHeight;
-        // For empty input, always treat as single line (collapsed)
-        const isMultiline =
-          value.trim().length > 0 && currentHeight > minHeight;
-        onHeightChange?.(isMultiline);
       }
 
-      resizeRafRef.current = null;
+      // Debounce multiline state changes to avoid excessive renders
+      const isMultiline = value.trim().length > 0 && currentHeight > minHeight;
+      if (isMultiline !== lastMultilineRef.current) {
+        lastMultilineRef.current = isMultiline;
+
+        if (debounceMs > 0) {
+          resizeTimeoutRef.current = setTimeout(() => {
+            onHeightChange?.(isMultiline);
+          }, debounceMs);
+        } else {
+          onHeightChange?.(isMultiline);
+        }
+      }
     },
-    [maxHeight, minHeight, value, onHeightChange]
+    [maxHeight, minHeight, value, onHeightChange, debounceMs]
   );
 
   const resizeTextarea = useCallback(
@@ -46,11 +68,11 @@ export function useTextareaHeight({
         return;
       }
 
+      // Use requestAnimationFrame for smooth 60fps resize
       if (resizeRafRef.current) {
         cancelAnimationFrame(resizeRafRef.current);
       }
 
-      // Use requestAnimationFrame for smooth 60fps resize
       resizeRafRef.current = requestAnimationFrame(() => {
         performResize(textarea);
       });
@@ -58,7 +80,7 @@ export function useTextareaHeight({
     [performResize]
   );
 
-  // Handle value changes
+  // Handle value changes with debouncing
   useLayoutEffect(() => {
     // Only resize if value actually changed
     if (lastValueRef.current === value) {
@@ -66,46 +88,34 @@ export function useTextareaHeight({
     }
     lastValueRef.current = value;
 
-    // Cancel any pending resize
-    if (resizeRafRef.current) {
-      cancelAnimationFrame(resizeRafRef.current);
-    }
-
-    // Use requestAnimationFrame for smooth 60fps resize
-    resizeRafRef.current = requestAnimationFrame(() => {
-      // This will be handled by the resizeTextarea function
-    });
-
-    // Cleanup animation frame
-    return () => {
-      if (resizeRafRef.current) {
-        cancelAnimationFrame(resizeRafRef.current);
-      }
-    };
-  }, [value]);
-
-  // Ensure initial height is set correctly
-  useLayoutEffect(() => {
-    if (resizeRafRef.current) {
-      cancelAnimationFrame(resizeRafRef.current);
-    }
-
-    // Ensure initial height is set correctly
-    if (value.trim().length === 0) {
-      // Always start collapsed for empty input
+    // For empty input, immediately update to single line to prevent flickering
+    if (value.trim().length === 0 && lastMultilineRef.current) {
+      lastMultilineRef.current = false;
       onHeightChange?.(false);
-    } else {
-      resizeRafRef.current = requestAnimationFrame(() => {
-        // This will be handled by the resizeTextarea function
-      });
     }
 
+    // Cleanup on unmount or value change
     return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
       if (resizeRafRef.current) {
         cancelAnimationFrame(resizeRafRef.current);
       }
     };
   }, [value, onHeightChange]);
+
+  // Cleanup on unmount
+  useLayoutEffect(() => {
+    return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+      }
+    };
+  }, []);
 
   return {
     resizeTextarea,
