@@ -31,7 +31,9 @@
       "WebSearch",
       "WebFetch(domain:github.com)",
       "Bash(npx shadcn@latest add https://frimousse.liveblocks.io/r/emoji-picker)",
-      "Bash(pntml lint:*)"
+      "Bash(pntml lint:*)",
+      "WebFetch(domain:openrouter.ai)",
+      "Bash(pnpm dev:*)"
     ],
     "deny": []
   },
