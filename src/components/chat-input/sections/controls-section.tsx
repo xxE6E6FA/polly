@@ -6,7 +6,8 @@ import { ReasoningPicker } from "../../reasoning-picker";
 import { TemperaturePicker } from "../../temperature-picker";
 import { AspectRatioDrawer } from "../aspect-ratio-drawer";
 import { AspectRatioPicker } from "../aspect-ratio-picker";
-import { useChatInputContext } from "../context/chat-input-context";
+import { useChatInputStateContext } from "../context/chat-input-state-context";
+import { useChatInputUIContext } from "../context/chat-input-ui-context";
 import { GenerationModeToggle } from "../generation-mode-toggle";
 import { ImageGenerationSettings } from "../image-generation-settings";
 import { ImageModelDrawer } from "../image-model-drawer";
@@ -44,17 +45,19 @@ export function ControlsSection({
     selectedPersonaId,
     reasoningConfig,
     temperature,
+    setSelectedPersonaId,
+    setReasoningConfig,
+    setTemperature,
+  } = useChatInputStateContext();
+  const {
     generationMode,
     imageParams,
     negativePromptEnabled,
     enabledImageModels,
-    setSelectedPersonaId,
-    setReasoningConfig,
-    setTemperature,
     setGenerationMode,
     setImageParams,
     handleNegativePromptEnabledChange,
-  } = useChatInputContext();
+  } = useChatInputUIContext();
 
   if (!canSend) {
     return null;

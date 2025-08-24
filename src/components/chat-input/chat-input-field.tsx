@@ -1,20 +1,9 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { UserIcon, XIcon } from "@phosphor-icons/react";
 import type React from "react";
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-} from "react";
-import {
-  useInitialHeight,
-  useKeyboardNavigation,
-  useTextareaHeight,
-  useTextareaStyling,
-} from "./hooks";
+import { memo, useCallback, useMemo } from "react";
+import { ChatInputFieldCore } from "./chat-input-field-core";
+import { createHashMemoComparison } from "./hooks/use-props-hash";
+import { PersonaChip } from "./persona-chip";
 import { PersonaMentionTypeahead } from "./persona-mention-typeahead";
 import { stripMentionText } from "./utils/mention-text-utils";
 
@@ -95,23 +84,6 @@ export const ChatInputField = memo(
     onPersonaChipWidthChange,
     onPersonaClearForNavigation,
   }: ChatInputFieldProps) {
-    const {
-      onHistoryNavigation,
-      onHistoryNavigationDown,
-      onHeightChange,
-      isTransitioning = false,
-    } = navigation || {};
-
-    const {
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
-      onMentionSelect,
-      firstLineIndentPx,
-    } = mentions || {};
-
-    const personaChipRef = useRef<HTMLSpanElement>(null);
-
     const placement = useMemo(() => {
       const rect = textareaRef.current?.getBoundingClientRect();
       if (!rect) {
@@ -124,53 +96,8 @@ export const ChatInputField = memo(
         : ("bottom" as const);
     }, [textareaRef]);
 
-    // Use custom hooks for different concerns
-    useInitialHeight({ textareaRef, value, onHeightChange });
-
-    const { resizeTextarea } = useTextareaHeight({
-      value,
-      onHeightChange,
-    });
-
-    const { handleKeyDown } = useKeyboardNavigation({
-      onHistoryNavigation,
-      onHistoryNavigationDown,
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
-      onPersonaClear: onPersonaClearForNavigation,
-      onPersonaSelect: onMentionSelect,
-      onSubmit,
-    });
-
-    const { textareaClassName, textareaStyle } = useTextareaStyling({
-      disabled,
-      className,
-      isTransitioning,
-      firstLineIndentPx,
-    });
-
-    // Measure persona chip width for proper indentation
-    useEffect(() => {
-      if (!selectedPersonaId) {
-        onPersonaChipWidthChange(0);
-        return;
-      }
-      const measure = () => {
-        const w = personaChipRef.current?.getBoundingClientRect().width;
-        onPersonaChipWidthChange(Math.ceil(w || 0));
-      };
-      measure();
-      const onResize = () => measure();
-      window.addEventListener("resize", onResize);
-      return () => {
-        window.removeEventListener("resize", onResize);
-      };
-    }, [selectedPersonaId, onPersonaChipWidthChange]);
-
     const handleChange = useCallback(
-      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const newValue = e.target.value;
+      (newValue: string) => {
         onChange(newValue);
 
         // Handle @ mention detection
@@ -261,67 +188,29 @@ export const ChatInputField = memo(
       [mentionOpen, mentionQuery, onMentionStateChange]
     );
 
-    // Handle textarea resize when value changes
-    useLayoutEffect(() => {
-      resizeTextarea(textareaRef.current);
-    }, [resizeTextarea, textareaRef]);
-
-    // Reset mention active index when mention opens
-    useEffect(() => {
-      if (mentionOpen) {
-        onMentionStateChange({
-          open: mentionOpen,
-          query: mentionQuery,
-          activeIndex: 0,
-        });
-      }
-    }, [mentionOpen, mentionQuery, onMentionStateChange]);
-
     return (
       <div className="relative w-full">
-        {/* Persona chip display */}
-        {selectedPersonaId && (
-          <div className="absolute left-1 top-1 z-10 flex items-center gap-1 text-xs text-muted-foreground">
-            <span
-              ref={personaChipRef}
-              className="inline-flex items-center gap-1 rounded-md bg-accent/40 px-1.5 py-0.5"
-            >
-              {currentPersona?.icon ? (
-                <span className="text-xs">{currentPersona.icon}</span>
-              ) : (
-                <UserIcon className="h-3.5 w-3.5" />
-              )}
-              <span className="max-w-[140px] truncate">
-                {currentPersona?.name || "Persona"}
-              </span>
-              <button
-                type="button"
-                className="ml-1 text-muted-foreground hover:text-foreground"
-                onClick={onPersonaClear}
-                aria-label="Clear persona"
-              >
-                <XIcon className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          </div>
-        )}
+        {/* Persona chip display - isolated component */}
+        <PersonaChip
+          selectedPersonaId={selectedPersonaId}
+          currentPersona={currentPersona}
+          onPersonaClear={onPersonaClear}
+          onPersonaChipWidthChange={onPersonaChipWidthChange}
+        />
 
-        {/* Main textarea */}
-        <textarea
-          ref={textareaRef}
-          className={textareaClassName}
-          style={textareaStyle}
-          disabled={disabled}
-          placeholder={selectedPersonaId ? "" : placeholder}
-          rows={1}
+        {/* Core textarea - isolated component */}
+        <ChatInputFieldCore
           value={value}
           onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          inputMode="text"
-          tabIndex={0}
-          aria-label="Chat message input"
-          // biome-ignore lint/a11y/noAutofocus: Needed for chat input auto-focus on home page
+          onSubmit={onSubmit}
+          textareaRef={textareaRef}
+          placeholder={selectedPersonaId ? "" : placeholder}
+          disabled={disabled}
+          className={className}
           autoFocus={autoFocus}
+          navigation={navigation}
+          mentions={mentions}
+          onPersonaClearForNavigation={onPersonaClearForNavigation}
         />
 
         {/* Persona mention typeahead */}
@@ -340,32 +229,5 @@ export const ChatInputField = memo(
       </div>
     );
   },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.value === nextProps.value &&
-      prevProps.disabled === nextProps.disabled &&
-      prevProps.className === nextProps.className &&
-      prevProps.placeholder === nextProps.placeholder &&
-      prevProps.autoFocus === nextProps.autoFocus &&
-      prevProps.selectedPersonaId === nextProps.selectedPersonaId &&
-      prevProps.currentPersona === nextProps.currentPersona &&
-      prevProps.hasExistingMessages === nextProps.hasExistingMessages &&
-      prevProps.mentionOpen === nextProps.mentionOpen &&
-      prevProps.mentionQuery === nextProps.mentionQuery &&
-      prevProps.mentionActiveIndex === nextProps.mentionActiveIndex &&
-      prevProps.mentionItems === nextProps.mentionItems &&
-      // Callbacks should be stable, so reference equality is fine
-      prevProps.onChange === nextProps.onChange &&
-      prevProps.onSubmit === nextProps.onSubmit &&
-      prevProps.onPersonaClear === nextProps.onPersonaClear &&
-      prevProps.onPersonaSelect === nextProps.onPersonaSelect &&
-      prevProps.onPersonaChipWidthChange ===
-        nextProps.onPersonaChipWidthChange &&
-      prevProps.onMentionStateChange === nextProps.onMentionStateChange &&
-      // Navigation props - check object reference since it's memoized
-      prevProps.navigation === nextProps.navigation &&
-      // Mention props - check object reference since it's memoized
-      prevProps.mentions === nextProps.mentions
-    );
-  }
+  createHashMemoComparison(["textareaRef"]) // Use optimized hash-based comparison
 );

@@ -1,10 +1,14 @@
 import type { Id } from "@convex/_generated/dataModel";
+import { useMemo } from "react";
 import type { GenerationMode } from "@/types";
 import { AttachmentDisplay } from "../attachment-display";
 import { ChatInputField } from "../chat-input-field";
 import { useAttachments } from "../context/attachment-context";
-import { useChatInputContext } from "../context/chat-input-context";
+import { useChatInputNavigationContext } from "../context/chat-input-navigation-context";
+import { useChatInputStateContext } from "../context/chat-input-state-context";
+import { useChatInputUIContext } from "../context/chat-input-ui-context";
 import { ExpandToggleButton } from "../expand-toggle-button";
+import { useEvent } from "../hooks/use-event";
 import { NegativePromptToggle } from "../negative-prompt-toggle";
 
 interface TextInputSectionProps {
@@ -75,45 +79,82 @@ export function TextInputSection({
   const {
     input,
     selectedPersonaId,
-    isFullscreen,
-    isMultiline,
     personaChipWidth,
-    negativePromptEnabled,
-    imageParams,
     setSelectedPersonaId,
     setPersonaChipWidth,
-    handleToggleFullscreen,
     handleInputChange,
+  } = useChatInputStateContext();
+  const {
+    isFullscreen,
+    isMultiline,
+    negativePromptEnabled,
+    imageParams,
+    handleToggleFullscreen,
     handleNegativePromptEnabledChange,
-    navigationProps,
     setImageParams,
-  } = useChatInputContext();
+  } = useChatInputUIContext();
+  const { navigationProps } = useChatInputNavigationContext();
 
-  const handleInputChangeWithHistory = (value: string) => {
+  // Stable event handlers using useEvent pattern
+  const handleInputChangeWithHistory = useEvent((value: string) => {
     handleInputChange(value, userMessages);
-  };
+  });
 
-  const currentPersona = selectedPersonaId
-    ? personas.find(p => p._id === selectedPersonaId) || null
-    : null;
+  const stableHistoryNavigation = useEvent(() =>
+    navigationProps.onHistoryNavigation(userMessages)
+  );
 
-  const navigationPropsWithMessages = {
-    ...navigationProps,
-    onHistoryNavigation: () =>
-      navigationProps.onHistoryNavigation(userMessages),
-    onHistoryNavigationDown: () =>
-      navigationProps.onHistoryNavigationDown(userMessages),
-  };
+  const stableHistoryNavigationDown = useEvent(() =>
+    navigationProps.onHistoryNavigationDown(userMessages)
+  );
 
-  const mentionsProps = {
-    onMentionNavigate,
-    onMentionConfirm,
-    onMentionCancel,
-    onMentionSelect,
-    firstLineIndentPx: selectedPersonaId
-      ? Math.max(personaChipWidth + 8, 0)
-      : undefined,
-  };
+  const handlePersonaClear = useEvent(() => {
+    setSelectedPersonaId(null);
+  });
+
+  const handleNegativePromptValueChange = useEvent((value: string) => {
+    setImageParams(prev => ({ ...prev, negativePrompt: value }));
+  });
+
+  // Stable memoized values - only recalculate when actual dependencies change
+  const currentPersona = useMemo(
+    () =>
+      selectedPersonaId
+        ? personas.find(p => p._id === selectedPersonaId) || null
+        : null,
+    [selectedPersonaId, personas]
+  );
+
+  // Stable navigation props - use stable handlers
+  const navigationPropsWithMessages = useMemo(
+    () => ({
+      ...navigationProps,
+      onHistoryNavigation: stableHistoryNavigation,
+      onHistoryNavigationDown: stableHistoryNavigationDown,
+    }),
+    [navigationProps, stableHistoryNavigation, stableHistoryNavigationDown]
+  );
+
+  // Stable mention props - only recalculate when layout changes
+  const mentionsProps = useMemo(
+    () => ({
+      onMentionNavigate,
+      onMentionConfirm,
+      onMentionCancel,
+      onMentionSelect,
+      firstLineIndentPx: selectedPersonaId
+        ? Math.max(personaChipWidth + 8, 0)
+        : undefined,
+    }),
+    [
+      onMentionNavigate,
+      onMentionConfirm,
+      onMentionCancel,
+      onMentionSelect,
+      selectedPersonaId,
+      personaChipWidth,
+    ]
+  );
 
   return (
     <>
@@ -146,7 +187,7 @@ export function TextInputSection({
               mentions={mentionsProps}
               selectedPersonaId={selectedPersonaId}
               currentPersona={currentPersona}
-              onPersonaClear={() => setSelectedPersonaId(null)}
+              onPersonaClear={handlePersonaClear}
               hasExistingMessages={hasExistingMessages}
               mentionOpen={mentionOpen}
               mentionQuery={mentionQuery}
@@ -155,7 +196,7 @@ export function TextInputSection({
               onMentionStateChange={onMentionStateChange}
               onPersonaSelect={setSelectedPersonaId}
               onPersonaChipWidthChange={setPersonaChipWidth}
-              onPersonaClearForNavigation={() => setSelectedPersonaId(null)}
+              onPersonaClearForNavigation={handlePersonaClear}
             />
             <ExpandToggleButton
               onToggle={handleToggleFullscreen}
@@ -178,9 +219,7 @@ export function TextInputSection({
                   enabled={negativePromptEnabled}
                   value={imageParams.negativePrompt || ""}
                   onEnabledChange={handleNegativePromptEnabledChange}
-                  onValueChange={(value: string) =>
-                    setImageParams(prev => ({ ...prev, negativePrompt: value }))
-                  }
+                  onValueChange={handleNegativePromptValueChange}
                   disabled={disabled}
                   onSubmit={onSubmit}
                   className="hidden sm:block"
