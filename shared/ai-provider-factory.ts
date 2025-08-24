@@ -9,7 +9,16 @@ export const createProviderModel = {
   anthropic: (apiKey: string, model: string) => createAnthropic({ apiKey })(model),
   google: (apiKey: string, model: string) => createGoogleGenerativeAI({ apiKey })(model),
   groq: (apiKey: string, model: string) => createGroq({ apiKey })(model),
-  openrouter: (apiKey: string, model: string) => createOpenRouter({ apiKey })(model),
+  openrouter: (apiKey: string, model: string) => {
+    const provider = createOpenRouter({ 
+      apiKey,
+      headers: {
+        'HTTP-Referer': 'https://polly.ai', // Required for OpenRouter
+        'X-Title': 'Polly Chat' // Optional but good practice
+      }
+    });
+    return provider(model);
+  },
 };
 
 export function createBasicLanguageModel(

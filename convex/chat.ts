@@ -281,52 +281,95 @@ export const chatStream = httpAction(
       );
 
       // Create language model
-      const languageModel = createBasicLanguageModel(provider, modelId, apiKey);
+      try {
+        const languageModel = createBasicLanguageModel(
+          provider,
+          modelId,
+          apiKey
+        );
 
-      // Configure streaming options
-      const baseOptions = {
-        model: languageModel,
-        messages: processedMessages,
-        temperature: _temperature,
-        topP: _topP,
-        frequencyPenalty: _frequencyPenalty,
-        presencePenalty: _presencePenalty,
-        ...reasoningOptions,
-      };
+        // Configure streaming options
+        const baseOptions = {
+          model: languageModel,
+          messages: processedMessages,
+          temperature: _temperature,
+          topP: _topP,
+          frequencyPenalty: _frequencyPenalty,
+          presencePenalty: _presencePenalty,
+          ...reasoningOptions,
+        };
 
-      // Add maxTokens conditionally
-      const streamOptions =
-        _maxTokens && _maxTokens > 0
-          ? { ...baseOptions, maxTokens: _maxTokens }
-          : baseOptions;
+        // Add maxTokens conditionally
+        const streamOptions =
+          _maxTokens && _maxTokens > 0
+            ? { ...baseOptions, maxTokens: _maxTokens }
+            : baseOptions;
 
-      // Start streaming
-      const result = streamText({
-        ...streamOptions,
-        // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
-        experimental_transform: smoothStream({
-          delayInMs: 20,
-          chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
-        }),
-      });
+        // Start streaming
+        const result = streamText({
+          ...streamOptions,
+          // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
+          experimental_transform: smoothStream({
+            delayInMs: 20,
+            chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
+          }),
+        });
 
-      // Return the proper data stream for AI SDK useChat with CORS headers
-      const response = result.toDataStreamResponse({
-        sendReasoning: true,
-      });
+        // Return the proper data stream for AI SDK useChat with CORS headers
+        const response = result.toDataStreamResponse({
+          sendReasoning: true,
+        });
 
-      // Add CORS headers to the streaming response
-      Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value);
-      });
+        // Add CORS headers to the streaming response
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
 
-      return response;
+        return response;
+      } catch (modelCreationError) {
+        log.error(
+          "[chatStream] Error creating language model or starting stream:",
+          {
+            error: modelCreationError,
+            provider,
+            modelId,
+            stack:
+              modelCreationError instanceof Error
+                ? modelCreationError.stack
+                : undefined,
+          }
+        );
+        throw modelCreationError;
+      }
     } catch (error) {
       log.error("Chat API error:", error);
       log.error(
         "Error stack:",
         error instanceof Error ? error.stack : "No stack trace"
       );
+
+      // Enhanced error logging for debugging
+      let requestInfo = {};
+      try {
+        const requestBody = await request.json();
+        requestInfo = {
+          provider: requestBody.provider,
+          modelId: requestBody.modelId,
+          hasTemperature: requestBody._temperature !== undefined,
+          hasMaxTokens: requestBody._maxTokens !== undefined,
+          hasReasoningConfig: requestBody._reasoningConfig !== undefined,
+          messageCount: requestBody.messages?.length,
+          personaId: requestBody.personaId,
+        };
+      } catch {
+        // If we can't parse the request body again, just use what we can
+      }
+
+      log.error("[chatStream] Detailed error information:", {
+        errorType: error?.constructor?.name,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        requestInfo,
+      });
 
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
@@ -335,6 +378,14 @@ export const chatStream = httpAction(
       return new Response(
         JSON.stringify({
           error: errorMessage,
+          details:
+            process.env.NODE_ENV === "development"
+              ? {
+                  errorType: error?.constructor?.name,
+                  stack: error instanceof Error ? error.stack : undefined,
+                  ...requestInfo,
+                }
+              : undefined,
         }),
         {
           status: 500,

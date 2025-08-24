@@ -72,28 +72,54 @@ const createProviderModel = {
     ctx: ActionCtx,
     userId?: Id<"users">
   ) => {
-    const openrouter = createOpenRouter({ apiKey });
+    log.info("[server_streaming] Creating OpenRouter provider:", {
+      model,
+      apiKeyLength: apiKey.length,
+      apiKeyPrefix: apiKey.substring(0, 10) + "...",
+      userId: userId ? "present" : "none",
+    });
 
-    // Get user's OpenRouter sorting preference
-    let sorting: "default" | "price" | "throughput" | "latency" = "default";
-    if (userId) {
-      try {
-        const userSettings = await ctx.runQuery(
-          api.userSettings.getUserSettings
-        );
-        sorting = userSettings?.openRouterSorting ?? "default";
-      } catch (error) {
-        log.warn(
-          "Failed to get user settings for OpenRouter sorting:",
-          error
-        );
+    try {
+      const openrouter = createOpenRouter({ apiKey });
+      log.info("[server_streaming] OpenRouter provider created successfully");
+
+      // Get user's OpenRouter sorting preference
+      let sorting: "default" | "price" | "throughput" | "latency" = "default";
+      if (userId) {
+        try {
+          const userSettings = await ctx.runQuery(
+            api.userSettings.getUserSettings
+          );
+          sorting = userSettings?.openRouterSorting ?? "default";
+          log.info("[server_streaming] Retrieved user OpenRouter sorting:", sorting);
+        } catch (error) {
+          log.warn(
+            "Failed to get user settings for OpenRouter sorting:",
+            error
+          );
+        }
       }
+
+      // Apply OpenRouter sorting shortcuts
+      const modifiedModel = applyOpenRouterSorting(model, sorting);
+      log.info("[server_streaming] Applied OpenRouter sorting:", {
+        originalModel: model,
+        modifiedModel,
+        sorting,
+      });
+
+      const chatModel = openrouter.chat(modifiedModel);
+      log.info("[server_streaming] OpenRouter chat model created successfully");
+      return chatModel;
+    } catch (error) {
+      log.error("[server_streaming] Error creating OpenRouter model:", {
+        error,
+        model,
+        apiKeyLength: apiKey.length,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
     }
-
-    // Apply OpenRouter sorting shortcuts
-    const modifiedModel = applyOpenRouterSorting(model, sorting);
-
-    return openrouter.chat(modifiedModel);
   },
 };
 

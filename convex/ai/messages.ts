@@ -574,7 +574,11 @@ export const streamResponse = internalAction({
 
             // Convert messages to the expected format
             const conversationMessages = processedMessages
-              .filter((msg: Doc<"messages">) => msg.role !== "system" && msg.role !== "context")
+              .filter((msg: Doc<"messages">) => 
+                msg.role !== "system" && 
+                msg.role !== "context" && 
+                msg._id !== args.messageId  // Exclude the current assistant message
+              )
               .map((msg: Doc<"messages">) => {
                 // Convert database message format to StreamMessage format
                 let content: string | Array<any> = msg.content;
@@ -989,15 +993,11 @@ When using information from these search results, you MUST include citations in 
       }
 
       // Convert messages to AI SDK format using processed context messages
-      log.debug("🔍 [DEBUG] Context messages before conversion:", contextMessages);
       const convertedMessages = await convertMessages(
         ctx,
         contextMessages,
         effectiveProvider as any
       );
-      log.debug("🔍 [DEBUG] Converted messages for AI:", convertedMessages);
-      log.debug("🔍 [DEBUG] Provider:", effectiveProvider);
-      log.debug("🔍 [DEBUG] Model:", effectiveModel);
 
       // Get reasoning-specific stream options (simplified logging)
       // Only pass reasoning config if enabled
@@ -1068,63 +1068,63 @@ When using information from these search results, you MUST include citations in 
           delayInMs: 20,
           chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
         }),
-        onChunk: async ({ chunk }) => {
-          // Check for abort signal before processing any chunk
-          if (await checkAbort()) {
-                      if (!isStreamingStopped) {
-            log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
-            isStreamingStopped = true;
-          }
-            return; // Exit gracefully instead of throwing error
-          }
-
-          // Only log reasoning chunks, not every text chunk to reduce noise
-          if (chunk.type === "reasoning" && chunk.textDelta) {
-            log.streamReasoning(args.messageId, chunk.textDelta);
-
-            // Double-check abort before processing reasoning
+          onChunk: async ({ chunk }) => {
+            // Check for abort signal before processing any chunk
             if (await checkAbort()) {
-                          if (!isStreamingStopped) {
-              log.streamAbort("Reasoning processing stopped");
+                        if (!isStreamingStopped) {
+              log.streamAbort(`Stream ${args.messageId.slice(-8)} stopped`);
               isStreamingStopped = true;
             }
               return; // Exit gracefully instead of throwing error
             }
 
-            const reasoningBatchResult = addChunk(
-              reasoningBatcher,
-              chunk.textDelta
-            );
-            reasoningBatcher = reasoningBatchResult.state;
-            if (
-              reasoningBatchResult.shouldFlush &&
-              reasoningBatchResult.content
-            ) {
-              // Triple-check abort before sending to frontend
+            // Only log reasoning chunks, not every text chunk to reduce noise
+            if (chunk.type === "reasoning" && chunk.textDelta) {
+              log.streamReasoning(args.messageId, chunk.textDelta);
+
+              // Double-check abort before processing reasoning
               if (await checkAbort()) {
-                if (!isStreamingStopped) {
-                  log.streamAbort("Reasoning update blocked");
-                  isStreamingStopped = true;
-                }
+                            if (!isStreamingStopped) {
+                log.streamAbort("Reasoning processing stopped");
+                isStreamingStopped = true;
+              }
                 return; // Exit gracefully instead of throwing error
               }
 
-              try {
-                await ctx.runMutation(
-                  internal.messages.updateAssistantContent,
-                  {
-                    messageId: args.messageId,
-                    appendReasoning: reasoningBatchResult.content,
-                    status: "streaming",
+              const reasoningBatchResult = addChunk(
+                reasoningBatcher,
+                chunk.textDelta
+              );
+              reasoningBatcher = reasoningBatchResult.state;
+              if (
+                reasoningBatchResult.shouldFlush &&
+                reasoningBatchResult.content
+              ) {
+                // Triple-check abort before sending to frontend
+                if (await checkAbort()) {
+                  if (!isStreamingStopped) {
+                    log.streamAbort("Reasoning update blocked");
+                    isStreamingStopped = true;
                   }
-                );
-              } catch (updateError) {
-                log.streamError("Reasoning update failed", updateError);
+                  return; // Exit gracefully instead of throwing error
+                }
+
+                try {
+                  await ctx.runMutation(
+                    internal.messages.updateAssistantContent,
+                    {
+                      messageId: args.messageId,
+                      appendReasoning: reasoningBatchResult.content,
+                      status: "streaming",
+                    }
+                  );
+                } catch (updateError) {
+                  log.streamError("Reasoning update failed", updateError);
+                }
               }
             }
-          }
-        },
-      });
+          },
+        });
 
       // Set status to streaming when we start receiving chunks
       await ctx.runMutation(internal.messages.updateMessageStatus, {
@@ -1138,6 +1138,7 @@ When using information from these search results, you MUST include citations in 
       let chunkCount = 0;
       for await (const chunk of result.textStream) {
         chunkCount++;
+        
         // Check both abort conditions and the flag set by onChunk
         if (isStreamingStopped || await checkAbort()) {
           if (!isStreamingStopped) {
