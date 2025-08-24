@@ -52,10 +52,19 @@ export const getUserModels = query({
       return [];
     }
 
-    return ctx.db
+    const userModels = await ctx.db
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
+
+    // For now, mark all user models as available since we can't fetch from API in queries
+    // The frontend will handle the actual availability checking after fetching from API
+    const userModelsWithAvailability = userModels.map(model => ({
+      ...model,
+      isAvailable: true, // Default to available, let frontend override
+    }));
+
+    return userModelsWithAvailability;
   },
 });
 
@@ -550,5 +559,55 @@ export const selectModel = mutation({
     }
 
     return { success: true, modelId: args.modelId, isDefault: false };
+  },
+});
+
+export const removeUnavailableModels = mutation({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { success: false, error: "User not authenticated" };
+    }
+
+    // Get user's models
+    const userModels = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+
+    // Get available models from built-in models
+    // Note: We can't call API actions from mutations either, so we use available data
+    const builtInModels = await ctx.db
+      .query("builtInModels")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
+
+    // Create a set of available model IDs
+    const availableModelIds = new Set(
+      builtInModels.map((model: Doc<"builtInModels">) => model.modelId)
+    );
+
+    // Find unavailable models based on modelId
+    const unavailableModels = userModels.filter(
+      model => !availableModelIds.has(model.modelId)
+    );
+
+    // Remove unavailable models
+    const removalPromises = unavailableModels.map(model =>
+      ctx.db.delete(model._id)
+    );
+
+    await Promise.all(removalPromises);
+
+    return {
+      success: true,
+      removedCount: unavailableModels.length,
+      removedModels: unavailableModels.map(model => ({
+        modelId: model.modelId,
+        provider: model.provider,
+        name: model.name,
+      })),
+    };
   },
 });

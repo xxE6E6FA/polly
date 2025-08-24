@@ -25,6 +25,8 @@ type BaseModel = {
   supportsFiles?: boolean;
   inputModalities?: string[];
   free?: boolean;
+  isAvailable?: boolean;
+  selected?: boolean;
 };
 
 interface VirtualizedModelListProps {
@@ -42,6 +44,7 @@ const ModelCard = memo(
     onToggle: (model: BaseModel) => void;
   }) => {
     const capabilities = useMemo(() => getModelCapabilities(model), [model]);
+    const isUnavailable = model.isAvailable === false;
 
     // Simple context display calculation
     const contextLength = model.contextLength || model.contextWindow || 0;
@@ -61,8 +64,10 @@ const ModelCard = memo(
           };
 
     const handleClick = useCallback(() => {
-      onToggle(model);
-    }, [model, onToggle]);
+      if (!isUnavailable) {
+        onToggle(model);
+      }
+    }, [model, onToggle, isUnavailable]);
 
     const handleSwitchClick = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
@@ -70,28 +75,34 @@ const ModelCard = memo(
 
     return (
       <div
-        className={`group relative min-h-[160px] cursor-pointer rounded-lg border p-4 transition-all duration-200 flex flex-col ${
-          isEnabled
+        className={`group relative min-h-[160px] rounded-lg border p-4 transition-all duration-200 flex flex-col ${
+          isEnabled && !isUnavailable
             ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
-            : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
+            : isUnavailable
+              ? "border-red-200 bg-red-50 cursor-not-allowed dark:border-red-800 dark:bg-red-950/20"
+              : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
         }`}
         onClick={handleClick}
         onKeyDown={e => {
-          if (e.key === "Enter" || e.key === " ") {
+          if ((e.key === "Enter" || e.key === " ") && !isUnavailable) {
             e.preventDefault();
             handleClick();
           }
         }}
-        role="button"
-        tabIndex={0}
+        role={isUnavailable ? "button" : "button"}
+        tabIndex={isUnavailable ? -1 : 0}
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-2">
             <div className="mb-1 flex items-start gap-2">
-              <h4 className="break-words text-sm font-medium leading-tight line-clamp-2">
+              <h4
+                className={`break-words text-sm font-medium leading-tight line-clamp-2 ${
+                  isUnavailable ? "text-red-700 dark:text-red-300" : ""
+                }`}
+              >
                 {model.name}
               </h4>
-              {model.free && (
+              {model.free && !isUnavailable && (
                 <Badge
                   className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
                   variant="secondary"
@@ -99,17 +110,35 @@ const ModelCard = memo(
                   Free
                 </Badge>
               )}
+              {isUnavailable && (
+                <Badge
+                  className="h-5 shrink-0 border-red-200 bg-red-100 px-1.5 py-0 text-[10px] text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                  variant="secondary"
+                >
+                  Unavailable
+                </Badge>
+              )}
             </div>
             <div className="mt-1 flex items-center">
-              <ProviderIcon provider={model.provider} className="h-4 w-4" />
+              <ProviderIcon
+                provider={model.provider}
+                className={`h-4 w-4 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
+              />
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Switch
-              checked={isEnabled}
-              onCheckedChange={handleClick}
-              onClick={handleSwitchClick}
-            />
+            {isUnavailable ? (
+              <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
+                Unavailable
+              </span>
+            ) : (
+              <Switch
+                checked={isEnabled}
+                onCheckedChange={handleClick}
+                onClick={handleSwitchClick}
+                disabled={isUnavailable}
+              />
+            )}
           </div>
         </div>
 
@@ -130,12 +159,16 @@ const ModelCard = memo(
               >
                 <div
                   className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-                    isEnabled
+                    isEnabled && !isUnavailable
                       ? "border border-border/40 bg-background hover:bg-muted"
-                      : "bg-muted hover:bg-muted-foreground/10"
+                      : isUnavailable
+                        ? "bg-red-100 dark:bg-red-900/30"
+                        : "bg-muted hover:bg-muted-foreground/10"
                   }`}
                 >
-                  <IconComponent className="h-3 w-3" />
+                  <IconComponent
+                    className={`h-3 w-3 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
+                  />
                 </div>
               </TooltipWrapper>
             );
@@ -153,12 +186,20 @@ const ModelCard = memo(
             >
               <div
                 className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
-                  isEnabled
+                  isEnabled && !isUnavailable
                     ? "border border-border/40 bg-background hover:bg-muted"
-                    : "bg-muted hover:bg-muted-foreground/10"
+                    : isUnavailable
+                      ? "bg-red-100 dark:bg-red-900/30"
+                      : "bg-muted hover:bg-muted-foreground/10"
                 }`}
               >
-                <span className="text-muted-foreground">
+                <span
+                  className={
+                    isUnavailable
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-muted-foreground"
+                  }
+                >
                   {contextDisplay.short}
                 </span>
               </div>
@@ -166,7 +207,13 @@ const ModelCard = memo(
           )}
         </div>
 
-        <div className="mt-auto flex items-center gap-2 text-xs text-muted-foreground">
+        <div
+          className={`mt-auto flex items-center gap-2 text-xs ${
+            isUnavailable
+              ? "text-red-600 dark:text-red-400"
+              : "text-muted-foreground"
+          }`}
+        >
           <TooltipWrapper content={model.modelId}>
             <span className="truncate">{model.modelId}</span>
           </TooltipWrapper>
