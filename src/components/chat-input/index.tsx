@@ -38,9 +38,7 @@ import {
   useChatInputImageGeneration,
   useChatInputSubmission,
 } from "./hooks";
-import { useMentionItems } from "./hooks/use-mention-items";
 import { TextInputSection } from "./sections/text-input-section";
-import { stripMentionText } from "./utils/mention-text-utils";
 
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
@@ -120,16 +118,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       selectedPersonaId,
       reasoningConfig,
       temperature,
-      mentionOpen,
-      mentionQuery,
-      mentionActiveIndex,
       setInput,
-      setSelectedPersonaId,
       resetInputState,
-      handleMentionStateChange,
-      handleMentionNavigate,
-      handleMentionConfirm,
-      handleMentionCancel,
     } = useChatInputContext();
     const { generationMode, imageParams, setGenerationMode } =
       useChatInputUIContext();
@@ -181,39 +171,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         onProcessFiles: processFiles,
       });
 
-    // Use the mention items hook
-    const { mentionItems } = useMentionItems({
-      personas,
-      mentionQuery,
-    });
-
-    // Create mention select handler that mimics the behavior in chat-input-field.tsx
-    const handleMentionSelect = useCallback(
-      (personaId: Id<"personas"> | null) => {
-        // Strip the mention text when selecting via keyboard
-        const textarea = textareaRef.current;
-        if (textarea) {
-          const text = textarea.value;
-          const caret = textarea.selectionStart ?? text.length;
-
-          // Find and remove the @ mention text
-          const { newText, newCursorPos } = stripMentionText(text, caret);
-          setInput(newText);
-
-          // Position cursor where the @ mention was deleted
-          setTimeout(() => {
-            if (textareaRef.current) {
-              textareaRef.current.focus();
-              textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-            }
-          }, 0);
-        }
-
-        setSelectedPersonaId(personaId);
-      },
-      [setInput, setSelectedPersonaId]
-    );
-
     // Handle private mode and replicate API key restrictions
     useEffect(() => {
       if (
@@ -248,11 +205,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
 
     // Handle submission
     const handleSubmit = useCallback(async () => {
-      if (mentionOpen) {
-        return;
-      }
       await submit(input, attachments, generationMode);
-    }, [mentionOpen, submit, input, attachments, generationMode]);
+    }, [submit, input, attachments, generationMode]);
 
     // Handle send as new conversation
     const handleSendAsNew = useCallback(
@@ -327,18 +281,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
           disabled={isLoading || isStreaming || isProcessing || !canSendMessage}
           autoFocus={autoFocus}
           hasExistingMessages={hasExistingMessages}
-          mentionOpen={mentionOpen}
-          mentionQuery={mentionQuery}
-          mentionActiveIndex={mentionActiveIndex}
-          mentionItems={mentionItems}
-          onMentionStateChange={handleMentionStateChange}
-          onMentionNavigate={direction =>
-            handleMentionNavigate(direction, mentionItems)
-          }
-          onMentionConfirm={() => handleMentionConfirm(mentionItems)}
-          onMentionCancel={handleMentionCancel}
           personas={personas}
-          onMentionSelect={handleMentionSelect}
           canSend={canSendMessage}
           generationMode={generationMode}
           hasReplicateApiKey={hasReplicateApiKey}
