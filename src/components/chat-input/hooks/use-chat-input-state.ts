@@ -7,7 +7,6 @@ import { useChatInputCoreState } from "./use-chat-input-core-state";
 import { useChatInputFullscreen } from "./use-chat-input-fullscreen";
 import { useChatInputHistory } from "./use-chat-input-history";
 import { useChatInputImageGenerationParams } from "./use-chat-input-image-generation-params";
-import { useChatInputMentionState } from "./use-chat-input-mention-state";
 
 interface UseChatInputStateProps {
   conversationId?: ConversationId;
@@ -44,7 +43,6 @@ export function useChatInputState({
   const fullscreenState = useChatInputFullscreen();
   const historyState = useChatInputHistory();
   const imageGenState = useChatInputImageGenerationParams();
-  const mentionState = useChatInputMentionState();
 
   // Reset multiline state when starting a new conversation
   useEffect(() => {
@@ -93,9 +91,8 @@ export function useChatInputState({
   const resetInputState = useCallback(() => {
     coreState.resetCoreState();
     imageGenState.resetImageParams();
-    mentionState.resetMentionState();
     historyState.resetHistory();
-  }, [coreState, imageGenState, mentionState, historyState]);
+  }, [coreState, imageGenState, historyState]);
 
   // Memoized navigation props to prevent recreation
   const navigationProps = useMemo(
@@ -119,7 +116,6 @@ export function useChatInputState({
     ...fullscreenState,
     ...historyState,
     ...imageGenState,
-    ...mentionState,
 
     // Additional state
     personaChipWidth,

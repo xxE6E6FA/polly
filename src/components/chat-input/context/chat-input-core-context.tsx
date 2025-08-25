@@ -36,11 +36,6 @@ interface ChatInputCoreContextValue {
     | undefined;
   shouldUsePreservedState: boolean | undefined;
 
-  // Mention state
-  mentionOpen: boolean;
-  mentionQuery: string;
-  mentionActiveIndex: number;
-
   // Setters
   setInput: (value: string) => void;
   setAttachments: (
@@ -68,30 +63,6 @@ interface ChatInputCoreContextValue {
   handleNegativePromptEnabledChange: (enabled: boolean) => void;
   handleNegativePromptValueChange: (value: string) => void;
   resetInputState: () => void;
-
-  // Mention handlers
-  handleMentionStateChange: (state: {
-    open: boolean;
-    query: string;
-    activeIndex: number;
-  }) => void;
-  resetMentionState: () => void;
-  handleMentionNavigate: (
-    direction: "up" | "down",
-    mentionItems: Array<{
-      id: Id<"personas"> | null;
-      name: string;
-      icon?: string;
-    }>
-  ) => boolean;
-  handleMentionConfirm: (
-    mentionItems: Array<{
-      id: Id<"personas"> | null;
-      name: string;
-      icon?: string;
-    }>
-  ) => Id<"personas"> | null;
-  handleMentionCancel: () => boolean;
 
   // Computed props
   navigationProps: {

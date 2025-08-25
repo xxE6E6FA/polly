@@ -18,19 +18,6 @@ interface TextInputSectionProps {
   disabled: boolean;
   autoFocus: boolean;
   hasExistingMessages: boolean;
-  mentionOpen: boolean;
-  mentionQuery: string;
-  mentionActiveIndex: number;
-  mentionItems: Array<{
-    id: Id<"personas"> | null;
-    name: string;
-    icon?: string;
-  }>;
-  onMentionStateChange: (state: {
-    open: boolean;
-    query: string;
-    activeIndex: number;
-  }) => void;
   personas: Array<{
     _id: Id<"personas">;
     name: string;
@@ -54,32 +41,17 @@ export function TextInputSection({
   disabled,
   autoFocus,
   hasExistingMessages,
-  mentionOpen,
-  mentionQuery,
-  mentionActiveIndex,
-  mentionItems,
-  onMentionStateChange,
-  onMentionNavigate,
-  onMentionConfirm,
-  onMentionCancel,
   personas,
-  onMentionSelect,
   canSend,
   generationMode,
   hasReplicateApiKey,
   selectedImageModel,
   userMessages,
-}: TextInputSectionProps & {
-  onMentionNavigate?: (direction: "up" | "down") => boolean;
-  onMentionConfirm?: () => Id<"personas"> | null;
-  onMentionCancel?: () => boolean;
-  onMentionSelect?: (personaId: Id<"personas"> | null) => void;
-}) {
+}: TextInputSectionProps) {
   const { attachments, removeAttachment } = useAttachments();
   const {
     input,
     selectedPersonaId,
-    personaChipWidth,
     setSelectedPersonaId,
     setPersonaChipWidth,
     handleInputChange,
@@ -135,27 +107,6 @@ export function TextInputSection({
     [navigationProps, stableHistoryNavigation, stableHistoryNavigationDown]
   );
 
-  // Stable mention props - only recalculate when layout changes
-  const mentionsProps = useMemo(
-    () => ({
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
-      onMentionSelect,
-      firstLineIndentPx: selectedPersonaId
-        ? Math.max(personaChipWidth + 8, 0)
-        : undefined,
-    }),
-    [
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
-      onMentionSelect,
-      selectedPersonaId,
-      personaChipWidth,
-    ]
-  );
-
   return (
     <>
       <AttachmentDisplay
@@ -184,16 +135,10 @@ export function TextInputSection({
                     : undefined
               }
               navigation={navigationPropsWithMessages}
-              mentions={mentionsProps}
               selectedPersonaId={selectedPersonaId}
               currentPersona={currentPersona}
               onPersonaClear={handlePersonaClear}
               hasExistingMessages={hasExistingMessages}
-              mentionOpen={mentionOpen}
-              mentionQuery={mentionQuery}
-              mentionActiveIndex={mentionActiveIndex}
-              mentionItems={mentionItems}
-              onMentionStateChange={onMentionStateChange}
               onPersonaSelect={setSelectedPersonaId}
               onPersonaChipWidthChange={setPersonaChipWidth}
               onPersonaClearForNavigation={handlePersonaClear}

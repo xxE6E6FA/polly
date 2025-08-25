@@ -1,4 +1,3 @@
-import type { Id } from "@convex/_generated/dataModel";
 import type React from "react";
 import { memo, useCallback, useLayoutEffect } from "react";
 import {
@@ -27,15 +26,6 @@ interface ChatInputFieldCoreProps {
     isTransitioning?: boolean;
   };
 
-  // Mention options
-  mentions?: {
-    onMentionNavigate?: (direction: "up" | "down") => boolean;
-    onMentionConfirm?: () => Id<"personas"> | null;
-    onMentionCancel?: () => boolean;
-    onMentionSelect?: (personaId: Id<"personas"> | null) => void;
-    firstLineIndentPx?: number;
-  };
-
   // Persona clearing for navigation
   onPersonaClearForNavigation?: () => void;
 }
@@ -54,7 +44,6 @@ export const ChatInputFieldCore = memo(
     className,
     autoFocus = false,
     navigation,
-    mentions,
     onPersonaClearForNavigation,
   }: ChatInputFieldCoreProps) {
     const {
@@ -63,14 +52,6 @@ export const ChatInputFieldCore = memo(
       onHeightChange,
       isTransitioning = false,
     } = navigation || {};
-
-    const {
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
-      onMentionSelect,
-      firstLineIndentPx,
-    } = mentions || {};
 
     // Use custom hooks for different concerns
     useInitialHeight({ textareaRef, value, onHeightChange });
@@ -83,11 +64,7 @@ export const ChatInputFieldCore = memo(
     const { handleKeyDown } = useKeyboardNavigation({
       onHistoryNavigation,
       onHistoryNavigationDown,
-      onMentionNavigate,
-      onMentionConfirm,
-      onMentionCancel,
       onPersonaClear: onPersonaClearForNavigation,
-      onPersonaSelect: onMentionSelect,
       onSubmit,
     });
 
@@ -95,7 +72,6 @@ export const ChatInputFieldCore = memo(
       disabled,
       className,
       isTransitioning,
-      firstLineIndentPx,
     });
 
     const handleChange = useCallback(
