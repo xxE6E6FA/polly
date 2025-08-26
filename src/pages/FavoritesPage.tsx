@@ -9,7 +9,11 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -191,41 +195,50 @@ export default function FavoritesPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 ml-2">
-                      <TooltipWrapper content="Open conversation">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() =>
-                            navigate(
-                              ROUTES.CHAT_CONVERSATION(item.conversation._id)
-                            )
-                          }
-                          className="btn-action h-7 w-7 p-0"
-                        >
-                          <ArrowSquareOutIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipWrapper>
-                      <TooltipWrapper content="Copy message">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleCopy(item.message.content)}
-                          className="btn-action h-7 w-7 p-0"
-                        >
-                          <CopyIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </TooltipWrapper>
-                      <TooltipWrapper content="Remove favorite">
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleUnfavorite(item.message._id)}
-                          className="btn-action h-7 w-7 p-0 text-red-500"
-                          title="Remove favorite"
-                        >
-                          <HeartIcon className="h-3.5 w-3.5" weight="fill" />
-                        </Button>
-                      </TooltipWrapper>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() =>
+                              navigate(
+                                ROUTES.CHAT_CONVERSATION(item.conversation._id)
+                              )
+                            }
+                            className="btn-action h-7 w-7 p-0"
+                          >
+                            <ArrowSquareOutIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Open conversation</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleCopy(item.message.content)}
+                            className="btn-action h-7 w-7 p-0"
+                          >
+                            <CopyIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copy message</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleUnfavorite(item.message._id)}
+                            className="btn-action h-7 w-7 p-0 text-red-500"
+                            title="Remove favorite"
+                          >
+                            <HeartIcon className="h-3.5 w-3.5" weight="fill" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Remove favorite</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </Card>

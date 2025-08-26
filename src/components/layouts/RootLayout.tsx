@@ -34,7 +34,7 @@ export default function RootLayout() {
 
   return (
     <AppProvider>
-      <TooltipProvider>
+      <TooltipProvider delayDuration={500}>
         <GlobalDragDropPrevention />
         <CommandPaletteTrigger onTrigger={() => setCommandPaletteOpen(true)} />
         <CommandPalette

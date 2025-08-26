@@ -9,7 +9,11 @@ import { SearchQuery } from "@/components/search-query";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Button } from "@/components/ui/button";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { Spinner } from "../spinner";
@@ -547,17 +551,20 @@ export const AssistantBubble = ({
 
               {/* Delete message */}
               {onDeleteMessage && (
-                <TooltipWrapper content="Delete message">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onDeleteMessage}
-                    disabled={isDeleting}
-                    className="btn-action-destructive h-7 w-7 p-0"
-                  >
-                    <TrashIcon className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipWrapper>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onDeleteMessage}
+                      disabled={isDeleting}
+                      className="btn-action-destructive h-7 w-7 p-0"
+                    >
+                      <TrashIcon className="h-3.5 w-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete message</TooltipContent>
+                </Tooltip>
               )}
             </div>
 

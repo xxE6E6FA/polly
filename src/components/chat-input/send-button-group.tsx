@@ -14,7 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
@@ -172,40 +176,38 @@ export const SendButtonGroup = ({
         }}
       >
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <TooltipWrapper
-            content="More send options"
-            open={!dropdownOpen && Boolean(isExpanded) && !isCollapsing}
-            side="left"
-            delayDuration={500}
-          >
+          <Tooltip open={!dropdownOpen && Boolean(isExpanded) && !isCollapsing}>
             <DropdownMenuTrigger asChild>
-              <button
-                disabled={
-                  isLoading || isSummarizing || !isExpanded || isCollapsing
-                }
-                type="button"
-                className={cn(
-                  "absolute left-0 top-0 bottom-0",
-                  "w-8",
-                  "inline-flex items-center justify-center",
-                  "transition-all",
-                  dropdownMenuTriggerAnimationClasses,
-                  !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
-                  "disabled:cursor-not-allowed",
-                  "focus:outline-none"
-                )}
-              >
-                <CaretDownIcon
+              <TooltipTrigger asChild>
+                <button
+                  disabled={
+                    isLoading || isSummarizing || !isExpanded || isCollapsing
+                  }
+                  type="button"
                   className={cn(
-                    "h-4 w-4",
-                    isStreaming ? "text-white" : "text-primary-foreground",
-                    "transition-transform duration-300",
-                    dropdownOpen && "rotate-180"
+                    "absolute left-0 top-0 bottom-0",
+                    "w-8",
+                    "inline-flex items-center justify-center",
+                    "transition-all",
+                    dropdownMenuTriggerAnimationClasses,
+                    !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
+                    "disabled:cursor-not-allowed",
+                    "focus:outline-none"
                   )}
-                />
-              </button>
+                >
+                  <CaretDownIcon
+                    className={cn(
+                      "h-4 w-4",
+                      isStreaming ? "text-white" : "text-primary-foreground",
+                      "transition-transform duration-300",
+                      dropdownOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+              </TooltipTrigger>
             </DropdownMenuTrigger>
-          </TooltipWrapper>
+            <TooltipContent side="left">More send options</TooltipContent>
+          </Tooltip>
           <DropdownMenuContent
             align="end"
             sideOffset={8}

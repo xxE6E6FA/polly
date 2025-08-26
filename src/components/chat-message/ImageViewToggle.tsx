@@ -2,7 +2,11 @@ import { GridFour, Slideshow } from "@phosphor-icons/react";
 import type React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { ImageGallery } from "./ImageGallery";
 import "./OverflowImageGallery.css";
@@ -38,49 +42,55 @@ export const ImageViewToggle: React.FC<ImageViewToggleProps> = ({
       {/* Toggle buttons positioned above the gallery */}
       <div className="flex justify-end mb-3">
         <div className="flex bg-black/60 rounded-lg p-1 gap-1 z-10">
-          <TooltipWrapper content="Grid view">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-7 w-7 p-0 hover:bg-white/20 transition-all duration-300 ease-out",
-                viewMode === "grid"
-                  ? "bg-white/30 scale-105"
-                  : "bg-transparent scale-100"
-              )}
-              onClick={() => setViewMode("grid")}
-            >
-              <GridFour
-                size={14}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
                 className={cn(
-                  "text-white transition-all duration-300",
-                  viewMode === "grid" ? "scale-110" : "scale-100"
+                  "h-7 w-7 p-0 hover:bg-white/20 transition-all duration-300 ease-out",
+                  viewMode === "grid"
+                    ? "bg-white/30 scale-105"
+                    : "bg-transparent scale-100"
                 )}
-              />
-            </Button>
-          </TooltipWrapper>
+                onClick={() => setViewMode("grid")}
+              >
+                <GridFour
+                  size={14}
+                  className={cn(
+                    "text-white transition-all duration-300",
+                    viewMode === "grid" ? "scale-110" : "scale-100"
+                  )}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Grid view</TooltipContent>
+          </Tooltip>
 
-          <TooltipWrapper content="Gallery view">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                "h-7 w-7 p-0 hover:bg-white/20 transition-all duration-300 ease-out",
-                viewMode === "gallery"
-                  ? "bg-white/30 scale-105"
-                  : "bg-transparent scale-100"
-              )}
-              onClick={() => setViewMode("gallery")}
-            >
-              <Slideshow
-                size={14}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
                 className={cn(
-                  "text-white transition-all duration-300",
-                  viewMode === "gallery" ? "scale-110" : "scale-100"
+                  "h-7 w-7 p-0 hover:bg-white/20 transition-all duration-300 ease-out",
+                  viewMode === "gallery"
+                    ? "bg-white/30 scale-105"
+                    : "bg-transparent scale-100"
                 )}
-              />
-            </Button>
-          </TooltipWrapper>
+                onClick={() => setViewMode("gallery")}
+              >
+                <Slideshow
+                  size={14}
+                  className={cn(
+                    "text-white transition-all duration-300",
+                    viewMode === "gallery" ? "scale-110" : "scale-100"
+                  )}
+                />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Gallery view</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

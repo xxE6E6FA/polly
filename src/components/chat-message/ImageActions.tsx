@@ -5,7 +5,11 @@ import {
 } from "@phosphor-icons/react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { downloadFromUrl } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -89,43 +93,52 @@ export const ImageActions = ({
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      <TooltipWrapper
-        content={prompt ? "Copy prompt to clipboard" : "No prompt available"}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleCopyPrompt}
-          disabled={isCopying || !prompt}
-          className="btn-action h-7 w-7 p-0"
-        >
-          <CopyIcon className="h-3.5 w-3.5" />
-        </Button>
-      </TooltipWrapper>
-
-      <TooltipWrapper content="Download image">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDownloadImage}
-          disabled={isDownloading}
-          className="btn-action h-7 w-7 p-0"
-        >
-          <DownloadIcon className="h-3.5 w-3.5" />
-        </Button>
-      </TooltipWrapper>
-
-      {onRetry && (
-        <TooltipWrapper content="Retry generation with same parameters">
+      <Tooltip>
+        <TooltipTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
-            onClick={onRetry}
+            onClick={handleCopyPrompt}
+            disabled={isCopying || !prompt}
             className="btn-action h-7 w-7 p-0"
           >
-            <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+            <CopyIcon className="h-3.5 w-3.5" />
           </Button>
-        </TooltipWrapper>
+        </TooltipTrigger>
+        <TooltipContent>
+          {prompt ? "Copy prompt to clipboard" : "No prompt available"}
+        </TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadImage}
+            disabled={isDownloading}
+            className="btn-action h-7 w-7 p-0"
+          >
+            <DownloadIcon className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Download image</TooltipContent>
+      </Tooltip>
+
+      {onRetry && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onRetry}
+              className="btn-action h-7 w-7 p-0"
+            >
+              <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Retry generation with same parameters</TooltipContent>
+        </Tooltip>
       )}
     </div>
   );

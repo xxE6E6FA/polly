@@ -10,7 +10,6 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
@@ -38,78 +37,76 @@ export const BatchActions = () => {
           </div>
         </div>
 
-        <TooltipProvider>
-          <div className="flex items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => performBulkAction("export-json")}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  disabled={selectionCount === 0}
-                >
-                  <FileCodeIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Export JSON</p>
-              </TooltipContent>
-            </Tooltip>
+        <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => performBulkAction("export-json")}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                disabled={selectionCount === 0}
+              >
+                <FileCodeIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Export JSON</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => performBulkAction("archive")}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  disabled={selectionCount === 0}
-                >
-                  <ArchiveIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Archive</p>
-              </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => performBulkAction("archive")}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                disabled={selectionCount === 0}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Archive</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={() => performBulkAction("delete")}
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  disabled={selectionCount === 0}
-                >
-                  <TrashIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete</p>
-              </TooltipContent>
-            </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => performBulkAction("delete")}
+                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                disabled={selectionCount === 0}
+              >
+                <TrashIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete</p>
+            </TooltipContent>
+          </Tooltip>
 
-            <div className="mx-1 h-4 w-px bg-border/60" />
+          <div className="mx-1 h-4 w-px bg-border/60" />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  onClick={clearSelection}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                >
-                  <XIcon className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Clear</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={clearSelection}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Clear</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
 
       <ConfirmationDialog
