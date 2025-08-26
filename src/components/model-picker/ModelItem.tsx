@@ -3,7 +3,11 @@ import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { memo, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { CommandItem } from "@/components/ui/command";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
 
@@ -90,9 +94,13 @@ const ModelItemComponent = ({
             capabilities.slice(0, 4).map((capability, index) => {
               const IconComponent = capability.icon;
               return (
-                <TooltipWrapper
-                  key={`${model.modelId}-${capability.label}-${index}`}
-                  content={
+                <Tooltip key={`${model.modelId}-${capability.label}-${index}`}>
+                  <TooltipTrigger asChild>
+                    <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                      <IconComponent className="h-3.5 w-3.5" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
                     <div>
                       <div className="font-semibold text-foreground">
                         {capability.label}
@@ -101,12 +109,8 @@ const ModelItemComponent = ({
                         {capability.description}
                       </div>
                     </div>
-                  }
-                >
-                  <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                    <IconComponent className="h-3.5 w-3.5" />
-                  </div>
-                </TooltipWrapper>
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
         </div>
@@ -116,8 +120,9 @@ const ModelItemComponent = ({
 
   if (isPollyDisabled) {
     return (
-      <TooltipWrapper
-        content={
+      <Tooltip>
+        <TooltipTrigger asChild>{modelItem}</TooltipTrigger>
+        <TooltipContent>
           <div>
             <div className="font-semibold text-foreground">
               Monthly Limit Reached
@@ -127,10 +132,8 @@ const ModelItemComponent = ({
               Switch to BYOK models for unlimited usage.
             </div>
           </div>
-        }
-      >
-        {modelItem}
-      </TooltipWrapper>
+        </TooltipContent>
+      </Tooltip>
     );
   }
 

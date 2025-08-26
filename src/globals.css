@@ -648,16 +648,7 @@ pre {
     background: hsl(var(--muted-foreground) / 0.5);
 }
 
-/* Refined tooltip styling */
-.dark [role="tooltip"] {
-    border: 1px solid hsl(var(--border));
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-}
-
-/* Tooltip content sizing */
-[role="tooltip"] {
-    font-size: 13px;
-}
+/* Tooltip styles consolidated in TooltipContent component */
 
 /* Refined Polly logo styling */
 .dark .polly-logo-gradient-unified {

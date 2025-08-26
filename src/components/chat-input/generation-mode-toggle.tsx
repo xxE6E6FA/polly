@@ -1,8 +1,12 @@
-import { ChatText, Image, Plus } from "@phosphor-icons/react";
+import { ChatTextIcon, ImageIcon, PlusIcon } from "@phosphor-icons/react";
 import { memo } from "react";
 import { Link } from "react-router-dom";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -53,18 +57,37 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
           className
         )}
       >
-        <TooltipWrapper content="Text Generation">
-          <ToggleGroupItem
-            value="text"
-            disabled={disabled}
-            aria-pressed={mode === "text"}
-          >
-            <ChatText size={14} weight={mode === "text" ? "fill" : "regular"} />
-          </ToggleGroupItem>
-        </TooltipWrapper>
-        <TooltipWrapper
-          content={
-            isPrivateMode ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem
+              value="text"
+              disabled={disabled}
+              aria-pressed={mode === "text"}
+            >
+              <ChatTextIcon
+                size={14}
+                weight={mode === "text" ? "fill" : "regular"}
+              />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent>Text Generation</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <ToggleGroupItem
+              value="image"
+              disabled={isImageModeDisabled}
+              aria-pressed={mode === "image"}
+              title="Image Generation"
+            >
+              <ImageIcon
+                size={14}
+                weight={mode === "image" ? "fill" : "regular"}
+              />
+            </ToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isPrivateMode ? (
               "Image generation not available in private mode. Switch to regular mode to generate images."
             ) : hasReplicateApiKey ? (
               "Image Generation"
@@ -75,22 +98,13 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
                   to={ROUTES.SETTINGS.API_KEYS}
                   className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 underline"
                 >
-                  <Plus size={12} />
+                  <PlusIcon size={12} />
                   Add API Key
                 </Link>
               </div>
-            )
-          }
-        >
-          <ToggleGroupItem
-            value="image"
-            disabled={isImageModeDisabled}
-            aria-pressed={mode === "image"}
-            title="Image Generation"
-          >
-            <Image size={14} weight={mode === "image" ? "fill" : "regular"} />
-          </ToggleGroupItem>
-        </TooltipWrapper>
+            )}
+          </TooltipContent>
+        </Tooltip>
       </ToggleGroup>
     );
   }

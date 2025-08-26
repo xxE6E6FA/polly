@@ -215,7 +215,7 @@ export const ControlledShareConversationDialog = ({
                     }
                   />
                   <div className="absolute right-2 top-1/2 flex -translate-y-1/2">
-                    <Tooltip delayDuration={200}>
+                    <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           disabled={isCopied}
@@ -240,7 +240,7 @@ export const ControlledShareConversationDialog = ({
                         </p>
                       </TooltipContent>
                     </Tooltip>
-                    <Tooltip delayDuration={200}>
+                    <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
                           className="h-8 w-8 p-0"

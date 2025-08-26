@@ -52,7 +52,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+// Tooltip imports consolidated above
 import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
@@ -213,9 +213,15 @@ const RetryDropdown = memo(
                         capabilities.slice(0, 3).map((capability, index) => {
                           const IconComponent = capability.icon;
                           return (
-                            <TooltipWrapper
+                            <Tooltip
                               key={`${model.modelId}-${capability.label}-${index}`}
-                              content={
+                            >
+                              <TooltipTrigger asChild>
+                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                  <IconComponent className="h-3 w-3" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
                                 <div>
                                   <div className="font-semibold text-foreground">
                                     {capability.label}
@@ -224,12 +230,8 @@ const RetryDropdown = memo(
                                     {capability.description}
                                   </div>
                                 </div>
-                              }
-                            >
-                              <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                                <IconComponent className="h-3 w-3" />
-                              </div>
-                            </TooltipWrapper>
+                              </TooltipContent>
+                            </Tooltip>
                           );
                         })}
                     </div>
@@ -287,9 +289,15 @@ const RetryDropdown = memo(
                               .map((capability, index) => {
                                 const IconComponent = capability.icon;
                                 return (
-                                  <TooltipWrapper
+                                  <Tooltip
                                     key={`${model.modelId}-${capability.label}-${index}`}
-                                    content={
+                                  >
+                                    <TooltipTrigger asChild>
+                                      <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                        <IconComponent className="h-3 w-3" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
                                       <div>
                                         <div className="font-semibold text-foreground">
                                           {capability.label}
@@ -298,12 +306,8 @@ const RetryDropdown = memo(
                                           {capability.description}
                                         </div>
                                       </div>
-                                    }
-                                  >
-                                    <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                                      <IconComponent className="h-3 w-3" />
-                                    </div>
-                                  </TooltipWrapper>
+                                    </TooltipContent>
+                                  </Tooltip>
                                 );
                               })}
                         </div>
@@ -502,14 +506,16 @@ const RetryDropdown = memo(
                               capabilities.slice(0, 2).map(capability => {
                                 const IconComponent = capability.icon;
                                 return (
-                                  <TooltipWrapper
-                                    key={capability.label}
-                                    content={capability.description}
-                                  >
-                                    <div className="flex items-center justify-center w-4 h-4">
-                                      <IconComponent className="w-3 h-3 text-muted-foreground" />
-                                    </div>
-                                  </TooltipWrapper>
+                                  <Tooltip key={capability.label}>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center justify-center w-4 h-4">
+                                        <IconComponent className="w-3 h-3 text-muted-foreground" />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {capability.description}
+                                    </TooltipContent>
+                                  </Tooltip>
                                 );
                               })}
                           </div>
@@ -572,9 +578,15 @@ const RetryDropdown = memo(
                                     .map((capability, index) => {
                                       const IconComponent = capability.icon;
                                       return (
-                                        <TooltipWrapper
+                                        <Tooltip
                                           key={`${model.modelId}-${capability.label}-${index}`}
-                                          content={
+                                        >
+                                          <TooltipTrigger asChild>
+                                            <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                              <IconComponent className="h-3 w-3" />
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
                                             <div>
                                               <div className="font-semibold text-foreground">
                                                 {capability.label}
@@ -583,12 +595,8 @@ const RetryDropdown = memo(
                                                 {capability.description}
                                               </div>
                                             </div>
-                                          }
-                                        >
-                                          <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
-                                            <IconComponent className="h-3 w-3" />
-                                          </div>
-                                        </TooltipWrapper>
+                                          </TooltipContent>
+                                        </Tooltip>
                                       );
                                     })}
                               </div>

@@ -6,7 +6,11 @@ import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Switch } from "@/components/ui/switch";
-import { TooltipWrapper } from "@/components/ui/tooltip-wrapper";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -146,19 +150,38 @@ const ModelCard = memo(
           {capabilities.map((capability, index) => {
             const IconComponent = capability.icon;
             return (
-              <TooltipWrapper
-                key={capability.label || `capability-${index}`}
-                content={
+              <Tooltip key={capability.label || `capability-${index}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
+                      isEnabled && !isUnavailable
+                        ? "border border-border/40 bg-background hover:bg-muted"
+                        : isUnavailable
+                          ? "bg-red-100 dark:bg-red-900/30"
+                          : "bg-muted hover:bg-muted-foreground/10"
+                    }`}
+                  >
+                    <IconComponent
+                      className={`h-3 w-3 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
+                    />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
                   <div className="text-center">
                     <p className="text-xs font-medium">{capability.label}</p>
                     <p className="text-xs text-muted-foreground">
                       {capability.description}
                     </p>
                   </div>
-                }
-              >
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+          {(model.contextLength || model.contextWindow) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <div
-                  className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
+                  className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
                     isEnabled && !isUnavailable
                       ? "border border-border/40 bg-background hover:bg-muted"
                       : isUnavailable
@@ -166,44 +189,26 @@ const ModelCard = memo(
                         : "bg-muted hover:bg-muted-foreground/10"
                   }`}
                 >
-                  <IconComponent
-                    className={`h-3 w-3 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
-                  />
+                  <span
+                    className={
+                      isUnavailable
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {contextDisplay.short}
+                  </span>
                 </div>
-              </TooltipWrapper>
-            );
-          })}
-          {(model.contextLength || model.contextWindow) && (
-            <TooltipWrapper
-              content={
+              </TooltipTrigger>
+              <TooltipContent>
                 <div className="text-center">
                   <p className="text-xs font-medium">Context Window</p>
                   <p className="text-xs text-muted-foreground">
                     {contextDisplay.long}
                   </p>
                 </div>
-              }
-            >
-              <div
-                className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
-                  isEnabled && !isUnavailable
-                    ? "border border-border/40 bg-background hover:bg-muted"
-                    : isUnavailable
-                      ? "bg-red-100 dark:bg-red-900/30"
-                      : "bg-muted hover:bg-muted-foreground/10"
-                }`}
-              >
-                <span
-                  className={
-                    isUnavailable
-                      ? "text-red-600 dark:text-red-400"
-                      : "text-muted-foreground"
-                  }
-                >
-                  {contextDisplay.short}
-                </span>
-              </div>
-            </TooltipWrapper>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
 
@@ -214,9 +219,12 @@ const ModelCard = memo(
               : "text-muted-foreground"
           }`}
         >
-          <TooltipWrapper content={model.modelId}>
-            <span className="truncate">{model.modelId}</span>
-          </TooltipWrapper>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate">{model.modelId}</span>
+            </TooltipTrigger>
+            <TooltipContent>{model.modelId}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
     );
