@@ -1,11 +1,7 @@
 import type React from "react";
-import { memo, useCallback, useLayoutEffect } from "react";
-import {
-  useInitialHeight,
-  useKeyboardNavigation,
-  useTextareaHeight,
-  useTextareaStyling,
-} from "./hooks";
+import { memo, useCallback, useLayoutEffect, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { useKeyboardNavigation, useTextareaHeight } from "./hooks";
 import { createHashMemoComparison } from "./hooks/use-props-hash";
 
 interface ChatInputFieldCoreProps {
@@ -53,9 +49,6 @@ export const ChatInputFieldCore = memo(
       isTransitioning = false,
     } = navigation || {};
 
-    // Use custom hooks for different concerns
-    useInitialHeight({ textareaRef, value, onHeightChange });
-
     const { resizeTextarea } = useTextareaHeight({
       value,
       onHeightChange,
@@ -68,17 +61,52 @@ export const ChatInputFieldCore = memo(
       onSubmit,
     });
 
-    const { textareaClassName, textareaStyle } = useTextareaStyling({
-      disabled,
-      className,
-      isTransitioning,
-    });
+    const textareaClassName = useMemo(
+      () =>
+        cn(
+          // Core layout & appearance
+          "w-full resize-none bg-transparent border-0 outline-none ring-0",
+          "text-base leading-relaxed",
+          "overflow-y-auto px-1.5 py-1 sm:px-2",
+          // Enhanced focus experience - subtle visual feedback
+          "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+          // Prevent zoom on mobile Chrome
+          "touch-action: manipulation",
+          // Performance optimizations
+          "will-change-[height] contain-layout transform-gpu md:scrollbar-thin",
+          // Browser performance hints
+          "[content-visibility:auto] [contain-intrinsic-size:24px_100px]",
+          // States
+          disabled && "cursor-not-allowed opacity-50",
+          className
+        ),
+      [disabled, className]
+    );
+
+    const textareaStyle = useMemo(
+      () => ({
+        // Force GPU acceleration and composition layer
+        transform: "translate3d(0, 0, 0)",
+        // Conditionally enable transitions - only for fullscreen changes, not during typing
+        transition: isTransitioning
+          ? "max-height 300ms ease-in-out, min-height 300ms ease-in-out"
+          : "none",
+        // Additional browser performance hints
+        contentVisibility: "auto" as const,
+        containIntrinsicSize: "24px 100px",
+        // Prevent zoom on mobile Chrome
+        touchAction: "manipulation",
+      }),
+      [isTransitioning]
+    );
 
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange(e.target.value);
+        // Resize immediately on user input
+        resizeTextarea(textareaRef.current);
       },
-      [onChange]
+      [onChange, resizeTextarea, textareaRef]
     );
 
     // Handle textarea resize when value changes

@@ -213,6 +213,9 @@ importers:
       '@biomejs/biome':
         specifier: 2.0.6
         version: 2.0.6
+      '@biomejs/cli-darwin-x64':
+        specifier: 2.0.6
+        version: 2.0.6
       '@types/glob':
         specifier: ^8.1.0
         version: 8.1.0
@@ -4556,8 +4559,7 @@ snapshots:
   '@biomejs/cli-darwin-arm64@2.0.6':
     optional: true
 
-  '@biomejs/cli-darwin-x64@2.0.6':
-    optional: true
+  '@biomejs/cli-darwin-x64@2.0.6': {}
 
   '@biomejs/cli-linux-arm64-musl@2.0.6':
     optional: true

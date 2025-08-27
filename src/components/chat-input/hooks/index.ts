@@ -10,8 +10,6 @@ export { useChatInputState } from "./use-chat-input-state";
 export { useChatInputSubmission } from "./use-chat-input-submission";
 export { useDebouncedValue } from "./use-debounced-value";
 export { useEvent } from "./use-event";
-export { useInitialHeight } from "./use-initial-height";
 export { useKeyboardNavigation } from "./use-keyboard-navigation";
 export { createHashMemoComparison, usePropsHash } from "./use-props-hash";
 export { useTextareaHeight } from "./use-textarea-height";
-export { useTextareaStyling } from "./use-textarea-styling";
