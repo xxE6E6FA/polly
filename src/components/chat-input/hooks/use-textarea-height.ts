@@ -3,64 +3,14 @@ import { useCallback, useLayoutEffect, useRef } from "react";
 interface UseTextareaHeightOptions {
   value: string;
   onHeightChange?: (isMultiline: boolean) => void;
-  maxHeight?: number;
-  minHeight?: number;
-  debounceMs?: number;
 }
 
+// Simple autogrow: expand up to 5 lines, then scroll
 export function useTextareaHeight({
   value,
   onHeightChange,
-  maxHeight = 100,
-  minHeight = 24,
-  debounceMs = 16, // ~60fps
 }: UseTextareaHeightOptions) {
-  const resizeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const resizeRafRef = useRef<number | null>(null);
-  const lastValueRef = useRef(value);
-  const lastHeightRef = useRef<number>(0);
-  const lastMultilineRef = useRef<boolean>(false);
-
-  const performResize = useCallback(
-    (textarea: HTMLTextAreaElement) => {
-      // Clear any pending timeouts/animations
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-        resizeTimeoutRef.current = null;
-      }
-      if (resizeRafRef.current) {
-        cancelAnimationFrame(resizeRafRef.current);
-        resizeRafRef.current = null;
-      }
-
-      textarea.style.height = "auto";
-      // Force a reflow to get accurate scrollHeight
-      textarea.offsetHeight;
-      const currentHeight = textarea.scrollHeight;
-      const newHeight = Math.min(currentHeight, maxHeight);
-
-      // Only update if height actually changed
-      if (newHeight !== lastHeightRef.current) {
-        textarea.style.height = `${newHeight}px`;
-        lastHeightRef.current = newHeight;
-      }
-
-      // Debounce multiline state changes to avoid excessive renders
-      const isMultiline = value.trim().length > 0 && currentHeight > minHeight;
-      if (isMultiline !== lastMultilineRef.current) {
-        lastMultilineRef.current = isMultiline;
-
-        if (debounceMs > 0) {
-          resizeTimeoutRef.current = setTimeout(() => {
-            onHeightChange?.(isMultiline);
-          }, debounceMs);
-        } else {
-          onHeightChange?.(isMultiline);
-        }
-      }
-    },
-    [maxHeight, minHeight, value, onHeightChange, debounceMs]
-  );
+  const lastReportedMultiline = useRef<boolean>(false);
 
   const resizeTextarea = useCallback(
     (textarea: HTMLTextAreaElement | null) => {
@@ -68,57 +18,53 @@ export function useTextareaHeight({
         return;
       }
 
-      // Use requestAnimationFrame for smooth 60fps resize
-      if (resizeRafRef.current) {
-        cancelAnimationFrame(resizeRafRef.current);
+      // Reset height to measure natural content height
+      textarea.style.height = "auto";
+
+      const cs = window.getComputedStyle(textarea);
+      const paddingTop = parseFloat(cs.paddingTop) || 0;
+      const paddingBottom = parseFloat(cs.paddingBottom) || 0;
+      const verticalPadding = paddingTop + paddingBottom;
+
+      // Determine line-height in px (fallback if 'normal')
+      let lineHeight = parseFloat(cs.lineHeight);
+      if (Number.isNaN(lineHeight)) {
+        const fontSize = parseFloat(cs.fontSize) || 16;
+        lineHeight = Math.round(fontSize * 1.2);
       }
 
-      resizeRafRef.current = requestAnimationFrame(() => {
-        performResize(textarea);
-      });
+      const minH = Math.ceil(lineHeight + verticalPadding); // 1 line
+      const maxH = Math.ceil(lineHeight * 5 + verticalPadding); // 5 lines
+
+      // Apply constraints
+      textarea.style.minHeight = `${minH}px`;
+      textarea.style.maxHeight = `${maxH}px`;
+
+      const contentHeight = textarea.scrollHeight; // includes padding
+      const newHeight = Math.max(minH, Math.min(contentHeight, maxH));
+      textarea.style.height = `${newHeight}px`;
+
+      // Toggle scroll when exceeding 5 lines
+      const shouldScroll = contentHeight > maxH + 1; // tolerance
+      textarea.style.overflowY = shouldScroll ? "auto" : "hidden";
+
+      // Report multiline when content exceeds one line
+      const isMultiline = contentHeight > minH + 1;
+      if (isMultiline !== lastReportedMultiline.current) {
+        lastReportedMultiline.current = isMultiline;
+        onHeightChange?.(isMultiline);
+      }
     },
-    [performResize]
+    [onHeightChange]
   );
 
-  // Handle value changes with debouncing
+  // Reset multiline state when cleared
   useLayoutEffect(() => {
-    // Only resize if value actually changed
-    if (lastValueRef.current === value) {
-      return;
-    }
-    lastValueRef.current = value;
-
-    // For empty input, immediately update to single line to prevent flickering
-    if (value.trim().length === 0 && lastMultilineRef.current) {
-      lastMultilineRef.current = false;
+    if (value.trim().length === 0 && lastReportedMultiline.current) {
+      lastReportedMultiline.current = false;
       onHeightChange?.(false);
     }
-
-    // Cleanup on unmount or value change
-    return () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-      }
-      if (resizeRafRef.current) {
-        cancelAnimationFrame(resizeRafRef.current);
-      }
-    };
   }, [value, onHeightChange]);
 
-  // Cleanup on unmount
-  useLayoutEffect(() => {
-    return () => {
-      if (resizeTimeoutRef.current) {
-        clearTimeout(resizeTimeoutRef.current);
-      }
-      if (resizeRafRef.current) {
-        cancelAnimationFrame(resizeRafRef.current);
-      }
-    };
-  }, []);
-
-  return {
-    resizeTextarea,
-    lastHeight: lastHeightRef.current,
-  };
+  return { resizeTextarea };
 }

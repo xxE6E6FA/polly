@@ -90,6 +90,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
+    "@biomejs/cli-darwin-x64": "2.0.6",
     "@types/glob": "^8.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
