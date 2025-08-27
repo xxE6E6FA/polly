@@ -176,7 +176,7 @@ export const SendButtonGroup = ({
         }}
       >
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <Tooltip open={!dropdownOpen && Boolean(isExpanded) && !isCollapsing}>
+          <Tooltip open={dropdownOpen ? false : undefined}>
             <DropdownMenuTrigger asChild>
               <TooltipTrigger asChild>
                 <button
