@@ -349,10 +349,11 @@ export const sendMessage = action({
         provider: fullModel.provider,
       }),
 
-      // Mark conversation as streaming
+      // Mark conversation as streaming and bump updatedAt so it jumps to top
       ctx.runMutation(internal.conversations.internalPatch, {
         id: args.conversationId,
         updates: { isStreaming: true },
+        setUpdatedAt: true,
       }),
     ]);
 
@@ -715,8 +716,10 @@ export const search = query({
       }
     }
 
-    // Convert back to array and apply limit
-    const finalResults = Array.from(conversationMap.values());
+    // Convert back to array, sort by most recently edited, and apply limit
+    const finalResults = Array.from(conversationMap.values()).sort(
+      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+    );
     return finalResults.slice(0, limit);
   },
 });
@@ -1757,8 +1760,10 @@ export const setStreaming = mutation({
     isStreaming: v.boolean(),
   },
   handler: async (ctx, args) => {
+    // When starting streaming (i.e., a new user message), bump updatedAt
     await ctx.db.patch(args.conversationId, {
       isStreaming: args.isStreaming,
+      ...(args.isStreaming ? { updatedAt: Date.now() } : {}),
     });
   },
 });
