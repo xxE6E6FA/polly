@@ -10,31 +10,31 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover active:bg-primary-active",
         destructive:
-          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:bg-destructive/90",
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:bg-destructive/90 active:bg-destructive/80",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground active:bg-accent active:text-accent-foreground",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover focus-visible:bg-secondary-hover",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover focus-visible:bg-secondary-hover active:bg-secondary-active",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+          "hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground active:bg-accent active:text-accent-foreground",
         action: "btn-action",
-        link: "text-primary underline-offset-4 hover:underline focus-visible:underline",
+        link: "text-primary underline-offset-4 hover:underline focus-visible:underline active:underline",
         tropical:
-          "bg-gradient-tropical text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl focus-visible:scale-105 focus-visible:shadow-xl",
+          "bg-gradient-tropical text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl focus-visible:scale-105 focus-visible:shadow-xl active:scale-95 active:shadow-md",
         // Semantic variants
         primary:
-          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
+          "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover active:bg-primary-active",
         success:
-          "bg-success text-success-foreground shadow-md transition-all duration-200 hover:bg-success-hover hover:shadow-lg focus-visible:bg-success-hover focus-visible:shadow-lg",
+          "bg-success text-success-foreground shadow-md transition-all duration-200 hover:bg-success-hover hover:shadow-lg focus-visible:bg-success-hover focus-visible:shadow-lg active:bg-success-active active:shadow-md",
         warning:
-          "bg-warning text-warning-foreground shadow-md transition-all duration-200 hover:bg-warning-hover hover:shadow-lg focus-visible:bg-warning-hover focus-visible:shadow-lg",
-        info: "bg-info text-info-foreground shadow-md transition-all duration-200 hover:bg-info-hover hover:shadow-lg focus-visible:bg-info-hover focus-visible:shadow-lg",
+          "bg-warning text-warning-foreground shadow-md transition-all duration-200 hover:bg-warning-hover hover:shadow-lg focus-visible:bg-warning-hover focus-visible:shadow-lg active:bg-warning-active active:shadow-md",
+        info: "bg-info text-info-foreground shadow-md transition-all duration-200 hover:bg-info-hover hover:shadow-lg focus-visible:bg-info-hover focus-visible:shadow-lg active:bg-info-active active:shadow-md",
         danger:
-          "bg-danger text-danger-foreground shadow-md transition-all duration-200 hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg",
+          "bg-danger text-danger-foreground shadow-md transition-all duration-200 hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg active:bg-danger-active active:shadow-md",
         purple:
-          "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg",
+          "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg active:bg-accent-purple/80 active:shadow-md",
       },
       size: {
         default: "h-9 px-4 py-2",

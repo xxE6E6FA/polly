@@ -902,6 +902,18 @@ pre {
     color: hsl(220 95% 65%);
 }
 
+.btn-action:focus-visible:not([disabled]) {
+    outline: none;
+    background: hsl(var(--muted) / 0.5);
+    border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.dark .btn-action:focus-visible:not([disabled]) {
+    background: hsl(220 95% 60% / 0.1);
+    border: 1px solid hsl(220 95% 60% / 0.2);
+    color: hsl(220 95% 65%);
+}
+
 .btn-action:active:not([disabled]) {
     background: hsl(var(--muted));
 }
@@ -944,6 +956,19 @@ pre {
 }
 
 .dark .btn-action-destructive:hover:not([disabled]) {
+    background: hsl(var(--destructive) / 0.15);
+    border: 1px solid hsl(var(--destructive) / 0.3);
+    color: hsl(var(--destructive));
+}
+
+.btn-action-destructive:focus-visible:not([disabled]) {
+    outline: none;
+    background: hsl(var(--destructive) / 0.1);
+    border: 1px solid hsl(var(--destructive) / 0.2);
+    color: hsl(var(--destructive));
+}
+
+.dark .btn-action-destructive:focus-visible:not([disabled]) {
     background: hsl(var(--destructive) / 0.15);
     border: 1px solid hsl(var(--destructive) / 0.3);
     color: hsl(var(--destructive));
