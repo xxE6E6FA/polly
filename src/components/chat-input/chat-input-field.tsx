@@ -13,6 +13,7 @@ interface ChatInputFieldProps {
   className?: string;
   autoFocus?: boolean;
   isFullscreen?: boolean;
+  isTransitioning?: boolean;
   navigation?: {
     onHistoryNavigation?: () => boolean;
     onHistoryNavigationDown?: () => boolean;
@@ -31,6 +32,7 @@ export const ChatInputField = memo(
     className,
     autoFocus = false,
     isFullscreen = false,
+    isTransitioning = false,
     navigation,
   }: ChatInputFieldProps) {
     const handleChange = useCallback(
@@ -52,6 +54,7 @@ export const ChatInputField = memo(
           className={className}
           autoFocus={autoFocus}
           isFullscreen={isFullscreen}
+          isTransitioning={isTransitioning}
           navigation={navigation}
         />
       </div>

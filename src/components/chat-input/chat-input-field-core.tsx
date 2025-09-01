@@ -1,5 +1,5 @@
 import type React from "react";
-import { memo, useCallback, useLayoutEffect, useMemo } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useKeyboardNavigation, useTextareaHeight } from "./hooks";
 import { createHashMemoComparison } from "./hooks/use-props-hash";
@@ -14,6 +14,7 @@ interface ChatInputFieldCoreProps {
   className?: string;
   autoFocus?: boolean;
   isFullscreen?: boolean;
+  isTransitioning?: boolean;
 
   navigation?: {
     onHistoryNavigation?: () => boolean;
@@ -35,10 +36,10 @@ export const ChatInputFieldCore = memo(
     className,
     autoFocus = false,
     isFullscreen = false,
+    isTransitioning = false,
     navigation,
   }: ChatInputFieldCoreProps) {
     const { onHistoryNavigation, onHistoryNavigationDown } = navigation || {};
-    const isTransitioning = false;
 
     const { resizeTextarea } = useTextareaHeight({
       value,
@@ -81,7 +82,7 @@ export const ChatInputFieldCore = memo(
         transform: "translate3d(0, 0, 0)",
         // Conditionally enable transitions - only for fullscreen changes, not during typing
         transition: isTransitioning
-          ? "max-height 300ms ease-in-out, min-height 300ms ease-in-out"
+          ? "height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05), max-height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05), min-height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05)"
           : "none",
         // Additional browser performance hints
         contentVisibility: "auto" as const,
@@ -89,7 +90,7 @@ export const ChatInputFieldCore = memo(
         // Prevent zoom on mobile Chrome
         touchAction: "manipulation",
       }),
-      []
+      [isTransitioning]
     );
 
     const handleChange = useCallback(
@@ -106,11 +107,61 @@ export const ChatInputFieldCore = memo(
       resizeTextarea(textareaRef.current);
     }, [resizeTextarea, textareaRef]);
 
+    // Animate grow/shrink on fullscreen toggle explicitly
+    const animTimeoutRef = useRef<number | null>(null);
+    useLayoutEffect(() => {
+      const el = textareaRef.current;
+      if (!(el && isTransitioning)) {
+        return;
+      }
+
+      // Lock current height as the animation start point
+      const startH = el.getBoundingClientRect().height;
+      el.style.height = `${startH}px`;
+
+      // Next frame, set target height depending on new state
+      const raf = requestAnimationFrame(() => {
+        if (!el) {
+          return;
+        }
+        if (isFullscreen) {
+          // Expanding: aim for at least 50vh, but cap to 85vh
+          const minVh = Math.round(window.innerHeight * 0.5);
+          const maxVh = Math.round(window.innerHeight * 0.85);
+          const target = Math.max(
+            minVh,
+            Math.min(maxVh, Math.max(startH, minVh))
+          );
+          el.style.height = `${target}px`;
+        } else {
+          // Collapsing: let our auto-grow logic compute the compact target
+          resizeTextarea(el);
+        }
+      });
+
+      // Clear explicit height after the animation window
+      animTimeoutRef.current = window.setTimeout(() => {
+        if (!el) {
+          return;
+        }
+        el.style.height = "";
+      }, 380);
+
+      return () => {
+        cancelAnimationFrame(raf);
+        if (animTimeoutRef.current) {
+          clearTimeout(animTimeoutRef.current);
+          animTimeoutRef.current = null;
+        }
+      };
+    }, [isFullscreen, isTransitioning, resizeTextarea, textareaRef]);
+
     return (
       <textarea
         ref={textareaRef}
         className={textareaClassName}
         style={textareaStyle}
+        data-transitioning={isTransitioning ? "true" : undefined}
         disabled={disabled}
         placeholder={placeholder}
         rows={1}

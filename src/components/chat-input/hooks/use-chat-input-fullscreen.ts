@@ -22,13 +22,13 @@ export function useChatInputFullscreen() {
   const handleToggleFullscreen = useCallback(() => {
     setTransitioning(true);
     setFullscreen(!isFullscreen);
-    setTimeout(() => setTransitioning(false), 300);
+    setTimeout(() => setTransitioning(false), 380);
   }, [setFullscreen, setTransitioning, isFullscreen]);
 
   const handleCloseFullscreen = useCallback(() => {
     setTransitioning(true);
     setFullscreen(false);
-    setTimeout(() => setTransitioning(false), 300);
+    setTimeout(() => setTransitioning(false), 380);
   }, [setFullscreen, setTransitioning]);
 
   // clearOnSend provided by store

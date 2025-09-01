@@ -3,13 +3,14 @@ import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useImageParams } from "@/hooks/use-generation";
 import { removeAttachmentAt } from "@/stores/actions/chat-input-actions";
-import { useChatFullscreenUI, useChatHistory } from "@/stores/chat-ui-store";
+import { useChatHistory } from "@/stores/chat-ui-store";
 import type { ConversationId, GenerationMode } from "@/types";
 import { AttachmentDisplay } from "../attachment-display";
 import { ChatInputField } from "../chat-input-field";
 
-// Fullscreen now managed locally via context state
+// Fullscreen state and animation
 import { ExpandToggleButton } from "../expand-toggle-button";
+import { useChatInputFullscreen } from "../hooks";
 import { useEvent } from "../hooks/use-event";
 import { NegativePromptToggle } from "../negative-prompt-toggle";
 
@@ -55,11 +56,8 @@ export function TextInputSection({
   );
   // Build local navigation glue using store-backed hooks when needed
   const { selectedPersonaId } = useChatScopedState(conversationId);
-  const { isFullscreen } = useChatFullscreenUI();
-  const { setFullscreen } = useChatFullscreenUI();
-  const handleToggleFullscreen = useCallback(() => {
-    setFullscreen(!isFullscreen);
-  }, [setFullscreen, isFullscreen]);
+  const { isFullscreen, isTransitioning, handleToggleFullscreen } =
+    useChatInputFullscreen();
   const {
     params: imageParams,
     setParams: setImageParams,
@@ -125,6 +123,7 @@ export function TextInputSection({
               autoFocus={autoFocus}
               className={isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined}
               isFullscreen={isFullscreen}
+              isTransitioning={isTransitioning}
               navigation={{
                 onHistoryNavigation: stableHistoryNavigation,
                 onHistoryNavigationDown: stableHistoryNavigationDown,
