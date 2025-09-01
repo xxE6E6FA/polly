@@ -878,6 +878,18 @@ pre {
     background: hsl(var(--card));
 }
 
+/* Drawer handle size (single source of truth) */
+.drawer-handle {
+    /* Consistent handle across all drawers */
+    --drawer-handle-width: 100px;
+    --drawer-handle-height: 8px;
+    --drawer-handle-margin-top: 16px; /* match old mt-4 */
+
+    width: var(--drawer-handle-width);
+    height: var(--drawer-handle-height);
+    margin-top: var(--drawer-handle-margin-top);
+}
+
 .chat-input-disabled {
     border: 1px solid hsl(var(--border));
     opacity: 0.75;

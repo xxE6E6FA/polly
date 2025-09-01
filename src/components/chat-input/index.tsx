@@ -9,6 +9,14 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
@@ -17,6 +25,7 @@ import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useChatHistory } from "@/stores/chat-ui-store";
 import type {
@@ -106,9 +115,18 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const [generationMode, setGenerationMode] = useGenerationMode();
     const { params: imageParams } = useImageParams();
 
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const drawerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const [selectedModel] = useSelectedModel();
     const notificationDialog = useNotificationDialog();
+    const { isMobile } = useUI();
+    const [isComposeDrawerOpen, setComposeDrawerOpen] = useState(false);
+    // Focus drawer textarea on open for seamless typing
+    useEffect(() => {
+      if (isMobile && isComposeDrawerOpen) {
+        setTimeout(() => drawerTextareaRef.current?.focus(), 0);
+      }
+    }, [isMobile, isComposeDrawerOpen]);
 
     // Use the new image generation hook
     const {
@@ -203,17 +221,26 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return userMessages;
     }, [userMessageContents, messages]);
 
-    // Hydrate history from existing user messages on revisit
+    // Hydrate history from existing user messages on revisit (once per conversation)
     const history = useChatHistory(conversationId);
+    const lastHydratedIdRef = useRef<ConversationId>(null);
+    const lastHydratedCountRef = useRef<number>(0);
     useEffect(() => {
       if (!(conversationId && hasExistingMessages)) {
         return;
       }
-      if (!userMessages || userMessages.length === 0) {
+      const count = userMessages?.length ?? 0;
+      if (count === 0) {
+        return;
+      }
+      // Avoid infinite loops by hydrating only when conversation changes or count changes
+      if (
+        lastHydratedIdRef.current === conversationId &&
+        lastHydratedCountRef.current === count
+      ) {
         return;
       }
       history.clear();
-      // Hydrate oldest -> newest so ArrowUp reaches the latest first
       for (const msg of [...userMessages].reverse()) {
         const t = msg.trim();
         if (t.length > 0) {
@@ -221,6 +248,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         }
       }
       history.resetIndex();
+      lastHydratedIdRef.current = conversationId;
+      lastHydratedCountRef.current = count;
     }, [
       conversationId,
       hasExistingMessages,
@@ -241,7 +270,20 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       // On successful submit, clear local and attachments
       setInput("");
       clearAttachments();
-    }, [submit, input, attachments, generationMode, clearAttachments, history]);
+      // Close mobile compose drawer after sending
+      if (isMobile && isComposeDrawerOpen) {
+        setComposeDrawerOpen(false);
+      }
+    }, [
+      submit,
+      input,
+      attachments,
+      generationMode,
+      clearAttachments,
+      history,
+      isMobile,
+      isComposeDrawerOpen,
+    ]);
 
     // Handle send as new conversation
     const handleSendAsNew = useCallback(
@@ -283,67 +325,158 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return "chat-input-enabled";
     }, [canSendMessage, isPrivateMode]);
 
-    const deferredInputHasText = useDeferredValue(
-      input.trim().length > 0 || attachments.length > 0
-    );
+    const immediateHasText = input.trim().length > 0 || attachments.length > 0;
+    const deferredInputHasText = useDeferredValue(immediateHasText);
 
     useImperativeHandle(
       ref,
       () => ({
-        focus: () => textareaRef.current?.focus(),
+        focus: () => {
+          const target =
+            isMobile && isComposeDrawerOpen
+              ? drawerTextareaRef.current
+              : inlineTextareaRef.current;
+          target?.focus();
+        },
         addQuote: (quote: string) => {
-          const currentValue = textareaRef.current?.value.trim() || "";
+          const target =
+            isMobile && isComposeDrawerOpen
+              ? drawerTextareaRef.current
+              : inlineTextareaRef.current;
+          const currentValue = target?.value.trim() || "";
           const newValue = getNewQuotedValue(currentValue, quote);
           setInput(newValue);
-          setTimeout(() => textareaRef.current?.focus(), 0);
+          setTimeout(() => target?.focus(), 0);
         },
         setInput,
         getCurrentReasoningConfig: () => reasoningConfig,
       }),
-      [reasoningConfig]
+      [reasoningConfig, isMobile, isComposeDrawerOpen]
     );
 
     return (
-      <ChatInputContainer
-        className={chatInputStateClass}
-        isDragOver={isDragOver}
-        canSend={canSendMessage}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <TextInputSection
-          onSubmit={handleSubmit}
-          textareaRef={textareaRef}
-          placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
-          disabled={isLoading || isStreaming || isProcessing || !canSendMessage}
-          autoFocus={autoFocus}
-          value={input}
-          onValueChange={setInput}
-          hasExistingMessages={hasExistingMessages}
-          conversationId={conversationId}
-          canSend={canSendMessage}
-          generationMode={generationMode}
-          hasReplicateApiKey={hasReplicateApiKey}
-          selectedImageModel={selectedImageModel}
-        />
+      <>
+        <div
+          className={
+            isMobile && isComposeDrawerOpen
+              ? "invisible pointer-events-none"
+              : undefined
+          }
+        >
+          <ChatInputContainer
+            className={chatInputStateClass}
+            isDragOver={isDragOver}
+            canSend={canSendMessage}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <TextInputSection
+              onSubmit={handleSubmit}
+              textareaRef={inlineTextareaRef}
+              placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
+              disabled={
+                isLoading || isStreaming || isProcessing || !canSendMessage
+              }
+              autoFocus={autoFocus}
+              value={input}
+              onValueChange={setInput}
+              hasExistingMessages={hasExistingMessages}
+              conversationId={conversationId}
+              canSend={canSendMessage}
+              generationMode={generationMode}
+              hasReplicateApiKey={hasReplicateApiKey}
+              selectedImageModel={selectedImageModel}
+              onMobileFullscreenToggle={() => setComposeDrawerOpen(true)}
+              hideExpandToggle={isMobile && isComposeDrawerOpen}
+              disableAutoResize={isMobile && isComposeDrawerOpen}
+              textareaClassNameOverride={
+                isMobile && isComposeDrawerOpen ? "h-11 max-h-11" : undefined
+              }
+            />
 
-        <ChatInputBottomBar
-          canSend={canSendMessage}
-          isStreaming={isStreaming}
-          isLoading={isLoading}
-          isProcessing={isProcessing}
-          hasExistingMessages={hasExistingMessages}
-          conversationId={conversationId}
-          hasInputText={deferredInputHasText}
-          onSend={handleSubmit}
-          onStop={onStop}
-          onSendAsNewConversation={handleSendAsNew}
-          hasReplicateApiKey={hasReplicateApiKey}
-          isPrivateMode={isPrivateMode}
-          onSubmit={handleSubmit}
-        />
-      </ChatInputContainer>
+            <ChatInputBottomBar
+              canSend={canSendMessage}
+              isStreaming={isStreaming}
+              isLoading={isLoading}
+              isProcessing={isProcessing}
+              hasExistingMessages={
+                isMobile && isComposeDrawerOpen ? false : hasExistingMessages
+              }
+              conversationId={conversationId}
+              hasInputText={
+                isMobile && isComposeDrawerOpen ? false : deferredInputHasText
+              }
+              onSend={handleSubmit}
+              onStop={onStop}
+              onSendAsNewConversation={handleSendAsNew}
+              hasReplicateApiKey={hasReplicateApiKey}
+              isPrivateMode={isPrivateMode}
+              onSubmit={handleSubmit}
+              compact={isMobile && isComposeDrawerOpen}
+            />
+          </ChatInputContainer>
+        </div>
+
+        {/* Mobile Fullscreen Drawer */}
+        <Drawer
+          shouldScaleBackground={false}
+          open={isMobile && isComposeDrawerOpen}
+          onOpenChange={open => setComposeDrawerOpen(open)}
+        >
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Compose message</DrawerTitle>
+            </DrawerHeader>
+            <DrawerBody className="space-y-3">
+              <TextInputSection
+                onSubmit={handleSubmit}
+                textareaRef={drawerTextareaRef}
+                placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
+                disabled={
+                  isLoading || isStreaming || isProcessing || !canSendMessage
+                }
+                autoFocus={autoFocus}
+                value={input}
+                onValueChange={setInput}
+                hasExistingMessages={hasExistingMessages}
+                conversationId={conversationId}
+                canSend={canSendMessage}
+                generationMode={generationMode}
+                hasReplicateApiKey={hasReplicateApiKey}
+                selectedImageModel={selectedImageModel}
+                textareaClassNameOverride="h-[68svh] max-h-[68svh]"
+                hideExpandToggle
+                disableAutoResize
+              />
+            </DrawerBody>
+            <DrawerFooter
+              className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2 gap-1"
+              style={{
+                paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
+              }}
+            >
+              <ChatInputBottomBar
+                canSend={canSendMessage}
+                isStreaming={isStreaming}
+                isLoading={isLoading}
+                isProcessing={isProcessing}
+                hasExistingMessages={hasExistingMessages}
+                conversationId={conversationId}
+                hasInputText={immediateHasText}
+                onSend={handleSubmit}
+                onStop={onStop}
+                onSendAsNewConversation={handleSendAsNew}
+                hasReplicateApiKey={hasReplicateApiKey}
+                isPrivateMode={isPrivateMode}
+                onSubmit={handleSubmit}
+                compact
+                dense
+              />
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      </>
     );
   }
 );

@@ -168,7 +168,7 @@ export const SendButtonGroup = ({
               : undefined,
         }}
       >
-        {
+        {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
               <Button
@@ -261,7 +261,7 @@ export const SendButtonGroup = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        }
+        )}
 
         <Button
           disabled={

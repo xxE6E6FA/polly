@@ -15,6 +15,7 @@ interface ChatInputFieldCoreProps {
   autoFocus?: boolean;
   isFullscreen?: boolean;
   isTransitioning?: boolean;
+  disableAutoResize?: boolean;
 
   navigation?: {
     onHistoryNavigation?: () => boolean;
@@ -37,6 +38,7 @@ export const ChatInputFieldCore = memo(
     autoFocus = false,
     isFullscreen = false,
     isTransitioning = false,
+    disableAutoResize = false,
     navigation,
   }: ChatInputFieldCoreProps) {
     const { onHistoryNavigation, onHistoryNavigationDown } = navigation || {};
@@ -97,15 +99,19 @@ export const ChatInputFieldCore = memo(
       (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange(e.target.value);
         // Resize immediately on user input
-        resizeTextarea(textareaRef.current);
+        if (!disableAutoResize) {
+          resizeTextarea(textareaRef.current);
+        }
       },
-      [onChange, resizeTextarea, textareaRef]
+      [onChange, resizeTextarea, textareaRef, disableAutoResize]
     );
 
     // Handle textarea resize when value changes
     useLayoutEffect(() => {
-      resizeTextarea(textareaRef.current);
-    }, [resizeTextarea, textareaRef]);
+      if (!disableAutoResize) {
+        resizeTextarea(textareaRef.current);
+      }
+    }, [resizeTextarea, textareaRef, disableAutoResize]);
 
     // Animate grow/shrink on fullscreen toggle explicitly
     const animTimeoutRef = useRef<number | null>(null);
@@ -133,7 +139,7 @@ export const ChatInputFieldCore = memo(
             Math.min(maxVh, Math.max(startH, minVh))
           );
           el.style.height = `${target}px`;
-        } else {
+        } else if (!disableAutoResize) {
           // Collapsing: let our auto-grow logic compute the compact target
           resizeTextarea(el);
         }
@@ -154,7 +160,13 @@ export const ChatInputFieldCore = memo(
           animTimeoutRef.current = null;
         }
       };
-    }, [isFullscreen, isTransitioning, resizeTextarea, textareaRef]);
+    }, [
+      isFullscreen,
+      isTransitioning,
+      resizeTextarea,
+      textareaRef,
+      disableAutoResize,
+    ]);
 
     return (
       <textarea
