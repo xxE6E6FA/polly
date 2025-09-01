@@ -13,6 +13,7 @@ import {
   mutation,
   query,
 } from "./_generated/server";
+import { withRetry } from "./ai/error_handlers";
 import {
   processBulkDelete,
   scheduleBackgroundBulkDelete,
@@ -100,45 +101,56 @@ export const createConversation = mutation({
       })
     );
 
-    const [, userMessageId, assistantMessageId] = await Promise.all([
-      // Update user conversation count
-      ctx.db.patch(user._id, {
-        conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
-      }),
+    // Update user conversation count with retry to avoid conflicts
+    await withRetry(
+      async () => {
+        const freshUser = await ctx.db.get(user._id);
+        if (!freshUser) {
+          throw new Error("User not found");
+        }
+        await ctx.db.patch(user._id, {
+          conversationCount: Math.max(
+            0,
+            (freshUser.conversationCount || 0) + 1
+          ),
+        });
+      },
+      5,
+      25
+    );
 
-      // Create user message
-      ctx.db.insert(
-        "messages",
-        createDefaultMessageFields(conversationId, {
-          role: "user",
-          content: args.firstMessage,
-          attachments: args.attachments,
-          reasoningConfig: args.reasoningConfig,
-          temperature: args.temperature,
-        })
-      ),
+    // Create user message
+    const userMessageId = await ctx.db.insert(
+      "messages",
+      createDefaultMessageFields(conversationId, {
+        role: "user",
+        content: args.firstMessage,
+        attachments: args.attachments,
+        reasoningConfig: args.reasoningConfig,
+        temperature: args.temperature,
+      })
+    );
 
-      // Create assistant message directly (avoid extra mutation call)
-      ctx.db.insert(
-        "messages",
-        createDefaultMessageFields(conversationId, {
-          role: "assistant",
-          content: "",
-          model: fullModel.modelId,
-          provider: fullModel.provider,
-        })
-      ),
+    // Create assistant message directly (avoid extra mutation call)
+    const assistantMessageId = await ctx.db.insert(
+      "messages",
+      createDefaultMessageFields(conversationId, {
+        role: "assistant",
+        content: "",
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+      })
+    );
 
-      // Increment stats if needed
-      args.firstMessage && args.firstMessage.trim().length > 0
-        ? incrementUserMessageStats(
-            ctx,
-            user._id,
-            args.model || fullModel.modelId,
-            args.provider || fullModel.provider
-          )
-        : Promise.resolve(void 0),
-    ]);
+    // Increment stats if needed (serialize to avoid user doc conflicts)
+    if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      await incrementUserMessageStats(
+        ctx,
+        user._id,
+        args.model || fullModel.modelId,
+        args.provider || fullModel.provider
+      );
+    }
 
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       await Promise.all([
@@ -887,9 +899,19 @@ export const createWithUserId = internalMutation({
       updatedAt: Date.now(),
     });
 
-    await ctx.db.patch(args.userId, {
-      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
-    });
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(args.userId);
+        if (!fresh) {
+          throw new Error("User not found");
+        }
+        await ctx.db.patch(args.userId, {
+          conversationCount: Math.max(0, (fresh.conversationCount || 0) + 1),
+        });
+      },
+      5,
+      25
+    );
 
     // Create user message
     const userMessageId = await ctx.db.insert("messages", {
@@ -969,9 +991,19 @@ export const createEmptyInternal = internalMutation({
       updatedAt: Date.now(),
     });
 
-    await ctx.db.patch(args.userId, {
-      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
-    });
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(args.userId);
+        if (!fresh) {
+          throw new Error("User not found");
+        }
+        await ctx.db.patch(args.userId, {
+          conversationCount: Math.max(0, (fresh.conversationCount || 0) + 1),
+        });
+      },
+      5,
+      25
+    );
 
     return conversationId;
   },
@@ -1592,13 +1624,7 @@ export const createBranchingConversation = action({
       }
     );
 
-    // Increment message stats
-    await incrementUserMessageStats(
-      ctx,
-      actualUserId,
-      selectedModel.modelId,
-      selectedModel.provider
-    );
+    // Note: createWithUserId already increments user stats; avoid double increment here
 
     // Create context message FIRST if contextSummary is provided
     // This must happen before streaming so the AI can see the context

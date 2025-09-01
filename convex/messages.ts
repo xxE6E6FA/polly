@@ -709,8 +709,8 @@ export const internalAtomicUpdate = internalMutation({
 
         return await ctx.db.patch(id, appendUpdates);
       },
-      2,
-      10
+      5,
+      25
     );
   },
 });
@@ -1038,8 +1038,8 @@ export const updateAssistantContent = internalMutation({
 
         return await ctx.db.patch(messageId, finalAppendUpdates);
       },
-      2,
-      10
+      5,
+      25
     );
   },
 });
@@ -1331,7 +1331,6 @@ export const refineAssistantMessage = action({
         await ctx.runMutation(internal.messages.updateAssistantContent, {
           messageId: newAssistantId,
           appendContent: chunk,
-          status: "streaming",
         });
       }
 
