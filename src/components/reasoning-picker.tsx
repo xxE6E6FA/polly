@@ -11,6 +11,7 @@ import {
   hasMandatoryReasoning,
 } from "@shared/reasoning-model-detection";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -278,6 +279,7 @@ const ReasoningPickerComponent = ({
       onOpenChange={setSelectOpen}
     >
       <SelectTrigger
+        asChild
         data-debug-id="ReasoningPicker"
         title={
           isMandatory
@@ -286,38 +288,35 @@ const ReasoningPickerComponent = ({
               ? "Enable thinking"
               : `Thinking: ${selectedOption?.label}`
         }
-        className={cn(
-          "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-          "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-          currentValue !== "off"
-            ? cn(theme.bgColor, theme.color, theme.hoverBgColor)
-            : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
-          className
-        )}
       >
-        <div className="flex items-center gap-1">
-          <Icon
-            className={cn(
-              "h-3 w-3",
-              currentValue !== "off" ? theme.color : "text-muted-foreground/70"
-            )}
-            weight={currentValue !== "off" ? "duotone" : "regular"}
-          />
-          <span className="hidden sm:inline">
-            {currentValue === "off" ? "Thinking" : selectedOption?.label}
-          </span>
-          {selectedOption?.icon && (
-            <selectedOption.icon
-              className={cn(
-                "h-2.5 w-2.5 inline sm:hidden",
-                currentValue !== "off"
-                  ? theme.color
-                  : "text-muted-foreground/70"
-              )}
-              weight="bold"
-            />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+            "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+            // Chip style at rest for consistency
+            "bg-accent/40 dark:bg-accent/20 text-foreground/90",
+            className
           )}
-        </div>
+        >
+          <div className="flex items-center gap-1">
+            <Icon
+              className={cn("h-3 w-3 text-current")}
+              weight={currentValue !== "off" ? "duotone" : "regular"}
+            />
+            <span className="hidden sm:inline">
+              {currentValue === "off" ? "Thinking" : selectedOption?.label}
+            </span>
+            {selectedOption?.icon && (
+              <selectedOption.icon
+                className={cn("h-2.5 w-2.5 inline sm:hidden text-current")}
+                weight="bold"
+              />
+            )}
+          </div>
+        </Button>
       </SelectTrigger>
       <SelectContent
         data-debug-id="ReasoningPicker"
