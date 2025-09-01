@@ -52,23 +52,32 @@ export function useTextareaHeight({
         // Apply inline constraints for auto-grow up to 5 lines
         textarea.style.minHeight = `${minH}px`;
         textarea.style.maxHeight = `${maxH}px`;
-        const newHeight = Math.max(minH, Math.min(contentHeight, maxH));
-        textarea.style.height = `${newHeight}px`;
-        // Toggle scroll when exceeding 5 lines
-        const shouldScroll = contentHeight > maxH + 1; // tolerance
-        textarea.style.overflowY = shouldScroll ? "auto" : "hidden";
+
+        // If the value is empty, force single-line height. This avoids
+        // transient oversized measurements from content-visibility or
+        // contain-intrinsic-size affecting scrollHeight on first paint.
+        if (value.trim().length === 0) {
+          textarea.style.height = `${minH}px`;
+          textarea.style.overflowY = "hidden";
+        } else {
+          const newHeight = Math.max(minH, Math.min(contentHeight, maxH));
+          textarea.style.height = `${newHeight}px`;
+          // Toggle scroll when exceeding 5 lines
+          const shouldScroll = contentHeight > maxH + 1; // tolerance
+          textarea.style.overflowY = shouldScroll ? "auto" : "hidden";
+        }
       }
 
       // Report multiline when content exceeds one line
       // Recompute contentHeight after potential style changes
       contentHeight = textarea.scrollHeight;
-      const isMultiline = contentHeight > minH + 1;
+      const isMultiline = value.trim().length > 0 && contentHeight > minH + 1;
       if (isMultiline !== lastReportedMultiline.current) {
         lastReportedMultiline.current = isMultiline;
         onHeightChange?.(isMultiline);
       }
     },
-    [onHeightChange, isFullscreen]
+    [onHeightChange, isFullscreen, value]
   );
 
   // Reset multiline state when cleared
