@@ -2,12 +2,12 @@ import { useCallback } from "react";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useImageParams } from "@/hooks/use-generation";
+import { useUI } from "@/providers/ui-provider";
 import { removeAttachmentAt } from "@/stores/actions/chat-input-actions";
 import { useChatHistory } from "@/stores/chat-ui-store";
 import type { ConversationId, GenerationMode } from "@/types";
 import { AttachmentDisplay } from "../attachment-display";
 import { ChatInputField } from "../chat-input-field";
-
 // Fullscreen state and animation
 import { ExpandToggleButton } from "../expand-toggle-button";
 import { useChatInputFullscreen } from "../hooks";
@@ -32,6 +32,10 @@ interface TextInputSectionProps {
     supportsMultipleImages: boolean;
     supportsNegativePrompt: boolean;
   } | null;
+  textareaClassNameOverride?: string;
+  disableAutoResize?: boolean;
+  onMobileFullscreenToggle?: () => void;
+  hideExpandToggle?: boolean;
 }
 
 export function TextInputSection({
@@ -48,6 +52,10 @@ export function TextInputSection({
   generationMode,
   hasReplicateApiKey,
   selectedImageModel,
+  textareaClassNameOverride,
+  disableAutoResize,
+  onMobileFullscreenToggle,
+  hideExpandToggle,
 }: TextInputSectionProps) {
   const { attachments } = useChatAttachments(conversationId);
   const handleRemoveAttachment = useCallback(
@@ -58,6 +66,7 @@ export function TextInputSection({
   const { selectedPersonaId } = useChatScopedState(conversationId);
   const { isFullscreen, isTransitioning, handleToggleFullscreen } =
     useChatInputFullscreen();
+  const { isMobile } = useUI();
   const {
     params: imageParams,
     setParams: setImageParams,
@@ -91,7 +100,13 @@ export function TextInputSection({
     return false;
   });
 
-  const handleToggleFullscreenStable = useEvent(handleToggleFullscreen);
+  const handleToggleFullscreenStable = useEvent(() => {
+    if (isMobile && onMobileFullscreenToggle) {
+      onMobileFullscreenToggle();
+      return;
+    }
+    handleToggleFullscreen();
+  });
 
   const handleNegativePromptValueChange = useEvent((value: string) => {
     setImageParams(prev => ({ ...prev, negativePrompt: value }));
@@ -121,9 +136,15 @@ export function TextInputSection({
               placeholder={selectedPersonaId ? "" : placeholder}
               disabled={disabled}
               autoFocus={autoFocus}
-              className={isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined}
+              className={
+                textareaClassNameOverride ??
+                (isFullscreen && !isMobile
+                  ? "min-h-[50vh] max-h-[85vh]"
+                  : undefined)
+              }
               isFullscreen={isFullscreen}
               isTransitioning={isTransitioning}
+              disableAutoResize={disableAutoResize}
               navigation={{
                 onHistoryNavigation: stableHistoryNavigation,
                 onHistoryNavigationDown: stableHistoryNavigationDown,
@@ -132,7 +153,7 @@ export function TextInputSection({
             />
             <ExpandToggleButton
               onToggle={handleToggleFullscreenStable}
-              isVisible={canSend}
+              isVisible={canSend && !hideExpandToggle}
               isExpanded={isFullscreen}
               disabled={disabled}
             />

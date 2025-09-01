@@ -6,6 +6,7 @@ import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
+import { cn } from "@/lib/utils";
 import {
   setPersona as setPersonaAction,
   setTemperature as setTemperatureAction,
@@ -49,6 +50,8 @@ interface ChatInputBottomBarProps {
   hasReplicateApiKey: boolean;
   isPrivateMode: boolean;
   onSubmit: () => void;
+  compact?: boolean;
+  dense?: boolean;
 }
 
 export function ChatInputBottomBar({
@@ -65,6 +68,8 @@ export function ChatInputBottomBar({
   hasReplicateApiKey,
   isPrivateMode,
   onSubmit,
+  compact = false,
+  dense = false,
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const disabled = isLoading || isStreaming || isProcessing;
@@ -91,9 +96,14 @@ export function ChatInputBottomBar({
   );
 
   return (
-    <div className="mt-2 flex items-center justify-between gap-2 border-t border-border/20 pt-2">
+    <div
+      className={cn(
+        "flex items-center justify-between border-t border-border/20",
+        dense ? "mt-1 pt-1 gap-1" : "mt-2 pt-2 gap-2"
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
-        {canSend && (
+        {canSend && !compact && (
           <GenerationModeToggle
             mode={generationMode}
             onModeChange={setGenerationMode}
@@ -103,7 +113,7 @@ export function ChatInputBottomBar({
         )}
 
         {/* Mobile: Individual drawer controls for text */}
-        {canSend && generationMode === "text" && (
+        {canSend && generationMode === "text" && !compact && (
           <>
             <PersonaDrawer
               conversationId={conversationId}
@@ -135,7 +145,8 @@ export function ChatInputBottomBar({
         {canSend &&
           generationMode === "image" &&
           !isPrivateMode &&
-          hasReplicateApiKey && (
+          hasReplicateApiKey &&
+          !compact && (
             <>
               <ImageModelDrawer
                 model={imageParams.model || ""}

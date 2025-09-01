@@ -34,10 +34,16 @@ const DrawerOverlay = React.forwardRef<
 ));
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName;
 
+type DrawerContentProps = React.ComponentPropsWithoutRef<
+  typeof DrawerPrimitive.Content
+> & {
+  scrollContainerClassName?: string;
+};
+
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  DrawerContentProps
+>(({ className, children, scrollContainerClassName, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -48,8 +54,12 @@ const DrawerContent = React.forwardRef<
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+      <div className="mx-auto drawer-handle rounded-full bg-muted flex-none" />
+      <div
+        className={cn("min-h-0 flex-1 flex flex-col", scrollContainerClassName)}
+      >
+        {children}
+      </div>
     </DrawerPrimitive.Content>
   </DrawerPortal>
 ));
@@ -81,7 +91,10 @@ const DrawerBody = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("p-4 space-y-4", className)} {...props} />
+  <div
+    className={cn("min-h-0 flex-1 overflow-auto p-4 space-y-4", className)}
+    {...props}
+  />
 );
 DrawerBody.displayName = "DrawerBody";
 
