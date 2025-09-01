@@ -1,5 +1,9 @@
 import { api } from "@convex/_generated/api";
-import { GearIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import {
+  GearIcon,
+  ImageIcon,
+  MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { memo, useCallback, useState } from "react";
 import { Link } from "react-router-dom";
@@ -19,7 +23,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -89,19 +93,18 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
               disabled={disabled}
               className={cn(
                 "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-                "text-muted-foreground/70 hover:text-foreground/90",
-                "hover:bg-accent/40 dark:hover:bg-accent/20",
-                "transition-all duration-200",
-                open && "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+                "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+                "bg-accent/40 dark:bg-accent/20 text-foreground/90"
               )}
             >
               <div className="flex items-center gap-1">
+                <ImageIcon className="h-3 w-3 text-current" />
                 <span className="max-w-[120px] truncate font-medium">
                   {enabledImageModels.find(m => m.modelId === model)?.name ||
                     (model && model.length > 20
                       ? `${model.slice(0, 20)}...`
                       : model) ||
-                    "Select model"}
+                    "Model"}
                 </span>
               </div>
             </Button>
