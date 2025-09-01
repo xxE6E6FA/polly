@@ -256,7 +256,8 @@ export async function incrementUserMessageStats(
   tokensUsed?: number
 ): Promise<void> {
   try {
-    await ctx.runMutation(api.users.incrementMessage, {
+    // Schedule increment off the critical path to reduce contention
+    await ctx.scheduler.runAfter(50, api.users.incrementMessage, {
       userId,
       model,
       provider,

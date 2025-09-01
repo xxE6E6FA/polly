@@ -9,6 +9,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { withRetry } from "./ai/error_handlers";
 import { log } from "./lib/logger";
 
 // Shared handler for creating anonymous users
@@ -68,22 +69,28 @@ export const incrementMessage = mutation({
     tokensUsed: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(args.userId);
+        if (!fresh) {
+          throw new Error("User not found");
+        }
 
-    const updates: {
-      messagesSent: number;
-      monthlyMessagesSent: number;
-      totalMessageCount: number;
-    } = {
-      messagesSent: (user.messagesSent || 0) + 1,
-      monthlyMessagesSent: (user.monthlyMessagesSent || 0) + 1,
-      totalMessageCount: (user.totalMessageCount || 0) + 1,
-    };
+        const updates: {
+          messagesSent: number;
+          monthlyMessagesSent: number;
+          totalMessageCount: number;
+        } = {
+          messagesSent: (fresh.messagesSent || 0) + 1,
+          monthlyMessagesSent: (fresh.monthlyMessagesSent || 0) + 1,
+          totalMessageCount: (fresh.totalMessageCount || 0) + 1,
+        };
 
-    await ctx.db.patch(args.userId, updates);
+        await ctx.db.patch(args.userId, updates);
+      },
+      5,
+      25
+    );
   },
 });
 

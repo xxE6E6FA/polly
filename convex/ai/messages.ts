@@ -1049,15 +1049,15 @@ When using information from these search results, you MUST include citations in 
       // OPTIMIZED STREAMING: Adaptive batching for better performance
       let contentBatcher = createAdaptiveBatchingState(
         args.messageId + ":content",
-        10, // Initial batch size
-        100 // Initial update interval (ms)
+        24, // Larger initial batch size to reduce writes
+        180 // Longer initial update interval (ms)
       );
 
       // Create reasoning batcher for real-time reasoning streaming
       let reasoningBatcher = createAdaptiveBatchingState(
         args.messageId + ":reasoning",
-        5, // Smaller batch size for reasoning
-        50 // Faster updates for reasoning
+        10, // Increase to reduce write frequency
+        120 // Slightly slower updates for reasoning
       );
 
       // Generate streaming response using AI SDK with onChunk for incremental reasoning
@@ -1115,7 +1115,6 @@ When using information from these search results, you MUST include citations in 
                     {
                       messageId: args.messageId,
                       appendReasoning: reasoningBatchResult.content,
-                      status: "streaming",
                     }
                   );
                 } catch (updateError) {
@@ -1157,7 +1156,6 @@ When using information from these search results, you MUST include citations in 
             await ctx.runMutation(internal.messages.updateAssistantContent, {
               messageId: args.messageId,
               appendContent: batchResult.content,
-              status: "streaming",
             });
           } catch (updateError) {
             log.streamError("Content update failed", updateError);
@@ -1206,7 +1204,6 @@ When using information from these search results, you MUST include citations in 
           await ctx.runMutation(internal.messages.updateAssistantContent, {
             messageId: args.messageId,
             appendContent: finalContent,
-            status: "streaming",
           });
         } catch (updateError) {
           log.streamError("Final content update failed", updateError);
@@ -1285,4 +1282,3 @@ When using information from these search results, you MUST include citations in 
      }
    }
 });
-
