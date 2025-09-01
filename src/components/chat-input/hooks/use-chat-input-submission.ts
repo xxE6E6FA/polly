@@ -2,7 +2,10 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction } from "convex/react";
 import { useCallback, useState } from "react";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import { useReasoningConfig } from "@/hooks/use-reasoning";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
   Attachment,
   ConversationId,
@@ -13,7 +16,6 @@ import type {
 interface UseChatInputSubmissionProps {
   conversationId?: ConversationId;
   selectedPersonaId: Id<"personas"> | null;
-  reasoningConfig: ReasoningConfig;
   temperature?: number;
   onSendMessage: (
     content: string,
@@ -32,9 +34,6 @@ interface UseChatInputSubmissionProps {
     reasoningConfig?: ReasoningConfig,
     temperature?: number
   ) => Promise<ConversationId | undefined>;
-  uploadAttachmentsToConvex: (
-    attachments: Attachment[]
-  ) => Promise<Attachment[]>;
   handleImageGenerationSubmit: () => Promise<void>;
   handleImageGenerationSendAsNew: (
     shouldNavigate?: boolean,
@@ -46,20 +45,68 @@ interface UseChatInputSubmissionProps {
 export function useChatInputSubmission({
   conversationId,
   selectedPersonaId,
-  reasoningConfig,
   temperature,
   onSendMessage,
   onSendAsNewConversation,
-  uploadAttachmentsToConvex,
   handleImageGenerationSubmit,
 
   onResetInputState,
 }: UseChatInputSubmissionProps) {
+  const [reasoningConfig] = useReasoningConfig();
   const notificationDialog = useNotificationDialog();
+  const { uploadFile } = useConvexFileUpload();
+  const { isPrivateMode } = usePrivateMode();
   const generateSummaryAction = useAction(
     api.conversationSummary.generateConversationSummary
   );
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const uploadAttachmentsToConvex = useCallback(
+    async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
+      if (isPrivateMode) {
+        return attachmentsToUpload.map(att => {
+          if (att.content && att.mimeType && !att.url) {
+            return {
+              ...att,
+              url: `data:${att.mimeType};base64,${att.content}`,
+              contentType: att.mimeType,
+            } as Attachment;
+          }
+          return att;
+        });
+      }
+
+      const uploaded: Attachment[] = [];
+      for (const att of attachmentsToUpload) {
+        if (att.type === "text" || att.storageId) {
+          uploaded.push(att);
+        } else if (att.content && att.mimeType) {
+          try {
+            const byteCharacters = atob(att.content);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const file = new File([byteArray], att.name, {
+              type: att.mimeType,
+            });
+            const res = await uploadFile(file);
+            if (att.type === "pdf" && att.extractedText) {
+              res.extractedText = att.extractedText;
+            }
+            uploaded.push(res);
+          } catch (_e) {
+            uploaded.push(att);
+          }
+        } else {
+          uploaded.push(att);
+        }
+      }
+      return uploaded;
+    },
+    [isPrivateMode, uploadFile]
+  );
 
   const submit = useCallback(
     async (
@@ -105,7 +152,6 @@ export function useChatInputSubmission({
       }
     },
     [
-      uploadAttachmentsToConvex,
       onSendMessage,
       selectedPersonaId,
       reasoningConfig,
@@ -113,6 +159,7 @@ export function useChatInputSubmission({
       handleImageGenerationSubmit,
       onResetInputState,
       notificationDialog,
+      uploadAttachmentsToConvex,
     ]
   );
 
@@ -167,12 +214,12 @@ export function useChatInputSubmission({
     },
     [
       onSendAsNewConversation,
-      uploadAttachmentsToConvex,
       conversationId,
       generateSummaryAction,
       reasoningConfig,
       temperature,
       onResetInputState,
+      uploadAttachmentsToConvex,
     ]
   );
 

@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -34,6 +34,9 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useSelectModel } from "@/hooks/use-select-model";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTheme } from "@/hooks/use-theme";
 import {
   downloadFile,
@@ -48,6 +51,8 @@ type CommandPaletteProps = {
   onOpenChange: (open: boolean) => void;
   onClose?: () => void;
 };
+
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 type NavigationState = {
   currentMenu:
@@ -179,18 +184,13 @@ export function CommandPalette({
       : "skip"
   );
 
-  const userModels = useQuery(api.userModels.getUserModels, {});
-  const builtInModels = useQuery(api.userModels.getBuiltInModels, {});
-  const modelsLoaded = userModels !== undefined && builtInModels !== undefined;
-  const currentSelectedModel = useQuery(
-    api.userModels.getUserSelectedModel,
-    {}
-  );
+  const { userModels, modelGroups } = useModelCatalog();
+  const modelsLoaded = !!userModels;
+  const [currentSelectedModel] = useSelectedModel();
   const recentlyUsedModels = useQuery(api.userModels.getRecentlyUsedModels, {
     limit: 8,
   });
 
-  const selectModelMutation = useMutation(api.userModels.selectModel);
   const patchConversation = useMutation(api.conversations.patch);
   const deleteConversation = useMutation(api.conversations.remove);
 
@@ -202,31 +202,29 @@ export function CommandPalette({
   );
 
   const allModels = useMemo(() => {
-    const modelMap = new Map<string, ModelType>();
-
-    (builtInModels || []).forEach(model => {
+    const combined = [
+      ...(modelGroups?.freeModels ?? []),
+      ...Object.values(modelGroups?.providerModels ?? {}).flat(),
+    ];
+    const map = new Map<string, ModelType>();
+    combined.forEach(model => {
       const key = `${model.provider}-${model.modelId}`;
-      modelMap.set(key, model);
+      map.set(key, model as unknown as ModelType);
     });
+    return Array.from(map.values());
+  }, [modelGroups]);
 
-    (userModels || []).forEach(model => {
-      const key = `${model.provider}-${model.modelId}`;
-      modelMap.set(key, model);
-    });
-
-    return Array.from(modelMap.values());
-  }, [userModels, builtInModels]);
+  const { selectModel } = useSelectModel();
 
   const handleSelectModel = useCallback(
     async (modelId: string, provider: string) => {
-      try {
-        await selectModelMutation({ modelId, provider });
-        handleClose();
-      } catch (error) {
-        console.error("Failed to select model:", error);
-      }
+      await selectModel(modelId, provider, [
+        ...(modelGroups?.freeModels ?? []),
+        ...Object.values(modelGroups?.providerModels ?? {}).flat(),
+      ] as AvailableModel[]);
+      handleClose();
     },
-    [selectModelMutation, handleClose]
+    [selectModel, modelGroups, handleClose]
   );
 
   const handleNavigateToConversation = useCallback(

@@ -1,11 +1,9 @@
-import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useRef } from "react";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 interface ChatInputState {
   input: string;
   attachments: Attachment[];
-  selectedPersonaId: Id<"personas"> | null;
   reasoningConfig: ReasoningConfig;
   temperature?: number;
 }
@@ -13,7 +11,6 @@ interface ChatInputState {
 const defaultChatInputState: ChatInputState = {
   input: "",
   attachments: [],
-  selectedPersonaId: null,
   reasoningConfig: {
     enabled: false,
     effort: "medium",

@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useConvex, useQuery } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
@@ -22,9 +22,7 @@ export default function ConversationRoute() {
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
-  const [currentTemperature, setCurrentTemperature] = useState<
-    number | undefined
-  >(undefined);
+  // temperature managed by store
 
   useEffect(() => {
     setPrivateMode(false);
@@ -195,7 +193,6 @@ export default function ConversationRoute() {
       isLoadingMessages={conversationAccessInfo === undefined}
       isStreaming={messageIsStreaming}
       currentPersonaId={conversation?.personaId ?? null}
-      currentTemperature={currentTemperature}
       canSavePrivateChat={false}
       hasApiKeys={hasApiKeys === true}
       isArchived={conversation?.isArchived}
@@ -230,7 +227,6 @@ export default function ConversationRoute() {
         });
       }}
       onStopGeneration={stopGeneration}
-      onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={async (
         messageId,
         modelId,

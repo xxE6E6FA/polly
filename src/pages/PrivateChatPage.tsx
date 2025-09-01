@@ -71,9 +71,7 @@ export default function PrivateChatPage() {
       navigationState?.personaId as Id<"personas"> | null
     );
 
-  const [currentTemperature, setCurrentTemperature] = useState<
-    number | undefined
-  >(navigationState?.temperature);
+  // temperature managed by store; keep navigationState.temperature for initial message if needed
 
   // Stable timestamp management - moved outside useMemo to avoid mutation
   const messageTimestampsRef = useRef(new Map<string, number>());
@@ -587,7 +585,6 @@ export default function PrivateChatPage() {
       isLoadingMessages={false}
       isStreaming={isStreaming}
       currentPersonaId={currentPersonaId}
-      currentTemperature={currentTemperature}
       canSavePrivateChat={!!canSave}
       hasApiKeys={hasApiKeys ?? false}
       onSendMessage={handleSendMessage}
@@ -629,7 +626,6 @@ export default function PrivateChatPage() {
       onStopGeneration={() => {
         stop();
       }}
-      onTemperatureChange={setCurrentTemperature}
       onRetryUserMessage={handleRetryUserMessage}
       onRetryAssistantMessage={handleRetryAssistantMessage}
       onSavePrivateChat={handleSavePrivateChat}

@@ -1,9 +1,7 @@
-import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { Robot } from "@phosphor-icons/react";
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
-import { useMutation, useQuery } from "convex/react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +16,11 @@ import {
   SelectableListItem,
   SelectableListItemIcon,
 } from "@/components/ui/selectable-list-item";
-import { useModelSelection } from "@/lib/chat/use-model-selection";
-import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useSelectModel } from "@/hooks/use-select-model";
+import { useSelectedModel } from "@/hooks/use-selected-model";
+import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { getModelCapabilities } from "@/lib/model-capabilities";
-import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -33,10 +32,10 @@ interface ModelDrawerProps {
 const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
   const [open, setOpen] = useState(false);
   const { user } = useUserDataContext();
-  const { modelGroups } = useModelSelection();
-  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-  const selectModelMutation = useMutation(api.userModels.selectModel);
-  const managedToast = useToast();
+  const { modelGroups } = useModelCatalog();
+  const [selectedModelRaw] = useSelectedModel();
+
+  const { selectModel } = useSelectModel();
 
   const selectedModel = selectedModelRaw;
 
@@ -44,26 +43,12 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
     async (modelId: string, provider: string) => {
       setOpen(false);
 
-      const selectedModelData = [
+      await selectModel(modelId, provider, [
         ...modelGroups.freeModels,
         ...Object.values(modelGroups.providerModels).flat(),
-      ].find(
-        model => model?.modelId === modelId && model?.provider === provider
-      );
-
-      if (selectedModelData) {
-        set(CACHE_KEYS.selectedModel, selectedModelData);
-      }
-
-      try {
-        await selectModelMutation({ modelId, provider });
-      } catch (_error) {
-        managedToast.error("Failed to select model", {
-          description: "Unable to change the selected model. Please try again.",
-        });
-      }
+      ]);
     },
-    [selectModelMutation, modelGroups, managedToast.error]
+    [selectModel, modelGroups]
   );
 
   const fallbackModel = useMemo(() => {
@@ -109,11 +94,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
     return cleanId.charAt(0).toUpperCase() + cleanId.slice(1);
   }, []);
 
-  useEffect(() => {
-    if (selectedModel && !user?.isAnonymous) {
-      set(CACHE_KEYS.selectedModel, selectedModel);
-    }
-  }, [selectedModel, user?.isAnonymous]);
+  // Selected model persistence is handled by useSelectModel and upstream hooks
 
   if (user?.isAnonymous) {
     return (

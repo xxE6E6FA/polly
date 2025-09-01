@@ -19,7 +19,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -107,6 +107,8 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
             </Button>
           </PopoverTrigger>
           <PopoverContent
+            forceMount
+            data-debug-id="ImageModelPicker"
             className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
             side="top"
             sideOffset={4}

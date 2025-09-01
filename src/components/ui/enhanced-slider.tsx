@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useState } from "react";
+import { forwardRef, useCallback, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -40,6 +40,7 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
     },
     ref
   ) => {
+    const isControlled = value !== undefined;
     const [internalValue, setInternalValue] = useState(
       value ?? defaultValue ?? min
     );
@@ -47,16 +48,26 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
       String(value ?? defaultValue ?? min)
     );
 
-    const currentValue = value ?? internalValue;
+    const currentValue = isControlled ? value : internalValue;
+
+    // Sync internal state when controlled value changes
+    useEffect(() => {
+      if (isControlled && value !== internalValue) {
+        setInternalValue(value);
+        setInputValue(String(value));
+      }
+    }, [value, isControlled, internalValue]);
 
     const handleSliderChange = useCallback(
       (newValue: number[]) => {
         const val = newValue[0];
-        setInternalValue(val);
-        setInputValue(String(val));
+        if (!isControlled) {
+          setInternalValue(val);
+          setInputValue(String(val));
+        }
         onValueChange?.(val);
       },
-      [onValueChange]
+      [onValueChange, isControlled]
     );
 
     const handleInputChange = useCallback(
@@ -66,11 +77,13 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
 
         const numVal = parseFloat(inputVal);
         if (!isNaN(numVal) && numVal >= min && numVal <= max) {
-          setInternalValue(numVal);
+          if (!isControlled) {
+            setInternalValue(numVal);
+          }
           onValueChange?.(numVal);
         }
       },
-      [min, max, onValueChange]
+      [min, max, onValueChange, isControlled]
     );
 
     const handleInputBlur = useCallback(() => {

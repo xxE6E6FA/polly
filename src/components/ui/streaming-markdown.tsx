@@ -112,8 +112,6 @@ const StreamingMarkdownInner = memo(
       throttle: optimizedThrottle,
     });
 
-    // debug logs removed
-
     // Memoize the rendered components to reduce re-renders
     const renderedBlocks = useMemo(() => {
       return blockMatches.map((blockMatch, index) => {

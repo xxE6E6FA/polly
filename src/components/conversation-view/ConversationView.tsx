@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useConvex, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
@@ -31,9 +31,7 @@ export function ConversationView() {
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
-  const [currentTemperature, setCurrentTemperature] = useState<
-    number | undefined
-  >(undefined);
+  // temperature managed by store
 
   useEffect(() => {
     setPrivateMode(false);
@@ -100,8 +98,6 @@ export function ConversationView() {
   return (
     <ConversationContent
       conversationId={conversationId}
-      currentTemperature={currentTemperature}
-      onTemperatureChange={setCurrentTemperature}
       onSendAsNewConversation={handleSendAsNewConversation}
     />
   );
@@ -109,8 +105,6 @@ export function ConversationView() {
 
 interface ConversationContentProps {
   conversationId: ConversationId;
-  currentTemperature?: number;
-  onTemperatureChange: (temperature?: number) => void;
   onSendAsNewConversation: (
     content: string,
     shouldNavigate: boolean,
@@ -128,8 +122,6 @@ interface ConversationContentProps {
  */
 function ConversationContent({
   conversationId,
-  currentTemperature,
-  onTemperatureChange,
   onSendAsNewConversation,
 }: ConversationContentProps) {
   const navigate = useNavigate();
@@ -387,7 +379,6 @@ function ConversationContent({
           isLoadingMessages={false}
           isStreaming={isStreaming}
           currentPersonaId={cachedConversation?.personaId ?? null}
-          currentTemperature={currentTemperature}
           canSavePrivateChat={false}
           hasApiKeys={hasApiKeys ?? false}
           isArchived={cachedConversation?.isArchived}
@@ -413,7 +404,6 @@ function ConversationContent({
         isLoadingMessages={false}
         isStreaming={false}
         currentPersonaId={null}
-        currentTemperature={currentTemperature}
         canSavePrivateChat={false}
         hasApiKeys={false}
         isArchived={false}
@@ -454,7 +444,6 @@ function ConversationContent({
       isLoadingMessages={false}
       isStreaming={messageIsStreaming}
       currentPersonaId={conversation?.personaId ?? null}
-      currentTemperature={currentTemperature}
       canSavePrivateChat={false}
       hasApiKeys={hasApiKeys ?? false}
       isArchived={conversation?.isArchived}
@@ -464,7 +453,6 @@ function ConversationContent({
       onEditMessage={handleEditMessage}
       onRefineMessage={handleRefineMessage}
       onStopGeneration={stopGeneration}
-      onTemperatureChange={onTemperatureChange}
       onRetryUserMessage={createRetryHandler}
       onRetryAssistantMessage={createRetryHandler}
       onRetryImageGeneration={handleRetryImageGeneration}

@@ -1,7 +1,4 @@
-import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
-
-import { useQuery } from "convex/react";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   forwardRef,
   useCallback,
@@ -10,13 +7,19 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
 } from "react";
+import { useChatAttachments } from "@/hooks/use-chat-attachments";
+import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
+import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
+import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
-import { CACHE_KEYS, get } from "@/lib/local-storage";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
+import { useChatHistory } from "@/stores/chat-ui-store";
 import type {
-  AIModel,
   Attachment,
   ChatMessage,
   ConversationId,
@@ -25,22 +28,11 @@ import type {
 import { ChatInputBottomBar } from "./components/chat-input-bottom-bar";
 import { ChatInputContainer } from "./components/chat-input-container";
 import {
-  AttachmentProvider,
-  useAttachments,
-} from "./context/attachment-context";
-import {
-  ChatInputProvider,
-  useChatInputContext,
-  useChatInputUIContext,
-} from "./context/chat-input-context";
-import {
   useChatInputDragDrop,
   useChatInputImageGeneration,
   useChatInputSubmission,
 } from "./hooks";
 import { TextInputSection } from "./sections/text-input-section";
-
-type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
 
 interface ChatInputProps {
   onSendMessage: (
@@ -66,8 +58,6 @@ interface ChatInputProps {
   isStreaming?: boolean;
   onStop?: () => void;
   placeholder?: string;
-  currentReasoningConfig?: ReasoningConfig;
-  currentTemperature?: number;
   onTemperatureChange?: (temperature: number | undefined) => void;
   messages?: ChatMessage[];
   userMessageContents?: string[];
@@ -103,35 +93,22 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     },
     ref
   ) => {
-    const { user, canSendMessage } = useUserDataContext();
+    const { canSendMessage } = useUserDataContext();
     const { hasReplicateApiKey } = useReplicateApiKey();
     const { isPrivateMode } = usePrivateMode();
-    const {
-      attachments,
-      selectedModel,
-      processFiles,
-      addAttachments,
-      uploadAttachmentsToConvex,
-    } = useAttachments();
-    const {
-      input,
-      selectedPersonaId,
-      reasoningConfig,
-      temperature,
-      setInput,
-      resetInputState,
-    } = useChatInputContext();
-    const { generationMode, imageParams, setGenerationMode } =
-      useChatInputUIContext();
+    const { attachments, setAttachments, clearAttachments } =
+      useChatAttachments(conversationId);
+    const { selectedPersonaId, temperature } =
+      useChatScopedState(conversationId);
+    const [input, setInput] = useState<string>("");
+    // clearAttachments already extracted from hook above
+    const [reasoningConfig] = useReasoningConfig();
+    const [generationMode, setGenerationMode] = useGenerationMode();
+    const { params: imageParams } = useImageParams();
 
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-    // Get personas
-    const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
-    const personas = useMemo(
-      () => (Array.isArray(personasRaw) ? personasRaw : []),
-      [personasRaw]
-    );
+    const [selectedModel] = useSelectedModel();
+    const notificationDialog = useNotificationDialog();
 
     // Use the new image generation hook
     const {
@@ -144,7 +121,10 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       input,
       imageParams,
       generationMode,
-      onResetInputState: resetInputState,
+      onResetInputState: () => {
+        setInput("");
+        setAttachments([]);
+      },
     });
 
     // Use the new submission hook
@@ -152,14 +132,15 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       useChatInputSubmission({
         conversationId,
         selectedPersonaId,
-        reasoningConfig,
         temperature,
         onSendMessage,
         onSendAsNewConversation,
-        uploadAttachmentsToConvex,
         handleImageGenerationSubmit,
         handleImageGenerationSendAsNew,
-        onResetInputState: resetInputState,
+        onResetInputState: () => {
+          setInput("");
+          setAttachments([]);
+        },
       });
 
     // Use the new drag and drop hook
@@ -168,7 +149,26 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         canSend: canSendMessage,
         isLoading,
         isStreaming,
-        onProcessFiles: processFiles,
+        onProcessFiles: async (files: FileList) => {
+          const { processFilesForAttachments } = await import(
+            "@/lib/process-files"
+          );
+          const newAttachments = await processFilesForAttachments(
+            files,
+            selectedModel,
+            args =>
+              notificationDialog.notify({
+                ...args,
+                description: args.description || "",
+              })
+          );
+          if (newAttachments.length > 0) {
+            const { appendAttachments } = await import(
+              "@/stores/actions/chat-input-actions"
+            );
+            appendAttachments(conversationId, newAttachments);
+          }
+        },
       });
 
     // Handle private mode and replicate API key restrictions
@@ -203,10 +203,45 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return userMessages;
     }, [userMessageContents, messages]);
 
+    // Hydrate history from existing user messages on revisit
+    const history = useChatHistory(conversationId);
+    useEffect(() => {
+      if (!(conversationId && hasExistingMessages)) {
+        return;
+      }
+      if (!userMessages || userMessages.length === 0) {
+        return;
+      }
+      history.clear();
+      // Hydrate oldest -> newest so ArrowUp reaches the latest first
+      for (const msg of [...userMessages].reverse()) {
+        const t = msg.trim();
+        if (t.length > 0) {
+          history.push(t);
+        }
+      }
+      history.resetIndex();
+    }, [
+      conversationId,
+      hasExistingMessages,
+      userMessages,
+      history.clear,
+      history.push,
+      history.resetIndex,
+    ]);
+
     // Handle submission
     const handleSubmit = useCallback(async () => {
-      await submit(input, attachments, generationMode);
-    }, [submit, input, attachments, generationMode]);
+      const trimmed = input.trim();
+      await submit(trimmed, [...attachments], generationMode);
+      if (trimmed.length > 0) {
+        history.push(trimmed);
+        history.resetIndex();
+      }
+      // On successful submit, clear local and attachments
+      setInput("");
+      clearAttachments();
+    }, [submit, input, attachments, generationMode, clearAttachments, history]);
 
     // Handle send as new conversation
     const handleSendAsNew = useCallback(
@@ -217,13 +252,16 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       ) => {
         await handleSendAsNewConversation(
           input,
-          attachments,
+          [...attachments],
           shouldNavigate,
           personaId,
           customReasoningConfig
         );
+        // After sending as new, clear local input and attachments
+        setInput("");
+        clearAttachments();
       },
-      [handleSendAsNewConversation, input, attachments]
+      [handleSendAsNewConversation, input, attachments, clearAttachments]
     );
 
     // Determine dynamic placeholder based on generation mode
@@ -262,7 +300,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         setInput,
         getCurrentReasoningConfig: () => reasoningConfig,
       }),
-      [setInput, reasoningConfig]
+      [reasoningConfig]
     );
 
     return (
@@ -280,13 +318,14 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
           placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
           disabled={isLoading || isStreaming || isProcessing || !canSendMessage}
           autoFocus={autoFocus}
+          value={input}
+          onValueChange={setInput}
           hasExistingMessages={hasExistingMessages}
-          personas={personas}
+          conversationId={conversationId}
           canSend={canSendMessage}
           generationMode={generationMode}
           hasReplicateApiKey={hasReplicateApiKey}
           selectedImageModel={selectedImageModel}
-          userMessages={userMessages}
         />
 
         <ChatInputBottomBar
@@ -300,10 +339,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
           onSend={handleSubmit}
           onStop={onStop}
           onSendAsNewConversation={handleSendAsNew}
-          hasApiKeys={canSendMessage}
-          hasEnabledModels={canSendMessage}
-          selectedModel={selectedModel as AIModel | null}
-          onAddAttachments={addAttachments}
           hasReplicateApiKey={hasReplicateApiKey}
           isPrivateMode={isPrivateMode}
           onSubmit={handleSubmit}
@@ -316,30 +351,12 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   (props, ref) => {
     const { user } = useUserDataContext();
-    const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-    const selectedModel: AvailableModel | null = useMemo(() => {
-      if (selectedModelRaw) {
-        return selectedModelRaw;
-      }
-      return get(CACHE_KEYS.selectedModel, null);
-    }, [selectedModelRaw]);
 
     if (user === undefined) {
       return null;
     }
 
-    return (
-      <ChatInputProvider
-        conversationId={props.conversationId}
-        hasExistingMessages={props.hasExistingMessages}
-        currentReasoningConfig={props.currentReasoningConfig}
-        currentTemperature={props.currentTemperature}
-      >
-        <AttachmentProvider selectedModel={selectedModel as AIModel | null}>
-          <ChatInputInner {...props} ref={ref} />
-        </AttachmentProvider>
-      </ChatInputProvider>
-    );
+    return <ChatInputInner {...props} ref={ref} />;
   }
 );
 

@@ -243,7 +243,7 @@ export type Attachment = {
   mimeType?: string;
   // PDF-specific fields
   textFileId?: Id<"_storage">; // Reference to stored extracted text (persistent)
-  extractedText?: string; // For PDFs: temporary in-memory text (migration path only)
+  extractedText?: string;
   extractionError?: string; // For PDFs: error message if extraction failed
   extractionMetadata?: {
     extractedAt: number;

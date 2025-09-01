@@ -49,8 +49,6 @@ export function TemperatureDrawer({
     return "Wild";
   };
 
-  // Description UI removed to save space
-
   // Trigger button is icon-only now; keep text mapping for in-drawer labels only
 
   return (
@@ -71,8 +69,6 @@ export function TemperatureDrawer({
           <DrawerTitle>Temperature Control</DrawerTitle>
         </DrawerHeader>
         <DrawerBody>
-          {/* Summary removed to save space; labels are shown inline */}
-
           {/* Temperature Slider */}
           <div className="space-y-3 mb-4">
             <div className="space-y-1">

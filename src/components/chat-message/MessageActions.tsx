@@ -53,8 +53,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 // Tooltip imports consolidated above
-import { useModelSelection } from "@/lib/chat/use-model-selection";
-import { CACHE_KEYS, set } from "@/lib/local-storage";
+import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useSelectModel } from "@/hooks/use-select-model";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -94,9 +94,8 @@ const RetryDropdown = memo(
     const [isRefineDialogOpen, setIsRefineDialogOpen] = useState(false);
     const [refineText, setRefineText] = useState("");
     // no local ref needed; we move focus via element id
-    const { modelGroups, userModels } = useModelSelection();
-    const selectModelMutation = useMutation(api.userModels.selectModel);
-    const managedToast = useToast();
+    const { modelGroups, userModels } = useModelCatalog();
+    const { selectModel } = useSelectModel();
 
     const handleOpenChange = (newOpen: boolean) => {
       setOpen(newOpen);
@@ -116,34 +115,12 @@ const RetryDropdown = memo(
 
         // If a specific model is selected, update the selected model
         if (modelId && provider) {
-          const selectedModelData = userModels.find(
-            (model: AvailableModel | null) =>
-              model?.modelId === modelId && model?.provider === provider
-          );
-
-          if (selectedModelData) {
-            set(CACHE_KEYS.selectedModel, selectedModelData);
-          }
-
-          try {
-            await selectModelMutation({ modelId, provider });
-          } catch (_error) {
-            managedToast.error("Failed to select model", {
-              description:
-                "Unable to change the selected model. Please try again.",
-            });
-          }
+          await selectModel(modelId, provider, userModels as AvailableModel[]);
         }
 
         onRetry(modelId, provider);
       },
-      [
-        selectModelMutation,
-        userModels,
-        onRetry,
-        onDropdownOpenChange,
-        managedToast.error,
-      ]
+      [userModels, onRetry, onDropdownOpenChange, selectModel]
     );
 
     const handleRetrySame = () => {

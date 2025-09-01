@@ -17,11 +17,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
 
@@ -276,112 +271,85 @@ const ReasoningPickerComponent = ({
   );
 
   return (
-    <Tooltip open={selectOpen ? false : undefined}>
-      <Select
-        value={currentValue}
-        onValueChange={handleChange}
-        open={selectOpen}
-        onOpenChange={setSelectOpen}
+    <Select
+      value={currentValue}
+      onValueChange={handleChange}
+      open={selectOpen}
+      onOpenChange={setSelectOpen}
+    >
+      <SelectTrigger
+        data-debug-id="ReasoningPicker"
+        title={
+          isMandatory
+            ? `Thinking: ${selectedOption?.label || "Balanced"}`
+            : currentValue === "off"
+              ? "Enable thinking"
+              : `Thinking: ${selectedOption?.label}`
+        }
+        className={cn(
+          "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+          "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+          currentValue !== "off"
+            ? cn(theme.bgColor, theme.color, theme.hoverBgColor)
+            : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
+          className
+        )}
       >
-        <TooltipTrigger asChild>
-          <SelectTrigger
+        <div className="flex items-center gap-1">
+          <Icon
             className={cn(
-              "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-              "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-              currentValue !== "off"
-                ? cn(theme.bgColor, theme.color, theme.hoverBgColor)
-                : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
-              className
+              "h-3 w-3",
+              currentValue !== "off" ? theme.color : "text-muted-foreground/70"
             )}
-          >
-            <div className="flex items-center gap-1">
-              <Icon
-                className={cn(
-                  "h-3 w-3",
-                  currentValue !== "off"
-                    ? theme.color
-                    : "text-muted-foreground/70"
-                )}
-                weight={currentValue !== "off" ? "duotone" : "regular"}
-              />
-              <span className="hidden sm:inline">
-                {currentValue === "off" ? "Thinking" : selectedOption?.label}
-              </span>
-              {selectedOption?.icon && (
-                <selectedOption.icon
-                  className={cn(
-                    "h-2.5 w-2.5 inline sm:hidden",
-                    currentValue !== "off"
-                      ? theme.color
-                      : "text-muted-foreground/70"
-                  )}
-                  weight="bold"
-                />
+            weight={currentValue !== "off" ? "duotone" : "regular"}
+          />
+          <span className="hidden sm:inline">
+            {currentValue === "off" ? "Thinking" : selectedOption?.label}
+          </span>
+          {selectedOption?.icon && (
+            <selectedOption.icon
+              className={cn(
+                "h-2.5 w-2.5 inline sm:hidden",
+                currentValue !== "off"
+                  ? theme.color
+                  : "text-muted-foreground/70"
               )}
-            </div>
-          </SelectTrigger>
-        </TooltipTrigger>
-        <SelectContent align="end" className="min-w-[140px]">
-          {availableOptions.map(option => {
-            const OptionIcon = option.icon;
-            return (
-              <SelectItem
-                key={option.value}
-                value={option.value}
-                className="text-xs"
-              >
-                <div className="flex items-center gap-2">
-                  {OptionIcon ? (
-                    <OptionIcon className="h-4 w-4" weight="bold" />
-                  ) : (
-                    <div className="h-4 w-4" />
-                  )}
-                  <div className="flex flex-col">
-                    <span className="font-medium">{option.label}</span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {option.description}
-                    </span>
-                  </div>
-                </div>
-              </SelectItem>
-            );
-          })}
-        </SelectContent>
-      </Select>
-      <TooltipContent side="top" className="max-w-xs">
-        <div className="space-y-1">
-          <p className="font-medium">
-            {isMandatory
-              ? `Thinking: ${selectedOption?.label || "Balanced"}`
-              : currentValue === "off"
-                ? "Enable thinking"
-                : `Thinking: ${selectedOption?.label}`}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {isMandatory
-              ? `Thinking is always enabled for ${model.name}. Configure effort level.`
-              : currentValue === "off"
-                ? "Click to enable step-by-step thinking for better reasoning"
-                : selectedOption?.description}
-          </p>
-          {config.enabled && config.maxTokens && (
-            <p className="text-xs text-muted-foreground/80 mt-1 border-t pt-1">
-              Budget: ~{config.maxTokens.toLocaleString()} tokens
-            </p>
-          )}
-          {provider === "openai" && config.enabled && (
-            <p className="text-xs text-blue-400/80 mt-1">
-              Uses reasoningEffort parameter
-            </p>
-          )}
-          {provider === "openrouter" && config.enabled && (
-            <p className="text-xs text-purple-400/80 mt-1">
-              Unified reasoning API
-            </p>
+              weight="bold"
+            />
           )}
         </div>
-      </TooltipContent>
-    </Tooltip>
+      </SelectTrigger>
+      <SelectContent
+        data-debug-id="ReasoningPicker"
+        align="end"
+        className="min-w-[140px]"
+      >
+        {availableOptions.map(option => {
+          const OptionIcon = option.icon;
+          return (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              className="text-xs"
+            >
+              <div className="flex items-center gap-2">
+                {OptionIcon ? (
+                  <OptionIcon className="h-4 w-4" weight="bold" />
+                ) : (
+                  <div className="h-4 w-4" />
+                )}
+                <div className="flex flex-col">
+                  <span className="font-medium">{option.label}</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {option.description}
+                  </span>
+                </div>
+              </div>
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
   );
 };
 

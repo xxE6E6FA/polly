@@ -12,7 +12,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 interface AspectRatioPickerProps {
@@ -70,7 +70,12 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
               <CaretDown size={12} />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-56" align="start">
+          <PopoverContent
+            forceMount
+            data-debug-id="AspectRatioPicker"
+            className="w-56"
+            align="start"
+          >
             <div className="space-y-2">
               <div className="grid gap-0.5">
                 {ASPECT_RATIOS.map(ratio => (

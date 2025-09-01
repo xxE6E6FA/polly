@@ -9,7 +9,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 
 import { cn } from "@/lib/utils";
 import type { ImageGenerationParams } from "@/types";
@@ -223,6 +223,8 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
             </Button>
           </PopoverTrigger>
           <PopoverContent
+            forceMount
+            data-debug-id="ImageGenerationSettings"
             className="w-80 max-h-[50vh] overflow-hidden flex flex-col"
             align="end"
             sideOffset={8}

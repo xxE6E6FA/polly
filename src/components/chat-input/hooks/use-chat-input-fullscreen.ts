@@ -1,40 +1,60 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useChatFullscreenUI } from "@/stores/chat-ui-store";
 
 export function useChatInputFullscreen() {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMultiline, setIsMultiline] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  const handleHeightChange = useCallback((multiline: boolean) => {
-    setIsMultiline(multiline);
-  }, []);
-
-  const handleToggleFullscreen = useCallback(() => {
-    setIsTransitioning(true);
-    setIsFullscreen(!isFullscreen);
-
-    // Reset transition state after animation completes
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300);
-  }, [isFullscreen]);
-
-  const handleCloseFullscreen = useCallback(() => {
-    setIsTransitioning(true);
-    setIsFullscreen(false);
-
-    // Reset transition state after animation completes
-    setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300);
-  }, []);
-
-  return {
+  const {
     isFullscreen,
     isMultiline,
     isTransitioning,
-    handleHeightChange,
-    handleToggleFullscreen,
-    handleCloseFullscreen,
-  };
+    setFullscreen,
+    setMultiline,
+    setTransitioning,
+    clearOnSend,
+  } = useChatFullscreenUI();
+
+  const handleHeightChange = useCallback(
+    (multiline: boolean) => {
+      setMultiline(multiline);
+    },
+    [setMultiline]
+  );
+
+  const handleToggleFullscreen = useCallback(() => {
+    setTransitioning(true);
+    setFullscreen(!isFullscreen);
+    setTimeout(() => setTransitioning(false), 300);
+  }, [setFullscreen, setTransitioning, isFullscreen]);
+
+  const handleCloseFullscreen = useCallback(() => {
+    setTransitioning(true);
+    setFullscreen(false);
+    setTimeout(() => setTransitioning(false), 300);
+  }, [setFullscreen, setTransitioning]);
+
+  // clearOnSend provided by store
+
+  return useMemo(
+    () => ({
+      isFullscreen,
+      isMultiline,
+      isTransitioning,
+      handleHeightChange,
+      // Aliases for consistency with other fullscreen hooks
+      onHeightChange: handleHeightChange,
+      handleToggleFullscreen,
+      toggleFullscreen: handleToggleFullscreen,
+      handleCloseFullscreen,
+      closeFullscreen: handleCloseFullscreen,
+      clearOnSend,
+    }),
+    [
+      isFullscreen,
+      isMultiline,
+      isTransitioning,
+      handleHeightChange,
+      handleToggleFullscreen,
+      handleCloseFullscreen,
+      clearOnSend,
+    ]
+  );
 }

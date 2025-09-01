@@ -14,11 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
@@ -40,7 +36,6 @@ type SendButtonGroupProps = {
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
   personaId?: Id<"personas"> | null;
-  reasoningConfig?: ReasoningConfig;
 };
 
 export const SendButtonGroup = ({
@@ -57,8 +52,8 @@ export const SendButtonGroup = ({
   hasApiKeys,
   hasEnabledModels,
   personaId,
-  reasoningConfig,
 }: SendButtonGroupProps) => {
+  const [reasoningConfig] = useReasoningConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasBeenEnabled, setHasBeenEnabled] = useState(false);
@@ -175,97 +170,121 @@ export const SendButtonGroup = ({
               : undefined,
         }}
       >
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <Tooltip open={dropdownOpen ? false : undefined}>
-            <DropdownMenuTrigger asChild>
-              <TooltipTrigger asChild>
-                <button
-                  disabled={
-                    isLoading || isSummarizing || !isExpanded || isCollapsing
-                  }
-                  type="button"
-                  className={cn(
-                    "absolute left-0 top-0 bottom-0",
-                    "w-8",
-                    "inline-flex items-center justify-center",
-                    "transition-all",
-                    dropdownMenuTriggerAnimationClasses,
-                    !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
-                    "disabled:cursor-not-allowed",
-                    "focus:outline-none"
-                  )}
-                >
-                  <CaretDownIcon
-                    className={cn(
-                      "h-4 w-4",
-                      isStreaming ? "text-white" : "text-primary-foreground",
-                      "transition-transform duration-300",
-                      dropdownOpen && "rotate-180"
-                    )}
-                  />
-                </button>
-              </TooltipTrigger>
-            </DropdownMenuTrigger>
-            <TooltipContent side="left">More send options</TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent
-            align="end"
-            sideOffset={8}
-            className={cn("w-64 p-1")}
+        {import.meta.env.DEV ? (
+          <button
+            disabled={isLoading || isSummarizing || !isExpanded || isCollapsing}
+            type="button"
+            aria-label="More send options"
+            title="More send options"
+            className={cn(
+              "absolute left-0 top-0 bottom-0",
+              "w-8",
+              "inline-flex items-center justify-center",
+              "transition-all",
+              dropdownMenuTriggerAnimationClasses,
+              !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
+              "disabled:cursor-not-allowed",
+              "focus:outline-none"
+            )}
           >
-            <DropdownMenuItem
-              disabled={isLoading || isSummarizing}
+            <CaretDownIcon
               className={cn(
-                "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
-                "hover:bg-primary/10 dark:hover:bg-primary/20",
-                "focus:bg-primary/10 dark:focus:bg-primary/20",
-                "transition-all duration-200",
-                "hover:translate-x-0.5"
+                "h-4 w-4",
+                isStreaming ? "text-white" : "text-primary-foreground",
+                "transition-transform duration-300"
               )}
-              onClick={() =>
-                onSendAsNewConversation?.(true, personaId, reasoningConfig)
-              }
+            />
+          </button>
+        ) : (
+          <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+            <DropdownMenuTrigger asChild>
+              <button
+                disabled={
+                  isLoading || isSummarizing || !isExpanded || isCollapsing
+                }
+                type="button"
+                aria-label="More send options"
+                title="More send options"
+                className={cn(
+                  "absolute left-0 top-0 bottom-0",
+                  "w-8",
+                  "inline-flex items-center justify-center",
+                  "transition-all",
+                  dropdownMenuTriggerAnimationClasses,
+                  !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
+                  "disabled:cursor-not-allowed",
+                  "focus:outline-none"
+                )}
+              >
+                <CaretDownIcon
+                  className={cn(
+                    "h-4 w-4",
+                    isStreaming ? "text-white" : "text-primary-foreground",
+                    "transition-transform duration-300",
+                    dropdownOpen && "rotate-180"
+                  )}
+                />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className={cn("w-64 p-1")}
             >
-              <div className="mt-0.5 flex-shrink-0">
-                <ChatCircleIcon className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  Send & open new chat
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Create a new conversation with this message and switch to it
-                </p>
-              </div>
-            </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={isLoading || isSummarizing}
+                className={cn(
+                  "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
+                  "hover:bg-primary/10 dark:hover:bg-primary/20",
+                  "focus:bg-primary/10 dark:focus:bg-primary/20",
+                  "transition-all duration-200",
+                  "hover:translate-x-0.5"
+                )}
+                onClick={() =>
+                  onSendAsNewConversation?.(true, personaId, reasoningConfig)
+                }
+              >
+                <div className="mt-0.5 flex-shrink-0">
+                  <ChatCircleIcon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Send & open new chat
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Create a new conversation with this message and switch to it
+                  </p>
+                </div>
+              </DropdownMenuItem>
 
-            <DropdownMenuItem
-              disabled={isLoading || isSummarizing}
-              className={cn(
-                "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
-                "hover:bg-primary/10 dark:hover:bg-primary/20",
-                "focus:bg-primary/10 dark:focus:bg-primary/20",
-                "transition-all duration-200",
-                "hover:translate-x-0.5"
-              )}
-              onClick={() =>
-                onSendAsNewConversation?.(false, personaId, reasoningConfig)
-              }
-            >
-              <div className="mt-0.5 flex-shrink-0">
-                <GitBranchIcon className="h-4 w-4 text-primary" />
-              </div>
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium leading-none">
-                  Branch conversation
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Create a new conversation but stay in the current one
-                </p>
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem
+                disabled={isLoading || isSummarizing}
+                className={cn(
+                  "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
+                  "hover:bg-primary/10 dark:hover:bg-primary/20",
+                  "focus:bg-primary/10 dark:focus:bg-primary/20",
+                  "transition-all duration-200",
+                  "hover:translate-x-0.5"
+                )}
+                onClick={() =>
+                  onSendAsNewConversation?.(false, personaId, reasoningConfig)
+                }
+              >
+                <div className="mt-0.5 flex-shrink-0">
+                  <GitBranchIcon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Branch conversation
+                  </p>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Create a new conversation but stay in the current one
+                  </p>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <button
           disabled={

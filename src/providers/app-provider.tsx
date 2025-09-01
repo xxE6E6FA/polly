@@ -1,5 +1,6 @@
 import type React from "react";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { BatchSelectionProvider } from "@/providers/batch-selection-context";
 import { PrivateModeProvider } from "@/providers/private-mode-context";
 import { SidebarWidthProvider } from "@/providers/sidebar-width-context";
@@ -17,15 +18,17 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     <ErrorBoundary>
       <ConvexProvider>
         <UIProvider>
-          <ToastProvider>
-            <UserDataProvider>
-              <BatchSelectionProvider>
-                <PrivateModeProvider>
-                  <SidebarWidthProvider>{children}</SidebarWidthProvider>
-                </PrivateModeProvider>
-              </BatchSelectionProvider>
-            </UserDataProvider>
-          </ToastProvider>
+          <TooltipProvider>
+            <ToastProvider>
+              <UserDataProvider>
+                <BatchSelectionProvider>
+                  <PrivateModeProvider>
+                    <SidebarWidthProvider>{children}</SidebarWidthProvider>
+                  </PrivateModeProvider>
+                </BatchSelectionProvider>
+              </UserDataProvider>
+            </ToastProvider>
+          </TooltipProvider>
         </UIProvider>
       </ConvexProvider>
     </ErrorBoundary>

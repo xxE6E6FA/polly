@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
-import { useModelSelection } from "@/lib/chat/use-model-selection";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -129,7 +129,7 @@ const ChatSection = () => {
     monthlyUsage,
     user,
   } = useUserDataContext();
-  const { selectedModel } = useModelSelection();
+  const [selectedModel] = useSelectedModel();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
   const createConversationAction = useAction(
