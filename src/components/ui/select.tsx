@@ -10,24 +10,52 @@ const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
+type SelectTriggerProps = React.ComponentPropsWithoutRef<
+  typeof SelectPrimitive.Trigger
+> & {
+  variant?: "default" | "minimal";
+  hideIcon?: boolean;
+  asChild?: boolean;
+};
+
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:border-border focus-visible:border-border transition-[background-color,border-color,color,box-shadow] duration-200",
-      className
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <CaretDownIcon className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
+  SelectTriggerProps
+>(
+  (
+    { className, children, variant = "default", hideIcon = false, ...props },
+    ref
+  ) => {
+    // If using asChild, render passthrough so consumer controls element, classes, and icons
+    if (props.asChild) {
+      return (
+        <SelectPrimitive.Trigger ref={ref} {...props}>
+          {children}
+        </SelectPrimitive.Trigger>
+      );
+    }
+
+    return (
+      <SelectPrimitive.Trigger
+        ref={ref}
+        className={cn(
+          variant === "default"
+            ? "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:border-border focus-visible:border-border transition-[background-color,border-color,color,box-shadow] duration-200"
+            : "flex items-center whitespace-nowrap rounded-md border-0 bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        {!hideIcon && (
+          <SelectPrimitive.Icon asChild>
+            <CaretDownIcon className="h-4 w-4 opacity-50" />
+          </SelectPrimitive.Icon>
+        )}
+      </SelectPrimitive.Trigger>
+    );
+  }
+);
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<

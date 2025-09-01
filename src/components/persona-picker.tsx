@@ -2,8 +2,9 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CheckIcon, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { memo, useMemo, useRef } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -16,7 +17,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import {
   Tooltip,
   TooltipContent,
@@ -49,7 +50,8 @@ function PersonaPickerComponent({
     user?._id ? {} : "skip"
   );
 
-  // Keep Popover uncontrolled to reduce feedback loops
+  // Control popover state to ensure proper focus restoration on close
+  const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Use type guards to ensure we have proper arrays
@@ -70,7 +72,8 @@ function PersonaPickerComponent({
 
   const handlePersonaSelect = (personaId: Id<"personas"> | null) => {
     onPersonaSelect?.(personaId);
-    // setOpen(false);
+    // Close the popover; Radix will restore focus to the trigger
+    setOpen(false);
   };
 
   // Compute current persona before any early returns to satisfy hooks rules
@@ -101,21 +104,23 @@ function PersonaPickerComponent({
   }
   if (compact) {
     const content = (
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button
+          <Button
             ref={triggerRef}
             type="button"
+            variant="ghost"
+            size="sm"
             className={cn(
               "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-              "text-muted-foreground/70 hover:text-foreground/90",
-              "hover:bg-accent/40 dark:hover:bg-accent/20",
-              "transition-all duration-200",
+              "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+              // Chip style at rest for consistency
+              "bg-accent/40 dark:bg-accent/20 text-foreground/90",
               className
             )}
           >
             {compactTriggerInner}
-          </button>
+          </Button>
         </PopoverTrigger>
         <PopoverContent
           forceMount
@@ -130,8 +135,6 @@ function PersonaPickerComponent({
             currentPersona={currentPersona}
             onPersonaSelect={id => {
               handlePersonaSelect(id);
-              // Close popover by toggling trigger
-              triggerRef.current?.click();
             }}
           />
         </PopoverContent>

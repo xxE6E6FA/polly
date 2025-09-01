@@ -62,10 +62,8 @@ const TemperaturePickerComponent = ({
           className={cn(
             "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
             "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-            isActive
-              ? "bg-accent/40 dark:bg-accent/20 text-foreground/90"
-              : "bg-transparent text-muted-foreground/70 hover:text-foreground/90 hover:bg-accent/40 dark:hover:bg-accent/20",
-            isOpen && "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+            // Chip style at rest for consistency
+            "bg-accent/40 dark:bg-accent/20 text-foreground/90"
           )}
         >
           <ThermometerIcon

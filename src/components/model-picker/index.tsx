@@ -67,11 +67,14 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   if (user?.isAnonymous) {
     return (
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <div className={className}>
+        <div className={className}>
+          <label id="model-picker-label" className="sr-only">
+            Select a model
+          </label>
+          <PopoverTrigger asChild>
             <ModelPickerTrigger open={open} selectedModel={displayModel} />
-          </div>
-        </PopoverTrigger>
+          </PopoverTrigger>
+        </div>
         <PopoverContent
           avoidCollisions
           className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
@@ -86,11 +89,14 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <div className={className}>
+      <div className={className}>
+        <label id="model-picker-label" className="sr-only">
+          Select a model
+        </label>
+        <PopoverTrigger asChild>
           <ModelPickerTrigger open={open} selectedModel={displayModel} />
-        </div>
-      </PopoverTrigger>
+        </PopoverTrigger>
+      </div>
       <PopoverContent
         avoidCollisions
         className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
