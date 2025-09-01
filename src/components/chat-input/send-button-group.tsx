@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/spinner";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -110,7 +111,7 @@ export const SendButtonGroup = ({
       return (
         <SquareIcon
           weight="fill"
-          className={cn("h-3 w-3 fill-current", "text-white")}
+          className={cn("h-3 w-3 fill-current text-current")}
         />
       );
     }
@@ -119,17 +120,8 @@ export const SendButtonGroup = ({
       return <Spinner size="sm" variant="white" className="h-3 w-3" />;
     }
 
-    return (
-      <PaperPlaneTiltIcon
-        className={cn(
-          "h-3.5 w-3.5",
-          canSend
-            ? "text-primary-foreground"
-            : "text-primary dark:text-primary/70"
-        )}
-      />
-    );
-  }, [isStreaming, isLoading, isSummarizing, canSend]);
+    return <PaperPlaneTiltIcon className={cn("h-3.5 w-3.5 text-current")} />;
+  }, [isStreaming, isLoading, isSummarizing]);
 
   const dropdownMenuTriggerAnimationClasses = useMemo(() => {
     if (isExpanded && !isCollapsing) {
@@ -145,7 +137,7 @@ export const SendButtonGroup = ({
     <div className="relative">
       <div
         className={cn(
-          "relative flex items-stretch overflow-hidden",
+          "relative flex items-stretch",
           "h-8",
           "transition-all",
           isCollapsing
@@ -154,13 +146,19 @@ export const SendButtonGroup = ({
           isExpanded
             ? "w-[64px] rounded-full duration-500"
             : "w-8 rounded-full duration-300",
+          // Always allow outer focus ring to be visible for both buttons
+          "overflow-visible",
           isCollapsing && "scale-[0.98]",
           isStreaming
             ? "bg-danger hover:bg-danger/90 border border-danger shadow-md hover:shadow-lg"
             : canSend
               ? "bg-primary hover:bg-primary/90 border border-primary shadow-md hover:shadow-lg"
               : "bg-primary/20 border border-primary/30 shadow-sm dark:bg-primary/15 dark:border-primary/25",
-          !isCollapsing && "hover:scale-[1.02] active:scale-[0.98]",
+          // Upload-like hover/active when collapsed; gentler when expanded
+          !isCollapsing &&
+            (isExpanded
+              ? "hover:scale-[1.02] active:scale-[0.98]"
+              : "hover:scale-105 active:scale-95"),
           "transform-gpu"
         )}
         style={{
@@ -170,61 +168,40 @@ export const SendButtonGroup = ({
               : undefined,
         }}
       >
-        {import.meta.env.DEV ? (
-          <button
-            disabled={isLoading || isSummarizing || !isExpanded || isCollapsing}
-            type="button"
-            aria-label="More send options"
-            title="More send options"
-            className={cn(
-              "absolute left-0 top-0 bottom-0",
-              "w-8",
-              "inline-flex items-center justify-center",
-              "transition-all",
-              dropdownMenuTriggerAnimationClasses,
-              !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
-              "disabled:cursor-not-allowed",
-              "focus:outline-none"
-            )}
-          >
-            <CaretDownIcon
-              className={cn(
-                "h-4 w-4",
-                isStreaming ? "text-white" : "text-primary-foreground",
-                "transition-transform duration-300"
-              )}
-            />
-          </button>
-        ) : (
+        {
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
                 disabled={
                   isLoading || isSummarizing || !isExpanded || isCollapsing
                 }
                 type="button"
+                variant="ghost"
                 aria-label="More send options"
                 title="More send options"
                 className={cn(
                   "absolute left-0 top-0 bottom-0",
-                  "w-8",
-                  "inline-flex items-center justify-center",
-                  "transition-all",
+                  "w-8 h-8 p-0",
+                  "inline-flex items-center justify-center rounded-full",
+                  "transition-all transform-gpu",
+                  // Upload-like hover/active scale when expanded
+                  "hover:scale-105 active:scale-95",
                   dropdownMenuTriggerAnimationClasses,
                   !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
                   "disabled:cursor-not-allowed",
-                  "focus:outline-none"
+                  // Focus ring: use outside ring like upload/send
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  // Text color to drive icon via text-current
+                  "text-primary-foreground"
                 )}
               >
                 <CaretDownIcon
                   className={cn(
-                    "h-4 w-4",
-                    isStreaming ? "text-white" : "text-primary-foreground",
-                    "transition-transform duration-300",
+                    "h-4 w-4 text-current transition-transform duration-300",
                     dropdownOpen && "rotate-180"
                   )}
                 />
-              </button>
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -284,22 +261,27 @@ export const SendButtonGroup = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
+        }
 
-        <button
+        <Button
           disabled={
             isStreaming ? !onStop : !canSend || isLoading || isSummarizing
           }
           type={isStreaming ? "button" : "submit"}
+          variant="ghost"
           className={cn(
-            "absolute top-0 bottom-0 right-0",
-            "w-8",
+            "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full",
             "inline-flex items-center justify-center",
-            canSend ? "text-primary-foreground" : "",
-            "disabled:cursor-not-allowed",
-            "focus:outline-none",
+            // Keep icon color in sync with state
+            isStreaming || canSend
+              ? "text-primary-foreground"
+              : "text-primary dark:text-primary/70",
+            // Match FileUploadButton hover behavior while keeping group bg
             canSend && "hover:bg-black/5 dark:hover:bg-white/5",
-            "transition-colors duration-200"
+            "disabled:cursor-not-allowed",
+            "transition-colors duration-200",
+            // Focus ring: use outside ring like upload for consistency
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           )}
           title={getButtonTitle()}
           onClick={() => {
@@ -311,7 +293,7 @@ export const SendButtonGroup = ({
           }}
         >
           {renderButtonContent}
-        </button>
+        </Button>
       </div>
     </div>
   );

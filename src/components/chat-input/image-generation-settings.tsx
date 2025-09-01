@@ -9,7 +9,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 
 import { cn } from "@/lib/utils";
 import type { ImageGenerationParams } from "@/types";
@@ -211,12 +211,15 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
               size="sm"
               disabled={disabled}
               className={cn(
-                "h-8 w-8 p-0 relative",
-                hasAdvancedSettings && "text-primary"
+                "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+                "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+                "bg-accent/40 dark:bg-accent/20 text-foreground/90",
+                "relative"
               )}
               title="Image Generation Settings"
             >
-              <Gear size={16} />
+              <Gear className="h-3 w-3 text-current" />
+              <span className="hidden sm:inline">Settings</span>
               {hasAdvancedSettings && (
                 <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />
               )}

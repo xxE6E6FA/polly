@@ -59,6 +59,7 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
           <ChatTextIcon
             size={14}
             weight={mode === "text" ? "fill" : "regular"}
+            className="h-3.5 w-3.5 text-current"
           />
         </ToggleGroupItem>
         <ToggleGroupItem
@@ -73,7 +74,11 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
                 : "Image generation requires a Replicate API key"
           }
         >
-          <ImageIcon size={14} weight={mode === "image" ? "fill" : "regular"} />
+          <ImageIcon
+            size={14}
+            weight={mode === "image" ? "fill" : "regular"}
+            className="h-3.5 w-3.5 text-current"
+          />
         </ToggleGroupItem>
       </ToggleGroup>
     );

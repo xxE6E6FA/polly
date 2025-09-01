@@ -25,10 +25,16 @@ const ToggleGroupItem = React.forwardRef<
     ref={ref}
     className={cn(
       "inline-flex h-7 w-7 items-center justify-center rounded-full",
-      "text-primary transition-colors duration-200",
-      "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
-      "dark:text-primary/70",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      // Motion + hover/active parity with upload/send
+      "transition-colors transition-transform duration-200 transform-gpu",
+      "data-[state=off]:hover:scale-105 data-[state=off]:active:scale-95",
+      // Subtle hover bg only when off
+      "data-[state=off]:hover:bg-black/5 data-[state=off]:dark:hover:bg-white/5",
+      // Colors
+      "text-primary dark:text-primary/70",
+      "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:!text-white",
+      // Focus ring aligned with upload/send (outside with offset)
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "disabled:pointer-events-none disabled:opacity-50",
       className
     )}

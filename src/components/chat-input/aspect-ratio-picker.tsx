@@ -1,5 +1,4 @@
 import {
-  CaretDown,
   DeviceMobile,
   DeviceTabletCamera,
   FrameCorners,
@@ -12,7 +11,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/ui/popover-with-backdrop";
 import { cn } from "@/lib/utils";
 
 interface AspectRatioPickerProps {
@@ -48,7 +47,7 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
     );
 
     const selectedRatio = ASPECT_RATIOS.find(r => r.value === aspectRatio);
-    const displayText = selectedRatio?.value || "1:1";
+    const displayText = selectedRatio?.label || "Square";
 
     return (
       <div className={className}>
@@ -58,16 +57,19 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
               variant="ghost"
               size="sm"
               disabled={disabled}
-              className="h-8 gap-1 text-xs"
+              className={cn(
+                "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+                "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
+                "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+              )}
               title={`Aspect Ratio: ${selectedRatio?.label || "Square"}`}
             >
               {selectedRatio ? (
-                <selectedRatio.icon size={14} />
+                <selectedRatio.icon className="h-3 w-3 text-current" />
               ) : (
-                <Square size={14} />
+                <Square className="h-3 w-3 text-current" />
               )}
-              <span>{displayText}</span>
-              <CaretDown size={12} />
+              <span className="hidden sm:inline">{displayText}</span>
             </Button>
           </PopoverTrigger>
           <PopoverContent
