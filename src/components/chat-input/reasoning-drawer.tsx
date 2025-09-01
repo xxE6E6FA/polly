@@ -136,8 +136,6 @@ export function ReasoningDrawer({
           <DrawerTitle>Reasoning Configuration</DrawerTitle>
         </DrawerHeader>
         <DrawerBody>
-          {/* Model meta removed to save space; emphasize selection instead */}
-
           {/* Enable/Disable Switch */}
           {canDisable && (
             <div className="flex items-center justify-between mb-4">

@@ -8,8 +8,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
-import { useModelSelection } from "@/lib/chat/use-model-selection";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -42,7 +42,7 @@ export const ConversationStarterPopover = ({
   const managedToast = useToast();
   const navigate = useNavigate();
   const { lockSelection, unlockSelection } = useTextSelection();
-  const { selectedModel } = useModelSelection();
+  const [selectedModel] = useSelectedModel();
 
   useEffect(() => {
     async function fetchPrompts() {

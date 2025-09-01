@@ -14,11 +14,13 @@ import type { AIModel, Attachment, FileUploadProgress } from "@/types";
 interface UseFileUploadProps {
   currentModel?: AIModel;
   privateMode?: boolean;
+  conversationId?: string | null;
 }
 
 export function useFileUpload({
   currentModel,
   privateMode,
+  conversationId,
 }: UseFileUploadProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadProgress, setUploadProgress] = useState<
@@ -152,7 +154,14 @@ export function useFileUpload({
         }
       }
 
-      setAttachments(prev => [...prev, ...newAttachments]);
+      if (conversationId !== undefined) {
+        const { appendAttachments } = await import(
+          "@/stores/actions/chat-input-actions"
+        );
+        appendAttachments(conversationId ?? undefined, newAttachments);
+      } else {
+        setAttachments(prev => [...prev, ...newAttachments]);
+      }
 
       // Show success toast for added files
       if (newAttachments.length > 0) {
@@ -181,12 +190,28 @@ export function useFileUpload({
         );
       }
     },
-    [notificationDialog, currentModel, privateMode, managedToast]
+    [
+      notificationDialog,
+      currentModel,
+      privateMode,
+      managedToast,
+      conversationId,
+    ]
   );
 
-  const removeAttachment = useCallback((index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  }, []);
+  const removeAttachment = useCallback(
+    async (index: number) => {
+      if (conversationId !== undefined) {
+        const { removeAttachmentAt } = await import(
+          "@/stores/actions/chat-input-actions"
+        );
+        removeAttachmentAt(conversationId ?? undefined, index);
+      } else {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+      }
+    },
+    [conversationId]
+  );
 
   const clearAttachments = useCallback(() => {
     setAttachments([]);

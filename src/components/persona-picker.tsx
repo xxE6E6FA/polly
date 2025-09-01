@@ -2,9 +2,8 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CheckIcon, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -17,7 +16,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -34,13 +33,13 @@ type PersonaPickerProps = {
   tooltip?: string | React.ReactNode;
 };
 
-export const PersonaPicker = ({
+function PersonaPickerComponent({
   compact = false,
   className,
   selectedPersonaId = null,
   onPersonaSelect,
   tooltip,
-}: PersonaPickerProps) => {
+}: PersonaPickerProps) {
   const { user } = useUserDataContext();
 
   const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
@@ -50,7 +49,8 @@ export const PersonaPicker = ({
     user?._id ? {} : "skip"
   );
 
-  const [open, setOpen] = useState(false);
+  // Keep Popover uncontrolled to reduce feedback loops
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Use type guards to ensure we have proper arrays
   const personas = Array.isArray(personasRaw) ? personasRaw : [];
@@ -70,48 +70,56 @@ export const PersonaPicker = ({
 
   const handlePersonaSelect = (personaId: Id<"personas"> | null) => {
     onPersonaSelect?.(personaId);
-    setOpen(false);
+    // setOpen(false);
   };
+
+  // Compute current persona before any early returns to satisfy hooks rules
+  const currentPersona = useMemo(() => {
+    return selectedPersonaId
+      ? availablePersonas.find(p => p._id === selectedPersonaId) || null
+      : null;
+  }, [availablePersonas, selectedPersonaId]);
+
+  const compactTriggerInner = useMemo(
+    () => (
+      <div className="flex items-center gap-1">
+        {currentPersona?.icon ? (
+          <span className="text-xs sm:text-sm">{currentPersona.icon}</span>
+        ) : (
+          <UserIcon className="h-3.5 w-3.5" />
+        )}
+        <span className="max-w-[120px] truncate font-medium">
+          {currentPersona?.name || "Persona"}
+        </span>
+      </div>
+    ),
+    [currentPersona?.icon, currentPersona?.name]
+  );
 
   if (!user) {
     return null;
   }
-
-  // Find the current persona from the list
-  const currentPersona = selectedPersonaId
-    ? availablePersonas.find(p => p._id === selectedPersonaId) || null
-    : null;
-
   if (compact) {
-    const TriggerButton = (
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn(
-          "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-          "text-muted-foreground/70 hover:text-foreground/90",
-          "hover:bg-accent/40 dark:hover:bg-accent/20",
-          "transition-all duration-200",
-          className
-        )}
-      >
-        <div className="flex items-center gap-1">
-          {currentPersona?.icon ? (
-            <span className="text-xs sm:text-sm">{currentPersona.icon}</span>
-          ) : (
-            <UserIcon className="h-3.5 w-3.5" />
-          )}
-          <span className="max-w-[120px] truncate font-medium">
-            {currentPersona?.name || "Persona"}
-          </span>
-        </div>
-      </Button>
-    );
-
     const content = (
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>{TriggerButton}</PopoverTrigger>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            ref={triggerRef}
+            type="button"
+            className={cn(
+              "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
+              "text-muted-foreground/70 hover:text-foreground/90",
+              "hover:bg-accent/40 dark:hover:bg-accent/20",
+              "transition-all duration-200",
+              className
+            )}
+          >
+            {compactTriggerInner}
+          </button>
+        </PopoverTrigger>
         <PopoverContent
+          forceMount
+          data-debug-id="PersonaPicker"
           avoidCollisions
           className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
           side="top"
@@ -120,7 +128,11 @@ export const PersonaPicker = ({
           <PersonaList
             personas={availablePersonas}
             currentPersona={currentPersona}
-            onPersonaSelect={handlePersonaSelect}
+            onPersonaSelect={id => {
+              handlePersonaSelect(id);
+              // Close popover by toggling trigger
+              triggerRef.current?.click();
+            }}
           />
         </PopoverContent>
       </Popover>
@@ -200,7 +212,9 @@ export const PersonaPicker = ({
       </div>
     </div>
   );
-};
+}
+
+export const PersonaPicker = memo(PersonaPickerComponent);
 
 type PersonaListProps = {
   personas: Array<{

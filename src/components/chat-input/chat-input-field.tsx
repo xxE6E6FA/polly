@@ -1,9 +1,7 @@
-import type { Id } from "@convex/_generated/dataModel";
 import type React from "react";
 import { memo, useCallback } from "react";
 import { ChatInputFieldCore } from "./chat-input-field-core";
 import { createHashMemoComparison } from "./hooks/use-props-hash";
-import { PersonaChip } from "./persona-chip";
 
 interface ChatInputFieldProps {
   value: string;
@@ -14,25 +12,12 @@ interface ChatInputFieldProps {
   disabled?: boolean;
   className?: string;
   autoFocus?: boolean;
-  // Grouped navigation options
+  isFullscreen?: boolean;
   navigation?: {
     onHistoryNavigation?: () => boolean;
     onHistoryNavigationDown?: () => boolean;
-    onHeightChange?: (isMultiline: boolean) => void;
-    isTransitioning?: boolean;
   };
-  // Persona-related props
-  selectedPersonaId?: Id<"personas"> | null;
-  currentPersona?: {
-    name: string;
-    icon?: string;
-  } | null;
-  onPersonaClear?: () => void;
   hasExistingMessages?: boolean;
-  onPersonaSelect: (personaId: Id<"personas"> | null) => void;
-  onPersonaChipWidthChange: (width: number) => void;
-  // Additional navigation option for persona clearing
-  onPersonaClearForNavigation?: () => void;
 }
 
 export const ChatInputField = memo(
@@ -45,12 +30,8 @@ export const ChatInputField = memo(
     disabled = false,
     className,
     autoFocus = false,
+    isFullscreen = false,
     navigation,
-    selectedPersonaId,
-    currentPersona,
-    onPersonaClear,
-    onPersonaChipWidthChange,
-    onPersonaClearForNavigation,
   }: ChatInputFieldProps) {
     const handleChange = useCallback(
       (newValue: string) => {
@@ -61,26 +42,17 @@ export const ChatInputField = memo(
 
     return (
       <div className="relative w-full">
-        {/* Persona chip display - isolated component */}
-        <PersonaChip
-          selectedPersonaId={selectedPersonaId}
-          currentPersona={currentPersona}
-          onPersonaClear={onPersonaClear}
-          onPersonaChipWidthChange={onPersonaChipWidthChange}
-        />
-
-        {/* Core textarea - isolated component */}
         <ChatInputFieldCore
           value={value}
           onChange={handleChange}
           onSubmit={onSubmit}
           textareaRef={textareaRef}
-          placeholder={selectedPersonaId ? "" : placeholder}
+          placeholder={placeholder}
           disabled={disabled}
           className={className}
           autoFocus={autoFocus}
+          isFullscreen={isFullscreen}
           navigation={navigation}
-          onPersonaClearForNavigation={onPersonaClearForNavigation}
         />
       </div>
     );

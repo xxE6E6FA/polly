@@ -13,17 +13,12 @@ interface ChatInputFieldCoreProps {
   disabled?: boolean;
   className?: string;
   autoFocus?: boolean;
+  isFullscreen?: boolean;
 
-  // Navigation options
   navigation?: {
     onHistoryNavigation?: () => boolean;
     onHistoryNavigationDown?: () => boolean;
-    onHeightChange?: (isMultiline: boolean) => void;
-    isTransitioning?: boolean;
   };
-
-  // Persona clearing for navigation
-  onPersonaClearForNavigation?: () => void;
 }
 
 /**
@@ -39,25 +34,22 @@ export const ChatInputFieldCore = memo(
     disabled = false,
     className,
     autoFocus = false,
+    isFullscreen = false,
     navigation,
-    onPersonaClearForNavigation,
   }: ChatInputFieldCoreProps) {
-    const {
-      onHistoryNavigation,
-      onHistoryNavigationDown,
-      onHeightChange,
-      isTransitioning = false,
-    } = navigation || {};
+    const { onHistoryNavigation, onHistoryNavigationDown } = navigation || {};
+    const isTransitioning = false;
 
     const { resizeTextarea } = useTextareaHeight({
       value,
-      onHeightChange,
+      onHeightChange: undefined,
+      isFullscreen,
     });
 
     const { handleKeyDown } = useKeyboardNavigation({
       onHistoryNavigation,
       onHistoryNavigationDown,
-      onPersonaClear: onPersonaClearForNavigation,
+      onPersonaClear: undefined,
       onSubmit,
     });
 
@@ -97,7 +89,7 @@ export const ChatInputFieldCore = memo(
         // Prevent zoom on mobile Chrome
         touchAction: "manipulation",
       }),
-      [isTransitioning]
+      []
     );
 
     const handleChange = useCallback(

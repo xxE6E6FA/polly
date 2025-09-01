@@ -1,12 +1,14 @@
-import type { Id } from "@convex/_generated/dataModel";
-import { useMemo } from "react";
-import type { GenerationMode } from "@/types";
+import { useCallback } from "react";
+import { useChatAttachments } from "@/hooks/use-chat-attachments";
+import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
+import { useImageParams } from "@/hooks/use-generation";
+import { removeAttachmentAt } from "@/stores/actions/chat-input-actions";
+import { useChatFullscreenUI, useChatHistory } from "@/stores/chat-ui-store";
+import type { ConversationId, GenerationMode } from "@/types";
 import { AttachmentDisplay } from "../attachment-display";
 import { ChatInputField } from "../chat-input-field";
-import { useAttachments } from "../context/attachment-context";
-import { useChatInputNavigationContext } from "../context/chat-input-navigation-context";
-import { useChatInputStateContext } from "../context/chat-input-state-context";
-import { useChatInputUIContext } from "../context/chat-input-ui-context";
+
+// Fullscreen now managed locally via context state
 import { ExpandToggleButton } from "../expand-toggle-button";
 import { useEvent } from "../hooks/use-event";
 import { NegativePromptToggle } from "../negative-prompt-toggle";
@@ -17,12 +19,10 @@ interface TextInputSectionProps {
   placeholder: string;
   disabled: boolean;
   autoFocus: boolean;
+  value: string;
+  onValueChange: (value: string) => void;
   hasExistingMessages: boolean;
-  personas: Array<{
-    _id: Id<"personas">;
-    name: string;
-    icon?: string;
-  }>;
+  conversationId?: ConversationId;
   canSend: boolean;
   generationMode: GenerationMode;
   hasReplicateApiKey: boolean;
@@ -31,7 +31,6 @@ interface TextInputSectionProps {
     supportsMultipleImages: boolean;
     supportsNegativePrompt: boolean;
   } | null;
-  userMessages: string[];
 }
 
 export function TextInputSection({
@@ -40,112 +39,101 @@ export function TextInputSection({
   placeholder,
   disabled,
   autoFocus,
+  value,
+  onValueChange,
   hasExistingMessages,
-  personas,
+  conversationId,
   canSend,
   generationMode,
   hasReplicateApiKey,
   selectedImageModel,
-  userMessages,
 }: TextInputSectionProps) {
-  const { attachments, removeAttachment } = useAttachments();
+  const { attachments } = useChatAttachments(conversationId);
+  const handleRemoveAttachment = useCallback(
+    (index: number) => removeAttachmentAt(conversationId, index),
+    [conversationId]
+  );
+  // Build local navigation glue using store-backed hooks when needed
+  const { selectedPersonaId } = useChatScopedState(conversationId);
+  const { isFullscreen } = useChatFullscreenUI();
+  const { setFullscreen } = useChatFullscreenUI();
+  const handleToggleFullscreen = useCallback(() => {
+    setFullscreen(!isFullscreen);
+  }, [setFullscreen, isFullscreen]);
   const {
-    input,
-    selectedPersonaId,
-    setSelectedPersonaId,
-    setPersonaChipWidth,
-    handleInputChange,
-  } = useChatInputStateContext();
-  const {
-    isFullscreen,
-    isMultiline,
+    params: imageParams,
+    setParams: setImageParams,
     negativePromptEnabled,
-    imageParams,
-    handleToggleFullscreen,
-    handleNegativePromptEnabledChange,
-    setImageParams,
-  } = useChatInputUIContext();
-  const { navigationProps } = useChatInputNavigationContext();
+    setNegativePromptEnabled,
+  } = useImageParams();
+  const history = useChatHistory(conversationId);
+
+  // Navigation props now read internally by hooks; no prop drilling
 
   // Stable event handlers using useEvent pattern
-  const handleInputChangeWithHistory = useEvent((value: string) => {
-    handleInputChange(value, userMessages);
+  const handleInputChangeWithHistory = useEvent((next: string) => {
+    onValueChange(next);
+    // history navigation is user-driven; just update input value here
   });
 
-  const stableHistoryNavigation = useEvent(() =>
-    navigationProps.onHistoryNavigation(userMessages)
-  );
-
-  const stableHistoryNavigationDown = useEvent(() =>
-    navigationProps.onHistoryNavigationDown(userMessages)
-  );
-
-  const handlePersonaClear = useEvent(() => {
-    setSelectedPersonaId(null);
+  const stableHistoryNavigation = useEvent(() => {
+    const prev = history.prev();
+    if (prev != null) {
+      onValueChange(prev);
+      return true;
+    }
+    return false;
   });
+  const stableHistoryNavigationDown = useEvent(() => {
+    const next = history.next();
+    if (next != null) {
+      onValueChange(next);
+      return true;
+    }
+    return false;
+  });
+
+  const handleToggleFullscreenStable = useEvent(handleToggleFullscreen);
 
   const handleNegativePromptValueChange = useEvent((value: string) => {
     setImageParams(prev => ({ ...prev, negativePrompt: value }));
   });
 
   // Stable memoized values - only recalculate when actual dependencies change
-  const currentPersona = useMemo(
-    () =>
-      selectedPersonaId
-        ? personas.find(p => p._id === selectedPersonaId) || null
-        : null,
-    [selectedPersonaId, personas]
-  );
+  // Persona chip removed; keep selection state for send flow only
 
   // Stable navigation props - use stable handlers
-  const navigationPropsWithMessages = useMemo(
-    () => ({
-      ...navigationProps,
-      onHistoryNavigation: stableHistoryNavigation,
-      onHistoryNavigationDown: stableHistoryNavigationDown,
-    }),
-    [navigationProps, stableHistoryNavigation, stableHistoryNavigationDown]
-  );
+  // No navigation prop is passed anymore
 
   return (
     <>
       <AttachmentDisplay
         attachments={attachments}
-        onRemoveAttachment={removeAttachment}
+        onRemoveAttachment={handleRemoveAttachment}
       />
 
       <div className="flex flex-col">
         <div className="flex items-end gap-3">
           <div className="flex-1 flex items-center relative">
             <ChatInputField
-              value={input}
+              value={value}
               onChange={handleInputChangeWithHistory}
               onSubmit={onSubmit}
               textareaRef={textareaRef}
               placeholder={selectedPersonaId ? "" : placeholder}
               disabled={disabled}
               autoFocus={autoFocus}
-              className={
-                isFullscreen
-                  ? selectedPersonaId
-                    ? "min-h-[50vh] max-h-[85vh] pl-28"
-                    : "min-h-[50vh] max-h-[85vh]"
-                  : selectedPersonaId
-                    ? "pl-28"
-                    : undefined
-              }
-              navigation={navigationPropsWithMessages}
-              selectedPersonaId={selectedPersonaId}
-              currentPersona={currentPersona}
-              onPersonaClear={handlePersonaClear}
+              className={isFullscreen ? "min-h-[50vh] max-h-[85vh]" : undefined}
+              isFullscreen={isFullscreen}
+              navigation={{
+                onHistoryNavigation: stableHistoryNavigation,
+                onHistoryNavigationDown: stableHistoryNavigationDown,
+              }}
               hasExistingMessages={hasExistingMessages}
-              onPersonaSelect={setSelectedPersonaId}
-              onPersonaChipWidthChange={setPersonaChipWidth}
-              onPersonaClearForNavigation={handlePersonaClear}
             />
             <ExpandToggleButton
-              onToggle={handleToggleFullscreen}
-              isVisible={(isMultiline || isFullscreen) && canSend}
+              onToggle={handleToggleFullscreenStable}
+              isVisible={canSend}
               isExpanded={isFullscreen}
               disabled={disabled}
             />
@@ -163,7 +151,7 @@ export function TextInputSection({
                 <NegativePromptToggle
                   enabled={negativePromptEnabled}
                   value={imageParams.negativePrompt || ""}
-                  onEnabledChange={handleNegativePromptEnabledChange}
+                  onEnabledChange={setNegativePromptEnabled}
                   onValueChange={handleNegativePromptValueChange}
                   disabled={disabled}
                   onSubmit={onSubmit}

@@ -1,14 +1,14 @@
 import { api } from "@convex/_generated/api";
-import { useMutation, useQuery } from "convex/react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "convex/react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover-with-backdrop";
-import { useModelSelection } from "@/lib/chat/use-model-selection";
-import { CACHE_KEYS, get, set } from "@/lib/local-storage";
-import { useToast } from "@/providers/toast-context";
+import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useSelectModel } from "@/hooks/use-select-model";
+import { CACHE_KEYS, get } from "@/lib/local-storage";
 
 import { useUserDataContext } from "@/providers/user-data-context";
 
@@ -23,10 +23,9 @@ type ModelPickerProps = {
 const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
-  const { modelGroups } = useModelSelection();
+  const { modelGroups } = useModelCatalog();
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-  const selectModelMutation = useMutation(api.userModels.selectModel);
-  const managedToast = useToast();
+  const { selectModel } = useSelectModel();
 
   const selectedModel = selectedModelRaw;
 
@@ -46,26 +45,12 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
     async (modelId: string, provider: string) => {
       setOpen(false);
 
-      const selectedModelData = [
+      await selectModel(modelId, provider, [
         ...modelGroups.freeModels,
         ...Object.values(modelGroups.providerModels).flat(),
-      ].find(
-        model => model?.modelId === modelId && model?.provider === provider
-      );
-
-      if (selectedModelData) {
-        set(CACHE_KEYS.selectedModel, selectedModelData);
-      }
-
-      try {
-        await selectModelMutation({ modelId, provider });
-      } catch (_error) {
-        managedToast.error("Failed to select model", {
-          description: "Unable to change the selected model. Please try again.",
-        });
-      }
+      ]);
     },
-    [selectModelMutation, modelGroups, managedToast.error]
+    [selectModel, modelGroups]
   );
 
   const fallbackModel = useMemo(() => {
@@ -77,11 +62,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
 
   const displayModel = selectedModel || fallbackModel;
 
-  useEffect(() => {
-    if (selectedModel && !user?.isAnonymous) {
-      set(CACHE_KEYS.selectedModel, selectedModel);
-    }
-  }, [selectedModel, user?.isAnonymous]);
+  // Selected model persistence is handled by the centralized selection hook
 
   if (user?.isAnonymous) {
     return (

@@ -1,9 +1,8 @@
 // New focused hooks
 export { useChatInputCoreState } from "./use-chat-input-core-state";
 export { useChatInputDragDrop } from "./use-chat-input-drag-drop";
-export { useChatInputFileHandling } from "./use-chat-input-file-handling";
 export { useChatInputFullscreen } from "./use-chat-input-fullscreen";
-export { useChatInputHistory } from "./use-chat-input-history";
+// History moved to Zustand: use useChatHistory from '@/stores/chat-ui-store'
 export { useChatInputImageGeneration } from "./use-chat-input-image-generation";
 export { useChatInputImageGenerationParams } from "./use-chat-input-image-generation-params";
 export { useChatInputState } from "./use-chat-input-state";

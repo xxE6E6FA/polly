@@ -1,5 +1,5 @@
 import { XIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { ImageThumbnail } from "@/components/file-display";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ interface AttachmentDisplayProps {
   onRemoveAttachment: (index: number) => void;
 }
 
-export function AttachmentDisplay({
+function AttachmentDisplayInner({
   attachments,
   onRemoveAttachment,
 }: AttachmentDisplayProps) {
@@ -129,3 +129,5 @@ export function AttachmentDisplay({
     </>
   );
 }
+
+export const AttachmentDisplay = memo(AttachmentDisplayInner);

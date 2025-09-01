@@ -18,17 +18,21 @@ export function useKeyboardNavigation({
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         onSubmit();
-      } else if (e.key === "ArrowUp" && onHistoryNavigation) {
-        const textarea = e.target as HTMLTextAreaElement;
+      } else if (e.key === "ArrowUp" && onHistoryNavigation && !e.shiftKey) {
+        const textarea = e.currentTarget as HTMLTextAreaElement;
         if (textarea.selectionStart === 0) {
           const handled = onHistoryNavigation();
           if (handled) {
             e.preventDefault();
           }
         }
-      } else if (e.key === "ArrowDown" && onHistoryNavigationDown) {
-        const textarea = e.target as HTMLTextAreaElement;
-        if (textarea.selectionStart === textarea.value.length) {
+      } else if (
+        e.key === "ArrowDown" &&
+        onHistoryNavigationDown &&
+        !e.shiftKey
+      ) {
+        const textarea = e.currentTarget as HTMLTextAreaElement;
+        if (textarea.selectionEnd === textarea.value.length) {
           const handled = onHistoryNavigationDown();
           if (handled) {
             e.preventDefault();

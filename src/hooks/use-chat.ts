@@ -2,13 +2,13 @@ import { api } from "@convex/_generated/api";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import {
   type ChatMode,
   createChatHandlers,
   type ModelOptions,
   type SendMessageParams,
 } from "@/lib/ai/chat-handlers";
-import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { isUserModel } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type {
@@ -26,12 +26,8 @@ export function useChat({ conversationId }: UseChatParams) {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useUserDataContext();
 
-  // Get user's selected model
-  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
-  const selectedModel = useMemo(
-    () => selectedModelRaw ?? get(CACHE_KEYS.selectedModel, null),
-    [selectedModelRaw]
-  );
+  // Get user's selected model via Zustand-backed hook
+  const [selectedModel] = useSelectedModel();
 
   // Get decrypted API key action for private mode
   const getDecryptedApiKeyAction = useAction(api.apiKeys.getDecryptedApiKey);

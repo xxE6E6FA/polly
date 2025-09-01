@@ -1,34 +1,29 @@
 import { PaperclipIcon } from "@phosphor-icons/react";
-import { FILE_LIMITS } from "@shared/file-constants";
-import { isFileTypeSupported } from "@shared/model-capabilities-config";
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-
-import {
-  convertImageToWebP,
-  readFileAsBase64,
-  readFileAsText,
-} from "@/lib/file-utils";
-import { isUserModel } from "@/lib/type-guards";
+import { useSelectedModel } from "@/hooks/use-selected-model";
+import { processFilesForAttachments } from "@/lib/process-files";
 import { cn } from "@/lib/utils";
+import { appendAttachments } from "@/stores/actions/chat-input-actions";
 import type { Attachment } from "@/types";
 
 interface FileUploadButtonProps {
   disabled?: boolean;
-  onAddAttachments: (attachments: Attachment[]) => void;
   isSubmitting: boolean;
-  selectedModel?: unknown;
+  conversationId?: string | null;
 }
 
 export function FileUploadButton({
   disabled = false,
-  onAddAttachments,
   isSubmitting,
-  selectedModel,
+  conversationId,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notificationDialog = useNotificationDialog();
+  const [selectedModel] = useSelectedModel();
+  useChatScopedState(conversationId ?? undefined);
 
   const handleFileSelect = useCallback(async () => {
     const input = fileInputRef.current;
@@ -36,115 +31,21 @@ export function FileUploadButton({
       return;
     }
 
-    const files = Array.from(input.files);
-    const newAttachments: Attachment[] = [];
-
-    // Check if model is properly selected and typed
-    const validModel =
-      isUserModel(selectedModel) &&
-      selectedModel.provider &&
-      selectedModel.modelId
-        ? selectedModel
-        : null;
-
-    for (const file of files) {
-      // Check file size with different limits for PDFs
-      const maxSize =
-        file.type === "application/pdf"
-          ? FILE_LIMITS.PDF_MAX_SIZE_BYTES
-          : FILE_LIMITS.MAX_SIZE_BYTES;
-
-      if (file.size > maxSize) {
+    const newAttachments: Attachment[] = await processFilesForAttachments(
+      input.files,
+      selectedModel,
+      args =>
         notificationDialog.notify({
-          title: "File Too Large",
-          description: `File ${file.name} exceeds the ${Math.round(maxSize / (1024 * 1024))}MB limit.`,
-          type: "error",
-        });
-        continue;
-      }
-
-      // Check if we have a valid model for file type checking
-      if (!validModel) {
-        notificationDialog.notify({
-          title: "No Model Selected",
-          description: "Please select a model to upload files.",
-          type: "error",
-        });
-        continue;
-      }
-
-      const fileSupport = isFileTypeSupported(file.type, validModel);
-      if (!fileSupport.supported) {
-        notificationDialog.notify({
-          title: "Unsupported File Type",
-          description: `File ${file.name} is not supported by the current model.`,
-          type: "error",
-        });
-        continue;
-      }
-
-      try {
-        if (fileSupport.category === "text") {
-          const textContent = await readFileAsText(file);
-          newAttachments.push({
-            type: "text",
-            url: "",
-            name: file.name,
-            size: file.size,
-            content: textContent,
-          });
-        } else if (fileSupport.category === "pdf") {
-          // Always upload PDFs as PDF attachments
-          // Text extraction will happen on submit if needed
-          const base64Content = await readFileAsBase64(file);
-          newAttachments.push({
-            type: "pdf",
-            url: "",
-            name: file.name,
-            size: file.size,
-            content: base64Content,
-            mimeType: file.type,
-          });
-        } else {
-          let base64Content: string;
-          let mimeType = file.type;
-
-          if (fileSupport.category === "image") {
-            try {
-              const converted = await convertImageToWebP(file);
-              base64Content = converted.base64;
-              mimeType = converted.mimeType;
-            } catch {
-              base64Content = await readFileAsBase64(file);
-            }
-          } else {
-            base64Content = await readFileAsBase64(file);
-          }
-
-          newAttachments.push({
-            type: fileSupport.category as "image" | "pdf" | "text",
-            url: "",
-            name: file.name,
-            size: file.size,
-            content: base64Content,
-            mimeType,
-          });
-        }
-      } catch {
-        notificationDialog.notify({
-          title: "File Upload Failed",
-          description: `Failed to process ${file.name}`,
-          type: "error",
-        });
-      }
-    }
-
+          ...args,
+          description: args.description || "",
+        })
+    );
     if (newAttachments.length > 0) {
-      onAddAttachments(newAttachments);
+      appendAttachments(conversationId ?? undefined, newAttachments);
     }
 
     input.value = "";
-  }, [selectedModel, notificationDialog, onAddAttachments]);
+  }, [selectedModel, notificationDialog, conversationId]);
 
   const handleClick = useCallback(() => {
     fileInputRef.current?.click();
