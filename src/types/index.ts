@@ -202,6 +202,7 @@ export type ChatMessage = {
     reasoningTokenCount?: number;
     finishReason?: string;
     duration?: number;
+    thinkingDurationMs?: number;
     stopped?: boolean;
     searchQuery?: string;
     searchFeature?: string;
