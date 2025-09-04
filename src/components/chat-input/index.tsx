@@ -5,6 +5,7 @@ import {
   useDeferredValue,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -328,6 +329,42 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const immediateHasText = input.trim().length > 0 || attachments.length > 0;
     const deferredInputHasText = useDeferredValue(immediateHasText);
 
+    // Show expand/fullscreen only when there's input and > 3 visual lines
+    const [inlineShowExpand, setInlineShowExpand] = useState(false);
+    const [drawerShowExpand, setDrawerShowExpand] = useState(false);
+
+    const measureShouldShowExpand = useCallback(
+      (el: HTMLTextAreaElement | null, value: string) => {
+        if (!el) {
+          return false;
+        }
+        if (value.trim().length === 0) {
+          return false;
+        }
+        const style = window.getComputedStyle(el);
+        const lh = parseFloat(style.lineHeight || "0");
+        if (lh > 0) {
+          const rows = Math.round(el.scrollHeight / lh);
+          return rows > 3;
+        }
+        const rough = (value.match(/\n/g)?.length || 0) + 1;
+        return rough > 3;
+      },
+      []
+    );
+
+    useLayoutEffect(() => {
+      setInlineShowExpand(
+        measureShouldShowExpand(inlineTextareaRef.current, input)
+      );
+    }, [input, measureShouldShowExpand]);
+
+    useLayoutEffect(() => {
+      setDrawerShowExpand(
+        measureShouldShowExpand(drawerTextareaRef.current, input)
+      );
+    }, [input, measureShouldShowExpand]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -393,6 +430,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               textareaClassNameOverride={
                 isMobile && isComposeDrawerOpen ? "h-11 max-h-11" : undefined
               }
+              showExpandToggle={inlineShowExpand}
             />
 
             <ChatInputBottomBar
@@ -407,6 +445,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               hasInputText={
                 isMobile && isComposeDrawerOpen ? false : deferredInputHasText
               }
+              showExpandToggle={inlineShowExpand}
               onSend={handleSubmit}
               onStop={onStop}
               onSendAsNewConversation={handleSendAsNew}
@@ -448,6 +487,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 textareaClassNameOverride="h-[68svh] max-h-[68svh]"
                 hideExpandToggle
                 disableAutoResize
+                showExpandToggle={drawerShowExpand}
               />
             </DrawerBody>
             <DrawerFooter
@@ -464,6 +504,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 hasExistingMessages={hasExistingMessages}
                 conversationId={conversationId}
                 hasInputText={immediateHasText}
+                showExpandToggle={drawerShowExpand}
                 onSend={handleSubmit}
                 onStop={onStop}
                 onSendAsNewConversation={handleSendAsNew}
