@@ -1,5 +1,5 @@
 import type { Doc } from "@convex/_generated/dataModel";
-import { Brain, Compass, Lightbulb, Lightning } from "@phosphor-icons/react";
+import { BrainIcon, LightbulbIcon, LightningIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -34,21 +34,21 @@ const reasoningOptions: Array<{
   {
     value: "low",
     label: "Quick",
-    icon: Lightning,
+    icon: LightningIcon,
     description: "Fast thinking with minimal token usage",
     tokenEstimate: "~5K tokens",
   },
   {
     value: "medium",
     label: "Balanced",
-    icon: Compass,
+    icon: LightbulbIcon,
     description: "Standard thinking with moderate token usage",
     tokenEstimate: "~10K tokens",
   },
   {
     value: "high",
     label: "Deep",
-    icon: Lightbulb,
+    icon: BrainIcon,
     description: "Thorough thinking with maximum token usage",
     tokenEstimate: "~20K tokens",
   },
@@ -128,7 +128,7 @@ export function ReasoningDrawer({
           className="h-9 w-9 p-0 rounded-full sm:hidden bg-accent/60 text-accent-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           disabled={disabled}
         >
-          <Brain className="h-4 w-4" />
+          <BrainIcon className="h-4 w-4" />
         </Button>
       </DrawerTrigger>
       <DrawerContent>
@@ -169,7 +169,7 @@ export function ReasoningDrawer({
                       selected={isSelected}
                       className="p-2"
                       rightAdornment={
-                        <Brain className="h-4 w-4 text-primary" />
+                        <BrainIcon className="h-4 w-4 text-primary" />
                       }
                     >
                       <div className="flex items-center gap-2">

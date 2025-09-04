@@ -1,5 +1,5 @@
 import {
-  CompassIcon,
+  BrainIcon,
   LightbulbIcon,
   LightningIcon,
   SparkleIcon,
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
+
+// Provider colors are applied via theme; icon reflects selected effort
 
 type ReasoningPickerProps = {
   model?: AIModel | null;
@@ -51,13 +53,13 @@ const reasoningOptions: ReasoningOption[] = [
   {
     value: "medium",
     label: "Balanced",
-    icon: CompassIcon,
+    icon: LightbulbIcon,
     description: "Standard thinking",
   },
   {
     value: "high",
     label: "Deep",
-    icon: LightbulbIcon,
+    icon: BrainIcon,
     description: "Thorough thinking",
   },
 ];
@@ -70,6 +72,13 @@ function getProviderTheme(provider?: string) {
         color: "text-orange-500",
         bgColor: "bg-orange-500/10",
         hoverBgColor: "hover:bg-orange-500/20",
+      };
+    case "groq":
+      return {
+        icon: SparkleIcon,
+        color: "text-[#F54F35]",
+        bgColor: "bg-[#F54F35]/10",
+        hoverBgColor: "hover:bg-[#F54F35]/20",
       };
     case "openai":
       return {
@@ -296,25 +305,25 @@ const ReasoningPickerComponent = ({
           className={cn(
             "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
             "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-            // Chip style at rest for consistency
-            "bg-accent/40 dark:bg-accent/20 text-foreground/90",
+            // Neutral at rest; provider-accent when active
+            currentValue !== "off"
+              ? cn(theme.bgColor, theme.hoverBgColor, theme.color)
+              : "bg-accent/40 dark:bg-accent/20 text-foreground/90",
             className
           )}
         >
           <div className="flex items-center gap-1">
-            <Icon
-              className={cn("h-3 w-3 text-current")}
-              weight={currentValue !== "off" ? "duotone" : "regular"}
-            />
+            {selectedOption?.icon ? (
+              <selectedOption.icon
+                className={cn("h-3 w-3 text-current")}
+                weight="bold"
+              />
+            ) : (
+              <Icon className={cn("h-3 w-3 text-current")} weight="regular" />
+            )}
             <span className="hidden sm:inline">
               {currentValue === "off" ? "Thinking" : selectedOption?.label}
             </span>
-            {selectedOption?.icon && (
-              <selectedOption.icon
-                className={cn("h-2.5 w-2.5 inline sm:hidden text-current")}
-                weight="bold"
-              />
-            )}
           </div>
         </Button>
       </SelectTrigger>
