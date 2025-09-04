@@ -415,6 +415,17 @@ http.route({
         "Transfer-Encoding": "chunked",
       };
       streamHeaders["Connection"] = "keep-alive";
+      // Include CORS headers on the streaming response for credentialed requests
+      const originHdr = request.headers.get("origin") || "";
+      if (originHdr) {
+        (streamHeaders as Record<string, string>)[
+          "Access-Control-Allow-Origin"
+        ] = originHdr;
+        (streamHeaders as Record<string, string>)[
+          "Access-Control-Allow-Credentials"
+        ] = "true";
+        (streamHeaders as Record<string, string>)["Vary"] = "Origin";
+      }
       const response = new Response(ts.readable, { headers: streamHeaders });
 
       // Get messages outside async function so EXA processing can access it
@@ -971,6 +982,7 @@ http.route({
         const REASONING_FLUSH_MS = 250;
         const REASONING_MIN_CHARS = 24;
         const REASONING_TAIL_MAX = 80;
+        let reasoningStartMs: number | null = null;
         const dedupeDelta = (tail: string, delta: string) => {
           if (!delta) {
             return "";
@@ -1032,6 +1044,9 @@ http.route({
                 if (chunk.type === "reasoning" && chunk.textDelta) {
                   const delta = dedupeDelta(reasoningTail, chunk.textDelta);
                   if (delta) {
+                    if (reasoningStartMs === null) {
+                      reasoningStartMs = Date.now();
+                    }
                     reasoningPending += delta;
                     // Update tail
                     reasoningTail = (reasoningTail + delta).slice(
@@ -1116,9 +1131,16 @@ http.route({
             console.log("Stream completed, total chunks received:", chunkCount);
             await flush();
             await flushReasoning();
+            const metadata: {
+              finishReason?: string;
+              thinkingDurationMs?: number;
+            } = { finishReason: "stop" };
+            if (reasoningStartMs !== null) {
+              metadata.thinkingDurationMs = Date.now() - reasoningStartMs;
+            }
             await ctx.runMutation(internal.messages.internalUpdate, {
               id: messageId,
-              metadata: { finishReason: "stop" },
+              metadata,
             });
             await ctx.runMutation(internal.messages.updateMessageStatus, {
               messageId,
@@ -1189,17 +1211,28 @@ http.route({
 http.route({
   path: "/conversation/stream",
   method: "OPTIONS",
-  handler: httpAction(() => {
+  handler: httpAction((_ctx, request) => {
+    const origin = request.headers.get("origin") || "";
+    const reqAllowed =
+      request.headers.get("access-control-request-headers") ||
+      "Content-Type, Authorization";
+    const headers: Record<string, string> = {
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": reqAllowed,
+      "Access-Control-Max-Age": "86400",
+    };
+    if (origin) {
+      headers["Access-Control-Allow-Origin"] = origin;
+      headers["Access-Control-Allow-Credentials"] = "true";
+      headers["Vary"] = "Origin";
+    } else {
+      // Fallback for non-browser callers
+      headers["Access-Control-Allow-Origin"] = "*";
+    }
     return Promise.resolve(
       new Response(null, {
         status: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          "Access-Control-Allow-Credentials": "true",
-          "Access-Control-Max-Age": "86400",
-        },
+        headers,
       })
     );
   }),

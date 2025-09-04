@@ -1,27 +1,37 @@
 import Markdown from "markdown-to-jsx";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Spinner } from "@/components/spinner";
+// Spinner no longer used here; header uses a static icon and timer for a cleaner look
 
 type ReasoningProps = {
   reasoning: string;
   isLoading: boolean;
+  // Optional controlled expansion to integrate with parent triggers
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+  // When true, do not render the header/trigger; only render the content panel
+  hideHeader?: boolean;
+  // Optional persisted thinking duration from server (ms)
+  finalDurationMs?: number;
 };
 
-export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+export const Reasoning = ({
+  reasoning,
+  isLoading,
+  expanded,
+  onExpandedChange,
+  hideHeader = false,
+  finalDurationMs,
+}: ReasoningProps) => {
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(false);
+  const isControlled = typeof expanded === "boolean";
+  const isExpanded = isControlled ? expanded : uncontrolledExpanded;
   const contentRef = useRef<HTMLDivElement>(null);
   const lastReasoningLenRef = useRef<number>(0);
+  const startTimeRef = useRef<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
 
-  // Auto-expand when streaming starts, auto-collapse when streaming ends
-  useEffect(() => {
-    if (isLoading) {
-      setIsExpanded(true);
-    } else {
-      // Auto-collapse when streaming finishes
-      setIsExpanded(false);
-    }
-  }, [isLoading]);
+  // No auto-expand/collapse to avoid layout shifts.
 
   // Scroll to bottom when content grows while expanded
   const reasoningLength = reasoning?.length ?? 0;
@@ -36,106 +46,197 @@ export const Reasoning = ({ reasoning, isLoading }: ReasoningProps) => {
     }
   }, [reasoningLength, isExpanded]);
 
+  // Track elapsed thinking time (starts when reasoning first appears while loading)
+  useEffect(() => {
+    let raf = 0;
+    const now = () =>
+      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const tick = () => {
+      if (startTimeRef.current != null) {
+        setElapsedMs(now() - startTimeRef.current);
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    if (isLoading && reasoningLength > 0) {
+      if (startTimeRef.current == null) {
+        startTimeRef.current = now();
+      }
+      raf = requestAnimationFrame(tick);
+    } else if (!isLoading && startTimeRef.current != null) {
+      // Freeze value; keep last elapsed
+      cancelAnimationFrame(raf);
+    }
+    return () => cancelAnimationFrame(raf);
+  }, [isLoading, reasoningLength]);
+
+  const displayLabel = useMemo(() => {
+    const ms =
+      finalDurationMs && finalDurationMs > 0 ? finalDurationMs : elapsedMs;
+    const secs = Math.max(0, Math.round(ms / 1000));
+    if (secs <= 0) {
+      return undefined;
+    }
+    return `${secs}s`;
+  }, [elapsedMs, finalDurationMs]);
+
   // Don't show a secondary "thinking" state; only render when there is content
   if (!reasoning?.trim()) {
     return null;
   }
 
+  const toggle = () => {
+    if (isControlled) {
+      onExpandedChange?.(!isExpanded);
+    } else {
+      setUncontrolledExpanded(prev => !prev);
+    }
+  };
+
+  // Header visibility controlled by parent; we do NOT auto-hide during streaming
+  // so users can toggle reasoning while the answer streams.
+  const shouldHideHeader = hideHeader;
+
   return (
     <div className="py-2">
-      <button
-        className="flex items-center gap-2 text-sm text-muted-foreground transition-all duration-200 hover:text-foreground"
-        onClick={() => setIsExpanded(prev => !prev)}
-      >
-        {/* Show spinner when loading in collapsed state */}
-        {isLoading && !isExpanded ? (
-          <Spinner className="h-3 w-3" />
-        ) : (
+      {!shouldHideHeader && (
+        <button
+          type="button"
+          onClick={toggle}
+          className="mb-2 flex items-center gap-2 text-xs text-foreground/80 hover:text-foreground"
+        >
+          {/* Caret icon that rotates when expanded */}
           <svg
             className={`h-3 w-3 transition-transform duration-200 ${
-              isExpanded ? "" : "group-hover:scale-110"
+              isExpanded ? "rotate-90" : "rotate-0"
             }`}
+            viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            viewBox="0 0 24 24"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
           >
-            <path
-              d={isExpanded ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
+            <path d="M9 6l6 6-6 6" />
           </svg>
-        )}
-        <span>
-          {isLoading && !isExpanded
-            ? "Thinking through your request..."
-            : isExpanded
-              ? "Hide reasoning"
-              : "Show reasoning"}
-        </span>
-      </button>
+          <span>
+            {isLoading
+              ? displayLabel
+                ? `Thinking for ${displayLabel}`
+                : "Thinking"
+              : displayLabel
+                ? `Thought for ${displayLabel}`
+                : "Thoughts"}
+          </span>
+        </button>
+      )}
 
       {/* Container for content with transitions and loading animation */}
       <div
         className={`
-          relative mt-2 w-full overflow-hidden border-l-2
-          border-muted/30 pl-4 transition-all duration-300 ease-in-out
-          dark:border-l-muted/20
+          relative mt-2 w-[calc(100%+24px)] sm:w-[calc(100%+48px)] rounded-xl border border-border bg-muted/30 shadow-sm dark:bg-muted/20
+          transition-all duration-200 ease-in-out max-w-none mx-[-12px] sm:mx-[-24px]
           ${
             isLoading
               ? isExpanded
-                ? "h-[150px] bg-muted/5"
+                ? "h-[140px]"
                 : "h-0 opacity-0"
               : isExpanded
                 ? "h-auto translate-y-0 opacity-100"
-                : "h-0 -translate-y-2 opacity-0"
+                : "h-0 -translate-y-1 opacity-0"
           }
         `}
       >
         {/* Inner scrollable content area */}
         <div
           ref={contentRef}
-          className={`
-            scrollbar-none relative h-full
-            overflow-y-auto
-            scroll-smooth
-            py-3
-            text-xs
-            text-muted-foreground
-            [-ms-overflow-style:none]
-            [scrollbar-width:none] dark:text-muted-foreground/80 [&::-webkit-scrollbar]:hidden
-          `}
+          className={
+            "scrollbar-none relative h-full overflow-y-auto scroll-smooth py-3 sm:py-6 px-3 sm:px-6 text-foreground/90 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          }
         >
           <div
-            className="max-w-none break-words text-xs leading-relaxed text-muted-foreground/90 dark:text-muted-foreground/80"
+            className="break-words text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
             style={{
               wordBreak: "break-word",
               overflowWrap: "break-word",
               hyphens: "auto",
             }}
           >
-            <Markdown>{reasoning || ""}</Markdown>
+            <Markdown
+              options={{
+                forceBlock: true,
+                overrides: {
+                  p: {
+                    component: "p",
+                    props: { className: "mb-2 last:mb-0" },
+                  },
+                  ul: {
+                    component: "ul",
+                    props: {
+                      className:
+                        "mb-2 ml-5 list-disc space-y-1 marker:text-muted-foreground/60",
+                    },
+                  },
+                  ol: {
+                    component: "ol",
+                    props: {
+                      className:
+                        "mb-2 ml-5 list-decimal space-y-1 marker:text-muted-foreground/60",
+                    },
+                  },
+                  li: {
+                    component: "li",
+                    props: { className: "[&>p]:mb-0" },
+                  },
+                  strong: {
+                    component: "strong",
+                    props: { className: "font-semibold text-foreground" },
+                  },
+                  em: { component: "em", props: { className: "italic" } },
+                  a: {
+                    component: "a",
+                    props: {
+                      className:
+                        "underline underline-offset-2 decoration-muted-foreground/50 hover:text-foreground",
+                      target: "_blank",
+                      rel: "noreferrer",
+                    },
+                  },
+                  code: {
+                    component: "code",
+                    props: {
+                      className:
+                        "rounded bg-muted/40 px-1.5 py-0.5 text-[0.85em] font-medium",
+                    },
+                  },
+                  h1: {
+                    component: "h1",
+                    props: {
+                      className: "mb-2 text-[1.05rem] font-semibold",
+                    },
+                  },
+                  h2: {
+                    component: "h2",
+                    props: {
+                      className: "mb-2 text-[1.02rem] font-semibold",
+                    },
+                  },
+                  h3: {
+                    component: "h3",
+                    props: {
+                      className: "mb-1.5 text-[1rem] font-medium",
+                    },
+                  },
+                },
+              }}
+            >
+              {reasoning || ""}
+            </Markdown>
             {/* Add a small spacer at the bottom for better scroll visibility */}
             {isLoading && <div className="h-4" />}
           </div>
         </div>
-
-        {/* Gradient overlays for focus effect (only during loading) */}
-        {isLoading && isExpanded && (
-          <>
-            {/* Top fade - text fades out going up */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-6 bg-gradient-to-b from-background via-background/60 to-transparent"
-            />
-            {/* Bottom fade - text fades out going down */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-6 bg-gradient-to-t from-background via-background/60 to-transparent"
-            />
-          </>
-        )}
+        {/* Clean Grok-like card: no gradient overlays */}
       </div>
     </div>
   );

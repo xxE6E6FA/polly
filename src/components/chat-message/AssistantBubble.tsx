@@ -2,10 +2,9 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
-import { SearchQuery } from "@/components/search-query";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Button } from "@/components/ui/button";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
@@ -24,6 +23,7 @@ import { ImageGenerationSkeleton } from "./ImageGenerationSkeleton";
 import { ImageLoadingSkeleton } from "./ImageLoadingSkeleton";
 import { ImageViewToggle } from "./ImageViewToggle";
 import { MessageActions } from "./MessageActions";
+import { useAssistantDisplayPhase } from "./useAssistantDisplayPhase";
 
 type AssistantBubbleProps = {
   message: ChatMessageType;
@@ -176,6 +176,7 @@ export const AssistantBubble = ({
   onRetryImageGeneration,
 }: AssistantBubbleProps) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showReasoning, setShowReasoning] = useState(false);
   const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
 
   // Memoized image lists derived from message
@@ -224,14 +225,39 @@ export const AssistantBubble = ({
   const reasoning = message.reasoning;
   const displayContent = message.content;
   const isImageGeneration = Boolean(message.imageGeneration);
-  const isThinking = message.status === "thinking" && !isImageGeneration;
-  const isSearching = message.status === "searching";
-  const isPdfReading = message.status === "reading_pdf";
-  const isStreamingWithoutContent =
-    message.status === "streaming" &&
-    (!displayContent || displayContent.length === 0) &&
-    !isImageGeneration;
   const hasReasoningText = Boolean(reasoning && reasoning.trim().length > 0);
+
+  const { phase, statusLabel } = useAssistantDisplayPhase({
+    isStreamingProp: isStreaming || message.status === "streaming",
+    messageStatus: message.status,
+    contentLength: displayContent?.length || 0,
+    hasReasoning: hasReasoningText,
+  });
+
+  // Helper booleans for rendering
+  const showPreContentStrip =
+    !isImageGeneration && phase === "precontent" && !!statusLabel;
+  const showSkeleton =
+    !isImageGeneration && phase === "precontent" && !hasReasoningText;
+  const showStreamingContent =
+    !isImageGeneration && (phase === "streaming" || phase === "complete");
+
+  // Auto-behavior for reasoning visibility:
+  // - expand during precontent when reasoning arrives
+  // - collapse shortly after actual content begins streaming to avoid layout shift
+  useEffect(() => {
+    if (hasReasoningText && phase === "precontent") {
+      setShowReasoning(true);
+    }
+  }, [hasReasoningText, phase]);
+
+  useEffect(() => {
+    if (phase === "streaming" && showReasoning) {
+      const t = setTimeout(() => setShowReasoning(false), 120);
+      return () => clearTimeout(t);
+    }
+    return;
+  }, [phase, showReasoning]);
 
   // Get the model name for display
   const getModelDisplayName = (modelId: string | undefined): string => {
@@ -244,43 +270,18 @@ export const AssistantBubble = ({
   return (
     <div className="w-full">
       <div className="min-w-0 flex-1">
-        {/* Unified Loading Status Area - show only one loader at a time */}
-        {(isSearching ||
-          isPdfReading ||
-          (isThinking && !hasReasoningText) ||
-          (isStreamingWithoutContent && !hasReasoningText)) && (
+        {/* Pre-content: single status strip + optional skeleton, no stacking loaders */}
+        {showPreContentStrip && (
           <div className="mb-2.5">
-            {isSearching ? (
-              <SearchQuery
-                feature={message.metadata?.searchFeature}
-                category={message.metadata?.searchCategory}
-                citations={message.citations}
-                isLoading={true}
-              />
-            ) : isPdfReading ? (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Spinner className="h-3 w-3" />
-                  <span>{message.statusText || "Reading PDF..."}</span>
-                </div>
+            {/* Minimal, consistent status pill */}
+            <div className="text-sm text-foreground/80">
+              <div className="inline-flex items-center gap-2">
+                <Spinner className="h-3 w-3" />
+                <span className="opacity-80">{statusLabel}</span>
               </div>
-            ) : isStreamingWithoutContent && !hasReasoningText ? (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Spinner className="h-3 w-3" />
-                  <span>Thinking...</span>
-                </div>
-              </div>
-            ) : isThinking && !hasReasoningText ? (
-              <div className="text-sm text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Spinner className="h-3 w-3" />
-                  <span>Thinking...</span>
-                </div>
-              </div>
-            ) : null}
+            </div>
 
-            {/* Tool activity overlay (e.g., web search) */}
+            {/* Tool activity summary (non-intrusive, single line) */}
             {overlayTools.length > 0 && (
               <div className="mt-1 text-xs text-muted-foreground">
                 {(() => {
@@ -302,9 +303,18 @@ export const AssistantBubble = ({
           </div>
         )}
 
+        {/* Reasoning panel: Grok-like card with header; no extra external toggle */}
         {hasReasoningText && (
           <div className="mb-2.5">
-            <Reasoning isLoading={isStreaming} reasoning={reasoning || ""} />
+            <Reasoning
+              isLoading={isStreaming}
+              reasoning={reasoning || ""}
+              expanded={showReasoning}
+              onExpandedChange={setShowReasoning}
+              // Show header toggle during answer streaming; hide only during precontent
+              hideHeader={phase === "precontent"}
+              finalDurationMs={message.metadata?.thinkingDurationMs}
+            />
           </div>
         )}
 
@@ -487,17 +497,34 @@ export const AssistantBubble = ({
             )}
           </div>
         ) : (
-          /* Regular text message content */
+          /* Regular text message content with skeleton → content crossfade */
           <div className="relative">
-            {(displayContent && displayContent.length > 0) || isStreaming ? (
-              <StreamingMarkdown
-                isStreaming={isStreaming || message.status === "streaming"}
-                messageId={message.id}
-                className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
+            {/* Skeleton block to reserve space before first chunk */}
+            {showSkeleton && (
+              <div className="select-none max-w-[74ch]">
+                <div className="skeleton-shimmer mb-2 h-4 w-3/4 rounded" />
+                <div className="skeleton-shimmer mb-2 h-4 w-5/6 rounded" />
+                <div className="skeleton-shimmer h-4 w-2/3 rounded" />
+              </div>
+            )}
+
+            {/* Crossfade to content when streaming starts or completes */}
+            {showStreamingContent && (
+              <div
+                className={cn(
+                  "transition-opacity duration-150",
+                  showSkeleton ? "opacity-0" : "opacity-100"
+                )}
               >
-                {displayContent}
-              </StreamingMarkdown>
-            ) : null}
+                <StreamingMarkdown
+                  isStreaming={isStreaming || message.status === "streaming"}
+                  messageId={message.id}
+                  className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
+                >
+                  {displayContent}
+                </StreamingMarkdown>
+              </div>
+            )}
 
             {message.status === "error" && (
               <div className="mt-2 text-xs text-red-500">
@@ -527,11 +554,12 @@ export const AssistantBubble = ({
           </div>
         )}
 
+        {/* Defer citations until content has begun to reduce early reflow */}
         {message.citations &&
           message.citations.length > 0 &&
-          (!isStreaming || message.content.length > 0) && (
+          (phase === "streaming" || phase === "complete") && (
             <Citations
-              key={`citations-${message.id}-${isStreaming ? "streaming" : "complete"}`}
+              key={`citations-${message.id}-${phase}`}
               citations={message.citations}
               messageId={message.id}
               content={message.content}
@@ -598,21 +626,30 @@ export const AssistantBubble = ({
             </span>
           </div>
         ) : (
-          /* Regular message actions for text messages */
-          <MessageActions
-            messageId={message.id}
-            copyToClipboard={copyToClipboard}
-            isCopied={isCopied}
-            isDeleting={isDeleting}
-            isRetrying={isRetrying}
-            isStreaming={isStreaming}
-            isUser={false}
-            model={message.model}
-            provider={message.provider}
-            onDeleteMessage={onDeleteMessage}
-            onRetryMessage={onRetryMessage}
-            onRefineMessage={onRefineMessage}
-          />
+          /* Regular message actions for text messages; keep a reserved row to avoid shifts */
+          <div className="mt-2" style={{ minHeight: 28 }}>
+            <div
+              className={cn(
+                "transition-opacity duration-150",
+                phase === "precontent" ? "opacity-0" : "opacity-100"
+              )}
+            >
+              <MessageActions
+                messageId={message.id}
+                copyToClipboard={copyToClipboard}
+                isCopied={isCopied}
+                isDeleting={isDeleting}
+                isRetrying={isRetrying}
+                isStreaming={isStreaming}
+                isUser={false}
+                model={message.model}
+                provider={message.provider}
+                onDeleteMessage={onDeleteMessage}
+                onRetryMessage={onRetryMessage}
+                onRefineMessage={onRefineMessage}
+              />
+            </div>
+          </div>
         )}
 
         {/* Image preview dialog */}
