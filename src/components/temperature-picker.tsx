@@ -76,7 +76,7 @@ const TemperaturePickerComponent = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-64 p-4 border-border/50 shadow-lg"
+        className="w-64 p-4 border-border/50 shadow-sm"
         align="start"
         sideOffset={4}
       >

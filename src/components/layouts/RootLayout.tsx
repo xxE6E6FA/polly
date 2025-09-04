@@ -8,7 +8,6 @@ import { CommandPaletteTrigger } from "../command-palette-trigger";
 import { GlobalDragDropPrevention } from "../ui/global-drag-drop-prevention";
 import { OnlineStatus } from "../ui/online-status";
 import { Toaster } from "../ui/sonner";
-import { TooltipProvider } from "../ui/tooltip";
 
 export default function RootLayout() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -34,19 +33,17 @@ export default function RootLayout() {
 
   return (
     <AppProvider>
-      <TooltipProvider delayDuration={500}>
-        <GlobalDragDropPrevention />
-        <CommandPaletteTrigger onTrigger={() => setCommandPaletteOpen(true)} />
-        <CommandPalette
-          open={commandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-          onClose={handleCommandPaletteClose}
-        />
-        <Outlet />
-        <Toaster />
-        <Analytics />
-        <OnlineStatus variant="floating" />
-      </TooltipProvider>
+      <GlobalDragDropPrevention />
+      <CommandPaletteTrigger onTrigger={() => setCommandPaletteOpen(true)} />
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onClose={handleCommandPaletteClose}
+      />
+      <Outlet />
+      <Toaster />
+      <Analytics />
+      <OnlineStatus variant="floating" />
     </AppProvider>
   );
 }
