@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useStreamOverlays } from "@/stores/stream-overlays";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { Spinner } from "../spinner";
 import { AttachmentStrip } from "./AttachmentStrip";
@@ -175,6 +176,7 @@ export const AssistantBubble = ({
   onRetryImageGeneration,
 }: AssistantBubbleProps) => {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
 
   // Memoized image lists derived from message
   const generatedImageAttachments = useMemo(
@@ -277,6 +279,26 @@ export const AssistantBubble = ({
                 </div>
               </div>
             ) : null}
+
+            {/* Tool activity overlay (e.g., web search) */}
+            {overlayTools.length > 0 && (
+              <div className="mt-1 text-xs text-muted-foreground">
+                {(() => {
+                  const last = overlayTools[overlayTools.length - 1];
+                  if (last.t === "tool_call") {
+                    return <span>Calling {last.name}…</span>;
+                  }
+                  return (
+                    <span>
+                      {last.ok === false ? "Failed" : "Finished"} {last.name}
+                      {typeof last.count === "number"
+                        ? ` (${last.count} results)`
+                        : null}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         )}
 

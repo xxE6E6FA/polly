@@ -63,7 +63,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The app supports multiple AI providers through a unified interface:
 - Providers configured per-user via API keys in settings
-- Streaming responses handled via Convex realtime updates
+- Streaming responses are delivered via Convex HTTP routes
 - Web search integration via Exa.ai for enhanced context
 - Image generation support through various providers
 - Automatic reasoning mode detection for advanced models

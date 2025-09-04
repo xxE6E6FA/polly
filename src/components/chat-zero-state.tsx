@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useAuthToken } from "@convex-dev/auth/react";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -13,11 +14,13 @@ import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { startAuthorStream } from "@/lib/ai/http-stream";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
+
 import type { Attachment, ReasoningConfig } from "@/types";
 import { SimplePrompts } from "./prompts-ticker";
 
@@ -130,6 +133,7 @@ const ChatSection = () => {
     user,
   } = useUserDataContext();
   const [selectedModel] = useSelectedModel();
+  const authToken = useAuthToken();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
   const createConversationAction = useAction(
@@ -137,6 +141,7 @@ const ChatSection = () => {
   );
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
+  // No token waiting; rely on cookie-based auth via credentials: 'include'
 
   const handleSendMessage = useCallback(
     async (
@@ -177,10 +182,40 @@ const ChatSection = () => {
       });
 
       if (result?.conversationId) {
+        // Navigate first to avoid any chance of stream startup blocking redirect
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
+
+        // Start the author stream in the background using cookie-based auth
+        if ("assistantMessageId" in result) {
+          setTimeout(() => {
+            (async () => {
+              try {
+                await startAuthorStream({
+                  convexUrl: import.meta.env.VITE_CONVEX_URL,
+                  authToken: authToken,
+                  conversationId: result.conversationId,
+                  assistantMessageId: result.assistantMessageId,
+                  modelId: selectedModel?.modelId,
+                  provider: selectedModel?.provider,
+                  personaId: personaId ?? undefined,
+                  reasoningConfig,
+                  temperature,
+                });
+              } catch {
+                // Final fallback: do nothing
+              }
+            })();
+          }, 0);
+        }
       }
     },
-    [navigate, isPrivateMode, createConversationAction, selectedModel]
+    [
+      navigate,
+      isPrivateMode,
+      createConversationAction,
+      selectedModel,
+      authToken,
+    ]
   );
 
   const handleQuickPrompt = useCallback(
@@ -267,7 +302,6 @@ export const ChatZeroState = () => {
           </div>
 
           <ChatSection />
-
           <SetupChecklist />
         </div>
 

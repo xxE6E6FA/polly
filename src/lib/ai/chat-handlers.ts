@@ -1,5 +1,10 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { cleanAttachmentsForConvex } from "@/lib/utils";
+import {
+  getChatKey,
+  getSelectedPersonaIdFromStore,
+} from "@/stores/chat-input-store";
+import { useStreamOverlays } from "@/stores/stream-overlays";
 import type {
   APIKeys,
   Attachment,
@@ -10,6 +15,7 @@ import type {
   WebSearchCitation,
 } from "@/types";
 import { streamChat } from "./browser-streaming";
+import { startAuthorStream } from "./http-stream";
 
 // --- Type Definitions ---
 export interface SendMessageParams {
@@ -101,6 +107,7 @@ export type ChatMode =
       type: "server";
       conversationId: ConversationId;
       actions: ConvexActions;
+      getAuthToken?: () => string | null;
     }
   | {
       type: "private";
@@ -155,8 +162,19 @@ export interface ChatHandlers {
 export const createServerChatHandlers = (
   conversationId: ConversationId,
   actions: ConvexActions,
-  modelOptions: ModelOptions
+  modelOptions: ModelOptions,
+  _getAuthToken?: () => string | null
 ): ChatHandlers => {
+  let httpAbortController: AbortController | null = null;
+  const convexUrl = import.meta.env.VITE_CONVEX_URL;
+  const canHttpStream = Boolean(convexUrl);
+  // Enable HTTP streaming for the regular send flow
+  const enableHttpForSend = true;
+
+  if (enableHttpForSend && !convexUrl) {
+    console.warn("HTTP streaming enabled but VITE_CONVEX_URL not configured");
+  }
+
   return {
     async sendMessage(
       params: SendMessageParams
@@ -165,7 +183,7 @@ export const createServerChatHandlers = (
         throw new Error("Model and provider are required");
       }
 
-      const result = await actions.sendMessage({
+      const sendPayload: Record<string, unknown> = {
         conversationId,
         content: params.content,
         attachments: cleanAttachmentsForConvex(params.attachments),
@@ -179,7 +197,33 @@ export const createServerChatHandlers = (
         presencePenalty: modelOptions.presencePenalty,
         webSearchMaxResults: modelOptions.webSearchMaxResults,
         useWebSearch: params.useWebSearch,
-      });
+      };
+      if (params.personaId != null) {
+        sendPayload.personaId = params.personaId as Id<"personas">;
+      }
+      const result = await actions.sendMessage(sendPayload);
+
+      // Start HTTP stream on send
+      if (enableHttpForSend && canHttpStream) {
+        const token = _getAuthToken?.() || null;
+        const handle = await startAuthorStream({
+          convexUrl,
+          authToken: token,
+          conversationId,
+          assistantMessageId: result.assistantMessageId,
+          modelId: modelOptions.model || "",
+          provider: modelOptions.provider || "",
+          personaId: params.personaId ?? undefined,
+          reasoningConfig:
+            params.reasoningConfig || modelOptions.reasoningConfig,
+          temperature: params.temperature ?? modelOptions.temperature,
+          maxTokens: modelOptions.maxTokens,
+          topP: modelOptions.topP,
+          frequencyPenalty: modelOptions.frequencyPenalty,
+          presencePenalty: modelOptions.presencePenalty,
+        });
+        httpAbortController = handle?.abortController || null;
+      }
 
       return {
         userMessageId: result.userMessageId,
@@ -195,12 +239,40 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
+      // Abort any ongoing HTTP stream to avoid interleaved outputs
+      if (httpAbortController) {
+        try {
+          httpAbortController.abort();
+        } catch (_e) {
+          // ignore
+        }
+        httpAbortController = null;
+      }
 
-      await actions.retryFromMessage({
+      // Optimistically clear the retried message overlay immediately
+      try {
+        const overlays = useStreamOverlays.getState();
+        const id = String(messageId);
+        overlays.set(id, "");
+        overlays.setReasoning(id, "");
+        overlays.setStatus(id, "thinking");
+        overlays.clearCitations(id);
+        overlays.clearTools(id);
+      } catch (_e) {
+        // ignore
+      }
+
+      // Determine selected persona for this conversation (if set in UI)
+      const chatKey = getChatKey(conversationId);
+      const selectedPersonaId =
+        getSelectedPersonaIdFromStore(chatKey) || undefined;
+
+      const result = await actions.retryFromMessage({
         conversationId,
         messageId: messageId as Id<"messages">,
         model: mergedOptions.model,
         provider: mergedOptions.provider,
+        personaId: selectedPersonaId,
         reasoningConfig: mergedOptions.reasoningConfig,
         temperature: mergedOptions.temperature,
         maxTokens: mergedOptions.maxTokens,
@@ -209,6 +281,26 @@ export const createServerChatHandlers = (
         presencePenalty: mergedOptions.presencePenalty,
         webSearchMaxResults: mergedOptions.webSearchMaxResults,
       });
+
+      // Start HTTP streaming into the returned assistantMessageId if possible
+      if (canHttpStream) {
+        const handle = await startAuthorStream({
+          convexUrl,
+          authToken: _getAuthToken?.() || null,
+          conversationId,
+          assistantMessageId: result.assistantMessageId,
+          modelId: mergedOptions.model || "",
+          provider: mergedOptions.provider || "",
+          personaId: selectedPersonaId ?? null,
+          reasoningConfig: mergedOptions.reasoningConfig,
+          temperature: mergedOptions.temperature,
+          maxTokens: mergedOptions.maxTokens,
+          topP: mergedOptions.topP,
+          frequencyPenalty: mergedOptions.frequencyPenalty,
+          presencePenalty: mergedOptions.presencePenalty,
+        });
+        httpAbortController = handle?.abortController || null;
+      }
     },
 
     async editMessage(
@@ -220,8 +312,7 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
-
-      await actions.editAndResend({
+      const result = await actions.editAndResend({
         messageId: messageId as Id<"messages">,
         newContent,
         model: mergedOptions.model,
@@ -234,6 +325,25 @@ export const createServerChatHandlers = (
         presencePenalty: mergedOptions.presencePenalty,
         webSearchMaxResults: mergedOptions.webSearchMaxResults,
       });
+
+      // Start HTTP streaming into the returned assistantMessageId if possible
+      if (canHttpStream) {
+        const handle = await startAuthorStream({
+          convexUrl,
+          authToken: _getAuthToken?.() || null,
+          conversationId,
+          assistantMessageId: result.assistantMessageId,
+          modelId: mergedOptions.model || "",
+          provider: mergedOptions.provider || "",
+          reasoningConfig: mergedOptions.reasoningConfig,
+          temperature: mergedOptions.temperature,
+          maxTokens: mergedOptions.maxTokens,
+          topP: mergedOptions.topP,
+          frequencyPenalty: mergedOptions.frequencyPenalty,
+          presencePenalty: mergedOptions.presencePenalty,
+        });
+        httpAbortController = handle?.abortController || null;
+      }
     },
 
     async deleteMessage(messageId: string): Promise<void> {
@@ -241,6 +351,18 @@ export const createServerChatHandlers = (
     },
 
     stopGeneration(): void {
+      // Abort author HTTP stream first
+      if (httpAbortController) {
+        try {
+          httpAbortController.abort();
+        } catch {
+          // Ignore errors when aborting controller
+        }
+        httpAbortController = null;
+      }
+      // Clear any overlay text immediately
+      // Overlay will be cleared when DB finalizes; nothing to do here
+      // Signal backend to stop
       actions.stopGeneration({ conversationId });
     },
   };
@@ -424,12 +546,17 @@ export const createPrivateChatHandlers = (
         // Get messages up to (and including) the previous user message
         const contextMessages = messages.slice(0, previousUserMessageIndex + 1);
 
+        const mergedOptions = { ...modelOptions, ...options };
+
         // Clear the assistant message content and reset streaming state
         const clearedAssistantMessage: ChatMessage = {
           ...targetMessage,
           content: "",
           reasoning: undefined,
           citations: undefined,
+          // Update model/provider optimistically if changed
+          model: mergedOptions.model || targetMessage.model,
+          provider: mergedOptions.provider || targetMessage.provider,
           metadata: { ...targetMessage.metadata, finishReason: undefined },
         };
 
@@ -438,7 +565,6 @@ export const createPrivateChatHandlers = (
         setMessages(updatedMessages);
 
         // Stream into the existing assistant message
-        const mergedOptions = { ...modelOptions, ...options };
         await streamMessage(contextMessages, targetMessage.id, mergedOptions);
         return;
       }
@@ -523,7 +649,8 @@ export function createChatHandlers(
     return createServerChatHandlers(
       mode.conversationId,
       mode.actions,
-      modelOptions
+      modelOptions,
+      mode.getAuthToken
     );
   }
   return createPrivateChatHandlers(mode.config, modelOptions);

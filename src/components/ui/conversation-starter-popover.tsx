@@ -1,6 +1,7 @@
 import { api } from "@convex/_generated/api";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/spinner";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
+import { startAuthorStream } from "@/lib/ai/http-stream";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -75,6 +77,20 @@ export const ConversationStarterPopover = ({
     }
   }, [open, lockSelection, unlockSelection]);
 
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
+  const waitForToken = async (timeoutMs = 2000) => {
+    const start = Date.now();
+    let token = authRef.current;
+    while (!token && Date.now() - start < timeoutMs) {
+      await new Promise(r => setTimeout(r, 50));
+      token = authRef.current;
+    }
+    return token ?? null;
+  };
   const handleStartConversation = async (prompt: string) => {
     try {
       const result = await createConversationAction({
@@ -85,9 +101,30 @@ export const ConversationStarterPopover = ({
       });
 
       if (result?.conversationId) {
-        // Navigate to conversation - the Convex action already started the assistant response
+        // Navigate to conversation immediately
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
         onOpenChange(false);
+
+        // Start optimistic HTTP stream in the background; wait briefly for token
+        if ("assistantMessageId" in result) {
+          setTimeout(() => {
+            (async () => {
+              try {
+                const token = await waitForToken(2000);
+                await startAuthorStream({
+                  convexUrl: import.meta.env.VITE_CONVEX_URL,
+                  authToken: token || undefined,
+                  conversationId: result.conversationId,
+                  assistantMessageId: result.assistantMessageId,
+                  modelId: selectedModel?.modelId,
+                  provider: selectedModel?.provider,
+                });
+              } catch {
+                // Ignore errors when starting stream
+              }
+            })();
+          }, 0);
+        }
       }
     } catch (_error) {
       managedToast.error("Failed to start conversation", {

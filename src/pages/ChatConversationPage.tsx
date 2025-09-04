@@ -7,10 +7,12 @@ import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
+import { startAuthorStream } from "@/lib/ai/http-stream";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
+import { useStreamOverlays } from "@/stores/stream-overlays";
 import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
 
 export default function ConversationRoute() {
@@ -61,6 +63,24 @@ export default function ConversationRoute() {
           if (shouldNavigate) {
             navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
           }
+
+          if ("assistantMessageId" in result && result.assistantMessageId) {
+            setTimeout(() => {
+              (async () => {
+                try {
+                  await startAuthorStream({
+                    convexUrl: import.meta.env.VITE_CONVEX_URL,
+                    conversationId: result.conversationId,
+                    assistantMessageId:
+                      result.assistantMessageId as Id<"messages">,
+                  });
+                } catch {
+                  // Ignore errors when starting stream
+                }
+              })();
+            }, 0);
+          }
+
           return result.conversationId;
         }
       } catch {
@@ -234,6 +254,27 @@ export default function ConversationRoute() {
         reasoningConfig,
         temperature
       ) => {
+        // Optimistically prune UI after the user message: clear overlays for later messages
+        try {
+          const overlays = useStreamOverlays.getState();
+          const index = messages.findIndex(m => m.id === messageId);
+          if (index !== -1) {
+            for (let i = index + 1; i < messages.length; i++) {
+              const m = messages[i];
+              if (m.role === "assistant") {
+                const id = String(m.id);
+                overlays.set(id, "");
+                overlays.setReasoning(id, "");
+                overlays.setStatus(id, undefined);
+                overlays.clearCitations(id);
+                overlays.clearTools(id);
+              }
+            }
+          }
+        } catch (_e) {
+          // ignore
+        }
+
         const options: Partial<{
           model: string;
           provider: string;
@@ -262,6 +303,30 @@ export default function ConversationRoute() {
         reasoningConfig,
         temperature
       ) => {
+        // Immediately clear the retried assistant message in the UI
+        try {
+          const overlays = useStreamOverlays.getState();
+          const id = String(messageId);
+          overlays.set(id, "");
+          overlays.setReasoning(id, "");
+          overlays.setStatus(id, "thinking");
+          overlays.clearCitations(id);
+          overlays.clearTools(id);
+        } catch {
+          // non-fatal
+        }
+
+        // If retrying with a different model, update the message model label optimistically
+        if (modelId || provider) {
+          try {
+            // Update happens server-side; front-end displays from DB.
+            // Optimistically reflect by setting thinking status (already done) until DB patch returns.
+            // No direct local message update to avoid divergent state.
+          } catch (_e) {
+            // ignore
+          }
+        }
+
         const options: Partial<{
           model: string;
           provider: string;

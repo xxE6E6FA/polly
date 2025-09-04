@@ -215,8 +215,11 @@ export default function PrivateChatPage() {
               : undefined,
           // Extract reasoning from AI SDK v4 message parts
           reasoning:
-            msg.parts?.find(part => part.type === "reasoning")?.reasoning ||
-            undefined,
+            (
+              msg.parts?.find(part => part.type === "reasoning") as
+                | { type: string; text?: string }
+                | undefined
+            )?.text || undefined,
           // Extract attachments from AI SDK message and convert data URLs to uploadable format
           attachments:
             (
@@ -316,8 +319,11 @@ export default function PrivateChatPage() {
         status: messageStatus,
         // Extract reasoning from AI SDK v4 message parts
         reasoning:
-          msg.parts?.find(part => part.type === "reasoning")?.reasoning ||
-          undefined,
+          (
+            msg.parts?.find(part => part.type === "reasoning") as
+              | { type: string; text?: string }
+              | undefined
+          )?.text || undefined,
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,
         // Extract attachments from AI SDK message

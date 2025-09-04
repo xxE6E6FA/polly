@@ -7,6 +7,43 @@ import { log } from "../lib/logger";
 import Replicate from "replicate";
 import type { Prediction } from "replicate";
 
+// Helper function to detect image editing models
+function isImageEditingModel(modelName: string): boolean {
+  // Known image editing models from Replicate's image editing collection
+  const editingModels = [
+    "google/nano-banana",
+    "qwen/qwen2-vl",
+    "ideogram/ideogram", 
+    "ideogram/ideogram-v2",
+    "ideogram/ideogram-v3",
+    "black-forest-labs/flux-depth-pro",
+    "black-forest-labs/flux-canny-pro", 
+    "black-forest-labs/flux-kontext-pro",
+    "black-forest-labs/flux-kontext-max",
+    "xinntao/gpt-image-1",
+    "lucataco/flux-schnell-t2i-adapter",
+    "ostris/flux-dev-lora-trainer",
+    "lucataco/sd3-medium",
+    "cjwbw/controlnet",
+    "rossjillian/controlnet",
+  ];
+  
+  return editingModels.some(editModel => modelName.includes(editModel));
+}
+
+// Helper function to get the appropriate image input parameter name and format for editing models
+function getImageInputConfig(modelName: string): { paramName: string; isArray: boolean } {
+  // Different models use different parameter names and formats for input images
+  if (modelName.includes("nano-banana")) return { paramName: "image_input", isArray: true };
+  if (modelName.includes("qwen")) return { paramName: "image", isArray: false }; 
+  if (modelName.includes("ideogram")) return { paramName: "image", isArray: false };
+  if (modelName.includes("flux")) return { paramName: "image", isArray: false };
+  if (modelName.includes("gpt-image")) return { paramName: "image", isArray: false };
+  
+  // Default fallback
+  return { paramName: "image", isArray: false };
+}
+
 // Helper function to convert aspect ratio to width/height dimensions
 // Ensures all dimensions are divisible by 8 (required by most AI models)
 function convertAspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
@@ -128,10 +165,81 @@ export const generateImage = action({
       ];
       const supportsAspectRatio = aspectRatioSupportedModels.some(supported => args.model.includes(supported));
       
+      // Check if this is an image editing model and find previous assistant images
+      const isEditingModel = isImageEditingModel(args.model);
+      let inputImageUrl: string | undefined;
+      
+      log.info("Model detection for image editing", {
+        messageId: args.messageId,
+        model: args.model,
+        isEditingModel,
+      });
+      
+      if (isEditingModel) {
+        // Get conversation messages to find the most recent assistant image
+        const messages = await ctx.runQuery(internal.messages.getAllInConversationInternal, {
+          conversationId: args.conversationId,
+        });
+        
+        // Look for the most recent assistant message with image attachments
+        // Start from the end and work backwards to find the latest generated image
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const message = messages[i];
+          if (message.role === "assistant" && message.attachments) {
+            // Prefer generated images, but also accept user-uploaded images if no generated ones exist
+            const generatedImageAttachment = message.attachments.find(
+              (att: any) => att.type === "image" && att.url && att.generatedImage?.isGenerated
+            );
+            const anyImageAttachment = message.attachments.find(
+              (att: any) => att.type === "image" && att.url
+            );
+            
+            const selectedAttachment = generatedImageAttachment || anyImageAttachment;
+            if (selectedAttachment?.url) {
+              inputImageUrl = selectedAttachment.url;
+              log.info("Found previous assistant image for editing", {
+                messageId: args.messageId,
+                sourceMessageId: message._id,
+                imageUrl: inputImageUrl,
+                model: args.model,
+                isGenerated: !!selectedAttachment.generatedImage?.isGenerated,
+              });
+              break;
+            }
+          }
+        }
+        
+        if (!inputImageUrl) {
+          log.info("No previous assistant image found for editing model - will generate new image", {
+            messageId: args.messageId,
+            model: args.model,
+            messagesChecked: messages.length,
+          });
+          // Note: When no input image is found, editing models typically fall back to generation mode
+        }
+      }
+
       // Prepare input parameters - let each model define its own schema  
       const input: Record<string, unknown> = {
         prompt: args.prompt,
       };
+      
+      // Add input image for editing models
+      if (isEditingModel && inputImageUrl) {
+        const imageConfig = getImageInputConfig(args.model);
+        
+        // Set the image input in the correct format (array or single string)
+        input[imageConfig.paramName] = imageConfig.isArray ? [inputImageUrl] : inputImageUrl;
+        
+        log.info("Added input image to editing model", {
+          messageId: args.messageId,
+          model: args.model,
+          paramName: imageConfig.paramName,
+          imageUrl: inputImageUrl,
+          isArray: imageConfig.isArray,
+          inputValue: input[imageConfig.paramName],
+        });
+      }
 
       // Add optional parameters if provided
       if (args.params) {

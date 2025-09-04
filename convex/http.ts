@@ -1,13 +1,60 @@
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { generateText, smoothStream, streamText } from "ai";
 import { httpRouter } from "convex/server";
 import type { Prediction } from "replicate";
-import { internal } from "./_generated/api.js";
+import { api, internal } from "./_generated/api.js";
+import type { Doc } from "./_generated/dataModel.js";
 import { httpAction } from "./_generated/server";
+import { CONFIG } from "./ai/config.js";
 import { streamTTS } from "./ai/elevenlabs.js";
+import { getApiKey } from "./ai/encryption.js";
+import { performWebSearch } from "./ai/exa.js";
+import { convertMessages } from "./ai/messages.js";
+import { shouldExtractPdfText } from "./ai/pdf.js";
+import {
+  generateSearchNeedAssessment,
+  generateSearchStrategy,
+  parseSearchNeedAssessment,
+  parseSearchStrategy,
+} from "./ai/search_detection.js";
+import {
+  createLanguageModel,
+  getProviderStreamOptions,
+} from "./ai/server_streaming.js";
+import { processUrlsInMessage } from "./ai/url_processing.js";
 import { auth } from "./auth.js";
 import { chatStream } from "./chat.js";
+import { getBaselineInstructions } from "./constants.js";
+import {
+  getPersonaPrompt,
+  mergeSystemPrompts,
+} from "./lib/conversation/message_handling.js";
 import { log } from "./lib/logger.js";
+import { processAttachmentsForLLM } from "./lib/process_attachments.js";
+import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
+
+// (api, internal) already imported above
 
 const http = httpRouter();
+
+// Simple in-memory rate limiter (per user per minute)
+const RATE = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT_PER_MINUTE = 20;
+
+function rateLimitCheck(userId: string): boolean {
+  const now = Date.now();
+  const windowStart = Math.floor(now / 60000) * 60000; // current minute
+  const entry = RATE.get(userId);
+  if (!entry || entry.windowStart !== windowStart) {
+    RATE.set(userId, { count: 1, windowStart });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_PER_MINUTE) {
+    return false;
+  }
+  entry.count++;
+  return true;
+}
 
 auth.addHttpRoutes(http);
 
@@ -18,7 +65,7 @@ http.route({
   handler: chatStream,
 });
 
-// Add OPTIONS support for CORS preflight
+// Add OPTIONS support for CORS preflight (handled inside chatStream with relaxed CORS)
 http.route({
   path: "/chat",
   method: "OPTIONS",
@@ -147,3 +194,1013 @@ http.route({
 });
 
 export default http;
+
+// Optimistic author streaming with batched DB writes
+http.route({
+  path: "/conversation/stream",
+  method: "POST",
+  handler: httpAction(async (ctx, request): Promise<Response> => {
+    console.log(
+      "HTTP Action started - method:",
+      request.method,
+      "url:",
+      request.url
+    );
+    // Relaxed CORS: reflect Origin and allow credentials for cookie-based auth
+    const origin = request.headers.get("origin") || "*";
+    const reqAllowed =
+      request.headers.get("access-control-request-headers") ||
+      "Content-Type, Authorization";
+    const cors: Record<string, string> = {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": reqAllowed,
+      "Access-Control-Allow-Credentials": "true",
+    };
+    cors["Vary"] = "Origin";
+
+    if (request.method !== "POST") {
+      return new Response("Method not allowed", { status: 405, headers: cors });
+    }
+
+    try {
+      const body = await request.json();
+      const {
+        conversationId,
+        messageId,
+        modelId: reqModelId,
+        provider: reqProvider,
+        personaId,
+        reasoningConfig,
+        temperature,
+        maxTokens,
+        topP,
+        frequencyPenalty,
+        presencePenalty,
+      } = body || {};
+
+      console.log("HTTP Request Body:", JSON.stringify(body, null, 2));
+
+      if (!(conversationId && messageId)) {
+        return new Response(
+          JSON.stringify({ error: "Missing required fields" }),
+          {
+            status: 400,
+            headers: { ...cors, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      // AuthN: require user
+      console.log("About to call getAuthUserId");
+      const userId = await getAuthUserId(ctx);
+      console.log("getAuthUserId returned:", userId);
+      if (!userId) {
+        console.log("No user ID - returning 401");
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      // Rate limit per user
+      if (!rateLimitCheck(userId)) {
+        return new Response(JSON.stringify({ error: "Too Many Requests" }), {
+          status: 429,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      // AuthZ: ensure user owns the conversation and message
+      console.log("About to fetch conversation and message");
+      const [conversation, message] = await Promise.all([
+        ctx.runQuery(api.conversations.get, { id: conversationId }),
+        ctx.runQuery(api.messages.getById, { id: messageId }),
+      ]);
+      console.log(
+        "Fetched conversation:",
+        !!conversation,
+        "message:",
+        !!message
+      );
+      console.log("Message details:", {
+        id: message?._id,
+        role: message?.role,
+        model: message?.model,
+        provider: message?.provider,
+        hasReasoning: !!message?.reasoning,
+        content: `${message?.content?.slice(0, 50)}...`,
+      });
+      if (!conversation || conversation.userId !== userId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      if (!message || message.conversationId !== conversationId) {
+        return new Response(JSON.stringify({ error: "Invalid message" }), {
+          status: 400,
+          headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+
+      // Prioritize request parameters over message parameters for retry scenarios
+      // When retrying with a different model, the request will have the new model/provider
+      const modelId = reqModelId || (message?.model as string | undefined);
+      const provider = (reqProvider ||
+        (message?.provider as string | undefined)) as
+        | "openai"
+        | "anthropic"
+        | "google"
+        | "openrouter"
+        | undefined;
+
+      if (!(modelId && provider)) {
+        return new Response(
+          JSON.stringify({ error: "Model/provider missing" }),
+          {
+            status: 400,
+            headers: { ...cors, "Content-Type": "application/json" },
+          }
+        );
+      }
+      console.log("Resolved model/provider:", {
+        reqModelId,
+        reqProvider,
+        messageModel: message?.model,
+        messageProvider: message?.provider,
+        finalModelId: modelId,
+        finalProvider: provider,
+      });
+
+      // Update message with current model/provider to ensure consistency
+      // This handles race conditions where HTTP stream starts before retryFromMessage DB updates complete
+      // Also ensures reasoning is properly cleared for retry scenarios
+      if (reqModelId || reqProvider) {
+        try {
+          console.log("Updating message with:", {
+            messageId,
+            model: modelId,
+            provider: provider,
+            clearingReasoning: true,
+          });
+          await ctx.runMutation(internal.messages.internalUpdate, {
+            id: messageId,
+            model: modelId,
+            provider: provider as
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "groq"
+              | "openrouter"
+              | "replicate"
+              | "elevenlabs",
+            reasoning: "", // Clear reasoning for retry by setting to empty string
+          });
+          console.log(
+            "Successfully updated message model/provider and cleared reasoning"
+          );
+
+          // Verify the update worked
+          const updatedMessage = await ctx.runQuery(api.messages.getById, {
+            id: messageId,
+          });
+          console.log("Message after update:", {
+            id: updatedMessage?._id,
+            model: updatedMessage?.model,
+            provider: updatedMessage?.provider,
+            hasReasoning: !!updatedMessage?.reasoning,
+            content: `${updatedMessage?.content?.slice(0, 30)}...`,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to update message model/provider/reasoning:",
+            error
+          );
+        }
+      }
+
+      // Ensure conversation reflects active streaming state for consistent UI ordering
+      try {
+        await ctx.runMutation(internal.conversations.internalPatch, {
+          id: conversationId,
+          updates: { isStreaming: true },
+          setUpdatedAt: true,
+        });
+      } catch {
+        // Ignore: best-effort update
+      }
+
+      // Create stream to the browser
+      console.log("Creating TransformStream");
+      const ts = new TransformStream();
+      const writer = ts.writable.getWriter();
+      const encoder = new TextEncoder();
+      console.log("Stream setup complete");
+
+      const writeFrame = async (obj: unknown) => {
+        try {
+          await writer.write(encoder.encode(`${JSON.stringify(obj)}\n`));
+        } catch (error) {
+          console.error("Write frame error:", error);
+          // Ignore write errors during streaming
+        }
+      };
+
+      // Return response immediately so client can start reading the stream
+      const streamHeaders: Record<string, string> = {
+        ...cors,
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Transfer-Encoding": "chunked",
+      };
+      streamHeaders["Connection"] = "keep-alive";
+      const response = new Response(ts.readable, { headers: streamHeaders });
+
+      // Get messages outside async function so EXA processing can access it
+      console.log("Getting all messages in conversation");
+      const all = await ctx.runQuery(api.messages.getAllInConversation, {
+        conversationId,
+      });
+      console.log("Got", all.length, "messages");
+
+      // Start all processing in background - don't block the response
+      (async () => {
+        // Build context messages (simplified, preserves system + conversation)
+        console.log("Building context messages");
+        const personaPrompt = await getPersonaPrompt(
+          ctx,
+          personaId ?? conversation.personaId
+        );
+        console.log("Got persona prompt");
+        const baseline = getBaselineInstructions(modelId);
+        const system = mergeSystemPrompts(baseline, personaPrompt);
+        console.log("Built system prompt");
+
+        // Model capabilities for PDF handling
+        console.log("Getting model info");
+        const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
+          modelId,
+          provider,
+        });
+        console.log("Got model info:", !!modelInfo);
+
+        // Watchdog: if conversation shows isStreaming=true but there is no active thinking/streaming message,
+        // clear the flag (stale state from a prior crash) before we begin.
+        try {
+          if (conversation.isStreaming === true) {
+            const active = all.some(
+              (m: Doc<"messages">) =>
+                m.role === "assistant" &&
+                (m.status === "thinking" ||
+                  m.status === "streaming" ||
+                  m.status === "reading_pdf")
+            );
+            if (!active) {
+              await ctx.runMutation(internal.conversations.internalPatch, {
+                id: conversationId,
+                updates: { isStreaming: false },
+              });
+            }
+          }
+        } catch {
+          // Ignore errors when updating streaming status
+        }
+
+        // Build stream messages with attachment processing for the last user message
+        console.log("Starting message processing");
+        const streamMsgs: Array<{
+          role: "user" | "assistant" | "system";
+          content: string | Array<Record<string, unknown>>;
+        }> = [];
+
+        streamMsgs.push({ role: "system", content: system });
+        console.log("Added system message");
+
+        // Copy messages and handle attachments on the last user item
+        console.log("Finding last user message in", all.length, "messages");
+        let lastUserIdx = -1;
+        for (let i = 0; i < all.length; i++) {
+          const m: Doc<"messages"> = all[i];
+          if (m.role === "user") {
+            lastUserIdx = i;
+          }
+        }
+        console.log("Last user message index:", lastUserIdx);
+
+        let lastUserAttachments: Doc<"messages">["attachments"];
+        console.log("Processing messages loop");
+        for (let i = 0; i < all.length; i++) {
+          const m: Doc<"messages"> = all[i];
+          console.log("Processing message", i, "role:", m.role);
+          if (m.role !== "user" && m.role !== "assistant") {
+            continue;
+          }
+
+          // Skip assistant messages with empty content (they're the message being generated)
+          if (m.role === "assistant" && (!m.content || m.content === "")) {
+            console.log("Skipping empty assistant message");
+            continue;
+          }
+
+          // Default to string content
+          let content: string | Array<Record<string, unknown>> =
+            typeof m.content === "string" ? m.content : [];
+
+          if (
+            i === lastUserIdx &&
+            Array.isArray(m.attachments) &&
+            m.attachments.length > 0
+          ) {
+            console.log(
+              "Processing attachments for last user message, count:",
+              m.attachments.length
+            );
+            // If PDFs present and extraction is needed, notify client about reading status
+            const hasPdf = m.attachments.some(a => a.type === "pdf");
+            const needsExtraction =
+              hasPdf &&
+              shouldExtractPdfText(
+                provider,
+                modelId,
+                Boolean(modelInfo?.supportsFiles)
+              );
+            console.log("PDF extraction needed:", needsExtraction);
+            if (needsExtraction) {
+              await writeFrame({ t: "status", status: "reading_pdf" });
+            }
+            // Process attachments for LLM consumption (PDF extraction, etc.)
+            console.log("About to process attachments for LLM");
+            const processed = await processAttachmentsForLLM(
+              ctx,
+              m.attachments,
+              provider,
+              modelId,
+              Boolean(modelInfo?.supportsFiles),
+              messageId
+            );
+            console.log(
+              "Processed attachments, count:",
+              processed?.length || 0
+            );
+            lastUserAttachments = processed;
+
+            const parts: Array<Record<string, unknown>> = [];
+            if (typeof content === "string" && content.trim().length > 0) {
+              parts.push({ type: "text", text: content });
+            }
+            for (const att of processed || []) {
+              if (att.type === "image") {
+                const imgPart: Record<string, unknown> = {
+                  type: "image_url",
+                  attachment: att,
+                };
+                (imgPart as Record<string, unknown>)["image_url"] = {
+                  url: att.url,
+                };
+                parts.push(imgPart);
+              } else if (att.type === "pdf") {
+                if (att.content) {
+                  const filePart: Record<string, unknown> = {
+                    type: "file",
+                    file: { filename: att.name } as Record<string, unknown>,
+                    attachment: att,
+                  };
+                  (filePart.file as Record<string, unknown>)["file_data"] =
+                    att.content as unknown as string;
+                  parts.push(filePart);
+                } else {
+                  // Fallback to text-only placeholder
+                  parts.push({ type: "text", text: `File: ${att.name}` });
+                }
+              } else if (att.type === "text") {
+                parts.push({ type: "text", text: att.content || "" });
+              }
+            }
+            content = parts;
+            // After attachment processing finished, reflect status back to thinking for UI
+            await ctx.runMutation(internal.messages.updateAssistantStatus, {
+              messageId,
+              status: "thinking",
+            });
+            await writeFrame({ t: "status", status: "thinking" });
+          }
+
+          streamMsgs.push({ role: m.role, content });
+        }
+
+        console.log("Built", streamMsgs.length, "stream messages");
+
+        // Web search pre-check + EXA search (blocking path before LLM)
+        try {
+          const exaApiKey = process.env.EXA_API_KEY;
+          // Extract latest user text message
+          const userMessages = all.filter(
+            (m: Doc<"messages">) => m.role === "user"
+          );
+          const latestUser = userMessages[userMessages.length - 1];
+          const latestText =
+            latestUser && typeof latestUser.content === "string"
+              ? (latestUser.content as string)
+              : "";
+
+          // Quick heuristic (mirrors action version)
+          const quickHeuristicShouldSearch = (text: string): boolean => {
+            const q = text.toLowerCase();
+            if (/(https?:\/\/|www\.)\S+/.test(q)) {
+              return true;
+            }
+            const recency = [
+              "latest",
+              "current",
+              "today",
+              "this week",
+              "this month",
+              "recent",
+              "breaking",
+              "news",
+              "update",
+              "changelog",
+            ];
+            if (recency.some(w => q.includes(w))) {
+              return true;
+            }
+            const patterns = [
+              /price|stock|ticker|earnings|revenue|guidance|ceo|cfo|hiring|fired|acquired|valuation/,
+              /version\s*(\d+|latest)|released?|release date|announce|announced|launch/,
+              /who\s+is\s+the\s+(ceo|president|head|lead)\b/,
+            ];
+            if (patterns.some(re => re.test(q))) {
+              return true;
+            }
+            const months = [
+              "january",
+              "february",
+              "march",
+              "april",
+              "may",
+              "june",
+              "july",
+              "august",
+              "september",
+              "october",
+              "november",
+              "december",
+            ];
+            if (months.some(m => q.includes(m))) {
+              return true;
+            }
+            const year = new Date().getFullYear();
+            if (q.includes(String(year)) || q.includes(String(year - 1))) {
+              return true;
+            }
+            return false;
+          };
+
+          // Small timeout helper
+          const withTimeout = async <T>(
+            p: Promise<T>,
+            ms: number,
+            label = "op"
+          ): Promise<T> => {
+            return await Promise.race([
+              p,
+              new Promise<T>((_, rej) =>
+                setTimeout(
+                  () => rej(new Error(`${label} timeout after ${ms}ms`)),
+                  ms
+                )
+              ) as Promise<T>,
+            ]);
+          };
+
+          if (exaApiKey && latestText) {
+            // Step 1: pre-check
+            let shouldSearch = quickHeuristicShouldSearch(latestText);
+            if (!shouldSearch) {
+              try {
+                const searchContext = {
+                  userQuery: latestText,
+                  conversationHistory: all
+                    .slice(-5)
+                    .filter((m: Doc<"messages">) => m.role !== "system")
+                    .map((m: Doc<"messages">) => ({
+                      role: m.role as "user" | "assistant",
+                      content:
+                        typeof m.content === "string"
+                          ? (m.content as string)
+                          : "[multimodal]",
+                      hasSearchResults: false,
+                    })),
+                };
+                const precheckPrompt =
+                  generateSearchNeedAssessment(searchContext);
+                const detectKey = await getApiKey(
+                  ctx,
+                  "google",
+                  "gemini-2.5-flash-lite",
+                  conversationId
+                );
+                const detectModel = await createLanguageModel(
+                  ctx,
+                  "google",
+                  "gemini-2.5-flash-lite",
+                  detectKey
+                );
+                const precheckBudget = Number(
+                  CONFIG.PERF?.PRECHECK_BUDGET_MS ?? 350
+                );
+                const need = await withTimeout(
+                  generateText({
+                    model: detectModel,
+                    prompt: precheckPrompt,
+                    temperature: 0,
+                  }),
+                  precheckBudget,
+                  "precheck"
+                );
+                const parsed = parseSearchNeedAssessment(need.text);
+                shouldSearch = !parsed.canAnswerConfidently;
+              } catch {
+                // If precheck fails, default to not searching (conservative)
+                shouldSearch = false;
+              }
+            }
+
+            // Step 2: strategy + EXA search
+            if (shouldSearch) {
+              try {
+                await ctx.runMutation(internal.messages.updateMessageStatus, {
+                  messageId,
+                  status: "searching",
+                });
+                await writeFrame({ t: "status", status: "searching" });
+
+                // Decide strategy (best-effort)
+                let decision: ReturnType<typeof parseSearchStrategy> = {
+                  shouldSearch: true,
+                  searchType: "search",
+                  reasoning: "fallback",
+                  confidence: 0.8,
+                  suggestedSources: 8,
+                  suggestedQuery: latestText,
+                };
+                try {
+                  const strategyPrompt = generateSearchStrategy({
+                    userQuery: latestText,
+                  });
+                  const detectKey = await getApiKey(
+                    ctx,
+                    "google",
+                    "gemini-2.5-flash-lite",
+                    conversationId
+                  );
+                  const detectModel = await createLanguageModel(
+                    ctx,
+                    "google",
+                    "gemini-2.5-flash-lite",
+                    detectKey
+                  );
+                  const strategyBudget = Math.max(
+                    200,
+                    Math.floor(
+                      Number(CONFIG.PERF?.PRECHECK_BUDGET_MS ?? 350) * 0.75
+                    )
+                  );
+                  const resp = await withTimeout(
+                    generateText({
+                      model: detectModel,
+                      prompt: strategyPrompt,
+                      temperature: 0,
+                    }),
+                    strategyBudget,
+                    "strategy"
+                  );
+                  decision = parseSearchStrategy(resp.text, latestText);
+                } catch {
+                  // Keep fallback decision
+                }
+
+                await writeFrame({
+                  t: "tool_call",
+                  name: "exa.search",
+                  args: {
+                    query: decision.suggestedQuery || latestText,
+                    maxResults: Number(CONFIG.PERF?.EXA_FULL_TOPK ?? 6),
+                  },
+                });
+
+                const result = await performWebSearch(exaApiKey, {
+                  query: decision.suggestedQuery || latestText,
+                  searchType: decision.searchType,
+                  category: decision.category,
+                  maxResults: Number(CONFIG.PERF?.EXA_FULL_TOPK ?? 6),
+                });
+
+                // Attach citations + metadata for UI
+                await ctx.runMutation(
+                  internal.messages.updateAssistantContent,
+                  {
+                    messageId,
+                    citations: result.citations,
+                    metadata: {
+                      searchQuery: decision.suggestedQuery || latestText,
+                      searchFeature: decision.searchType,
+                      searchCategory: decision.category,
+                    },
+                  }
+                );
+                await writeFrame({
+                  t: "citations",
+                  citations: result.citations,
+                });
+                await writeFrame({
+                  t: "tool_result",
+                  name: "exa.search",
+                  ok: true,
+                  count: (result.citations || []).length,
+                });
+
+                // Step 3: inject as system context before messages -> LLM
+                const searchResultsMessage = {
+                  role: "system" as const,
+                  content: `🚨 CRITICAL CITATION REQUIREMENTS 🚨\n\nBased on the user's query, I have searched the web and found relevant information. You MUST cite sources for any information derived from these search results.\n\nSEARCH RESULTS:\n${result.context}\n\nAVAILABLE SOURCES FOR CITATION:\n${result.citations
+                    .map((c, idx) => `[${idx + 1}] ${c.title} - ${c.url}`)
+                    .join(
+                      "\n"
+                    )}\n\nWhen using information from these search results, you MUST include citations in the format [1], [2], etc. corresponding to the source numbers above.`,
+                };
+                // Insert after the first system message
+                streamMsgs.splice(1, 0, searchResultsMessage);
+
+                // Switch back to thinking before LLM stream starts
+                await ctx.runMutation(internal.messages.updateAssistantStatus, {
+                  messageId,
+                  status: "thinking",
+                });
+                await writeFrame({ t: "status", status: "thinking" });
+              } catch (_e) {
+                // If search fails, continue without search
+                await writeFrame({
+                  t: "tool_result",
+                  name: "exa.search",
+                  ok: false,
+                });
+              }
+            }
+          }
+        } catch (_e) {
+          // Non-fatal: continue without web search
+        }
+
+        // URL processing for any links in the latest user message (before LLM)
+        try {
+          const exaApiKey = process.env.EXA_API_KEY;
+          const userMessages = all.filter(
+            (m: Doc<"messages">) => m.role === "user"
+          );
+          const latestUser = userMessages[userMessages.length - 1];
+          const latestText =
+            latestUser && typeof latestUser.content === "string"
+              ? (latestUser.content as string)
+              : "";
+          if (exaApiKey && latestText) {
+            const urlResult = await processUrlsInMessage(exaApiKey, latestText);
+            if (urlResult && urlResult.contents.length > 0) {
+              await ctx.runMutation(internal.messages.updateMessageStatus, {
+                messageId,
+                status: "reading_pdf", // reuse for URL processing
+              });
+
+              const urlContextMessage = {
+                role: "system" as const,
+                content: `I have access to content from the links you shared:\n\n${urlResult.contents
+                  .map(
+                    content =>
+                      `**${content.title}** (${content.url})\n${content.summary}`
+                  )
+                  .join(
+                    "\n\n"
+                  )}\n\nI can reference this content naturally in our conversation without formal citations. Feel free to ask me about anything from these sources or share more links!`,
+              };
+              // Insert after first system message
+              streamMsgs.splice(1, 0, urlContextMessage);
+            }
+          }
+        } catch (_error) {
+          // Continue without URL processing
+        } finally {
+          await ctx.runMutation(internal.messages.updateMessageStatus, {
+            messageId,
+            status: "thinking",
+          });
+        }
+
+        // Convert to AI SDK CoreMessage format
+        console.log("Converting messages to AI SDK format");
+        const context = await convertMessages(ctx, streamMsgs, provider);
+        console.log("Converted to", context.length, "context messages");
+
+        // Send init frame to client
+        console.log("Sending init frame to client");
+        const personaInit = personaId ?? conversation.personaId;
+        await writeFrame({
+          t: "init",
+          assistantMessageId: messageId,
+          model: modelId,
+          provider,
+          personaId: personaInit,
+          attachments: Array.isArray(lastUserAttachments)
+            ? lastUserAttachments.map(a => ({
+                type: a.type,
+                name: a.name,
+                size: a.size,
+              }))
+            : [],
+        });
+        console.log("Sent init frame");
+
+        // Prepare model
+        console.log(
+          "Getting API key for provider:",
+          provider,
+          "modelId:",
+          modelId
+        );
+        const apiKey = await getApiKey(ctx, provider, modelId, conversationId);
+        console.log("API key retrieved:", apiKey ? "YES" : "NO");
+        const model = await createLanguageModel(ctx, provider, modelId, apiKey);
+        console.log("Language model created:", !!model);
+        const streamOpts = await getProviderStreamOptions(
+          ctx,
+          provider,
+          modelId,
+          reasoningConfig?.enabled
+            ? {
+                effort: reasoningConfig.effort,
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+          undefined
+        );
+        console.log("Stream options:", streamOpts);
+
+        // DB batching
+        let pending = "";
+        let lastFlush = Date.now();
+        const FLUSH_MS = 250;
+        const hasDelimiter = (s: string) =>
+          /[\n.!?]|(\s{2,})/.test(s) || s.length > 100;
+
+        const flush = async () => {
+          if (!pending) {
+            return;
+          }
+          const toSend = pending;
+          pending = "";
+          await ctx.runMutation(internal.messages.updateAssistantContent, {
+            messageId,
+            appendContent: toSend,
+          });
+        };
+
+        // Reasoning batching (incremental thinking traces)
+        let reasoningPending = "";
+        let reasoningTail = ""; // dedupe tail to avoid duplicate tokens
+        let lastReasoningFlush = Date.now();
+        const REASONING_FLUSH_MS = 250;
+        const REASONING_MIN_CHARS = 24;
+        const REASONING_TAIL_MAX = 80;
+        const dedupeDelta = (tail: string, delta: string) => {
+          if (!delta) {
+            return "";
+          }
+          // Sanitize provider-specific markers
+          const d = humanizeReasoningText(delta);
+          if (!d) {
+            return "";
+          }
+          const maxOverlap = Math.min(tail.length, d.length);
+          let overlap = 0;
+          for (let k = maxOverlap; k >= 1; k--) {
+            if (tail.slice(-k) === d.slice(0, k)) {
+              overlap = k;
+              break;
+            }
+          }
+          return d.slice(overlap);
+        };
+        const flushReasoning = async () => {
+          if (!reasoningPending) {
+            return;
+          }
+          const toSend = reasoningPending;
+          reasoningPending = "";
+          await ctx.runMutation(internal.messages.internalAtomicUpdate, {
+            id: messageId,
+            appendReasoning: toSend,
+          });
+        };
+
+        // Flip to streaming on first chunk
+        let didStart = false;
+
+        // Kick off LLM stream
+        (async () => {
+          try {
+            console.log(
+              "Starting LLM stream with context messages:",
+              context.length
+            );
+            console.log("Last message:", context[context.length - 1]);
+            const result = streamText({
+              model,
+              messages: context,
+              temperature,
+              topP,
+              frequencyPenalty,
+              presencePenalty,
+              ...(maxTokens && maxTokens > 0 ? { maxTokens } : {}),
+              ...streamOpts,
+              // biome-ignore lint/style/useNamingConvention: AI SDK option
+              experimental_transform: smoothStream({
+                delayInMs: 8,
+                chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/, // CJK-aware
+              }),
+              onChunk: async ({ chunk }) => {
+                // Stream reasoning deltas to DB so UI can render traces live
+                if (chunk.type === "reasoning" && chunk.textDelta) {
+                  const delta = dedupeDelta(reasoningTail, chunk.textDelta);
+                  if (delta) {
+                    reasoningPending += delta;
+                    // Update tail
+                    reasoningTail = (reasoningTail + delta).slice(
+                      -REASONING_TAIL_MAX
+                    );
+                    // Stream reasoning delta as NDJSON line: {"t":"reasoning","d":"..."}\n
+                    await writeFrame({ t: "reasoning", d: delta });
+                  }
+                  const now = Date.now();
+                  if (
+                    reasoningPending.length >= REASONING_MIN_CHARS ||
+                    now - lastReasoningFlush > REASONING_FLUSH_MS
+                  ) {
+                    await flushReasoning();
+                    lastReasoningFlush = now;
+                  }
+                }
+              },
+            });
+
+            // Proactively mark as streaming once the request is in flight
+            if (!didStart) {
+              try {
+                await ctx.runMutation(internal.messages.updateAssistantStatus, {
+                  messageId,
+                  status: "streaming",
+                });
+                didStart = true;
+                await writeFrame({ t: "status", status: "streaming" });
+              } catch {
+                // Ignore errors when updating streaming status
+              }
+            }
+
+            let lastCheck = Date.now();
+            console.log("Entering stream reading loop");
+            let chunkCount = 0;
+            for await (const chunk of result.textStream) {
+              chunkCount++;
+              console.log(
+                "Received chunk #",
+                chunkCount,
+                ":",
+                chunk.slice(0, 50)
+              );
+              if (!didStart) {
+                didStart = true;
+                await ctx.runMutation(internal.messages.updateAssistantStatus, {
+                  messageId,
+                  status: "streaming",
+                });
+              }
+
+              pending += chunk;
+              // Stream content delta to author as NDJSON line: {"t":"content","d":"..."}\n
+              await writeFrame({ t: "content", d: chunk });
+
+              const now = Date.now();
+              if (hasDelimiter(chunk) || now - lastFlush > FLUSH_MS) {
+                await flush();
+                lastFlush = now;
+              }
+
+              // Periodically check if conversation was stopped
+              if (now - lastCheck > 500) {
+                lastCheck = now;
+                try {
+                  const convo = await ctx.runQuery(
+                    internal.conversations.internalGet,
+                    { id: conversationId }
+                  );
+                  if (convo && convo.isStreaming === false) {
+                    break;
+                  }
+                } catch {
+                  // Ignore errors when checking streaming status
+                }
+              }
+            }
+
+            // Final flush and finalize
+            console.log("Stream completed, total chunks received:", chunkCount);
+            await flush();
+            await flushReasoning();
+            await ctx.runMutation(internal.messages.internalUpdate, {
+              id: messageId,
+              metadata: { finishReason: "stop" },
+            });
+            await ctx.runMutation(internal.messages.updateMessageStatus, {
+              messageId,
+              status: "done",
+            });
+            // Clear streaming flag on conversation BEFORE sending finish
+            try {
+              await ctx.runMutation(internal.conversations.internalPatch, {
+                id: conversationId,
+                updates: { isStreaming: false },
+              });
+            } catch {
+              // Ignore errors when clearing streaming flag
+            }
+
+            // Inform client of finish
+            await writeFrame({ t: "finish", reason: "stop" });
+            await writer.close();
+          } catch (error: unknown) {
+            console.error("Stream error:", error);
+            const errorMessage =
+              error instanceof Error ? error.message : "stream failed";
+            await ctx.runMutation(internal.messages.updateContent, {
+              messageId,
+              content: `Error: ${errorMessage}`,
+              finishReason: "error",
+              usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+            });
+            await ctx.runMutation(internal.messages.updateMessageStatus, {
+              messageId,
+              status: "error",
+            });
+            // Inform client of finish (error)
+            await writeFrame({ t: "finish", reason: "error" });
+            try {
+              await writer.close();
+            } catch {
+              // Ignore errors when closing writer
+            }
+          } finally {
+            // Streaming flag already cleared above before sending finish frame
+          }
+        })();
+      })(); // End of main processing async function
+
+      // Removed deferred EXA/URL processing; we run pre-check + search + URL processing before LLM
+
+      return response;
+    } catch (_e) {
+      const origin = request.headers.get("origin") || "*";
+      const reqAllowed =
+        request.headers.get("access-control-request-headers") ||
+        "Content-Type, Authorization";
+      return new Response(JSON.stringify({ error: "Bad Request" }), {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": reqAllowed,
+          "Access-Control-Allow-Credentials": "true",
+        },
+      });
+    }
+  }),
+});
+
+http.route({
+  path: "/conversation/stream",
+  method: "OPTIONS",
+  handler: httpAction(() => {
+    return Promise.resolve(
+      new Response(null, {
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Max-Age": "86400",
+        },
+      })
+    );
+  }),
+});

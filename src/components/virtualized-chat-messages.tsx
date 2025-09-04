@@ -10,6 +10,7 @@ import {
 import { VList, type VListHandle } from "virtua";
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
+import { useStreamOverlays } from "@/stores/stream-overlays";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 type VirtualizedChatMessagesProps = {
@@ -193,9 +194,51 @@ export const VirtualizedChatMessages = memo(
         return map;
       }, [messages]);
 
+      // Overlay map for optimistic author-side streaming
+      const overlays = useStreamOverlays(s => s.overlays);
+      const reasoningOverlays = useStreamOverlays(s => s.reasoning);
+      const statusOverlays = useStreamOverlays(s => s.status);
+      const citationOverlays = useStreamOverlays(s => s.citations);
+
       const messageSelector = useCallback(
-        (messageId: string) => messagesMap.get(messageId),
-        [messagesMap]
+        (messageId: string) => {
+          const base = messagesMap.get(messageId);
+          if (!base) {
+            return base;
+          }
+          const overlay = overlays[messageId];
+          const overlayReasoning = reasoningOverlays[messageId];
+          const overlayStatus = statusOverlays[messageId];
+          const overlayCitations = citationOverlays[messageId];
+          if (
+            (overlay ||
+              overlayReasoning ||
+              overlayStatus ||
+              overlayCitations) &&
+            base.role === "assistant"
+          ) {
+            // Overlay rendered content for author while streaming via HTTP
+            return {
+              ...base,
+              content: overlay ?? base.content,
+              reasoning: overlayReasoning ?? base.reasoning,
+              citations: overlayCitations ?? base.citations,
+              // Ensure the message shows live status during overlay
+              status:
+                base.status === "done"
+                  ? base.status
+                  : overlayStatus || base.status || "streaming",
+            } as ChatMessageType;
+          }
+          return base;
+        },
+        [
+          messagesMap,
+          overlays,
+          reasoningOverlays,
+          statusOverlays,
+          citationOverlays,
+        ]
       );
 
       // Generate a unique ID for this VList instance

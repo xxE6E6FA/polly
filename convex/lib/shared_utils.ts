@@ -262,6 +262,7 @@ export function createDefaultMessageFields(conversationId: Id<"conversations">, 
   attachments?: any[];
   reasoningConfig?: any;
   temperature?: number;
+  status?: "thinking" | "searching" | "reading_pdf" | "streaming" | "done" | "error";
 } = { role: "user", content: "" }) {
   return {
     conversationId,
@@ -271,6 +272,7 @@ export function createDefaultMessageFields(conversationId: Id<"conversations">, 
     provider: options.provider,
     attachments: options.attachments,
     reasoningConfig: options.reasoningConfig,
+    status: options.status,
     isMainBranch: true,
     createdAt: Date.now(),
     metadata: options.temperature !== undefined

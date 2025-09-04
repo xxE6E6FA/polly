@@ -302,7 +302,9 @@ export const ImageModelsTab = () => {
     if (searchMode === "local") {
       // Create a map of model definitions for quick lookup
       const definitionsMap = new Map(
-        modelDefinitions.map(def => [def.modelId, def])
+        modelDefinitions
+          .filter(def => def !== null)
+          .map(def => [def.modelId, def])
       );
 
       // Add user's selected models (especially custom ones not in the collection)

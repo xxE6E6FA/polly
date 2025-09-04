@@ -1,7 +1,8 @@
 import { api } from "@convex/_generated/api";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import {
   type ChatMode,
@@ -98,6 +99,12 @@ export function useChat({ conversationId }: UseChatParams) {
   }, [selectedModel]);
 
   // --- Chat Handlers ---
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
+
   const chatHandlers = useMemo(() => {
     if (conversationId) {
       const mode: ChatMode = {
@@ -110,6 +117,7 @@ export function useChat({ conversationId }: UseChatParams) {
           deleteMessage: deleteMessageMutation,
           stopGeneration: stopGenerationMutation,
         },
+        getAuthToken: () => authRef.current || null,
       };
       return createChatHandlers(mode, modelOptions);
     }
@@ -265,42 +273,34 @@ export function useChat({ conversationId }: UseChatParams) {
       return false;
     }
 
-    // Check for any assistant message that is actively streaming
-    // A message is streaming if it has no finishReason AND is not explicitly stopped
-    // Only check the most recent assistant message to avoid issues with multiple messages
-    let lastAssistantMessage: ChatMessage | null = null;
-
-    // Find the most recent assistant message
+    // Check the most recent assistant message
+    let lastAssistant: ChatMessage | null = null;
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === "assistant") {
-        lastAssistantMessage = messages[i];
+        lastAssistant = messages[i];
         break;
       }
     }
-
-    if (!lastAssistantMessage) {
+    if (!lastAssistant) {
       return false;
     }
 
-    // Only the most recent assistant message determines streaming state
-    // A message is considered streaming if:
-    // 1. It has no finishReason (completion reason)
-    // 2. It hasn't been explicitly stopped
-    // 3. Its status is not 'done' (completed)
-    // 4. It was created recently (within last 30 seconds) to avoid false positives on old messages
-    const now = Date.now();
-    const messageAge = now - (lastAssistantMessage.createdAt || 0);
-    const isRecent = messageAge < 30000; // 30 seconds
+    const status = lastAssistant.status;
+    const hasFinish = Boolean(lastAssistant.metadata?.finishReason);
+    const isStopped = Boolean(lastAssistant.metadata?.stopped);
+    const isDone = status === "done";
 
-    const hasFinishReason = lastAssistantMessage.metadata?.finishReason;
-    const isStopped = lastAssistantMessage.metadata?.stopped;
-    const isDone = lastAssistantMessage.status === "done";
+    // Treat active transient states as streaming regardless of age
+    if (
+      status === "searching" ||
+      status === "thinking" ||
+      status === "streaming"
+    ) {
+      return !(hasFinish || isStopped || isDone);
+    }
 
-    // For existing conversations, we should not show streaming state for old completed messages
-    // Only show streaming if the message is recent AND has no termination indicators
-    const result = isRecent && !(hasFinishReason || isStopped || isDone);
-
-    return result;
+    // Fallback: legacy heuristic (no finish/done/stopped)
+    return !(hasFinish || isStopped || isDone);
   }, [messages]);
 
   // Check if we can save (private mode only)

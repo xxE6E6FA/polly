@@ -26,4 +26,4 @@
 - **Backend**: Convex (realtime database/functions, auth, file storage)
 - **AI**: Multiple providers (Anthropic, OpenAI, Google, OpenRouter) via AI SDK
 - **Key Data**: Users, conversations, messages, personas, API keys, background jobs
-- **Streaming**: Real-time chat with persistent streaming via Convex
+- **Streaming**: Real-time chat streamed over Convex HTTP actions

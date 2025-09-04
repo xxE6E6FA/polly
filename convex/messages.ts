@@ -13,6 +13,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { CONFIG } from "./ai/config";
 import { getApiKey } from "./ai/encryption";
 import { withRetry } from "./ai/error_handlers";
 import { createLanguageModel } from "./ai/server_streaming";
@@ -28,6 +29,7 @@ import {
   extendedMessageMetadataSchema,
   imageGenerationSchema,
   messageStatusSchema,
+  providerSchema,
   reasoningConfigSchema,
   webCitationSchema,
 } from "./lib/schemas";
@@ -308,6 +310,8 @@ export const internalUpdate = internalMutation({
     id: v.id("messages"),
     content: v.optional(v.string()),
     reasoning: v.optional(v.string()),
+    model: v.optional(v.string()),
+    provider: v.optional(providerSchema),
     // Web search citations
     citations: v.optional(v.array(webCitationSchema)),
     metadata: v.optional(extendedMessageMetadataSchema),
@@ -1317,7 +1321,7 @@ export const refineAssistantMessage = action({
         temperature: targetTemperature,
         // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
         experimental_transform: smoothStream({
-          delayInMs: 20,
+          delayInMs: CONFIG.PERF.SMOOTH_STREAM_DELAY_MS,
           chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
         }),
       } as const;
@@ -1703,6 +1707,3 @@ export const getByReplicateId = internalQuery({
     return messages[0] || null;
   },
 });
-
-// Re-export streamResponse from ai/messages for internal API access
-export { streamResponse } from "./ai/messages";

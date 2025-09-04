@@ -33,7 +33,9 @@
       "Bash(npx shadcn@latest add https://frimousse.liveblocks.io/r/emoji-picker)",
       "Bash(pntml lint:*)",
       "WebFetch(domain:openrouter.ai)",
-      "Bash(pnpm dev:*)"
+      "Bash(pnpm dev:*)",
+      "WebFetch(domain:docs.convex.dev)",
+      "WebFetch(domain:replicate.com)"
     ],
     "deny": []
   },

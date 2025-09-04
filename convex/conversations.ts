@@ -56,7 +56,7 @@ import {
   validateMonthlyMessageLimit,
   validateMonthlyMessageLimitForAction,
 } from "./lib/shared_utils";
-import { abortStream, isConversationStreaming } from "./lib/streaming_utils";
+import { isConversationStreaming } from "./lib/streaming_utils";
 import type { Citation } from "./types";
 
 export const createConversation = mutation({
@@ -80,8 +80,6 @@ export const createConversation = mutation({
       validateAuthenticatedUser(ctx),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
     ]);
-
-    const useWebSearch = true; // Search enabled for authenticated users
 
     // Check if this is a built-in free model and enforce limits
     // If model has 'free' field, it's from builtInModels table and is a built-in model
@@ -132,6 +130,7 @@ export const createConversation = mutation({
     );
 
     // Create assistant message directly (avoid extra mutation call)
+    // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
     const assistantMessageId = await ctx.db.insert(
       "messages",
       createDefaultMessageFields(conversationId, {
@@ -139,6 +138,7 @@ export const createConversation = mutation({
         content: "",
         model: fullModel.modelId,
         provider: fullModel.provider,
+        status: "thinking",
       })
     );
 
@@ -156,23 +156,6 @@ export const createConversation = mutation({
       await Promise.all([
         // Mark conversation as streaming (required for stream to start)
         setConversationStreaming(ctx, conversationId, true),
-
-        // Schedule streaming generation with zero delay
-        ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-          messageId: assistantMessageId,
-          conversationId,
-          model: fullModel, // Pass the full model object
-          personaId: args.personaId,
-          reasoningConfig: args.reasoningConfig,
-          temperature: args.temperature,
-          maxTokens: undefined,
-          topP: args.topP,
-          frequencyPenalty: args.frequencyPenalty,
-          presencePenalty: args.presencePenalty,
-          topK: args.topK,
-          useWebSearch, // Pass the search availability determined by user auth
-        }),
-
         // Schedule title generation in background (can be delayed)
         ctx.scheduler.runAfter(
           100,
@@ -318,13 +301,10 @@ export const sendMessage = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
-    const [authUserId, conversation, fullModel] = await Promise.all([
-      getAuthUserId(ctx),
+    const [conversation, fullModel] = await Promise.all([
       ctx.runQuery(api.conversations.get, { id: args.conversationId }),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
     ]);
-
-    const useWebSearch = !!authUserId; // Search enabled only for authenticated users
 
     // Use provided personaId, or fall back to conversation's existing personaId
     const effectivePersonaId =
@@ -408,25 +388,6 @@ export const sendMessage = action({
         ) as typeof personaParams;
       }
     }
-
-    // Start streaming response immediately
-    await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-      messageId: assistantMessageId,
-      conversationId: args.conversationId,
-      model: fullModel, // Pass the full model object
-      personaId: effectivePersonaId,
-      reasoningConfig: args.reasoningConfig,
-      temperature: args.temperature ?? personaParams.temperature,
-      maxTokens: args.maxTokens,
-      topP: args.topP ?? personaParams.topP,
-      frequencyPenalty: args.frequencyPenalty ?? personaParams.frequencyPenalty,
-      presencePenalty: args.presencePenalty ?? personaParams.presencePenalty,
-      // Provider extras
-      topK: args.topK ?? personaParams.topK,
-      repetitionPenalty:
-        args.repetitionPenalty ?? personaParams.repetitionPenalty,
-      useWebSearch, // Pass the search availability determined by user auth
-    });
 
     // Trigger summary generation in background if conversation is getting long
     const messageCount = await ctx.runQuery(api.messages.getMessageCount, {
@@ -1242,16 +1203,6 @@ export const editAndResendMessage = action({
       updates: { isStreaming: true },
     });
 
-    // Schedule streaming response
-    await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-      messageId: assistantMessageId,
-      conversationId: message.conversationId,
-      model: fullModel,
-      personaId: conversation.personaId,
-      reasoningConfig: args.reasoningConfig,
-      useWebSearch: true,
-    });
-
     return {
       assistantMessageId,
     };
@@ -1264,6 +1215,7 @@ export const retryFromMessage = action({
     messageId: v.id("messages"),
     retryType: v.optional(v.union(v.literal("user"), v.literal("assistant"))),
     ...modelProviderArgs,
+    personaId: v.optional(v.id("personas")),
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (
@@ -1314,6 +1266,16 @@ export const retryFromMessage = action({
       args.provider
     );
 
+    // If personaId is provided, update the conversation persona immediately
+    const effectivePersonaId = args.personaId ?? conversation.personaId;
+    if (args.personaId && args.personaId !== conversation.personaId) {
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { personaId: args.personaId },
+        setUpdatedAt: true,
+      });
+    }
+
     if (retryType === "assistant") {
       // Assistant retry: delete messages AFTER this assistant message (preserve context),
       // then clear this assistant message and stream into the SAME messageId
@@ -1334,11 +1296,21 @@ export const retryFromMessage = action({
       });
 
       // Clear the assistant message content and reset ALL streaming-related state
+      // Also update model/provider so UI reflects the new selection immediately
       await ctx.runMutation(internal.messages.internalUpdate, {
         id: targetMessage._id,
         content: "",
-        reasoning: undefined,
+        reasoning: "", // Clear reasoning by setting to empty string
         citations: [],
+        model: fullModel.modelId,
+        provider: fullModel.provider as
+          | "openai"
+          | "anthropic"
+          | "google"
+          | "groq"
+          | "openrouter"
+          | "replicate"
+          | "elevenlabs",
         metadata: { finishReason: undefined }, // Clear finish reason to allow new streaming
       });
 
@@ -1364,22 +1336,12 @@ export const retryFromMessage = action({
       // Build context messages for streaming (not used directly but required for consistency)
       await buildContextMessages(ctx, {
         conversationId: args.conversationId,
-        personaId: conversation.personaId,
+        personaId: effectivePersonaId,
         includeUpToIndex: previousUserMessageIndex,
         modelCapabilities: {
           supportsImages: fullModel.supportsImages ?? false,
           supportsFiles: fullModel.supportsFiles ?? false,
         },
-      });
-
-      // Schedule streaming to reuse the SAME assistant message id
-      await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-        conversationId: args.conversationId,
-        messageId: targetMessage._id,
-        model: fullModel,
-        personaId: conversation.personaId,
-        reasoningConfig: args.reasoningConfig,
-        useWebSearch: true,
       });
 
       return { assistantMessageId: targetMessage._id };
@@ -1394,7 +1356,7 @@ export const retryFromMessage = action({
     // Build context messages up to the retry point
     const { contextMessages } = await buildContextMessages(ctx, {
       conversationId: args.conversationId,
-      personaId: conversation.personaId,
+      personaId: effectivePersonaId,
       includeUpToIndex: contextEndIndex,
       modelCapabilities: {
         supportsImages: fullModel.supportsImages ?? false,
@@ -1407,7 +1369,7 @@ export const retryFromMessage = action({
       conversationId: args.conversationId,
       model: fullModel.modelId,
       provider: fullModel.provider,
-      conversation,
+      conversation: { ...conversation, personaId: effectivePersonaId },
       contextMessages,
       useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
@@ -1513,9 +1475,7 @@ export const editMessage = action({
 export const stopGeneration = mutation({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
-    // First, try to abort any active in-memory streams
-    abortStream(args.conversationId);
-    // Also mark the conversation as not streaming to signal completion
+    // Mark the conversation as not streaming to signal completion
     await setConversationStreaming(ctx, args.conversationId, false);
 
     // Also mark any streaming message as stopped
@@ -1641,7 +1601,7 @@ export const createBranchingConversation = action({
     // **CRITICAL**: Trigger streaming for the assistant response!
     // This happens AFTER context is added so AI can see the full conversation
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      const [fullModel] = await Promise.all([
+      const [_fullModel] = await Promise.all([
         getUserEffectiveModelWithCapabilities(
           ctx,
           selectedModel.modelId,
@@ -1655,16 +1615,6 @@ export const createBranchingConversation = action({
           true
         ),
       ]);
-
-      // Schedule streaming generation action for real-time updates
-      await ctx.scheduler.runAfter(0, internal.ai.messages.streamResponse, {
-        messageId: createResult.assistantMessageId,
-        conversationId: createResult.conversationId,
-        model: fullModel, // Pass the full model object
-        personaId: args.personaId,
-        reasoningConfig: args.reasoningConfig,
-        useWebSearch: args.useWebSearch ?? true, // Enable web search by default for authenticated users
-      });
     }
 
     return {
@@ -1674,10 +1624,6 @@ export const createBranchingConversation = action({
     };
   },
 });
-
-/**
- * Wrapper functions for UI compatibility (replaces agent_conversations.ts)
- */
 
 /**
  * Create conversation action wrapper (UI expects this)

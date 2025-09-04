@@ -5,6 +5,7 @@ import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
 import { getProviderReasoningConfig } from "../shared/reasoning-config";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
+import { CONFIG } from "./ai/config";
 import {
   incrementUserMessageStats,
   mergeSystemPrompts,
@@ -13,12 +14,18 @@ import { log } from "./lib/logger";
 
 export const chatStream = httpAction(
   async (ctx, request): Promise<Response> => {
-    // Common CORS headers
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
+    // Relaxed CORS: reflect Origin and allow credentials for cookie-based auth
+    const origin = request.headers.get("origin") || "*";
+    const reqAllowed =
+      request.headers.get("access-control-request-headers") ||
+      "Content-Type, Authorization";
+    const corsHeaders: Record<string, string> = {
+      "Access-Control-Allow-Origin": origin,
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Headers": reqAllowed,
+      "Access-Control-Allow-Credentials": "true",
     };
+    corsHeaders["Vary"] = "Origin";
 
     // Handle CORS preflight requests
     if (request.method === "OPTIONS") {
@@ -310,7 +317,7 @@ export const chatStream = httpAction(
           ...streamOptions,
           // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
           experimental_transform: smoothStream({
-            delayInMs: 20,
+            delayInMs: CONFIG.PERF.SMOOTH_STREAM_DELAY_MS,
             chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
           }),
         });
