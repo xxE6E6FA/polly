@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useImageParams } from "@/hooks/use-generation";
+import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
 import { removeAttachmentAt } from "@/stores/actions/chat-input-actions";
 import { useChatHistory } from "@/stores/chat-ui-store";
@@ -36,6 +37,7 @@ interface TextInputSectionProps {
   disableAutoResize?: boolean;
   onMobileFullscreenToggle?: () => void;
   hideExpandToggle?: boolean;
+  showExpandToggle?: boolean;
 }
 
 export function TextInputSection({
@@ -56,6 +58,7 @@ export function TextInputSection({
   disableAutoResize,
   onMobileFullscreenToggle,
   hideExpandToggle,
+  showExpandToggle,
 }: TextInputSectionProps) {
   const { attachments } = useChatAttachments(conversationId);
   const handleRemoveAttachment = useCallback(
@@ -127,7 +130,7 @@ export function TextInputSection({
 
       <div className="flex flex-col">
         <div className="flex items-end gap-3">
-          <div className="flex-1 flex items-center relative">
+          <div className="flex-1 flex items-center relative group">
             <ChatInputField
               value={value}
               onChange={handleInputChangeWithHistory}
@@ -136,12 +139,14 @@ export function TextInputSection({
               placeholder={selectedPersonaId ? "" : placeholder}
               disabled={disabled}
               autoFocus={autoFocus}
-              className={
+              className={cn(
+                // Always reserve a gutter on the right so text never sits under the button
+                "pr-10 sm:pr-12",
                 textareaClassNameOverride ??
-                (isFullscreen && !isMobile
-                  ? "min-h-[50vh] max-h-[85vh]"
-                  : undefined)
-              }
+                  (isFullscreen && !isMobile
+                    ? "min-h-[50vh] max-h-[85vh]"
+                    : undefined)
+              )}
               isFullscreen={isFullscreen}
               isTransitioning={isTransitioning}
               disableAutoResize={disableAutoResize}
@@ -153,7 +158,11 @@ export function TextInputSection({
             />
             <ExpandToggleButton
               onToggle={handleToggleFullscreenStable}
-              isVisible={canSend && !hideExpandToggle}
+              isVisible={Boolean(
+                canSend &&
+                  !hideExpandToggle &&
+                  (showExpandToggle || isFullscreen)
+              )}
               isExpanded={isFullscreen}
               disabled={disabled}
             />

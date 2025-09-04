@@ -12,6 +12,7 @@ import {
   setTemperature as setTemperatureAction,
 } from "@/stores/actions/chat-input-actions";
 import { useChatFullscreenUI } from "@/stores/chat-ui-store";
+// Fullscreen overlay toggle is handled inside the input section now
 import type { ConversationId, ReasoningConfig } from "@/types";
 import { ModelPicker } from "../../model-picker";
 import { ReasoningPicker } from "../../reasoning-picker";
@@ -40,6 +41,7 @@ interface ChatInputBottomBarProps {
   hasExistingMessages: boolean;
   conversationId?: ConversationId;
   hasInputText: boolean;
+  showExpandToggle?: boolean;
   onSend: () => void;
   onStop?: () => void;
   onSendAsNewConversation?: (
@@ -62,6 +64,7 @@ export function ChatInputBottomBar({
   hasExistingMessages,
   conversationId,
   hasInputText,
+  showExpandToggle,
   onSend,
   onStop,
   onSendAsNewConversation,
@@ -307,6 +310,8 @@ export function ChatInputBottomBar({
             conversationId={conversationId}
           />
         )}
+        {/* Desktop fullscreen toggle: integrates with bottom bar */}
+        {/* Desktop fullscreen toggle removed to match Gemini: use top-right overlay */}
         <SendButtonGroup
           canSend={canSend}
           isStreaming={Boolean(isStreaming)}
