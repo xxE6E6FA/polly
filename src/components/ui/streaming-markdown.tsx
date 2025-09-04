@@ -23,28 +23,25 @@ import {
 const MessageContext = createContext<string | undefined>(undefined);
 export const useMessageId = () => useContext(MessageContext);
 
-// Optimized throttling with content-aware adjustments
-const createOptimizedThrottle = (contentLength: number) => {
-  // Adjust throttling based on content length for better performance
-  const baseTargetChars = Math.min(50, Math.max(10, contentLength / 100));
-
-  return throttleBasic({
-    readAheadChars: Math.max(1, Math.floor(baseTargetChars / 10)),
-    targetBufferChars: baseTargetChars,
-    adjustPercentage: contentLength > 1000 ? 0.05 : 0.1, // Less aggressive for long content
-    frameLookBackMs: contentLength > 2000 ? 1500 : 1000,
-    windowLookBackMs: contentLength > 2000 ? 750 : 500,
-  });
-};
-
-// Default throttle tuned for responsive streaming
-const defaultThrottle = throttleBasic({
+// Burst-then-throttle strategy:
+// - No throttling for the very first moments to minimize TTFT.
+// - After a short burst, enable a light throttle to reduce CPU and re-render load.
+const BURST_MS = 250; // initial window with minimal throttle
+const BURST_CHARS = 80; // or until this many chars have arrived
+const BURST_THROTTLE = {
   readAheadChars: 1,
-  targetBufferChars: 6,
-  adjustPercentage: 0.2,
-  frameLookBackMs: 200,
-  windowLookBackMs: 120,
-});
+  targetBufferChars: 8,
+  adjustPercentage: 0.15,
+  frameLookBackMs: 80,
+  windowLookBackMs: 80,
+} as const;
+const THROTTLE_CONFIG = {
+  readAheadChars: 2,
+  targetBufferChars: 16,
+  adjustPercentage: 0.12,
+  frameLookBackMs: 110,
+  windowLookBackMs: 100,
+} as const;
 
 // Remove common streaming cursor/indicator glyphs that some renderers append
 // We only strip these when actively streaming to avoid altering legitimate output
@@ -95,14 +92,66 @@ const StreamingMarkdownInner = memo(
     );
 
     // Optimize throttle based on content length during streaming
+    const streamStartRef = useRef<number | null>(null);
+    const [fps, setFps] = useState<number | null>(null);
+    // Track when streaming begins to establish burst window
+    useEffect(() => {
+      if (isStreaming && streamStartRef.current === null) {
+        streamStartRef.current = performance.now();
+      }
+      if (!isStreaming) {
+        streamStartRef.current = null;
+      }
+    }, [isStreaming]);
+
+    // Lightweight FPS sampler during the first second of streaming
+    useEffect(() => {
+      if (!isStreaming) {
+        return;
+      }
+      let rafId = 0;
+      let frames = 0;
+      let last = performance.now();
+      let totalDelta = 0;
+      const sample = () => {
+        const now = performance.now();
+        totalDelta += now - last;
+        last = now;
+        frames++;
+        if (frames < 30) {
+          rafId = requestAnimationFrame(sample);
+        } else {
+          const avgDelta = totalDelta / Math.max(frames, 1);
+          const measuredFps = 1000 / Math.max(avgDelta, 1);
+          setFps(measuredFps);
+        }
+      };
+      rafId = requestAnimationFrame(sample);
+      return () => cancelAnimationFrame(rafId);
+    }, [isStreaming]);
+
     const optimizedThrottle = useMemo(() => {
       if (!isStreaming) {
         return undefined;
       }
-      return children.length > 100
-        ? createOptimizedThrottle(children.length)
-        : defaultThrottle;
-    }, [isStreaming, children.length]);
+      const now = performance.now();
+      const startedAt = streamStartRef.current ?? now;
+      const inBurstWindow =
+        now - startedAt < BURST_MS || children.length < BURST_CHARS;
+      if (inBurstWindow) {
+        return throttleBasic(BURST_THROTTLE);
+      }
+      const lowFps = fps !== null && fps < 45;
+      const cfg = lowFps
+        ? {
+            ...THROTTLE_CONFIG,
+            targetBufferChars: 28,
+            frameLookBackMs: 180,
+            windowLookBackMs: 150,
+          }
+        : THROTTLE_CONFIG;
+      return throttleBasic(cfg);
+    }, [isStreaming, children.length, fps]);
 
     const { blockMatches } = useLLMOutput({
       llmOutput: children,

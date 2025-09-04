@@ -1,13 +1,15 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useConversationPreload } from "@/hooks/use-conversation-preload";
+import { startAuthorStream } from "@/lib/ai/http-stream";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -36,6 +38,12 @@ export function ConversationView() {
   useEffect(() => {
     setPrivateMode(false);
   }, [setPrivateMode]);
+
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
 
   const handleSendAsNewConversation = useCallback(
     async (
@@ -69,6 +77,31 @@ export function ConversationView() {
         if (result?.conversationId) {
           if (shouldNavigate) {
             navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
+          }
+
+          if ("assistantMessageId" in result && result.assistantMessageId) {
+            setTimeout(() => {
+              (async () => {
+                try {
+                  // Wait briefly for token
+                  const start = Date.now();
+                  let token = authRef.current;
+                  while (!token && Date.now() - start < 2000) {
+                    await new Promise(r => setTimeout(r, 50));
+                    token = authRef.current;
+                  }
+                  await startAuthorStream({
+                    convexUrl: import.meta.env.VITE_CONVEX_URL,
+                    authToken: token || undefined,
+                    conversationId: result.conversationId,
+                    assistantMessageId:
+                      result.assistantMessageId as Id<"messages">,
+                  });
+                } catch {
+                  // Ignore errors when starting stream
+                }
+              })();
+            }, 0);
           }
           return result.conversationId;
         }

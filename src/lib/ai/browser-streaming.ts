@@ -156,7 +156,7 @@ export async function streamChat(
       ...streamOptions,
       // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
       experimental_transform: smoothStream({
-        delayInMs: 20,
+        delayInMs: 8,
         chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
       }),
       // Stream reasoning deltas concurrently with text

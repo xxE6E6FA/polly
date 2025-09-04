@@ -43,6 +43,7 @@ export const processAttachmentsForLLM = async (
   }
 
   const processedAttachments: Attachment[] = [];
+  let touchedPdfStatus = false;
 
   for (const attachment of attachments) {
     if (attachment.type === "pdf") {
@@ -57,6 +58,7 @@ export const processAttachmentsForLLM = async (
             messageId,
             status: "reading_pdf",
           });
+          touchedPdfStatus = true;
         }
 
         let textContent = "";
@@ -90,6 +92,10 @@ export const processAttachmentsForLLM = async (
               textFileId,
               content: textContent, // Use for immediate processing
             });
+            // Clear reading status since we completed processing for this PDF
+            if (messageId && touchedPdfStatus) {
+              try { await clearPdfReadingStatus(ctx, messageId); } catch {}
+            }
             continue;
           } catch (error) {
             console.warn("Failed to store PDF text:", error);
@@ -123,9 +129,8 @@ export const processAttachmentsForLLM = async (
             });
 
             console.log(`[PDF Processing] Server extraction complete for ${attachment.name}: ${textContent.length} chars`);
-            
             // Clear the PDF reading status
-            if (messageId) {
+            if (messageId && touchedPdfStatus) {
               await clearPdfReadingStatus(ctx, messageId);
             }
             continue;
@@ -133,7 +138,7 @@ export const processAttachmentsForLLM = async (
             console.error(`[PDF Processing] Server extraction failed for ${attachment.name}:`, error);
             
             // Clear the PDF reading status on error
-            if (messageId) {
+            if (messageId && touchedPdfStatus) {
               await clearPdfReadingStatus(ctx, messageId);
             }
             
@@ -168,6 +173,9 @@ export const processAttachmentsForLLM = async (
       processedAttachments.push(attachment);
     }
   }
-
+  // Ensure any temporary PDF status is cleared when we're done processing attachments
+  if (messageId && touchedPdfStatus) {
+    try { await clearPdfReadingStatus(ctx, messageId); } catch {}
+  }
   return processedAttachments;
 };

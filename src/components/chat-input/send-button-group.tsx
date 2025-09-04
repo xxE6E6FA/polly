@@ -111,16 +111,32 @@ export const SendButtonGroup = ({
       return (
         <SquareIcon
           weight="fill"
-          className={cn("h-3 w-3 fill-current text-current")}
+          className={cn(
+            "h-3.5 w-3.5",
+            "block shrink-0",
+            "fill-current text-current"
+          )}
+          aria-hidden="true"
         />
       );
     }
 
     if (isLoading || isSummarizing) {
-      return <Spinner size="sm" variant="white" className="h-3 w-3" />;
+      return (
+        <Spinner
+          size="sm"
+          variant="white"
+          className="h-3.5 w-3.5 block shrink-0"
+        />
+      );
     }
 
-    return <PaperPlaneTiltIcon className={cn("h-3.5 w-3.5 text-current")} />;
+    return (
+      <PaperPlaneTiltIcon
+        className={cn("h-3.5 w-3.5 text-current block shrink-0")}
+        aria-hidden="true"
+      />
+    );
   }, [isStreaming, isLoading, isSummarizing]);
 
   const dropdownMenuTriggerAnimationClasses = useMemo(() => {
@@ -270,8 +286,9 @@ export const SendButtonGroup = ({
           type={isStreaming ? "button" : "submit"}
           variant="ghost"
           className={cn(
-            "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full",
-            "inline-flex items-center justify-center",
+            "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
+            // Use flexbox centering to align icon perfectly
+            "flex items-center justify-center",
             // Keep icon color in sync with state
             isStreaming || canSend
               ? "text-primary-foreground"

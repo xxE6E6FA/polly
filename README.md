@@ -36,6 +36,7 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 - Unified web search powered by Exa.ai across all AI models
 - Image and PDF upload support
 - Conversation persistence with Convex
+- Streaming over Convex HTTP actions
 - User authentication and anonymous mode
 - Model switching and settings management
 

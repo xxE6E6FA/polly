@@ -79,6 +79,5 @@ export function humanizeReasoningText(text: string): string {
     .replace(/<thinking>|<\/thinking>/g, "")
     .replace(/<reasoning>|<\/reasoning>/g, "")
     .replace(/\[reasoning]|\[\/reasoning]/gi, "")
-    .replace(/^Thinking:\s*/i, "")
-    .trim();
+    .replace(/^Thinking:\s*/i, "");
 }
