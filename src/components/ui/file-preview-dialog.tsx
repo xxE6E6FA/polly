@@ -56,7 +56,7 @@ export const FilePreviewDialog = ({
           return null;
         }
         return (
-          <div className="flex h-[90vh] flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+          <div className="flex h-[90vh] flex-col overflow-hidden rounded-xl bg-background shadow-md">
             <DialogHeader
               title={attachment.name}
               onClose={() => onOpenChange(false)}
@@ -76,7 +76,7 @@ export const FilePreviewDialog = ({
           return null;
         }
         return (
-          <div className="relative overflow-hidden rounded-xl bg-background/95 shadow-2xl backdrop-blur-sm">
+          <div className="relative overflow-hidden rounded-xl bg-background shadow-md">
             <button
               onClick={() => onOpenChange(false)}
               className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition-opacity hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -98,7 +98,7 @@ export const FilePreviewDialog = ({
           return null;
         }
         return (
-          <div className="flex h-full max-h-[85vh] flex-col overflow-hidden rounded-xl bg-background shadow-2xl">
+          <div className="flex h-full max-h-[85vh] flex-col overflow-hidden rounded-xl bg-background shadow-md">
             <DialogHeader
               title={attachment.name}
               onClose={() => onOpenChange(false)}

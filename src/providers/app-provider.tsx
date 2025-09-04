@@ -18,7 +18,11 @@ export const AppProvider = ({ children }: AppProviderProps) => {
     <ErrorBoundary>
       <ConvexProvider>
         <UIProvider>
-          <TooltipProvider>
+          <TooltipProvider
+            delayDuration={200}
+            skipDelayDuration={400}
+            disableHoverableContent
+          >
             <ToastProvider>
               <UserDataProvider>
                 <BatchSelectionProvider>

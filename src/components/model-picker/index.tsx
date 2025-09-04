@@ -77,7 +77,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
         </div>
         <PopoverContent
           avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
+          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-sm"
           side="top"
           sideOffset={4}
         >
@@ -99,7 +99,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
       </div>
       <PopoverContent
         avoidCollisions
-        className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-lg"
+        className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-sm"
         side="top"
         sideOffset={4}
       >

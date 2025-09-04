@@ -461,7 +461,7 @@ export function EmojiPickerDrawer({
           {displayData.map(section => (
             <div key={section.key} className="pb-6">
               {/* Section header */}
-              <div className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-4 py-3 z-10">
+              <div className="sticky top-0 bg-background border-b px-4 py-3 z-10">
                 <h3 className="text-sm font-semibold text-foreground">
                   {section.label}
                 </h3>

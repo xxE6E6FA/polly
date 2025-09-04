@@ -70,7 +70,7 @@ const SimpleEmojiPicker = ({
 }) => {
   return (
     <EmojiPicker
-      className="h-96 w-80 border shadow-lg"
+      className="h-96 w-80 border shadow-sm"
       onClose={onClose}
       onEmojiSelect={({ emoji }: { emoji: string }) => {
         onEmojiSelect(emoji);
