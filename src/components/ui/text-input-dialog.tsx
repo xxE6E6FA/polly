@@ -104,7 +104,7 @@ export const TextInputDialog = ({
               <DialogDescription>{description}</DialogDescription>
             )}
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="stack-lg">
             {label && <Label htmlFor="input-field">{label}</Label>}
             <Input
               id="input-field"
@@ -137,7 +137,7 @@ export const TextInputDialog = ({
             <DrawerTitle>{title}</DrawerTitle>
           </DrawerHeader>
           <DrawerBody>
-            <div className="space-y-4">
+            <div className="stack-lg">
               {description && (
                 <p className="text-sm text-muted-foreground">{description}</p>
               )}

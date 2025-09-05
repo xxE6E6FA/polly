@@ -80,8 +80,8 @@ const TemperaturePickerComponent = ({
         align="start"
         sideOffset={4}
       >
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="stack-lg">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Temperature</Label>
             <div className="text-xs text-muted-foreground">
               Controls response randomness. Higher = more varied and creative.
@@ -101,7 +101,7 @@ const TemperaturePickerComponent = ({
               `${value.toFixed(1)} (${getTemperatureLabel(value)})`
             }
             showSpinners={true}
-            className="space-y-2"
+            className="stack-sm"
           />
 
           <div className="flex justify-center pt-2">

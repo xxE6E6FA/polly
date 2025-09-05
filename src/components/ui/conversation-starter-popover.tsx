@@ -145,8 +145,8 @@ export const ConversationStarterPopover = ({
         side="top"
         sideOffset={8}
       >
-        <div className="space-y-3">
-          <div className="space-y-1">
+        <div className="stack-md">
+          <div className="stack-sm">
             <h3 className="font-medium">Start a conversation</h3>
             <p className="text-sm text-muted-foreground">
               Choose a prompt to begin exploring this topic
@@ -155,7 +155,7 @@ export const ConversationStarterPopover = ({
 
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="space-y-2 text-center">
+              <div className="stack-sm text-center">
                 <Spinner className="mx-auto" size="sm" />
                 <p className="text-sm text-muted-foreground">
                   Generating prompts...
@@ -163,7 +163,7 @@ export const ConversationStarterPopover = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="stack-sm">
               {prompts.map((prompt, index) => (
                 <button
                   // biome-ignore lint/suspicious/noArrayIndexKey: we don't need a stable key for this

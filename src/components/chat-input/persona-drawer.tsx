@@ -113,9 +113,9 @@ export function PersonaDrawer({
         </DrawerHeader>
         <DrawerBody>
           {/* Persona List */}
-          <div className="space-y-3">
+          <div className="stack-md">
             {/* Default option */}
-            <div className="space-y-2">
+            <div className="stack-sm">
               <div className="text-xs font-medium text-muted-foreground px-2">
                 Default
               </div>
@@ -140,7 +140,7 @@ export function PersonaDrawer({
 
             {/* Built-in personas */}
             {builtInPersonas.length > 0 && (
-              <div className="space-y-3">
+              <div className="stack-md">
                 <div className="text-xs font-medium text-muted-foreground px-2">
                   Built-in
                 </div>
@@ -171,7 +171,7 @@ export function PersonaDrawer({
 
             {/* User-defined personas */}
             {userPersonas.length > 0 && (
-              <div className="space-y-2">
+              <div className="stack-sm">
                 <div className="text-xs font-medium text-muted-foreground px-2">
                   Custom
                 </div>

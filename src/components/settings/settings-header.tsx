@@ -76,7 +76,7 @@ export const SettingsHeader = ({
   // Page header (new usage)
   if (title && description) {
     return (
-      <div className={cn("space-y-2", className)}>
+      <div className={cn("stack-sm", className)}>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-muted-foreground">{description}</p>
       </div>

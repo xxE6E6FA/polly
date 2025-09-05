@@ -445,7 +445,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               hasInputText={
                 isMobile && isComposeDrawerOpen ? false : deferredInputHasText
               }
-              showExpandToggle={inlineShowExpand}
               onSend={handleSubmit}
               onStop={onStop}
               onSendAsNewConversation={handleSendAsNew}
@@ -467,7 +466,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
             <DrawerHeader>
               <DrawerTitle>Compose message</DrawerTitle>
             </DrawerHeader>
-            <DrawerBody className="space-y-3">
+            <DrawerBody className="stack-md">
               <TextInputSection
                 onSubmit={handleSubmit}
                 textareaRef={drawerTextareaRef}
@@ -504,7 +503,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 hasExistingMessages={hasExistingMessages}
                 conversationId={conversationId}
                 hasInputText={immediateHasText}
-                showExpandToggle={drawerShowExpand}
                 onSend={handleSubmit}
                 onStop={onStop}
                 onSendAsNewConversation={handleSendAsNew}

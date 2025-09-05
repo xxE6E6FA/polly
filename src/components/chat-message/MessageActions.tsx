@@ -693,7 +693,7 @@ const RetryDropdown = memo(
             <DialogHeader>
               <DialogTitle>How should I change the response?</DialogTitle>
             </DialogHeader>
-            <div className="space-y-3">
+            <div className="stack-md">
               <Input
                 value={refineText}
                 onChange={e => setRefineText(e.target.value)}

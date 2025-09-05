@@ -106,7 +106,7 @@ export const ConfirmationDialog = ({
             <DrawerTitle>{title}</DrawerTitle>
           </DrawerHeader>
           <DrawerBody>
-            <div className="space-y-4">
+            <div className="stack-lg">
               <p className="text-sm text-muted-foreground">{description}</p>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={handleCancel} type="button">

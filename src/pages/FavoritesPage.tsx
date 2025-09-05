@@ -110,7 +110,7 @@ export default function FavoritesPage() {
   if (data === undefined) {
     return (
       <div className="h-full overflow-y-auto">
-        <div className="p-6 space-y-4 max-w-4xl mx-auto">
+        <div className="p-6 stack-lg max-w-4xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="h-8 w-40 bg-muted/50 rounded animate-pulse" />
             <div className="h-9 w-60 bg-muted/50 rounded animate-pulse" />

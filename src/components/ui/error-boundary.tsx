@@ -99,14 +99,14 @@ export class ErrorBoundary extends React.Component<
       return (
         <div className="flex min-h-screen items-center justify-center p-6">
           <div className="w-full max-w-2xl">
-            <div className="flex flex-col items-center space-y-6 rounded-xl bg-background/50 p-8 text-center backdrop-blur-sm">
+            <div className="flex flex-col items-center stack-xl rounded-xl bg-background/50 p-8 text-center backdrop-blur-sm">
               <img
                 alt="Polly looking confused"
                 className="h-32 w-32 object-contain duration-500 animate-in fade-in-0 zoom-in-95"
                 src="/polly-404.png"
               />
 
-              <div className="space-y-2">
+              <div className="stack-sm">
                 <h1 className="text-3xl font-bold text-foreground">
                   Oops! Something went wrong
                 </h1>

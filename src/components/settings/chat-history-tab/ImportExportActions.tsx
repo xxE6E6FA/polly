@@ -160,7 +160,7 @@ export function ImportExportActions() {
   }, []);
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       <div className="flex flex-col gap-3">
         <h3 className="text-lg font-semibold">Import Conversations</h3>
         <p className="text-sm text-muted-foreground">

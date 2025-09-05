@@ -157,7 +157,7 @@ function PersonaPickerComponent({
 
   // Regular (non-compact) view
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("stack-md", className)}>
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">AI Personas</h3>
         <Badge variant="secondary" className="text-xs">

@@ -275,14 +275,14 @@ export const PersonaForm = ({
   ]);
 
   return (
-    <div className="space-y-10">
+    <div className="stack-xl">
       {/* Basic Information + Icon (responsive grid) */}
-      <div className="space-y-4">
+      <div className="stack-lg">
         <h2 className="mb-2 text-xl font-semibold">Basic Information</h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Name & Description */}
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="stack-lg">
+            <div className="stack-sm">
               <Label className="text-sm font-medium" htmlFor="name">
                 Name
               </Label>
@@ -295,7 +295,7 @@ export const PersonaForm = ({
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="stack-sm">
               <Label className="text-sm font-medium" htmlFor="description">
                 Description{" "}
                 <span className="text-xs font-normal text-muted-foreground">
@@ -368,7 +368,7 @@ export const PersonaForm = ({
         </div>
       </div>
       {/* Personality & Instructions */}
-      <div className="space-y-3">
+      <div className="stack-md">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Personality & Instructions</h2>
           <Button
@@ -382,7 +382,7 @@ export const PersonaForm = ({
             Fullscreen Editor
           </Button>
         </div>
-        <div className="space-y-3">
+        <div className="stack-md">
           <div className="group relative rounded-lg border border-input bg-background transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
             <Textarea
               className="min-h-[300px] resize-none rounded-none border-0 bg-transparent p-4 font-mono text-sm leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0 sm:text-base"
@@ -511,7 +511,7 @@ export const PersonaForm = ({
       {showAdvanced && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {/* Temperature */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Temperature</Label>
             <div className="text-xs text-muted-foreground">
               0 = deterministic, 2 = highly creative
@@ -531,7 +531,7 @@ export const PersonaForm = ({
             />
           </div>
           {/* top_p */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Top P</Label>
             <div className="text-xs text-muted-foreground">
               0-1 nucleus sampling
@@ -551,7 +551,7 @@ export const PersonaForm = ({
             />
           </div>
           {/* top_k */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Top K</Label>
             <div className="text-xs text-muted-foreground">
               0-100+ (provider dependent)
@@ -570,7 +570,7 @@ export const PersonaForm = ({
             />
           </div>
           {/* frequency penalty */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Frequency Penalty</Label>
             <div className="text-xs text-muted-foreground">
               Discourage repeated tokens
@@ -588,7 +588,7 @@ export const PersonaForm = ({
             />
           </div>
           {/* presence penalty */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Presence Penalty</Label>
             <div className="text-xs text-muted-foreground">
               Encourage new topics
@@ -606,7 +606,7 @@ export const PersonaForm = ({
             />
           </div>
           {/* repetition penalty */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <Label className="text-sm font-medium">Repetition Penalty</Label>
             <div className="text-xs text-muted-foreground">
               {">"}1 penalizes repetition
@@ -643,7 +643,7 @@ export const PersonaForm = ({
         </div>
       )}
       {hasElevenLabs && (
-        <div className="space-y-3">
+        <div className="stack-md">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-medium">Text-to-speech</h3>
@@ -652,7 +652,7 @@ export const PersonaForm = ({
               </p>
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="stack-sm">
             <VoicePicker
               value={formData.ttsVoiceId}
               onChange={id =>

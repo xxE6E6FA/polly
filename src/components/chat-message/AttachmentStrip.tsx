@@ -48,7 +48,7 @@ const AttachmentStripComponent = ({
 
   if (variant === "user") {
     return (
-      <div className={`mt-2 space-y-2 ${className || ""}`}>
+      <div className={`mt-2 stack-sm ${className || ""}`}>
         {attachments.map((attachment, index) => (
           <FileDisplay
             key={attachment.name || attachment.url || `attachment-${index}`}

@@ -100,13 +100,13 @@ export function ModelPicker({
   }, [models.length, scrollToCurrent]);
 
   return (
-    <div className={`space-y-3 w-full ${className || ""}`}>
+    <div className={`stack-md w-full ${className || ""}`}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
       <Command className="w-full rounded-md border bg-popover">
         <CommandInput placeholder="Search TTS models..." />
         <CommandList ref={listRef} style={{ maxHeight, overflowY: "auto" }}>
           <CommandEmpty>No models found</CommandEmpty>
-          <CommandGroup className="px-2 py-3 space-y-3">
+          <CommandGroup className="px-2 py-3 stack-md">
             {models.map(m => (
               <CommandItem
                 key={m.id}

@@ -175,7 +175,7 @@ export const UnifiedChatView = memo(
     const ConversationZeroState = () => {
       return (
         <div className="flex h-full w-full items-center justify-center">
-          <div className="text-center space-y-1 max-w-md px-4">
+          <div className="text-center stack-sm max-w-md px-4">
             <p className="text-base font-medium text-foreground">
               Start a conversation
             </p>

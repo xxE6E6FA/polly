@@ -139,7 +139,7 @@ export function ReasoningDrawer({
           {/* Enable/Disable Switch */}
           {canDisable && (
             <div className="flex items-center justify-between mb-4">
-              <div className="space-y-1">
+              <div className="stack-sm">
                 <Label className="text-sm font-medium">Enable Reasoning</Label>
                 <div className="text-xs text-muted-foreground">
                   Step-by-step thinking for better problem solving
@@ -155,7 +155,7 @@ export function ReasoningDrawer({
 
           {/* Effort Level Selection */}
           {config.enabled && (
-            <div className="space-y-2">
+            <div className="stack-sm">
               <Label className="text-sm font-medium">Reasoning Effort</Label>
               <div className="grid gap-2">
                 {reasoningOptions.map(option => {

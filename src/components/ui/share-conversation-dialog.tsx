@@ -192,7 +192,7 @@ export const ControlledShareConversationDialog = ({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="stack-xl">
           {/* Cleanup policy notice */}
           <Alert>
             <AlertDescription>
@@ -202,9 +202,9 @@ export const ControlledShareConversationDialog = ({
           </Alert>
 
           {isShared ? (
-            <div className="space-y-6">
+            <div className="stack-xl">
               {/* Share URL section */}
-              <div className="space-y-3">
+              <div className="stack-md">
                 <div className="relative">
                   <Input
                     readOnly
@@ -301,7 +301,7 @@ export const ControlledShareConversationDialog = ({
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="stack-lg">
               <Button
                 className="h-11 w-full bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
                 disabled={isSharing}

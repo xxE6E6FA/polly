@@ -236,7 +236,7 @@ export function ConversationSelectionList({
   return (
     <>
       <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3 space-y-3">
+        <CardHeader className="pb-3 stack-md">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Select Conversations</CardTitle>
             <div className="flex items-center gap-2">
@@ -334,7 +334,7 @@ export function ConversationSelectionList({
       >
         <DialogContent>
           <DialogTitle>Delete Conversations</DialogTitle>
-          <div className="space-y-4">
+          <div className="stack-lg">
             <p className="text-sm text-muted-foreground">
               Are you sure you want to delete {selectedConversations.size}{" "}
               conversation{selectedConversations.size === 1 ? "" : "s"}? This
@@ -378,7 +378,7 @@ export function ConversationSelectionList({
             <DrawerTitle>Delete Conversations</DrawerTitle>
           </DrawerHeader>
           <DrawerBody>
-            <div className="space-y-4">
+            <div className="stack-lg">
               <p className="text-sm text-muted-foreground">
                 Are you sure you want to delete {selectedConversations.size}{" "}
                 conversation{selectedConversations.size === 1 ? "" : "s"}? This

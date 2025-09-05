@@ -27,3 +27,25 @@
 - **AI**: Multiple providers (Anthropic, OpenAI, Google, OpenRouter) via AI SDK
 - **Key Data**: Users, conversations, messages, personas, API keys, background jobs
 - **Streaming**: Real-time chat streamed over Convex HTTP actions
+
+## UI Styling Guidelines (Tailwind + shadcn)
+- Spacing: Use stack utilities instead of `space-y-*`.
+  - Prefer semantic stacks: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`.
+  - Numeric stacks also exist: `.stack-1`, `.stack-1.5`, `.stack-2`, etc.
+  - Responsive works as usual: `sm:stack-md`, `lg:stack-xl`.
+- Colors: Use theme tokens, not hard-coded colors.
+  - Surfaces/text: `bg-background`, `text-foreground`, `bg-card`, `text-muted-foreground`, `border-border`.
+  - Accents: `bg-accent` + `text-accent-foreground`, primary/semantic variants via component props when available.
+- Elevation: Use Tailwind `shadow-*` utilities (mapped to design tokens).
+  - `shadow-sm`→elevation-1, `shadow`/`shadow-md`→elevation-2, `shadow-lg`→elevation-3, `shadow-xl`→elevation-4, `shadow-2xl`→elevation-5.
+  - Avoid inline `box-shadow` styles.
+- Radius: Use Tailwind `rounded-*` classes; `rounded-lg` maps to the app radius token.
+- Focus states: Use `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
+- Buttons/Badges: Prefer component variants (e.g., `variant="secondary"`, `variant="outline"`) over manual classes.
+- Typography: Default body uses Inter; prefer `leading-relaxed` or rely on base; use `text-balance`/`text-pretty` where appropriate.
+- Don’ts: Avoid `space-y-*` for sibling spacing, raw hex colors, ad-hoc shadows, and inline styles for layout.
+
+### Density
+- Wrap any container with `density-compact` to reduce vertical rhythm one step (e.g., `stack-lg` acts like `stack-md`).
+- Wrap with `density-spacious` to increase rhythm one step (e.g., `stack-md` acts like `stack-lg`).
+- Apply at page or section level depending on desired feel; leave default for general pages.

@@ -65,7 +65,7 @@ export const SearchQuery = ({
   const isDone = citations && citations.length > 0;
 
   return (
-    <div className="text-sm text-muted-foreground py-2 space-y-1">
+    <div className="text-sm text-muted-foreground py-2 stack-sm">
       <div className="flex items-center gap-2">
         {isDone ? (
           <svg

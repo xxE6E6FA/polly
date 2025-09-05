@@ -109,7 +109,7 @@ export const ConversationListContent = ({
   if ((conversations?.length ?? 0) === 0 && searchQuery.trim().length > 0) {
     return (
       <div className="flex h-32 items-center justify-center">
-        <div className="space-y-1 text-center">
+        <div className="stack-sm text-center">
           <ChatCircleIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">No results found</p>
         </div>
@@ -123,7 +123,7 @@ export const ConversationListContent = ({
   }
 
   return (
-    <div className="space-y-0 pb-4">
+    <div className="pb-4">
       {groupedConversations.pinned.length > 0 && (
         <ConversationGroup title="Pinned">
           {groupedConversations.pinned.map(conversation => (
@@ -207,16 +207,16 @@ export const ConversationListContent = ({
 
 const ConversationListSkeleton = () => {
   return (
-    <div className="space-y-0 pb-4">
+    <div className="pb-4">
       {/* Today section */}
-      <div className="space-y-1">
+      <div className="stack-sm">
         <div className="mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
       </div>
 
       {/* Yesterday section */}
-      <div className="space-y-1">
+      <div className="stack-sm">
         <div className="mb-1 h-4 w-20 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />

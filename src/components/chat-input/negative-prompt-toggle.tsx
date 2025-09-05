@@ -52,10 +52,10 @@ export const NegativePromptToggle = memo<NegativePromptToggleProps>(
     );
 
     return (
-      <div className={cn("space-y-0", className)}>
+      <div className={cn("stack-xs", className)}>
         {enabled ? (
           /* Enabled State with Textarea */
-          <div className="space-y-1">
+          <div className="stack-sm">
             {/* Active button header */}
             <div className="py-1 flex justify-start">
               <Button

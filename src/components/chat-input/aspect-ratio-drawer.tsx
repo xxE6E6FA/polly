@@ -89,13 +89,13 @@ export function AspectRatioDrawer({
         <DrawerHeader>
           <DrawerTitle>Aspect Ratio Selection</DrawerTitle>
         </DrawerHeader>
-        <DrawerBody className="space-y-6">
+        <DrawerBody className="stack-xl">
           {/* Aspect Ratio Options */}
-          <div className="space-y-2">
+          <div className="stack-sm">
             <div className="text-xs font-medium text-muted-foreground px-2">
               Aspect Ratios
             </div>
-            <div className="space-y-2">
+            <div className="stack-sm">
               {ASPECT_RATIOS.map(ratio => {
                 const Icon = ratio.icon;
                 const isSelected = aspectRatio === ratio.value;

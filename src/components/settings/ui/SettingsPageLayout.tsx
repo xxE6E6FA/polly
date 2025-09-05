@@ -10,7 +10,7 @@ export const SettingsPageLayout = ({
   className,
 }: SettingsPageLayoutProps) => {
   return (
-    <div className={cn("mx-auto max-w-4xl space-y-6", className)}>
+    <div className={cn("mx-auto max-w-4xl stack-xl", className)}>
       {children}
     </div>
   );

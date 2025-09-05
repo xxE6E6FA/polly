@@ -66,7 +66,7 @@ export default function NewPersonaPage() {
 
   return (
     <SettingsPageLayout>
-      <div className="space-y-2">
+      <div className="stack-sm">
         <h1 className="text-2xl font-semibold tracking-tight">
           Create New Persona
         </h1>
