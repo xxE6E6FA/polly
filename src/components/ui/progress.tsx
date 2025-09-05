@@ -222,7 +222,7 @@ const MultiJobProgress = React.forwardRef<
   }
 
   return (
-    <div ref={ref} className={cn("space-y-2", className)}>
+    <div ref={ref} className={cn("stack-sm", className)}>
       {jobs.map(job => (
         <JobProgressCard key={job.id} job={job} onRemove={onRemoveJob} />
       ))}

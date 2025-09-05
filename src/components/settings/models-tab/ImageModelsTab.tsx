@@ -522,7 +522,7 @@ export const ImageModelsTab = () => {
 
   if (!hasReplicateKey) {
     return (
-      <div className="space-y-6">
+      <div className="stack-xl">
         <SettingsHeader
           description="Configure Replicate image generation models. Add your Replicate API key to see available models."
           title="Image Models"
@@ -538,7 +538,7 @@ export const ImageModelsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-xl">
       <SettingsHeader
         description="Browse curated image generation models from Replicate's text-to-image collection. Use API search to find any model on Replicate, or add custom models by ID."
         title="Image Models"
@@ -678,7 +678,7 @@ export const ImageModelsTab = () => {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="stack-lg">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             {filteredModels.length} model

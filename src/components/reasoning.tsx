@@ -174,14 +174,14 @@ export const Reasoning = ({
                     component: "ul",
                     props: {
                       className:
-                        "mb-2 ml-5 list-disc space-y-1 marker:text-muted-foreground/60",
+                        "mb-2 ml-5 list-disc stack-sm marker:text-muted-foreground/60",
                     },
                   },
                   ol: {
                     component: "ol",
                     props: {
                       className:
-                        "mb-2 ml-5 list-decimal space-y-1 marker:text-muted-foreground/60",
+                        "mb-2 ml-5 list-decimal stack-sm marker:text-muted-foreground/60",
                     },
                   },
                   li: {

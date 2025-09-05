@@ -41,7 +41,7 @@ interface ChatInputBottomBarProps {
   hasExistingMessages: boolean;
   conversationId?: ConversationId;
   hasInputText: boolean;
-  showExpandToggle?: boolean;
+
   onSend: () => void;
   onStop?: () => void;
   onSendAsNewConversation?: (
@@ -64,7 +64,6 @@ export function ChatInputBottomBar({
   hasExistingMessages,
   conversationId,
   hasInputText,
-  showExpandToggle,
   onSend,
   onStop,
   onSendAsNewConversation,

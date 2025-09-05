@@ -197,13 +197,13 @@ export function VoiceList({
   }, [options.length, scrollToCurrent]);
 
   return (
-    <div className={`space-y-3 w-full ${className || ""}`}>
+    <div className={`stack-md w-full ${className || ""}`}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
       <Command className="w-full rounded-md border bg-popover">
         <CommandInput placeholder="Search voices..." />
         <CommandList ref={listRef} style={{ maxHeight, overflowY: "auto" }}>
           <CommandEmpty>No voices found</CommandEmpty>
-          <CommandGroup className="px-2 py-3 space-y-3">
+          <CommandGroup className="px-2 py-3 stack-md">
             {includeDefaultItem && (
               <Row
                 id="__default__"

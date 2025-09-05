@@ -76,9 +76,9 @@ export function ImageGenerationSettingsContent({
   );
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("stack-lg", className)}>
       {selectedModel?.supportsMultipleImages && (
-        <div className="space-y-3">
+        <div className="stack-md">
           <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Output
           </div>
@@ -122,7 +122,7 @@ export function ImageGenerationSettingsContent({
         <div className="border-t border-border" />
       )}
 
-      <div className="space-y-3">
+      <div className="stack-md">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Quality
         </div>
@@ -140,7 +140,7 @@ export function ImageGenerationSettingsContent({
             value === IMAGE_GENERATION_DEFAULTS.STEPS ? "auto" : String(value)
           }
           showSpinners={true}
-          className="space-y-2"
+          className="stack-sm"
         />
 
         <EnhancedSlider
@@ -158,18 +158,18 @@ export function ImageGenerationSettingsContent({
               : String(value)
           }
           showSpinners={true}
-          className="space-y-2"
+          className="stack-sm"
         />
       </div>
 
       <div className="border-t border-border" />
 
-      <div className="space-y-3">
+      <div className="stack-md">
         <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
           Control
         </div>
 
-        <div className="space-y-2">
+        <div className="stack-sm">
           <Label className="text-sm font-medium">Seed</Label>
           <Input
             type="number"

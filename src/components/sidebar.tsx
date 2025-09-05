@@ -293,7 +293,7 @@ export const Sidebar = () => {
                 </div>
               </div>
 
-              <div className="space-y-3 px-3 pb-3">
+              <div className="stack-md px-3 pb-3">
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (

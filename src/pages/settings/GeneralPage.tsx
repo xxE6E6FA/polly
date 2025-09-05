@@ -52,11 +52,11 @@ export default function GeneralPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 space-y-6">
+      <div className="flex-1 stack-xl">
         <SettingsSection title="Auto-Archive">
-          <div className="space-y-4">
+          <div className="stack-lg">
             <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+              <div className="stack-xs">
                 <Label
                   htmlFor="auto-archive-toggle"
                   className="text-base font-normal"
@@ -75,7 +75,7 @@ export default function GeneralPage() {
             </div>
 
             {userSettings.autoArchiveEnabled && (
-              <div className="space-y-2">
+              <div className="stack-sm">
                 <Label className="text-sm font-medium">Archive After</Label>
                 <Select
                   value={String(userSettings.autoArchiveDays ?? 30)}
@@ -104,7 +104,7 @@ export default function GeneralPage() {
 
         <SettingsSection title="Privacy">
           <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
+            <div className="stack-xs">
               <Label
                 htmlFor="anonymize-toggle"
                 className="text-base font-normal"

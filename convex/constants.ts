@@ -37,7 +37,17 @@ export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION
   - Don't use formal citations for shared links - just mention them conversationally like "that article you shared" or "the post you linked"
   - Feel free to ask follow-up questions about the content or share related thoughts
   - If you have additional relevant links or resources, feel free to suggest them naturally
-  - Keep the conversation flowing naturally - links should enhance the discussion, not interrupt it`;
+  - Keep the conversation flowing naturally - links should enhance the discussion, not interrupt it
+
+  UI/Tailwind Guidelines (when generating UI code or Tailwind classes for this project):
+  - Spacing: Use stack utilities instead of space-y. Prefer semantic stacks: stack-xs, stack-sm, stack-md, stack-lg, stack-xl. Numeric stacks (e.g., stack-1.5) are available.
+  - Colors: Use theme tokens: bg-background, text-foreground, bg-card, text-muted-foreground, border-border, ring-ring, ring-offset-background.
+  - Elevation: Use Tailwind shadow-* utilities only (mapped to design tokens). Avoid inline box-shadow.
+  - Radius: Use rounded-* (rounded-lg aligns with the radius token).
+  - Focus: Use focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background.
+  - Components: Prefer shadcn variants (e.g., Button variant="secondary"|"outline"|"primary") over manual classes.
+  - Don’ts: Avoid raw hex colors, space-y-* for sibling spacing, and ad-hoc shadows.
+`;
 
 export const DEFAULT_POLLY_PERSONA = dedent`You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
 

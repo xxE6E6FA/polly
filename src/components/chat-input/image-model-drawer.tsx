@@ -66,15 +66,15 @@ export function ImageModelDrawer({
         <DrawerHeader>
           <DrawerTitle>Select Image Model</DrawerTitle>
         </DrawerHeader>
-        <DrawerBody className="space-y-6">
+        <DrawerBody className="stack-xl">
           {/* Model List */}
-          <div className="space-y-4">
+          <div className="stack-lg">
             {models.length === 0 ? (
               <div className="text-center py-8 text-sm text-muted-foreground">
                 No image models available
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="stack-sm">
                 {models.map(imageModel => (
                   <SelectableListItem
                     key={imageModel.modelId}
@@ -115,9 +115,9 @@ export function ImageModelDrawer({
           </div>
 
           {/* Custom Model Input */}
-          <div className="space-y-3">
+          <div className="stack-md">
             <Label className="text-sm font-medium">Custom Model ID</Label>
-            <div className="space-y-2">
+            <div className="stack-sm">
               <Input
                 value={customModel}
                 onChange={e => setCustomModel(e.target.value)}

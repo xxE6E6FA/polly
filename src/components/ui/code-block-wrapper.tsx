@@ -27,7 +27,7 @@ const CodeBlockSkeleton = () => {
         </div>
       </div>
       <div className="relative rounded-b-lg border bg-muted p-4">
-        <div className="space-y-2">
+        <div className="stack-sm">
           <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
           <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
           <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />

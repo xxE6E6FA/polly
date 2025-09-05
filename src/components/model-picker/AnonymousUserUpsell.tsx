@@ -12,7 +12,7 @@ const AnonymousUserUpsellComponent = () => {
         Sign in for more features!
       </h3>
 
-      <div className="mb-6 space-y-3">
+      <div className="mb-6 stack-md">
         <div className="flex items-start gap-3">
           <ChatCircleIcon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div className="text-sm">

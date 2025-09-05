@@ -13,8 +13,8 @@ export const NotFoundPage = ({
 }: NotFoundPageProps) => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="mx-auto max-w-md space-y-6 p-6 text-center">
-        <div className="space-y-4">
+      <div className="mx-auto max-w-md stack-xl p-6 text-center">
+        <div className="stack-lg">
           <div className="mx-auto flex h-32 w-32 items-center justify-center">
             <img
               alt="Polly not found"
@@ -24,7 +24,7 @@ export const NotFoundPage = ({
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="stack-sm">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-muted-foreground leading-relaxed">
               {description}

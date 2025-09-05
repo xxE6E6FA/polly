@@ -144,7 +144,11 @@ export const TextModelsTab = () => {
       return false;
     };
 
-    return apiKeys.filter(hasKey).map(key => key.provider);
+    const blocked = new Set(["replicate", "elevenlabs"]);
+    return apiKeys
+      .filter(hasKey)
+      .map(key => key.provider)
+      .filter(p => !blocked.has(p.toLowerCase()));
   }, [apiKeys]);
 
   const enabledModelIds = useMemo(
@@ -165,7 +169,11 @@ export const TextModelsTab = () => {
     setIsLoading(true);
     try {
       const models = await fetchAllModelsAction({});
-      setUnfilteredModels(models);
+      // Always exclude Replicate and ElevenLabs from Text Models listing
+      const filtered = models.filter(
+        m => !["replicate", "elevenlabs"].includes(m.provider.toLowerCase())
+      );
+      setUnfilteredModels(filtered);
       setIsInitialLoad(false);
       setError(null);
     } catch (e) {
@@ -327,7 +335,7 @@ export const TextModelsTab = () => {
 
   if (availableProviders.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="stack-xl">
         <SettingsHeader
           description="Configure your API keys to use different AI providers. Once you add API keys, models will be automatically fetched and displayed here."
           title="Text Models"
@@ -343,7 +351,7 @@ export const TextModelsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-xl">
       <div className="flex items-start justify-between">
         <SettingsHeader
           description="Browse and explore AI models from your configured providers. Enable models to use them in conversations."
@@ -381,7 +389,7 @@ export const TextModelsTab = () => {
         isInitialLoad={isInitialLoad}
       />
 
-      <div className="space-y-4">
+      <div className="stack-lg">
         <ModelFilters
           filterState={filterState}
           onSearchChange={handleSearchChange}
@@ -405,7 +413,7 @@ export const TextModelsTab = () => {
         />
       </div>
 
-      <div className="space-y-4">
+      <div className="stack-lg">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             {filteredModels.length} model
@@ -451,7 +459,7 @@ export const TextModelsTab = () => {
 
         {/* Unavailable Models Section */}
         {unavailableEnabledModels.length > 0 && (
-          <div className="space-y-4">
+          <div className="stack-lg">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium">Unavailable Models</h3>

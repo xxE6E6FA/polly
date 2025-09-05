@@ -42,7 +42,7 @@ export const UserIdCard = () => {
     : 0;
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       {/* ID Card - desktop only */}
       <div className="relative hidden lg:block">
         <div
@@ -87,7 +87,7 @@ export const UserIdCard = () => {
             </div>
 
             {/* User info - centered - hidden on mobile */}
-            <div className="mb-4 hidden space-y-1 text-center lg:block">
+            <div className="mb-4 hidden stack-sm text-center lg:block">
               <h2
                 className={cn(
                   "truncate text-base font-bold text-foreground",
@@ -118,7 +118,7 @@ export const UserIdCard = () => {
             </div>
 
             {/* Stats - vertical list - hidden on mobile */}
-            <div className="mb-4 hidden space-y-2 lg:block">
+            <div className="mb-4 hidden stack-sm lg:block">
               <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
                 <div className="flex items-center space-x-2">
                   <ChatCircleTextIcon

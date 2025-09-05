@@ -224,7 +224,7 @@ export function ActivitySection({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="stack-lg">
       <div className="flex items-center justify-between">
         <div>
           <h3
@@ -248,7 +248,7 @@ export function ActivitySection({
       </div>
 
       {showDetailed ? (
-        <div className="space-y-3">
+        <div className="stack-md">
           {jobs.map(job => (
             <DetailedJobCard
               key={job.id}
@@ -285,7 +285,7 @@ export function ActivitySection({
             completedAt: job.completedAt,
           }))}
           onRemoveJob={onRemove}
-          className="space-y-2"
+          className="stack-sm"
         />
       )}
     </div>

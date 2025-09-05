@@ -148,7 +148,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
         </DrawerHeader>
         <DrawerBody>
           {/* Model List */}
-          <div className="space-y-3">
+          <div className="stack-md">
             {modelGroups.freeModels.length === 0 &&
             Object.keys(modelGroups.providerModels).length === 0 ? (
               <div className="p-6 text-center">
@@ -163,7 +163,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
               <>
                 {/* Free Models Group */}
                 {modelGroups.freeModels.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     <div className="text-xs font-medium text-muted-foreground px-2">
                       Free Models
                     </div>
@@ -228,7 +228,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
                     const providerTitle = providerConfig?.title || providerId;
 
                     return (
-                      <div key={providerId} className="space-y-2">
+                      <div key={providerId} className="stack-sm">
                         <div className="text-xs font-medium text-muted-foreground px-2">
                           {providerTitle}
                         </div>

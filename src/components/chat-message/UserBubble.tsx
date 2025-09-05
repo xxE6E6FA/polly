@@ -103,7 +103,7 @@ export const UserBubble = memo(
             )}
           >
             {isEditing ? (
-              <div className="space-y-4">
+              <div className="stack-lg">
                 <textarea
                   ref={textareaRef}
                   className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base selectable-auto"

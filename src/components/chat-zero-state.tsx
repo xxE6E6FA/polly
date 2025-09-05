@@ -62,7 +62,7 @@ const SetupChecklist = () => {
           <h3 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
             Next Steps
           </h3>
-          <div className="space-y-2">
+          <div className="stack-sm">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs text-left">
               {hasUserApiKeys ? (
                 <CheckCircleIcon className="h-3 w-3 shrink-0 text-success" />
@@ -261,7 +261,7 @@ export const ChatZeroState = () => {
     <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
       <div className="mx-auto flex h-full w-full min-w-0 flex-col sm:block sm:h-auto">
         <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
-          <div className="space-y-4 text-center">
+          <div className="stack-lg text-center">
             <div className="flex justify-center mb-3">
               <div className="relative">
                 <img
@@ -281,8 +281,8 @@ export const ChatZeroState = () => {
           </div>
         </div>
 
-        <div className="hidden max-w-full space-y-4 text-center sm:block sm:space-y-6">
-          <div className="space-y-2 sm:space-y-3">
+        <div className="hidden max-w-full text-center sm:block stack-lg sm:stack-xl">
+          <div className="stack-sm">
             <div className="flex justify-center mb-2 sm:mb-3">
               <div className="relative">
                 <img
@@ -305,7 +305,7 @@ export const ChatZeroState = () => {
           <SetupChecklist />
         </div>
 
-        <div className="flex-shrink-0 space-y-4 sm:hidden">
+        <div className="flex-shrink-0 stack-lg sm:hidden">
           <SetupChecklist />
           <ChatSection />
         </div>

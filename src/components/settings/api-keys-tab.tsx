@@ -190,7 +190,7 @@ export const ApiKeysTab = () => {
 
   if (apiKeys === undefined) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-4xl stack-xl">
         <SettingsHeader
           title="API Keys"
           description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
@@ -216,7 +216,7 @@ export const ApiKeysTab = () => {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl stack-xl">
       <SettingsHeader
         title="API Keys"
         description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
@@ -336,7 +336,7 @@ export const ApiKeysTab = () => {
             <h3 className="text-sm font-medium">OpenRouter Provider Sorting</h3>
           </div>
 
-          <div className="space-y-3">
+          <div className="stack-md">
             <p className="text-sm text-muted-foreground">
               Choose how OpenRouter routes your requests across providers.{" "}
               <a
@@ -349,7 +349,7 @@ export const ApiKeysTab = () => {
               </a>
             </p>
 
-            <div className="space-y-2">
+            <div className="stack-sm">
               <Label htmlFor="openrouter-sorting" className="text-sm">
                 Sorting Strategy
               </Label>

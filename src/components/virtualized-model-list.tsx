@@ -397,7 +397,7 @@ export const VirtualizedModelList = memo(
     if (rows.length <= 20) {
       return (
         <>
-          <div className="space-y-3">
+          <div className="stack-md">
             {rows.map((rowModels, rowIndex) => (
               <div
                 key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}

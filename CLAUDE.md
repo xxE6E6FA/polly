@@ -76,3 +76,19 @@ The app supports multiple AI providers through a unified interface:
 - All styling follows TailwindCSS + shadcn/ui patterns
 - Code formatting enforced by Biome with pre-commit hooks
 - No testing framework currently configured (Vitest + React Testing Library preferred)
+
+## UI Styling Guidelines (Polly Design System)
+- Prefer stack spacing utilities over `space-y-*`:
+  - Semantic: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`
+  - Numeric: `.stack-1`, `.stack-1.5`, `.stack-2`, etc. (responsive allowed)
+- Use theme tokens for colors/surfaces:
+  - `bg-background`, `text-foreground`, `bg-card`, `text-muted-foreground`, `border-border`, `ring-ring`, `ring-offset-background`.
+  - For emphasis, use component variants (e.g., Button `variant="primary" | "secondary" | "outline"`).
+- Elevation via `shadow-*` only; mapped to our elevation scale. Avoid custom `box-shadow`.
+- Radius via `rounded-*` (e.g., `rounded-lg`), which is tokenized.
+- Focus states: `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
+- Avoid raw hex colors and `space-y-*`; use `stack-*` and tokens.
+
+### Density
+- Use `density-compact` wrapper to reduce vertical rhythm by one step; `density-spacious` to increase by one.
+- Prefer section/page scope rather than global changes unless specified.

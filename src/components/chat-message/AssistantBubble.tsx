@@ -392,7 +392,7 @@ export const AssistantBubble = ({
                       className={cn(
                         "overflow-visible",
                         items.length === 1
-                          ? "space-y-3 flex flex-col items-start"
+                          ? "stack-md flex flex-col items-start"
                           : "grid gap-6",
                         items.length === 2 && "grid-cols-1 sm:grid-cols-2",
                         items.length === 3 &&

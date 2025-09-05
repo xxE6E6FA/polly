@@ -78,7 +78,7 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
             className="w-56"
             align="start"
           >
-            <div className="space-y-2">
+            <div className="stack-sm">
               <div className="grid gap-0.5">
                 {ASPECT_RATIOS.map(ratio => (
                   <button

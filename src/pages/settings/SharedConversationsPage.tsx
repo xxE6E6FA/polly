@@ -227,7 +227,7 @@ export default function SharedConversationsPage() {
           title="Shared Conversations"
           description="Manage your publicly shared conversations"
         />
-        <div className="space-y-6">
+        <div className="stack-xl">
           <Alert>
             <AlertDescription>
               Shared conversations are automatically deleted after 90 days of

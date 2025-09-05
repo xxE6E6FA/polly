@@ -240,7 +240,7 @@ export const SendButtonGroup = ({
                 <div className="mt-0.5 flex-shrink-0">
                   <ChatCircleIcon className="h-4 w-4 text-primary" />
                 </div>
-                <div className="flex-1 space-y-1">
+                <div className="flex-1 stack-sm">
                   <p className="text-sm font-medium leading-none">
                     Send & open new chat
                   </p>
@@ -266,7 +266,7 @@ export const SendButtonGroup = ({
                 <div className="mt-0.5 flex-shrink-0">
                   <GitBranchIcon className="h-4 w-4 text-primary" />
                 </div>
-                <div className="flex-1 space-y-1">
+                <div className="flex-1 stack-sm">
                   <p className="text-sm font-medium leading-none">
                     Branch conversation
                   </p>

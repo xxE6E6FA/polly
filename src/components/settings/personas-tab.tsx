@@ -124,7 +124,7 @@ export const PersonasTab = () => {
       {/* Global Personas Toggle */}
       <div className="rounded-lg border bg-muted/20 p-4">
         <div className="flex items-start justify-between">
-          <div className="space-y-1">
+          <div className="stack-sm">
             <h3 className="text-base font-semibold">Enable Personas</h3>
             <p className="text-sm text-muted-foreground">
               Turn personas on or off completely. When disabled, the persona
@@ -143,7 +143,7 @@ export const PersonasTab = () => {
         <>
           {/* Built-in Personas Management */}
           {allBuiltInPersonas && allBuiltInPersonas.length > 0 && (
-            <div className="space-y-4">
+            <div className="stack-lg">
               <div>
                 <h3 className="text-lg font-semibold">Built-in Personas</h3>
               </div>
@@ -191,7 +191,7 @@ export const PersonasTab = () => {
 
           {/* User Custom Personas */}
           {personas?.some(p => !p.isBuiltIn) && (
-            <div className="space-y-4">
+            <div className="stack-lg">
               <SectionHeader title="Custom Personas">
                 <Button asChild size="sm" variant="default">
                   <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
@@ -209,7 +209,7 @@ export const PersonasTab = () => {
                   .map(persona => (
                     <div
                       key={persona._id}
-                      className="space-y-3 rounded-lg border p-3 sm:p-4"
+                      className="stack-md rounded-lg border p-3 sm:p-4"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex min-w-0 flex-1 items-center gap-3">

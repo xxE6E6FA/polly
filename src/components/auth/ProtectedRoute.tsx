@@ -38,7 +38,7 @@ const ProtectedRouteSkeleton = ({
 }) => {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="space-y-3 text-center">
+      <div className="stack-md text-center">
         {isLoading ? (
           <Spinner size="md" />
         ) : (

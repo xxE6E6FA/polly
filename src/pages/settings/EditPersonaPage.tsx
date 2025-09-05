@@ -129,7 +129,7 @@ export default function EditPersonaPage() {
   if (!persona && persona !== undefined) {
     return (
       <SettingsPageLayout>
-        <div className="space-y-6">
+        <div className="stack-xl">
           <h1 className="text-2xl font-semibold">Persona not found</h1>
           <Button asChild>
             <Link to={ROUTES.SETTINGS.PERSONAS}>Back to Personas</Link>
@@ -147,7 +147,7 @@ export default function EditPersonaPage() {
 
   return (
     <SettingsPageLayout>
-      <div className="space-y-2">
+      <div className="stack-sm">
         <h1 className="text-2xl font-semibold tracking-tight">Edit Persona</h1>
         <p className="text-muted-foreground">
           Update your AI assistant&apos;s personality and instructions

@@ -57,9 +57,9 @@ export const TTSTab = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="stack-xl">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
+        <div className="stack-sm">
           <ModelPicker
             label="Model"
             value={userSettings.ttsModelId || "eleven_v3"}
@@ -68,7 +68,7 @@ export const TTSTab = () => {
             }}
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="stack-sm">
           <VoicePicker
             label="Voice"
             value={userSettings.ttsVoiceId}
@@ -85,7 +85,7 @@ export const TTSTab = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
+        <div className="stack-sm">
           <Label>Stability</Label>
           <Select
             value={(userSettings.ttsStabilityMode || "creative") as string}
@@ -108,7 +108,7 @@ export const TTSTab = () => {
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
+        <div className="stack-xs">
           <Label>Enhanced TTS processing</Label>
           <p className="text-xs text-muted-foreground">
             Optimize text using ElevenLabs best practices: natural pauses,

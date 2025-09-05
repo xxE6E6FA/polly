@@ -411,9 +411,9 @@ export default function AttachmentsPage() {
           title="Attachments"
           description="Manage your uploaded files and image generations"
         />
-        <div className="space-y-6">
+        <div className="stack-xl">
           {/* Loading skeleton */}
-          <div className="space-y-4">
+          <div className="stack-lg">
             {Array.from({ length: 6 }, (_, i) => (
               <Skeleton
                 key={`skeleton-${Date.now()}-${i}`}

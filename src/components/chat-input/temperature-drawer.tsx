@@ -70,8 +70,8 @@ export function TemperatureDrawer({
         </DrawerHeader>
         <DrawerBody>
           {/* Temperature Slider */}
-          <div className="space-y-3 mb-4">
-            <div className="space-y-1">
+          <div className="stack-md mb-4">
+            <div className="stack-sm">
               <Label className="text-sm font-medium">Adjust Temperature</Label>
               <div className="text-xs text-muted-foreground">
                 Controls response randomness. Higher values = more varied and
@@ -92,12 +92,12 @@ export function TemperatureDrawer({
                 `${value.toFixed(1)} (${getTemperatureLabel(value)})`
               }
               showSpinners={true}
-              className="space-y-2"
+              className="stack-sm"
             />
           </div>
 
           {/* Preset Temperatures */}
-          <div className="space-y-3">
+          <div className="stack-md">
             <Label className="text-sm font-medium">Quick Presets</Label>
             <div className="grid grid-cols-2 gap-2">
               {[

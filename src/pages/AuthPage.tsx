@@ -33,7 +33,7 @@ export default function AuthPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="w-full max-w-md space-y-8 p-6">
+      <div className="w-full max-w-md stack-xl p-6">
         <div className="text-center">
           <div className="mb-6 flex justify-center">
             <img
@@ -52,7 +52,7 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="stack-lg">
           <Button
             className="flex w-full items-center justify-center gap-3 py-6"
             disabled={isLoading}

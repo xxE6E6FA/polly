@@ -98,7 +98,7 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
       : `${currentValue}${unit ? ` ${unit}` : ""}`;
 
     return (
-      <div ref={ref} className={cn("space-y-3", className)} {...props}>
+      <div ref={ref} className={cn("stack-md", className)} {...props}>
         {label && (
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">{label}</Label>
@@ -108,7 +108,7 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="stack-md">
           {/* Slider */}
           <Slider
             value={[currentValue]}

@@ -274,7 +274,7 @@ export const Citations = ({
           id={`citations-${messageId}`}
           className="mt-3 animate-in slide-in-from-top-2 duration-200"
         >
-          <div className="space-y-1.5">
+          <div className="stack-sm">
             {displayedCitations.map((citation, _displayIndex) => {
               // Find the original index in the full citations array
               const originalIndex = citations.indexOf(citation);

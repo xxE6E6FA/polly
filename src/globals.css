@@ -17,21 +17,21 @@
         --card-foreground: 222.2 84% 4.9%;
         --popover: 0 0% 100%;
         --popover-foreground: 222.2 84% 4.9%;
-        --primary: 258 90% 60%;
+        --primary: 258 72% 58%;
         --primary-foreground: 0 0% 100%;
-        --primary-hover: 258 90% 55%;
+        --primary-hover: 258 72% 54%;
         --secondary: 217.2 91.2% 59.8%;
-        --secondary-foreground: 0 0% 100%; /* White text on blue background */
-        --muted: 210 40% 96.1%;
-        --muted-foreground: 215.4 16.3% 46.9%;
-        --accent: 210 40% 96.1%;
-        --accent-foreground: 222.2 47.4% 11.2%;
+        --secondary-foreground: 0 0% 100%; /* legacy, prefer semantic */
+        --muted: 220 14% 96%;
+        --muted-foreground: 220 9% 46%;
+        --accent: 220 14% 95%;
+        --accent-foreground: 222 47% 11%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 100%; /* White text on red background */
-        --border: 214.3 31.8% 91.4%;
-        --input: 214.3 31.8% 91.4%;
-        --ring: 258 90% 60%;
-        --radius: 0.5rem;
+        --border: 220 14% 90%;
+        --input: 220 14% 90%;
+        --ring: 258 72% 58%;
+        --radius: 0.625rem;
         --chart-1: 12 76% 61%;
         --chart-2: 173 58% 39%;
         --chart-3: 197 37% 24%;
@@ -54,10 +54,10 @@
         --color-primary-hover: 258 90% 55%;
         --color-primary-active: 258 90% 50%;
 
-        --color-secondary: var(--accent-blue);
-        --color-secondary-foreground: 0 0% 100%;
-        --color-secondary-hover: 217 92% 58%;
-        --color-secondary-active: 217 92% 52%;
+        --color-secondary: 220 14% 93%;
+        --color-secondary-foreground: 222 47% 12%;
+        --color-secondary-hover: 220 14% 90%;
+        --color-secondary-active: 220 14% 87%;
 
         --color-success: var(--accent-emerald);
         --color-success-foreground: 0 0% 100%;
@@ -81,9 +81,27 @@
 
         /* Semantic Surface Colors */
         --color-surface: 0 0% 100%;
-        --color-surface-variant: 210 40% 98%;
-        --color-surface-hover: 210 40% 96.1%;
-        --color-surface-active: 210 40% 94%;
+        --color-surface-variant: 220 14% 97%;
+        --color-surface-hover: 220 14% 95%;
+        --color-surface-active: 220 14% 92%;
+
+        /* Sidebar/active element tints */
+        --sidebar-tinted: 220 14% 97%;
+        --active-element-tint: 220 14% 95%;
+        --active-element-border: 220 14% 88%;
+
+        /* Gradients referenced by Tailwind config */
+        --surface-primary: 220 14% 98%;
+        --surface-secondary: 220 14% 95%;
+        --gradient-tropical: linear-gradient(135deg, hsl(220 95% 55%), hsl(260 85% 60%));
+        --header-gradient-from-logo: linear-gradient(135deg, hsl(220 95% 55%), hsl(260 85% 60%), hsl(280 75% 65%));
+
+        /* Elevation (light) */
+        --shadow-1: 0 1px 2px hsl(220 20% 20% / 0.06), 0 1px 1px hsl(220 20% 20% / 0.04);
+        --shadow-2: 0 2px 6px hsl(220 20% 20% / 0.08), 0 1px 3px hsl(220 20% 20% / 0.06);
+        --shadow-3: 0 6px 12px hsl(220 20% 20% / 0.10), 0 2px 6px hsl(220 20% 20% / 0.08);
+        --shadow-4: 0 10px 20px hsl(220 20% 20% / 0.12), 0 4px 10px hsl(220 20% 20% / 0.10);
+        --shadow-5: 0 16px 32px hsl(220 20% 20% / 0.14), 0 6px 16px hsl(220 20% 20% / 0.12);
 
         /* Semantic Status Background Colors */
         --color-success-bg: 160 60% 97%;
@@ -118,17 +136,17 @@
         --muted: 220 13% 14%;
         --muted-foreground: 220 15% 65%;
 
-        --accent: 220 13% 16%;
+        --accent: 220 13% 15%;
         --accent-foreground: 220 15% 95%;
 
         --destructive: 0 75% 50%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 220 13% 18%;
-        --input: 220 13% 16%;
+        --border: 220 13% 20%;
+        --input: 220 13% 18%;
         --ring: 258 90% 62%;
 
-        --radius: 0.5rem;
+        --radius: 0.625rem;
 
         /* Accent Colors (Parrot Theme) - Dark Mode */
         --accent-coral: 16 85% 58%;
@@ -146,10 +164,10 @@
         --color-primary-hover: 258 90% 67%;
         --color-primary-active: 258 90% 72%;
 
-        --color-secondary: var(--accent-blue);
-        --color-secondary-foreground: 0 0% 100%;
-        --color-secondary-hover: 217 92% 65%;
-        --color-secondary-active: 217 93% 70%;
+        --color-secondary: 220 13% 16%;
+        --color-secondary-foreground: 0 0% 98%;
+        --color-secondary-hover: 220 13% 18%;
+        --color-secondary-active: 220 13% 20%;
 
         --color-success: var(--accent-emerald);
         --color-success-foreground: 0 0% 100%;
@@ -176,6 +194,24 @@
         --color-surface-variant: 220 13% 13%;
         --color-surface-hover: 220 13% 15%;
         --color-surface-active: 220 13% 17%;
+
+        /* Sidebar/active element tints (dark) */
+        --sidebar-tinted: 220 13% 13%;
+        --active-element-tint: 220 13% 16%;
+        --active-element-border: 220 13% 22%;
+
+        /* Gradients referenced by Tailwind config (dark) */
+        --surface-primary: 220 13% 12%;
+        --surface-secondary: 220 13% 16%;
+        --gradient-tropical: linear-gradient(135deg, hsl(220 95% 60%), hsl(260 85% 65%));
+        --header-gradient-from-logo: linear-gradient(135deg, hsl(220 80% 65%), hsl(260 75% 70%), hsl(280 70% 75%));
+
+        /* Elevation (dark) */
+        --shadow-1: 0 1px 2px hsl(220 40% 2% / 0.45), 0 1px 1px hsl(220 40% 2% / 0.35);
+        --shadow-2: 0 2px 6px hsl(220 40% 2% / 0.50), 0 1px 3px hsl(220 40% 2% / 0.40);
+        --shadow-3: 0 6px 12px hsl(220 40% 2% / 0.55), 0 2px 6px hsl(220 40% 2% / 0.45);
+        --shadow-4: 0 10px 20px hsl(220 40% 2% / 0.60), 0 4px 10px hsl(220 40% 2% / 0.50);
+        --shadow-5: 0 16px 32px hsl(220 40% 2% / 0.65), 0 6px 16px hsl(220 40% 2% / 0.55);
 
         /* Semantic Status Background Colors - Dark Mode */
         --color-success-bg: 160 60% 10%;
@@ -217,6 +253,16 @@ body {
         Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
+html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+body {
+    line-height: 1.55;
+}
+
 /* Ensure all code elements use mono font */
 code,
 kbd,
@@ -227,6 +273,7 @@ pre {
 
 /* Custom scrollbar */
 @layer utilities {
+    /* Stack spacing utilities are generated by Tailwind plugin. */
     /* Stable scrollbar gutter to prevent layout shifts */
     .scrollbar-gutter-stable {
         scrollbar-gutter: stable;
@@ -633,11 +680,11 @@ pre {
 
 /* Refined primary button styling */
 .dark .btn-primary {
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-2);
 }
 
 .dark .btn-primary:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-3);
 }
 
 /* Refined scrollbar styling */
@@ -709,13 +756,13 @@ pre {
 .dark [data-variant="emerald"] {
     background: hsl(var(--accent-emerald) / 0.15);
     border: 1px solid hsl(var(--accent-emerald) / 0.3);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-2);
 }
 
 .dark [data-variant="emerald"]:hover {
     background: hsl(var(--accent-emerald) / 0.2);
     border-color: hsl(var(--accent-emerald) / 0.4);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-3);
 }
 
 /* Refined breathing effect for idle states */
@@ -1304,4 +1351,14 @@ pre {
         0 0 0 1px hsl(var(--border) / 1),
         8px 0 24px -10px hsl(var(--foreground) / 0.14),
         18px 0 48px -16px hsl(var(--foreground) / 0.18);
+}
+
+/* Respect reduced motion preferences globally */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
