@@ -269,6 +269,10 @@ export const TextModelsTab = () => {
     const providerCounts: Record<string, number> = {};
 
     const capabilityCounts = generateCapabilityCounts(unfilteredModels);
+    // Hide image generation capability in the Text Models tab
+    (capabilityCounts as Record<string, number | undefined>)[
+      "supportsImageGeneration"
+    ] = undefined;
 
     for (const model of unfilteredModels) {
       providerCounts[model.provider] =

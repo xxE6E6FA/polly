@@ -55,7 +55,9 @@ export const ModelFilters = memo(
       [onSearchChange]
     );
 
-    const allCapabilities = getAllCapabilities();
+    const allCapabilities = getAllCapabilities().filter(
+      c => c.key !== "supportsImageGeneration"
+    );
 
     return (
       <div className="flex flex-col gap-3 sm:flex-row">
