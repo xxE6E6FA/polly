@@ -154,7 +154,7 @@ export const PersonasTab = () => {
                     <div
                       key={persona._id}
                       className={cn(
-                        "rounded-lg p-3 transition-opacity shadow-sm ring-1 ring-border/30 bg-card",
+                        "rounded-lg p-3 transition-all duration-200 shadow-sm ring-1 ring-border/30 bg-card focus-within:ring-2 focus-within:ring-ring motion-hover-lift",
                         disabled && "opacity-60"
                       )}
                     >
@@ -209,7 +209,7 @@ export const PersonasTab = () => {
                   .map(persona => (
                     <div
                       key={persona._id}
-                      className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card"
+                      className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card motion-hover-lift"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex min-w-0 flex-1 items-center gap-3">

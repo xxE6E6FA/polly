@@ -43,9 +43,10 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
         value={mode}
         onValueChange={handleValueChange}
         className={cn(
-          "h-8 w-16 border border-primary/30 bg-primary/20 shadow-sm p-0.5",
-          "dark:bg-primary/15 dark:border-primary/25",
+          "h-8 w-16 bg-primary/20 shadow-sm p-0.5",
+          "dark:bg-primary/15",
           "rounded-full transition-all duration-200 hover:shadow-md",
+          "ring-1 ring-primary/25",
           disabled && "opacity-50 cursor-not-allowed",
           className
         )}
@@ -57,9 +58,9 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
           title="Text Generation"
         >
           <ChatTextIcon
-            size={14}
+            size={16}
             weight={mode === "text" ? "fill" : "regular"}
-            className="h-3.5 w-3.5 text-current"
+            className="h-4 w-4 text-current"
           />
         </ToggleGroupItem>
         <ToggleGroupItem
@@ -75,9 +76,9 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
           }
         >
           <ImageIcon
-            size={14}
+            size={16}
             weight={mode === "image" ? "fill" : "regular"}
-            className="h-3.5 w-3.5 text-current"
+            className="h-4 w-4 text-current"
           />
         </ToggleGroupItem>
       </ToggleGroup>

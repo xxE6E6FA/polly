@@ -95,7 +95,7 @@ export const UserBubble = memo(
         >
           <div
             className={cn(
-              "transition-all duration-300 ease-out transform",
+              "transition-all duration-300 ease-out transform overflow-visible",
               isEditing
                 ? "rounded-xl bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10 w-full"
                 : "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 text-foreground shadow-sm hover:shadow-md ring-1 ring-border/20 hover:ring-primary/30 w-fit ml-auto",
@@ -151,7 +151,7 @@ export const UserBubble = memo(
                 </div>
               </div>
             ) : (
-              <div className="whitespace-pre-wrap break-words text-[15px] leading-[1.75] transition-all duration-300 ease-out sm:text-[16px] sm:leading-[1.8] selectable-text max-w-[74ch]">
+              <div className="whitespace-pre-wrap break-words text-[15px] leading-[1.75] transition-all duration-300 ease-out sm:text-[16px] sm:leading-[1.8] selectable-text max-w-[74ch] min-w-0">
                 {message.content}
                 <AttachmentStrip
                   attachments={message.attachments?.filter(

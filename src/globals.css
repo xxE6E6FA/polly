@@ -6,6 +6,10 @@
 
 @layer base {
     :root {
+        /* Motion tokens */
+        --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+        --duration-fast: 150ms;
+        --duration-normal: 200ms;
         /* Font families */
         --font-mono:
             "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco,
@@ -245,6 +249,44 @@
     .dark ::selection {
         background: hsl(var(--primary) / 0.22);
         color: hsl(var(--foreground));
+    }
+}
+
+/* Motion utilities and understated animations */
+@layer utilities {
+    /* Subtle lift on hover for cards/tiles */
+    .motion-hover-lift {
+        will-change: transform, box-shadow;
+        transition: transform var(--duration-normal) var(--ease-standard),
+            box-shadow var(--duration-normal) var(--ease-standard);
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .motion-hover-lift:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-2);
+        }
+        .motion-hover-lift:active {
+            transform: translateY(0);
+            box-shadow: var(--shadow-1);
+        }
+    }
+
+    /* Message appear animation */
+    @keyframes message-in {
+        from {
+            opacity: 0;
+            transform: translateY(2px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    @media (prefers-reduced-motion: no-preference) {
+        .animate-message-in {
+            animation: message-in var(--duration-fast) var(--ease-standard)
+                both;
+        }
     }
 }
 

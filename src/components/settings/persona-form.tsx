@@ -399,10 +399,10 @@ export const PersonaForm = ({
                   <SkeletonText className="absolute inset-0 opacity-80" />
                   <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-transparent via-background/50 to-transparent" />
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background px-4 py-2 shadow-lg">
+                    <div className="inline-flex items-center gap-2 rounded-full ring-1 ring-border/40 bg-background px-3 py-1.5 shadow-sm">
                       <Spinner size="sm" />
-                      <span className="gradient-text text-sm font-medium">
-                        AI magic in progress...
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Improving prompt…
                       </span>
                     </div>
                   </div>
@@ -781,10 +781,10 @@ export const PersonaForm = ({
                     }}
                   />
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform text-center">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background px-4 py-2 shadow-lg">
+                    <div className="inline-flex items-center gap-2 rounded-full ring-1 ring-border/40 bg-background px-3 py-1.5 shadow-sm">
                       <Spinner size="sm" />
-                      <span className="gradient-text text-sm font-medium">
-                        AI magic in progress...
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Improving prompt…
                       </span>
                     </div>
                   </div>

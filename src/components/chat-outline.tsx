@@ -247,7 +247,7 @@ const ChatOutlineComponent = ({
                   <button
                     key={item.id}
                     className={cn(
-                      "w-full text-left transition-all duration-150 hover:bg-muted/50 focus:bg-muted/60 focus:outline-none group/item relative",
+                      "w-full text-left transition-all duration-150 hover:bg-muted/50 focus:bg-muted/60 focus:outline-none group/item relative focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
                       item.type === "user-message"
                         ? "px-3 py-2.5 border-l-2 border-transparent hover:border-primary/40 hover:bg-primary/5"
                         : "px-3 py-1.5 hover:bg-muted/30"
