@@ -47,7 +47,7 @@ const SetupChecklist = () => {
     <div className="mx-auto mt-2 max-w-sm sm:mt-4 sm:max-w-md">
       <div
         aria-live="polite"
-        className="relative rounded-md border border-border/30 bg-muted/20 p-2.5"
+        className="relative rounded-md bg-muted/20 p-2.5 shadow-sm"
       >
         <Button
           aria-label="Dismiss checklist"

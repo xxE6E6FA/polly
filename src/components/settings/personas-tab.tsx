@@ -122,7 +122,7 @@ export const PersonasTab = () => {
       />
 
       {/* Global Personas Toggle */}
-      <div className="rounded-lg border bg-muted/20 p-4">
+      <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30">
         <div className="flex items-start justify-between">
           <div className="stack-sm">
             <h3 className="text-base font-semibold">Enable Personas</h3>
@@ -154,7 +154,7 @@ export const PersonasTab = () => {
                     <div
                       key={persona._id}
                       className={cn(
-                        "border rounded-lg p-3 transition-opacity",
+                        "rounded-lg p-3 transition-opacity shadow-sm ring-1 ring-border/30 bg-card",
                         disabled && "opacity-60"
                       )}
                     >
@@ -209,7 +209,7 @@ export const PersonasTab = () => {
                   .map(persona => (
                     <div
                       key={persona._id}
-                      className="stack-md rounded-lg border p-3 sm:p-4"
+                      className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card"
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex min-w-0 flex-1 items-center gap-3">

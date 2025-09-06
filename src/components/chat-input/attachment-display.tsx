@@ -46,10 +46,10 @@ function AttachmentDisplayInner({
             <div
               key={`${attachment.name}-${index}`}
               className={cn(
-                "group relative flex items-center gap-2 rounded-lg border shadow-sm transition-all duration-200",
+                "group relative flex items-center gap-2 rounded-lg shadow-sm transition-all duration-200",
                 attachment.type === "image"
-                  ? "p-1.5 border-emerald-200/30 bg-emerald-50/50 hover:bg-emerald-100/50 dark:border-emerald-800/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30"
-                  : "px-2.5 py-1 text-xs border-slate-200/30 bg-slate-50/50 hover:bg-slate-100/50 dark:border-slate-800/30 dark:bg-slate-950/20 dark:hover:bg-slate-900/30"
+                  ? "p-1.5 ring-1 ring-emerald-200/30 bg-emerald-50/50 hover:bg-emerald-100/50 dark:ring-emerald-800/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30"
+                  : "px-2.5 py-1 text-xs ring-1 ring-slate-200/30 bg-slate-50/50 hover:bg-slate-100/50 dark:ring-slate-800/30 dark:bg-slate-950/20 dark:hover:bg-slate-900/30"
               )}
             >
               <div

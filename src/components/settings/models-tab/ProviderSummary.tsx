@@ -16,10 +16,10 @@ const ProviderSummaryCard = memo(
   }) => (
     <button
       type="button"
-      className={`w-full cursor-pointer rounded-lg border p-4 text-left transition-all duration-200 hover:shadow-sm ${
+      className={`w-full cursor-pointer rounded-lg p-4 text-left transition-all duration-200 shadow-sm hover:shadow ${
         isSelected
-          ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
-          : "border-border bg-background hover:bg-muted/50"
+          ? "ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
+          : "ring-1 ring-border/30 bg-card hover:bg-muted/50"
       }`}
       onClick={() => onToggle(provider)}
     >
@@ -50,7 +50,7 @@ const ProviderSummaryCard = memo(
 ProviderSummaryCard.displayName = "ProviderSummaryCard";
 
 const ProviderSummaryCardSkeleton = memo(() => (
-  <div className="rounded-lg border bg-background p-4">
+  <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30">
     <div className="flex items-center justify-between">
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <div className="h-8 w-8 shrink-0 animate-pulse rounded bg-muted" />

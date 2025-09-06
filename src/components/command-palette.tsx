@@ -833,7 +833,7 @@ export function CommandPalette({
         }`}
       >
         <Command
-          className="mx-auto w-full overflow-hidden rounded-lg bg-background dark:bg-card shadow-2xl border border-border"
+          className="mx-auto w-full overflow-hidden rounded-lg bg-card shadow-2xl"
           data-command-palette
           shouldFilter={false}
           value={selectedValue}

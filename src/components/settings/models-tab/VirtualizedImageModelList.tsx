@@ -29,9 +29,9 @@ const ImageModelCard = memo(
     return (
       <div
         className={cn(
-          "group rounded-lg border bg-card overflow-hidden transition-all duration-200 hover:shadow-sm",
+          "group rounded-lg bg-card overflow-hidden transition-all duration-200 hover:shadow-sm ring-1 ring-border/30",
           isEnabled &&
-            "border-blue-500/40 bg-gradient-to-br from-blue-500/5 to-purple-500/5"
+            "ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/5 to-purple-500/5"
         )}
       >
         {/* Example Image with consistent aspect ratio */}

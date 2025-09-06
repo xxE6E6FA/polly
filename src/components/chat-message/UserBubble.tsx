@@ -97,8 +97,8 @@ export const UserBubble = memo(
             className={cn(
               "transition-all duration-300 ease-out transform",
               isEditing
-                ? "rounded-xl border border-primary/30 bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10 w-full"
-                : "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 border border-border text-foreground shadow-sm hover:shadow-md hover:border-primary/30 w-fit ml-auto",
+                ? "rounded-xl bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10 w-full"
+                : "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 text-foreground shadow-sm hover:shadow-md ring-1 ring-border/20 hover:ring-primary/30 w-fit ml-auto",
               isPending && "opacity-60"
             )}
           >

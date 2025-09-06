@@ -13,9 +13,9 @@
 
         --background: 0 0% 100%;
         --foreground: 222.2 84% 4.9%;
-        --card: 0 0% 100%;
+        --card: 220 14% 98%;
         --card-foreground: 222.2 84% 4.9%;
-        --popover: 0 0% 100%;
+        --popover: 220 14% 99%;
         --popover-foreground: 222.2 84% 4.9%;
         --primary: 258 72% 58%;
         --primary-foreground: 0 0% 100%;
@@ -28,7 +28,7 @@
         --accent-foreground: 222 47% 11%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 100%; /* White text on red background */
-        --border: 220 14% 90%;
+        --border: 220 14% 92%;
         --input: 220 14% 90%;
         --ring: 258 72% 58%;
         --radius: 0.625rem;
@@ -142,7 +142,7 @@
         --destructive: 0 75% 50%;
         --destructive-foreground: 0 0% 100%;
 
-        --border: 220 13% 20%;
+        --border: 220 13% 18%;
         --input: 220 13% 18%;
         --ring: 258 90% 62%;
 

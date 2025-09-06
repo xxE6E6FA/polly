@@ -79,13 +79,13 @@ const API_KEY_INFO = {
 };
 
 function getProviderCardStyle(isConnected: boolean) {
-  const baseStyle = "p-4 rounded-lg border transition-all duration-200";
+  const baseStyle = "p-4 rounded-lg transition-all duration-200 shadow-sm";
 
   if (isConnected) {
-    return `${baseStyle} border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20`;
+    return `${baseStyle} ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20`;
   }
 
-  return `${baseStyle} border-border bg-background hover:bg-muted/50`;
+  return `${baseStyle} ring-1 ring-border/30 bg-card hover:bg-muted/50`;
 }
 
 // Helper to detect stored key
@@ -204,7 +204,7 @@ export const ApiKeysTab = () => {
           ).map(([provider]) => (
             <div
               key={provider}
-              className="animate-pulse rounded-lg border border-muted/40 bg-background p-4"
+              className="animate-pulse rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30"
             >
               <div className="mb-4 h-20 rounded bg-muted/20" />
               <div className="h-10 rounded bg-muted/20" />
@@ -330,7 +330,7 @@ export const ApiKeysTab = () => {
       </div>
 
       {hasOpenRouterKey && (
-        <div className="rounded-lg border border-border bg-background p-4">
+        <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30">
           <div className="mb-3 flex items-center gap-3">
             <ProviderIcon provider="openrouter" className="h-6 w-6 shrink-0" />
             <h3 className="text-sm font-medium">OpenRouter Provider Sorting</h3>

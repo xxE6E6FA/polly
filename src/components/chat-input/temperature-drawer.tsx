@@ -115,7 +115,7 @@ export function TemperatureDrawer({
                     "hover:bg-accent/50 hover:border-primary/50",
                     currentValue === preset.value
                       ? "border-primary bg-primary/10"
-                      : "border-border"
+                      : "border-border/30"
                   )}
                 >
                   <div className="font-medium text-sm">{preset.label}</div>
