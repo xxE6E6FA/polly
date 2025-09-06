@@ -360,6 +360,150 @@ type ModelResponse = {
 
 // Groq Models
 async function fetchGroqModels(apiKey: string) {
+  // Model capability data for augmenting API responses
+  // Reference: https://console.groq.com/docs/models (updated January 2025)
+  const GROQ_MODEL_CAPABILITIES: Record<
+    string,
+    {
+      name: string;
+      contextWindow: number;
+      supportsImages: boolean;
+      supportsTools: boolean;
+      supportsFiles: boolean;
+    }
+  > = {
+    // Production Models - Meta Llama 3.1/3.3
+    "llama-3.1-8b-instant": {
+      name: "Llama 3.1 8B Instant",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "llama-3.3-70b-versatile": {
+      name: "Llama 3.3 70B Versatile",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+
+    // Meta Llama Guard
+    "meta-llama/llama-guard-4-12b": {
+      name: "Llama Guard 4 12B",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: false,
+      supportsFiles: true, // Supports file uploads up to 20MB
+    },
+
+    // OpenAI models on Groq
+    "openai/gpt-oss-120b": {
+      name: "GPT OSS 120B",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "openai/gpt-oss-20b": {
+      name: "GPT OSS 20B",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+
+    // Groq Compound Systems
+    "groq/compound": {
+      name: "Groq Compound",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "groq/compound-mini": {
+      name: "Groq Compound Mini",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+
+    // Preview Models
+    "meta-llama/llama-4-maverick-17b-128e-instruct": {
+      name: "Llama 4 Maverick 17B 128E Instruct (Preview)",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: true, // Supports file uploads up to 20MB
+    },
+    "meta-llama/llama-4-scout-17b-16e-instruct": {
+      name: "Llama 4 Scout 17B 16E Instruct (Preview)",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: true, // Supports file uploads up to 20MB
+    },
+    "meta-llama/llama-prompt-guard-2-22m": {
+      name: "Llama Prompt Guard 2 22M (Preview)",
+      contextWindow: 512,
+      supportsImages: false,
+      supportsTools: false,
+      supportsFiles: false,
+    },
+    "meta-llama/llama-prompt-guard-2-86m": {
+      name: "Llama Prompt Guard 2 86M (Preview)",
+      contextWindow: 512,
+      supportsImages: false,
+      supportsTools: false,
+      supportsFiles: false,
+    },
+    "moonshotai/kimi-k2-instruct": {
+      name: "Kimi K2 Instruct (Preview)",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "moonshotai/kimi-k2-instruct-0905": {
+      name: "Kimi K2 Instruct 0905 (Preview)",
+      contextWindow: 262144,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "qwen/qwen3-32b": {
+      name: "Qwen 3 32B (Preview)",
+      contextWindow: 131072,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+
+    // Legacy models (kept for backward compatibility if still available)
+    "llama3-8b-8192": {
+      name: "Llama 3 8B (Legacy)",
+      contextWindow: 8192,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "llama3-70b-8192": {
+      name: "Llama 3 70B (Legacy)",
+      contextWindow: 8192,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+    "mixtral-8x7b-32768": {
+      name: "Mixtral 8x7B (Legacy)",
+      contextWindow: 32768,
+      supportsImages: false,
+      supportsTools: true,
+      supportsFiles: false,
+    },
+  };
+
   try {
     const response = await fetch("https://api.groq.com/openai/v1/models", {
       headers: {
@@ -373,39 +517,76 @@ async function fetchGroqModels(apiKey: string) {
     }
 
     const data = await response.json();
-    const models = Array.isArray(data.data) ? data.data : [];
+    const apiModels = Array.isArray(data.data) ? data.data : [];
 
-    return models
-      .filter((m: { id?: string }) => typeof m?.id === "string")
-      .map((m: { id: string; created?: number }) => {
-        const modelId = m.id;
+    // Filter for valid chat models (exclude audio transcription models like whisper)
+    const chatModels = apiModels.filter((model: { id?: string }) => {
+      if (typeof model?.id !== "string") {
+        return false;
+      }
 
-        // Reasonable capability guesses; refined heuristics as needed
-        const supportsReasoning =
-          /qwen|qwq|deepseek|r1|kimi|gpt-oss|llama-4-maverick|llama-guard/i.test(
-            modelId
-          );
-        const supportsImages = /llama-4-scout|vision|image|mm|multimodal/i.test(
-          modelId
-        );
-        const supportsTools = true; // Groq supports tool use across most chat models via AI SDK
-        const supportsFiles = supportsImages;
-        const contextWindow = 131072; // Default; Groq docs list many at 131,072
+      // Exclude audio transcription models
+      const id = model.id;
+      return !id.includes("whisper");
+    });
 
+    // Augment API models with our capability data
+    return chatModels.map((model: { id: string }) => {
+      const modelId = model.id;
+      const capabilities = GROQ_MODEL_CAPABILITIES[modelId];
+
+      // If we have capability data for this model, use it
+      if (capabilities) {
         return {
           modelId,
-          name: modelId,
+          name: capabilities.name,
           provider: "groq",
-          contextWindow,
-          supportsReasoning,
-          supportsTools,
-          supportsImages,
-          supportsFiles,
+          contextWindow: capabilities.contextWindow,
+          supportsReasoning: supportsReasoning("groq", modelId),
+          supportsTools: capabilities.supportsTools,
+          supportsImages: capabilities.supportsImages,
+          supportsFiles: capabilities.supportsFiles,
         } as ModelResponse;
-      });
+      }
+
+      // For unknown models, derive capabilities from the model ID
+      const isVision = /(vision|multimodal|image)/i.test(modelId);
+      const hasTools =
+        /llama|mixtral|mistral|qwen|deepseek|gemma|phi|command|it|instruct|gpt/i.test(
+          modelId
+        );
+
+      // Try to infer context window from ID (e.g., -32768 or -8192), fallback to 131072
+      const ctxMatch = modelId.match(/-(\d{4,6})(?:$|[^\d])/);
+      const inferredCtx = ctxMatch ? parseInt(ctxMatch[1], 10) : 131072;
+
+      return {
+        modelId,
+        name: modelId, // Use model ID as name for unknown models
+        provider: "groq",
+        contextWindow: Number.isFinite(inferredCtx) ? inferredCtx : 131072,
+        supportsReasoning: supportsReasoning("groq", modelId),
+        supportsTools: hasTools,
+        supportsImages: isVision,
+        supportsFiles: isVision,
+      } as ModelResponse;
+    });
   } catch (error) {
     log.error("Failed to fetch Groq models", error);
-    return [];
+
+    // Fallback to our known models if API call fails
+    return Object.entries(GROQ_MODEL_CAPABILITIES).map(
+      ([modelId, capabilities]) => ({
+        modelId,
+        name: capabilities.name,
+        provider: "groq",
+        contextWindow: capabilities.contextWindow,
+        supportsReasoning: supportsReasoning("groq", modelId),
+        supportsTools: capabilities.supportsTools,
+        supportsImages: capabilities.supportsImages,
+        supportsFiles: capabilities.supportsFiles,
+      })
+    );
   }
 }
 
