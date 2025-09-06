@@ -15,6 +15,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
@@ -187,37 +192,44 @@ export const SendButtonGroup = ({
         {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
-              <Button
-                disabled={
-                  isLoading || isSummarizing || !isExpanded || isCollapsing
-                }
-                type="button"
-                variant="ghost"
-                aria-label="More send options"
-                title="More send options"
-                className={cn(
-                  "absolute left-0 top-0 bottom-0",
-                  "w-8 h-8 p-0",
-                  "inline-flex items-center justify-center rounded-full",
-                  "transition-all transform-gpu",
-                  // Upload-like hover/active scale when expanded
-                  "hover:scale-105 active:scale-95",
-                  dropdownMenuTriggerAnimationClasses,
-                  !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
-                  "disabled:cursor-not-allowed",
-                  // Focus ring: use outside ring like upload/send
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  // Text color to drive icon via text-current
-                  "text-primary-foreground"
-                )}
-              >
-                <CaretDownIcon
-                  className={cn(
-                    "h-4 w-4 text-current transition-transform duration-300",
-                    dropdownOpen && "rotate-180"
-                  )}
-                />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    disabled={
+                      isLoading || isSummarizing || !isExpanded || isCollapsing
+                    }
+                    type="button"
+                    variant="ghost"
+                    aria-label="More send options"
+                    title="More send options"
+                    className={cn(
+                      "absolute left-0 top-0 bottom-0",
+                      "w-8 h-8 p-0",
+                      "inline-flex items-center justify-center rounded-full",
+                      "transition-all transform-gpu",
+                      // Upload-like hover/active scale when expanded
+                      "hover:scale-105 active:scale-95",
+                      dropdownMenuTriggerAnimationClasses,
+                      !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
+                      "disabled:cursor-not-allowed",
+                      // Focus ring: use outside ring like upload/send
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      // Text color to drive icon via text-current
+                      "text-primary-foreground"
+                    )}
+                  >
+                    <CaretDownIcon
+                      className={cn(
+                        "h-4 w-4 text-current transition-transform duration-300",
+                        dropdownOpen && "rotate-180"
+                      )}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">More send options</div>
+                </TooltipContent>
+              </Tooltip>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
@@ -279,38 +291,46 @@ export const SendButtonGroup = ({
           </DropdownMenu>
         )}
 
-        <Button
-          disabled={
-            isStreaming ? !onStop : !canSend || isLoading || isSummarizing
-          }
-          type={isStreaming ? "button" : "submit"}
-          variant="ghost"
-          className={cn(
-            "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
-            // Use flexbox centering to align icon perfectly
-            "flex items-center justify-center",
-            // Keep icon color in sync with state
-            isStreaming || canSend
-              ? "text-primary-foreground"
-              : "text-primary dark:text-primary/70",
-            // Match FileUploadButton hover behavior while keeping group bg
-            canSend && "hover:bg-black/5 dark:hover:bg-white/5",
-            "disabled:cursor-not-allowed",
-            "transition-colors duration-200",
-            // Focus ring: use outside ring like upload for consistency
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          )}
-          title={getButtonTitle()}
-          onClick={() => {
-            if (isStreaming && onStop) {
-              onStop();
-            } else if (!isStreaming) {
-              onSend();
-            }
-          }}
-        >
-          {renderButtonContent}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              disabled={
+                isStreaming ? !onStop : !canSend || isLoading || isSummarizing
+              }
+              type={isStreaming ? "button" : "submit"}
+              variant="ghost"
+              className={cn(
+                "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
+                // Use flexbox centering to align icon perfectly
+                "flex items-center justify-center",
+                // Keep icon color in sync with state
+                isStreaming || canSend
+                  ? "text-primary-foreground"
+                  : "text-primary dark:text-primary/70",
+                // Match FileUploadButton hover behavior while keeping group bg
+                canSend && "hover:bg-black/5 dark:hover:bg-white/5",
+                "disabled:cursor-not-allowed",
+                "transition-colors duration-200",
+                // Focus ring: use outside ring like upload for consistency
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              )}
+              onClick={() => {
+                if (isStreaming && onStop) {
+                  onStop();
+                } else if (!isStreaming) {
+                  onSend();
+                }
+              }}
+            >
+              {renderButtonContent}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">
+              {getButtonTitle() || (isStreaming ? "Stop" : "Send message")}
+            </div>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

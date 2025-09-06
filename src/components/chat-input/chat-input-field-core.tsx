@@ -62,7 +62,8 @@ export const ChatInputFieldCore = memo(
           // Core layout & appearance
           "w-full resize-none bg-transparent border-0 outline-none ring-0",
           "text-base leading-relaxed",
-          "overflow-y-auto px-1.5 py-1 sm:px-2",
+          // Padding: more left and top for breathing room; right handled by parent
+          "overflow-y-auto pl-3 pt-2 pb-1 sm:pl-3",
           // Enhanced focus experience - subtle visual feedback
           "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
           // Prevent zoom on mobile Chrome

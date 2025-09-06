@@ -103,25 +103,37 @@ function PersonaPickerComponent({
     return null;
   }
   if (compact) {
-    const content = (
+    const tooltipText = tooltip || "Select persona";
+    return (
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            ref={triggerRef}
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-              "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-              // Chip style at rest for consistency
-              "bg-accent/40 dark:bg-accent/20 text-foreground/90",
-              className
-            )}
-          >
-            {compactTriggerInner}
-          </Button>
-        </PopoverTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                ref={triggerRef}
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  // Unified pill sizing
+                  "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
+                  "rounded-full border border-border/50",
+                  // Subtle pill effect to match ecosystem
+                  "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                  // Focus ring parity
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  "transition-all duration-200",
+                  className
+                )}
+              >
+                {compactTriggerInner}
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="text-xs">{tooltipText}</div>
+          </TooltipContent>
+        </Tooltip>
         <PopoverContent
           forceMount
           data-debug-id="PersonaPicker"
@@ -140,19 +152,6 @@ function PersonaPickerComponent({
         </PopoverContent>
       </Popover>
     );
-
-    if (tooltip) {
-      return (
-        <Tooltip>
-          <TooltipTrigger asChild>{content}</TooltipTrigger>
-          <TooltipContent>
-            <div className="text-xs">{tooltip}</div>
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return content;
   }
 
   // Regular (non-compact) view

@@ -490,7 +490,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               />
             </DrawerBody>
             <DrawerFooter
-              className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2 gap-1"
+              className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-2 pt-3 gap-1"
               style={{
                 paddingBottom: "max(env(safe-area-inset-bottom), 0.5rem)",
               }}
