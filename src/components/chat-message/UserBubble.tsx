@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AttachmentStrip } from "./AttachmentStrip";
@@ -41,6 +42,12 @@ export const UserBubble = memo(
     const [editContent, setEditContent] = useState(message.content);
     const [showPendingSpinner, setShowPendingSpinner] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    // Linger visibility state for actions
+    const {
+      isVisible: showActions,
+      onMouseEnter,
+      onMouseLeave,
+    } = useHoverLinger({ delay: 700 });
 
     const isPending = message.metadata?.status === "pending";
 
@@ -92,6 +99,8 @@ export const UserBubble = memo(
               ? "w-[600px] max-w-[calc(100vw-2rem)]"
               : "max-w-[calc(100%-theme(spacing.8))] sm:max-w-[32rem] md:max-w-[36rem] lg:max-w-[40rem]"
           )}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
         >
           <div
             className={cn(
@@ -173,6 +182,7 @@ export const UserBubble = memo(
             isEditing={isEditing}
             isRetrying={isRetrying}
             isStreaming={isStreaming}
+            forceVisible={showActions}
             onDeleteMessage={onDeleteMessage}
             onEditMessage={onEditMessage ? handleEditStart : undefined}
             onRetryMessage={onRetryMessage}
