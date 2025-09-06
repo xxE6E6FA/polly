@@ -220,14 +220,14 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
                   className={cn(
                     // Unified pill style
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                    "rounded-full border border-border/50",
+                    "rounded-full ring-1 ring-border/40",
                     "bg-muted/20 text-foreground/85 hover:bg-muted/40",
                     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200",
                     "relative"
                   )}
                 >
-                  <Gear className="h-3 w-3 text-current" />
+                  <Gear className="h-4 w-4 text-current" />
                   <span className="hidden sm:inline">Settings</span>
                   {hasAdvancedSettings && (
                     <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />

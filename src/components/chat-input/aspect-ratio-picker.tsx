@@ -67,16 +67,16 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                   className={cn(
                     // Unified pill style
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                    "rounded-full border border-border/50",
+                    "rounded-full ring-1 ring-border/40",
                     "bg-muted/20 text-foreground/85 hover:bg-muted/40",
                     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200"
                   )}
                 >
                   {selectedRatio ? (
-                    <selectedRatio.icon className="h-3 w-3 text-current" />
+                    <selectedRatio.icon className="h-4 w-4 text-current" />
                   ) : (
-                    <Square className="h-3 w-3 text-current" />
+                    <Square className="h-4 w-4 text-current" />
                   )}
                   <span className="hidden sm:inline">{displayText}</span>
                 </Button>
@@ -107,7 +107,7 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                     )}
                   >
                     <div className="flex items-center gap-2">
-                      <ratio.icon size={14} />
+                      <ratio.icon size={16} />
                       <span className="font-medium">{ratio.label}</span>
                     </div>
                     <span className="text-xs text-muted-foreground font-mono">

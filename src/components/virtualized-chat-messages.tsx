@@ -92,8 +92,8 @@ const MessageItem = memo(
       <div className="px-4 sm:px-8 overflow-visible">
         <div
           id={message.id}
-          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible"
-          style={{ maxWidth: "48rem", contentVisibility: "auto" }}
+          className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible motion-safe:animate-message-in"
+          style={{ maxWidth: "48rem" }}
         >
           {message.role === "context" ? (
             <ContextMessage message={message} />
@@ -545,7 +545,7 @@ export const VirtualizedChatMessages = memo(
             height: "100%",
             width: "100%",
             overflow: "auto",
-            contain: "strict",
+            contain: "layout style size",
             paddingTop: "16px",
             paddingBottom: "20px",
             // biome-ignore lint/style/useNamingConvention: vendor-specific property

@@ -231,10 +231,10 @@ export const UnifiedChatView = memo(
 
     return (
       <div className="flex h-full">
-        <div className="relative flex h-full flex-1 flex-col overflow-y-hidden overflow-x-visible">
-          <div className="flex-1 overflow-y-hidden overflow-x-visible">
-            <div className="relative flex h-full flex-col overflow-y-hidden overflow-x-visible">
-              <div className="relative z-10 flex h-full flex-col overflow-y-hidden overflow-x-visible">
+        <div className="relative flex h-full flex-1 flex-col overflow-visible">
+          <div className="flex-1 overflow-visible">
+            <div className="relative flex h-full flex-col overflow-visible">
+              <div className="relative z-10 flex h-full flex-col overflow-visible">
                 {/* Static Header - always visible */}
                 <div
                   className="sticky top-0 z-20 flex-shrink-0 bg-background"
@@ -256,7 +256,7 @@ export const UnifiedChatView = memo(
                 <div
                   ref={messagesContainerRef}
                   className={cn(
-                    "flex-1 overflow-y-hidden overflow-x-visible",
+                    "flex-1 overflow-visible",
                     isEmpty && "overflow-y-auto",
                     // Mobile scrolling behavior: hide scrollbar, momentum scroll, contain overscroll
                     "[&_[data-vlist-id]]:overscroll-contain md:[&_[data-vlist-id]]:overscroll-auto",
