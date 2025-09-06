@@ -18,6 +18,11 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { AIModel, ReasoningConfig, ReasoningEffortLevel } from "@/types";
 
@@ -287,46 +292,48 @@ const ReasoningPickerComponent = ({
       open={selectOpen}
       onOpenChange={setSelectOpen}
     >
-      <SelectTrigger
-        asChild
-        data-debug-id="ReasoningPicker"
-        title={
-          isMandatory
-            ? `Thinking: ${selectedOption?.label || "Balanced"}`
-            : currentValue === "off"
-              ? "Enable thinking"
-              : `Thinking: ${selectedOption?.label}`
-        }
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn(
-            "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-            "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-            // Neutral at rest; provider-accent when active
-            currentValue !== "off"
-              ? cn(theme.bgColor, theme.hoverBgColor, theme.color)
-              : "bg-accent/40 dark:bg-accent/20 text-foreground/90",
-            className
-          )}
-        >
-          <div className="flex items-center gap-1">
-            {selectedOption?.icon ? (
-              <selectedOption.icon
-                className={cn("h-3 w-3 text-current")}
-                weight="bold"
-              />
-            ) : (
-              <Icon className={cn("h-3 w-3 text-current")} weight="regular" />
-            )}
-            <span className="hidden sm:inline">
-              {currentValue === "off" ? "Thinking" : selectedOption?.label}
-            </span>
-          </div>
-        </Button>
-      </SelectTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <SelectTrigger asChild data-debug-id="ReasoningPicker">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                // Unified pill sizing/styling
+                "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
+                "rounded-full border border-border/50",
+                "transition-all duration-200",
+                // Subtle at rest; provider-accent when active
+                currentValue !== "off"
+                  ? cn(theme.bgColor, theme.hoverBgColor, theme.color)
+                  : "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                className
+              )}
+            >
+              <div className="flex items-center gap-1">
+                {selectedOption?.icon ? (
+                  <selectedOption.icon
+                    className={cn("h-3 w-3 text-current")}
+                    weight="bold"
+                  />
+                ) : (
+                  <Icon
+                    className={cn("h-3 w-3 text-current")}
+                    weight="regular"
+                  />
+                )}
+                <span className="hidden sm:inline">
+                  {currentValue === "off" ? "Thinking" : selectedOption?.label}
+                </span>
+              </div>
+            </Button>
+          </SelectTrigger>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="text-xs">Configure thinking</div>
+        </TooltipContent>
+      </Tooltip>
       <SelectContent
         data-debug-id="ReasoningPicker"
         align="end"

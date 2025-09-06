@@ -20,10 +20,7 @@ import { TemperaturePicker } from "../../temperature-picker";
 import { AspectRatioDrawer } from "../aspect-ratio-drawer";
 import { AspectRatioPicker } from "../aspect-ratio-picker";
 import { FileUploadButton } from "../file-upload-button";
-import { GenerationModeToggle } from "../generation-mode-toggle";
 import { ImageGenerationSettings } from "../image-generation-settings";
-import { ImageModelDrawer } from "../image-model-drawer";
-import { ImageModelPicker } from "../image-model-picker";
 import { ImageSettingsDrawer } from "../image-settings-drawer";
 import { ModelDrawer } from "../model-drawer";
 import { NegativePromptDrawer } from "../negative-prompt-drawer";
@@ -77,7 +74,7 @@ export function ChatInputBottomBar({
   const disabled = isLoading || isStreaming || isProcessing;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
-  const [generationMode, setGenerationMode] = useGenerationMode();
+  const [generationMode] = useGenerationMode();
   const {
     params: imageParams,
     setParams: setImageParams,
@@ -100,19 +97,13 @@ export function ChatInputBottomBar({
   return (
     <div
       className={cn(
-        "flex items-center justify-between border-t border-border/20",
-        dense ? "mt-1 pt-1 gap-1" : "mt-2 pt-2 gap-2"
+        "flex items-center justify-between",
+        dense ? "mt-1 pt-2 gap-1" : "mt-2 pt-3 gap-2"
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
-        {canSend && !compact && (
-          <GenerationModeToggle
-            mode={generationMode}
-            onModeChange={setGenerationMode}
-            disabled={disabled}
-            hasReplicateApiKey={hasReplicateApiKey}
-          />
-        )}
+        {/* Unified model picker first: mobile drawer trigger */}
+        {canSend && !compact && <ModelDrawer disabled={disabled} />}
 
         {/* Mobile: Individual drawer controls for text */}
         {canSend && generationMode === "text" && !compact && (
@@ -124,7 +115,6 @@ export function ChatInputBottomBar({
               onPersonaSelect={handlePersonaSelect}
               disabled={disabled}
             />
-            <ModelDrawer disabled={disabled} />
             <TemperatureDrawer
               temperature={temperature}
               onTemperatureChange={handleTemperatureChange}
@@ -150,14 +140,7 @@ export function ChatInputBottomBar({
           hasReplicateApiKey &&
           !compact && (
             <>
-              <ImageModelDrawer
-                model={imageParams.model || ""}
-                onModelChange={model =>
-                  setImageParams(prev => ({ ...prev, model }))
-                }
-                enabledImageModels={enabledImageModels || []}
-                disabled={disabled}
-              />
+              {/* Model selection handled by unified ModelDrawer above */}
               <AspectRatioDrawer
                 aspectRatio={imageParams.aspectRatio || "1:1"}
                 onAspectRatioChange={aspectRatio =>
@@ -224,13 +207,7 @@ export function ChatInputBottomBar({
           !isPrivateMode &&
           hasReplicateApiKey && (
             <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
-              <ImageModelPicker
-                model={imageParams.model || ""}
-                onModelChange={model =>
-                  setImageParams(prev => ({ ...prev, model }))
-                }
-                enabledImageModels={enabledImageModels || []}
-              />
+              <ModelPicker />
               <AspectRatioPicker
                 aspectRatio={imageParams.aspectRatio}
                 onAspectRatioChange={aspectRatio =>
@@ -279,13 +256,13 @@ export function ChatInputBottomBar({
         {/* Desktop: Text generation controls */}
         {canSend && generationMode === "text" && (
           <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
+            <ModelPicker />
             <PersonaSelector
               conversationId={conversationId}
               hasExistingMessages={hasExistingMessages}
               selectedPersonaId={selectedPersonaId}
               onPersonaSelect={handlePersonaSelect}
             />
-            <ModelPicker />
             <TemperaturePicker
               temperature={temperature}
               onTemperatureChange={handleTemperatureChange}

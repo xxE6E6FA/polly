@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
-import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useImageParams } from "@/hooks/use-generation";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
@@ -66,7 +65,6 @@ export function TextInputSection({
     [conversationId]
   );
   // Build local navigation glue using store-backed hooks when needed
-  const { selectedPersonaId } = useChatScopedState(conversationId);
   const { isFullscreen, isTransitioning, handleToggleFullscreen } =
     useChatInputFullscreen();
   const { isMobile } = useUI();
@@ -136,7 +134,7 @@ export function TextInputSection({
               onChange={handleInputChangeWithHistory}
               onSubmit={onSubmit}
               textareaRef={textareaRef}
-              placeholder={selectedPersonaId ? "" : placeholder}
+              placeholder={placeholder}
               disabled={disabled}
               autoFocus={autoFocus}
               className={cn(

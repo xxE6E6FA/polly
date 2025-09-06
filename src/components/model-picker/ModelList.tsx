@@ -20,6 +20,7 @@ const ModelListComponent = ({
   modelGroups,
   handleSelect,
   hasReachedPollyLimit,
+  autoFocusSearch,
 }: {
   modelGroups: {
     freeModels: AvailableModel[];
@@ -27,10 +28,14 @@ const ModelListComponent = ({
   };
   handleSelect: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
+  autoFocusSearch?: boolean;
 }) => {
   return (
-    <Command className="pt-2">
-      <CommandInput className="h-9" placeholder="Search models..." />
+    <Command className="pt-2 [&_[cmdk-input-wrapper]]:mx-2 [&_[cmdk-input-wrapper]]:mb-2 [&_[cmdk-input-wrapper]]:rounded-md [&_[cmdk-input-wrapper]]:border [&_[cmdk-input-wrapper]]:border-border/50 [&_[cmdk-input-wrapper]]:bg-muted/40 dark:[&_[cmdk-input-wrapper]]:bg-muted/20 [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input-wrapper]_svg]:mr-2 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-9 [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-sm">
+      <CommandInput
+        placeholder="Search models..."
+        autoFocus={autoFocusSearch}
+      />
       <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
           <div className="p-4 text-center">

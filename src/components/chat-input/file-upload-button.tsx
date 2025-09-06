@@ -1,6 +1,11 @@
 import { PaperclipIcon } from "@phosphor-icons/react";
 import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -61,25 +66,32 @@ export function FileUploadButton({
         type="file"
         onChange={handleFileSelect}
       />
-      <Button
-        aria-label="Upload files"
-        className={cn(
-          "h-8 w-8 rounded-full p-0 shrink-0",
-          "transition-all duration-200",
-          "bg-primary text-primary-foreground",
-          "hover:bg-primary/90 hover:text-primary-foreground",
-          "hover:scale-105 active:scale-95",
-          "shadow-sm hover:shadow-md",
-          disabled && "cursor-not-allowed opacity-50 hover:scale-100"
-        )}
-        disabled={disabled || isSubmitting}
-        size="icon"
-        type="button"
-        variant="ghost"
-        onClick={handleClick}
-      >
-        <PaperclipIcon className="h-3.5 w-3.5" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            aria-label="Upload files"
+            className={cn(
+              "h-8 w-8 rounded-full p-0 shrink-0",
+              "transition-all duration-200",
+              "bg-primary text-primary-foreground",
+              "hover:bg-primary/90 hover:text-primary-foreground",
+              "hover:scale-105 active:scale-95",
+              "shadow-sm hover:shadow-md",
+              disabled && "cursor-not-allowed opacity-50 hover:scale-100"
+            )}
+            disabled={disabled || isSubmitting}
+            size="icon"
+            type="button"
+            variant="ghost"
+            onClick={handleClick}
+          >
+            <PaperclipIcon className="h-3.5 w-3.5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="text-xs">Upload files</div>
+        </TooltipContent>
+      </Tooltip>
     </>
   );
 }

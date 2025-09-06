@@ -10,6 +10,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover-with-backdrop";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 import { cn } from "@/lib/utils";
 import type { ImageGenerationParams } from "@/types";
@@ -205,26 +210,35 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
     return (
       <div className={className}>
         <Popover open={isOpen} onOpenChange={setIsOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              className={cn(
-                "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
-                "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-                "bg-accent/40 dark:bg-accent/20 text-foreground/90",
-                "relative"
-              )}
-              title="Image Generation Settings"
-            >
-              <Gear className="h-3 w-3 text-current" />
-              <span className="hidden sm:inline">Settings</span>
-              {hasAdvancedSettings && (
-                <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />
-              )}
-            </Button>
-          </PopoverTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled}
+                  className={cn(
+                    // Unified pill style
+                    "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
+                    "rounded-full border border-border/50",
+                    "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    "transition-all duration-200",
+                    "relative"
+                  )}
+                >
+                  <Gear className="h-3 w-3 text-current" />
+                  <span className="hidden sm:inline">Settings</span>
+                  {hasAdvancedSettings && (
+                    <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="text-xs">Open image generation settings</div>
+            </TooltipContent>
+          </Tooltip>
           <PopoverContent
             forceMount
             data-debug-id="ImageGenerationSettings"
