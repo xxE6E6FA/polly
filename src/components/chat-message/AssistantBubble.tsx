@@ -13,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import { useStreamOverlays } from "@/stores/stream-overlays";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
@@ -227,6 +228,13 @@ export const AssistantBubble = ({
   const isImageGeneration = Boolean(message.imageGeneration);
   const hasReasoningText = Boolean(reasoning && reasoning.trim().length > 0);
 
+  // Linger state to keep actions briefly visible after mouseout
+  const {
+    isVisible: showActions,
+    onMouseEnter,
+    onMouseLeave,
+  } = useHoverLinger({ delay: 700 });
+
   const { phase, statusLabel } = useAssistantDisplayPhase({
     isStreamingProp: isStreaming || message.status === "streaming",
     messageStatus: message.status,
@@ -269,7 +277,11 @@ export const AssistantBubble = ({
 
   return (
     <div className="w-full">
-      <div className="min-w-0 flex-1">
+      <div
+        className="min-w-0 flex-1"
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
         {/* Pre-content: single status strip + optional skeleton, no stacking loaders */}
         {showPreContentStrip && (
           <div className="mb-2.5">
@@ -585,7 +597,12 @@ export const AssistantBubble = ({
           const outputUrls = message.imageGeneration.output || [];
           return generatedImages.length > 0 || outputUrls.length > 0;
         })() ? (
-          <div className="flex items-center gap-2 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 ease-out">
+          <div
+            className={cn(
+              "flex items-center gap-2 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 ease-out",
+              showActions && "sm:opacity-100"
+            )}
+          >
             <div className="flex items-center gap-1">
               {/* Image Actions */}
               <ImageActions
@@ -644,6 +661,7 @@ export const AssistantBubble = ({
                 isUser={false}
                 model={message.model}
                 provider={message.provider}
+                forceVisible={showActions}
                 onDeleteMessage={onDeleteMessage}
                 onRetryMessage={onRetryMessage}
                 onRefineMessage={onRefineMessage}

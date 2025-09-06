@@ -805,6 +805,8 @@ type MessageActionsProps = {
   model?: string;
   provider?: string;
   className?: string;
+  // When true, keeps actions visible regardless of group hover.
+  forceVisible?: boolean;
 };
 
 export const MessageActions = memo(
@@ -824,6 +826,7 @@ export const MessageActions = memo(
     model,
     provider,
     className,
+    forceVisible,
   }: MessageActionsProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
@@ -968,7 +971,7 @@ export const MessageActions = memo(
       "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms; opacity: 100; transform: none }",
       isUser && isEditing && "opacity-0 pointer-events-none translate-y-2",
       isUser ? "justify-end mt-1.5" : "mt-1.5",
-      isDropdownOpen && "sm:opacity-100 sm:translate-y-0",
+      (isDropdownOpen || forceVisible) && "sm:opacity-100 sm:translate-y-0",
       className
     );
 
