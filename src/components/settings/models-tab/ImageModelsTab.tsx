@@ -643,7 +643,7 @@ export const ImageModelsTab = () => {
       </div>
 
       {/* Custom Model Input */}
-      <div className="rounded-lg border border-border bg-muted/50 p-4">
+      <div className="rounded-lg bg-muted/50 p-4 shadow-sm ring-1 ring-border/30">
         <h3 className="text-sm font-medium mb-2">Add Custom Model</h3>
         <p className="text-xs text-muted-foreground mb-3">
           Enter a model ID from replicate.com (e.g., "stability-ai/sdxl" or

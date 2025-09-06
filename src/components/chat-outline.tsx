@@ -195,7 +195,7 @@ const ChatOutlineComponent = ({
       {/* Smooth morphing container */}
       <div
         className={cn(
-          "relative overflow-hidden border border-border/50 bg-background shadow-lg backdrop-blur-sm transition-all duration-300 ease-out hover:shadow-xl",
+          "relative overflow-hidden bg-card shadow-lg backdrop-blur-sm transition-all duration-300 ease-out hover:shadow-xl",
           isExpanded ? "rounded-xl" : "rounded-[14px] w-7"
         )}
         style={{

@@ -46,7 +46,7 @@ export const UserIdCard = () => {
       {/* ID Card - desktop only */}
       <div className="relative hidden lg:block">
         <div
-          className="relative w-full border border-border/60 shadow-md"
+          className="relative w-full shadow-lg"
           style={{
             background: "hsl(var(--surface-primary))",
             borderRadius: "0.75rem",
@@ -119,7 +119,7 @@ export const UserIdCard = () => {
 
             {/* Stats - vertical list - hidden on mobile */}
             <div className="mb-4 hidden stack-sm lg:block">
-              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
+              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
                 <div className="flex items-center space-x-2">
                   <ChatCircleTextIcon
                     className="h-3.5 w-3.5"
@@ -132,7 +132,7 @@ export const UserIdCard = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
+              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
                 <div className="flex items-center space-x-2">
                   <ChatCircleIcon
                     className="h-3.5 w-3.5"
@@ -147,7 +147,7 @@ export const UserIdCard = () => {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg border border-border/50 bg-muted p-2.5">
+              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
                 <div className="flex items-center space-x-2">
                   <TrendUpIcon
                     className="h-3.5 w-3.5"
@@ -163,7 +163,7 @@ export const UserIdCard = () => {
 
             {/* Usage bar - hidden for unlimited users */}
             {monthlyUsage && !hasUnlimitedCalls && (
-              <div className="rounded-lg border border-border/50 bg-muted p-3">
+              <div className="rounded-lg bg-muted p-3 ring-1 ring-border/30 shadow-sm">
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center space-x-1.5">
                     <SparkleIcon className="h-3.5 w-3.5 text-primary" />
@@ -176,7 +176,7 @@ export const UserIdCard = () => {
                   </span>
                 </div>
                 <Progress
-                  className="h-2.5 rounded-full border border-border/40 bg-muted/60 shadow-inner"
+                  className="h-2.5 rounded-full ring-1 ring-border/30 bg-muted/60 shadow-inner"
                   value={usagePercentage}
                 />
                 <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
@@ -245,7 +245,7 @@ export const UserIdCard = () => {
       {/* Mobile usage section - standalone - hidden for unlimited users */}
       <div className="lg:hidden">
         {monthlyUsage && !hasUnlimitedCalls && (
-          <div className="rounded-lg border border-border/60 bg-muted p-3 shadow-sm">
+          <div className="rounded-lg bg-muted p-3 shadow-sm ring-1 ring-border/30">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center space-x-1.5">
                 <SparkleIcon className="h-3.5 w-3.5 text-primary" />
@@ -256,7 +256,7 @@ export const UserIdCard = () => {
               </span>
             </div>
             <Progress
-              className="h-2.5 rounded-full border border-border/40 bg-muted/60 shadow-inner"
+              className="h-2.5 rounded-full ring-1 ring-border/30 bg-muted/60 shadow-inner"
               value={usagePercentage}
             />
             <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">

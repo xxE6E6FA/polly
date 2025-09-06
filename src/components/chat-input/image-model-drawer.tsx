@@ -134,7 +134,7 @@ export function ImageModelDrawer({
           <div className="pt-2">
             <Link
               to={ROUTES.SETTINGS.IMAGE_MODELS}
-              className="flex items-center justify-center gap-2 w-full p-3 rounded-lg border border-border hover:bg-accent/50 transition-colors"
+              className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-muted/40 hover:bg-accent/50 transition-colors shadow-sm"
             >
               <GearIcon className="h-4 w-4" />
               <span className="text-sm">Manage Image Models</span>

@@ -154,7 +154,7 @@ const RetryDropdown = memo(
         <div className="max-h-[60vh] overflow-y-auto">
           {/* Free Models Group */}
           {modelGroups.freeModels.length > 0 && (
-            <div className="border-b">
+            <div className="border-b border-border/30">
               <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
                 <ProviderIcon provider="polly" className="h-4 w-4" />
                 <span className="font-medium text-sm">Polly</span>
@@ -226,7 +226,10 @@ const RetryDropdown = memo(
               const providerTitle = providerConfig?.title || providerId;
 
               return (
-                <div key={providerId} className="border-b last:border-b-0">
+                <div
+                  key={providerId}
+                  className="border-b border-border/30 last:border-b-0"
+                >
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
                     <ProviderIcon provider={providerId} className="h-4 w-4" />
                     <span className="font-medium text-sm">{providerTitle}</span>
@@ -651,21 +654,21 @@ const RetryDropdown = memo(
                       setRefineText("");
                       setIsRefineDialogOpen(true);
                     }}
-                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
                   >
                     <NotePencilIcon className="h-4 w-4" />
                     Edit instruction…
                   </button>
                   <button
                     onClick={() => handleRefine("add_details")}
-                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
                   >
                     <ArrowsOutSimpleIcon className="h-4 w-4" />
                     Add more detail
                   </button>
                   <button
                     onClick={() => handleRefine("more_concise")}
-                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
                   >
                     <ArrowsInSimpleIcon className="h-4 w-4" />
                     Make more concise
@@ -675,7 +678,7 @@ const RetryDropdown = memo(
                   </div>
                   <button
                     onClick={handleRetrySame}
-                    className="flex items-center gap-2 w-full p-3 border-b hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
                   >
                     <ArrowCounterClockwiseIcon className="h-4 w-4" />
                     Retry with current model

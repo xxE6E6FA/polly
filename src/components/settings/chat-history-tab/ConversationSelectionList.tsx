@@ -307,7 +307,7 @@ export function ConversationSelectionList({
           )}
         </CardHeader>
 
-        <CardContent className="flex-1 min-h-0 p-0 border-t border-border/50">
+        <CardContent className="flex-1 min-h-0 p-0 border-t border-border/30">
           <VirtualizedPaginatedList<ConversationSummary>
             query={api.conversations.list as PaginatedQueryReference}
             queryArgs={{

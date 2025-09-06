@@ -312,7 +312,7 @@ export const PersonaForm = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-4 rounded-lg border bg-muted/30 p-4">
+          <div className="flex items-center gap-4 rounded-lg bg-muted/30 p-4 ring-1 ring-border/30 shadow-sm">
             <div className="relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-background shadow-sm">
               <span
                 className="absolute select-none text-3xl"
@@ -411,7 +411,7 @@ export const PersonaForm = ({
             )}
 
             {/* Prompt Controls */}
-            <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/30 p-2">
+            <div className="flex items-center justify-between gap-2 border-t border-border/30 bg-muted/30 p-2">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Button
