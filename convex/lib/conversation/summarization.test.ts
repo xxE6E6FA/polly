@@ -56,6 +56,8 @@ describe("conversation/summarization", () => {
     vi.mocked(fetch as any).mockResolvedValue({ ok: true, json: async () => ({ content: [{ text: "META" }] }) });
     const chunks = await createRecursiveMetaSummary({} as any, "c1", many);
     expect(chunks.length).toBeGreaterThan(0);
+    // Should never exceed MAX_SUMMARY_CHUNKS at the current recursion depth
+    expect(chunks.length).toBeLessThanOrEqual(CONTEXT_CONFIG.MAX_SUMMARY_CHUNKS);
   });
 
   it("summarizeChunk uses LLM and falls back on error", async () => {

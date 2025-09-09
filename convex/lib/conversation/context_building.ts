@@ -38,15 +38,37 @@ export const buildHierarchicalContextMessages = async (
 
     log.info(`Total messages in conversation: ${allMessages.length}`);
 
-    // If total messages don't exceed the threshold, return them directly
-    if (allMessages.length <= CONTEXT_CONFIG.SUMMARY_THRESHOLD) {
-      log.info("Message count below threshold, returning all messages directly");
+    // Decide whether we need summarization based on token budget if we
+    // know the model's context window; otherwise fall back to message count.
+    const estimateTokens = (msgs: any[]): number =>
+      msgs
+        .filter(m => m.role !== "system" && m.role !== "context")
+        .reduce((sum, m) => sum + Math.max(1, Math.ceil((m.content || "").length / 4)), 0);
+
+    let needsSummarization = false;
+    if (modelInfo?.contextLength) {
+      const minCap = CONTEXT_CONFIG.MIN_TOKEN_THRESHOLD ?? 100_000;
+      const threshold = Math.min(modelInfo.contextLength, minCap);
+      const tokenTotal = estimateTokens(allMessages as any);
+      log.info(`Token estimate: ${tokenTotal}, threshold: ${threshold}`);
+      needsSummarization = tokenTotal > threshold;
+    } else {
+      needsSummarization = allMessages.length > CONTEXT_CONFIG.SUMMARY_THRESHOLD;
+    }
+
+    if (!needsSummarization) {
+      log.info("Below summarization threshold, no hierarchical context needed");
       return [];
     }
 
     // Split messages into those that need summarization and recent messages
-    const messagesToSummarize = allMessages.slice(0, -recentMessageCount);
-    const recentMessages = allMessages.slice(-recentMessageCount);
+    // Handle the special case of recentMessageCount === 0: summarize all messages
+    const messagesToSummarize =
+      recentMessageCount > 0
+        ? allMessages.slice(0, -recentMessageCount)
+        : allMessages.slice(0);
+    const recentMessages =
+      recentMessageCount > 0 ? allMessages.slice(-recentMessageCount) : [];
 
     log.info(`Messages to summarize: ${messagesToSummarize.length}, Recent messages: ${recentMessages.length}`);
 

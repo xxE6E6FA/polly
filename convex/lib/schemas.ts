@@ -467,6 +467,8 @@ export const conversationSchema = v.object({
   isStreaming: v.optional(v.boolean()),
   isPinned: v.optional(v.boolean()),
   isArchived: v.optional(v.boolean()),
+  // Rolling token estimate (heuristic) used to trigger summarization
+  tokenEstimate: v.optional(v.number()),
   // Legacy branching fields (for backward compatibility)
   activeBranchId: v.optional(v.string()),
   activeForkDefaultBranchId: v.optional(v.string()),
