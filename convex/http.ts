@@ -200,7 +200,7 @@ http.route({
   path: "/conversation/stream",
   method: "POST",
   handler: httpAction(async (ctx, request): Promise<Response> => {
-    console.log(
+    log.debug(
       "HTTP Action started - method:",
       request.method,
       "url:",
@@ -239,7 +239,7 @@ http.route({
         presencePenalty,
       } = body || {};
 
-      console.log("HTTP Request Body:", JSON.stringify(body, null, 2));
+      log.debug("HTTP Request Body:", JSON.stringify(body, null, 2));
 
       if (!(conversationId && messageId)) {
         return new Response(
@@ -252,11 +252,11 @@ http.route({
       }
 
       // AuthN: require user
-      console.log("About to call getAuthUserId");
+      log.debug("About to call getAuthUserId");
       const userId = await getAuthUserId(ctx);
-      console.log("getAuthUserId returned:", userId);
+      log.debug("getAuthUserId returned:", userId);
       if (!userId) {
-        console.log("No user ID - returning 401");
+        log.debug("No user ID - returning 401");
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...cors, "Content-Type": "application/json" },
@@ -272,18 +272,13 @@ http.route({
       }
 
       // AuthZ: ensure user owns the conversation and message
-      console.log("About to fetch conversation and message");
+      log.debug("About to fetch conversation and message");
       const [conversation, message] = await Promise.all([
         ctx.runQuery(api.conversations.get, { id: conversationId }),
         ctx.runQuery(api.messages.getById, { id: messageId }),
       ]);
-      console.log(
-        "Fetched conversation:",
-        !!conversation,
-        "message:",
-        !!message
-      );
-      console.log("Message details:", {
+      log.debug("Fetched conversation:", !!conversation, "message:", !!message);
+      log.debug("Message details:", {
         id: message?._id,
         role: message?.role,
         model: message?.model,
@@ -324,7 +319,7 @@ http.route({
           }
         );
       }
-      console.log("Resolved model/provider:", {
+      log.debug("Resolved model/provider:", {
         reqModelId,
         reqProvider,
         messageModel: message?.model,
@@ -338,7 +333,7 @@ http.route({
       // Also ensures reasoning is properly cleared for retry scenarios
       if (reqModelId || reqProvider) {
         try {
-          console.log("Updating message with:", {
+          log.debug("Updating message with:", {
             messageId,
             model: modelId,
             provider: provider,
@@ -357,7 +352,7 @@ http.route({
               | "elevenlabs",
             reasoning: "", // Clear reasoning for retry by setting to empty string
           });
-          console.log(
+          log.info(
             "Successfully updated message model/provider and cleared reasoning"
           );
 
@@ -365,7 +360,7 @@ http.route({
           const updatedMessage = await ctx.runQuery(api.messages.getById, {
             id: messageId,
           });
-          console.log("Message after update:", {
+          log.debug("Message after update:", {
             id: updatedMessage?._id,
             model: updatedMessage?.model,
             provider: updatedMessage?.provider,
@@ -373,7 +368,7 @@ http.route({
             content: `${updatedMessage?.content?.slice(0, 30)}...`,
           });
         } catch (error) {
-          console.error(
+          log.error(
             "Failed to update message model/provider/reasoning:",
             error
           );
@@ -392,17 +387,17 @@ http.route({
       }
 
       // Create stream to the browser
-      console.log("Creating TransformStream");
+      log.debug("Creating TransformStream");
       const ts = new TransformStream();
       const writer = ts.writable.getWriter();
       const encoder = new TextEncoder();
-      console.log("Stream setup complete");
+      log.debug("Stream setup complete");
 
       const writeFrame = async (obj: unknown) => {
         try {
           await writer.write(encoder.encode(`${JSON.stringify(obj)}\n`));
         } catch (error) {
-          console.error("Write frame error:", error);
+          log.warn("Write frame error:", error);
           // Ignore write errors during streaming
         }
       };
@@ -429,32 +424,32 @@ http.route({
       const response = new Response(ts.readable, { headers: streamHeaders });
 
       // Get messages outside async function so EXA processing can access it
-      console.log("Getting all messages in conversation");
+      log.debug("Getting all messages in conversation");
       const all = await ctx.runQuery(api.messages.getAllInConversation, {
         conversationId,
       });
-      console.log("Got", all.length, "messages");
+      log.debug("Got", all.length, "messages");
 
       // Start all processing in background - don't block the response
       (async () => {
         // Build context messages (simplified, preserves system + conversation)
-        console.log("Building context messages");
+        log.debug("Building context messages");
         const personaPrompt = await getPersonaPrompt(
           ctx,
           personaId ?? conversation.personaId
         );
-        console.log("Got persona prompt");
+        log.debug("Got persona prompt");
         const baseline = getBaselineInstructions(modelId);
         const system = mergeSystemPrompts(baseline, personaPrompt);
-        console.log("Built system prompt");
+        log.debug("Built system prompt");
 
         // Model capabilities for PDF handling
-        console.log("Getting model info");
+        log.debug("Getting model info");
         const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
           modelId,
           provider,
         });
-        console.log("Got model info:", !!modelInfo);
+        log.debug("Got model info:", !!modelInfo);
 
         // Watchdog: if conversation shows isStreaming=true but there is no active thinking/streaming message,
         // clear the flag (stale state from a prior crash) before we begin.
@@ -479,17 +474,17 @@ http.route({
         }
 
         // Build stream messages with attachment processing for the last user message
-        console.log("Starting message processing");
+        log.debug("Starting message processing");
         const streamMsgs: Array<{
           role: "user" | "assistant" | "system";
           content: string | Array<Record<string, unknown>>;
         }> = [];
 
         streamMsgs.push({ role: "system", content: system });
-        console.log("Added system message");
+        log.debug("Added system message");
 
         // Copy messages and handle attachments on the last user item
-        console.log("Finding last user message in", all.length, "messages");
+        log.debug("Finding last user message in", all.length, "messages");
         let lastUserIdx = -1;
         for (let i = 0; i < all.length; i++) {
           const m: Doc<"messages"> = all[i];
@@ -497,20 +492,20 @@ http.route({
             lastUserIdx = i;
           }
         }
-        console.log("Last user message index:", lastUserIdx);
+        log.debug("Last user message index:", lastUserIdx);
 
         let lastUserAttachments: Doc<"messages">["attachments"];
-        console.log("Processing messages loop");
+        log.debug("Processing messages loop");
         for (let i = 0; i < all.length; i++) {
           const m: Doc<"messages"> = all[i];
-          console.log("Processing message", i, "role:", m.role);
+          log.debug("Processing message", i, "role:", m.role);
           if (m.role !== "user" && m.role !== "assistant") {
             continue;
           }
 
           // Skip assistant messages with empty content (they're the message being generated)
           if (m.role === "assistant" && (!m.content || m.content === "")) {
-            console.log("Skipping empty assistant message");
+            log.debug("Skipping empty assistant message");
             continue;
           }
 
@@ -523,7 +518,7 @@ http.route({
             Array.isArray(m.attachments) &&
             m.attachments.length > 0
           ) {
-            console.log(
+            log.debug(
               "Processing attachments for last user message, count:",
               m.attachments.length
             );
@@ -536,12 +531,12 @@ http.route({
                 modelId,
                 Boolean(modelInfo?.supportsFiles)
               );
-            console.log("PDF extraction needed:", needsExtraction);
+            log.debug("PDF extraction needed:", needsExtraction);
             if (needsExtraction) {
               await writeFrame({ t: "status", status: "reading_pdf" });
             }
             // Process attachments for LLM consumption (PDF extraction, etc.)
-            console.log("About to process attachments for LLM");
+            log.debug("About to process attachments for LLM");
             const processed = await processAttachmentsForLLM(
               ctx,
               m.attachments,
@@ -550,10 +545,7 @@ http.route({
               Boolean(modelInfo?.supportsFiles),
               messageId
             );
-            console.log(
-              "Processed attachments, count:",
-              processed?.length || 0
-            );
+            log.debug("Processed attachments, count:", processed?.length || 0);
             lastUserAttachments = processed;
 
             const parts: Array<Record<string, unknown>> = [];
@@ -600,7 +592,7 @@ http.route({
           streamMsgs.push({ role: m.role, content });
         }
 
-        console.log("Built", streamMsgs.length, "stream messages");
+        log.debug("Built", streamMsgs.length, "stream messages");
 
         // Web search pre-check + EXA search (blocking path before LLM)
         try {
@@ -908,12 +900,12 @@ http.route({
         }
 
         // Convert to AI SDK CoreMessage format
-        console.log("Converting messages to AI SDK format");
+        log.debug("Converting messages to AI SDK format");
         const context = await convertMessages(ctx, streamMsgs, provider);
-        console.log("Converted to", context.length, "context messages");
+        log.debug("Converted to", context.length, "context messages");
 
         // Send init frame to client
-        console.log("Sending init frame to client");
+        log.debug("Sending init frame to client");
         const personaInit = personaId ?? conversation.personaId;
         await writeFrame({
           t: "init",
@@ -929,19 +921,19 @@ http.route({
               }))
             : [],
         });
-        console.log("Sent init frame");
+        log.debug("Sent init frame");
 
         // Prepare model
-        console.log(
+        log.debug(
           "Getting API key for provider:",
           provider,
           "modelId:",
           modelId
         );
         const apiKey = await getApiKey(ctx, provider, modelId, conversationId);
-        console.log("API key retrieved:", apiKey ? "YES" : "NO");
+        log.debug("API key retrieved:", apiKey ? "YES" : "NO");
         const model = await createLanguageModel(ctx, provider, modelId, apiKey);
-        console.log("Language model created:", !!model);
+        log.debug("Language model created:", !!model);
         const streamOpts = await getProviderStreamOptions(
           ctx,
           provider,
@@ -954,7 +946,7 @@ http.route({
             : undefined,
           undefined
         );
-        console.log("Stream options:", streamOpts);
+        log.debug("Stream options:", streamOpts);
 
         // DB batching
         let pending = "";
@@ -1020,11 +1012,11 @@ http.route({
         // Kick off LLM stream
         (async () => {
           try {
-            console.log(
+            log.debug(
               "Starting LLM stream with context messages:",
               context.length
             );
-            console.log("Last message:", context[context.length - 1]);
+            log.debug("Last message:", context[context.length - 1]);
             const result = streamText({
               model,
               messages: context,
@@ -1082,11 +1074,11 @@ http.route({
             }
 
             let lastCheck = Date.now();
-            console.log("Entering stream reading loop");
+            log.debug("Entering stream reading loop");
             let chunkCount = 0;
             for await (const chunk of result.textStream) {
               chunkCount++;
-              console.log(
+              log.debug(
                 "Received chunk #",
                 chunkCount,
                 ":",
@@ -1128,7 +1120,7 @@ http.route({
             }
 
             // Final flush and finalize
-            console.log("Stream completed, total chunks received:", chunkCount);
+            log.info("Stream completed, total chunks received:", chunkCount);
             await flush();
             await flushReasoning();
             const metadata: {
@@ -1160,7 +1152,7 @@ http.route({
             await writeFrame({ t: "finish", reason: "stop" });
             await writer.close();
           } catch (error: unknown) {
-            console.error("Stream error:", error);
+            log.error("Stream error:", error);
             const errorMessage =
               error instanceof Error ? error.message : "stream failed";
             await ctx.runMutation(internal.messages.updateContent, {

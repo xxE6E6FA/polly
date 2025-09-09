@@ -11,13 +11,13 @@ type MigrationResult = {
 export const runBuiltInModelsMigration = action({
   args: {},
   handler: async (ctx: ActionCtx): Promise<MigrationResult> => {
-    console.log("Starting built-in models migration...");
+    log.info("Starting built-in models migration...");
 
     try {
       const result: MigrationResult = await ctx.runMutation(
         internal.migrations.seedBuiltInModels.seedBuiltInModels
       );
-      console.log("Migration completed successfully:", result);
+      log.info("Migration completed successfully:", result);
       return result;
     } catch (error) {
       log.error("Migration failed:", error);

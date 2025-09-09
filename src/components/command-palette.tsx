@@ -72,17 +72,8 @@ type ConversationType = {
   _creationTime: number;
 };
 
-type ModelType = {
-  modelId: string;
-  provider: string;
-  name: string;
-  contextLength?: number;
-  supportsReasoning?: boolean;
-  supportsImages?: boolean;
-  supportsTools?: boolean;
-  supportsFiles?: boolean;
-  inputModalities?: string[];
-};
+// Use the concrete model document types from Convex rather than an ad-hoc shape
+type ModelType = AvailableModel;
 
 export function CommandPalette({
   open,
@@ -201,15 +192,15 @@ export function CommandPalette({
       : "skip"
   );
 
-  const allModels = useMemo(() => {
-    const combined = [
+  const allModels: ModelType[] = useMemo(() => {
+    const combined: AvailableModel[] = [
       ...(modelGroups?.freeModels ?? []),
       ...Object.values(modelGroups?.providerModels ?? {}).flat(),
     ];
-    const map = new Map<string, ModelType>();
+    const map = new Map<string, AvailableModel>();
     combined.forEach(model => {
       const key = `${model.provider}-${model.modelId}`;
-      map.set(key, model as unknown as ModelType);
+      map.set(key, model);
     });
     return Array.from(map.values());
   }, [modelGroups]);

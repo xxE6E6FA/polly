@@ -1,4 +1,5 @@
 import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { DEFAULT_BUILTIN_MODEL_ID } from "@shared/constants";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -180,8 +181,7 @@ export function useChat({ conversationId }: UseChatParams) {
 
         // Convert server messages to ChatMessage format
         const convertedMessages: ChatMessage[] = messageArray.map(
-          // biome-ignore lint/suspicious/noExplicitAny: Server message type varies
-          (msg: any) => ({
+          (msg: Doc<"messages">) => ({
             id: msg._id,
             role: msg.role,
             content: msg.content,

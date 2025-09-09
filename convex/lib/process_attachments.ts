@@ -1,6 +1,7 @@
 
 import { type ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
+import { log } from "./logger";
 
 // Define Attachment type based on attachmentSchema
 type Attachment = {
@@ -49,7 +50,9 @@ export const processAttachmentsForLLM = async (
     if (attachment.type === "pdf") {
       // Check if this model needs text extraction
       const needsTextExtraction = shouldExtractPdfText(provider, modelId, modelSupportsFiles);
-      console.log(`[PDF Processing] Model ${provider}/${modelId} (supportsFiles=${modelSupportsFiles}) needsTextExtraction=${needsTextExtraction} for ${attachment.name}`);
+      log.debug(
+        `[PDF Processing] Model ${provider}/${modelId} (supportsFiles=${modelSupportsFiles}) needsTextExtraction=${needsTextExtraction} for ${attachment.name}`
+      );
       
       if (needsTextExtraction) {
         // Show status update for PDF processing
@@ -69,17 +72,21 @@ export const processAttachmentsForLLM = async (
             const textBlob = await ctx.storage.get(attachment.textFileId);
             if (textBlob) {
               textContent = await textBlob.text();
-              console.log(`[PDF Processing] Retrieved cached text for ${attachment.name}: ${textContent.length} chars`);
+              log.debug(
+                `[PDF Processing] Retrieved cached text for ${attachment.name}: ${textContent.length} chars`
+              );
             }
           } catch (error) {
-            console.warn("Failed to retrieve stored PDF text:", error);
+            log.warn("Failed to retrieve stored PDF text:", error);
           }
         }
 
         // Priority 2: Fallback to extractedText (in-memory)
         if (!textContent && attachment.extractedText) {
           textContent = attachment.extractedText;
-          console.log(`[PDF Processing] Using in-memory text for ${attachment.name}: ${textContent.length} chars`);
+          log.debug(
+            `[PDF Processing] Using in-memory text for ${attachment.name}: ${textContent.length} chars`
+          );
           
           // Store the extracted text for future use
           try {
@@ -98,7 +105,7 @@ export const processAttachmentsForLLM = async (
             }
             continue;
           } catch (error) {
-            console.warn("Failed to store PDF text:", error);
+            log.warn("Failed to store PDF text:", error);
             // Continue with in-memory text
           }
         }
@@ -111,7 +118,9 @@ export const processAttachmentsForLLM = async (
               await updatePdfReadingStatus(ctx, messageId, attachment.name, 10);
             }
 
-            console.log(`[PDF Processing] Extracting text server-side for ${attachment.name}`);
+            log.debug(
+              `[PDF Processing] Extracting text server-side for ${attachment.name}`
+            );
             
             // Extract PDF text using server-side action
             const extractionResult = await ctx.runAction(api.ai.pdf.extractPdfText, {
@@ -128,14 +137,19 @@ export const processAttachmentsForLLM = async (
               content: textContent,
             });
 
-            console.log(`[PDF Processing] Server extraction complete for ${attachment.name}: ${textContent.length} chars`);
+            log.info(
+              `[PDF Processing] Server extraction complete for ${attachment.name}: ${textContent.length} chars`
+            );
             // Clear the PDF reading status
             if (messageId && touchedPdfStatus) {
               await clearPdfReadingStatus(ctx, messageId);
             }
             continue;
           } catch (error) {
-            console.error(`[PDF Processing] Server extraction failed for ${attachment.name}:`, error);
+            log.error(
+              `[PDF Processing] Server extraction failed for ${attachment.name}:`,
+              error
+            );
             
             // Clear the PDF reading status on error
             if (messageId && touchedPdfStatus) {
@@ -165,7 +179,9 @@ export const processAttachmentsForLLM = async (
         }
       } else {
         // Model supports native PDF - use original attachment
-        console.log(`[PDF Processing] Model ${provider}/${modelId} supports PDFs natively - passing through ${attachment.name} without extraction`);
+        log.debug(
+          `[PDF Processing] Model ${provider}/${modelId} supports PDFs natively - passing through ${attachment.name} without extraction`
+        );
         processedAttachments.push(attachment);
       }
     } else {

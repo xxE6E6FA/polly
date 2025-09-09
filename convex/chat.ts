@@ -212,7 +212,7 @@ export const chatStream = httpAction(
                 key.includes("ANTHROPIC") ||
                 key.includes("OPENAI")
             );
-            console.log(
+            log.debug(
               "[chatStream] Available API-related env vars:",
               availableKeys
             );
@@ -254,7 +254,7 @@ export const chatStream = httpAction(
             personaPrompt = persona.prompt;
           }
         } catch (error) {
-          console.warn("[chatStream] Failed to load persona:", error);
+          log.warn("[chatStream] Failed to load persona:", error);
         }
       }
 

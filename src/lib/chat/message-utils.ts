@@ -17,7 +17,11 @@ export function isMessageMetadata(x: unknown): x is {
   searchCategory?: string;
   status?: "pending" | "error";
 } {
-  return x === null || x === undefined || typeof x === "object";
+  return (
+    x === null ||
+    x === undefined ||
+    (typeof x === "object" && !Array.isArray(x))
+  );
 }
 
 /**

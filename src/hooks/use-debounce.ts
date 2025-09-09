@@ -26,11 +26,11 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
+export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   callback: T,
   delay: number,
   options: { leading?: boolean; trailing?: boolean } = { trailing: true }
-): T {
+): (...args: Parameters<T>) => void {
   const callbackRef = useRef(callback);
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const lastCallTimeRef = useRef<number>(0);
@@ -44,7 +44,7 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
 
     const executeCallback = () => {
       lastCallTimeRef.current = now;
-      (callbackRef.current as (...args: unknown[]) => unknown)(...args);
+      callbackRef.current(...args);
     };
 
     // Clear existing timeout
@@ -73,5 +73,5 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
     };
   }, []);
 
-  return debouncedCallback as T;
+  return debouncedCallback as (...args: Parameters<T>) => void;
 }

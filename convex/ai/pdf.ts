@@ -6,6 +6,7 @@ import { type ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { v } from "convex/values";
+import { log } from "../lib/logger";
 
 
 // ==================== Capability Detection ====================
@@ -76,7 +77,7 @@ export async function getStoredPdfText(
 
     return await textBlob.text();
   } catch (error) {
-    console.error("Failed to retrieve stored text:", error);
+    log.error("Failed to retrieve stored text:", error);
     return null;
   }
 }
@@ -202,7 +203,9 @@ export const extractPdfText = action({
     const textBlob = new Blob([extractedText], { type: "text/plain" });
     const textFileId = await ctx.storage.store(textBlob) as Id<"_storage">;
 
-    console.log(`[PDF Extraction] Server-side: Successfully extracted ${extractedText.length} characters from ${filename}`);
+    log.info(
+      `[PDF Extraction] Server-side: Successfully extracted ${extractedText.length} characters from ${filename}`
+    );
 
     return {
       text: extractedText,

@@ -309,8 +309,20 @@
           },
           "suspicious": {
             "noConsole": {
-              "level": "warn",
-              "options": { "allow": ["warn", "error", "log"] }
+              "level": "error",
+              "options": { "allow": [] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["convex/lib/logger.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": {
+              "level": "off"
             }
           }
         }

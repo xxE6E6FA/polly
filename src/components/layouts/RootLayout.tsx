@@ -1,9 +1,13 @@
 import { Analytics } from "@vercel/analytics/react";
-import { useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useState } from "react";
 import { Outlet, useLocation } from "react-router";
 
 import { AppProvider } from "@/providers/app-provider";
-import { CommandPalette } from "../command-palette";
+
+const CommandPalette = lazy(() =>
+  import("../command-palette").then(m => ({ default: m.CommandPalette }))
+);
+
 import { CommandPaletteTrigger } from "../command-palette-trigger";
 import { GlobalDragDropPrevention } from "../ui/global-drag-drop-prevention";
 import { OnlineStatus } from "../ui/online-status";
@@ -35,11 +39,13 @@ export default function RootLayout() {
     <AppProvider>
       <GlobalDragDropPrevention />
       <CommandPaletteTrigger onTrigger={() => setCommandPaletteOpen(true)} />
-      <CommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-        onClose={handleCommandPaletteClose}
-      />
+      <Suspense fallback={null}>
+        <CommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+          onClose={handleCommandPaletteClose}
+        />
+      </Suspense>
       <Outlet />
       <Toaster />
       <Analytics />

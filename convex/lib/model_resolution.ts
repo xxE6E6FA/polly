@@ -5,6 +5,7 @@
 
 import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { log } from "./logger";
 
@@ -44,10 +45,26 @@ export async function getUserEffectiveModel(
   
   if (!finalModel || !finalProvider) {
     try {
-      const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
-      if (selectedModel) {
-        finalModel = finalModel || selectedModel.modelId;
-        finalProvider = finalProvider || selectedModel.provider;
+      if ("db" in ctx) {
+        // Direct DB query preserves auth in mutation/query context
+        const userId = await getAuthUserId(ctx);
+        if (userId) {
+          const selectedModel = await ctx.db
+            .query("userModels")
+            .withIndex("by_user", q => q.eq("userId", userId))
+            .filter(q => q.eq(q.field("selected"), true))
+            .unique();
+          if (selectedModel) {
+            finalModel = finalModel || selectedModel.modelId;
+            finalProvider = finalProvider || selectedModel.provider;
+          }
+        }
+      } else {
+        const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
+        if (selectedModel) {
+          finalModel = finalModel || selectedModel.modelId;
+          finalProvider = finalProvider || selectedModel.provider;
+        }
       }
     } catch (error) {
       log.warn("Failed to get user's selected model:", error);
@@ -95,11 +112,27 @@ export async function getUserEffectiveModelWithCapabilities(
   
   if (!finalModel || !finalProvider) {
     try {
-      const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
-      if (selectedModel) {
-        fullModelObject = selectedModel;
-        finalModel = finalModel || selectedModel.modelId;
-        finalProvider = finalProvider || selectedModel.provider;
+      if ("db" in ctx) {
+        const userId = await getAuthUserId(ctx);
+        if (userId) {
+          const selectedModel = await ctx.db
+            .query("userModels")
+            .withIndex("by_user", q => q.eq("userId", userId))
+            .filter(q => q.eq(q.field("selected"), true))
+            .unique();
+          if (selectedModel) {
+            fullModelObject = selectedModel;
+            finalModel = finalModel || selectedModel.modelId;
+            finalProvider = finalProvider || selectedModel.provider;
+          }
+        }
+      } else {
+        const selectedModel = await ctx.runQuery(api.userModels.getUserSelectedModel);
+        if (selectedModel) {
+          fullModelObject = selectedModel;
+          finalModel = finalModel || selectedModel.modelId;
+          finalProvider = finalProvider || selectedModel.provider;
+        }
       }
     } catch (error) {
       log.warn("Failed to get user's selected model:", error);
@@ -109,12 +142,47 @@ export async function getUserEffectiveModelWithCapabilities(
   // If we have specific model/provider but no full object, try to fetch it
   if ((finalModel && finalProvider) && !fullModelObject) {
     try {
-      const modelFromDB = await ctx.runQuery(api.userModels.getModelByID, {
-        modelId: finalModel,
-        provider: finalProvider,
-      });
-      if (modelFromDB) {
-        fullModelObject = modelFromDB;
+      if ("db" in ctx) {
+        // Try user model first
+        const userId = await getAuthUserId(ctx);
+        if (userId) {
+          const userModel = await ctx.db
+            .query("userModels")
+            .withIndex("by_user", q => q.eq("userId", userId))
+            .filter(q =>
+              q.and(
+                q.eq(q.field("modelId"), finalModel!),
+                q.eq(q.field("provider"), finalProvider!)
+              )
+            )
+            .unique();
+          if (userModel) {
+            fullModelObject = userModel;
+          }
+        }
+        if (!fullModelObject) {
+          const builtInModel = await ctx.db
+            .query("builtInModels")
+            .filter(q =>
+              q.and(
+                q.eq(q.field("modelId"), finalModel!),
+                q.eq(q.field("provider"), finalProvider!),
+                q.eq(q.field("isActive"), true)
+              )
+            )
+            .unique();
+          if (builtInModel) {
+            fullModelObject = builtInModel;
+          }
+        }
+      } else {
+        const modelFromDB = await ctx.runQuery(api.userModels.getModelByID, {
+          modelId: finalModel,
+          provider: finalProvider,
+        });
+        if (modelFromDB) {
+          fullModelObject = modelFromDB;
+        }
       }
     } catch (error) {
       log.warn("Failed to get model by ID:", error);

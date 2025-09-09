@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "./use-debounce";
 
 type SelectionInfo = {
@@ -18,7 +18,7 @@ type UseTextSelectionReturn = {
 
 export function useTextSelection(): UseTextSelectionReturn {
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
-  const [isLocked, setIsLocked] = useState(false);
+  const isLockedRef = useRef(false);
 
   const debouncedSelectionHandler = useDebouncedCallback(() => {
     const windowSelection = window.getSelection();
@@ -79,19 +79,19 @@ export function useTextSelection(): UseTextSelectionReturn {
   }, [debouncedSelectionHandler]);
 
   const clearSelection = useCallback(() => {
-    if (isLocked) {
+    if (isLockedRef.current) {
       return;
     }
     setSelection(null);
     window.getSelection()?.removeAllRanges();
-  }, [isLocked]);
+  }, []);
 
   const lockSelection = useCallback(() => {
-    setIsLocked(true);
+    isLockedRef.current = true;
   }, []);
 
   const unlockSelection = useCallback(() => {
-    setIsLocked(false);
+    isLockedRef.current = false;
   }, []);
 
   const addQuoteToInput = useCallback(
@@ -125,7 +125,7 @@ export function useTextSelection(): UseTextSelectionReturn {
     const handleClickOutside = (event: MouseEvent) => {
       if (
         selection &&
-        !isLocked &&
+        !isLockedRef.current &&
         !(event.target as Element)?.closest(
           '[data-message-role="assistant"]'
         ) &&
@@ -137,7 +137,7 @@ export function useTextSelection(): UseTextSelectionReturn {
 
     document.addEventListener("click", handleClickOutside);
     return () => document.removeEventListener("click", handleClickOutside);
-  }, [selection, isLocked, clearSelection]);
+  }, [selection, clearSelection]);
 
   return {
     selection,

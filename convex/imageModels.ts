@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import Replicate from "replicate";
 import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
+import { log } from "./lib/logger";
 import { imageModelDefinitionSchema } from "./lib/schemas";
 
 // Helper function to determine if a model supports aspect_ratio parameter
@@ -535,7 +536,7 @@ export const fetchReplicateImageModels = action({
         hasMore: false,
       };
     } catch (error) {
-      console.error("Error fetching Replicate image models:", error);
+      log.error("Error fetching Replicate image models:", error);
       return { models: [], nextCursor: null, hasMore: false };
     }
   },
@@ -695,7 +696,7 @@ export const searchReplicateModels = action({
         hasMore: !!searchResults.next,
       };
     } catch (error) {
-      console.error("Error searching Replicate models:", error);
+      log.error("Error searching Replicate models:", error);
       return { models: [], nextCursor: null, hasMore: false };
     }
   },
@@ -851,7 +852,7 @@ export const refreshModelCapabilities = action({
 
         updatedCount++;
       } catch (error) {
-        console.error(`Error refreshing ${userModel.modelId}:`, error);
+        log.error(`Error refreshing ${userModel.modelId}:`, error);
         errors.push(
           `${userModel.modelId}: ${error instanceof Error ? error.message : "Unknown error"}`
         );
@@ -1065,7 +1066,7 @@ export const addCustomImageModel = action({
         model: imageModel,
       };
     } catch (error) {
-      console.error("Error adding custom image model:", error);
+      log.error("Error adding custom image model:", error);
 
       // Parse the error to provide user-friendly messages
       if (error instanceof Error) {

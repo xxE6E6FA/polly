@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "convex deploy && vite build",
+    "build:frontend": "vite build",
     "preview": "vite preview",
     "lint": "biome lint .",
     "format": "biome format --write .",
@@ -17,7 +18,15 @@
     "check:ci": "biome ci .",
     "prepare": "husky",
     "clear-db": "tsx scripts/clear-database.ts",
-    "clear-auth": "tsx scripts/clear-auth-tables.ts"
+    "clear-auth": "tsx scripts/clear-auth-tables.ts",
+    "test": "vitest",
+    "test:browser": "vitest --environment=jsdom",
+    "test:convex": "vitest --environment=edge-runtime",
+    "test:ci": "vitest run",
+    "test:pre-commit": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "coverage": "vitest run --coverage",
+    "coverage:ci": "vitest run --coverage"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
@@ -86,27 +95,34 @@
     "use-undo": "^1.1.1",
     "vaul": "^1.1.2",
     "virtua": "^0.41.5",
-    "zustand": "^4.5.5",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^4.5.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.0.6",
     "@biomejs/cli-darwin-x64": "2.0.6",
+    "@edge-runtime/vm": "^5.0.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
     "@types/glob": "^8.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vercel/react-router": "^1.1.2",
     "@vitejs/plugin-react-swc": "^3.5.0",
+    "@vitest/coverage-v8": "3.2.4",
+    "convex-test": "^0.0.38",
     "dotenv": "^16.5.0",
     "glob": "^11.0.3",
     "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
     "lint-staged": "^16.1.0",
     "rollup-plugin-visualizer": "^6.0.3",
     "tsx": "^4.20.3",
     "typescript": "^5",
     "vite": "^5.1.0",
-    "vite-tsconfig-paths": "^4.3.1"
+    "vite-tsconfig-paths": "^4.3.1",
+    "vitest": "^3.2.4"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md}": [

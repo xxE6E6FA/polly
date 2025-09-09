@@ -10,7 +10,7 @@ import {
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   downloadFile,
@@ -56,7 +56,7 @@ type ChatHeaderProps = {
   privatePersonaId?: Id<"personas">;
 };
 
-export const ChatHeader = ({
+const ChatHeaderComponent = ({
   conversationId,
   isPrivateMode,
   isArchived,
@@ -453,3 +453,5 @@ export const ChatHeader = ({
     </div>
   );
 };
+
+export const ChatHeader = memo(ChatHeaderComponent);
