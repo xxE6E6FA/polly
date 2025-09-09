@@ -57,12 +57,16 @@ vi.mock("./browser-streaming", () => ({
   streamChat: vi.fn(() => Promise.resolve()),
 }));
 
+// Mock import.meta.env at the top level
+Object.defineProperty(import.meta, "env", {
+  // biome-ignore lint/style/useNamingConvention: Environment variable name must match Vite's convention
+  value: { VITE_CONVEX_URL: "https://convex" },
+  configurable: true,
+});
+
 describe("chat-handlers (server)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (
-      import.meta as unknown as { env: Record<string, unknown> }
-    ).env.VITE_CONVEX_URL = "https://convex";
   });
 
   it("sendMessage builds payload and starts HTTP stream", async () => {
