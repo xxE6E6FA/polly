@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useAuthToken } from "@convex-dev/auth/react";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Spinner } from "@/components/spinner";
@@ -40,6 +40,7 @@ export const ConversationStarterPopover = ({
   const createConversationAction = useAction(
     api.conversations.createConversationAction
   );
+  const setStreaming = useMutation(api.conversations.setStreaming);
 
   const managedToast = useToast();
   const navigate = useNavigate();
@@ -95,7 +96,7 @@ export const ConversationStarterPopover = ({
     try {
       const result = await createConversationAction({
         firstMessage: prompt,
-        title: "New Conversation",
+        // Let the server generate the title from the opening message
         model: selectedModel?.modelId,
         provider: selectedModel?.provider,
       });
@@ -104,6 +105,16 @@ export const ConversationStarterPopover = ({
         // Navigate to conversation immediately
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
         onOpenChange(false);
+
+        // Optimistically mark as streaming for immediate sidebar feedback
+        try {
+          await setStreaming({
+            conversationId: result.conversationId,
+            isStreaming: true,
+          });
+        } catch {
+          // ignore
+        }
 
         // Start optimistic HTTP stream in the background; wait briefly for token
         if ("assistantMessageId" in result) {
@@ -118,6 +129,16 @@ export const ConversationStarterPopover = ({
                   assistantMessageId: result.assistantMessageId,
                   modelId: selectedModel?.modelId,
                   provider: selectedModel?.provider,
+                  onFinish: async () => {
+                    try {
+                      await setStreaming({
+                        conversationId: result.conversationId,
+                        isStreaming: false,
+                      });
+                    } catch {
+                      // ignore
+                    }
+                  },
                 });
               } catch {
                 // Ignore errors when starting stream

@@ -8,7 +8,7 @@ import {
   LightningIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
@@ -139,6 +139,7 @@ const ChatSection = () => {
   const createConversationAction = useAction(
     api.conversations.createConversationAction
   );
+  const setStreaming = useMutation(api.conversations.setStreaming);
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
   // No token waiting; rely on cookie-based auth via credentials: 'include'
@@ -166,7 +167,7 @@ const ChatSection = () => {
 
       const result = await createConversationAction({
         firstMessage: content,
-        title: "New Conversation",
+        // Omit title to allow server-side title generation from first message
         attachments,
         personaId: personaId ?? undefined,
         reasoningConfig: reasoningConfig
@@ -185,6 +186,16 @@ const ChatSection = () => {
         // Navigate first to avoid any chance of stream startup blocking redirect
         navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
 
+        // Optimistically mark as streaming so the sidebar updates immediately
+        try {
+          await setStreaming({
+            conversationId: result.conversationId,
+            isStreaming: true,
+          });
+        } catch {
+          // best-effort only
+        }
+
         // Start the author stream in the background using cookie-based auth
         if ("assistantMessageId" in result) {
           setTimeout(() => {
@@ -200,6 +211,16 @@ const ChatSection = () => {
                   personaId: personaId ?? undefined,
                   reasoningConfig,
                   temperature,
+                  onFinish: async () => {
+                    try {
+                      await setStreaming({
+                        conversationId: result.conversationId,
+                        isStreaming: false,
+                      });
+                    } catch {
+                      // best-effort only
+                    }
+                  },
                 });
               } catch {
                 // Final fallback: do nothing
@@ -215,6 +236,7 @@ const ChatSection = () => {
       createConversationAction,
       selectedModel,
       authToken,
+      setStreaming,
     ]
   );
 

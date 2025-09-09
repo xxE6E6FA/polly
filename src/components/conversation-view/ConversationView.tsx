@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
-import { useAction, useConvex, useQuery } from "convex/react";
+import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
@@ -33,6 +33,7 @@ export function ConversationView() {
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
+  const setStreaming = useMutation(api.conversations.setStreaming);
   // temperature managed by store
 
   useEffect(() => {
@@ -96,6 +97,16 @@ export function ConversationView() {
                     conversationId: result.conversationId,
                     assistantMessageId:
                       result.assistantMessageId as Id<"messages">,
+                    onFinish: async () => {
+                      try {
+                        await setStreaming({
+                          conversationId: result.conversationId,
+                          isStreaming: false,
+                        });
+                      } catch {
+                        // ignore
+                      }
+                    },
                   });
                 } catch {
                   // Ignore errors when starting stream
@@ -110,7 +121,7 @@ export function ConversationView() {
       }
       return undefined;
     },
-    [createBranchingConversationAction, navigate]
+    [createBranchingConversationAction, navigate, setStreaming]
   );
 
   // Only show conversation content if we have a valid conversationId

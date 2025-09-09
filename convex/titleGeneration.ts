@@ -76,7 +76,7 @@ export const generateTitle = action({
       await ctx.runMutation(internal.conversations.internalPatch, {
         id: args.conversationId,
         updates: { title: generatedTitle },
-        setUpdatedAt: false,
+        setUpdatedAt: true,
       });
     }
 
@@ -121,7 +121,7 @@ export const generateTitleBackground = action({
         await ctx.runMutation(internal.conversations.internalPatch, {
           id: args.conversationId,
           updates: { title: fallbackTitle },
-          setUpdatedAt: false,
+          setUpdatedAt: true,
         });
       }
     }
