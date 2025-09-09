@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useConvex, useQuery } from "convex/react";
+import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
@@ -21,6 +21,7 @@ export default function ConversationRoute() {
   const navigate = useNavigate();
   const convex = useConvex();
   const managedToast = useToast();
+  const setStreaming = useMutation(api.conversations.setStreaming);
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
@@ -73,6 +74,16 @@ export default function ConversationRoute() {
                     conversationId: result.conversationId,
                     assistantMessageId:
                       result.assistantMessageId as Id<"messages">,
+                    onFinish: async () => {
+                      try {
+                        await setStreaming({
+                          conversationId: result.conversationId,
+                          isStreaming: false,
+                        });
+                      } catch {
+                        // best-effort only
+                      }
+                    },
                   });
                 } catch {
                   // Ignore errors when starting stream
@@ -88,7 +99,7 @@ export default function ConversationRoute() {
       }
       return undefined;
     },
-    [createBranchingConversationAction, navigate]
+    [createBranchingConversationAction, navigate, setStreaming]
   );
 
   if (!conversationId) {

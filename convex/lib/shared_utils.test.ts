@@ -72,8 +72,10 @@ describe("lib/shared_utils", () => {
 
   it("setConversationStreaming and forAction patch and runMutation", async () => {
     const patch = vi.fn(async () => {});
+    const now = Date.now();
+    vi.spyOn(Date, "now").mockReturnValue(now);
     await setConversationStreaming({ db: { patch } } as any, "c1" as any, true);
-    expect(patch).toHaveBeenCalledWith("c1", { isStreaming: true });
+    expect(patch).toHaveBeenCalledWith("c1", { isStreaming: true, updatedAt: now });
     const runMutation = vi.fn(async () => {});
     await setConversationStreamingForAction({ runMutation } as any, "c1" as any, false);
     expect(runMutation).toHaveBeenCalled();

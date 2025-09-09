@@ -89,11 +89,14 @@ export const createConversation = mutation({
       await validateMonthlyMessageLimit(ctx, user);
     }
 
+    // Always start with a neutral placeholder so title generation logic can update it
+    const initialTitle = args.title ?? "New conversation";
+
     // Create conversation
     const conversationId = await ctx.db.insert(
       "conversations",
       createDefaultConversationFields(user._id, {
-        title: args.title,
+        title: initialTitle,
         personaId: args.personaId,
         sourceConversationId: args.sourceConversationId,
       })
@@ -158,7 +161,7 @@ export const createConversation = mutation({
       // Avoid scheduling in tests because convex-test disallows system writes post-transaction
       if (process.env.NODE_ENV !== "test") {
         await ctx.scheduler.runAfter(
-          100,
+          0,
           api.titleGeneration.generateTitleBackground,
           {
             conversationId,
@@ -786,27 +789,22 @@ export const patch = mutation({
 // Internal mutation for system operations like title generation
 export const internalPatch = internalMutation({
   args: {
-    id: v.any(), // Accept any to allow no-op behavior on invalid IDs in tests
+    id: v.id("conversations"),
     updates: v.any(),
     setUpdatedAt: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    // If the ID isn't a Convex-formatted conversation ID, no-op
-    if (typeof args.id !== "string" || !args.id.includes(";conversations")) {
-      return;
-    }
-
-    // Check if conversation exists before patching
-    const conversation = await ctx.db.get(args.id as Id<"conversations">);
+    // Check if conversation exists before patching (defensive)
+    const conversation = await ctx.db.get(args.id);
     if (!conversation) {
-      return; // Return silently instead of throwing
+      return; // Silent no-op if not found
     }
 
     const patch: Record<string, unknown> = { ...args.updates };
     if (args.setUpdatedAt) {
       patch.updatedAt = Date.now();
     }
-    await ctx.db.patch(args.id as Id<"conversations">, patch);
+    await ctx.db.patch(args.id, patch);
   },
 });
 
@@ -836,9 +834,15 @@ export const createWithUserId = internalMutation({
       throw new Error("User not found");
     }
 
+    // Always start with a neutral placeholder so title generation logic can update it
+    const initialTitle =
+      !args.title || /new conversation/i.test(args.title)
+        ? "New conversation"
+        : args.title;
+
     // Create conversation
     const conversationId = await ctx.db.insert("conversations", {
-      title: args.title || "New Conversation",
+      title: initialTitle || "New conversation",
       userId: args.userId,
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
@@ -899,7 +903,7 @@ export const createWithUserId = internalMutation({
     // Schedule title generation in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       await ctx.scheduler.runAfter(
-        100,
+        0,
         api.titleGeneration.generateTitleBackground,
         {
           conversationId,
@@ -1496,6 +1500,7 @@ export const createBranchingConversation = action({
     conversationId: Id<"conversations">;
     userId: Id<"users">;
     isNewUser: boolean;
+    assistantMessageId?: Id<"messages">;
   }> => {
     // Get authenticated user ID first
     let authenticatedUserId: Id<"users"> | null = null;
@@ -1614,6 +1619,8 @@ export const createBranchingConversation = action({
       conversationId: createResult.conversationId,
       userId: actualUserId,
       isNewUser,
+      // Expose assistantMessageId so the client can kick off HTTP streaming
+      assistantMessageId: createResult.assistantMessageId,
     };
   },
 });
@@ -1694,6 +1701,16 @@ export const createConversationAction = action({
         reasoningConfig: args.reasoningConfig,
         temperature: args.temperature,
       });
+
+      // Kick off title generation immediately (action -> action), so UI updates fast
+      try {
+        await ctx.runAction(api.titleGeneration.generateTitleBackground, {
+          conversationId: result.conversationId,
+          message: args.firstMessage,
+        });
+      } catch {
+        // Best-effort; server already scheduled a background job
+      }
 
       return {
         conversationId: result.conversationId,

@@ -293,7 +293,10 @@ export async function setConversationStreaming(
   conversationId: Id<"conversations">,
   isStreaming: boolean
 ): Promise<void> {
-  await ctx.db.patch(conversationId, { isStreaming });
+  await ctx.db.patch(conversationId, {
+    isStreaming,
+    ...(isStreaming ? { updatedAt: Date.now() } : {}),
+  });
 }
 
 // Set conversation streaming for actions (uses runMutation)

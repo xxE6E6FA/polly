@@ -157,6 +157,20 @@ describe("http-stream.startAuthorStream", () => {
     });
   });
 
+  it("invokes onFinish callback when finish arrives", async () => {
+    const { restore } = mockFetchNDJSON([{ t: "finish", reason: "stop" }]);
+    const onFinish = vi.fn();
+    await startAuthorStream({
+      convexUrl: "https://convex",
+      conversationId: "c1",
+      assistantMessageId: "m1",
+      onFinish,
+    });
+    await flushAll();
+    expect(onFinish).toHaveBeenCalledWith("stop");
+    restore();
+  });
+
   it("handles tool_call events", async () => {
     const { restore } = mockFetchNDJSON([
       { t: "tool_call", name: "calc", args: { x: 1 } },

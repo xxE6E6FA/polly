@@ -423,55 +423,70 @@ http.route({
       }
       const response = new Response(ts.readable, { headers: streamHeaders });
 
-      // Get messages outside async function so EXA processing can access it
+      // Prefetch all Convex data needed before returning the Response
       log.debug("Getting all messages in conversation");
       const all = await ctx.runQuery(api.messages.getAllInConversation, {
         conversationId,
       });
       log.debug("Got", all.length, "messages");
 
+      // Persona prompt used to build system message
+      const personaPrompt = await getPersonaPrompt(
+        ctx,
+        personaId ?? conversation.personaId
+      );
+
+      // Model capabilities for PDF handling
+      const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
+        modelId,
+        provider,
+      });
+
+      // Prepare model + provider options up-front (no ctx.* after returning)
+      const apiKey = await getApiKey(ctx, provider, modelId, conversationId);
+      const model = await createLanguageModel(ctx, provider, modelId, apiKey);
+      const streamOpts = await getProviderStreamOptions(
+        ctx,
+        provider,
+        modelId,
+        reasoningConfig?.enabled
+          ? {
+              effort: reasoningConfig.effort,
+              maxTokens: reasoningConfig.maxTokens,
+            }
+          : undefined,
+        undefined
+      );
+
+      // Optional lightweight detect model for web search precheck/strategy
+      const detectKey = await getApiKey(
+        ctx,
+        "google",
+        "gemini-2.5-flash-lite",
+        conversationId
+      );
+      const detectModel = detectKey
+        ? await createLanguageModel(
+            ctx,
+            "google",
+            "gemini-2.5-flash-lite",
+            detectKey
+          )
+        : null;
+
       // Start all processing in background - don't block the response
       (async () => {
         // Build context messages (simplified, preserves system + conversation)
         log.debug("Building context messages");
-        const personaPrompt = await getPersonaPrompt(
-          ctx,
-          personaId ?? conversation.personaId
-        );
         log.debug("Got persona prompt");
         const baseline = getBaselineInstructions(modelId);
         const system = mergeSystemPrompts(baseline, personaPrompt);
         log.debug("Built system prompt");
-
-        // Model capabilities for PDF handling
-        log.debug("Getting model info");
-        const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
-          modelId,
-          provider,
-        });
         log.debug("Got model info:", !!modelInfo);
 
         // Watchdog: if conversation shows isStreaming=true but there is no active thinking/streaming message,
         // clear the flag (stale state from a prior crash) before we begin.
-        try {
-          if (conversation.isStreaming === true) {
-            const active = all.some(
-              (m: Doc<"messages">) =>
-                m.role === "assistant" &&
-                (m.status === "thinking" ||
-                  m.status === "streaming" ||
-                  m.status === "reading_pdf")
-            );
-            if (!active) {
-              await ctx.runMutation(internal.conversations.internalPatch, {
-                id: conversationId,
-                updates: { isStreaming: false },
-              });
-            }
-          }
-        } catch {
-          // Ignore errors when updating streaming status
-        }
+        // Avoid DB writes here; stale flags will be corrected by finish handler
 
         // Build stream messages with attachment processing for the last user message
         log.debug("Starting message processing");
@@ -582,10 +597,6 @@ http.route({
             }
             content = parts;
             // After attachment processing finished, reflect status back to thinking for UI
-            await ctx.runMutation(internal.messages.updateAssistantStatus, {
-              messageId,
-              status: "thinking",
-            });
             await writeFrame({ t: "status", status: "thinking" });
           }
 
@@ -698,30 +709,21 @@ http.route({
                 };
                 const precheckPrompt =
                   generateSearchNeedAssessment(searchContext);
-                const detectKey = await getApiKey(
-                  ctx,
-                  "google",
-                  "gemini-2.5-flash-lite",
-                  conversationId
-                );
-                const detectModel = await createLanguageModel(
-                  ctx,
-                  "google",
-                  "gemini-2.5-flash-lite",
-                  detectKey
-                );
+                // Use pre-created detectModel if available
                 const precheckBudget = Number(
                   CONFIG.PERF?.PRECHECK_BUDGET_MS ?? 350
                 );
-                const need = await withTimeout(
-                  generateText({
-                    model: detectModel,
-                    prompt: precheckPrompt,
-                    temperature: 0,
-                  }),
-                  precheckBudget,
-                  "precheck"
-                );
+                const need = detectModel
+                  ? await withTimeout(
+                      generateText({
+                        model: detectModel,
+                        prompt: precheckPrompt,
+                        temperature: 0,
+                      }),
+                      precheckBudget,
+                      "precheck"
+                    )
+                  : { text: "skip" };
                 const parsed = parseSearchNeedAssessment(need.text);
                 shouldSearch = !parsed.canAnswerConfidently;
               } catch {
@@ -733,10 +735,6 @@ http.route({
             // Step 2: strategy + EXA search
             if (shouldSearch) {
               try {
-                await ctx.runMutation(internal.messages.updateMessageStatus, {
-                  messageId,
-                  status: "searching",
-                });
                 await writeFrame({ t: "status", status: "searching" });
 
                 // Decide strategy (best-effort)
@@ -752,34 +750,24 @@ http.route({
                   const strategyPrompt = generateSearchStrategy({
                     userQuery: latestText,
                   });
-                  const detectKey = await getApiKey(
-                    ctx,
-                    "google",
-                    "gemini-2.5-flash-lite",
-                    conversationId
-                  );
-                  const detectModel = await createLanguageModel(
-                    ctx,
-                    "google",
-                    "gemini-2.5-flash-lite",
-                    detectKey
-                  );
                   const strategyBudget = Math.max(
                     200,
                     Math.floor(
                       Number(CONFIG.PERF?.PRECHECK_BUDGET_MS ?? 350) * 0.75
                     )
                   );
-                  const resp = await withTimeout(
-                    generateText({
-                      model: detectModel,
-                      prompt: strategyPrompt,
-                      temperature: 0,
-                    }),
-                    strategyBudget,
-                    "strategy"
-                  );
-                  decision = parseSearchStrategy(resp.text, latestText);
+                  if (detectModel) {
+                    const resp = await withTimeout(
+                      generateText({
+                        model: detectModel,
+                        prompt: strategyPrompt,
+                        temperature: 0,
+                      }),
+                      strategyBudget,
+                      "strategy"
+                    );
+                    decision = parseSearchStrategy(resp.text, latestText);
+                  }
                 } catch {
                   // Keep fallback decision
                 }
@@ -836,11 +824,7 @@ http.route({
                 // Insert after the first system message
                 streamMsgs.splice(1, 0, searchResultsMessage);
 
-                // Switch back to thinking before LLM stream starts
-                await ctx.runMutation(internal.messages.updateAssistantStatus, {
-                  messageId,
-                  status: "thinking",
-                });
+                // Switch back to thinking before LLM stream starts (client-only)
                 await writeFrame({ t: "status", status: "thinking" });
               } catch (_e) {
                 // If search fails, continue without search
@@ -870,10 +854,7 @@ http.route({
           if (exaApiKey && latestText) {
             const urlResult = await processUrlsInMessage(exaApiKey, latestText);
             if (urlResult && urlResult.contents.length > 0) {
-              await ctx.runMutation(internal.messages.updateMessageStatus, {
-                messageId,
-                status: "reading_pdf", // reuse for URL processing
-              });
+              await writeFrame({ t: "status", status: "reading_pdf" });
 
               const urlContextMessage = {
                 role: "system" as const,
@@ -893,10 +874,8 @@ http.route({
         } catch (_error) {
           // Continue without URL processing
         } finally {
-          await ctx.runMutation(internal.messages.updateMessageStatus, {
-            messageId,
-            status: "thinking",
-          });
+          // Reflect status to client only; avoid DB writes during stream
+          await writeFrame({ t: "status", status: "thinking" });
         }
 
         // Convert to AI SDK CoreMessage format
@@ -923,52 +902,29 @@ http.route({
         });
         log.debug("Sent init frame");
 
-        // Prepare model
-        log.debug(
-          "Getting API key for provider:",
-          provider,
-          "modelId:",
-          modelId
-        );
-        const apiKey = await getApiKey(ctx, provider, modelId, conversationId);
-        log.debug("API key retrieved:", apiKey ? "YES" : "NO");
-        const model = await createLanguageModel(ctx, provider, modelId, apiKey);
-        log.debug("Language model created:", !!model);
-        const streamOpts = await getProviderStreamOptions(
-          ctx,
-          provider,
-          modelId,
-          reasoningConfig?.enabled
-            ? {
-                effort: reasoningConfig.effort,
-                maxTokens: reasoningConfig.maxTokens,
-              }
-            : undefined,
-          undefined
-        );
-        log.debug("Stream options:", streamOpts);
+        // Model created above; no ctx.* in background
+        log.debug("Model and stream options prepared");
 
-        // DB batching
+        // Content accumulation (DB writes deferred until end)
         let pending = "";
+        let fullContent = "";
         let lastFlush = Date.now();
         const FLUSH_MS = 250;
         const hasDelimiter = (s: string) =>
           /[\n.!?]|(\s{2,})/.test(s) || s.length > 100;
 
-        const flush = async () => {
+        const flush = () => {
           if (!pending) {
             return;
           }
           const toSend = pending;
           pending = "";
-          await ctx.runMutation(internal.messages.updateAssistantContent, {
-            messageId,
-            appendContent: toSend,
-          });
+          fullContent += toSend;
         };
 
         // Reasoning batching (incremental thinking traces)
         let reasoningPending = "";
+        let reasoningFull = "";
         let reasoningTail = ""; // dedupe tail to avoid duplicate tokens
         let lastReasoningFlush = Date.now();
         const REASONING_FLUSH_MS = 250;
@@ -994,16 +950,13 @@ http.route({
           }
           return d.slice(overlap);
         };
-        const flushReasoning = async () => {
+        const flushReasoning = () => {
           if (!reasoningPending) {
             return;
           }
           const toSend = reasoningPending;
           reasoningPending = "";
-          await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-            id: messageId,
-            appendReasoning: toSend,
-          });
+          reasoningFull += toSend;
         };
 
         // Flip to streaming on first chunk
@@ -1052,7 +1005,7 @@ http.route({
                     reasoningPending.length >= REASONING_MIN_CHARS ||
                     now - lastReasoningFlush > REASONING_FLUSH_MS
                   ) {
-                    await flushReasoning();
+                    flushReasoning();
                     lastReasoningFlush = now;
                   }
                 }
@@ -1061,19 +1014,10 @@ http.route({
 
             // Proactively mark as streaming once the request is in flight
             if (!didStart) {
-              try {
-                await ctx.runMutation(internal.messages.updateAssistantStatus, {
-                  messageId,
-                  status: "streaming",
-                });
-                didStart = true;
-                await writeFrame({ t: "status", status: "streaming" });
-              } catch {
-                // Ignore errors when updating streaming status
-              }
+              didStart = true;
+              await writeFrame({ t: "status", status: "streaming" });
             }
 
-            let lastCheck = Date.now();
             log.debug("Entering stream reading loop");
             let chunkCount = 0;
             for await (const chunk of result.textStream) {
@@ -1086,10 +1030,7 @@ http.route({
               );
               if (!didStart) {
                 didStart = true;
-                await ctx.runMutation(internal.messages.updateAssistantStatus, {
-                  messageId,
-                  status: "streaming",
-                });
+                await writeFrame({ t: "status", status: "streaming" });
               }
 
               pending += chunk;
@@ -1098,31 +1039,17 @@ http.route({
 
               const now = Date.now();
               if (hasDelimiter(chunk) || now - lastFlush > FLUSH_MS) {
-                await flush();
+                flush();
                 lastFlush = now;
               }
 
-              // Periodically check if conversation was stopped
-              if (now - lastCheck > 500) {
-                lastCheck = now;
-                try {
-                  const convo = await ctx.runQuery(
-                    internal.conversations.internalGet,
-                    { id: conversationId }
-                  );
-                  if (convo && convo.isStreaming === false) {
-                    break;
-                  }
-                } catch {
-                  // Ignore errors when checking streaming status
-                }
-              }
+              // Skip periodic DB polling for stop to avoid dangling queries
             }
 
             // Final flush and finalize
             log.info("Stream completed, total chunks received:", chunkCount);
-            await flush();
-            await flushReasoning();
+            flush();
+            flushReasoning();
             const metadata: {
               finishReason?: string;
               thinkingDurationMs?: number;
@@ -1130,22 +1057,41 @@ http.route({
             if (reasoningStartMs !== null) {
               metadata.thinkingDurationMs = Date.now() - reasoningStartMs;
             }
-            await ctx.runMutation(internal.messages.internalUpdate, {
-              id: messageId,
-              metadata,
-            });
-            await ctx.runMutation(internal.messages.updateMessageStatus, {
-              messageId,
-              status: "done",
-            });
-            // Clear streaming flag on conversation BEFORE sending finish
+            // Defer DB finalization to a scheduled mutation to avoid dangling ops
             try {
-              await ctx.runMutation(internal.conversations.internalPatch, {
-                id: conversationId,
-                updates: { isStreaming: false },
+              await ctx.scheduler.runAfter(0, internal.messages.updateContent, {
+                messageId,
+                content: fullContent,
+                reasoning: reasoningFull || undefined,
+                finishReason: "stop",
+                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               });
+              await ctx.scheduler.runAfter(
+                0,
+                internal.messages.internalUpdate,
+                {
+                  id: messageId,
+                  metadata,
+                }
+              );
+              await ctx.scheduler.runAfter(
+                0,
+                internal.messages.updateMessageStatus,
+                {
+                  messageId,
+                  status: "done",
+                }
+              );
+              await ctx.scheduler.runAfter(
+                0,
+                internal.conversations.internalPatch,
+                {
+                  id: conversationId,
+                  updates: { isStreaming: false },
+                }
+              );
             } catch {
-              // Ignore errors when clearing streaming flag
+              // ignore scheduling failures
             }
 
             // Inform client of finish
@@ -1155,16 +1101,33 @@ http.route({
             log.error("Stream error:", error);
             const errorMessage =
               error instanceof Error ? error.message : "stream failed";
-            await ctx.runMutation(internal.messages.updateContent, {
-              messageId,
-              content: `Error: ${errorMessage}`,
-              finishReason: "error",
-              usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-            });
-            await ctx.runMutation(internal.messages.updateMessageStatus, {
-              messageId,
-              status: "error",
-            });
+            // Schedule error finalization updates
+            try {
+              await ctx.scheduler.runAfter(0, internal.messages.updateContent, {
+                messageId,
+                content: `Error: ${errorMessage}`,
+                finishReason: "error",
+                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              });
+              await ctx.scheduler.runAfter(
+                0,
+                internal.messages.updateMessageStatus,
+                {
+                  messageId,
+                  status: "error",
+                }
+              );
+              await ctx.scheduler.runAfter(
+                0,
+                internal.conversations.internalPatch,
+                {
+                  id: conversationId,
+                  updates: { isStreaming: false },
+                }
+              );
+            } catch {
+              // ignore scheduling failures
+            }
             // Inform client of finish (error)
             await writeFrame({ t: "finish", reason: "error" });
             try {
@@ -1173,7 +1136,7 @@ http.route({
               // Ignore errors when closing writer
             }
           } finally {
-            // Streaming flag already cleared above before sending finish frame
+            // No DB calls here to avoid dangling query warnings
           }
         })();
       })(); // End of main processing async function

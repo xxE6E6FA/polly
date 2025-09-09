@@ -3,7 +3,7 @@ import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/conversations patch/internal/createWithUserId", () => {
-  it("patch sets fields and optionally bumps updatedAt; internalPatch no-ops on missing id", async () => {
+  it("patch sets fields and optionally bumps updatedAt", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const convId = await t.db.insert("conversations", {
@@ -21,8 +21,11 @@ describe("convex/conversations patch/internal/createWithUserId", () => {
     expect(conv?.title).toBe("New");
     expect((conv?.updatedAt || 0)).toBeGreaterThan(1);
 
-    // internalPatch missing id should not throw
-    await t.runMutation(internal.conversations.internalPatch, { id: ("nonexistent" as any), updates: { title: "X" } });
+    // internalPatch on existing id with setUpdatedAt
+    await t.runMutation(internal.conversations.internalPatch, { id: convId as any, updates: { title: "X" }, setUpdatedAt: true });
+    const conv2 = await t.db.get(convId);
+    expect(conv2?.title).toBe("X");
+    expect((conv2?.updatedAt || 0)).toBeGreaterThan((conv?.updatedAt || 0));
   });
 
   it("createWithUserId creates conversation and user message and increments conversationCount", async () => {

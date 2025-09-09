@@ -16,6 +16,8 @@ export type StartAuthorStreamArgs = {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  // Optional callback when the server signals finish ("stop" | "error")
+  onFinish?: (reason: string) => void;
 };
 
 export type StartStreamHandle = {
@@ -180,6 +182,12 @@ export async function startAuthorStream(
                 });
               } else if (evt.t === "finish") {
                 didFinish = true;
+                // Inform caller that the stream is finished
+                try {
+                  args.onFinish?.(evt.reason || "stop");
+                } catch {
+                  // ignore callback errors
+                }
                 // Delay overlay clearing slightly to allow DB updates to propagate
                 setTimeout(() => {
                   overlays.clear(id);
