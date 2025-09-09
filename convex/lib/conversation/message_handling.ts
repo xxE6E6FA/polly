@@ -284,7 +284,7 @@ export async function scheduleTitleGeneration(
       }
     );
   } catch (error) {
-    console.warn("Failed to schedule title generation:", error);
+    log.warn("Failed to schedule title generation:", error);
     // Don't throw - this is not critical for the conversation flow
   }
 }

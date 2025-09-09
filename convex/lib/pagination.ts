@@ -4,7 +4,7 @@ import { v } from "convex/values";
 export const paginationOptsSchema = v.optional(
   v.object({
     numItems: v.number(),
-    cursor: v.union(v.string(), v.null()),
+    cursor: v.optional(v.union(v.string(), v.null())),
     id: v.optional(v.number()), // Handle Convex's internal id field
   })
 );
@@ -42,7 +42,7 @@ export function getPaginationConfig(): Required<PaginationConfig> {
 export function validatePaginationOpts(
   opts?: {
     numItems: number;
-    cursor: string | null;
+    cursor?: string | null;
     id?: number; // Handle Convex's internal id field
   },
   config?: PaginationConfig
@@ -74,7 +74,7 @@ export function validatePaginationOpts(
 
   return {
     numItems: validatedNumItems,
-    cursor: opts.cursor,
+    cursor: opts.cursor ?? null,
     ...(opts.id !== undefined && { id: opts.id }), // Preserve id if present
   };
 }
@@ -83,7 +83,7 @@ export function validatePaginationOpts(
 export function validatePaginationOptsWithConfig(
   opts?: {
     numItems: number;
-    cursor: string | null;
+    cursor?: string | null;
     id?: number; // Handle Convex's internal id field
   },
   defaultPageSize?: number,

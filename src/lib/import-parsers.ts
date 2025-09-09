@@ -31,8 +31,8 @@ export function detectAndParseImportData(jsonContent: string): ImportResult {
   try {
     const data = JSON.parse(jsonContent);
 
-    // Polly format
-    if (isPollyFormat(data)) {
+    // Check if it has the basic polly structure (even if corrupted)
+    if (hasPollyStructure(data)) {
       return parsePollyFormat(data);
     }
 
@@ -52,18 +52,23 @@ export function detectAndParseImportData(jsonContent: string): ImportResult {
   }
 }
 
-function isPollyFormat(data: unknown): boolean {
+function hasPollyStructure(data: unknown): boolean {
+  return typeof data === "object" && data !== null && "conversations" in data;
+}
+
+function _isPollyFormat(data: unknown): boolean {
   return (
-    typeof data === "object" &&
-    data !== null &&
-    "conversations" in data &&
+    hasPollyStructure(data) &&
     Array.isArray((data as Record<string, unknown>).conversations)
   );
 }
 
 function parsePollyFormat(data: Record<string, unknown>): ImportResult {
   try {
-    const conversations = (data.conversations as unknown[]) || [];
+    const conversations = data.conversations as unknown[];
+    if (!Array.isArray(conversations)) {
+      throw new Error("conversations is not an array");
+    }
     const parsed: ParsedConversation[] = conversations.map((conv: unknown) => {
       const convData = conv as Record<string, unknown>;
       return {
@@ -72,8 +77,15 @@ function parsePollyFormat(data: Record<string, unknown>): ImportResult {
           (msg: unknown) => {
             const msgData = msg as Record<string, unknown>;
             return {
-              role: (msgData.role as "user" | "assistant" | "system") || "user",
-              content: String(msgData.content || ""),
+              role: ["user", "assistant", "system"].includes(
+                msgData.role as string
+              )
+                ? (msgData.role as "user" | "assistant" | "system")
+                : "user",
+              content:
+                msgData.content === null
+                  ? "null"
+                  : String(msgData.content || ""),
               createdAt:
                 typeof msgData.createdAt === "number"
                   ? msgData.createdAt

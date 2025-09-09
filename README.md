@@ -1,4 +1,4 @@
-# Polly
+# Polly  
 
 Modern AI chat application built with React Router v7, Convex, and Vercel's AI SDK.
 
@@ -30,15 +30,51 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
    pnpm dev
    ```
 
+## Prerequisites
+
+- Node 20.x
+- pnpm 9.x
+
+Install pnpm if needed: `npm i -g pnpm@9`.
+
 ## Features
 
 - Real-time chat with multiple AI providers (OpenAI, Anthropic, Google, OpenRouter)
 - Unified web search powered by Exa.ai across all AI models
 - Image and PDF upload support
+- Image generation via Replicate (browse curated models; add custom IDs)
+- Text-to-speech via ElevenLabs (pick voices; play any message)
 - Conversation persistence with Convex
 - Streaming over Convex HTTP actions
 - User authentication and anonymous mode
 - Model switching and settings management
+
+## Testing & CI
+
+- Unit tests use Vitest + React Testing Library.
+- Local runs:
+  - `pnpm test` – run tests locally.
+  - `pnpm run test:ci` – CI-friendly test run.
+- Lint/format:
+  - `pnpm lint` – Biome lint report.
+  - `pnpm lint:fix` – Biome lint with auto-fix.
+  - `pnpm format` / `pnpm format:check` – format write/check.
+  - `pnpm check` / `pnpm check:write` – lint+format check or write (also organizes imports).
+  - `pnpm imports:organize` – organize imports only.
+- CI:
+  - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome, tests, and a frontend build on pushes and PRs.
+
+### Coverage
+
+- Coverage uses V8 provider with strict thresholds defined in `vitest.config.ts`.
+- Run `pnpm coverage` locally; CI uses `pnpm coverage:ci`.
+
+## Pre-commit Hooks
+
+This repo uses Husky + lint-staged:
+
+- On commit, staged files are formatted and lint-fixes are applied (Biome), then tests run (`vitest run`).
+- If needed, you can bypass hooks with `git commit --no-verify` (not recommended).
 
 ## Environment Variables
 
@@ -52,6 +88,11 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 
 - `GEMINI_API_KEY` - Google Gemini API key (required for title and summary generation)
 - `EXA_API_KEY` - Exa.ai API key (enables web search for all AI models)
+
+#### Optional Providers
+
+- `REPLICATE_API_TOKEN` - Enables Replicate image generation (model browsing/search and custom IDs)
+- `ELEVENLABS_API_KEY` - Enables ElevenLabs text-to-speech (voices, models, message playback)
 
 #### OAuth Authentication
 
@@ -99,3 +140,36 @@ This contextual approach ensures web search is used only when it adds value, avo
 3. Web search capability will be automatically available when needed
 
 **Note**: Web search is a server-side feature. Users cannot configure their own Exa API keys.
+
+## Replicate (Images)
+
+- Add `REPLICATE_API_TOKEN` in Convex → Settings → Environment Variables.
+- Go to Settings → Models → Image to:
+  - Browse curated text-to-image models from Replicate
+  - Search all Replicate models
+  - Add a custom model by ID (e.g., `stability-ai/sdxl`)
+
+## ElevenLabs (TTS)
+
+- Add `ELEVENLABS_API_KEY` in Convex → Settings → Environment Variables.
+- Configure in Settings → Models → Text-to-Speech:
+  - Pick model and voice (your ElevenLabs voices are listed)
+  - Choose stability mode and enhanced processing
+- Play any message via the speaker icon in message actions; per-persona voice override is available in Persona settings.
+
+## Build Notes
+
+- `pnpm build` runs `convex deploy && vite build` and requires your Convex project to be configured.
+- If you only need a static frontend build, use `pnpm run build:frontend`.
+- In CI we build the frontend with `build:frontend`; backend deploys are handled separately.
+
+## Code Style
+
+Code style is enforced by Biome (see `biome.json`). Highlights:
+
+- 2-space indentation, 80 char line width, double quotes, semicolons.
+- Import aliases: `@/*` for `src`, `@convex/*` for `convex`, `@shared/*` for `shared`.
+- Naming: camelCase (functions/vars), PascalCase (components/types), CONSTANT_CASE (constants).
+- React: prefer fragments (`<>`), self-closing elements, avoid array index keys.
+
+See CONTRIBUTING.md for more details.

@@ -8,6 +8,7 @@ import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
+import { log } from "../lib/logger";
 
 // Cache key generation based on file content hash
 export function generatePdfCacheKey(fileContent: string): string {
@@ -143,14 +144,14 @@ export const cleanupExpiredEntry = internalMutation({
           await ctx.storage.delete(entry.textFileId);
         } catch (storageError) {
           // Storage deletion failed, but continue with cache cleanup
-          console.warn("Failed to delete cached PDF text file:", storageError);
+          log.warn("Failed to delete cached PDF text file:", storageError);
         }
         
         // Delete the cache entry
         await ctx.db.delete(id);
       }
     } catch (error) {
-      console.error("Failed to cleanup expired PDF cache entry:", error);
+      log.error("Failed to cleanup expired PDF cache entry:", error);
     }
   },
 });
@@ -185,7 +186,7 @@ export async function getCachedPdfText(
       text,
     };
   } catch (error) {
-    console.warn("Failed to retrieve cached PDF text:", error);
+    log.warn("Failed to retrieve cached PDF text:", error);
     return null;
   }
 }
@@ -215,7 +216,7 @@ export async function cachePdfText(
 
     return textFileId;
   } catch (error) {
-    console.error("Failed to cache PDF text:", error);
+    log.error("Failed to cache PDF text:", error);
     return null;
   }
 }
@@ -249,7 +250,7 @@ export const batchCleanupExpired = internalMutation({
         await ctx.db.delete(entry._id);
         cleanedCount++;
       } catch (error) {
-        console.error("Failed to cleanup expired cache entry:", error);
+        log.error("Failed to cleanup expired cache entry:", error);
       }
     }
 

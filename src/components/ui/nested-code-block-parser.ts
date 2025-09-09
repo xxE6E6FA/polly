@@ -51,42 +51,40 @@ export function parseNestedCodeBlocks(
         break;
       }
 
-      // Check if it's at line start (avoid lastIndexOf)
+      // Determine line boundaries
       let lineStart = nextTriple;
       while (lineStart > 0 && text[lineStart - 1] !== "\n") {
         lineStart--;
       }
-
-      // Quick check: is there only whitespace before ```?
-      let isLineStart = true;
-      for (let j = lineStart; j < nextTriple; j++) {
-        if (text[j] !== " " && text[j] !== "\t") {
-          isLineStart = false;
-          break;
-        }
+      let lineEnd = nextTriple + 3;
+      while (lineEnd < len && text[lineEnd] !== "\n") {
+        lineEnd++;
       }
 
-      if (isLineStart) {
-        // Find end of this ``` line
-        let lineEnd = nextTriple + 3;
-        while (lineEnd < len && text[lineEnd] !== "\n") {
-          lineEnd++;
-        }
+      const isAtLineStart = lineStart === nextTriple; // no indentation allowed for closing
+      const lineSlice = text.slice(nextTriple, lineEnd);
+      const afterContent = text.slice(nextTriple + 3, lineEnd).trim();
 
-        // Check if there's content after ``` (opening) or not (closing)
-        const afterContent = text.slice(nextTriple + 3, lineEnd).trim();
+      // A closing fence must be at true line start and have no trailing content
+      const isClosingFence = isAtLineStart && afterContent === "";
 
-        if (afterContent === "") {
-          // Closing ```
-          nestingLevel--;
-          if (nestingLevel === 0) {
-            closePos = nextTriple;
-            break;
-          }
-        } else {
-          // Opening ``` with language
-          nestingLevel++;
+      // An opening fence has language/content after ``` and no matching ``` later in the same line
+      // This allows openings like: "Inner: ```js" while ignoring inline sequences like "```inline```"
+      const hasAnotherFenceOnLine = lineSlice.indexOf("```", 3) !== -1;
+      const hasFenceBeforeOnLine = text
+        .slice(lineStart, nextTriple)
+        .includes("```");
+      const isOpeningFence =
+        afterContent !== "" && !hasAnotherFenceOnLine && !hasFenceBeforeOnLine;
+
+      if (isClosingFence) {
+        nestingLevel--;
+        if (nestingLevel === 0) {
+          closePos = nextTriple;
+          break;
         }
+      } else if (isOpeningFence) {
+        nestingLevel++;
       }
 
       pos = nextTriple + 3;
@@ -94,29 +92,34 @@ export function parseNestedCodeBlocks(
 
     // Build result (defer expensive operations)
     if (closePos !== -1) {
-      const code = text.slice(openLineEnd + 1, closePos);
+      const codeWithNewline = text.slice(openLineEnd + 1, closePos);
+      const code = codeWithNewline.replace(/\n$/, "");
       const fullMatch = text.slice(openPos, closePos + 3);
+      // end should point to the start of the closing ``` (exclusive)
+      const end = closePos - 1;
 
       result.push({
         language,
         code,
         fullMatch,
         start: openPos,
-        end: closePos + 3,
+        end,
       });
 
       i = closePos + 3;
     } else {
       // Unclosed block
-      const code = text.slice(openLineEnd + 1);
+      const codeWithNewline = text.slice(openLineEnd + 1);
+      const code = codeWithNewline.replace(/\n$/, "");
       const fullMatch = text.slice(openPos);
+      const end = len;
 
       result.push({
         language,
         code,
         fullMatch,
         start: openPos,
-        end: len,
+        end,
       });
       break;
     }
@@ -172,9 +175,15 @@ export function findCompleteNestedCodeBlock() {
     }
 
     const firstBlock = blocks[0];
+
+    // Only return complete blocks (must end with closing ```)
+    if (!firstBlock.fullMatch.endsWith("```")) {
+      return undefined;
+    }
+
     return {
       startIndex: firstBlock.start,
-      endIndex: firstBlock.end,
+      endIndex: firstBlock.end + 3,
       outputRaw: firstBlock.fullMatch,
     };
   };
@@ -196,11 +205,15 @@ export function findPartialNestedCodeBlock() {
     const completeBlocks = parseNestedCodeBlocks(text, true); // firstOnly = true
     if (completeBlocks.length > 0) {
       const firstBlock = completeBlocks[0];
-      return {
-        startIndex: firstBlock.start,
-        endIndex: firstBlock.end,
-        outputRaw: firstBlock.fullMatch,
-      };
+
+      // Only return complete blocks (must end with closing ```)
+      if (firstBlock.fullMatch.endsWith("```")) {
+        return {
+          startIndex: firstBlock.start,
+          endIndex: firstBlock.end + 1,
+          outputRaw: firstBlock.fullMatch,
+        };
+      }
     }
 
     // Return partial match starting from the opening ```

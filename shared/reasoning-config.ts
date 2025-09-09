@@ -77,7 +77,7 @@ export function getProviderReasoningConfig(
   }
 
   // For all other models (optional or unknown), only enable if explicitly requested
-  if (!reasoningConfig || (!reasoningConfig.enabled && !reasoningConfig.effort && !reasoningConfig.maxTokens)) {
+  if (!reasoningConfig || reasoningConfig.enabled === false || (!reasoningConfig.enabled && !reasoningConfig.effort && !reasoningConfig.maxTokens)) {
     return {}; // Simply omit reasoning settings when not enabled
   }
 

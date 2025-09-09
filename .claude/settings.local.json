@@ -35,7 +35,10 @@
       "WebFetch(domain:openrouter.ai)",
       "Bash(pnpm dev:*)",
       "WebFetch(domain:docs.convex.dev)",
-      "WebFetch(domain:replicate.com)"
+      "WebFetch(domain:replicate.com)",
+      "Bash(pnpm test:*)",
+      "Bash(node:*)",
+      "Bash(pntml test:*)"
     ],
     "deny": []
   },

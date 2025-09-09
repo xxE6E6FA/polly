@@ -71,6 +71,7 @@ import type * as models from "../models.js";
 import type * as personas from "../personas.js";
 import type * as runMigration from "../runMigration.js";
 import type * as sharedConversations from "../sharedConversations.js";
+import type * as test_helpers from "../test/helpers.js";
 import type * as titleGeneration from "../titleGeneration.js";
 import type * as types from "../types.js";
 import type * as userModels from "../userModels.js";
@@ -144,6 +145,7 @@ declare const fullApi: ApiFromModules<{
   personas: typeof personas;
   runMigration: typeof runMigration;
   sharedConversations: typeof sharedConversations;
+  "test/helpers": typeof test_helpers;
   titleGeneration: typeof titleGeneration;
   types: typeof types;
   userModels: typeof userModels;

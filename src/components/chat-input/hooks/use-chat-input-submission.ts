@@ -65,7 +65,7 @@ export function useChatInputSubmission({
     async (attachmentsToUpload: Attachment[]): Promise<Attachment[]> => {
       if (isPrivateMode) {
         return attachmentsToUpload.map(att => {
-          if (att.content && att.mimeType && !att.url) {
+          if (att.content && att.mimeType) {
             return {
               ...att,
               url: `data:${att.mimeType};base64,${att.content}`,

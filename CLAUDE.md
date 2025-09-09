@@ -14,8 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm lint:fix` - Auto-fix linting issues
 - `pnpm format` - Format code with Biome
 - `pnpm check` - Run lint + typecheck + build
-- `pnpm check:write` - Auto-fix all issues
-- `pnpm imports:organize` - Organize import statements
+- `pnpm check:write` - Auto-fix all issues (also organizes imports)
 
 **Database Management:**
 - `pnpm clear-db` - Clear entire database (development)
@@ -75,7 +74,11 @@ The app supports multiple AI providers through a unified interface:
 - File uploads handled through Convex file storage
 - All styling follows TailwindCSS + shadcn/ui patterns
 - Code formatting enforced by Biome with pre-commit hooks
-- No testing framework currently configured (Vitest + React Testing Library preferred)
+- Unit testing configured with Vitest + React Testing Library
+- Use `pnpm test` for local runs or `pnpm run test:ci` (threads pool) in constrained environments
+
+## CI Notes
+- GitHub Actions workflow `.github/workflows/ci.yml` runs Biome checks and unit tests on pushes and PRs.
 
 ## UI Styling Guidelines (Polly Design System)
 - Prefer stack spacing utilities over `space-y-*`:

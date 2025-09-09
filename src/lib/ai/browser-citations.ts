@@ -70,27 +70,18 @@ export function extractMarkdownCitations(text: string): WebSearchCitation[] {
 
   // Match markdown links [text](url)
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-  let match = linkRegex.exec(text);
 
-  while (match !== null) {
-    const [_, linkText, url] = match;
+  for (const match of text.matchAll(linkRegex)) {
+    const linkText = match[1];
+    const url = match[2];
 
-    // Skip if we've already seen this URL
     if (seenUrls.has(url)) {
       continue;
     }
     seenUrls.add(url);
 
-    // Try to extract a title from the link text or use the URL
-    const title = linkText.match(/^\d+$/) ? url : linkText;
-
-    citations.push({
-      type: "url_citation",
-      url,
-      title,
-    });
-
-    match = linkRegex.exec(text);
+    const title = /^\d+$/.test(linkText) ? url : linkText;
+    citations.push({ type: "url_citation", url, title });
   }
 
   return citations;

@@ -1,0 +1,15 @@
+import { describe, it, expect } from "vitest";
+import { PROVIDER_NAMES, PROVIDER_CONFIG } from "./provider-constants";
+
+describe("provider-constants", () => {
+  it("has consistent provider keys and titles", () => {
+    const keys = Object.keys(PROVIDER_NAMES);
+    // Ensure config has same keys
+    expect(Object.keys(PROVIDER_CONFIG)).toEqual(keys);
+    // Spot-check titles
+    expect(PROVIDER_CONFIG.openai.title).toBe("OpenAI");
+    expect(PROVIDER_CONFIG.google.title).toBe("Google AI");
+    expect(PROVIDER_CONFIG.openrouter.title).toBe("OpenRouter");
+  });
+});
+
