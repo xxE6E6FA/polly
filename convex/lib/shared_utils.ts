@@ -4,6 +4,7 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx, ActionCtx } from "../_generated/server";
 import { api } from "../_generated/api";
 import { getUserEffectiveModelWithCapabilities } from "./model_resolution";
+import { MAX_USER_MESSAGE_CHARS } from "../constants";
 
 /**
  * Shared authentication and user validation utilities
@@ -248,6 +249,7 @@ export function createDefaultConversationFields(userId: Id<"users">, options: {
     isStreaming: false,
     isArchived: false,
     isPinned: false,
+    tokenEstimate: 0,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
@@ -279,6 +281,15 @@ export function createDefaultMessageFields(conversationId: Id<"conversations">, 
       ? { temperature: options.temperature }
       : undefined,
   };
+}
+
+// Validate a user-authored message length against a global cap
+export function validateUserMessageLength(content: string) {
+  if (content && content.length > MAX_USER_MESSAGE_CHARS) {
+    throw new ConvexError(
+      `Your message is too long (${content.length} characters). The maximum allowed is ${MAX_USER_MESSAGE_CHARS}. Please attach a file or split the message into smaller parts.`
+    );
+  }
 }
 
 

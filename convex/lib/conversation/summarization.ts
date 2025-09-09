@@ -8,6 +8,11 @@ import { api } from "../../_generated/api";
 export const CONTEXT_CONFIG = {
   CHUNK_SIZE: 15, // Messages per chunk
   SUMMARY_THRESHOLD: 20, // When to start summarizing
+  // When working with context windows, start summarizing once the
+  // conversation exceeds this many tokens even if the active model
+  // supports a larger window. This protects multi‑model conversations
+  // from ballooning. Tokens are estimated heuristically.
+  MIN_TOKEN_THRESHOLD: 100_000, // 100k tokens safety cap
   MAX_SUMMARY_LENGTH: 400, // Max characters per summary (increased for richer summaries)
   MAX_SUMMARY_CHUNKS: 5, // Max summaries before creating meta-summary
   MIN_CHUNK_SIZE: 10, // Minimum chunk size

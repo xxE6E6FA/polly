@@ -131,6 +131,10 @@ export const create = mutation({
     imageGeneration: v.optional(imageGenerationSchema),
   },
   handler: async (ctx, args) => {
+    // Rolling token estimate helper
+    const estimateTokens = (text: string) =>
+      Math.max(1, Math.ceil((text || "").length / 4));
+
     const messageId = await ctx.db.insert("messages", {
       ...args,
       isMainBranch: args.isMainBranch ?? true,
@@ -149,6 +153,22 @@ export const create = mutation({
             args.provider
           );
         }
+
+        // Update rolling token estimate with user message content
+        const delta = estimateTokens(args.content || "");
+        await withRetry(
+          async () => {
+            const fresh = await ctx.db.get(args.conversationId);
+            if (!fresh) {
+              return;
+            }
+            await ctx.db.patch(args.conversationId, {
+              tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+            });
+          },
+          5,
+          25
+        );
       }
     }
 
@@ -415,6 +435,25 @@ export const updateContent = internalMutation({
     }
 
     await ctx.db.patch(messageId, updateData);
+
+    // Update rolling token estimate for assistant final content
+    const updated = await ctx.db.get(messageId);
+    if (updated && updated.role === "assistant") {
+      const delta = Math.max(1, Math.ceil((updates.content || "").length / 4));
+      await withRetry(
+        async () => {
+          const freshConv = await ctx.db.get(updated.conversationId);
+          if (!freshConv) {
+            return;
+          }
+          await ctx.db.patch(updated.conversationId, {
+            tokenEstimate: Math.max(0, (freshConv.tokenEstimate || 0) + delta),
+          });
+        },
+        5,
+        25
+      );
+    }
   },
 });
 
@@ -884,6 +923,40 @@ export const getMessageCount = query({
       .collect();
 
     return messages.length;
+  },
+});
+
+// Rough token estimate helper (1 token ≈ 4 characters)
+function estimateTokensFromText(text: string): number {
+  if (!text) {
+    return 0;
+  }
+  // Clamp at minimum 1 token for any non-empty text
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+/**
+ * Estimate total prompt tokens for a conversation by summing message contents.
+ * - Excludes system/context messages (only user and assistant).
+ * - Uses a heuristic (chars/4) to avoid tokenizer/vendor coupling.
+ */
+export const getConversationTokenEstimate = query({
+  args: { conversationId: v.id("conversations") },
+  handler: async (ctx, args) => {
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .collect();
+
+    let total = 0;
+    for (const m of messages) {
+      if (m.role === "user" || m.role === "assistant") {
+        total += estimateTokensFromText(m.content || "");
+      }
+    }
+    return total;
   },
 });
 

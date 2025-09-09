@@ -55,6 +55,7 @@ import {
   validateConversationAccess,
   validateMonthlyMessageLimit,
   validateMonthlyMessageLimitForAction,
+  validateUserMessageLength,
 } from "./lib/shared_utils";
 import { isConversationStreaming } from "./lib/streaming_utils";
 import type { Citation } from "./types";
@@ -121,6 +122,8 @@ export const createConversation = mutation({
     );
 
     // Create user message
+    // Enforce max user message size
+    validateUserMessageLength(args.firstMessage);
     const userMessageId = await ctx.db.insert(
       "messages",
       createDefaultMessageFields(conversationId, {
@@ -131,6 +134,29 @@ export const createConversation = mutation({
         temperature: args.temperature,
       })
     );
+
+    // Increment rolling token estimate for the first user message
+    try {
+      const delta = Math.max(
+        1,
+        Math.ceil((args.firstMessage || "").length / 4)
+      );
+      await withRetry(
+        async () => {
+          const fresh = await ctx.db.get(conversationId);
+          if (!fresh) {
+            return;
+          }
+          await ctx.db.patch(conversationId, {
+            tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+          });
+        },
+        5,
+        25
+      );
+    } catch {
+      // best-effort; ignore failures
+    }
 
     // Create assistant message directly (avoid extra mutation call)
     // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
@@ -206,6 +232,8 @@ export const createUserMessage = action({
   ): Promise<{
     userMessageId: Id<"messages">;
   }> => {
+    // Enforce max size on user-authored content
+    validateUserMessageLength(args.content);
     // Get user's effective model with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
@@ -306,6 +334,8 @@ export const sendMessage = action({
     userMessageId: Id<"messages">;
     assistantMessageId: Id<"messages">;
   }> => {
+    // Validate user message size before any writes
+    validateUserMessageLength(args.content);
     const [conversation, fullModel] = await Promise.all([
       ctx.runQuery(api.conversations.get, { id: args.conversationId }),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
@@ -394,21 +424,41 @@ export const sendMessage = action({
       }
     }
 
-    // Trigger summary generation in background if conversation is getting long
-    const messageCount = await ctx.runQuery(api.messages.getMessageCount, {
-      conversationId: args.conversationId,
-    });
+    // Trigger summary generation in background based on context window limits
+    // rather than message count. We estimate total tokens and compare against
+    // the effective model context window with a conservative 100k cap to
+    // protect multi-model conversations.
+    try {
+      // Prefer rolling estimate if present
+      const latestConversation = await ctx.runQuery(api.conversations.get, {
+        id: args.conversationId,
+      });
+      let totalTokens: number | null =
+        latestConversation?.tokenEstimate ?? null;
+      if (totalTokens === null || totalTokens === undefined) {
+        totalTokens = await ctx.runQuery(
+          api.messages.getConversationTokenEstimate,
+          { conversationId: args.conversationId }
+        );
+      }
 
-    if (messageCount > 30) {
-      // Only generate summaries for longer conversations
-      await ctx.scheduler.runAfter(
-        5000,
-        internal.conversationSummary.generateMissingSummaries,
-        {
-          conversationId: args.conversationId,
-          forceRegenerate: false,
-        }
-      );
+      // Use model context length if available; otherwise default to the cap
+      const cap = 100_000; // conservative lower limit across providers
+      const modelWindow = fullModel.contextLength || cap;
+      const threshold = Math.min(modelWindow, cap);
+
+      if ((totalTokens || 0) > threshold) {
+        await ctx.scheduler.runAfter(
+          5000,
+          internal.conversationSummary.generateMissingSummaries,
+          {
+            conversationId: args.conversationId,
+            forceRegenerate: false,
+          }
+        );
+      }
+    } catch (e) {
+      log.warn("Failed to schedule token-aware summaries:", e);
     }
 
     return { userMessageId, assistantMessageId };

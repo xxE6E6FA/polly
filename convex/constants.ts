@@ -51,6 +51,9 @@ export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION
 
 export const DEFAULT_POLLY_PERSONA = dedent`You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
 
+// Max allowed characters in a single user message before rejection
+export const MAX_USER_MESSAGE_CHARS = 50_000; // ~12.5k tokens heuristic
+
 // Function to get baseline instructions with dynamic values
 export const getBaselineInstructions = (
   modelName: string,
