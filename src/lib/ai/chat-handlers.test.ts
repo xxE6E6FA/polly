@@ -1,6 +1,16 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@/types";
+
+// Hoist environment variable setup to run before all imports
+vi.hoisted(() => {
+  Object.defineProperty(import.meta, "env", {
+    // biome-ignore lint/style/useNamingConvention: Environment variable name must match Vite's convention
+    value: { VITE_CONVEX_URL: "https://convex" },
+    configurable: true,
+  });
+});
+
 import { streamChat } from "./browser-streaming";
 import type { PrivateChatConfig } from "./chat-handlers";
 import {
@@ -57,13 +67,6 @@ vi.mock("./browser-streaming", () => ({
   streamChat: vi.fn(() => Promise.resolve()),
 }));
 
-// Mock import.meta.env at the top level
-Object.defineProperty(import.meta, "env", {
-  // biome-ignore lint/style/useNamingConvention: Environment variable name must match Vite's convention
-  value: { VITE_CONVEX_URL: "https://convex" },
-  configurable: true,
-});
-
 describe("chat-handlers (server)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,11 +88,12 @@ describe("chat-handlers (server)", () => {
       temperature: 0.3,
     };
 
+    const getAuthToken = vi.fn(() => "token");
     const handlers = createServerChatHandlers(
       "conv-1",
       actions,
       modelOptions,
-      () => "token"
+      getAuthToken
     );
     await handlers.sendMessage({
       content: "hello",
@@ -130,11 +134,12 @@ describe("chat-handlers (server)", () => {
       stopGeneration: vi.fn(),
     };
     const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
+    const getAuthToken = vi.fn(() => "t");
     const handlers = createServerChatHandlers(
       "conv-2",
       actions,
       modelOptions,
-      () => "t"
+      getAuthToken
     );
 
     // Prime internal abort controller by sending once

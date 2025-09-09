@@ -24,6 +24,8 @@
     "test:convex": "vitest --environment=edge-runtime",
     "test:ci": "vitest run",
     "test:pre-commit": "vitest run",
+    "test:changed": "vitest run --changed",
+    "test:related": "vitest related --run",
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
     "coverage:ci": "vitest run --coverage"
@@ -127,9 +129,9 @@
   "lint-staged": {
     "*.{js,jsx,ts,tsx,json,css,md}": [
       "biome format --write --files-ignore-unknown=true --no-errors-on-unmatched",
-      "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched",
-      "git add"
+      "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
     ],
+    "*.{js,jsx,ts,tsx}": ["vitest run --changed"],
     "convex/_generated/**": []
   }
 }
