@@ -211,19 +211,15 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Determine when capability data (api keys/models) is reliable for UI gating.
   const capabilitiesReady = useMemo(() => {
-    // Anonymous or no user yet: nothing to check, treat as ready
-    if (!userRecord || userRecord.isAnonymous) {
+    // Anonymous users don't need capability checks for the checklist
+    if (userRecord?.isAnonymous) {
       return true;
     }
-    // If we have cached, consider ready to prevent initial flicker
-    if (hasCachedData) {
-      return true;
-    }
-    // Otherwise, wait for both queries to resolve
+    // Authenticated users: wait until both queries resolve to avoid stale cache flashes
     const apiKeysResolved = apiKeysRaw !== undefined;
     const modelsResolved = hasUserModelsRaw !== undefined;
     return apiKeysResolved && modelsResolved;
-  }, [userRecord, hasCachedData, apiKeysRaw, hasUserModelsRaw]);
+  }, [userRecord?.isAnonymous, apiKeysRaw, hasUserModelsRaw]);
 
   // Handle anonymous user graduation
   useEffect(() => {
