@@ -69,8 +69,8 @@ const TemperaturePickerComponent = ({
               className={cn(
                 // Unified pill size and look
                 "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                "rounded-full border border-border/50",
-                "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                "rounded-full border border-border",
+                "bg-muted text-foreground hover:bg-muted/80",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 "transition-all duration-200"
               )}
@@ -78,7 +78,7 @@ const TemperaturePickerComponent = ({
               <ThermometerIcon
                 className={cn(
                   "h-3 w-3",
-                  isActive ? "text-foreground/90" : "text-muted-foreground/70"
+                  isActive ? "text-foreground" : "text-muted-foreground"
                 )}
               />
               <span className="hidden sm:inline">{displayValue}</span>

@@ -175,7 +175,7 @@ const RetryDropdown = memo(
                   <button
                     key={model.modelId}
                     onClick={() => handleRetry(model.modelId, model.provider)}
-                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/70 transition-colors"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
@@ -194,7 +194,7 @@ const RetryDropdown = memo(
                               key={`${model.modelId}-${capability.label}-${index}`}
                             >
                               <TooltipTrigger asChild>
-                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                                   <IconComponent className="h-3 w-3" />
                                 </div>
                               </TooltipTrigger>
@@ -252,7 +252,7 @@ const RetryDropdown = memo(
                         onClick={() =>
                           handleRetry(model.modelId, model.provider)
                         }
-                        className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/70 transition-colors"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
@@ -273,7 +273,7 @@ const RetryDropdown = memo(
                                     key={`${model.modelId}-${capability.label}-${index}`}
                                   >
                                     <TooltipTrigger asChild>
-                                      <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                      <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                                         <IconComponent className="h-3 w-3" />
                                       </div>
                                     </TooltipTrigger>
@@ -562,7 +562,7 @@ const RetryDropdown = memo(
                                           key={`${model.modelId}-${capability.label}-${index}`}
                                         >
                                           <TooltipTrigger asChild>
-                                            <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                                            <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                                               <IconComponent className="h-3 w-3" />
                                             </div>
                                           </TooltipTrigger>

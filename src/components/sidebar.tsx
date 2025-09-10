@@ -225,13 +225,12 @@ export const Sidebar = () => {
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 bg-background dark:bg-card",
+          "fixed inset-y-0 left-0 z-40 bg-card dark:bg-card",
           isSidebarVisible && "dark:border-r dark:border-border",
           isMobile
             ? "transform transition-transform duration-300 ease-out rounded-r-xl"
             : "transition-[width] duration-300 ease-out",
-          isSidebarVisible &&
-            (isMobile ? "mobile-sidebar-elevation" : "shadow-xl")
+          isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : "")
         )}
         style={{
           ...sidebarStyle,
@@ -329,7 +328,7 @@ export const Sidebar = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start gap-1 h-auto py-1.5 px-0 hover:bg-accent/50"
+                        className="w-full justify-start gap-1 h-auto py-1.5 px-0 hover:bg-accent/70"
                       >
                         <HeartIcon
                           className="h-3.5 w-3.5 text-destructive"
@@ -363,7 +362,7 @@ export const Sidebar = () => {
         {!isMobile && isSidebarVisible && (
           <div
             ref={resizeRef}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/50 active:bg-accent transition-colors z-10"
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/70 active:bg-accent transition-colors z-10"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
           />

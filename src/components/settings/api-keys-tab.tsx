@@ -85,7 +85,7 @@ function getProviderCardStyle(isConnected: boolean) {
     return `${baseStyle} ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20`;
   }
 
-  return `${baseStyle} ring-1 ring-border/30 bg-card hover:bg-muted/50`;
+  return `${baseStyle} ring-1 ring-border/30 bg-card hover:bg-muted/70`;
 }
 
 // Helper to detect stored key

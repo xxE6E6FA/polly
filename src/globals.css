@@ -17,23 +17,25 @@
 
         --background: 0 0% 100%;
         --foreground: 222.2 84% 4.9%;
-        --card: 220 14% 98%;
+        --card: 220 14% 96%;
         --card-foreground: 222.2 84% 4.9%;
-        --popover: 220 14% 99%;
+        --popover: 0 0% 100%;
         --popover-foreground: 222.2 84% 4.9%;
         --primary: 258 72% 58%;
         --primary-foreground: 0 0% 100%;
         --primary-hover: 258 72% 54%;
         --secondary: 217.2 91.2% 59.8%;
         --secondary-foreground: 0 0% 100%; /* legacy, prefer semantic */
-        --muted: 220 14% 96%;
+        --muted: 220 14% 94%;
         --muted-foreground: 220 9% 46%;
-        --accent: 220 14% 95%;
+        --accent: 220 14% 93%;
         --accent-foreground: 222 47% 11%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 100%; /* White text on red background */
         --border: 220 14% 92%;
         --input: 220 14% 90%;
+        --input-hover: 220 14% 87%;
+        --input-focus: 220 14% 84%;
         --ring: 258 72% 58%;
         --radius: 0.625rem;
         --chart-1: 12 76% 61%;
@@ -121,13 +123,13 @@
     }
 
     .dark {
-        --background: 220 14% 8%;
+        --background: 220 14% 10%;
         --foreground: 220 15% 95%;
 
         --card: 220 13% 12%;
         --card-foreground: 220 15% 95%;
 
-        --popover: 220 13% 11%;
+        --popover: 220 13% 10%;
         --popover-foreground: 220 15% 95%;
 
         --primary: 258 90% 62%;
@@ -138,9 +140,9 @@
         --secondary-foreground: 0 0% 100%;
 
         --muted: 220 13% 14%;
-        --muted-foreground: 220 15% 65%;
+        --muted-foreground: 220 15% 70%;
 
-        --accent: 220 13% 15%;
+        --accent: 220 13% 16%;
         --accent-foreground: 220 15% 95%;
 
         --destructive: 0 75% 50%;
@@ -148,6 +150,8 @@
 
         --border: 220 13% 18%;
         --input: 220 13% 18%;
+        --input-hover: 220 13% 22%;
+        --input-focus: 220 13% 26%;
         --ring: 258 90% 62%;
 
         --radius: 0.625rem;
