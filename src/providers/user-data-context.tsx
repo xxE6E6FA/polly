@@ -42,6 +42,8 @@ interface UserData {
   hasUserModels: boolean;
   isAuthenticated: boolean;
   isLoading: boolean;
+  // True when capability data (API keys / models) is reliable
+  capabilitiesReady: boolean;
 }
 
 type UserDataProviderValue = UserData & {
@@ -86,6 +88,7 @@ const DEFAULT_USER_DATA: UserData = {
   hasUserModels: false,
   isAuthenticated: false,
   isLoading: false,
+  capabilitiesReady: false,
 };
 
 function buildUserData(
@@ -111,6 +114,7 @@ function buildUserData(
       hasUserModels,
       isAuthenticated: false,
       isLoading: false,
+      capabilitiesReady: true,
     };
   }
 
@@ -137,6 +141,7 @@ function buildUserData(
     hasUserModels,
     isAuthenticated: true,
     isLoading: false,
+    capabilitiesReady: true,
   };
 }
 
@@ -203,6 +208,22 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     () => hasUserModelsRaw || hasUserModelsFromCache,
     [hasUserModelsFromCache, hasUserModelsRaw]
   );
+
+  // Determine when capability data (api keys/models) is reliable for UI gating.
+  const capabilitiesReady = useMemo(() => {
+    // Anonymous or no user yet: nothing to check, treat as ready
+    if (!userRecord || userRecord.isAnonymous) {
+      return true;
+    }
+    // If we have cached, consider ready to prevent initial flicker
+    if (hasCachedData) {
+      return true;
+    }
+    // Otherwise, wait for both queries to resolve
+    const apiKeysResolved = apiKeysRaw !== undefined;
+    const modelsResolved = hasUserModelsRaw !== undefined;
+    return apiKeysResolved && modelsResolved;
+  }, [userRecord, hasCachedData, apiKeysRaw, hasUserModelsRaw]);
 
   // Handle anonymous user graduation
   useEffect(() => {
@@ -341,6 +362,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
         hasUserModels,
         monthlyMessagesSent
       ),
+      capabilitiesReady,
       user: userRecord,
     };
     return computedValue;
@@ -350,6 +372,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     hasUserModels,
     isLoading,
     monthlyMessagesSent,
+    capabilitiesReady,
   ]);
 
   // Debounce cache write to avoid synchronous storage churn

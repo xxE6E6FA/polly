@@ -25,13 +25,11 @@ import type { Attachment, ReasoningConfig } from "@/types";
 import { SimplePrompts } from "./prompts-ticker";
 
 const SetupChecklist = () => {
-  const { hasUserApiKeys, hasUserModels, user } = useUserDataContext();
-  const [isDismissed, setIsDismissed] = useState(false);
-
-  useEffect(() => {
-    const dismissed = getLS<boolean>(CACHE_KEYS.setupChecklistDismissed, false);
-    setIsDismissed(dismissed);
-  }, []);
+  const { hasUserApiKeys, hasUserModels, user, capabilitiesReady } =
+    useUserDataContext();
+  const [isDismissed, setIsDismissed] = useState<boolean>(() =>
+    getLS<boolean>(CACHE_KEYS.setupChecklistDismissed, false)
+  );
 
   const handleDismiss = () => {
     setLS<boolean>(CACHE_KEYS.setupChecklistDismissed, true);
@@ -39,7 +37,13 @@ const SetupChecklist = () => {
   };
 
   const isAnonymous = user?.isAnonymous ?? true;
-  if (isAnonymous || isDismissed || (hasUserApiKeys && hasUserModels)) {
+  // Avoid showing while capability data is still resolving to prevent flicker
+  if (
+    !capabilitiesReady ||
+    isAnonymous ||
+    isDismissed ||
+    (hasUserApiKeys && hasUserModels)
+  ) {
     return null;
   }
 
