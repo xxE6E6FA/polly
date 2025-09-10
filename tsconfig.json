@@ -25,8 +25,8 @@
       "@convex/*": ["convex/*"],
       "@shared/*": ["shared/*"]
     },
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "@types/vitest"]
   },
-  "include": ["src", "shared"],
+  "include": ["src", "shared", "src/global.d.ts"],
   "exclude": ["node_modules"]
 }

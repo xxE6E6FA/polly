@@ -21,8 +21,8 @@ const UserSectionContent = ({
 }: UserSectionContentProps) => {
   if (!isAuthenticated) {
     return (
-      <div className="px-3 py-2">
-        <Link className="block w-full" to={ROUTES.AUTH}>
+      <div className="border-t border-border/50 pt-4 pb-3">
+        <Link className="block w-full px-3" to={ROUTES.AUTH}>
           <Button
             className="flex h-9 w-full items-center justify-start gap-2.5 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             variant="ghost"
@@ -36,9 +36,9 @@ const UserSectionContent = ({
   }
 
   return (
-    <div className="px-3 py-2">
+    <div className="border-t border-border/50 pt-4 pb-3">
       <Link
-        className="block w-full"
+        className="block w-full px-3"
         to={ROUTES.SETTINGS.ROOT}
         onMouseEnter={preloadSettings}
       >
@@ -120,8 +120,8 @@ export const UserSection = () => {
 
 const UserSectionSkeleton = () => {
   return (
-    <div className="px-3 py-2">
-      <div className="h-9 animate-pulse rounded-md bg-muted/40" />
+    <div className="border-t border-border/50 pt-4 pb-3">
+      <div className="h-9 animate-pulse rounded-md bg-muted/40 px-3" />
     </div>
   );
 };

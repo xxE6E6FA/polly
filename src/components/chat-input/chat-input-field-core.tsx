@@ -64,8 +64,8 @@ export const ChatInputFieldCore = memo(
           "text-base leading-relaxed",
           // Padding: more left and top for breathing room; right handled by parent
           "overflow-y-auto pl-3 pt-2 pb-1 sm:pl-3",
-          // Enhanced focus experience - subtle visual feedback
-          "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+          // Enhanced focus experience - match container background
+          "focus:bg-card transition-colors duration-200",
           // Prevent zoom on mobile Chrome
           "touch-action: manipulation",
           // Performance optimizations

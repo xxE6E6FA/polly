@@ -102,16 +102,22 @@ export const ConversationListContent = ({
 
   // Show skeleton when loading
   if (isLoading) {
-    return <ConversationListSkeleton />;
+    return (
+      <div className="pt-3 pb-3">
+        <ConversationListSkeleton />
+      </div>
+    );
   }
 
   // If no conversations and there's a search, show no results found
   if ((conversations?.length ?? 0) === 0 && searchQuery.trim().length > 0) {
     return (
-      <div className="flex h-32 items-center justify-center">
-        <div className="stack-sm text-center">
-          <ChatCircleIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">No results found</p>
+      <div className="pt-3 pb-3">
+        <div className="flex h-32 items-center justify-center">
+          <div className="stack-sm text-center">
+            <ChatCircleIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No results found</p>
+          </div>
         </div>
       </div>
     );
@@ -123,7 +129,7 @@ export const ConversationListContent = ({
   }
 
   return (
-    <div className="pb-4">
+    <div className="pt-3 pb-3">
       {groupedConversations.pinned.length > 0 && (
         <ConversationGroup title="Pinned">
           {groupedConversations.pinned.map(conversation => (
@@ -207,7 +213,7 @@ export const ConversationListContent = ({
 
 const ConversationListSkeleton = () => {
   return (
-    <div className="pb-4">
+    <div>
       {/* Today section */}
       <div className="stack-sm">
         <div className="mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
