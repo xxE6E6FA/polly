@@ -67,7 +67,7 @@ interface ChatInputProps {
   isLoading?: boolean;
   isStreaming?: boolean;
   onStop?: () => void;
-  placeholder?: string;
+  isArchived?: boolean;
   onTemperatureChange?: (temperature: number | undefined) => void;
   messages?: ChatMessage[];
   userMessageContents?: string[];
@@ -96,7 +96,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       isLoading = false,
       isStreaming = false,
       onStop,
-      placeholder = "Ask anything...",
+      isArchived = false,
       messages,
       userMessageContents,
       autoFocus = false,
@@ -307,13 +307,19 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       [handleSendAsNewConversation, input, attachments, clearAttachments]
     );
 
-    // Determine dynamic placeholder based on generation mode
+    // Determine placeholder based on generation mode and state
     const dynamicPlaceholder = useMemo(() => {
       if (generationMode === "image") {
         return "Describe your image...";
       }
-      return placeholder;
-    }, [generationMode, placeholder]);
+      if (isPrivateMode) {
+        return "Private mode...";
+      }
+      if (isArchived) {
+        return "Archived conversation";
+      }
+      return "Ask anything...";
+    }, [generationMode, isPrivateMode, isArchived]);
 
     // Determine chat input state class
     const chatInputStateClass = useMemo(() => {
@@ -411,7 +417,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
             <TextInputSection
               onSubmit={handleSubmit}
               textareaRef={inlineTextareaRef}
-              placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
+              placeholder={dynamicPlaceholder}
               disabled={
                 isLoading || isStreaming || isProcessing || !canSendMessage
               }
@@ -470,7 +476,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               <TextInputSection
                 onSubmit={handleSubmit}
                 textareaRef={drawerTextareaRef}
-                placeholder={selectedPersonaId ? "" : dynamicPlaceholder}
+                placeholder={dynamicPlaceholder}
                 disabled={
                   isLoading || isStreaming || isProcessing || !canSendMessage
                 }
