@@ -1,5 +1,9 @@
 import { api } from "@convex/_generated/api";
-import { HeartIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import {
+  HeartIcon,
+  SidebarSimple,
+  SidebarSimpleIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -256,7 +260,7 @@ export const Sidebar = () => {
                     : undefined
                 }
               >
-                <Link className="group" to={ROUTES.HOME}>
+                <Link className="group ml-3" to={ROUTES.HOME}>
                   <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
                     <div
                       className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
@@ -286,7 +290,7 @@ export const Sidebar = () => {
                       className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
                       onClick={() => setSidebarVisible(false)}
                     >
-                      <SidebarSimpleIcon className="h-5 w-5 -scale-x-100" />
+                      <SidebarSimple className="h-5 w-5" />
                     </Button>
                   </div>
                 )}
@@ -391,7 +395,7 @@ export const Sidebar = () => {
                 style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
                 onClick={toggleSidebar}
               >
-                <SidebarSimpleIcon className="h-5 w-5" />
+                <SidebarSimple className="h-5 w-5" />
               </Button>
             </div>
           )}
