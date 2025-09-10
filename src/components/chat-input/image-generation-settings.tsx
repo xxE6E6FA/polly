@@ -220,8 +220,8 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
                   className={cn(
                     // Unified pill style
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                    "rounded-full ring-1 ring-border/40",
-                    "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                    "rounded-full border border-border",
+                    "bg-muted text-foreground hover:bg-muted/80",
                     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200",
                     "relative"

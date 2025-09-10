@@ -119,7 +119,7 @@ function PersonaPickerComponent({
                   "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
                   "rounded-full border border-border/50",
                   // Subtle pill effect to match ecosystem
-                  "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                  "bg-muted text-foreground hover:bg-muted/80",
                   // Focus ring parity
                   "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "transition-all duration-200",

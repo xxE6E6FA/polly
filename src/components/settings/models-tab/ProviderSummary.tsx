@@ -19,7 +19,7 @@ const ProviderSummaryCard = memo(
       className={`w-full cursor-pointer rounded-lg p-4 text-left transition-all duration-200 shadow-sm hover:shadow motion-hover-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
         isSelected
           ? "ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
-          : "ring-1 ring-border/30 bg-card hover:bg-muted/50"
+          : "ring-1 ring-border/30 bg-card hover:bg-muted/70"
       }`}
       onClick={() => onToggle(provider)}
     >

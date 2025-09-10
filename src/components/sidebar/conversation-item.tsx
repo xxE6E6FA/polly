@@ -337,10 +337,10 @@ const ConversationItemComponent = ({
         <ContextMenuTrigger asChild>
           <div
             className={cn(
-              "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0.5",
+              "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
                 ? "bg-accent text-foreground shadow-sm"
-                : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
+                : "text-foreground/80 hover:text-foreground hover:bg-accent/70"
             )}
             onMouseEnter={() => {
               if (!isMobile) {
@@ -391,7 +391,7 @@ const ConversationItemComponent = ({
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               className={cn(
                 "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
-                isMobile ? "py-2.5" : "py-2",
+                isMobile ? "py-2" : "py-1.5",
                 // Adjust padding dynamically based on checkbox visibility
                 isBulkMode ? "px-3 pl-8" : "px-3"
               )}

@@ -60,7 +60,7 @@ const ModelItemComponent = ({
     <CommandItem
       key={model.modelId}
       className={cn(
-        "min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/50 dark:hover:bg-accent/30 sm:min-h-0 sm:px-3 sm:py-2.5",
+        "min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/70 dark:hover:bg-accent/50 sm:min-h-0 sm:px-3 sm:py-2.5",
         isPollyDisabled && "cursor-not-allowed opacity-60 hover:bg-transparent"
       )}
       value={`${model.name} ${model.provider} ${model.modelId}`}
@@ -96,7 +96,7 @@ const ModelItemComponent = ({
               return (
                 <Tooltip key={`${model.modelId}-${capability.label}-${index}`}>
                   <TooltipTrigger asChild>
-                    <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/50 transition-all duration-200 hover:bg-muted/80 dark:bg-muted/30 dark:hover:bg-muted/50">
+                    <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                       <IconComponent className="h-3.5 w-3.5" />
                     </div>
                   </TooltipTrigger>

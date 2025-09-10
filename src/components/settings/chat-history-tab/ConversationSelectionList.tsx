@@ -174,7 +174,7 @@ export function ConversationSelectionList({
             isSelected && "!bg-primary/10 border-l-2 border-l-primary",
             isRecentlyImported &&
               "!bg-green-50 border-l-2 border-l-green-500 dark:!bg-green-950/30 dark:border-l-green-400",
-            "hover:bg-muted/50"
+            "hover:bg-muted/70"
           )}
           onClick={e => handleItemClick(conversation._id, index, e.shiftKey)}
         >

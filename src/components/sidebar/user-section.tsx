@@ -45,7 +45,7 @@ const UserSectionContent = ({
       <div className="border-t border-border/50 pt-4 pb-3">
         <Link className="block w-full px-3" to={ROUTES.AUTH}>
           <Button
-            className="flex h-9 w-full items-center justify-start gap-2.5 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            className="flex h-9 w-full items-center justify-start gap-2.5 text-sm text-muted-foreground hover:bg-accent/70 hover:text-foreground"
             variant="ghost"
           >
             <SignInIcon className="h-4 w-4" />
@@ -62,7 +62,7 @@ const UserSectionContent = ({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
-              className="h-9 w-full justify-start gap-2.5 text-sm hover:bg-accent/50"
+              className="h-9 w-full justify-start gap-2.5 text-sm hover:bg-accent/70"
               variant="ghost"
             >
               {user?.image ? (

@@ -51,7 +51,7 @@ const SetupChecklist = () => {
       >
         <Button
           aria-label="Dismiss checklist"
-          className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/50"
+          className="absolute right-1.5 top-1.5 h-5 w-5 p-0 hover:bg-muted/70"
           size="sm"
           variant="ghost"
           onClick={handleDismiss}

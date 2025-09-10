@@ -307,7 +307,7 @@ const ReasoningPickerComponent = ({
                 // Subtle at rest; provider-accent when active
                 currentValue !== "off"
                   ? cn(theme.bgColor, theme.hoverBgColor, theme.color)
-                  : "bg-muted/20 text-foreground/85 hover:bg-muted/40",
+                  : "bg-muted text-foreground hover:bg-muted/80",
                 className
               )}
             >

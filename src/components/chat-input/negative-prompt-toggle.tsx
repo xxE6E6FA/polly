@@ -63,7 +63,7 @@ export const NegativePromptToggle = memo<NegativePromptToggleProps>(
                 disabled={disabled}
                 variant="ghost"
                 size="sm"
-                className="h-6 gap-1.5 text-xs text-foreground bg-muted/50 hover:bg-muted px-2"
+                className="h-6 gap-1.5 text-xs text-foreground bg-muted/70 hover:bg-muted px-2"
               >
                 <Minus className="h-3.5 w-3.5" weight="bold" />
                 Negative prompt
@@ -84,7 +84,7 @@ export const NegativePromptToggle = memo<NegativePromptToggleProps>(
                     "w-full resize-none bg-transparent border-0 outline-none ring-0",
                     "text-base sm:text-sm leading-relaxed",
                     "min-h-[40px] max-h-[80px] overflow-y-auto px-1.5 py-1 sm:px-2",
-                    "focus:bg-background/50 focus:backdrop-blur-sm transition-colors duration-200",
+                    "focus:bg-background/80 focus:backdrop-blur-sm transition-colors duration-200",
                     disabled && "cursor-not-allowed opacity-50"
                   )}
                   disabled={disabled}

@@ -75,10 +75,10 @@ export const SimplePrompts = ({
                 type="button"
                 className={cn(
                   "group relative text-left px-3 py-2 rounded-lg text-xs transition-all duration-200",
-                  "bg-muted/20 hover:bg-muted/40 border border-border/30 hover:border-border/50",
+                  "bg-muted hover:bg-muted/80 border border-border hover:border-border",
                   "hover:shadow-sm",
                   hasReachedLimit &&
-                    "opacity-50 cursor-not-allowed hover:bg-muted/20 hover:border-border/30 hover:shadow-none",
+                    "opacity-50 cursor-not-allowed hover:bg-muted hover:border-border hover:shadow-none",
                   "animate-fade-in-up"
                 )}
                 style={{
@@ -113,10 +113,10 @@ export const SimplePrompts = ({
                   type="button"
                   className={cn(
                     "group relative text-left px-3 py-2 rounded-lg text-xs transition-all duration-200",
-                    "bg-muted/20 hover:bg-muted/40 border border-border/30 hover:border-border/50",
+                    "bg-muted hover:bg-muted/80 border border-border hover:border-border",
                     "hover:shadow-sm",
                     hasReachedLimit &&
-                      "opacity-50 cursor-not-allowed hover:bg-muted/20 hover:border-border/30 hover:shadow-none",
+                      "opacity-50 cursor-not-allowed hover:bg-muted hover:border-border hover:shadow-none",
                     "animate-fade-in-up"
                   )}
                   style={{
@@ -125,7 +125,7 @@ export const SimplePrompts = ({
                   }}
                   onClick={() => !hasReachedLimit && onQuickPrompt(prompt)}
                 >
-                  <span className="line-clamp-2 leading-snug text-foreground/60 group-hover:text-foreground/80">
+                  <span className="line-clamp-2 leading-snug text-foreground/80 group-hover:text-foreground">
                     {prompt}
                   </span>
                 </button>
