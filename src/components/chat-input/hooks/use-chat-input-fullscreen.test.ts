@@ -1,5 +1,5 @@
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
 vi.mock("@/stores/chat-ui-store", () => ({
@@ -20,7 +20,7 @@ describe("useChatInputFullscreen", () => {
     const setMultiline = vi.fn();
     const setTransitioning = vi.fn();
     const clearOnSend = vi.fn();
-    (useChatFullscreenUI as unknown as vi.Mock).mockReturnValue({
+    (useChatFullscreenUI as unknown as Mock).mockReturnValue({
       isFullscreen: false,
       isMultiline: false,
       isTransitioning: false,

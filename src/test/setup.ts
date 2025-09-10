@@ -1,5 +1,9 @@
 // Test setup for Vitest + React Testing Library
 import "@testing-library/jest-dom";
+import { vi } from "vitest";
+
+// Make vi globally available for TypeScript
+(globalThis as unknown as { vi: typeof vi }).vi = vi;
 
 // Swallow Vitest worker shutdown errors in sandboxed environments (Mac seatbelt)
 // These appear as unhandled rejections with code EPERM when killing workers.

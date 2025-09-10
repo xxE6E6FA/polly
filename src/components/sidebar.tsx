@@ -180,13 +180,9 @@ export const Sidebar = () => {
       ({
         "--shadow-height": `${shadowHeight}px`,
         maskImage:
-          shadowHeight > 0
-            ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
-            : "none",
+          "linear-gradient(to bottom, transparent 0px, #000 8px, #000 calc(100% - 8px), transparent 100%)",
         WebkitMaskImage:
-          shadowHeight > 0
-            ? "linear-gradient(to bottom, transparent, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)"
-            : "none",
+          "linear-gradient(to bottom, transparent 0px, #000 8px, #000 calc(100% - 8px), transparent 100%)",
       }) as React.CSSProperties,
     [shadowHeight]
   );
@@ -221,7 +217,7 @@ export const Sidebar = () => {
       >
         {isSidebarVisible && (
           <div className="flex h-full flex-col">
-            <div className="flex-shrink-0 pb-2">
+            <div className="flex-shrink-0">
               <div
                 className="relative flex h-12 items-center justify-center px-3"
                 style={
@@ -293,7 +289,7 @@ export const Sidebar = () => {
                 </div>
               </div>
 
-              <div className="stack-md px-3 pb-3">
+              <div className="px-3 pt-3 pb-3">
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (
