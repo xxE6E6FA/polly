@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { GearIcon, HeartIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
+import { HeartIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -9,7 +9,6 @@ import { SidebarSearch } from "@/components/sidebar/search";
 import { UserSection } from "@/components/sidebar/user-section";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Tooltip,
   TooltipContent,
@@ -189,6 +188,37 @@ export const Sidebar = () => {
 
   return (
     <>
+      {/* Always visible desktop toggle button */}
+      {!isMobile && (
+        <div
+          className="fixed top-2 z-50"
+          style={{
+            left: isSidebarVisible ? `${sidebarWidth - 52}px` : "8px",
+            transition: "left 300ms ease-out",
+          }}
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
+                variant="ghost"
+                className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                style={{
+                  cursor: isSidebarVisible ? "w-resize" : "e-resize",
+                }}
+                onClick={toggleSidebar}
+              >
+                <SidebarSimpleIcon className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 bg-background dark:bg-card",
@@ -219,26 +249,13 @@ export const Sidebar = () => {
           <div className="flex h-full flex-col">
             <div className="flex-shrink-0">
               <div
-                className="relative flex h-12 items-center justify-center px-3"
+                className="flex h-10 items-center px-3 pt-2"
                 style={
                   isMobile
-                    ? { paddingTop: "env(safe-area-inset-top)" }
+                    ? { paddingTop: "calc(env(safe-area-inset-top) + 8px)" }
                     : undefined
                 }
               >
-                {isMobile && (
-                  <div className="absolute left-3">
-                    <Button
-                      size="icon-sm"
-                      title="Close sidebar"
-                      variant="ghost"
-                      className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
-                      onClick={() => setSidebarVisible(false)}
-                    >
-                      <SidebarSimpleIcon className="h-5 w-5 -scale-x-100" />
-                    </Button>
-                  </div>
-                )}
                 <Link className="group" to={ROUTES.HOME}>
                   <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
                     <div
@@ -260,36 +277,22 @@ export const Sidebar = () => {
                   </div>
                 </Link>
 
-                <div className="absolute flex items-center gap-1 right-3">
-                  {user && !user.isAnonymous && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link to={ROUTES.SETTINGS.ROOT}>
-                          <Button
-                            size="icon-sm"
-                            title="Settings"
-                            variant="ghost"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            <GearIcon className="h-4 w-4 transition-colors" />
-                          </Button>
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Settings</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  )}
-
-                  <ThemeToggle
-                    size="icon-sm"
-                    variant="ghost"
-                    className="hover:bg-accent text-foreground/70 hover:text-foreground"
-                  />
-                </div>
+                {isMobile && (
+                  <div className="ml-auto">
+                    <Button
+                      size="icon-sm"
+                      title="Close sidebar"
+                      variant="ghost"
+                      className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                      onClick={() => setSidebarVisible(false)}
+                    >
+                      <SidebarSimpleIcon className="h-5 w-5 -scale-x-100" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="px-3 pt-3 pb-3">
+              <div className="px-3 pt-2 pb-3">
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (
@@ -393,28 +396,6 @@ export const Sidebar = () => {
             </div>
           )}
         </>
-      )}
-
-      {!isMobile && (
-        <div className="fixed left-2 top-2 z-50">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className="text-foreground/70 hover:bg-accent hover:text-foreground"
-                size="icon-sm"
-                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-                variant="ghost"
-                style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
-                onClick={toggleSidebar}
-              >
-                <SidebarSimpleIcon className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
       )}
     </>
   );
