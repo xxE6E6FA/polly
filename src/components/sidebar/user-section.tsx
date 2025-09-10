@@ -1,7 +1,21 @@
 import type { Doc } from "@convex/types";
-import { SignInIcon, UserIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import {
+  GearIcon,
+  MoonIcon,
+  SignInIcon,
+  SignOutIcon,
+  SunIcon,
+  UserIcon,
+} from "@phosphor-icons/react";
+import { Link, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useTheme } from "@/hooks/use-theme";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -19,6 +33,13 @@ const UserSectionContent = ({
   isAuthenticated,
   shouldAnonymize,
 }: UserSectionContentProps) => {
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    navigate("/signout");
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="border-t border-border/50 pt-4 pb-3">
@@ -37,53 +58,80 @@ const UserSectionContent = ({
 
   return (
     <div className="border-t border-border/50 pt-4 pb-3">
-      <Link
-        className="block w-full px-3"
-        to={ROUTES.SETTINGS.ROOT}
-        onMouseEnter={preloadSettings}
-      >
-        <Button
-          className="h-9 w-full justify-start gap-2.5 text-sm hover:bg-accent/50"
-          variant="ghost"
-        >
-          {user?.image ? (
-            <img
-              alt={user.name || "User avatar"}
-              className={cn(
-                "h-6 w-6 rounded-full object-cover",
-                shouldAnonymize && "blur-sm"
-              )}
-              loading="lazy"
-              src={user.image}
-              onError={e => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-                const fallback = target.nextElementSibling as HTMLElement;
-                if (fallback) {
-                  fallback.style.display = "flex";
-                }
-              }}
-            />
-          ) : (
-            <div
-              className={cn(
-                "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
-                shouldAnonymize && "blur-sm"
-              )}
+      <div className="px-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              className="h-9 w-full justify-start gap-2.5 text-sm hover:bg-accent/50"
+              variant="ghost"
             >
-              <UserIcon className="h-3 w-3 text-white" />
-            </div>
-          )}
-          <span
-            className={cn(
-              "truncate text-foreground",
-              shouldAnonymize && "blur-md"
-            )}
-          >
-            {user?.name || user?.email || "User"}
-          </span>
-        </Button>
-      </Link>
+              {user?.image ? (
+                <img
+                  alt={user.name || "User avatar"}
+                  className={cn(
+                    "h-6 w-6 rounded-full object-cover",
+                    shouldAnonymize && "blur-sm"
+                  )}
+                  loading="lazy"
+                  src={user.image}
+                  onError={e => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                    const fallback = target.nextElementSibling as HTMLElement;
+                    if (fallback) {
+                      fallback.style.display = "flex";
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  className={cn(
+                    "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
+                    shouldAnonymize && "blur-sm"
+                  )}
+                >
+                  <UserIcon className="h-3 w-3 text-white" />
+                </div>
+              )}
+              <span
+                className={cn(
+                  "truncate text-foreground",
+                  shouldAnonymize && "blur-md"
+                )}
+              >
+                {user?.name || user?.email || "User"}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem asChild>
+              <Link
+                to={ROUTES.SETTINGS.ROOT}
+                onMouseEnter={preloadSettings}
+                className="w-full"
+              >
+                <GearIcon className="h-4 w-4" />
+                Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={toggleTheme}>
+              {theme === "dark" ? (
+                <SunIcon className="h-4 w-4" />
+              ) : (
+                <MoonIcon className="h-4 w-4" />
+              )}
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="text-red-600 dark:text-red-400"
+            >
+              <SignOutIcon className="h-4 w-4" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 };
