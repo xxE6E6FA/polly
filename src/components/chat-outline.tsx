@@ -163,15 +163,16 @@ const ChatOutlineComponent = ({
     const visibleCount = Math.min(outlineItems.length, MAX_VISIBLE_ITEMS);
     const remainingCount = Math.max(0, outlineItems.length - MAX_VISIBLE_ITEMS);
 
-    // Calculate height: 6px per item + 6px gaps + 48px padding
-    const baseHeight = visibleCount * 6 + (visibleCount - 1) * 6 + 48;
-    const counterHeight = remainingCount > 0 ? 20 : 0;
-    const totalHeight = baseHeight + counterHeight;
+    // Calculate height: 8px per dot + 6px gaps + 24px container padding + 32px counter (8px margin + 24px height)
+    const dotsHeight = visibleCount * 8 + (visibleCount - 1) * 6;
+    const containerPadding = 24; // py-3 = 12px top + 12px bottom
+    const counterHeight = remainingCount > 0 ? 32 : 0; // 24px height + 8px margin-top
+    const totalHeight = dotsHeight + containerPadding + counterHeight;
 
     return {
       visibleItems: outlineItems.slice(0, MAX_VISIBLE_ITEMS),
       remainingCount,
-      height: Math.min(totalHeight, 200),
+      height: totalHeight,
     };
   }, [outlineItems]);
 
@@ -201,7 +202,7 @@ const ChatOutlineComponent = ({
         style={{
           width: isExpanded ? `${EXPANDED_WIDTH}px` : undefined,
           height: isExpanded ? "auto" : `${collapsedConfig.height}px`,
-          maxHeight: isExpanded ? "calc(80vh - 80px)" : "none",
+          maxHeight: isExpanded ? "calc(80vh - 60px)" : "none",
         }}
       >
         {/* Main content - always rendered */}
@@ -231,7 +232,7 @@ const ChatOutlineComponent = ({
             )}
             style={{
               maxHeight: isExpanded
-                ? "calc(80vh - 140px)"
+                ? "calc(80vh - 120px)"
                 : `${collapsedConfig.height}px`,
               width: `${EXPANDED_WIDTH}px`,
             }}
@@ -300,13 +301,13 @@ const ChatOutlineComponent = ({
 
           {/* Footer with scroll indicator */}
           {outlineItems.length > 20 && isExpanded && (
-            <div className="sticky bottom-0 h-6 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none" />
+            <div className="sticky bottom-0 h-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none" />
           )}
 
           {/* Collapsed state indicators - overlay on top */}
           <div
             className={cn(
-              "absolute inset-0 flex flex-col items-center justify-center py-6 pointer-events-none",
+              "absolute inset-0 flex flex-col items-center justify-center py-3 pointer-events-none",
               isExpanded
                 ? "opacity-0 invisible"
                 : "opacity-100 visible transition-opacity duration-300 delay-100"
@@ -317,19 +318,10 @@ const ChatOutlineComponent = ({
                 <div
                   key={`indicator-${item.id}`}
                   className={cn(
-                    "rounded-full",
+                    "rounded-full w-2 h-2",
                     item.type === "user-message"
-                      ? "w-2 h-1.5 bg-primary/80"
-                      : "w-1.5 bg-muted-foreground/40",
-                    item.type === "assistant-section" &&
-                      item.level === 1 &&
-                      "h-1.5",
-                    item.type === "assistant-section" &&
-                      item.level === 2 &&
-                      "h-1",
-                    item.type === "assistant-section" &&
-                      item.level >= 3 &&
-                      "h-1"
+                      ? "bg-primary/80"
+                      : "bg-muted-foreground/40"
                   )}
                   style={{
                     opacity:
