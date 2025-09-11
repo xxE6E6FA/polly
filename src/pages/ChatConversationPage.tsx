@@ -115,6 +115,24 @@ export default function ConversationRoute() {
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
+  // Update document title to match conversation title
+  const conversationTitle = (
+    conversationAccessInfo?.conversation as { title?: string } | undefined
+  )?.title;
+
+  useEffect(() => {
+    if (conversationTitle && conversationTitle !== document.title) {
+      document.title = conversationTitle;
+    }
+
+    return () => {
+      // Reset title when navigating away or when no conversation id exists
+      if (!conversationId) {
+        document.title = "Polly";
+      }
+    };
+  }, [conversationTitle, conversationId]);
+
   const {
     messages,
     isLoading,
