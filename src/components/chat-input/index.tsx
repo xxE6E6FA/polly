@@ -1,4 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
+import type { ForwardedRef } from "react";
 import {
   forwardRef,
   useCallback,
@@ -82,11 +83,7 @@ export type ChatInputRef = {
   getCurrentReasoningConfig: () => ReasoningConfig;
 };
 
-const getNewQuotedValue = (currentValue: string, quote: string) => {
-  return currentValue ? `${currentValue}\n\n${quote}\n\n` : `${quote}\n\n`;
-};
-
-const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
+const ChatInputInner = forwardRef(
   (
     {
       onSendMessage,
@@ -101,7 +98,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       userMessageContents,
       autoFocus = false,
     },
-    ref
+    ref: ForwardedRef<ChatInputRef>
   ) => {
     const { canSendMessage } = useUserDataContext();
     const { hasReplicateApiKey } = useReplicateApiKey();
@@ -111,7 +108,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const { selectedPersonaId, temperature } =
       useChatScopedState(conversationId);
     const [input, setInput] = useState<string>("");
-    // clearAttachments already extracted from hook above
     const [reasoningConfig] = useReasoningConfig();
     const [generationMode, setGenerationMode] = useGenerationMode();
     const { params: imageParams } = useImageParams();
@@ -122,14 +118,14 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const notificationDialog = useNotificationDialog();
     const { isMobile } = useUI();
     const [isComposeDrawerOpen, setComposeDrawerOpen] = useState(false);
-    // Focus drawer textarea on open for seamless typing
+    const [activeQuote, setActiveQuote] = useState<string | null>(null);
+
     useEffect(() => {
       if (isMobile && isComposeDrawerOpen) {
         setTimeout(() => drawerTextareaRef.current?.focus(), 0);
       }
     }, [isMobile, isComposeDrawerOpen]);
 
-    // Use the new image generation hook
     const {
       selectedImageModel,
       handleImageGenerationSubmit,
@@ -146,7 +142,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       },
     });
 
-    // Use the new submission hook
     const { isProcessing, submit, handleSendAsNewConversation } =
       useChatInputSubmission({
         conversationId,
@@ -159,10 +154,10 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         onResetInputState: () => {
           setInput("");
           setAttachments([]);
+          setActiveQuote(null);
         },
       });
 
-    // Use the new drag and drop hook
     const { isDragOver, handleDragOver, handleDragLeave, handleDrop } =
       useChatInputDragDrop({
         canSend: canSendMessage,
@@ -190,7 +185,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         },
       });
 
-    // Handle private mode and replicate API key restrictions
     useEffect(() => {
       if (
         (isPrivateMode || !hasReplicateApiKey) &&
@@ -200,7 +194,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [isPrivateMode, hasReplicateApiKey, generationMode, setGenerationMode]);
 
-    // Get user messages for history navigation
     const userMessages = useMemo(() => {
       if (userMessageContents) {
         return userMessageContents;
@@ -222,7 +215,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return userMessages;
     }, [userMessageContents, messages]);
 
-    // Hydrate history from existing user messages on revisit (once per conversation)
     const history = useChatHistory(conversationId);
     const lastHydratedIdRef = useRef<ConversationId>(null);
     const lastHydratedCountRef = useRef<number>(0);
@@ -234,7 +226,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       if (count === 0) {
         return;
       }
-      // Avoid infinite loops by hydrating only when conversation changes or count changes
       if (
         lastHydratedIdRef.current === conversationId &&
         lastHydratedCountRef.current === count
@@ -260,18 +251,19 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       history.resetIndex,
     ]);
 
-    // Handle submission
     const handleSubmit = useCallback(async () => {
       const trimmed = input.trim();
-      await submit(trimmed, [...attachments], generationMode);
+      const content = activeQuote
+        ? `${activeQuote}\n\n${trimmed}`.trim()
+        : trimmed;
+      await submit(content, [...attachments], generationMode);
       if (trimmed.length > 0) {
         history.push(trimmed);
         history.resetIndex();
       }
-      // On successful submit, clear local and attachments
       setInput("");
       clearAttachments();
-      // Close mobile compose drawer after sending
+      setActiveQuote(null);
       if (isMobile && isComposeDrawerOpen) {
         setComposeDrawerOpen(false);
       }
@@ -282,32 +274,40 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       generationMode,
       clearAttachments,
       history,
+      activeQuote,
       isMobile,
       isComposeDrawerOpen,
     ]);
 
-    // Handle send as new conversation
     const handleSendAsNew = useCallback(
       async (
         shouldNavigate = true,
         personaId?: Id<"personas"> | null,
         customReasoningConfig?: ReasoningConfig
       ) => {
+        const content = activeQuote
+          ? `${activeQuote}\n\n${input}`.trim()
+          : input;
         await handleSendAsNewConversation(
-          input,
+          content,
           [...attachments],
           shouldNavigate,
           personaId,
           customReasoningConfig
         );
-        // After sending as new, clear local input and attachments
         setInput("");
         clearAttachments();
+        setActiveQuote(null);
       },
-      [handleSendAsNewConversation, input, attachments, clearAttachments]
+      [
+        handleSendAsNewConversation,
+        input,
+        attachments,
+        clearAttachments,
+        activeQuote,
+      ]
     );
 
-    // Determine placeholder based on generation mode and state
     const dynamicPlaceholder = useMemo(() => {
       if (generationMode === "image") {
         return "Describe your image...";
@@ -321,7 +321,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return "Ask anything...";
     }, [generationMode, isPrivateMode, isArchived]);
 
-    // Determine chat input state class
     const chatInputStateClass = useMemo(() => {
       if (!canSendMessage) {
         return "chat-input-disabled";
@@ -335,7 +334,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const immediateHasText = input.trim().length > 0 || attachments.length > 0;
     const deferredInputHasText = useDeferredValue(immediateHasText);
 
-    // Show expand/fullscreen only when there's input and > 3 visual lines
     const [inlineShowExpand, setInlineShowExpand] = useState(false);
     const [drawerShowExpand, setDrawerShowExpand] = useState(false);
 
@@ -386,9 +384,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
             isMobile && isComposeDrawerOpen
               ? drawerTextareaRef.current
               : inlineTextareaRef.current;
-          const currentValue = target?.value.trim() || "";
-          const newValue = getNewQuotedValue(currentValue, quote);
-          setInput(newValue);
+          setActiveQuote(quote);
           setTimeout(() => target?.focus(), 0);
         },
         setInput,
@@ -437,6 +433,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 isMobile && isComposeDrawerOpen ? "h-11 max-h-11" : undefined
               }
               showExpandToggle={inlineShowExpand}
+              quote={activeQuote ?? undefined}
+              onClearQuote={() => setActiveQuote(null)}
             />
 
             <ChatInputBottomBar
@@ -462,7 +460,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
           </ChatInputContainer>
         </div>
 
-        {/* Mobile Fullscreen Drawer */}
         <Drawer
           shouldScaleBackground={false}
           open={isMobile && isComposeDrawerOpen}
@@ -493,6 +490,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 hideExpandToggle
                 disableAutoResize
                 showExpandToggle={drawerShowExpand}
+                quote={activeQuote ?? undefined}
+                onClearQuote={() => setActiveQuote(null)}
               />
             </DrawerBody>
             <DrawerFooter
@@ -526,8 +525,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
   }
 );
 
-export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
-  (props, ref) => {
+export const ChatInput = forwardRef(
+  (props: ChatInputProps, ref: ForwardedRef<ChatInputRef>) => {
     const { user } = useUserDataContext();
 
     if (user === undefined) {
