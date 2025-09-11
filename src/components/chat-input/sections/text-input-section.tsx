@@ -13,6 +13,7 @@ import { ExpandToggleButton } from "../expand-toggle-button";
 import { useChatInputFullscreen } from "../hooks";
 import { useEvent } from "../hooks/use-event";
 import { NegativePromptToggle } from "../negative-prompt-toggle";
+import { QuotePreview } from "../quote-preview";
 
 interface TextInputSectionProps {
   onSubmit: () => void;
@@ -37,6 +38,8 @@ interface TextInputSectionProps {
   onMobileFullscreenToggle?: () => void;
   hideExpandToggle?: boolean;
   showExpandToggle?: boolean;
+  quote?: string;
+  onClearQuote?: () => void;
 }
 
 export function TextInputSection({
@@ -58,6 +61,8 @@ export function TextInputSection({
   onMobileFullscreenToggle,
   hideExpandToggle,
   showExpandToggle,
+  quote,
+  onClearQuote,
 }: TextInputSectionProps) {
   const { attachments } = useChatAttachments(conversationId);
   const handleRemoveAttachment = useCallback(
@@ -121,6 +126,13 @@ export function TextInputSection({
 
   return (
     <>
+      {/* Active quote preview chip (ChatGPT-style) */}
+      {quote && (
+        <div className="mb-2">
+          <QuotePreview quote={quote} onClear={onClearQuote} />
+        </div>
+      )}
+
       <AttachmentDisplay
         attachments={attachments}
         onRemoveAttachment={handleRemoveAttachment}
