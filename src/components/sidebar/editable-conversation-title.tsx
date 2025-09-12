@@ -47,6 +47,7 @@ export const EditableConversationTitle = ({
   const [originalTitle, setOriginalTitle] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
   const wasInputFocusedRef = useRef(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -76,10 +77,17 @@ export const EditableConversationTitle = ({
   }, [editingTitle, originalTitle, onSaveEdit, onCancelEdit]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
       if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
         handleSave();
       } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
         onCancelEdit();
       }
     },
@@ -87,6 +95,7 @@ export const EditableConversationTitle = ({
   );
 
   const handleBlur = useCallback(() => {
+    setIsFocused(false);
     if (wasInputFocusedRef.current) {
       handleSave();
     }
@@ -94,10 +103,12 @@ export const EditableConversationTitle = ({
 
   const handleFocus = useCallback(() => {
     wasInputFocusedRef.current = true;
+    setIsFocused(true);
   }, []);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
+      // Only the selected conversation becomes editable; others remain links
       if (!isMobile && isCurrentConversation && !isEditing) {
         e.stopPropagation();
         e.preventDefault();
@@ -129,54 +140,74 @@ export const EditableConversationTitle = ({
     <div
       className="relative w-full"
       style={
-        isEditing
-          ? undefined
-          : ({
-              maskImage: hasActionsVisible
-                ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
-                : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
+        hasActionsVisible && !(isEditing || isFocused)
+          ? ({
+              maskImage:
+                "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
               // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
-              WebkitMaskImage: hasActionsVisible
-                ? "linear-gradient(to right, black 0%, black calc(100% - 80px), transparent 100%)"
-                : "linear-gradient(to right, black 0%, black calc(100% - 16px), transparent 100%)",
+              WebkitMaskImage:
+                "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
+            } as React.CSSProperties)
+          : ({
+              maskImage: "none",
+              // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
+              WebkitMaskImage: "none",
             } as React.CSSProperties)
       }
     >
-      <Input
-        ref={editInputRef}
-        value={isEditing ? editingTitle : title}
-        readOnly={!isEditing}
-        className={cn(
-          "h-auto font-medium shadow-none outline-none ring-0 focus-visible:ring-0",
-          isMobile ? "text-xs" : "text-xs",
-          "border-0 bg-transparent p-0",
-          !isEditing && "cursor-default",
-          !(isEditing || isMobile) &&
-            isCurrentConversation &&
-            "cursor-text hover:opacity-80",
-          // Enable text selection when editing
-          isEditing && "selectable-auto"
-        )}
-        onBlur={isEditing ? handleBlur : undefined}
-        onFocus={isEditing ? handleFocus : undefined}
-        onChange={isEditing ? e => setEditingTitle(e.target.value) : undefined}
-        onKeyDown={isEditing ? handleKeyDown : undefined}
-        onClick={
-          isEditing
-            ? e => {
-                e.stopPropagation();
-                e.preventDefault();
-              }
-            : handleClick
-        }
-        onMouseDown={
-          isEditing
-            ? e => {
-                e.stopPropagation();
-              }
-            : undefined
-        }
-      />
+      {isEditing ? (
+        <Input
+          ref={editInputRef}
+          value={editingTitle}
+          className={cn(
+            // Ultra-minimal: caret only (no bg/border/radius/ring)
+            "h-auto w-full font-medium bg-transparent p-0 text-left",
+            "border-0 rounded-none",
+            // Kill default input effects from the base component
+            "shadow-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0",
+            "hover:bg-transparent focus-visible:bg-transparent focus-visible:border-0",
+            isMobile ? "text-xs" : "text-xs",
+            "selectable-auto"
+          )}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+          onChange={e => setEditingTitle(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onClick={e => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={e => {
+            e.stopPropagation();
+          }}
+        />
+      ) : (
+        <span
+          className={cn(
+            "block truncate text-left font-medium",
+            isMobile ? "text-xs" : "text-xs",
+            // Suggest edit affordance only on the current conversation
+            isCurrentConversation && !isMobile
+              ? "cursor-text hover:opacity-80"
+              : "cursor-default"
+          )}
+          onClick={handleClick}
+          onKeyDown={e => {
+            if (
+              (e.key === "Enter" || e.key === " ") &&
+              !isMobile &&
+              isCurrentConversation &&
+              !isEditing
+            ) {
+              e.preventDefault();
+              onStartEdit();
+            }
+          }}
+          tabIndex={isCurrentConversation && !isMobile ? 0 : -1}
+        >
+          {title}
+        </span>
+      )}
     </div>
   );
 };

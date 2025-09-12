@@ -29,14 +29,15 @@ import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
 
-const SCROLL_THRESHOLD = 8;
-const SHADOW_HEIGHT = 8;
+const SCROLL_THRESHOLD = 6;
+const SHADOW_HEIGHT = 6;
 
 export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [shadowHeight, setShadowHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
+  const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
     isSidebarVisible,
     toggleSidebar,
@@ -178,17 +179,20 @@ export const Sidebar = () => {
     [sidebarWidth, shadowHeight]
   );
 
-  const scrollContainerStyle = useMemo(
-    () =>
-      ({
-        "--shadow-height": `${shadowHeight}px`,
-        maskImage:
-          "linear-gradient(to bottom, transparent 0px, #000 8px, #000 calc(100% - 8px), transparent 100%)",
-        WebkitMaskImage:
-          "linear-gradient(to bottom, transparent 0px, #000 8px, #000 calc(100% - 8px), transparent 100%)",
-      }) as React.CSSProperties,
-    [shadowHeight]
-  );
+  const scrollContainerStyle = useMemo(() => {
+    const base = {
+      "--shadow-height": `${shadowHeight}px`,
+    } as React.CSSProperties & {
+      WebkitMaskImage?: string;
+    };
+    if (isScrollHovered) {
+      base.maskImage =
+        "linear-gradient(to bottom, transparent 0px, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)";
+      base.WebkitMaskImage =
+        "linear-gradient(to bottom, transparent 0px, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)";
+    }
+    return base;
+  }, [shadowHeight, isScrollHovered]);
 
   return (
     <>
@@ -316,8 +320,14 @@ export const Sidebar = () => {
                   : "scrollbar-thin"
               )}
               style={scrollContainerStyle}
-              onMouseEnter={() => setHoveringOverSidebar(true)}
-              onMouseLeave={() => setHoveringOverSidebar(false)}
+              onMouseEnter={() => {
+                setHoveringOverSidebar(true);
+                setIsScrollHovered(true);
+              }}
+              onMouseLeave={() => {
+                setHoveringOverSidebar(false);
+                setIsScrollHovered(false);
+              }}
             >
               {user &&
                 !user.isAnonymous &&
@@ -328,7 +338,7 @@ export const Sidebar = () => {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start gap-1 h-auto py-1.5 px-0 hover:bg-accent/70"
+                        className="w-full justify-start gap-1 h-auto py-1.5 px-2 hover:bg-accent/70"
                       >
                         <HeartIcon
                           className="h-3.5 w-3.5 text-destructive"
