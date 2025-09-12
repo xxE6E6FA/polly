@@ -69,7 +69,9 @@ const ConversationItemComponent = ({
   const isBulkMode = isSelectionMode || hasSelection;
   const isActionsHovered = isHovered || isDesktopPopoverOpen;
 
-  const shouldShowActions = !(isMobile || isBulkMode) && isActionsHovered;
+  // Never show actions padding while editing to avoid layout shift
+  const shouldShowActions =
+    !(isMobile || isBulkMode || isEditing) && isActionsHovered;
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
@@ -168,10 +170,18 @@ const ConversationItemComponent = ({
   );
 
   const handleStartEdit = useCallback(() => {
-    setIsEditing(true);
+    // Always close any open menus before handling edit/navigation
     setIsMobilePopoverOpen(false);
     setIsDesktopPopoverOpen(false);
-  }, []);
+
+    // Only allow editing when this row is the current/selected conversation.
+    if (!isCurrentConversation) {
+      // Navigate to the conversation if user tries to edit a non-selected one
+      navigate(ROUTES.CHAT_CONVERSATION(conversation._id));
+      return;
+    }
+    setIsEditing(true);
+  }, [conversation._id, isCurrentConversation, navigate]);
 
   const handleSaveEdit = useCallback(
     async (newTitle: string) => {
@@ -393,7 +403,7 @@ const ConversationItemComponent = ({
                 "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
                 isMobile ? "py-2" : "py-1.5",
                 // Adjust padding dynamically based on checkbox visibility
-                isBulkMode ? "px-3 pl-8" : "px-3"
+                isBulkMode ? "px-2 pl-8" : "px-2"
               )}
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
@@ -404,7 +414,7 @@ const ConversationItemComponent = ({
                 className={cn(
                   "flex-1 min-w-0 transition-all duration-200 ease-in-out",
                   // Only add padding when actions are visible (not on mobile and not in bulk mode)
-                  shouldShowActions ? "pr-20" : "pr-2"
+                  shouldShowActions ? "pr-16" : "pr-2"
                 )}
               >
                 <EditableConversationTitle

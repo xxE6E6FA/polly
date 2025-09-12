@@ -113,9 +113,9 @@ export const ConversationListContent = ({
   if ((conversations?.length ?? 0) === 0 && searchQuery.trim().length > 0) {
     return (
       <div className="pt-3 pb-3">
-        <div className="flex h-32 items-center justify-center">
-          <div className="stack-sm text-center">
-            <ChatCircleIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+        <div className="flex h-32 items-center justify-start pl-2">
+          <div className="stack-sm">
+            <ChatCircleIcon className="mb-2 h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">No results found</p>
           </div>
         </div>
@@ -215,14 +215,14 @@ const ConversationListSkeleton = () => {
   return (
     <div>
       {/* Today section */}
-      <div className="stack-sm">
+      <div className="stack-sm pl-2">
         <div className="mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
       </div>
 
       {/* Yesterday section */}
-      <div className="stack-sm">
+      <div className="stack-sm pl-2">
         <div className="mb-1 h-4 w-20 animate-pulse rounded bg-muted/60" />
         <ConversationItemSkeleton />
         <ConversationItemSkeleton />
@@ -233,5 +233,5 @@ const ConversationListSkeleton = () => {
 };
 
 const ConversationItemSkeleton = () => {
-  return <div className="h-8 animate-pulse rounded-lg bg-muted/40 px-3 py-2" />;
+  return <div className="h-8 animate-pulse rounded-lg bg-muted/40 px-2 py-2" />;
 };
