@@ -1,7 +1,8 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { UnifiedChatView } from "@/components/unified-chat-view";
@@ -22,6 +23,11 @@ export default function ConversationRoute() {
   const convex = useConvex();
   const managedToast = useToast();
   const setStreaming = useMutation(api.conversations.setStreaming);
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
@@ -69,8 +75,16 @@ export default function ConversationRoute() {
             setTimeout(() => {
               (async () => {
                 try {
+                  // Wait briefly for auth token
+                  const start = Date.now();
+                  let token = authRef.current;
+                  while (!token && Date.now() - start < 2000) {
+                    await new Promise(r => setTimeout(r, 50));
+                    token = authRef.current;
+                  }
                   await startAuthorStream({
                     convexUrl: import.meta.env.VITE_CONVEX_URL,
+                    authToken: token || undefined,
                     conversationId: result.conversationId,
                     assistantMessageId:
                       result.assistantMessageId as Id<"messages">,
@@ -145,6 +159,44 @@ export default function ConversationRoute() {
   } = useChat({
     conversationId: conversationId as ConversationId,
   });
+
+  // Auto-trigger a response if we land on a conversation whose last message is a user message
+  const lastAutoTriggeredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading || messageIsStreaming) {
+      return;
+    }
+    if (!messages || messages.length === 0) {
+      return;
+    }
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "user") {
+      return;
+    }
+    if (lastAutoTriggeredRef.current === last.id) {
+      return;
+    }
+    // Avoid triggering for archived conversations
+    if (conversationAccessInfo?.conversation?.isArchived) {
+      return;
+    }
+
+    lastAutoTriggeredRef.current = last.id;
+    // Trigger using existing retryFromMessage handler (handles HTTP stream)
+    (async () => {
+      try {
+        await retryFromMessage(last.id);
+      } catch (_e) {
+        // no-op; keep UI stable
+      }
+    })();
+  }, [
+    isLoading,
+    messageIsStreaming,
+    messages,
+    conversationAccessInfo?.conversation?.isArchived,
+    retryFromMessage,
+  ]);
 
   const handleRetryImageGeneration = useCallback(
     async (messageId: string) => {

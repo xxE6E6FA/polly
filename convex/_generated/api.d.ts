@@ -34,6 +34,7 @@ import type * as ai_url_processing from "../ai/url_processing.js";
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
 import type * as backgroundJobs from "../backgroundJobs.js";
+import type * as branches from "../branches.js";
 import type * as chat from "../chat.js";
 import type * as cleanup from "../cleanup.js";
 import type * as constants from "../constants.js";
@@ -108,6 +109,7 @@ declare const fullApi: ApiFromModules<{
   apiKeys: typeof apiKeys;
   auth: typeof auth;
   backgroundJobs: typeof backgroundJobs;
+  branches: typeof branches;
   chat: typeof chat;
   cleanup: typeof cleanup;
   constants: typeof constants;

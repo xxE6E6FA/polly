@@ -8,6 +8,7 @@ import { UserBubble } from "./chat-message/UserBubble";
 type ChatMessageProps = {
   message: ChatMessageType;
   isStreaming?: boolean;
+  conversationId?: string;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryMessage?: (
     messageId: string,
@@ -31,6 +32,7 @@ const ChatMessageComponent = ({
   onRefineMessage,
   onDeleteMessage,
   onRetryImageGeneration,
+  conversationId,
 }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const [isCopied, setIsCopied] = useState(false);
@@ -110,6 +112,7 @@ const ChatMessageComponent = ({
       >
         {isUser ? (
           <UserBubble
+            conversationId={conversationId}
             message={message}
             isStreaming={isStreaming}
             isCopied={isCopied}
@@ -124,6 +127,7 @@ const ChatMessageComponent = ({
           />
         ) : (
           <AssistantBubble
+            conversationId={conversationId}
             message={message}
             isStreaming={isStreaming}
             isCopied={isCopied}

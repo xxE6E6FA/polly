@@ -8,6 +8,7 @@ import { AttachmentStrip } from "./AttachmentStrip";
 import { MessageActions } from "./MessageActions";
 
 type UserBubbleProps = {
+  conversationId?: string;
   message: ChatMessageType;
   isStreaming?: boolean;
   isCopied: boolean;
@@ -27,6 +28,7 @@ type UserBubbleProps = {
 
 export const UserBubble = memo(
   ({
+    conversationId,
     message,
     isStreaming = false,
     isCopied,
@@ -175,6 +177,7 @@ export const UserBubble = memo(
 
           <MessageActions
             isUser
+            conversationId={conversationId}
             messageId={message.id}
             copyToClipboard={copyToClipboard}
             isCopied={isCopied}

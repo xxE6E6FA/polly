@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
-// import { useAuthToken } from "@convex-dev/auth/react";
+import { useAuthToken } from "@convex-dev/auth/react";
 import {
   ArrowCounterClockwiseIcon,
   ArrowsInSimpleIcon,
@@ -8,6 +8,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CopyIcon,
+  GitBranchIcon,
   HeartIcon,
   NotePencilIcon,
   SpeakerHighIcon,
@@ -18,6 +19,7 @@ import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
@@ -55,7 +57,9 @@ import {
 // Tooltip imports consolidated above
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
+import { startAuthorStream } from "@/lib/ai/http-stream";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
@@ -793,6 +797,7 @@ type MessageActionsProps = {
   isRetrying: boolean;
   isDeleting: boolean;
   messageId?: string;
+  conversationId?: string;
   copyToClipboard: () => void;
   onEditMessage?: () => void;
   onRetryMessage?: (modelId?: string, provider?: string) => void;
@@ -818,6 +823,7 @@ export const MessageActions = memo(
     isRetrying,
     isDeleting,
     messageId,
+    conversationId,
     copyToClipboard,
     onEditMessage,
     onRetryMessage,
@@ -831,6 +837,7 @@ export const MessageActions = memo(
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
+    const navigate = useNavigate();
 
     const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
       "idle"
@@ -978,6 +985,17 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
+          {/* Branch from this message */}
+          {!isPrivateMode && messageId && conversationId && (
+            <BranchAction
+              conversationId={conversationId}
+              messageId={messageId}
+              onSuccess={newConversationId => {
+                navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+              }}
+            />
+          )}
+
           {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
             <ActionButton
               disabled={isEditing}
@@ -1115,3 +1133,109 @@ export const MessageActions = memo(
 );
 
 MessageActions.displayName = "MessageActions";
+
+// Inline component to keep branch UI self-contained here
+function BranchAction({
+  conversationId,
+  messageId,
+  onSuccess,
+}: {
+  conversationId: string;
+  messageId: string;
+  onSuccess: (newConversationId: string, assistantMessageId?: string) => void;
+}) {
+  const createBranch = useAction(api.branches.createBranch);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const managedToast = useToast();
+  const setStreaming = useMutation(api.conversations.setStreaming);
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
+
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+      const res = await createBranch({
+        conversationId: conversationId as Id<"conversations">,
+        messageId: messageId as Id<"messages">,
+      });
+      // If we have an assistant placeholder, kick off HTTP streaming first
+      if (res.assistantMessageId) {
+        try {
+          // Wait briefly for auth token if not yet available
+          const start = Date.now();
+          let token = authRef.current;
+          while (!token && Date.now() - start < 2000) {
+            await new Promise(r => setTimeout(r, 50));
+            token = authRef.current;
+          }
+          await startAuthorStream({
+            convexUrl: import.meta.env.VITE_CONVEX_URL,
+            authToken: token || undefined,
+            conversationId: res.conversationId,
+            assistantMessageId: res.assistantMessageId as Id<"messages">,
+            onFinish: async () => {
+              try {
+                await setStreaming({
+                  conversationId: res.conversationId,
+                  isStreaming: false,
+                });
+              } catch {
+                // best-effort only
+              }
+            },
+          });
+        } catch {
+          // Ignore errors when starting stream
+        }
+      }
+      onSuccess(res.conversationId, res.assistantMessageId);
+      managedToast.success("Branched conversation");
+    } catch (_e) {
+      managedToast.error("Failed to create branch");
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <ActionButton
+        tooltip="Branch from here"
+        ariaLabel="Create a new branch from this message"
+        icon={<GitBranchIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+        onClick={() => setOpen(true)}
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Branch</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground">
+            This will create a new conversation with all messages up to this
+            point. Continue in the new branch afterwards.
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={loading} onClick={handleConfirm}>
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" variant="primary" />
+                  <span>Creating…</span>
+                </span>
+              ) : (
+                "Create branch"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
