@@ -27,6 +27,7 @@ import * as runMigration from "../runMigration";
 import * as sharedConversations from "../sharedConversations";
 import * as titleGeneration from "../titleGeneration";
 import * as userSettings from "../userSettings";
+import * as branches from "../branches";
 
 // Import generated files
 import * as api from "../_generated/api";
@@ -56,6 +57,7 @@ const modules = {
   "sharedConversations": () => Promise.resolve(sharedConversations),
   "titleGeneration": () => Promise.resolve(titleGeneration),
   "userSettings": () => Promise.resolve(userSettings),
+  "branches": () => Promise.resolve(branches),
   // Generated files
   "_generated/api": () => Promise.resolve(api),
   "_generated/server": () => Promise.resolve(server),

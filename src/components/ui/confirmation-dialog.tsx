@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +24,7 @@ interface ConfirmationDialogProps {
   description: string;
   confirmText?: string;
   cancelText?: string;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   onCancel?: () => void;
   variant?: "default" | "destructive";
   autoFocusConfirm?: boolean;
@@ -62,9 +63,16 @@ export const ConfirmationDialog = ({
     };
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    onConfirm();
-    onOpenChange(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const handleConfirm = useCallback(async () => {
+    try {
+      setConfirming(true);
+      await onConfirm();
+      onOpenChange(false);
+    } finally {
+      setConfirming(false);
+    }
   }, [onConfirm, onOpenChange]);
 
   const handleCancel = useCallback(() => {
@@ -84,7 +92,12 @@ export const ConfirmationDialog = ({
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancel} type="button">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              type="button"
+              disabled={confirming}
+            >
               {cancelText}
             </Button>
             <Button
@@ -92,8 +105,9 @@ export const ConfirmationDialog = ({
               onClick={handleConfirm}
               autoFocus={autoFocusConfirm}
               type="button"
+              disabled={confirming}
             >
-              {confirmText}
+              {confirming ? <Spinner size="sm" /> : confirmText}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -109,7 +123,12 @@ export const ConfirmationDialog = ({
             <div className="stack-lg">
               <p className="text-sm text-muted-foreground">{description}</p>
               <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleCancel} type="button">
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  type="button"
+                  disabled={confirming}
+                >
                   {cancelText}
                 </Button>
                 <Button
@@ -117,8 +136,9 @@ export const ConfirmationDialog = ({
                   onClick={handleConfirm}
                   autoFocus={autoFocusConfirm}
                   type="button"
+                  disabled={confirming}
                 >
-                  {confirmText}
+                  {confirming ? <Spinner size="sm" /> : confirmText}
                 </Button>
               </div>
             </div>

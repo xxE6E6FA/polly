@@ -205,6 +205,7 @@ export const UnifiedChatView = memo(
 
       return (
         <VirtualizedChatMessages
+          conversationId={conversationId as string | undefined}
           ref={virtualizedMessagesRef}
           messages={messages}
           isStreaming={isStreaming}

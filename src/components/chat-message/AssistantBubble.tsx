@@ -27,6 +27,7 @@ import { MessageActions } from "./MessageActions";
 import { useAssistantDisplayPhase } from "./useAssistantDisplayPhase";
 
 type AssistantBubbleProps = {
+  conversationId?: string;
   message: ChatMessageType;
   isStreaming?: boolean;
   isCopied: boolean;
@@ -164,6 +165,7 @@ const ImageContainer = ({
 };
 
 export const AssistantBubble = ({
+  conversationId,
   message,
   isStreaming = false,
   isCopied,
@@ -652,6 +654,7 @@ export const AssistantBubble = ({
               )}
             >
               <MessageActions
+                conversationId={conversationId}
                 messageId={message.id}
                 copyToClipboard={copyToClipboard}
                 isCopied={isCopied}

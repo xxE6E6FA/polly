@@ -473,6 +473,12 @@ export const conversationSchema = v.object({
   activeBranchId: v.optional(v.string()),
   activeForkDefaultBranchId: v.optional(v.string()),
   activeForkRootId: v.optional(v.id("messages")),
+  // New structured branching fields
+  parentConversationId: v.optional(v.id("conversations")),
+  branchFromMessageId: v.optional(v.id("messages")),
+  branchId: v.optional(v.string()), // UUID for grouping related branches
+  // Make optional for backward compatibility; new conversations should set this to self
+  rootConversationId: v.optional(v.id("conversations")),
   createdAt: v.number(),
   updatedAt: v.number(),
 });

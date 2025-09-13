@@ -6,6 +6,8 @@ import {
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
+  GitBranchIcon,
+  GitCommitIcon,
   NotePencilIcon,
   ShareNetworkIcon,
 } from "@phosphor-icons/react";
@@ -20,7 +22,7 @@ import {
 } from "@/lib/export";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -79,6 +81,17 @@ const ChatHeaderComponent = ({
   const conversation = useQuery(
     api.conversations.get,
     conversationId ? { id: conversationId } : "skip"
+  );
+
+  // Branch navigation: load all related branches using rootConversationId
+  const branches = useQuery(
+    api.branches.getBranches,
+    conversationId && (conversation?.rootConversationId || conversation?._id)
+      ? {
+          rootConversationId: (conversation?.rootConversationId ||
+            conversationId) as Id<"conversations">,
+        }
+      : ("skip" as const)
   );
 
   const exportData = useQuery(
@@ -237,6 +250,93 @@ const ChatHeaderComponent = ({
               <p>{persona.name}</p>
             </TooltipContent>
           </Tooltip>
+        )}
+        {/* Branch selector */}
+        {conversationId && Array.isArray(branches) && branches.length > 1 && (
+          <div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-7">
+                  <span className="text-xxs">
+                    {(() => {
+                      const idx = branches.findIndex(
+                        b => b._id === (conversation?._id as unknown as string)
+                      );
+                      const pos = idx >= 0 ? idx + 1 : 1;
+                      return `Branch ${pos} of ${branches.length}`;
+                    })()}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {(() => {
+                  const rootId =
+                    conversation?.rootConversationId || conversation?._id;
+                  // Keep a stable order: root first, then branches by createdAt
+                  const sorted = [...branches].sort((a, b) => {
+                    const aRoot = !a.parentConversationId || a._id === rootId;
+                    const bRoot = !b.parentConversationId || b._id === rootId;
+                    if (aRoot && !bRoot) {
+                      return -1;
+                    }
+                    if (!aRoot && bRoot) {
+                      return 1;
+                    }
+                    return (a.createdAt || 0) - (b.createdAt || 0);
+                  });
+                  return sorted.map(b => {
+                    const isRoot = !b.parentConversationId || b._id === rootId;
+                    const isActive = b._id === conversation?._id;
+                    const created = formatDate(b.createdAt || 0);
+                    return (
+                      <DropdownMenuItem
+                        key={b._id}
+                        onClick={() =>
+                          navigate(ROUTES.CHAT_CONVERSATION(b._id))
+                        }
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          {/* Active dot first (aligned) */}
+                          <span
+                            className={cn(
+                              "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
+                              isActive ? "bg-primary" : "bg-transparent"
+                            )}
+                            aria-label={isActive ? "Active" : undefined}
+                          />
+                          {/* Fixed icon slot for alignment */}
+                          <div className="w-4 flex items-center justify-center flex-shrink-0">
+                            {isRoot ? (
+                              <GitCommitIcon
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                aria-label="Root conversation"
+                              />
+                            ) : (
+                              <GitBranchIcon
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                aria-label="Branch"
+                              />
+                            )}
+                          </div>
+                          {/* Text */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm truncate">
+                                {b.title}
+                              </span>
+                              <span className="text-xxs text-muted-foreground whitespace-nowrap">
+                                {created}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  });
+                })()}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
         {isArchived && (
           <Badge

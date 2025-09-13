@@ -40,6 +40,10 @@ export default defineSchema({
     .index("by_user_pinned", ["userId", "isPinned", "updatedAt"])
     .index("by_user_archived", ["userId", "isArchived", "updatedAt"])
     .index("by_created_at", ["createdAt"])
+    // Branching-related indexes
+    .index("by_root_updated", ["rootConversationId", "updatedAt"])
+    .index("by_parent", ["parentConversationId", "updatedAt"])
+    .index("by_branch", ["branchId", "updatedAt"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["userId", "isArchived"],

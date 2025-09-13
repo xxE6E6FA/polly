@@ -1040,7 +1040,14 @@ export const listFavorites = query({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
-      throw new Error("Not authenticated");
+      // Gracefully handle unauthenticated clients by returning an empty result
+      const empty = {
+        items: [],
+        hasMore: false,
+        nextCursor: null as string | null,
+        total: 0,
+      } as const;
+      return empty;
     }
 
     const limit = args.limit ?? 50;

@@ -1,5 +1,5 @@
 import { api } from "@convex/_generated/api";
-import { CheckIcon, CircleIcon } from "@phosphor-icons/react";
+import { CheckIcon, CircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -417,16 +417,27 @@ const ConversationItemComponent = ({
                   shouldShowActions ? "pr-16" : "pr-2"
                 )}
               >
-                <EditableConversationTitle
-                  title={conversation.title}
-                  isEditing={isEditing}
-                  isCurrentConversation={isCurrentConversation}
-                  isMobile={isMobile}
-                  hasActionsVisible={shouldShowActions}
-                  onStartEdit={handleStartEdit}
-                  onSaveEdit={handleSaveEdit}
-                  onCancelEdit={handleCancelEdit}
-                />
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {conversation.parentConversationId && (
+                    <GitBranchIcon
+                      className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"
+                      aria-label="Branched conversation"
+                      weight="bold"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <EditableConversationTitle
+                      title={conversation.title}
+                      isEditing={isEditing}
+                      isCurrentConversation={isCurrentConversation}
+                      isMobile={isMobile}
+                      hasActionsVisible={shouldShowActions}
+                      onStartEdit={handleStartEdit}
+                      onSaveEdit={handleSaveEdit}
+                      onCancelEdit={handleCancelEdit}
+                    />
+                  </div>
+                </div>
               </div>
 
               {conversation.isStreaming && (!isHovered || isMobile) && (

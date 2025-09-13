@@ -17,6 +17,7 @@ type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
   isStreaming?: boolean;
   isLoading?: boolean;
+  conversationId?: string;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (
     messageId: string,
@@ -48,6 +49,7 @@ export interface VirtualizedChatMessagesRef {
 interface MessageItemProps {
   messageId: string;
   isStreaming: boolean;
+  conversationId?: string;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (
     messageId: string,
@@ -74,6 +76,7 @@ const MessageItem = memo(
   ({
     messageId,
     isStreaming,
+    conversationId,
     onEditMessage,
     onRetryUserMessage,
     onRetryAssistantMessage,
@@ -99,6 +102,7 @@ const MessageItem = memo(
             <ContextMessage message={message} />
           ) : (
             <ChatMessage
+              conversationId={conversationId}
               message={message}
               isStreaming={isStreaming}
               onEditMessage={
@@ -168,6 +172,7 @@ export const VirtualizedChatMessages = memo(
         messages,
         isStreaming,
         isLoading = false,
+        conversationId,
         onEditMessage,
         onRetryUserMessage,
         onRetryAssistantMessage,
@@ -569,6 +574,7 @@ export const VirtualizedChatMessages = memo(
                 key={message.id}
                 messageId={message.id}
                 isStreaming={!!isMessageStreaming}
+                conversationId={conversationId}
                 onEditMessage={onEditMessage}
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}
