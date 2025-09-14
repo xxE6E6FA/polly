@@ -45,6 +45,7 @@ export const AttachmentGalleryDialog = ({
   }, [currentAttachmentIndex]);
 
   const currentDisplayAttachment = attachments[currentIndex];
+  const isImage = currentDisplayAttachment?.type === "image";
 
   // Navigation functions
   const goToPrevious = useCallback(() => {
@@ -155,12 +156,15 @@ export const AttachmentGalleryDialog = ({
           return null;
         }
         return (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full w-full items-center justify-center pointer-events-none">
             <img
               src={fileUrl}
               alt={currentDisplayAttachment.name}
-              className="max-h-full max-w-full object-contain"
+              className="max-h-full max-w-full object-contain pointer-events-auto"
               draggable={false}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => e.stopPropagation()}
+              tabIndex={-1}
             />
           </div>
         );
@@ -209,7 +213,10 @@ export const AttachmentGalleryDialog = ({
           <Button
             variant="ghost"
             size="lg"
-            onClick={() => onOpenChange(false)}
+            onClick={e => {
+              e.stopPropagation();
+              onOpenChange(false);
+            }}
             className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
             aria-label="Close"
           >
@@ -222,7 +229,10 @@ export const AttachmentGalleryDialog = ({
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={goToPrevious}
+                onClick={e => {
+                  e.stopPropagation();
+                  goToPrevious();
+                }}
                 className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
                 aria-label="Previous attachment"
               >
@@ -232,7 +242,10 @@ export const AttachmentGalleryDialog = ({
               <Button
                 variant="ghost"
                 size="lg"
-                onClick={goToNext}
+                onClick={e => {
+                  e.stopPropagation();
+                  goToNext();
+                }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
                 aria-label="Next attachment"
               >
@@ -241,13 +254,37 @@ export const AttachmentGalleryDialog = ({
             </>
           )}
 
-          {/* Attachment content */}
-          <div className="flex h-full w-full items-center justify-center p-8">
+          {/* Attachment content + clickable backdrop area */}
+          <div
+            className="flex h-full w-full items-center justify-center p-8"
+            onClick={e => {
+              // For images, click anywhere to close; otherwise only true backdrop clicks
+              if (isImage) {
+                onOpenChange(false);
+              } else if (e.target === e.currentTarget) {
+                onOpenChange(false);
+              }
+            }}
+            onKeyDown={e => {
+              // Allow keyboard users to close dialog with Enter or Space
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (isImage) {
+                  onOpenChange(false);
+                } else if (e.target === e.currentTarget) {
+                  onOpenChange(false);
+                }
+              }
+            }}
+            tabIndex={isImage ? 0 : -1}
+          >
             <div
               key={
                 currentDisplayAttachment.url || currentDisplayAttachment.name
               }
-              className="h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95"
+              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95 ${
+                isImage ? "pointer-events-none" : ""
+              }`}
             >
               {renderAttachmentContent()}
             </div>
