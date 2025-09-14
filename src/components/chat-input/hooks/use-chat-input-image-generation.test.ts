@@ -6,6 +6,12 @@ vi.mock("convex/react", () => ({
   useConvex: vi.fn(),
   useAction: vi.fn(),
 }));
+vi.mock("@/hooks/use-convex-file-upload", () => ({
+  useConvexFileUpload: vi.fn(),
+}));
+vi.mock("@/providers/private-mode-context", () => ({
+  usePrivateMode: vi.fn(),
+}));
 vi.mock("react-router-dom", () => ({ useNavigate: vi.fn() }));
 vi.mock("@/lib/ai/image-generation-handlers", () => ({
   handleImageGeneration: vi.fn(),
@@ -14,12 +20,20 @@ vi.mock("@/lib/ai/image-generation-handlers", () => ({
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useConvex } from "convex/react";
 import { useNavigate } from "react-router-dom";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import { useChatInputImageGeneration } from "./use-chat-input-image-generation";
 
 describe("useChatInputImageGeneration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (useConvexFileUpload as ReturnType<typeof vi.fn>).mockReturnValue({
+      uploadFile: vi.fn(),
+    });
+    (usePrivateMode as ReturnType<typeof vi.fn>).mockReturnValue({
+      isPrivateMode: false,
+    });
   });
 
   it("throws when model missing", async () => {
@@ -115,6 +129,104 @@ describe("useChatInputImageGeneration", () => {
       expect.stringContaining("/chat/newC")
     );
     expect(onReset).toHaveBeenCalled();
+  });
+
+  it("uploads attachments in non-private mode and sends storage-backed refs", async () => {
+    // polyfill atob for Node
+    (globalThis as unknown as { atob: (b64: string) => string }).atob = (
+      b64: string
+    ) => Buffer.from(b64, "base64").toString("binary");
+
+    const uploadFile = vi.fn().mockResolvedValue({
+      type: "image",
+      storageId: "s1",
+      name: "ref.png",
+      url: "",
+      mimeType: "image/png",
+      size: 4,
+    });
+    (useConvexFileUpload as unknown as vi.Mock).mockReturnValue({ uploadFile });
+
+    const action = vi.fn().mockResolvedValue({ userMessageId: "m1" });
+    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
+    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+
+    const { result } = renderHook(() =>
+      useChatInputImageGeneration({
+        conversationId: "c1" as Id<"conversations">,
+        selectedPersonaId: null,
+        input: "hi",
+        imageParams: { model: "seedream/4", prompt: "" },
+        generationMode: "image",
+        onResetInputState: vi.fn(),
+        attachments: [
+          {
+            type: "image",
+            content: "AQID",
+            mimeType: "image/png",
+            name: "ref.png",
+            url: "",
+            size: 4,
+          },
+        ],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleImageGenerationSubmit();
+    });
+
+    expect(uploadFile).toHaveBeenCalled();
+    // attachments passed to createUserMessage should include storage-backed item
+    const call = (useConvex as unknown as vi.Mock).mock.results[0].value.action
+      .mock.calls[0][1];
+    expect(call.attachments[0]).toMatchObject({
+      storageId: "s1",
+      type: "image",
+    });
+  });
+
+  it("uses data URLs for attachments in private mode", async () => {
+    (usePrivateMode as unknown as vi.Mock).mockReturnValue({
+      isPrivateMode: true,
+    });
+    const action = vi.fn().mockResolvedValue({ userMessageId: "m1" });
+    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
+    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
+      undefined
+    );
+
+    const { result } = renderHook(() =>
+      useChatInputImageGeneration({
+        conversationId: "c1" as Id<"conversations">,
+        selectedPersonaId: null,
+        input: "hi",
+        imageParams: { model: "seedream/4", prompt: "" },
+        generationMode: "image",
+        onResetInputState: vi.fn(),
+        attachments: [
+          {
+            type: "image",
+            content: "AQID",
+            mimeType: "image/png",
+            name: "ref.png",
+            url: "",
+            size: 4,
+          },
+        ],
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleImageGenerationSubmit();
+    });
+    const call = (useConvex as unknown as vi.Mock).mock.results[0].value.action
+      .mock.calls[0][1];
+    expect(call.attachments[0].url).toMatch(/^data:image\/png;base64,AQID/);
   });
 
   it("handleSendAsNewConversation optionally navigates and returns id", async () => {
