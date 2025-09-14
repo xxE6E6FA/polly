@@ -67,15 +67,16 @@ export const UserBubble = memo(
       setEditContent(message.content);
     }, [message.content]);
 
-    // Focus textarea when entering edit mode
+    // Focus textarea and auto-size when entering edit mode
     useEffect(() => {
-      if (isEditing && textareaRef.current) {
-        textareaRef.current.focus();
-        // Move cursor to end of text
-        textareaRef.current.setSelectionRange(
-          textareaRef.current.value.length,
-          textareaRef.current.value.length
-        );
+      const ta = textareaRef.current;
+      if (isEditing && ta) {
+        ta.focus();
+        // Position caret at end
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+        // Ensure height fits existing content on open
+        ta.style.height = "auto";
+        ta.style.height = `${ta.scrollHeight}px`;
       }
     }, [isEditing]);
 
@@ -97,8 +98,9 @@ export const UserBubble = memo(
         <div
           className={cn(
             "min-w-0 transition-all duration-300 ease-out",
+            // Full row width while editing for a roomy textarea; normal otherwise
             isEditing
-              ? "w-[600px] max-w-[calc(100vw-2rem)]"
+              ? "w-full"
               : "max-w-[calc(100%-theme(spacing.8))] sm:max-w-[32rem] md:max-w-[36rem] lg:max-w-[40rem]"
           )}
           onMouseEnter={onMouseEnter}
@@ -107,9 +109,11 @@ export const UserBubble = memo(
           <div
             className={cn(
               "transition-all duration-300 ease-out transform overflow-visible",
+              // Use the same bubble style; in edit mode add a subtle emphasis ring
+              "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 text-foreground shadow-sm ring-1",
               isEditing
-                ? "rounded-xl bg-background p-4 sm:p-5 shadow-lg ring-1 ring-primary/10 w-full"
-                : "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 bg-muted/50 text-foreground shadow-sm hover:shadow-md ring-1 ring-border/20 hover:ring-primary/30 w-fit ml-auto",
+                ? "ring-primary/30 shadow-md w-full"
+                : "ring-border/20 hover:shadow-md hover:ring-primary/30 w-fit ml-auto",
               isPending && "opacity-60"
             )}
           >
@@ -117,7 +121,8 @@ export const UserBubble = memo(
               <div className="stack-lg">
                 <textarea
                   ref={textareaRef}
-                  className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed text-foreground outline-none ring-0 transition-opacity duration-200 placeholder:text-muted-foreground/60 focus:ring-0 sm:text-base selectable-auto"
+                  rows={1}
+                  className="w-full resize-none border-0 bg-transparent text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] text-foreground outline-none ring-0 placeholder:text-muted-foreground/60 focus:ring-0 selectable-auto"
                   placeholder="Edit your message..."
                   value={editContent}
                   style={{
@@ -142,9 +147,17 @@ export const UserBubble = memo(
                     // Shift+Enter will naturally create a newline (default behavior)
                   }}
                 />
-                <div className="flex translate-y-0 transform justify-end gap-3 opacity-100 transition-all duration-200">
+                <AttachmentStrip
+                  attachments={message.attachments?.filter(
+                    att => !att.generatedImage?.isGenerated
+                  )}
+                  variant="user"
+                  onPreviewFile={onPreviewFile}
+                  className="mt-2"
+                />
+                <div className="mt-2 flex justify-end gap-2 opacity-100 transition-all duration-200">
                   <Button
-                    className="px-5 py-2 hover:scale-105"
+                    className="h-8 px-3"
                     size="sm"
                     variant="outline"
                     onClick={handleEditCancel}
@@ -152,7 +165,7 @@ export const UserBubble = memo(
                     Cancel
                   </Button>
                   <Button
-                    className="px-5 py-2 hover:scale-105"
+                    className="h-8 px-3"
                     size="sm"
                     variant="primary"
                     onClick={handleEditSave}
