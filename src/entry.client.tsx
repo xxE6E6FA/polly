@@ -10,3 +10,17 @@ if (container) {
   const root = createRoot(container);
   root.render(<RouterProvider router={router} />);
 }
+
+// Register service worker (production only)
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  const register = () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Ignore service worker registration errors
+    });
+  };
+  if (document.readyState === "complete") {
+    register();
+  } else {
+    window.addEventListener("load", register, { once: true });
+  }
+}

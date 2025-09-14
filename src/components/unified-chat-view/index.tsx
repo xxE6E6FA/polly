@@ -7,6 +7,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
+import { useOnline } from "@/hooks/use-online";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
@@ -122,6 +123,7 @@ export const UnifiedChatView = memo(
       onDeleteMessage,
       onSendMessage,
     });
+    const online = useOnline();
     const userMessageContents = useMemo(
       () =>
         messages
@@ -211,14 +213,18 @@ export const UnifiedChatView = memo(
           isStreaming={isStreaming}
           isLoading={isLoading}
           onDeleteMessage={
-            isPrivateMode || isArchived ? undefined : handleDeleteMessage
+            isPrivateMode || isArchived || !online
+              ? undefined
+              : handleDeleteMessage
           }
           onEditMessage={
-            isPrivateMode || isArchived ? undefined : onEditMessage
+            isPrivateMode || isArchived || !online ? undefined : onEditMessage
           }
-          onRetryUserMessage={isArchived ? undefined : handleRetryUserMessage}
+          onRetryUserMessage={
+            isArchived || !online ? undefined : handleRetryUserMessage
+          }
           onRetryAssistantMessage={
-            isArchived ? undefined : handleRetryAssistantMessage
+            isArchived || !online ? undefined : handleRetryAssistantMessage
           }
           onRefineMessage={isArchived ? undefined : onRefineMessage}
           onRetryImageGeneration={

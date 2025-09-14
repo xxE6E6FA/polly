@@ -14,16 +14,11 @@ const ChatConversationPage = lazy(() => import("./pages/ChatConversationPage"));
 const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
 
 const AuthPage = lazy(() => import("./pages/AuthPage"));
-const NotFoundPage = lazy(() =>
-  import("./components/ui/not-found-page").then(m => ({
-    default: m.NotFoundPage,
-  }))
-);
-const RouteErrorBoundary = lazy(() =>
-  import("./components/layouts/RouteErrorBoundary").then(m => ({
-    default: m.RouteErrorBoundary,
-  }))
-);
+
+import { RouteErrorBoundary } from "./components/layouts/RouteErrorBoundary";
+// Prefer eager import for critical error/404 UI so offline navigation has a guard
+import { NotFoundPage } from "./components/ui/not-found-page";
+
 const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
   () => import("./components/layouts/SettingsMainLayout")

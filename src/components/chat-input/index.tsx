@@ -23,6 +23,7 @@ import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
+import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -115,6 +116,7 @@ const ChatInputInner = forwardRef(
     const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const drawerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
     const [selectedModel] = useSelectedModel();
+    const online = useOnline();
     const notificationDialog = useNotificationDialog();
     const { isMobile } = useUI();
     const [isComposeDrawerOpen, setComposeDrawerOpen] = useState(false);
@@ -309,6 +311,9 @@ const ChatInputInner = forwardRef(
     );
 
     const dynamicPlaceholder = useMemo(() => {
+      if (!online) {
+        return "Offline — reconnect to send";
+      }
       if (generationMode === "image") {
         return "Describe your image...";
       }
@@ -319,17 +324,17 @@ const ChatInputInner = forwardRef(
         return "Archived conversation";
       }
       return "Ask anything...";
-    }, [generationMode, isPrivateMode, isArchived]);
+    }, [generationMode, isPrivateMode, isArchived, online]);
 
     const chatInputStateClass = useMemo(() => {
-      if (!canSendMessage) {
+      if (!(canSendMessage && online)) {
         return "chat-input-disabled";
       }
       if (isPrivateMode) {
         return "chat-input-private";
       }
       return "chat-input-enabled";
-    }, [canSendMessage, isPrivateMode]);
+    }, [canSendMessage, isPrivateMode, online]);
 
     const immediateHasText = input.trim().length > 0 || attachments.length > 0;
     const deferredInputHasText = useDeferredValue(immediateHasText);
@@ -415,14 +420,18 @@ const ChatInputInner = forwardRef(
               textareaRef={inlineTextareaRef}
               placeholder={dynamicPlaceholder}
               disabled={
-                isLoading || isStreaming || isProcessing || !canSendMessage
+                isLoading ||
+                isStreaming ||
+                isProcessing ||
+                !canSendMessage ||
+                !online
               }
               autoFocus={autoFocus}
               value={input}
               onValueChange={setInput}
               hasExistingMessages={hasExistingMessages}
               conversationId={conversationId}
-              canSend={canSendMessage}
+              canSend={canSendMessage && online}
               generationMode={generationMode}
               hasReplicateApiKey={hasReplicateApiKey}
               selectedImageModel={selectedImageModel}
@@ -438,7 +447,7 @@ const ChatInputInner = forwardRef(
             />
 
             <ChatInputBottomBar
-              canSend={canSendMessage}
+              canSend={canSendMessage && online}
               isStreaming={isStreaming}
               isLoading={isLoading}
               isProcessing={isProcessing}
@@ -475,14 +484,18 @@ const ChatInputInner = forwardRef(
                 textareaRef={drawerTextareaRef}
                 placeholder={dynamicPlaceholder}
                 disabled={
-                  isLoading || isStreaming || isProcessing || !canSendMessage
+                  isLoading ||
+                  isStreaming ||
+                  isProcessing ||
+                  !canSendMessage ||
+                  !online
                 }
                 autoFocus={autoFocus}
                 value={input}
                 onValueChange={setInput}
                 hasExistingMessages={hasExistingMessages}
                 conversationId={conversationId}
-                canSend={canSendMessage}
+                canSend={canSendMessage && online}
                 generationMode={generationMode}
                 hasReplicateApiKey={hasReplicateApiKey}
                 selectedImageModel={selectedImageModel}
@@ -501,7 +514,7 @@ const ChatInputInner = forwardRef(
               }}
             >
               <ChatInputBottomBar
-                canSend={canSendMessage}
+                canSend={canSendMessage && online}
                 isStreaming={isStreaming}
                 isLoading={isLoading}
                 isProcessing={isProcessing}

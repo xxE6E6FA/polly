@@ -5,9 +5,11 @@ import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
+import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
+import { useOnline } from "@/hooks/use-online";
 import { startAuthorStream } from "@/lib/ai/http-stream";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
@@ -22,6 +24,7 @@ export default function ConversationRoute() {
   const navigate = useNavigate();
   const convex = useConvex();
   const managedToast = useToast();
+  const online = useOnline();
   const setStreaming = useMutation(api.conversations.setStreaming);
   const authToken = useAuthToken();
   const authRef = useRef<string | null | undefined>(authToken);
@@ -267,11 +270,41 @@ export default function ConversationRoute() {
     [messages, convex, conversationId, managedToast.error]
   );
 
+  // Proactively re-fetch when coming back online
+  useEffect(() => {
+    if (online && conversationAccessInfo === undefined) {
+      (async () => {
+        try {
+          await convex.query(api.conversations.getWithAccessInfo, {
+            id: conversationId as Id<"conversations">,
+          });
+          // Also nudge messages subscription
+          await convex.query(api.messages.list, {
+            conversationId: conversationId as Id<"conversations">,
+          });
+        } catch (_e) {
+          // Silent; useQuery will update as soon as the connection is restored
+        }
+      })();
+    }
+  }, [online, conversationAccessInfo, convex, conversationId]);
+
   // Handle conversation access scenarios
   if (conversationAccessInfo === undefined) {
-    // Still loading
+    // Still loading; if offline, show a friendly placeholder instead of a blank screen
+    if (!online) {
+      return (
+        <OfflinePlaceholder
+          title="Can't load conversation while offline"
+          description="Reconnect to view this conversation or start a new one."
+          onRetry={() => window.location.reload()}
+        />
+      );
+    }
     return null;
   }
+
+  // (Note) re-fetch logic lives above the guard to keep hook order stable
 
   if (conversationAccessInfo.isDeleted) {
     // Conversation was deleted, redirect to home

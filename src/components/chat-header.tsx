@@ -14,6 +14,7 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { memo, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useOnline } from "@/hooks/use-online";
 import {
   downloadFile,
   exportAsJSON,
@@ -70,6 +71,7 @@ const ChatHeaderComponent = ({
   const { user } = useUserDataContext();
   const { isSidebarVisible } = useUI();
   const managedToast = useToast();
+  const online = useOnline();
   const navigate = useNavigate();
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
     null
@@ -379,7 +381,7 @@ const ChatHeaderComponent = ({
                 {isPrivateMode && (
                   <DropdownMenuItem
                     onClick={onSavePrivateChat}
-                    disabled={!canSavePrivateChat}
+                    disabled={!(online && canSavePrivateChat)}
                   >
                     <FloppyDiskIcon className="mr-2 h-4 w-4" />
                     Save Private Chat
@@ -387,7 +389,10 @@ const ChatHeaderComponent = ({
                 )}
 
                 {!isPrivateMode && conversationId && (
-                  <DropdownMenuItem onClick={() => setIsShareDialogOpen(true)}>
+                  <DropdownMenuItem
+                    onClick={() => setIsShareDialogOpen(true)}
+                    disabled={!online}
+                  >
                     <ShareNetworkIcon className="mr-2 h-4 w-4" />
                     Share Conversation
                   </DropdownMenuItem>
@@ -396,14 +401,14 @@ const ChatHeaderComponent = ({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleExport("json")}
-                  disabled={exportingFormat !== null}
+                  disabled={!online || exportingFormat !== null}
                 >
                   <FileCodeIcon className="mr-2 h-4 w-4" />
                   Export as JSON
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleExport("md")}
-                  disabled={exportingFormat !== null}
+                  disabled={!online || exportingFormat !== null}
                 >
                   <DownloadIcon className="mr-2 h-4 w-4" />
                   Export as Markdown
@@ -414,6 +419,7 @@ const ChatHeaderComponent = ({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => setIsArchiveDialogOpen(true)}
+                      disabled={!online}
                     >
                       <ArchiveIcon className="mr-2 h-4 w-4" />
                       Archive Conversation
@@ -448,7 +454,7 @@ const ChatHeaderComponent = ({
                         size="sm"
                         variant="ghost"
                         onClick={onSavePrivateChat}
-                        disabled={!canSavePrivateChat}
+                        disabled={!(online && canSavePrivateChat)}
                       >
                         <FloppyDiskIcon className="h-4 w-4" />
                         Save Private Chat
@@ -461,6 +467,7 @@ const ChatHeaderComponent = ({
                         size="sm"
                         variant="ghost"
                         onClick={() => setIsShareDialogOpen(true)}
+                        disabled={!online}
                       >
                         <ShareNetworkIcon className="h-4 w-4" />
                         Share Conversation
@@ -472,7 +479,7 @@ const ChatHeaderComponent = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleExport("json")}
-                      disabled={exportingFormat !== null}
+                      disabled={!online || exportingFormat !== null}
                     >
                       <FileCodeIcon className="h-4 w-4" />
                       Export as JSON
@@ -482,7 +489,7 @@ const ChatHeaderComponent = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleExport("md")}
-                      disabled={exportingFormat !== null}
+                      disabled={!online || exportingFormat !== null}
                     >
                       <DownloadIcon className="h-4 w-4" />
                       Export as Markdown
@@ -494,6 +501,7 @@ const ChatHeaderComponent = ({
                         size="sm"
                         variant="ghost"
                         onClick={() => setIsArchiveDialogOpen(true)}
+                        disabled={!online}
                       >
                         <ArchiveIcon className="h-4 w-4" />
                         Archive Conversation
