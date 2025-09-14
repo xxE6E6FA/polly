@@ -200,20 +200,32 @@ const ChatInputInner = forwardRef(
     }, [isPrivateMode, hasReplicateApiKey, generationMode, setGenerationMode]);
 
     // If this conversation clearly involves image generation, default to image mode
-    // to ensure follow-ups trigger Replicate instead of text chat.
+    // to ensure follow-ups trigger Replicate instead of text chat. Only apply once
+    // per conversation so subsequent manual user switches are respected.
+    const autoAppliedForConversationRef = useRef<ConversationId | null>(null);
     useEffect(() => {
-      if (
+      // Reset tracker when navigating between conversations (including undefined -> id)
+      if (autoAppliedForConversationRef.current !== conversationId) {
+        autoAppliedForConversationRef.current = null;
+      }
+
+      const shouldAutoSwitch =
         hasExistingMessages &&
         isLikelyImageConversation &&
         generationMode === "text" &&
         hasReplicateApiKey &&
-        !isPrivateMode
-      ) {
+        !isPrivateMode &&
+        autoAppliedForConversationRef.current == null;
+
+      if (shouldAutoSwitch) {
         setGenerationMode("image");
+        autoAppliedForConversationRef.current = conversationId ?? null;
       }
-      // Only re-evaluate when the conversation context or heuristic changes
+      // Only re-evaluate when the conversation context or heuristic changes; avoid
+      // triggering on unrelated state updates to preserve user choice.
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
+      conversationId,
       hasExistingMessages,
       isLikelyImageConversation,
       hasReplicateApiKey,
