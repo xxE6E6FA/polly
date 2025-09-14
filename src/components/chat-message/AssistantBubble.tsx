@@ -183,18 +183,39 @@ export const AssistantBubble = ({
   const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
 
   // Memoized image lists derived from message
-  const generatedImageAttachments = useMemo(
-    () =>
+  const generatedImageAttachments = useMemo(() => {
+    const atts =
       message.attachments?.filter(
         att => att.type === "image" && att.generatedImage?.isGenerated
-      ) || [],
-    [message.attachments]
-  );
+      ) || [];
+    // Deduplicate by URL to avoid showing duplicate generations
+    const seen = new Set<string>();
+    const unique = [] as typeof atts;
+    for (const att of atts) {
+      const url = att.url;
+      if (!url || seen.has(url)) {
+        continue;
+      }
+      seen.add(url);
+      unique.push(att);
+    }
+    return unique;
+  }, [message.attachments]);
 
-  const outputUrls = useMemo(
-    () => message.imageGeneration?.output || [],
-    [message.imageGeneration]
-  );
+  const outputUrls = useMemo(() => {
+    const urls = message.imageGeneration?.output || [];
+    // Deduplicate URLs to handle provider responses with repeated entries
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const u of urls) {
+      if (!u || seen.has(u)) {
+        continue;
+      }
+      seen.add(u);
+      unique.push(u);
+    }
+    return unique;
+  }, [message.imageGeneration]);
 
   const hasStoredImages = generatedImageAttachments.length > 0;
   const hasAnyGeneratedImages = hasStoredImages || outputUrls.length > 0;

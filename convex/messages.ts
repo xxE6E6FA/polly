@@ -1609,9 +1609,44 @@ export const addAttachments = internalMutation({
         return;
       }
 
-      // Merge with existing attachments
+      // Merge with existing attachments, deduplicating generated images by URL
       const existingAttachments = message.attachments || [];
-      const updatedAttachments = [...existingAttachments, ...attachments];
+      if (!attachments.length) {
+        await ctx.db.patch(messageId, { attachments: existingAttachments });
+        return;
+      }
+
+      // Track URLs for generated images already present
+      const existingGeneratedUrls = new Set(
+        existingAttachments
+          .filter(
+            a => a.type === "image" && a.generatedImage?.isGenerated && !!a.url
+          )
+          .map(a => a.url)
+      );
+
+      const merged: typeof existingAttachments = [...existingAttachments];
+      for (const att of attachments) {
+        // If this is a generated image and we already have an image with the same URL, skip it
+        if (
+          att.type === "image" &&
+          att.generatedImage?.isGenerated &&
+          att.url &&
+          existingGeneratedUrls.has(att.url)
+        ) {
+          continue;
+        }
+        if (
+          att.type === "image" &&
+          att.generatedImage?.isGenerated &&
+          att.url
+        ) {
+          existingGeneratedUrls.add(att.url);
+        }
+        merged.push(att);
+      }
+
+      const updatedAttachments = merged;
 
       await ctx.db.patch(messageId, {
         attachments: updatedAttachments,
