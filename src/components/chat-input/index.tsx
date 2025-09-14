@@ -75,6 +75,8 @@ interface ChatInputProps {
   userMessageContents?: string[];
   autoFocus?: boolean;
   conversationPersonaId?: Id<"personas"> | null;
+  // Heuristic from parent: recent assistant output looks like image generation
+  isLikelyImageConversation?: boolean;
 }
 
 export type ChatInputRef = {
@@ -98,6 +100,7 @@ const ChatInputInner = forwardRef(
       messages,
       userMessageContents,
       autoFocus = false,
+      isLikelyImageConversation = false,
     },
     ref: ForwardedRef<ChatInputRef>
   ) => {
@@ -195,6 +198,29 @@ const ChatInputInner = forwardRef(
         setGenerationMode("text");
       }
     }, [isPrivateMode, hasReplicateApiKey, generationMode, setGenerationMode]);
+
+    // If this conversation clearly involves image generation, default to image mode
+    // to ensure follow-ups trigger Replicate instead of text chat.
+    useEffect(() => {
+      if (
+        hasExistingMessages &&
+        isLikelyImageConversation &&
+        generationMode === "text" &&
+        hasReplicateApiKey &&
+        !isPrivateMode
+      ) {
+        setGenerationMode("image");
+      }
+      // Only re-evaluate when the conversation context or heuristic changes
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      hasExistingMessages,
+      isLikelyImageConversation,
+      hasReplicateApiKey,
+      isPrivateMode,
+      generationMode,
+      setGenerationMode,
+    ]);
 
     const userMessages = useMemo(() => {
       if (userMessageContents) {

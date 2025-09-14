@@ -163,40 +163,79 @@ export default function ConversationRoute() {
     conversationId: conversationId as ConversationId,
   });
 
-  // Auto-trigger a response if we land on a conversation whose last message is a user message
+  // Keep a ref to the latest messages for deferred checks
+  const latestMessagesRef = useRef(messages);
+  useEffect(() => {
+    latestMessagesRef.current = messages;
+  }, [messages]);
+
+  // Track initial load for this conversation; auto-trigger only once on first load
+  const initialLoadHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    // Reset when conversation changes
+    initialLoadHandledRef.current = null;
+  }, []);
+
+  // Auto-trigger a response for trailing user messages (but avoid image-gen follow-ups)
   const lastAutoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
+    // Only consider auto-trigger when messages first load for this conversation
     if (isLoading || messageIsStreaming) {
       return;
     }
     if (!messages || messages.length === 0) {
       return;
     }
-    const last = messages[messages.length - 1];
+    if (initialLoadHandledRef.current === conversationId) {
+      return;
+    }
+
+    // Mark handled so later updates (e.g., deletes) don't re-trigger
+    initialLoadHandledRef.current = conversationId || null;
+
+    const current = latestMessagesRef.current;
+    const last = current[current.length - 1];
     if (!last || last.role !== "user") {
       return;
     }
     if (lastAutoTriggeredRef.current === last.id) {
       return;
     }
-    // Avoid triggering for archived conversations
     if (conversationAccessInfo?.conversation?.isArchived) {
       return;
     }
 
-    lastAutoTriggeredRef.current = last.id;
-    // Trigger using existing retryFromMessage handler (handles HTTP stream)
+    // If there is any assistant message after the last user message, do not auto-trigger
+    const hasAssistantAfter = false; // Last item is the user; nothing follows on initial load
+    if (hasAssistantAfter) {
+      return;
+    }
+
+    // If there is an active image-generation assistant anywhere (starting/processing), skip
+    const hasActiveImageGen = current.some(
+      m =>
+        m.role === "assistant" &&
+        m.imageGeneration &&
+        (m.imageGeneration.status === "starting" ||
+          m.imageGeneration.status === "processing")
+    );
+    if (hasActiveImageGen) {
+      return;
+    }
+
     (async () => {
       try {
         await retryFromMessage(last.id);
-      } catch (_e) {
-        // no-op; keep UI stable
+        lastAutoTriggeredRef.current = last.id;
+      } catch {
+        // no-op
       }
     })();
   }, [
     isLoading,
     messageIsStreaming,
     messages,
+    conversationId,
     conversationAccessInfo?.conversation?.isArchived,
     retryFromMessage,
   ]);
