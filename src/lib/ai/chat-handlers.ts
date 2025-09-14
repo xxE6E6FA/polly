@@ -330,13 +330,14 @@ export const createServerChatHandlers = (
 
       // Start HTTP streaming into the returned assistantMessageId if possible
       if (canHttpStream) {
+        // For edit-and-resend, do NOT override model/provider in HTTP stream args.
+        // The server should use the model recorded on the edited message to
+        // preserve image-capable models.
         const handle = await startAuthorStream({
           convexUrl,
           authToken: _getAuthToken?.() || null,
           conversationId,
           assistantMessageId: result.assistantMessageId,
-          modelId: mergedOptions.model || "",
-          provider: mergedOptions.provider || "",
           reasoningConfig: mergedOptions.reasoningConfig,
           temperature: mergedOptions.temperature,
           maxTokens: mergedOptions.maxTokens,

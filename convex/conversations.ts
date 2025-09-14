@@ -1250,10 +1250,16 @@ export const editAndResendMessage = action({
       throw new Error("Message not found");
     }
 
-    // Delete all messages from the edited message onward (including the original user message)
-    const messagesToDelete = messages.slice(messageIndex);
+    // IMPORTANT: Preserve attachments by updating the existing user message
+    await ctx.runMutation(internal.messages.updateContent, {
+      messageId: args.messageId,
+      content: args.newContent,
+    });
+
+    // Delete only messages AFTER the edited message
+    const messagesToDelete = messages.slice(messageIndex + 1);
     const messageIdsToDelete = messagesToDelete
-      .filter((msg: Doc<"messages">) => msg.role !== "context") // Don't delete context messages
+      .filter((msg: Doc<"messages">) => msg.role !== "context")
       .map((msg: Doc<"messages">) => msg._id);
 
     if (messageIdsToDelete.length > 0) {
@@ -1262,21 +1268,17 @@ export const editAndResendMessage = action({
       });
     }
 
-    // Create a new user message with the edited content
-    await ctx.runMutation(api.messages.create, {
-      conversationId: message.conversationId,
-      role: "user",
-      content: args.newContent,
-      model: message.model,
-      provider: message.provider,
-      attachments: message.attachments,
-    });
+    // Choose model/provider: prefer the original model stored on the edited message
+    // so that we preserve image-capable models used for this branch. Fallback to
+    // client-provided overrides only when the message did not record a model.
+    const preferredModelId = message.model || args.model;
+    const preferredProvider = message.provider || args.provider;
 
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
-      args.model,
-      args.provider
+      preferredModelId,
+      preferredProvider
     );
 
     // Build context messages including the edited message
@@ -1540,11 +1542,15 @@ export const editMessage = action({
     // Delete all messages after the edited message (use user retry logic)
     await handleMessageDeletion(ctx, messages, messageIndex, "user");
 
+    // Prefer the original model/provider recorded on the edited message
+    const preferredModelId = targetMessage.model || args.model;
+    const preferredProvider = targetMessage.provider || args.provider;
+
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(
       ctx,
-      args.model,
-      args.provider
+      preferredModelId,
+      preferredProvider
     );
 
     // Build context messages including the edited message
