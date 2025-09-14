@@ -68,7 +68,7 @@ const PageLoader = ({
   size?: "full" | "partial" | "compact";
 }) => {
   const sizeClasses = {
-    full: "min-h-screen",
+    full: "min-h-[100dvh]",
     partial: "min-h-[400px]",
     compact: "min-h-[200px]",
   };

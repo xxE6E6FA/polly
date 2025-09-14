@@ -78,7 +78,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
   );
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex min-h-[100dvh] w-full">
       <Sidebar />
       <main
         className={cn(

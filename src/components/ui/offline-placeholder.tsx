@@ -17,7 +17,7 @@ export function OfflinePlaceholder({
   onRetry,
 }: OfflinePlaceholderProps) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="flex min-h-[100dvh] items-center justify-center p-6">
       <div className="w-full max-w-2xl">
         <div className="flex flex-col items-center stack-xl bg-background/50 p-8 text-center animate-in fade-in-0 zoom-in-95">
           <CloudSlashIcon className="h-12 w-12 text-muted-foreground" />

@@ -525,7 +525,7 @@ const ChatInputInner = forwardRef(
                 generationMode={generationMode}
                 hasReplicateApiKey={hasReplicateApiKey}
                 selectedImageModel={selectedImageModel}
-                textareaClassNameOverride="h-[68svh] max-h-[68svh]"
+                textareaClassNameOverride="h-[68dvh] max-h-[68dvh]"
                 hideExpandToggle
                 disableAutoResize
                 showExpandToggle={drawerShowExpand}

@@ -36,7 +36,7 @@ const ModelListComponent = ({
         placeholder="Search models..."
         autoFocus={autoFocusSearch}
       />
-      <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
+      <CommandList className="max-h-[calc(100dvh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
           <div className="p-4 text-center">
             <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
