@@ -1,5 +1,4 @@
 import { memo, useCallback, useMemo, useState } from "react";
-import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { cn, stripCitations } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AssistantBubble } from "./chat-message/AssistantBubble";
@@ -22,6 +21,7 @@ type ChatMessageProps = {
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
   onRetryImageGeneration?: (messageId: string) => void;
+  onPreviewAttachment?: (attachment: Attachment) => void;
 };
 
 const ChatMessageComponent = ({
@@ -33,12 +33,12 @@ const ChatMessageComponent = ({
   onDeleteMessage,
   onRetryImageGeneration,
   conversationId,
+  onPreviewAttachment,
 }: ChatMessageProps) => {
   const isUser = message.role === "user";
   const [isCopied, setIsCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [previewFile, setPreviewFile] = useState<Attachment | null>(null);
 
   const copyToClipboard = useCallback(async () => {
     const cleanText = stripCitations(message.content);
@@ -78,11 +78,12 @@ const ChatMessageComponent = ({
     }
   }, [onRetryImageGeneration, message.id]);
 
-  const handlePreviewFileClose = useCallback((open: boolean) => {
-    if (!open) {
-      setPreviewFile(null);
-    }
-  }, []);
+  const handlePreviewFile = useCallback(
+    (attachment: Attachment) => {
+      onPreviewAttachment?.(attachment);
+    },
+    [onPreviewAttachment]
+  );
 
   const hasImageGallery = useMemo(() => {
     if (
@@ -100,61 +101,49 @@ const ChatMessageComponent = ({
   }, [message]);
 
   return (
-    <>
-      <div
-        data-message-role={message.role}
-        data-message-id={message.id}
-        className={cn(
-          "group w-full transition-colors",
-          "bg-transparent",
-          hasImageGallery ? "gallery-message-container" : "px-3 sm:px-6"
-        )}
-      >
-        {isUser ? (
-          <UserBubble
-            conversationId={conversationId}
-            message={message}
-            isStreaming={isStreaming}
-            isCopied={isCopied}
-            isRetrying={isRetrying}
-            isDeleting={isDeleting}
-            copyToClipboard={copyToClipboard}
-            onEditMessage={onEditMessage}
-            onRetryMessage={onRetryMessage ? handleRetry : undefined}
-            onRefineMessage={onRefineMessage}
-            onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
-            onPreviewFile={setPreviewFile}
-          />
-        ) : (
-          <AssistantBubble
-            conversationId={conversationId}
-            message={message}
-            isStreaming={isStreaming}
-            isCopied={isCopied}
-            isRetrying={isRetrying}
-            isDeleting={isDeleting}
-            copyToClipboard={copyToClipboard}
-            onRetryMessage={onRetryMessage ? handleRetry : undefined}
-            onRefineMessage={onRefineMessage}
-            onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
-            onPreviewFile={setPreviewFile}
-            onRetryImageGeneration={
-              onRetryImageGeneration ? handleRetryImageGeneration : undefined
-            }
-          />
-        )}
-      </div>
-
-      {previewFile && (
-        <AttachmentGalleryDialog
-          attachments={message.attachments || []}
-          currentAttachment={previewFile}
-          open={Boolean(previewFile)}
-          onOpenChange={handlePreviewFileClose}
-          onAttachmentChange={setPreviewFile}
+    <div
+      data-message-role={message.role}
+      data-message-id={message.id}
+      className={cn(
+        "group w-full transition-colors",
+        "bg-transparent",
+        hasImageGallery ? "gallery-message-container" : "px-3 sm:px-6"
+      )}
+    >
+      {isUser ? (
+        <UserBubble
+          conversationId={conversationId}
+          message={message}
+          isStreaming={isStreaming}
+          isCopied={isCopied}
+          isRetrying={isRetrying}
+          isDeleting={isDeleting}
+          copyToClipboard={copyToClipboard}
+          onEditMessage={onEditMessage}
+          onRetryMessage={onRetryMessage ? handleRetry : undefined}
+          onRefineMessage={onRefineMessage}
+          onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
+          onPreviewFile={handlePreviewFile}
+        />
+      ) : (
+        <AssistantBubble
+          conversationId={conversationId}
+          message={message}
+          isStreaming={isStreaming}
+          isCopied={isCopied}
+          isRetrying={isRetrying}
+          isDeleting={isDeleting}
+          copyToClipboard={copyToClipboard}
+          onRetryMessage={onRetryMessage ? handleRetry : undefined}
+          onRefineMessage={onRefineMessage}
+          onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
+          onPreviewFile={handlePreviewFile}
+          onRetryImageGeneration={
+            onRetryImageGeneration ? handleRetryImageGeneration : undefined
+          }
         />
       )}
-    </>
+    </div>
   );
 };
 

@@ -5,7 +5,6 @@ import { useQuery } from "convex/react";
 import { useEffect, useMemo, useState } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
-import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Button } from "@/components/ui/button";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
@@ -178,7 +177,7 @@ export const AssistantBubble = ({
   onPreviewFile,
   onRetryImageGeneration,
 }: AssistantBubbleProps) => {
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // Use global conversation-level preview via onPreviewFile passed from parent
   const [showReasoning, setShowReasoning] = useState(false);
   const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
 
@@ -245,6 +244,21 @@ export const AssistantBubble = ({
     outputUrls,
     message.imageGeneration,
   ]);
+
+  // Helper: given a URL, find the corresponding attachment object
+  const findAttachmentByUrl = (url: string) => {
+    const att = imageAttachments.find(a => a.url === url);
+    if (att) {
+      return att;
+    }
+    // Fallback minimal attachment if not found (should be rare)
+    return {
+      type: "image" as const,
+      name: url.split("/").pop() || "Image",
+      url,
+      size: 0,
+    } satisfies Attachment;
+  };
 
   const reasoning = message.reasoning;
   const displayContent = message.content;
@@ -414,7 +428,10 @@ export const AssistantBubble = ({
                 aspectRatio={
                   message.imageGeneration.metadata?.params?.aspectRatio
                 }
-                onImageClick={setPreviewImage}
+                onImageClick={url => {
+                  const att = findAttachmentByUrl(url);
+                  onPreviewFile?.(att);
+                }}
                 messageId={message.id}
                 className="image-gallery-wrapper"
                 gridComponent={(() => {
@@ -457,7 +474,13 @@ export const AssistantBubble = ({
                               message.imageGeneration?.metadata?.params
                                 ?.aspectRatio
                             }
-                            onClick={finalUrl => setPreviewImage(finalUrl)}
+                            onClick={finalUrl => {
+                              if (attachment) {
+                                onPreviewFile?.(attachment);
+                              } else {
+                                onPreviewFile?.(findAttachmentByUrl(finalUrl));
+                              }
+                            }}
                             className={cn(
                               items.length === 1 ? "single-image" : "w-full"
                             )}
@@ -695,17 +718,7 @@ export const AssistantBubble = ({
         )}
 
         {/* Image preview dialog */}
-        {previewImage && (
-          <AttachmentGalleryDialog
-            attachments={imageAttachments}
-            currentAttachment={
-              imageAttachments.find(att => att.url === previewImage) || null
-            }
-            open={Boolean(previewImage)}
-            onOpenChange={open => !open && setPreviewImage(null)}
-            onAttachmentChange={attachment => setPreviewImage(attachment.url)}
-          />
-        )}
+        {/* Image preview is handled by conversation-level gallery */}
       </div>
     </div>
   );

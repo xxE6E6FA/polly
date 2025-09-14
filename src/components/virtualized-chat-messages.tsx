@@ -18,6 +18,7 @@ type VirtualizedChatMessagesProps = {
   isStreaming?: boolean;
   isLoading?: boolean;
   conversationId?: string;
+  onPreviewAttachment?: (attachment: import("@/types").Attachment) => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (
     messageId: string,
@@ -50,6 +51,7 @@ interface MessageItemProps {
   messageId: string;
   isStreaming: boolean;
   conversationId?: string;
+  onPreviewAttachment?: (attachment: import("@/types").Attachment) => void;
   onEditMessage?: (messageId: string, newContent: string) => void;
   onRetryUserMessage?: (
     messageId: string,
@@ -77,6 +79,7 @@ const MessageItem = memo(
     messageId,
     isStreaming,
     conversationId,
+    onPreviewAttachment,
     onEditMessage,
     onRetryUserMessage,
     onRetryAssistantMessage,
@@ -105,6 +108,7 @@ const MessageItem = memo(
               conversationId={conversationId}
               message={message}
               isStreaming={isStreaming}
+              onPreviewAttachment={onPreviewAttachment}
               onEditMessage={
                 message.role === "user" && onEditMessage
                   ? onEditMessage
@@ -173,6 +177,7 @@ export const VirtualizedChatMessages = memo(
         isStreaming,
         isLoading = false,
         conversationId,
+        onPreviewAttachment,
         onEditMessage,
         onRetryUserMessage,
         onRetryAssistantMessage,
@@ -575,6 +580,7 @@ export const VirtualizedChatMessages = memo(
                 messageId={message.id}
                 isStreaming={!!isMessageStreaming}
                 conversationId={conversationId}
+                onPreviewAttachment={onPreviewAttachment}
                 onEditMessage={onEditMessage}
                 onRetryUserMessage={onRetryUserMessage}
                 onRetryAssistantMessage={onRetryAssistantMessage}

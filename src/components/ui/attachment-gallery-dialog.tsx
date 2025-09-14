@@ -1,5 +1,8 @@
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Backdrop } from "@/components/ui/backdrop";
@@ -31,11 +34,19 @@ export const AttachmentGalleryDialog = ({
     if (!currentAttachment) {
       return 0;
     }
-    const index = attachments.findIndex(
-      attachment =>
-        attachment.url === currentAttachment.url ||
-        attachment.name === currentAttachment.name
-    );
+    // Prefer matching by storageId when available, then URL, then name
+    let index = -1;
+    if (currentAttachment.storageId) {
+      index = attachments.findIndex(
+        att => att.storageId === currentAttachment.storageId
+      );
+    }
+    if (index === -1 && currentAttachment.url) {
+      index = attachments.findIndex(att => att.url === currentAttachment.url);
+    }
+    if (index === -1 && currentAttachment.name) {
+      index = attachments.findIndex(att => att.name === currentAttachment.name);
+    }
     return index >= 0 ? index : 0;
   }, [attachments, currentAttachment]);
 
@@ -46,6 +57,14 @@ export const AttachmentGalleryDialog = ({
 
   const currentDisplayAttachment = attachments[currentIndex];
   const isImage = currentDisplayAttachment?.type === "image";
+
+  // Resolve Convex storage URL for the currently displayed attachment, if needed
+  const convexFileUrl = useQuery(
+    api.fileStorage.getFileUrl,
+    currentDisplayAttachment?.storageId
+      ? { storageId: currentDisplayAttachment.storageId as Id<"_storage"> }
+      : "skip"
+  );
 
   // Navigation functions
   const goToPrevious = useCallback(() => {
@@ -126,12 +145,17 @@ export const AttachmentGalleryDialog = ({
   }
 
   const getFileUrl = (attachment: Attachment) => {
-    return (
-      attachment.url ||
-      (attachment.content && attachment.mimeType
-        ? `data:${attachment.mimeType};base64,${attachment.content}`
-        : undefined)
-    );
+    // Prefer Convex storage URL when storageId is present
+    if (attachment.storageId) {
+      return convexFileUrl ?? undefined;
+    }
+    if (attachment.url) {
+      return attachment.url;
+    }
+    if (attachment.content && attachment.mimeType) {
+      return `data:${attachment.mimeType};base64,${attachment.content}`;
+    }
+    return undefined;
   };
 
   const fileUrl = getFileUrl(currentDisplayAttachment);
@@ -153,7 +177,13 @@ export const AttachmentGalleryDialog = ({
 
       case "image": {
         if (!fileUrl) {
-          return null;
+          return (
+            <div className="flex h-full w-full items-center justify-center">
+              <div className="text-xs text-muted-foreground">
+                Loading image…
+              </div>
+            </div>
+          );
         }
         return (
           <div className="flex h-full w-full items-center justify-center pointer-events-none">
