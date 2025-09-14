@@ -145,6 +145,7 @@ const ChatInputInner = forwardRef(
         setInput("");
         setAttachments([]);
       },
+      attachments,
     });
 
     const { isProcessing, submit, handleSendAsNewConversation } =

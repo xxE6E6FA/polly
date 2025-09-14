@@ -31,6 +31,56 @@ function isImageEditingModel(modelName: string): boolean {
   return editingModels.some(editModel => modelName.includes(editModel));
 }
 
+// Try to detect an image input parameter from the model's OpenAPI input schema
+function detectImageInputFromSchema(modelData: any): { paramName: string; isArray: boolean } | null {
+  try {
+    const inputProps = modelData?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties;
+    if (!inputProps || typeof inputProps !== "object") return null;
+
+    type Candidate = { key: string; isArray: boolean; score: number };
+    const candidates: Candidate[] = [];
+
+    const prioritize = (key: string): number => {
+      const order = [
+        "image_input",
+        "image_inputs",
+        "image",
+        "input_image",
+        "init_image",
+        "reference_image",
+        "conditioning_image",
+      ];
+      const idx = order.findIndex(k => key.includes(k));
+      return idx === -1 ? 999 : idx;
+    };
+
+    for (const [key, raw] of Object.entries<any>(inputProps)) {
+      const k = key.toLowerCase();
+      const desc = String(raw?.description || "").toLowerCase();
+      const type = raw?.type;
+      const items = raw?.items;
+      const looksImagey =
+        k.includes("image") ||
+        desc.includes("image") ||
+        desc.includes("img") ||
+        desc.includes("photo");
+      if (!looksImagey) continue;
+
+      if (type === "array" && items && (items.type === "string" || items.format === "uri" || items.format === "binary")) {
+        candidates.push({ key, isArray: true, score: prioritize(k) });
+      } else if (type === "string" || raw?.format === "uri" || raw?.format === "binary") {
+        candidates.push({ key, isArray: false, score: prioritize(k) });
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.score - b.score);
+    return { paramName: candidates[0].key, isArray: candidates[0].isArray };
+  } catch {
+    return null;
+  }
+}
+
 // Helper function to get the appropriate image input parameter name and format for editing models
 function getImageInputConfig(modelName: string): { paramName: string; isArray: boolean } {
   // Different models use different parameter names and formats for input images
@@ -39,6 +89,7 @@ function getImageInputConfig(modelName: string): { paramName: string; isArray: b
   if (modelName.includes("ideogram")) return { paramName: "image", isArray: false };
   if (modelName.includes("flux")) return { paramName: "image", isArray: false };
   if (modelName.includes("gpt-image")) return { paramName: "image", isArray: false };
+  if (modelName.toLowerCase().includes("seedream")) return { paramName: "image_input", isArray: true };
   
   // Default fallback
   return { paramName: "image", isArray: false };
@@ -87,6 +138,31 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
   }
 }
 
+/**
+ * Replicate image generation (text-to-image and image-to-image)
+ *
+ * Behavior
+ * - Accepts a free-form `prompt`, a Replicate `model` (owner/name or version id), and optional params.
+ * - Automatically detects if the model accepts an image input by inspecting the model's OpenAPI Input schema.
+ *   - If an image input parameter is present, we set it using:
+ *     1) The latest user-uploaded image in the conversation (preferred), otherwise
+ *     2) The latest assistant-generated image in the conversation (fallback).
+ *   - If no image is found, we proceed without an input image (pure text-to-image).
+ * - Known model shims:
+ *   - Seedream 4: uses `image_input` as an array (file[]). We map to that when detected.
+ * - Aspect ratio handling:
+ *   - If the model supports `aspect_ratio`, we pass it directly.
+ *   - Otherwise we compute width/height from the requested aspect ratio with multiples of 8.
+ * - Multiple images: attempts `num_outputs` and `batch_size` when `params.count` is set (1–4).
+ * - Negative prompts: sends `negative_prompt` when provided.
+ *
+ * Inputs
+ * - args.conversationId: Conversation context used to locate reference images.
+ * - args.messageId: Assistant message which tracks generation state and stores output images.
+ * - args.prompt: User prompt for the model.
+ * - args.model: Replicate model id ("owner/name") or version id.
+ * - args.params: Optional tuning parameters (aspectRatio, steps, guidanceScale, seed, negativePrompt, count).
+ */
 export const generateImage = action({
   args: {
     conversationId: v.id("conversations"),
@@ -165,52 +241,97 @@ export const generateImage = action({
       ];
       const supportsAspectRatio = aspectRatioSupportedModels.some(supported => args.model.includes(supported));
       
-      // Check if this is an image editing model and find previous assistant images
-      const isEditingModel = isImageEditingModel(args.model);
+      // Determine if the model accepts an image input and prepare an input image
       let inputImageUrl: string | undefined;
+      let imageInputConfig: { paramName: string; isArray: boolean } | null = null;
       
-      log.info("Model detection for image editing", {
+      // Resolve model version and introspect schema to detect image input param
+      let detectedVersionId: string | undefined;
+      try {
+        const [owner, name] = args.model.split("/");
+        const modelData = await replicate.models.get(owner, name);
+        detectedVersionId = modelData.latest_version?.id;
+        const schemaConfig = detectImageInputFromSchema(modelData);
+        if (schemaConfig) {
+          imageInputConfig = schemaConfig;
+        } else if (isImageEditingModel(args.model)) {
+          imageInputConfig = getImageInputConfig(args.model);
+        }
+      } catch {
+        // Fall back to heuristic if version lookup fails
+        if (isImageEditingModel(args.model)) {
+          imageInputConfig = getImageInputConfig(args.model);
+        }
+      }
+
+      const acceptsImageInput = !!imageInputConfig;
+
+      log.info("Model image-input detection", {
         messageId: args.messageId,
         model: args.model,
-        isEditingModel,
+        acceptsImageInput,
+        imageParam: imageInputConfig?.paramName,
+        isArray: imageInputConfig?.isArray,
       });
-      
-      if (isEditingModel) {
-        // Get conversation messages to find the most recent assistant image
+
+      if (acceptsImageInput) {
+        // Get conversation messages to find user-uploaded image first,
+        // otherwise fall back to the most recent assistant-generated image
         const messages = await ctx.runQuery(internal.messages.getAllInConversationInternal, {
           conversationId: args.conversationId,
         });
-        
-        // Look for the most recent assistant message with image attachments
-        // Start from the end and work backwards to find the latest generated image
-        for (let i = messages.length - 1; i >= 0; i--) {
-          const message = messages[i];
-          if (message.role === "assistant" && message.attachments) {
-            // Prefer generated images, but also accept user-uploaded images if no generated ones exist
-            const generatedImageAttachment = message.attachments.find(
-              (att: any) => att.type === "image" && att.url && att.generatedImage?.isGenerated
-            );
-            const anyImageAttachment = message.attachments.find(
-              (att: any) => att.type === "image" && att.url
-            );
-            
-            const selectedAttachment = generatedImageAttachment || anyImageAttachment;
-            if (selectedAttachment?.url) {
-              inputImageUrl = selectedAttachment.url;
-              log.info("Found previous assistant image for editing", {
-                messageId: args.messageId,
-                sourceMessageId: message._id,
-                imageUrl: inputImageUrl,
-                model: args.model,
-                isGenerated: !!selectedAttachment.generatedImage?.isGenerated,
-              });
-              break;
+
+        // 1) Prefer the most recent user message with an image attachment
+        if (!inputImageUrl) {
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m: any = messages[i];
+            if (m.role === "user" && Array.isArray(m.attachments) && m.attachments.length > 0) {
+              const userImg = m.attachments.find(
+                (att: any) => att.type === "image" && (att.url || att.storageId)
+              );
+              if (userImg?.url) {
+                inputImageUrl = userImg.url;
+                log.info("Using user-uploaded reference image for editing", {
+                  messageId: args.messageId,
+                  sourceMessageId: m._id,
+                  imageUrl: inputImageUrl,
+                  model: args.model,
+                });
+                break;
+              }
+            }
+          }
+        }
+
+        // 2) Fallback: look for the most recent assistant message with generated image(s)
+        if (!inputImageUrl) {
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const message: any = messages[i];
+            if (message.role === "assistant" && message.attachments) {
+              const generatedImageAttachment = message.attachments.find(
+                (att: any) => att.type === "image" && att.url && att.generatedImage?.isGenerated
+              );
+              const anyImageAttachment = message.attachments.find(
+                (att: any) => att.type === "image" && att.url
+              );
+              const selectedAttachment = generatedImageAttachment || anyImageAttachment;
+              if (selectedAttachment?.url) {
+                inputImageUrl = selectedAttachment.url;
+                log.info("Found previous assistant image for image-input (fallback)", {
+                  messageId: args.messageId,
+                  sourceMessageId: message._id,
+                  imageUrl: inputImageUrl,
+                  model: args.model,
+                  isGenerated: !!selectedAttachment.generatedImage?.isGenerated,
+                });
+                break;
+              }
             }
           }
         }
         
         if (!inputImageUrl) {
-          log.info("No previous assistant image found for editing model - will generate new image", {
+          log.info("No input image found; proceeding without reference (pure generation)", {
             messageId: args.messageId,
             model: args.model,
             messagesChecked: messages.length,
@@ -224,20 +345,15 @@ export const generateImage = action({
         prompt: args.prompt,
       };
       
-      // Add input image for editing models
-      if (isEditingModel && inputImageUrl) {
-        const imageConfig = getImageInputConfig(args.model);
-        
-        // Set the image input in the correct format (array or single string)
-        input[imageConfig.paramName] = imageConfig.isArray ? [inputImageUrl] : inputImageUrl;
-        
-        log.info("Added input image to editing model", {
+      // Add input image when the model accepts an image input
+      if (imageInputConfig && inputImageUrl) {
+        input[imageInputConfig.paramName] = imageInputConfig.isArray ? [inputImageUrl] : inputImageUrl;
+        log.info("Added input image to model", {
           messageId: args.messageId,
           model: args.model,
-          paramName: imageConfig.paramName,
+          paramName: imageInputConfig.paramName,
           imageUrl: inputImageUrl,
-          isArray: imageConfig.isArray,
-          inputValue: input[imageConfig.paramName],
+          isArray: imageInputConfig.isArray,
         });
       }
 
@@ -307,8 +423,6 @@ export const generateImage = action({
 
       } else {
         // For model names (owner/name format), resolve to latest version
-
-        
         try {
           const [owner, name] = args.model.split("/");
           if (!owner || !name) {
@@ -851,3 +965,11 @@ export const cancelPrediction = internalAction({
     }
   },
 });
+
+// Test-only helpers export
+// This object is tree-shakeable and harmless in production.
+export const __test__ = {
+  detectImageInputFromSchema,
+  getImageInputConfig,
+  isImageEditingModel,
+};
