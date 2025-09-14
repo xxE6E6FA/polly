@@ -307,6 +307,26 @@ export const UnifiedChatView = memo(
                     isLoading={isLoading || !hasApiKeys}
                     isStreaming={isStreaming}
                     isArchived={isArchived}
+                    isLikelyImageConversation={(() => {
+                      if (!messages || messages.length === 0) {
+                        return false;
+                      }
+                      for (let i = messages.length - 1; i >= 0; i--) {
+                        const m = messages[i];
+                        if (m.role === "assistant") {
+                          if (m.imageGeneration) {
+                            return true;
+                          }
+                          const hasGeneratedImage = (m.attachments || []).some(
+                            att =>
+                              att.type === "image" &&
+                              att.generatedImage?.isGenerated
+                          );
+                          return hasGeneratedImage;
+                        }
+                      }
+                      return false;
+                    })()}
                     onSendMessage={
                       hasApiKeys && !isArchived
                         ? handleSendMessage
