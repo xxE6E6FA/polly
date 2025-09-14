@@ -298,7 +298,11 @@ export const UnifiedChatView = memo(
                 {/* Chat input and controls - always visible */}
                 <div
                   className="relative flex-shrink-0"
-                  style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+                  style={{
+                    paddingBottom: "env(safe-area-inset-bottom)",
+                    // Cancel out added layout height so the page doesn't overflow
+                    marginBottom: "calc(env(safe-area-inset-bottom) * -1)",
+                  }}
                 >
                   <ChatInput
                     ref={chatInputRef}

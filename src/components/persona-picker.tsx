@@ -250,7 +250,7 @@ const PersonaList = ({
   return (
     <Command className="pt-2">
       <CommandInput className="h-9" placeholder="Search personas..." />
-      <CommandList className="max-h-[calc(100vh-10rem)] sm:max-h-[350px]">
+      <CommandList className="max-h-[calc(100dvh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
           <div className="p-4 text-center">
             <p className="mb-1 text-sm text-muted-foreground">

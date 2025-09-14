@@ -32,7 +32,7 @@ export default function AuthPage() {
   }, [signIn, user, managedToast]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background">
       <div className="w-full max-w-md stack-xl p-6">
         <div className="text-center">
           <div className="mb-6 flex justify-center">

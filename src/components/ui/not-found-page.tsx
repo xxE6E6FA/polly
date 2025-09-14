@@ -16,7 +16,7 @@ export const NotFoundPage = ({
     e.currentTarget.style.display = "none";
   };
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background">
       <div className="mx-auto max-w-md stack-xl p-6 text-center">
         <div className="stack-lg">
           <div className="mx-auto flex h-32 w-32 items-center justify-center">

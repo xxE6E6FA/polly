@@ -79,7 +79,7 @@ export default function SharedConversationPage() {
   const allMessages = [notificationMessage, ...chatMessages];
 
   return (
-    <div className="flex h-screen w-full flex-col bg-background">
+    <div className="flex min-h-[100dvh] w-full flex-col bg-background">
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
           <div className="flex h-16 items-center justify-between">
