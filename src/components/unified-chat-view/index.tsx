@@ -1,8 +1,9 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { memo, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { ChatHeader } from "@/components/chat-header";
 import { ChatOutline } from "@/components/chat-outline";
 import { ChatZeroState } from "@/components/chat-zero-state";
+import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
@@ -97,6 +98,68 @@ export const UnifiedChatView = memo(
   }: UnifiedChatViewProps) => {
     const { isPrivateMode } = usePrivateMode();
     const { temperature } = useChatScopedState(conversationId);
+
+    // Conversation-level attachment gallery state
+    const [previewAttachment, setPreviewAttachment] =
+      useState<Attachment | null>(null);
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
+    // Flatten all attachments across the conversation (user + assistant)
+    const conversationAttachments: Attachment[] = useMemo(() => {
+      const acc: Attachment[] = [];
+      const seen = new Set<string>();
+      for (const m of messages) {
+        // Regular attachments
+        const atts = m.attachments ?? [];
+        for (const att of atts) {
+          const key = `${att.storageId ?? ""}|${att.url ?? ""}|${att.name}`;
+          if (seen.has(key)) {
+            continue;
+          }
+          seen.add(key);
+          acc.push(att);
+        }
+        // Generated images from imageGeneration.output that might not be in attachments
+        if (m.imageGeneration?.status === "succeeded") {
+          const hasStoredGenerated = (m.attachments ?? []).some(
+            a => a.type === "image" && a.generatedImage?.isGenerated
+          );
+          // If images are already persisted as attachments, skip raw output URLs
+          if (hasStoredGenerated) {
+            continue;
+          }
+          const urls = m.imageGeneration.output ?? [];
+          urls.forEach((url, idx) => {
+            if (!url) {
+              return;
+            }
+            const key = `gen|${url}`;
+            if (seen.has(key)) {
+              return;
+            }
+            seen.add(key);
+            acc.push({
+              type: "image",
+              url,
+              name: `Generated Image ${idx + 1}`,
+              size: 0,
+              generatedImage: {
+                isGenerated: true,
+                source: "replicate",
+                model: m.imageGeneration?.metadata?.model,
+                prompt: m.imageGeneration?.metadata?.prompt,
+              },
+            });
+          });
+        }
+      }
+      return acc;
+    }, [messages]);
+
+    const handlePreviewAttachment = useCallback((attachment: Attachment) => {
+      setPreviewAttachment(attachment);
+      setIsGalleryOpen(true);
+    }, []);
     const {
       // Refs
       virtualizedMessagesRef,
@@ -212,6 +275,7 @@ export const UnifiedChatView = memo(
           messages={messages}
           isStreaming={isStreaming}
           isLoading={isLoading}
+          onPreviewAttachment={handlePreviewAttachment}
           onDeleteMessage={
             isPrivateMode || isArchived || !online
               ? undefined
@@ -380,6 +444,20 @@ export const UnifiedChatView = memo(
           onConfirm={confirmationDialog.handleConfirm}
           onCancel={confirmationDialog.handleCancel}
           onOpenChange={confirmationDialog.handleOpenChange}
+        />
+
+        {/* Global conversation-level attachment viewer */}
+        <AttachmentGalleryDialog
+          attachments={conversationAttachments}
+          currentAttachment={previewAttachment}
+          open={isGalleryOpen && !!previewAttachment}
+          onOpenChange={open => {
+            setIsGalleryOpen(open);
+            if (!open) {
+              setPreviewAttachment(null);
+            }
+          }}
+          onAttachmentChange={setPreviewAttachment}
         />
       </div>
     );
