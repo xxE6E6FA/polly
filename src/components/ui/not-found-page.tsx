@@ -11,6 +11,10 @@ export const NotFoundPage = ({
   title = "Page not found",
   description = "The page you're looking for doesn't exist.",
 }: NotFoundPageProps) => {
+  const handleImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    // Hide the broken image if it fails to load (e.g., offline in dev)
+    e.currentTarget.style.display = "none";
+  };
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="mx-auto max-w-md stack-xl p-6 text-center">
@@ -21,6 +25,7 @@ export const NotFoundPage = ({
               className="h-32 w-32 object-contain"
               loading="lazy"
               src="/polly-404.png"
+              onError={handleImgError}
             />
           </div>
 

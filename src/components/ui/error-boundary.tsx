@@ -6,9 +6,9 @@ import {
   CopyIcon,
 } from "@phosphor-icons/react";
 import React from "react";
+import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { CACHE_KEYS, get as getLS } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
-
 import { Button } from "./button";
 
 type ErrorBoundaryState = {
@@ -86,6 +86,17 @@ export class ErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError && this.state.error) {
+      const isOffline =
+        typeof navigator !== "undefined" && navigator.onLine === false;
+      if (isOffline) {
+        return (
+          <OfflinePlaceholder
+            title="You're offline"
+            description="Reconnect and reload the page to continue."
+            onRetry={() => window.location.reload()}
+          />
+        );
+      }
       if (this.props.fallback) {
         const FallbackComponent = this.props.fallback;
         return (
@@ -104,6 +115,10 @@ export class ErrorBoundary extends React.Component<
                 alt="Polly looking confused"
                 className="h-32 w-32 object-contain duration-500 animate-in fade-in-0 zoom-in-95"
                 src="/polly-404.png"
+                onError={e => {
+                  // Hide broken image when offline in dev/preview
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
               />
 
               <div className="stack-sm">

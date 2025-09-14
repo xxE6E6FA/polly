@@ -1,5 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
+import type { Icon } from "@phosphor-icons/react";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -35,6 +36,7 @@ import { ControlledShareConversationDialog } from "@/components/ui/share-convers
 import { TextInputDialog } from "@/components/ui/text-input-dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useOnline } from "@/hooks/use-online";
 import { useSelectModel } from "@/hooks/use-select-model";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTheme } from "@/hooks/use-theme";
@@ -75,11 +77,20 @@ type ConversationType = {
 // Use the concrete model document types from Convex rather than an ad-hoc shape
 type ModelType = AvailableModel;
 
+type Action = {
+  id: string;
+  label: string;
+  icon: Icon;
+  handler: () => void;
+  disabled: boolean;
+};
+
 export function CommandPalette({
   open,
   onOpenChange,
   onClose,
 }: CommandPaletteProps) {
+  const online = useOnline();
   const [search, setSearch] = useState("");
   const [selectedValue, setSelectedValue] = useState("");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
@@ -546,18 +557,20 @@ export function CommandPalette({
   const isSearching = search.trim().length > 0 && search !== debouncedSearch;
 
   const globalActions = useMemo(
-    () => [
+    (): Action[] => [
       {
         id: "new-conversation",
         label: "New Conversation",
         icon: PlusIcon,
         handler: handleNewConversation,
+        disabled: false,
       },
       {
         id: "private-mode",
         label: "Private Mode",
         icon: EyeSlashIcon,
         handler: handlePrivateMode,
+        disabled: false,
       },
       {
         id: "browse-conversations",
@@ -569,6 +582,7 @@ export function CommandPalette({
             undefined,
             "All Conversations"
           ),
+        disabled: !online,
       },
       {
         id: "browse-models",
@@ -576,6 +590,7 @@ export function CommandPalette({
         icon: MagnifyingGlassIcon,
         handler: () =>
           navigateToMenu("model-categories", undefined, "All Models"),
+        disabled: !online,
       },
       {
         id: "toggle-theme",
@@ -583,6 +598,7 @@ export function CommandPalette({
           theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
         icon: theme === "dark" ? SunIcon : MoonIcon,
         handler: handleToggleTheme,
+        disabled: false,
       },
     ],
     [
@@ -591,6 +607,7 @@ export function CommandPalette({
       handlePrivateMode,
       handleToggleTheme,
       navigateToMenu,
+      online,
     ]
   );
 
@@ -601,42 +618,49 @@ export function CommandPalette({
         label: currentConversation?.conversation?.isPinned ? "Unpin" : "Pin",
         icon: PushPinIcon,
         handler: handleToggleFavorite,
+        disabled: !online,
       },
       {
         id: "edit-title",
         label: "Edit title",
         icon: PencilSimpleIcon,
         handler: handleRenameConversation,
+        disabled: !online,
       },
       {
         id: "share-conversation",
         label: "Share",
         icon: ShareNetworkIcon,
         handler: handleShareConversation,
+        disabled: !online,
       },
       {
         id: "export-markdown",
         label: "Export as Markdown",
         icon: FileTextIcon,
         handler: () => handleExportConversation("md"),
+        disabled: !online,
       },
       {
         id: "export-json",
         label: "Export as JSON",
         icon: FileCodeIcon,
         handler: () => handleExportConversation("json"),
+        disabled: !online,
       },
       {
         id: "archive-conversation",
         label: "Archive",
         icon: ArchiveIcon,
         handler: handleToggleArchive,
+        disabled: !online,
       },
       {
         id: "delete-conversation",
         label: "Delete",
         icon: TrashIcon,
         handler: handleDeleteConversation,
+        disabled: !online,
       },
     ],
     [
@@ -647,6 +671,7 @@ export function CommandPalette({
       handleExportConversation,
       handleToggleArchive,
       handleDeleteConversation,
+      online,
     ]
   );
 
@@ -966,6 +991,7 @@ export function CommandPalette({
                             value={action.id}
                             onSelect={action.handler}
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={action.disabled}
                           >
                             <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                             <span className="flex-1">{action.label}</span>
@@ -1010,6 +1036,7 @@ export function CommandPalette({
                               }
                             }}
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={!online}
                           >
                             <ChatCircleIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
@@ -1116,8 +1143,9 @@ export function CommandPalette({
                       onSelect={action.handler}
                       className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
                       disabled={
-                        isExportAction &&
-                        exportingFormat === action.id.split("-")[1]
+                        action.disabled ||
+                        (isExportAction &&
+                          exportingFormat === action.id.split("-")[1])
                       }
                     >
                       <IconComponent
@@ -1251,6 +1279,7 @@ export function CommandPalette({
                               }
                             }}
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={!online}
                           >
                             <ChatCircleIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">

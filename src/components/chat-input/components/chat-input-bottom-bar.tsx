@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
+import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
@@ -71,7 +72,8 @@ export function ChatInputBottomBar({
   dense = false,
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
-  const disabled = isLoading || isStreaming || isProcessing;
+  const online = useOnline();
+  const disabled = isLoading || isStreaming || isProcessing || !online;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
   const [generationMode] = useGenerationMode();

@@ -48,6 +48,7 @@ Install pnpm if needed: `npm i -g pnpm@9`.
 - Streaming over Convex HTTP actions
 - User authentication and anonymous mode
 - Model switching and settings management
+- Installable PWA with offline fallback (app shell cached for navigation)
 
 ## Testing & CI
 
@@ -162,6 +163,20 @@ This contextual approach ensures web search is used only when it adds value, avo
 - `pnpm build` runs `convex deploy && vite build` and requires your Convex project to be configured.
 - If you only need a static frontend build, use `pnpm run build:frontend`.
 - In CI we build the frontend with `build:frontend`; backend deploys are handled separately.
+
+### PWA
+
+The app now ships a minimal PWA:
+
+- `public/manifest.webmanifest` – app metadata + icons.
+- `public/sw.js` – caches the app shell and static assets.
+- Registration happens in `src/entry.client.tsx` (production only).
+
+Notes:
+
+- On first load, the service worker caches `/index.html` and core assets.
+- SPA navigations work offline via the cached shell; dynamic API calls will naturally fail while offline.
+- Clear caches by opening DevTools → Application → Clear storage, or from code via `navigator.serviceWorker.controller?.postMessage('CLEAR_POLLY_CACHES')`.
 
 ## Code Style
 
