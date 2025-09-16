@@ -188,7 +188,7 @@ Text after
 
       expect(result).toEqual({
         startIndex: 10,
-        endIndex: 37,
+        endIndex: 38,
         outputRaw: "```js\nconsole.log('hi');\n```",
       });
     });
@@ -224,7 +224,7 @@ Text after
 
       expect(result).toEqual({
         startIndex: 0,
-        endIndex: 27,
+        endIndex: 30,
         outputRaw: "```js\nconsole.log('test');\n```",
       });
     });

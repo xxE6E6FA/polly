@@ -181,9 +181,11 @@ export function findCompleteNestedCodeBlock() {
       return undefined;
     }
 
+    const endIndex = firstBlock.start + firstBlock.fullMatch.length;
+
     return {
       startIndex: firstBlock.start,
-      endIndex: firstBlock.end + 3,
+      endIndex,
       outputRaw: firstBlock.fullMatch,
     };
   };
@@ -208,9 +210,10 @@ export function findPartialNestedCodeBlock() {
 
       // Only return complete blocks (must end with closing ```)
       if (firstBlock.fullMatch.endsWith("```")) {
+        const endIndex = firstBlock.start + firstBlock.fullMatch.length;
         return {
           startIndex: firstBlock.start,
-          endIndex: firstBlock.end + 1,
+          endIndex,
           outputRaw: firstBlock.fullMatch,
         };
       }
