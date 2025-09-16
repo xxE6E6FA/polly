@@ -44,6 +44,17 @@ describe("syntax-themes", () => {
       expect(keywordStyle?.style.color).toBe("hsl(var(--primary))");
     });
 
+    it("adds background emphasis for inserted tokens", () => {
+      const insertedStyle = lightSyntaxTheme.styles.find(style =>
+        style.types.includes("inserted")
+      );
+
+      expect(insertedStyle).toBeDefined();
+      expect(insertedStyle?.style.backgroundColor).toBe(
+        "hsl(var(--accent-emerald) / 0.12)"
+      );
+    });
+
     it("has function styles", () => {
       const functionStyle = lightSyntaxTheme.styles.find(style =>
         style.types.includes("function")
@@ -70,7 +81,9 @@ describe("syntax-themes", () => {
     it("uses CSS custom properties for colors", () => {
       lightSyntaxTheme.styles.forEach(style => {
         if (style.style.color) {
-          expect(style.style.color).toMatch(/^hsl\(var\(--[\w-]+\)\)$/);
+          expect(style.style.color).toMatch(
+            /^hsl\(var\(--[\w-]+\)(\s*\/\s*0(?:\.\d+)?)?\)$/
+          );
         }
       });
     });
@@ -97,7 +110,7 @@ describe("syntax-themes", () => {
       expect(darkTypes.sort()).toEqual(lightTypes.sort());
     });
 
-    it("uses different accent colors for functions", () => {
+    it("uses brand accent color for functions", () => {
       const lightFunctionStyle = lightSyntaxTheme.styles.find(style =>
         style.types.includes("function")
       );
@@ -106,7 +119,18 @@ describe("syntax-themes", () => {
       );
 
       expect(lightFunctionStyle?.style.color).toBe("hsl(var(--accent-blue))");
-      expect(darkFunctionStyle?.style.color).toBe("hsl(var(--accent-cyan))");
+      expect(darkFunctionStyle?.style.color).toBe("hsl(var(--accent-blue))");
+    });
+
+    it("deepens inserted token background in dark mode", () => {
+      const insertedStyle = darkSyntaxTheme.styles.find(style =>
+        style.types.includes("inserted")
+      );
+
+      expect(insertedStyle).toBeDefined();
+      expect(insertedStyle?.style.backgroundColor).toBe(
+        "hsl(var(--accent-emerald) / 0.25)"
+      );
     });
 
     it("has consistent comment styling", () => {
@@ -123,7 +147,9 @@ describe("syntax-themes", () => {
     it("uses CSS custom properties for colors", () => {
       darkSyntaxTheme.styles.forEach(style => {
         if (style.style.color) {
-          expect(style.style.color).toMatch(/^hsl\(var\(--[\w-]+\)\)$/);
+          expect(style.style.color).toMatch(
+            /^hsl\(var\(--[\w-]+\)(\s*\/\s*0(?:\.\d+)?)?\)$/
+          );
         }
       });
     });
@@ -150,7 +176,7 @@ describe("syntax-themes", () => {
       });
     });
 
-    it("namespace styles have identical opacity", () => {
+    it("namespace styles are slightly softer in dark mode", () => {
       const lightNamespace = lightSyntaxTheme.styles.find(style =>
         style.types.includes("namespace")
       );
@@ -158,7 +184,9 @@ describe("syntax-themes", () => {
         style.types.includes("namespace")
       );
 
-      expect(lightNamespace?.style.opacity).toBe(darkNamespace?.style.opacity);
+      expect(lightNamespace?.style.opacity).toBeGreaterThan(
+        darkNamespace?.style.opacity ?? 0
+      );
     });
 
     it("both themes use transparent backgrounds", () => {
@@ -173,7 +201,9 @@ describe("syntax-themes", () => {
 
       allStyles.forEach(style => {
         if (style.style.color) {
-          expect(style.style.color).toMatch(/^hsl\(var\(--[\w-]+\)\)$/);
+          expect(style.style.color).toMatch(
+            /^hsl\(var\(--[\w-]+\)(\s*\/\s*0(?:\.\d+)?)?\)$/
+          );
         }
       });
     });

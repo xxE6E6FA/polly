@@ -152,7 +152,7 @@ const CodeBlockComponent = ({
     <div className="group" ref={componentRef}>
       <div className={cn("relative mt-2 flex w-full flex-col pt-9", className)}>
         {/* Header with language and actions */}
-        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-b-0 bg-surface-variant/80 backdrop-blur-xs px-4 py-2 text-[13px]">
+        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-border/60 border-b-0 bg-surface-variant/80 dark:bg-surface/60 backdrop-blur-xs px-4 py-2 text-[13px]">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -248,7 +248,7 @@ const CodeBlockComponent = ({
         {/* Code content */}
         <div
           ref={codeContainerRef}
-          className="relative rounded-b-lg border bg-muted"
+          className="relative overflow-hidden rounded-b-lg border border-border/60 bg-surface-variant/90 dark:bg-surface/70 shadow-sm"
         >
           {isVisible ? (
             <Highlight
