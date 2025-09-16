@@ -100,6 +100,77 @@ function ensureOutputFormat(value: string | undefined, fallback: OutputFormat): 
     : fallback) as OutputFormat;
 }
 
+function clampBreakDuration(seconds: number): number {
+  if (!Number.isFinite(seconds) || seconds <= 0) return 0.2;
+  const normalized = Math.max(0.15, seconds);
+  const MAX_SPOKEN_BREAK = 1.2;
+  return normalized > MAX_SPOKEN_BREAK ? MAX_SPOKEN_BREAK : normalized;
+}
+
+function normalizeBreakTag(rawDuration: string): string {
+  const trimmed = rawDuration.trim().toLowerCase();
+  const msMatch = trimmed.match(/^(\d+(?:\.\d+)?)(ms|millisecond(?:s)?|s|sec(?:onds?)?)?$/);
+  if (!msMatch) {
+    return "";
+  }
+  const value = Number(msMatch[1]);
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  const unitRaw = msMatch[2] || "s";
+  const unit = unitRaw.startsWith("ms") || unitRaw.startsWith("millisecond") ? "ms" : "s";
+  const seconds = unit === "ms" ? value / 1000 : value;
+  const clamped = clampBreakDuration(seconds);
+  const formatted = clamped % 1 === 0 ? `${clamped.toFixed(0)}s` : `${clamped.toFixed(2).replace(/0+$/, "").replace(/\.$/, "")}s`;
+  return `<break time="${formatted}"/>`;
+}
+
+function stripUnsupportedTags(input: string): string {
+  const allowedTags = new Set(["break", "phoneme"]);
+  return input.replace(/<([^>]+)>/g, (full, inner) => {
+    const tagNameMatch = inner.trim().match(/^\/?([a-z0-9_-]+)/i);
+    if (!tagNameMatch) return "";
+    const tag = tagNameMatch[1].toLowerCase();
+    if (!allowedTags.has(tag)) {
+      if (inner.includes(" phoneme=")) {
+        // fall through, phoneme covered above
+      } else {
+        return "";
+      }
+    }
+    if (tag === "break") {
+      const durationMatch = inner.match(/time\s*=\s*["']?([^"'>\s]+)["']?/i);
+      const normalized = durationMatch ? normalizeBreakTag(durationMatch[1]) : "";
+      return normalized || "";
+    }
+    return `<${inner.trim()}>`;
+  });
+}
+
+function normalizeElevenLabsScript(input: string): string {
+  if (!input) return "";
+  let result = input.replace(/\r\n?/g, "\n");
+  // Convert stray break tokens like "5s'/>" or "250ms" into SSML breaks before stripping tags
+  result = result.replace(
+    /(\d+(?:\.\d+)?)\s*(ms|millisecond(?:s)?|s|sec(?:onds?)?)['"]?\s*\/?\s*>/gi,
+    (_match, value, unit) => normalizeBreakTag(`${value}${unit}`)
+  );
+  result = result.replace(/\[(?:[^\[\]]{1,80})\]/g, "");
+  result = result.replace(/<break\s+time\s*=\s*["']?([^"'>\s]+)["']?\s*><\/break>/gi, (_match, duration) => normalizeBreakTag(duration));
+  result = result.replace(/<break\s+time\s*=\s*([^"'>\s/]+)\s*\/?\s*>/gi, (_match, duration) => normalizeBreakTag(duration));
+  result = result.replace(/<pause(?:[^>]*)>/gi, "");
+  result = stripUnsupportedTags(result);
+  result = result.replace(/\s{3,}/g, "  ");
+  const stageDirectionPattern = /^(?:pause|beat|break|section break|silence|hold)(?:\b|[:\-\s])/i;
+  result = result
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .filter(line => !(line.length <= 80 && stageDirectionPattern.test(line)))
+    .join("\n\n");
+  return result.trim();
+}
+
 type StabilityMode = "creative" | "natural" | "robust" | undefined;
 
 function resolveStabilityValue(mode: StabilityMode): number {
@@ -147,7 +218,8 @@ function buildEnhancedTTSScript(assistantText: string): string {
 
     3. PRONUNCIATION & RHYTHM:
        Add phonetic guidance for technical terms: [React] → [REE-act], [SQL] → [S-Q-L or sequel]
-       Use strategic pauses: <break time="0.5s" /> for thought breaks, <break time="1s" /> between ideas
+       Use strategic pauses sparingly: default to <break time="0.4s" /> for short transitions, at most <break time="0.8s" /> when shifting topics
+       Never generate pauses longer than 0.8 seconds and avoid repeating consecutive breaks
        Mark emphasis with caps for important concepts (but sparingly)
        Add vocal cues: [thoughtfully], [with emphasis], [clearly], [enthusiastically]
 
@@ -638,6 +710,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     const voiceIdParam = url.searchParams.get("voiceId") || undefined;
     const modelIdParam = url.searchParams.get("modelId") || undefined;
     const outputFormatParam = url.searchParams.get("outputFormat") || undefined;
+    const optimizeLatencyParam = url.searchParams.get("optimizeLatency") || undefined;
 
     // Determine auth mode: either cookie auth or signed URL
     let hasValidSignature = false;
@@ -798,72 +871,161 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     const normalizedOutputFormat = ensureOutputFormat(outputFormatParam || undefined, "mp3_44100_128");
 
     // Request Stitching: split text and sequentially stream stitched requests
-    const chunks = chunkTextForStreaming(prepared.text, {
+    const origin = request.headers.get("Origin") || "*";
+
+    // Join chunked text back together to keep payload within API limits while preserving pacing
+    const scriptSegments = chunkTextForStreaming(prepared.text, {
       maxChunkSize: 600,
       preferredChunkSize: 400,
       minChunkSize: 200,
     });
+    const joinedScript = scriptSegments.join("\n\n");
+    let streamingScript = normalizeElevenLabsScript(joinedScript);
+    if (!streamingScript) {
+      streamingScript = normalizeElevenLabsScript(baseText) || stripCodeAndAssets(baseText);
+    }
 
-    const origin = request.headers.get("Origin") || "*";
-    const requestIds: string[] = [];
+    const shouldEnableSSML = /<\s*(?:break|phoneme)\b/i.test(streamingScript);
+    const optimizeStreamingLatency =
+      typeof optimizeLatencyParam === "string" && /^(?:[0-4])$/.test(optimizeLatencyParam)
+        ? optimizeLatencyParam
+        : undefined;
+
+    if (!streamingScript.trim()) {
+      return new Response(JSON.stringify({ error: "No speakable content" }), {
+        status: 400,
+        headers: {
+          ...corsHeadersBase,
+          "Access-Control-Allow-Origin": origin,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    const upstreamAbortController = new AbortController();
+    let upstreamResponse: Response;
+    try {
+      const streamingQuery = new URLSearchParams();
+      if (optimizeStreamingLatency) {
+        streamingQuery.set("optimize_streaming_latency", optimizeStreamingLatency);
+      }
+      if (shouldEnableSSML) {
+        streamingQuery.set("enable_ssml_parsing", "true");
+      }
+      const streamingEndpoint = streamingQuery.size
+        ? `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream?${streamingQuery.toString()}`
+        : `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}/stream`;
+
+      upstreamResponse = await fetch(streamingEndpoint, {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          Accept: "audio/mpeg",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: streamingScript,
+          model_id: selectedModelId,
+          output_format: normalizedOutputFormat,
+          voice_settings: {
+            stability: resolveStabilityValue(userSettings?.ttsStabilityMode),
+            similarity_boost: 0.75,
+            style: 0.0,
+            use_speaker_boost: true,
+          },
+          apply_text_normalization: "auto",
+        }),
+        signal: upstreamAbortController.signal,
+      });
+    } catch (error) {
+      upstreamAbortController.abort();
+      const err = error instanceof Error ? error.message : String(error);
+      log.error("Failed to contact ElevenLabs streaming endpoint", { error: err });
+      return new Response(JSON.stringify({ error: "Upstream TTS request failed" }), {
+        status: 502,
+        headers: {
+          ...corsHeadersBase,
+          "Access-Control-Allow-Origin": origin,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    if (!upstreamResponse.ok || !upstreamResponse.body) {
+      const errText = await upstreamResponse.text().catch(() => "");
+      upstreamAbortController.abort();
+      return new Response(JSON.stringify({ error: "ElevenLabs TTS failed", details: errText }), {
+        status: upstreamResponse.status || 502,
+        headers: {
+          ...corsHeadersBase,
+          "Access-Control-Allow-Origin": origin,
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    const reader = upstreamResponse.body.getReader();
+    let requestAborted = false;
+    let upstreamSettled = false;
+
+    const abortUpstream = () => {
+      if (upstreamSettled) return;
+      requestAborted = true;
+      upstreamSettled = true;
+      reader.cancel().catch(() => undefined);
+      upstreamAbortController.abort();
+    };
+
+    const finalizeUpstream = () => {
+      if (upstreamSettled) return;
+      upstreamSettled = true;
+      try {
+        reader.releaseLock();
+      } catch {
+        // ignore release errors
+      }
+      upstreamAbortController.abort();
+    };
+
+    if (typeof request.signal?.addEventListener === "function") {
+      request.signal.addEventListener("abort", abortUpstream, { once: true });
+    }
 
     const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          for (let i = 0; i < chunks.length; i++) {
-            const text = chunks[i];
-            const body: Record<string, unknown> = {
-              text,
-              model_id: selectedModelId,
-              output_format: normalizedOutputFormat,
-              voice_settings: {
-                stability: resolveStabilityValue(userSettings?.ttsStabilityMode),
-                similarity_boost: 0.75,
-                style: 0.0,
-                use_speaker_boost: true,
-              },
-              apply_text_normalization: "auto",
-            };
-            if (requestIds.length > 0) {
-              (body as any).previous_request_ids = requestIds;
-            }
-
-            const resp = await fetch(
-              `https://api.elevenlabs.io/v1/text-to-speech/${selectedVoiceId}`,
-              {
-                method: "POST",
-                headers: {
-                  "xi-api-key": apiKey,
-                  Accept: "audio/mpeg",
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
-              }
-            );
-
-            if (!resp.ok || !resp.body) {
-              const errText = await resp.text().catch(() => "");
-              throw new Error(
-                `Upstream TTS failed (${resp.status}): ${errText}`
-              );
-            }
-
-            const rid = resp.headers.get("request-id");
-            if (typeof rid === "string" && rid.length > 0) {
-              requestIds.push(rid);
-            }
-
-            const reader = resp.body.getReader();
+      start(controller) {
+        (async () => {
+          try {
             while (true) {
               const { done, value } = await reader.read();
-              if (done) break;
-              if (value) controller.enqueue(value);
+              if (done || requestAborted) {
+                break;
+              }
+              if (value) {
+                controller.enqueue(value);
+              }
+            }
+            if (!requestAborted) {
+              controller.close();
+            }
+          } catch (error) {
+            if ((error as any)?.name === "AbortError") {
+              controller.close();
+            } else {
+              controller.error(error);
+            }
+          } finally {
+            if (requestAborted) {
+              abortUpstream();
+            } else {
+              finalizeUpstream();
             }
           }
-          controller.close();
-        } catch (err) {
-          controller.error(err);
-        }
+        })().catch(() => {
+          abortUpstream();
+        });
+      },
+      cancel() {
+        abortUpstream();
       },
     });
 
@@ -999,5 +1161,3 @@ export const createTTSStreamUrl = action({
     return { url } as const;
   },
 });
-
-
