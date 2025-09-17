@@ -1,11 +1,20 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useQuery } from "convex/react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
   Tooltip,
@@ -52,6 +61,10 @@ const MODEL_DISPLAY_NAMES: Record<string, string> = {
   "stability-ai/sdxl": "SDXL",
   "playground-v2.5": "Playground v2.5",
 };
+
+const ZEN_HEADER_CONDENSE_OFFSET = 48;
+const ZEN_HEADER_HIDE_THRESHOLD = 96;
+const ZEN_HEADER_SCROLLED_DELTA = 6;
 
 // Helper functions for image display
 const getAspectRatioClass = (aspectRatio: string) => {
@@ -180,6 +193,17 @@ export const AssistantBubble = ({
   // Use global conversation-level preview via onPreviewFile passed from parent
   const [showReasoning, setShowReasoning] = useState(false);
   const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
+  const conversationTitle = useQuery(
+    api.conversations.getWithAccessInfo,
+    conversationId ? { id: conversationId as Id<"conversations"> } : "skip"
+  )?.conversation?.title;
+  const [isZenModeOpen, setIsZenModeOpen] = useState(false);
+  const [isZenHeaderCondensed, setIsZenHeaderCondensed] = useState(false);
+  const [isZenHeaderHidden, setIsZenHeaderHidden] = useState(false);
+  const zenScrollRef = useRef<HTMLDivElement | null>(null);
+  const zenHeaderRef = useRef<HTMLDivElement | null>(null);
+  const lastZenScrollTopRef = useRef(0);
+  const [zenHeaderHeight, setZenHeaderHeight] = useState(0);
 
   // Memoized image lists derived from message
   const generatedImageAttachments = useMemo(() => {
@@ -262,8 +286,28 @@ export const AssistantBubble = ({
 
   const reasoning = message.reasoning;
   const displayContent = message.content;
+  const hasTextContent = Boolean(
+    displayContent && displayContent.trim().length > 0
+  );
   const isImageGeneration = Boolean(message.imageGeneration);
   const hasReasoningText = Boolean(reasoning && reasoning.trim().length > 0);
+  const isZenModeAvailable = !isImageGeneration && hasTextContent;
+  const zenMessageId = useMemo(() => `${message.id}-zen`, [message.id]);
+  const estimatedReadingMinutes = useMemo(() => {
+    if (!displayContent) {
+      return 0;
+    }
+    const wordCount = displayContent
+      .split(/\s+/)
+      .map(w => w.trim())
+      .filter(Boolean).length;
+    if (wordCount === 0) {
+      return 0;
+    }
+    return Math.max(1, Math.round(wordCount / 220));
+  }, [displayContent]);
+  const openZenMode = useCallback(() => setIsZenModeOpen(true), []);
+  const closeZenMode = useCallback(() => setIsZenModeOpen(false), []);
 
   // Linger state to keep actions briefly visible after mouseout
   const {
@@ -303,6 +347,88 @@ export const AssistantBubble = ({
     }
     return;
   }, [phase, showReasoning]);
+
+  useEffect(() => {
+    if (!message.id) {
+      return;
+    }
+    setIsZenModeOpen(false);
+  }, [message.id]);
+
+  useEffect(() => {
+    if (!isZenModeAvailable && isZenModeOpen) {
+      setIsZenModeOpen(false);
+    }
+  }, [isZenModeAvailable, isZenModeOpen]);
+
+  useEffect(() => {
+    if (!isZenModeOpen) {
+      setIsZenHeaderCondensed(false);
+      setIsZenHeaderHidden(false);
+      lastZenScrollTopRef.current = 0;
+      setZenHeaderHeight(0);
+    }
+  }, [isZenModeOpen]);
+
+  useLayoutEffect(() => {
+    if (!isZenModeOpen || typeof window === "undefined") {
+      return;
+    }
+    const el = zenHeaderRef.current;
+    if (!el) {
+      return;
+    }
+    const updateHeight = () => {
+      setZenHeaderHeight(el.offsetHeight);
+    };
+
+    updateHeight();
+
+    const supportsResizeObserver = typeof ResizeObserver !== "undefined";
+
+    if (supportsResizeObserver) {
+      const resizeObserver = new ResizeObserver(() => updateHeight());
+      resizeObserver.observe(el);
+      return () => resizeObserver.disconnect();
+    }
+
+    const handleResize = () => updateHeight();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isZenModeOpen]);
+
+  const handleZenScroll = useCallback(() => {
+    const el = zenScrollRef.current;
+    if (!el) {
+      return;
+    }
+    const currentScrollTop = el.scrollTop;
+    const shouldCondense = currentScrollTop > ZEN_HEADER_CONDENSE_OFFSET;
+
+    setIsZenHeaderCondensed(prev =>
+      prev === shouldCondense ? prev : shouldCondense
+    );
+
+    if (!shouldCondense) {
+      setIsZenHeaderHidden(false);
+      lastZenScrollTopRef.current = currentScrollTop;
+      return;
+    }
+
+    const lastScrollTop = lastZenScrollTopRef.current;
+    const delta = currentScrollTop - lastScrollTop;
+
+    if (
+      delta > ZEN_HEADER_SCROLLED_DELTA &&
+      currentScrollTop > ZEN_HEADER_HIDE_THRESHOLD
+    ) {
+      setIsZenHeaderHidden(true);
+    } else if (delta < -ZEN_HEADER_SCROLLED_DELTA) {
+      setIsZenHeaderHidden(false);
+    }
+
+    lastZenScrollTopRef.current = currentScrollTop;
+  }, []);
 
   // Get the model name for display
   const getModelDisplayName = (modelId: string | undefined): string => {
@@ -712,6 +838,7 @@ export const AssistantBubble = ({
                 onDeleteMessage={onDeleteMessage}
                 onRetryMessage={onRetryMessage}
                 onRefineMessage={onRefineMessage}
+                onOpenZenMode={isZenModeAvailable ? openZenMode : undefined}
               />
             </div>
           </div>
@@ -720,6 +847,113 @@ export const AssistantBubble = ({
         {/* Image preview dialog */}
         {/* Image preview is handled by conversation-level gallery */}
       </div>
+      {isZenModeAvailable && (
+        <Dialog open={isZenModeOpen} onOpenChange={setIsZenModeOpen}>
+          <DialogPortal>
+            <DialogOverlay className="fixed inset-0 z-[60] bg-neutral-900/60 backdrop-blur-md transition-opacity data-[state=closed]:opacity-0 data-[state=open]:opacity-100" />
+            <DialogPrimitive.Content
+              className={cn(
+                "fixed inset-0 z-[70] m-0 flex h-full w-full flex-col overflow-hidden p-0",
+                "focus:outline-none"
+              )}
+            >
+              <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#f6f2ea] text-[#23211f] dark:bg-[#111012] dark:text-[#f1ece4]">
+                <div className="relative z-[1] flex h-full flex-col overflow-hidden">
+                  <header
+                    ref={zenHeaderRef}
+                    className={cn(
+                      "sticky top-0 z-[5] flex items-center justify-between gap-3 border-b border-black/5 px-5 transition-all duration-300 sm:px-10 dark:border-white/10",
+                      "transform-gpu",
+                      isZenHeaderCondensed
+                        ? "bg-white/55 supports-[backdrop-filter]:bg-white/30 py-2.5 backdrop-blur-md dark:bg-[#11111a]/80 dark:supports-[backdrop-filter]:bg-[#11111a]/55"
+                        : "bg-white/20 py-5 sm:py-7 dark:bg-[#11111a]/45",
+                      isZenHeaderHidden &&
+                        "-translate-y-full opacity-0 pointer-events-none"
+                    )}
+                    style={
+                      isZenHeaderHidden && zenHeaderHeight > 0
+                        ? { marginBottom: -zenHeaderHeight }
+                        : undefined
+                    }
+                  >
+                    <h2
+                      className={cn(
+                        "truncate font-heading font-semibold tracking-[-0.008em] text-black/70 transition-all duration-300 dark:text-neutral-100",
+                        isZenHeaderCondensed
+                          ? "text-[1.05rem] sm:text-[1.2rem]"
+                          : "text-[1.25rem] sm:text-[1.6rem]"
+                      )}
+                    >
+                      {conversationTitle || "Untitled conversation"}
+                    </h2>
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 text-[11px] font-medium uppercase tracking-[0.16em] text-black/45 transition-all duration-300 sm:text-xs dark:text-neutral-400",
+                        isZenHeaderCondensed &&
+                          "text-black/60 dark:text-neutral-200"
+                      )}
+                    >
+                      {estimatedReadingMinutes > 0 && (
+                        <span>{estimatedReadingMinutes} min read</span>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={closeZenMode}
+                        className={cn(
+                          "h-8 w-8 rounded-full border border-black/10 text-base font-semibold transition focus-visible:ring-black/25 dark:border-white/15 dark:focus-visible:ring-white/25",
+                          isZenHeaderCondensed
+                            ? "bg-black/5 text-black/70 hover:bg-black/10 hover:text-black/90 dark:bg-white/10 dark:text-white/85 dark:hover:bg-white/20 dark:hover:text-white"
+                            : "bg-white/60 text-black/60 hover:bg-black/10 hover:text-black/80 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20 dark:hover:text-white/90"
+                        )}
+                        aria-label="Close Zen Mode"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  </header>
+                  <section className="relative flex-1 overflow-hidden">
+                    <div
+                      ref={zenScrollRef}
+                      onScroll={handleZenScroll}
+                      className="relative flex h-full w-full overflow-y-auto px-0"
+                    >
+                      <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-5 pb-16 pt-10 sm:px-10 sm:pb-18 sm:pt-12">
+                        <article
+                          data-message-id={zenMessageId}
+                          className="stack-xl font-serif text-pretty mx-auto w-full max-w-3xl leading-[1.4]"
+                        >
+                          <StreamingMarkdown
+                            isStreaming={
+                              isStreaming || message.status === "streaming"
+                            }
+                            messageId={zenMessageId}
+                            className="zen-prose !max-w-none font-serif tracking-[0.001em]"
+                          >
+                            {displayContent}
+                          </StreamingMarkdown>
+                        </article>
+
+                        {message.citations && message.citations.length > 0 && (
+                          <aside className="mx-auto w-full max-w-3xl rounded-3xl border border-black/8 bg-white/80 p-6 shadow-[0_35px_60px_-45px_rgba(31,37,55,0.55)] backdrop-blur dark:border-white/10 dark:bg-white/10 dark:shadow-[0_35px_60px_-45px_rgba(0,0,0,0.65)]">
+                            <Citations
+                              citations={message.citations}
+                              messageId={zenMessageId}
+                              content={displayContent}
+                              className="mt-0 text-black/70 [&_*]:text-black/70 [&_a]:text-sky-700 [&_a:hover]:text-sky-900 dark:text-white/80 dark:[&_*]:text-white/80 dark:[&_a]:text-sky-300 dark:[&_a:hover]:text-sky-200"
+                            />
+                          </aside>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </div>
+            </DialogPrimitive.Content>
+          </DialogPortal>
+        </Dialog>
+      )}
     </div>
   );
 };
