@@ -238,9 +238,9 @@ export const SendButtonGroup = ({
         )}
         {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-            <DropdownMenuTrigger asChild>
-              <Tooltip>
-                <TooltipTrigger asChild>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
                   <Button
                     disabled={
                       isLoading || isSummarizing || !isExpanded || isCollapsing
@@ -288,12 +288,12 @@ export const SendButtonGroup = ({
                       )}
                     />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <div className="text-xs">More send options</div>
-                </TooltipContent>
-              </Tooltip>
-            </DropdownMenuTrigger>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">More send options</div>
+              </TooltipContent>
+            </Tooltip>
             <DropdownMenuContent
               align="end"
               sideOffset={8}
