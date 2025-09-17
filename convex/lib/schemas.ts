@@ -210,6 +210,18 @@ export const extendedMessageMetadataSchema = v.object({
   })),
 });
 
+export const ttsAudioCacheEntrySchema = v.object({
+  storageId: v.id("_storage"),
+  voiceId: v.optional(v.string()),
+  modelId: v.optional(v.string()),
+  outputFormat: v.optional(v.string()),
+  optimizeLatency: v.optional(v.string()),
+  textHash: v.string(),
+  createdAt: v.number(),
+  mimeType: v.optional(v.string()),
+  sizeBytes: v.optional(v.number()),
+});
+
 // Common args for model and provider
 export const modelProviderArgs = {
   model: v.optional(v.string()),
@@ -640,6 +652,7 @@ export const messageSchema = v.object({
   citations: v.optional(v.array(webCitationSchema)),
   metadata: v.optional(extendedMessageMetadataSchema),
   imageGeneration: v.optional(imageGenerationSchema), // Add image generation support
+  ttsAudioCache: v.optional(v.array(ttsAudioCacheEntrySchema)),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
 });
