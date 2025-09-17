@@ -31,6 +31,7 @@ import {
   messageStatusSchema,
   providerSchema,
   reasoningConfigSchema,
+  ttsAudioCacheEntrySchema,
   webCitationSchema,
 } from "./lib/schemas";
 
@@ -733,6 +734,18 @@ export const getById = query({
 export const getByIdInternal = internalQuery({
   args: { id: v.id("messages") },
   handler: (ctx, args) => handleGetMessageById(ctx, args.id, false),
+});
+
+export const setTtsAudioCache = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    entries: v.optional(v.array(ttsAudioCacheEntrySchema)),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.messageId, {
+      ttsAudioCache: args.entries ?? undefined,
+    });
+  },
 });
 
 export const getAllInConversationInternal = internalQuery({

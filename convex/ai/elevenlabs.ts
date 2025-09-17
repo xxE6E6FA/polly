@@ -94,6 +94,8 @@ const SUPPORTED_OUTPUT_FORMATS = [
 
 type OutputFormat = (typeof SUPPORTED_OUTPUT_FORMATS)[number];
 
+const MAX_TTS_CACHE_ENTRIES = 5;
+
 function ensureOutputFormat(value: string | undefined, fallback: OutputFormat): OutputFormat {
   return (value && SUPPORTED_OUTPUT_FORMATS.includes(value as OutputFormat)
     ? (value as OutputFormat)
@@ -169,6 +171,25 @@ function normalizeElevenLabsScript(input: string): string {
     .filter(line => !(line.length <= 80 && stageDirectionPattern.test(line)))
     .join("\n\n");
   return result.trim();
+}
+
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function blobToStream(blob: Blob): ReadableStream<Uint8Array> {
+  if (typeof blob.stream === "function") {
+    return blob.stream() as ReadableStream<Uint8Array>;
+  }
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const arrayBuffer = await blob.arrayBuffer();
+      controller.enqueue(new Uint8Array(arrayBuffer));
+      controller.close();
+    },
+  });
 }
 
 type StabilityMode = "creative" | "natural" | "robust" | undefined;
@@ -818,6 +839,11 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       });
     }
 
+    const messageDocId = message._id as Id<"messages">;
+    let cacheEntries = Array.isArray(message.ttsAudioCache)
+      ? [...message.ttsAudioCache]
+      : [];
+
     const conversationId = message.conversationId as Id<"conversations">;
     const apiKey = await getApiKey(ctx as any, "elevenlabs", undefined, conversationId);
     if (!apiKey) {
@@ -902,6 +928,58 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       });
     }
 
+    const textEncoder = new TextEncoder();
+    const scriptHash = arrayBufferToHex(
+      await crypto.subtle.digest("SHA-256", textEncoder.encode(streamingScript))
+    );
+    const targetVoiceId = selectedVoiceId;
+    const targetModelId = selectedModelId;
+    const targetOutputFormat = normalizedOutputFormat;
+    const targetOptimizeLatency = optimizeStreamingLatency ?? undefined;
+
+    const matchingCache = cacheEntries.find(entry => {
+      const entryOptimizeLatency = entry.optimizeLatency ?? undefined;
+      return (
+        entry.textHash === scriptHash &&
+        (entry.voiceId ?? targetVoiceId) === targetVoiceId &&
+        (entry.modelId ?? targetModelId) === targetModelId &&
+        (entry.outputFormat ?? targetOutputFormat) === targetOutputFormat &&
+        entryOptimizeLatency === targetOptimizeLatency
+      );
+    });
+
+    if (matchingCache) {
+      try {
+        const cachedBlob = await ctx.storage.get(matchingCache.storageId);
+        if (cachedBlob) {
+          const cachedStream = blobToStream(cachedBlob);
+          return new Response(cachedStream, {
+            status: 200,
+            headers: {
+              ...corsHeadersBase,
+              "Access-Control-Allow-Origin": origin,
+              "Content-Type":
+                matchingCache.mimeType || (cachedBlob as any).type || "audio/mpeg",
+              "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400",
+            },
+          });
+        }
+        const filtered = cacheEntries.filter(
+          entry => entry.storageId !== matchingCache.storageId
+        );
+        await ctx.runMutation(internal.messages.setTtsAudioCache, {
+          messageId: messageDocId,
+          entries: filtered,
+        });
+        cacheEntries = filtered;
+      } catch (error) {
+        log.warn("Failed to serve cached TTS audio", {
+          messageId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     const upstreamAbortController = new AbortController();
     let upstreamResponse: Response;
     try {
@@ -964,77 +1042,94 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       });
     }
 
-    const reader = upstreamResponse.body.getReader();
-    let requestAborted = false;
-    let upstreamSettled = false;
-
-    const abortUpstream = () => {
-      if (upstreamSettled) return;
-      requestAborted = true;
-      upstreamSettled = true;
-      reader.cancel().catch(() => undefined);
-      upstreamAbortController.abort();
-    };
-
-    const finalizeUpstream = () => {
-      if (upstreamSettled) return;
-      upstreamSettled = true;
-      try {
-        reader.releaseLock();
-      } catch {
-        // ignore release errors
-      }
-      upstreamAbortController.abort();
-    };
-
     if (typeof request.signal?.addEventListener === "function") {
-      request.signal.addEventListener("abort", abortUpstream, { once: true });
+      if (request.signal.aborted) {
+        upstreamAbortController.abort();
+      } else {
+        request.signal.addEventListener("abort", () => upstreamAbortController.abort(), {
+          once: true,
+        });
+      }
     }
 
-    const stream = new ReadableStream<Uint8Array>({
-      start(controller) {
-        (async () => {
-          try {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done || requestAborted) {
-                break;
-              }
-              if (value) {
-                controller.enqueue(value);
-              }
-            }
-            if (!requestAborted) {
-              controller.close();
-            }
-          } catch (error) {
-            if ((error as any)?.name === "AbortError") {
-              controller.close();
-            } else {
-              controller.error(error);
-            }
-          } finally {
-            if (requestAborted) {
-              abortUpstream();
-            } else {
-              finalizeUpstream();
-            }
-          }
-        })().catch(() => {
-          abortUpstream();
-        });
-      },
-      cancel() {
-        abortUpstream();
-      },
-    });
+    const upstreamMimeType = upstreamResponse.headers.get("content-type") || "audio/mpeg";
+    let audioArrayBuffer: ArrayBuffer;
+    try {
+      audioArrayBuffer = await upstreamResponse.arrayBuffer();
+    } catch (error) {
+      upstreamAbortController.abort();
+      const err = error instanceof Error ? error.message : String(error);
+      log.error("Failed to read ElevenLabs audio stream", { error: err });
+      return new Response(JSON.stringify({ error: "Upstream TTS read failed" }), {
+        status: 502,
+        headers: {
+          ...corsHeadersBase,
+          "Access-Control-Allow-Origin": origin,
+          "Content-Type": "application/json",
+        },
+      });
+    }
 
-    return new Response(stream, {
+    const audioBlob = new Blob([audioArrayBuffer], { type: upstreamMimeType });
+
+    try {
+      const storedId = await ctx.storage.store(audioBlob);
+      const cacheEntry = {
+        storageId: storedId,
+        voiceId: targetVoiceId,
+        modelId: targetModelId,
+        outputFormat: targetOutputFormat,
+        ...(targetOptimizeLatency ? { optimizeLatency: targetOptimizeLatency } : {}),
+        textHash: scriptHash,
+        createdAt: Date.now(),
+        mimeType: upstreamMimeType,
+        sizeBytes: audioArrayBuffer.byteLength,
+      } as const;
+
+      const filtered = cacheEntries.filter(entry => {
+        const entryOptimizeLatency = entry.optimizeLatency ?? undefined;
+        return !(
+          entry.textHash === scriptHash &&
+          (entry.voiceId ?? targetVoiceId) === targetVoiceId &&
+          (entry.modelId ?? targetModelId) === targetModelId &&
+          (entry.outputFormat ?? targetOutputFormat) === targetOutputFormat &&
+          entryOptimizeLatency === targetOptimizeLatency
+        );
+      });
+
+      const nextCache = [...filtered, cacheEntry];
+      nextCache.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+      const overflow = nextCache.length > MAX_TTS_CACHE_ENTRIES
+        ? nextCache.slice(0, nextCache.length - MAX_TTS_CACHE_ENTRIES)
+        : [];
+      const cappedCache = nextCache.slice(-MAX_TTS_CACHE_ENTRIES);
+
+      await ctx.runMutation(internal.messages.setTtsAudioCache, {
+        messageId: messageDocId,
+        entries: cappedCache,
+      });
+      cacheEntries = cappedCache;
+
+      if (overflow.length > 0) {
+        await Promise.all(
+          overflow.map(entry =>
+            ctx.storage.delete(entry.storageId).catch(() => undefined)
+          )
+        );
+      }
+    } catch (error) {
+      log.warn("Failed to cache generated TTS audio", {
+        messageId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return new Response(audioBlob.stream(), {
       status: 200,
       headers: {
         ...corsHeadersBase,
         "Access-Control-Allow-Origin": origin,
-        "Content-Type": "audio/mpeg",
+        "Content-Type": upstreamMimeType,
         "Cache-Control": "no-store",
       },
     });
