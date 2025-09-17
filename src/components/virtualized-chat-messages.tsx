@@ -11,7 +11,9 @@ import { VList, type VListHandle } from "virtua";
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
 import { useStreamOverlays } from "@/stores/stream-overlays";
+import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { ChatMessage as ChatMessageType } from "@/types";
+import { ZenModeDialog } from "./chat-message/ZenModeDialog";
 
 type VirtualizedChatMessagesProps = {
   messages: ChatMessageType[];
@@ -73,6 +75,17 @@ interface MessageItemProps {
   // Message selector for efficient re-renders
   messageSelector: (messageId: string) => ChatMessageType | undefined;
 }
+
+const isZenEligibleMessage = (message: ChatMessageType) => {
+  if (message.role !== "assistant") {
+    return false;
+  }
+  if (message.imageGeneration) {
+    return false;
+  }
+  const text = message.content?.trim();
+  return Boolean(text && text.length > 0);
+};
 
 const MessageItem = memo(
   ({
@@ -300,6 +313,10 @@ export const VirtualizedChatMessages = memo(
         return [...contextMessages, ...otherMessages];
       }, [messages]);
 
+      const assistantMessages = useMemo(() => {
+        return processedMessages.filter(msg => msg.role === "assistant");
+      }, [processedMessages]);
+
       // Adaptive overscan for mobile vs desktop to reduce work on mobile
       const overscan = useMemo(() => {
         if (typeof window === "undefined") {
@@ -322,6 +339,51 @@ export const VirtualizedChatMessages = memo(
         );
         return vlistElement as HTMLElement | null;
       }, [vlistId]);
+
+      useEffect(() => {
+        const handleZenScroll = (event: Event) => {
+          const customEvent = event as CustomEvent<{
+            messageId?: string;
+            conversationId?: string | null;
+          }>;
+
+          const payload = customEvent.detail;
+          if (!payload?.messageId) {
+            return;
+          }
+
+          if (
+            conversationId &&
+            payload.conversationId &&
+            payload.conversationId !== conversationId
+          ) {
+            return;
+          }
+
+          const targetIndex = processedMessages.findIndex(
+            msg => msg.id === payload.messageId
+          );
+
+          if (targetIndex === -1) {
+            return;
+          }
+
+          if (vlistRef.current) {
+            vlistRef.current.scrollToIndex(targetIndex, {
+              align: "start",
+              smooth: true,
+            });
+          }
+        };
+
+        window.addEventListener("polly:zen-scroll-to-message", handleZenScroll);
+        return () => {
+          window.removeEventListener(
+            "polly:zen-scroll-to-message",
+            handleZenScroll
+          );
+        };
+      }, [conversationId, processedMessages]);
 
       // New method to scroll just enough to show the start of assistant message
       const scrollToShowAssistantStart = useCallback(() => {
@@ -549,52 +611,199 @@ export const VirtualizedChatMessages = memo(
       }
 
       return (
-        <VList
-          ref={vlistRef}
-          style={{
-            height: "100%",
-            width: "100%",
-            overflow: "auto",
-            contain: "layout style size",
-            paddingTop: "16px",
-            paddingBottom: "20px",
-            // biome-ignore lint/style/useNamingConvention: vendor-specific property
-            WebkitOverflowScrolling: "touch",
-          }}
-          className="overscroll-contain hide-scrollbar md:scrollbar-thin"
-          data-vlist-id={vlistId}
-          reverse // This makes it a chat-like interface
-          overscan={overscan}
-        >
-          {processedMessages.map((message, index) => {
-            const isMessageStreaming =
-              isStreaming &&
-              index === processedMessages.length - 1 &&
-              message.role === "assistant" &&
-              !message.metadata?.finishReason &&
-              !message.metadata?.stopped;
+        <>
+          <VList
+            ref={vlistRef}
+            style={{
+              height: "100%",
+              width: "100%",
+              overflow: "auto",
+              contain: "layout style size",
+              paddingTop: "16px",
+              paddingBottom: "20px",
+              // biome-ignore lint/style/useNamingConvention: vendor-specific property
+              WebkitOverflowScrolling: "touch",
+            }}
+            className="overscroll-contain hide-scrollbar md:scrollbar-thin"
+            data-vlist-id={vlistId}
+            reverse // This makes it a chat-like interface
+            overscan={overscan}
+          >
+            {processedMessages.map((message, index) => {
+              const isMessageStreaming =
+                isStreaming &&
+                index === processedMessages.length - 1 &&
+                message.role === "assistant" &&
+                !message.metadata?.finishReason &&
+                !message.metadata?.stopped;
 
-            return (
-              <MessageItem
-                key={message.id}
-                messageId={message.id}
-                isStreaming={!!isMessageStreaming}
-                conversationId={conversationId}
-                onPreviewAttachment={onPreviewAttachment}
-                onEditMessage={onEditMessage}
-                onRetryUserMessage={onRetryUserMessage}
-                onRetryAssistantMessage={onRetryAssistantMessage}
-                onRefineMessage={onRefineMessage}
-                onDeleteMessage={onDeleteMessage}
-                onRetryImageGeneration={onRetryImageGeneration}
-                messageSelector={messageSelector}
-              />
-            );
-          })}
-        </VList>
+              return (
+                <MessageItem
+                  key={message.id}
+                  messageId={message.id}
+                  isStreaming={!!isMessageStreaming}
+                  conversationId={conversationId}
+                  onPreviewAttachment={onPreviewAttachment}
+                  onEditMessage={onEditMessage}
+                  onRetryUserMessage={onRetryUserMessage}
+                  onRetryAssistantMessage={onRetryAssistantMessage}
+                  onRefineMessage={onRefineMessage}
+                  onDeleteMessage={onDeleteMessage}
+                  onRetryImageGeneration={onRetryImageGeneration}
+                  messageSelector={messageSelector}
+                />
+              );
+            })}
+          </VList>
+          <ZenModeOverlay
+            assistantMessages={assistantMessages}
+            conversationId={conversationId}
+          />
+        </>
       );
     }
   )
 );
 
 VirtualizedChatMessages.displayName = "VirtualizedChatMessages";
+
+type ZenModeOverlayProps = {
+  assistantMessages: ChatMessageType[];
+  conversationId?: string;
+};
+
+const ZenModeOverlay = ({
+  assistantMessages,
+  conversationId,
+}: ZenModeOverlayProps) => {
+  const zenIsOpen = useZenModeStore(s => s.isOpen);
+  const zenConversationId = useZenModeStore(s => s.conversationId);
+  const zenActiveMessageId = useZenModeStore(s => s.activeMessageId);
+  const zenConversationTitle = useZenModeStore(s => s.conversationTitle);
+  const closeZenMode = useZenModeStore(s => s.close);
+  const setZenActiveMessage = useZenModeStore(s => s.setActive);
+
+  const conversationKey = conversationId ?? null;
+
+  const eligibleMessages = useMemo(
+    () => assistantMessages.filter(isZenEligibleMessage),
+    [assistantMessages]
+  );
+
+  const activeIndex = useMemo(() => {
+    if (!zenActiveMessageId) {
+      return -1;
+    }
+    return eligibleMessages.findIndex(msg => msg.id === zenActiveMessageId);
+  }, [eligibleMessages, zenActiveMessageId]);
+
+  const totalMessages = eligibleMessages.length;
+  const hasMultipleMessages = totalMessages > 1;
+
+  const handleNavigate = useCallback(
+    (direction: "prev" | "next") => {
+      if (!hasMultipleMessages || activeIndex < 0) {
+        return false;
+      }
+      const lastIndex = totalMessages - 1;
+      let nextIndex = activeIndex;
+      if (direction === "prev") {
+        nextIndex = activeIndex === 0 ? lastIndex : activeIndex - 1;
+      } else {
+        nextIndex = activeIndex === lastIndex ? 0 : activeIndex + 1;
+      }
+      const nextMessage = eligibleMessages[nextIndex];
+      if (!nextMessage) {
+        return false;
+      }
+      setZenActiveMessage(nextMessage.id);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("polly:zen-scroll-to-message", {
+            detail: {
+              messageId: nextMessage.id,
+              conversationId: conversationKey,
+            },
+          })
+        );
+      }
+      return true;
+    },
+    [
+      activeIndex,
+      conversationKey,
+      eligibleMessages,
+      hasMultipleMessages,
+      setZenActiveMessage,
+      totalMessages,
+    ]
+  );
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        closeZenMode();
+      }
+    },
+    [closeZenMode]
+  );
+
+  useEffect(() => {
+    if (!zenIsOpen) {
+      return;
+    }
+    if (zenConversationId !== conversationKey) {
+      return;
+    }
+    if (eligibleMessages.length === 0) {
+      closeZenMode();
+      return;
+    }
+    const firstEligible = eligibleMessages[0];
+    if (!zenActiveMessageId || activeIndex === -1) {
+      setZenActiveMessage(firstEligible.id);
+    }
+  }, [
+    zenIsOpen,
+    zenConversationId,
+    conversationKey,
+    eligibleMessages,
+    zenActiveMessageId,
+    activeIndex,
+    closeZenMode,
+    setZenActiveMessage,
+  ]);
+
+  if (
+    !zenIsOpen ||
+    zenConversationId !== conversationKey ||
+    eligibleMessages.length === 0 ||
+    activeIndex < 0
+  ) {
+    return null;
+  }
+
+  const activeMessage = eligibleMessages[activeIndex];
+  const content = activeMessage.content ?? "";
+  const citations = activeMessage.citations;
+  const isStreaming = activeMessage.status === "streaming";
+  const messageId = `${activeMessage.id}-zen`;
+  const position = activeIndex + 1;
+
+  return (
+    <ZenModeDialog
+      open
+      onOpenChange={handleOpenChange}
+      conversationTitle={zenConversationTitle || undefined}
+      content={content}
+      citations={citations}
+      isStreaming={isStreaming}
+      messageId={messageId}
+      hasPrev={hasMultipleMessages}
+      hasNext={hasMultipleMessages}
+      onNavigate={hasMultipleMessages ? handleNavigate : undefined}
+      position={position}
+      totalMessages={totalMessages}
+    />
+  );
+};
