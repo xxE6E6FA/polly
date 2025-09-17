@@ -23,7 +23,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-sm group-[.toaster]:rounded-xl font-sans text-sm",
+            "group toast bg-background text-foreground border-border shadow-sm rounded-xl font-sans text-sm",
           description:
             "group-[.toast]:text-muted-foreground group-[.toast]:text-sm group-[.toast]:leading-relaxed",
           actionButton:
@@ -31,12 +31,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           cancelButton:
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:hover:bg-muted/80 group-[.toast]:rounded-lg group-[.toast]:font-medium group-[.toast]:px-3 group-[.toast]:py-1.5 group-[.toast]:text-sm group-[.toast]:transition-all group-[.toast]:duration-200",
           success:
-            "group-[.toaster]:bg-[hsl(var(--color-success-bg))] group-[.toaster]:border-[hsl(var(--color-success-border))] group-[.toaster]:text-emerald-700 dark:group-[.toaster]:text-emerald-400",
+            "!bg-[hsl(var(--color-success-bg))] !border-[hsl(var(--color-success-border))] text-emerald-700 dark:text-emerald-400",
           error:
-            "group-[.toaster]:bg-[hsl(var(--color-danger-bg))] group-[.toaster]:border-[hsl(var(--color-danger-border))] group-[.toaster]:text-red-700 dark:group-[.toaster]:text-red-400",
+            "!bg-[hsl(var(--color-danger-bg))] !border-[hsl(var(--color-danger-border))] text-red-700 dark:text-red-400",
           warning:
-            "group-[.toaster]:bg-[hsl(var(--color-warning-bg))] group-[.toaster]:border-[hsl(var(--color-warning-border))] group-[.toaster]:text-amber-700 dark:group-[.toaster]:text-amber-400",
-          info: "group-[.toaster]:bg-[hsl(var(--color-info-bg))] group-[.toaster]:border-[hsl(var(--color-info-border))] group-[.toaster]:text-blue-700 dark:group-[.toaster]:text-blue-400",
+            "!bg-[hsl(var(--color-warning-bg))] !border-[hsl(var(--color-warning-border))] text-amber-700 dark:text-amber-400",
+          info: "!bg-[hsl(var(--color-info-bg))] !border-[hsl(var(--color-info-border))] text-blue-700 dark:text-blue-400",
         },
       }}
       {...props}
