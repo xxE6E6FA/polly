@@ -1391,6 +1391,205 @@ pre {
   @apply px-0;
 }
 
+.zen-prose .prose {
+  --tw-prose-quote-borders: rgba(15, 23, 42, 0.18);
+  --tw-prose-hr: rgba(15, 23, 42, 0.12);
+  --tw-prose-pre-bg: rgba(15, 23, 42, 0.08);
+  --tw-prose-th-borders: rgba(15, 23, 42, 0.22);
+  --tw-prose-td-borders: rgba(15, 23, 42, 0.12);
+  color: rgba(35, 33, 31, 0.88);
+}
+
+.dark .zen-prose .prose {
+  --tw-prose-quote-borders: rgba(240, 236, 255, 0.28);
+  --tw-prose-hr: rgba(240, 236, 255, 0.1);
+  --tw-prose-pre-bg: rgba(240, 236, 255, 0.12);
+  --tw-prose-th-borders: rgba(240, 236, 255, 0.22);
+  --tw-prose-td-borders: rgba(240, 236, 255, 0.14);
+  color: rgba(241, 238, 231, 0.92);
+}
+
+.zen-prose .prose :where(p):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(1.4rem, 0.9vw + 1.05rem, 1.75rem);
+  line-height: clamp(1.8, 0.6vw + 1.55, 2.0);
+}
+
+.zen-prose .prose :where(li):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(1.3rem, 0.8vw + 1rem, 1.6rem);
+  line-height: clamp(1.7, 0.6vw + 1.5, 1.95);
+}
+
+.zen-prose .prose :where(h1, h2, h3, h4):not(:where([class~="not-prose"] *)) {
+  font-weight: 600;
+  line-height: clamp(1.05, 0.35vw + 0.95, 1.12);
+}
+
+.zen-prose .prose :where(h1):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(2.1rem, 1.8vw + 1.4rem, 2.8rem);
+}
+
+.zen-prose .prose :where(h2):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(1.9rem, 1.5vw + 1.25rem, 2.4rem);
+}
+
+.zen-prose .prose :where(h3):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(1.6rem, 1.2vw + 1.05rem, 2.1rem);
+}
+
+.zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  margin: clamp(1.25rem, 0.7vw + 1rem, 2rem) 0;
+  font-style: italic;
+  color: rgba(35, 33, 31, 0.78);
+  background: rgba(255, 255, 255, 0.72);
+  border-radius: 1rem;
+  border-left: 6px solid rgba(35, 33, 31, 0.25);
+  padding: clamp(1.2rem, 0.7vw + 1rem, 1.8rem) clamp(1.4rem, 1vw + 1rem, 2.2rem);
+  position: relative;
+  width: 100%;
+  box-shadow: 0 22px 48px -32px rgba(31, 37, 55, 0.28);
+}
+
+.dark .zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  color: rgba(241, 238, 231, 0.88);
+  background: rgba(14, 16, 24, 0.86);
+  border-left: 6px solid rgba(144, 137, 204, 0.38);
+  box-shadow: 0 22px 48px -32px rgba(0, 0, 0, 0.55);
+}
+
+.zen-prose .prose :where(blockquote)::before {
+  content: "“";
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.2rem, 2vw + 1.2rem, 3.4rem);
+  position: absolute;
+  top: clamp(0.2rem, 0.1vw + 0.05rem, 0.4rem);
+  left: clamp(0.6rem, 0.4vw + 0.4rem, 1.1rem);
+  color: rgba(35, 33, 31, 0.25);
+  line-height: 1;
+}
+
+.dark .zen-prose .prose :where(blockquote)::before {
+  color: rgba(140, 132, 200, 0.35);
+}
+
+.zen-prose .prose :where(blockquote p):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(1.5rem, 0.85vw + 1.1rem, 1.85rem);
+  line-height: clamp(1.85, 0.6vw + 1.6, 2.05);
+  margin: 0;
+}
+
+.zen-prose .prose :where(table):not(:where([class~="not-prose"] *)) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: clamp(1.5rem, 0.8vw + 1.2rem, 2.5rem) 0;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 50px -35px rgba(31, 37, 55, 0.25);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.dark .zen-prose .prose :where(table):not(:where([class~="not-prose"] *)) {
+  background: rgba(14, 16, 24, 0.86);
+  box-shadow: 0 20px 50px -35px rgba(0, 0, 0, 0.6);
+}
+
+.zen-prose .prose :where(table thead tr):not(:where([class~="not-prose"] *)) {
+  background: rgba(35, 33, 31, 0.07);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dark .zen-prose .prose :where(table thead tr):not(:where([class~="not-prose"] *)) {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.zen-prose .prose :where(th):not(:where([class~="not-prose"] *)) {
+  padding: clamp(0.85rem, 0.6vw + 0.7rem, 1.25rem);
+  text-align: left;
+  font-size: clamp(1.1rem, 0.5vw + 0.95rem, 1.35rem);
+  font-weight: 600;
+  color: rgba(35, 33, 31, 0.72);
+  border-bottom: 1px solid rgba(35, 33, 31, 0.12);
+}
+
+.dark .zen-prose .prose :where(th):not(:where([class~="not-prose"] *)) {
+  color: rgba(238, 236, 230, 0.9);
+  border-bottom: 1px solid rgba(240, 236, 255, 0.1);
+}
+
+.zen-prose .prose :where(td):not(:where([class~="not-prose"] *)) {
+  padding: clamp(0.85rem, 0.6vw + 0.7rem, 1.25rem);
+  font-size: clamp(1.05rem, 0.5vw + 0.9rem, 1.3rem);
+  line-height: 1.65;
+  border-bottom: 1px solid rgba(35, 33, 31, 0.08);
+}
+
+.dark .zen-prose .prose :where(td):not(:where([class~="not-prose"] *)) {
+  color: rgba(232, 228, 222, 0.85);
+  border-bottom: 1px solid rgba(240, 236, 255, 0.08);
+}
+
+.zen-prose .prose :where(tbody tr:nth-child(even)):not(:where([class~="not-prose"] *)) {
+  background: rgba(35, 33, 31, 0.03);
+}
+
+.dark .zen-prose .prose :where(tbody tr:nth-child(even)):not(:where([class~="not-prose"] *)) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.zen-prose .prose :where(tbody tr:last-child td):not(:where([class~="not-prose"] *)) {
+  border-bottom: none;
+}
+
+.zen-prose .prose :where(pre):not(:where([class~="not-prose"] *)) {
+  margin: clamp(1.5rem, 0.8vw + 1.1rem, 2.5rem) 0;
+  padding: clamp(1.2rem, 0.7vw + 1rem, 1.8rem);
+  border-radius: 1.25rem;
+  background: rgba(15, 23, 42, 0.14);
+  color: rgba(240, 244, 255, 0.96);
+  box-shadow: 0 24px 60px -38px rgba(15, 23, 42, 0.35);
+  position: relative;
+  overflow: auto;
+}
+
+.dark .zen-prose .prose :where(pre):not(:where([class~="not-prose"] *)) {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(234, 238, 255, 0.95);
+  box-shadow: 0 24px 60px -38px rgba(0, 0, 0, 0.55);
+}
+
+.zen-prose .prose :where(pre)::before {
+  content: "";
+  position: absolute;
+  inset: 12px auto auto 12px;
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 16px 0 0 #fbbf24, 32px 0 0 #34d399;
+  opacity: 0.85;
+}
+
+.zen-prose .prose :where(pre code):not(:where([class~="not-prose"] *)) {
+  font-size: clamp(0.95rem, 0.45vw + 0.75rem, 1.2rem);
+  line-height: 1.6;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  background: transparent;
+  padding: 0;
+}
+
+.zen-prose .prose :where(code):not(:where(pre code, [class~="not-prose"] *)) {
+  background: rgba(15, 23, 42, 0.08);
+  border-radius: 0.55rem;
+  padding: 0.2em 0.45em;
+  font-size: clamp(0.9rem, 0.3vw + 0.78rem, 1.05rem);
+}
+
+.dark .zen-prose .prose :where(code):not(:where(pre code, [class~="not-prose"] *)) {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(247, 247, 255, 0.92);
+}
+
 /* Mobile sidebar elevation - stronger, right-biased drop shadows using theme tokens */
 .mobile-sidebar-elevation {
     box-shadow:

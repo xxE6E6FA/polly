@@ -13,6 +13,7 @@ import {
   NotePencilIcon,
   SpeakerHighIcon,
   Square,
+  TextAaIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
@@ -807,6 +808,7 @@ type MessageActionsProps = {
     instruction?: string
   ) => void;
   onDeleteMessage?: () => void;
+  onOpenZenMode?: () => void;
   model?: string;
   provider?: string;
   className?: string;
@@ -829,6 +831,7 @@ export const MessageActions = memo(
     onRetryMessage,
     onRefineMessage,
     onDeleteMessage,
+    onOpenZenMode,
     model,
     provider,
     className,
@@ -1053,6 +1056,15 @@ export const MessageActions = memo(
                   ? "hover:bg-red-50 dark:hover:bg-red-950/20"
                   : undefined
               }
+            />
+          )}
+          {!isUser && onOpenZenMode && (
+            <ActionButton
+              disabled={isEditing}
+              tooltip="Zen mode"
+              ariaLabel="Open this message in Zen Mode"
+              icon={<TextAaIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+              onClick={onOpenZenMode}
             />
           )}
           <ActionButton
