@@ -37,6 +37,9 @@ const CodeBlockComponent = ({
   const componentRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  const headerButtonClass =
+    "h-7 w-7 rounded border border-border/60 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background";
+
   const processedCode = code;
   const processedLanguage = language;
 
@@ -149,10 +152,17 @@ const CodeBlockComponent = ({
   }, []);
 
   return (
-    <div className="group" ref={componentRef}>
-      <div className={cn("relative mt-2 flex w-full flex-col pt-9", className)}>
+    <div
+      className={cn(
+        "group relative mt-2 w-[calc(100%+24px)] max-w-none sm:w-[calc(100%+48px)]",
+        "mx-[-12px] sm:mx-[-24px]",
+        className
+      )}
+      ref={componentRef}
+    >
+      <div className="rounded-xl border border-border/60 bg-surface-variant/90 dark:bg-surface/70 shadow-sm">
         {/* Header with language and actions */}
-        <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t border border-border/60 border-b-0 bg-surface-variant/80 dark:bg-surface/60 backdrop-blur-xs px-4 py-2 text-[13px]">
+        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/60 bg-surface-variant/80 dark:bg-surface/60 backdrop-blur-xs px-3 text-[13px] sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -160,7 +170,7 @@ const CodeBlockComponent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className="h-7 w-7 p-0 text-muted-foreground hover:bg-accent/40 hover:text-foreground"
+                  className={headerButtonClass}
                   size="sm"
                   variant="ghost"
                   onClick={handleDownload}
@@ -178,8 +188,8 @@ const CodeBlockComponent = ({
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    "h-7 w-7 p-0 text-muted-foreground hover:bg-accent/40 hover:text-foreground",
-                    wordWrap && "bg-accent/50 text-foreground"
+                    headerButtonClass,
+                    wordWrap && "bg-accent/40 text-foreground border-accent/40"
                   )}
                   onClick={() => setWordWrap(!wordWrap)}
                 >
@@ -190,114 +200,93 @@ const CodeBlockComponent = ({
                 <p>{wordWrap ? "Disable word wrap" : "Enable word wrap"}</p>
               </TooltipContent>
             </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="h-7 w-7 p-0 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCopy}
-                >
-                  <div className="relative h-4 w-4">
-                    {copied ? (
-                      <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
-                    ) : (
-                      <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
-                    )}
-                  </div>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy code</p>
-              </TooltipContent>
-            </Tooltip>
+            <span
+              aria-hidden="true"
+              className="inline-block h-7 w-7 rounded border border-transparent"
+            />
           </div>
         </div>
-
-        {/* Sticky copy button - positioned to align perfectly with header button */}
-        <div className="sticky left-auto z-[1] ml-auto h-1.5 w-7 transition-[top] top-[42px]">
-          <div className="absolute -top-8 right-4">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  className="h-7 w-7 p-0 border-none relative top-[0.5px] -left-[1px] rounded border bg-surface text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCopy}
-                  aria-label="Copy code to clipboard"
-                >
-                  <div className="relative h-4 w-4">
-                    {copied ? (
-                      <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
-                    ) : (
-                      <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
-                    )}
-                  </div>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy code (Cmd+Shift+C)</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Spacer to adjust layout - matches reference */}
-        <div className="-mb-1.5" />
-
-        {/* Code content */}
-        <div
-          ref={codeContainerRef}
-          className="relative overflow-hidden rounded-b-lg border border-border/60 bg-surface-variant/90 dark:bg-surface/70 shadow-sm"
-        >
-          {isVisible ? (
-            <Highlight
-              code={processedCode.trim()}
-              language={processedLanguage}
-              theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
-            >
-              {({
-                className: highlightClassName,
-                style,
-                tokens,
-                getLineProps,
-                getTokenProps,
-              }) => (
-                <pre
-                  className={cn(
-                    highlightClassName,
-                    "m-0 overflow-x-auto p-4 text-[13px] leading-6 font-mono",
-                    wordWrap &&
-                      "whitespace-pre-wrap break-words overflow-x-visible"
-                  )}
-                  style={{
-                    ...style,
-                    backgroundColor: "transparent",
-                  }}
-                >
-                  {tokens.map((line, i) => (
-                    <div key={`line-${i}`} {...getLineProps({ line })}>
-                      {line.map((token, key) => (
-                        <span
-                          key={`token-${i}-${key}`}
-                          {...getTokenProps({ token })}
-                        />
-                      ))}
+        <div className="relative">
+          {/* Sticky copy button - positioned to align with header buttons */}
+          <div className="pointer-events-none sticky top-[42px] z-[3] h-0">
+            <div className="pointer-events-auto absolute -top-8 right-3 sm:right-6">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className={headerButtonClass}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCopy}
+                    aria-label="Copy code to clipboard"
+                  >
+                    <div className="relative h-4 w-4">
+                      {copied ? (
+                        <CheckIcon className="absolute inset-0 h-3 w-3 text-primary transition-all duration-200" />
+                      ) : (
+                        <CopyIcon className="absolute inset-0 h-3 w-3 transition-all duration-200" />
+                      )}
                     </div>
-                  ))}
-                </pre>
-              )}
-            </Highlight>
-          ) : (
-            <pre
-              className={cn(
-                "m-0 overflow-x-auto p-4 text-sm font-mono opacity-60",
-                wordWrap && "whitespace-pre-wrap break-words overflow-x-visible"
-              )}
-            >
-              {processedCode.trim()}
-            </pre>
-          )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Copy code (Cmd+Shift+C)</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Code content */}
+          <div ref={codeContainerRef} className="relative pt-3">
+            {isVisible ? (
+              <Highlight
+                code={processedCode.trim()}
+                language={processedLanguage}
+                theme={theme === "dark" ? darkSyntaxTheme : lightSyntaxTheme}
+              >
+                {({
+                  className: highlightClassName,
+                  style,
+                  tokens,
+                  getLineProps,
+                  getTokenProps,
+                }) => (
+                  <pre
+                    className={cn(
+                      highlightClassName,
+                      "m-0 overflow-x-auto py-4 px-3 text-[14px] leading-[1.7] font-mono sm:px-6 sm:text-[15px]",
+                      wordWrap &&
+                        "whitespace-pre-wrap break-words overflow-x-visible"
+                    )}
+                    style={{
+                      ...style,
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    {tokens.map((line, i) => (
+                      <div key={`line-${i}`} {...getLineProps({ line })}>
+                        {line.map((token, key) => (
+                          <span
+                            key={`token-${i}-${key}`}
+                            {...getTokenProps({ token })}
+                          />
+                        ))}
+                      </div>
+                    ))}
+                  </pre>
+                )}
+              </Highlight>
+            ) : (
+              <pre
+                className={cn(
+                  "m-0 overflow-x-auto py-4 px-3 text-[14px] font-mono leading-[1.7] opacity-60 sm:px-6 sm:text-[15px]",
+                  wordWrap &&
+                    "whitespace-pre-wrap break-words overflow-x-visible"
+                )}
+              >
+                {processedCode.trim()}
+              </pre>
+            )}
+          </div>
         </div>
       </div>
     </div>
