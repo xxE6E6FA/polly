@@ -72,6 +72,36 @@ export const SendButtonGroup = ({
     !isStreaming &&
     hasInputText;
 
+  const [hoveredSegment, setHoveredSegment] = useState<
+    "dropdown" | "send" | null
+  >(null);
+
+  const dropdownHighlightClass =
+    hoveredSegment === "dropdown"
+      ? isStreaming
+        ? "bg-danger/80"
+        : canSend
+          ? "bg-primary/80"
+          : "bg-primary/15"
+      : "bg-transparent";
+
+  const sendHighlightClass =
+    hoveredSegment === "send"
+      ? isStreaming
+        ? "bg-danger/75"
+        : canSend
+          ? "bg-primary/80"
+          : "bg-primary/15"
+      : "bg-transparent";
+
+  useEffect(() => {
+    if (dropdownOpen) {
+      setHoveredSegment("dropdown");
+    } else {
+      setHoveredSegment(prev => (prev === "dropdown" ? null : prev));
+    }
+  }, [dropdownOpen]);
+
   const getButtonTitle = () => {
     if (isStreaming) {
       return "Stop generation";
@@ -189,6 +219,23 @@ export const SendButtonGroup = ({
               : undefined,
         }}
       >
+        {(isExpanded || isCollapsing) && (
+          <div className="pointer-events-none absolute inset-0 flex overflow-hidden rounded-full">
+            {/* Hover/focus background highlight for each segment when pill is expanded */}
+            <div
+              className={cn(
+                "flex-1 transition-colors duration-200",
+                dropdownHighlightClass
+              )}
+            />
+            <div
+              className={cn(
+                "flex-1 transition-colors duration-200",
+                sendHighlightClass
+              )}
+            />
+          </div>
+        )}
         {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <DropdownMenuTrigger asChild>
@@ -206,17 +253,33 @@ export const SendButtonGroup = ({
                       "absolute left-0 top-0 bottom-0",
                       "w-8 h-8 p-0",
                       "inline-flex items-center justify-center rounded-full",
+                      "relative z-10",
                       "transition-all transform-gpu",
                       // Upload-like hover/active scale when expanded
                       "hover:scale-105 active:scale-95",
                       dropdownMenuTriggerAnimationClasses,
-                      !isCollapsing && "hover:bg-black/5 dark:hover:bg-white/5",
+                      "hover:bg-transparent",
+                      "focus-visible:bg-transparent",
                       "disabled:cursor-not-allowed",
                       // Focus ring: use outside ring like upload/send
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                       // Text color to drive icon via text-current
-                      "text-primary-foreground"
+                      "text-primary-foreground",
+                      "hover:text-primary-foreground",
+                      "focus-visible:text-primary-foreground"
                     )}
+                    onMouseEnter={() => setHoveredSegment("dropdown")}
+                    onFocus={() => setHoveredSegment("dropdown")}
+                    onMouseLeave={() =>
+                      setHoveredSegment(prev =>
+                        prev === "dropdown" ? null : prev
+                      )
+                    }
+                    onBlur={() =>
+                      setHoveredSegment(prev =>
+                        prev === "dropdown" ? null : prev
+                      )
+                    }
                   >
                     <CaretDownIcon
                       className={cn(
@@ -303,12 +366,21 @@ export const SendButtonGroup = ({
                 "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
                 // Use flexbox centering to align icon perfectly
                 "flex items-center justify-center",
+                "relative z-10",
                 // Keep icon color in sync with state
                 isStreaming || canSend
-                  ? "text-primary-foreground"
-                  : "text-primary dark:text-primary/70",
-                // Match FileUploadButton hover behavior while keeping group bg
-                canSend && "hover:bg-black/5 dark:hover:bg-white/5",
+                  ? [
+                      "text-primary-foreground",
+                      "hover:text-primary-foreground",
+                      "focus-visible:text-primary-foreground",
+                    ]
+                  : [
+                      "text-primary dark:text-primary/70",
+                      "hover:text-primary dark:hover:text-primary/70",
+                    ],
+                "hover:bg-transparent",
+                "focus-visible:bg-transparent",
+                // Background highlight handled by the overlay above; keep button surface transparent
                 "disabled:cursor-not-allowed",
                 "transition-colors duration-200",
                 // Focus ring: use outside ring like upload for consistency
@@ -321,6 +393,14 @@ export const SendButtonGroup = ({
                   onSend();
                 }
               }}
+              onMouseEnter={() => setHoveredSegment("send")}
+              onFocus={() => setHoveredSegment("send")}
+              onMouseLeave={() =>
+                setHoveredSegment(prev => (prev === "send" ? null : prev))
+              }
+              onBlur={() =>
+                setHoveredSegment(prev => (prev === "send" ? null : prev))
+              }
             >
               {renderButtonContent}
             </Button>
