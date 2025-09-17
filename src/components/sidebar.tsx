@@ -333,20 +333,18 @@ export const Sidebar = () => {
                 !user.isAnonymous &&
                 favorites &&
                 favorites.total > 0 && (
-                  <div className="pb-2">
+                  <div className="pt-1 pb-2">
                     <Link to={ROUTES.FAVORITES}>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start gap-1 h-auto py-1.5 px-2 hover:bg-accent/70"
+                        className="w-full justify-start gap-2 h-auto py-1.5 px-2 rounded-md border border-border/60 bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted"
                       >
                         <HeartIcon
-                          className="h-3.5 w-3.5 text-destructive"
+                          className="h-4 w-4 text-muted-foreground"
                           weight="fill"
                         />
-                        <span className="text-xs font-medium uppercase tracking-wider text-foreground/70">
-                          Favorites
-                        </span>
+                        <span className="text-xs font-medium">Favorites</span>
                       </Button>
                     </Link>
                   </div>
