@@ -1,4 +1,3 @@
-import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   useCallback,
@@ -9,11 +8,12 @@ import {
   useState,
 } from "react";
 import { Citations } from "@/components/citations";
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types";
+import { useZenDisplaySettings } from "./use-zen-display-settings";
+import { ZenModeHeader } from "./ZenModeHeader";
 
 const ZEN_HEADER_CONDENSE_OFFSET = 48;
 const ZEN_HEADER_HIDE_THRESHOLD = 96;
@@ -52,12 +52,17 @@ export const ZenModeDialog = ({
   const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [isDisplayOptionsOpen, setIsDisplayOptionsOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollTopRef = useRef(0);
   const baseHeaderHeight = headerHeight || 112;
   const contentTopPadding = baseHeaderHeight + ZEN_CONTENT_SCROLL_PADDING;
   const contentBottomPadding = ZEN_CONTENT_SCROLL_PADDING;
+
+  const displaySettingsControls = useZenDisplaySettings();
+  const { widthClass, fontFamilyClass, trackingClass, zenTypographyStyle } =
+    displaySettingsControls;
 
   const zenMessageId = useMemo(() => `${messageId}-zen`, [messageId]);
   const estimatedReadingMinutes = useMemo(() => {
@@ -82,6 +87,7 @@ export const ZenModeDialog = ({
       setIsHeaderCondensed(false);
       setIsHeaderHidden(false);
       setHeaderHeight(0);
+      setIsDisplayOptionsOpen(false);
       lastScrollTopRef.current = 0;
     }
   }, [open]);
@@ -153,12 +159,11 @@ export const ZenModeDialog = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open, onNavigate]);
 
-  const headerButtonClass = cn(
-    "h-8 w-8 rounded-full border border-black/10 text-base transition focus-visible:ring-black/25 disabled:opacity-40 disabled:pointer-events-none dark:border-white/15 dark:focus-visible:ring-white/25",
-    isHeaderCondensed
-      ? "bg-black/5 text-black/70 hover:bg-black/10 hover:text-black/90 dark:bg-white/10 dark:text-white/85 dark:hover:bg-white/20 dark:hover:text-white"
-      : "bg-white/60 text-black/60 hover:bg-black/10 hover:text-black/80 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/20 dark:hover:text-white/90"
-  );
+  const handleTopEdgePointerEnter = useCallback(() => {
+    if (isHeaderHidden) {
+      setIsHeaderHidden(false);
+    }
+  }, [isHeaderHidden]);
 
   const handleScroll = useCallback(() => {
     const container = scrollRef.current;
@@ -167,6 +172,13 @@ export const ZenModeDialog = ({
     }
 
     const currentScrollTop = container.scrollTop;
+    const lastScrollTop = lastScrollTopRef.current;
+    const delta = currentScrollTop - lastScrollTop;
+
+    if (isDisplayOptionsOpen && Math.abs(delta) > ZEN_HEADER_SCROLLED_DELTA) {
+      setIsDisplayOptionsOpen(false);
+    }
+
     const shouldCondense = currentScrollTop > ZEN_HEADER_CONDENSE_OFFSET;
 
     setIsHeaderCondensed(prev =>
@@ -179,9 +191,6 @@ export const ZenModeDialog = ({
       return;
     }
 
-    const lastScrollTop = lastScrollTopRef.current;
-    const delta = currentScrollTop - lastScrollTop;
-
     if (
       delta > ZEN_HEADER_SCROLLED_DELTA &&
       currentScrollTop > ZEN_HEADER_HIDE_THRESHOLD
@@ -192,7 +201,7 @@ export const ZenModeDialog = ({
     }
 
     lastScrollTopRef.current = currentScrollTop;
-  }, []);
+  }, [isDisplayOptionsOpen]);
 
   const closeZenMode = useCallback(() => onOpenChange(false), [onOpenChange]);
 
@@ -208,95 +217,35 @@ export const ZenModeDialog = ({
         >
           <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#f6f2ea] text-[#23211f] dark:bg-[#111012] dark:text-[#f1ece4]">
             <div className="relative z-[1] flex h-full flex-col overflow-hidden">
-              <header
+              <div
+                aria-hidden="true"
+                className="fixed inset-x-0 z-[69]"
+                onPointerEnter={handleTopEdgePointerEnter}
+                style={{
+                  top: 0,
+                  height: baseHeaderHeight,
+                  pointerEvents: isHeaderHidden ? "auto" : "none",
+                }}
+              />
+              <ZenModeHeader
                 ref={headerRef}
-                className={cn(
-                  "fixed inset-x-0 z-[70] flex items-center justify-between gap-3 border-b border-black/5 px-5 transition-[top,opacity,padding] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] sm:px-10 dark:border-white/10",
-                  "transform-gpu backdrop-blur-md supports-[backdrop-filter]:backdrop-blur-xl",
-                  isHeaderCondensed
-                    ? "bg-white/70 supports-[backdrop-filter]:bg-white/45 py-2.5 dark:bg-[#11111a]/70 dark:supports-[backdrop-filter]:bg-[#11111a]/45"
-                    : "bg-white/55 supports-[backdrop-filter]:bg-white/35 py-5 sm:py-7 dark:bg-[#11111a]/60 dark:supports-[backdrop-filter]:bg-[#11111a]/40",
-                  isHeaderHidden &&
-                    "pointer-events-none opacity-0 border-transparent"
-                )}
-                style={{ top: `${isHeaderHidden ? -baseHeaderHeight : 0}px` }}
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  {showNavigation && (
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={headerButtonClass}
-                        onClick={() => onNavigate?.("prev")}
-                        disabled={!hasPrev}
-                        aria-label="Previous assistant message"
-                      >
-                        <ArrowLeftIcon className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={headerButtonClass}
-                        onClick={() => onNavigate?.("next")}
-                        disabled={!hasNext}
-                        aria-label="Next assistant message"
-                      >
-                        <ArrowRightIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <h2
-                      className={cn(
-                        "truncate font-heading font-semibold tracking-[-0.008em] text-black/70 transition-all duration-300 dark:text-neutral-100",
-                        isHeaderCondensed
-                          ? "text-[1.05rem] sm:text-[1.2rem]"
-                          : "text-[1.25rem] sm:text-[1.6rem]"
-                      )}
-                    >
-                      {conversationTitle || "Untitled conversation"}
-                    </h2>
-                    {showCounter && (
-                      <span
-                        className={cn(
-                          "mt-1 inline-flex items-center rounded-full border border-black/10 px-2 py-0.5 text-[11px] font-semibold tracking-[0.16em] text-black/55 transition-all duration-300 dark:border-white/15 dark:text-neutral-200",
-                          isHeaderCondensed &&
-                            "text-black/70 dark:text-neutral-100"
-                        )}
-                        aria-label={`Assistant message ${position} of ${totalMessages}`}
-                      >
-                        {position}/{totalMessages}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {estimatedReadingMinutes > 0 && (
-                    <span
-                      className={cn(
-                        "text-[11px] font-medium uppercase tracking-[0.16em] text-black/45 transition-all duration-300 sm:text-xs dark:text-neutral-400",
-                        isHeaderCondensed &&
-                          "text-black/60 dark:text-neutral-200"
-                      )}
-                    >
-                      {estimatedReadingMinutes} min read
-                    </span>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={closeZenMode}
-                    className={cn(headerButtonClass, "font-semibold")}
-                    aria-label="Close Zen Mode"
-                  >
-                    ×
-                  </Button>
-                </div>
-              </header>
+                conversationTitle={conversationTitle}
+                showNavigation={showNavigation}
+                hasPrev={hasPrev}
+                hasNext={hasNext}
+                onNavigate={onNavigate}
+                showCounter={showCounter}
+                position={position}
+                totalMessages={totalMessages}
+                estimatedReadingMinutes={estimatedReadingMinutes}
+                isHeaderCondensed={isHeaderCondensed}
+                isHeaderHidden={isHeaderHidden}
+                baseHeaderHeight={baseHeaderHeight}
+                onClose={closeZenMode}
+                displaySettingsControls={displaySettingsControls}
+                isDisplayOptionsOpen={isDisplayOptionsOpen}
+                onDisplayOptionsOpenChange={setIsDisplayOptionsOpen}
+              />
               <section className="relative flex-1 overflow-hidden">
                 <div
                   ref={scrollRef}
@@ -310,15 +259,27 @@ export const ZenModeDialog = ({
                   <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-5 pb-16 sm:px-10 sm:pb-18">
                     <article
                       data-message-id={zenMessageId}
-                      className="stack-xl font-serif text-pretty mx-auto w-full max-w-3xl leading-[1.4] pb-20 sm:pb-28"
+                      className={cn(
+                        "stack-xl text-pretty mx-auto w-full pb-20 transition-[max-width] duration-300 sm:pb-28",
+                        widthClass,
+                        fontFamilyClass
+                      )}
                     >
-                      <StreamingMarkdown
-                        isStreaming={isStreaming}
-                        messageId={zenMessageId}
-                        className="zen-prose !max-w-none font-serif tracking-[0.001em]"
+                      <div
+                        className={cn("zen-prose", fontFamilyClass)}
+                        style={zenTypographyStyle}
                       >
-                        {content}
-                      </StreamingMarkdown>
+                        <StreamingMarkdown
+                          isStreaming={isStreaming}
+                          messageId={zenMessageId}
+                          className={cn(
+                            "!max-w-none text-current",
+                            trackingClass
+                          )}
+                        >
+                          {content}
+                        </StreamingMarkdown>
+                      </div>
                     </article>
 
                     {citations && citations.length > 0 && (
