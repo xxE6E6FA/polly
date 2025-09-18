@@ -80,6 +80,7 @@ describe("local-storage", () => {
     // Persistent keys
     set(CACHE_KEYS.sidebar, { open: true });
     set(CACHE_KEYS.theme, "dark");
+    set(CACHE_KEYS.zenDisplayPreferences, { fontSizeIndex: 2 });
 
     // Non-persistent keys
     set(CACHE_KEYS.apiKeys, { openai: "sk-test" });
@@ -92,6 +93,9 @@ describe("local-storage", () => {
     // Persistent remain
     expect(localStorage.getItem(buildKey(CACHE_KEYS.sidebar))).not.toBeNull();
     expect(localStorage.getItem(buildKey(CACHE_KEYS.theme))).not.toBeNull();
+    expect(
+      localStorage.getItem(buildKey(CACHE_KEYS.zenDisplayPreferences))
+    ).not.toBeNull();
 
     // Others cleared
     expect(localStorage.getItem(buildKey(CACHE_KEYS.apiKeys))).toBeNull();
@@ -114,6 +118,7 @@ describe("local-storage", () => {
     // Persistent keys that should remain
     set(CACHE_KEYS.sidebar, { open: false });
     set(CACHE_KEYS.theme, "light");
+    set(CACHE_KEYS.zenDisplayPreferences, { fontSizeIndex: 2 });
 
     clearUserData();
 
@@ -134,5 +139,8 @@ describe("local-storage", () => {
     // Persistent remain
     expect(localStorage.getItem(buildKey(CACHE_KEYS.sidebar))).not.toBeNull();
     expect(localStorage.getItem(buildKey(CACHE_KEYS.theme))).not.toBeNull();
+    expect(
+      localStorage.getItem(buildKey(CACHE_KEYS.zenDisplayPreferences))
+    ).not.toBeNull();
   });
 });

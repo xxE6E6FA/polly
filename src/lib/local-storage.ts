@@ -17,6 +17,7 @@ export const CACHE_KEYS = {
   userData: "user-data",
   anonymousUserGraduation: "anonymous-user-graduation",
   recentModels: "recent-models",
+  zenDisplayPreferences: "zen-display-preferences",
 } as const;
 
 export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
@@ -24,6 +25,7 @@ export type CacheKey = (typeof CACHE_KEYS)[keyof typeof CACHE_KEYS];
 const PERSISTENT_KEYS = new Set<CacheKey>([
   CACHE_KEYS.sidebar,
   CACHE_KEYS.theme,
+  CACHE_KEYS.zenDisplayPreferences,
 ]);
 
 export function buildKey(key: CacheKey): string {
