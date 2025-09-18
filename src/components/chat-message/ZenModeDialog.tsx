@@ -19,6 +19,7 @@ const ZEN_HEADER_CONDENSE_OFFSET = 48;
 const ZEN_HEADER_HIDE_THRESHOLD = 96;
 const ZEN_HEADER_SCROLLED_DELTA = 6;
 const ZEN_CONTENT_SCROLL_PADDING = 48;
+const ZEN_EXIT_ANIMATION_MS = 320;
 
 type ZenModeDialogProps = {
   open: boolean;
@@ -49,6 +50,7 @@ export const ZenModeDialog = ({
   position,
   totalMessages,
 }: ZenModeDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(open);
   const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
   const [isHeaderHidden, setIsHeaderHidden] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
@@ -56,6 +58,8 @@ export const ZenModeDialog = ({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const lastScrollTopRef = useRef(0);
+  const closeTimerRef = useRef<number | null>(null);
+  const previousOpenPropRef = useRef(open);
   const baseHeaderHeight = headerHeight || 112;
   const contentTopPadding = baseHeaderHeight + ZEN_CONTENT_SCROLL_PADDING;
   const contentBottomPadding = ZEN_CONTENT_SCROLL_PADDING;
@@ -203,15 +207,82 @@ export const ZenModeDialog = ({
     lastScrollTopRef.current = currentScrollTop;
   }, [isDisplayOptionsOpen]);
 
-  const closeZenMode = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const closeZenMode = useCallback(() => {
+    setInternalOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (open === previousOpenPropRef.current) {
+      return;
+    }
+    previousOpenPropRef.current = open;
+    setInternalOpen(open);
+  }, [open]);
+
+  useEffect(() => {
+    if (internalOpen) {
+      if (typeof window !== "undefined" && closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+      closeTimerRef.current = null;
+      return;
+    }
+
+    if (!open) {
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      onOpenChange(false);
+      return;
+    }
+
+    if (closeTimerRef.current !== null) {
+      return;
+    }
+
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null;
+      onOpenChange(false);
+    }, ZEN_EXIT_ANIMATION_MS);
+  }, [internalOpen, onOpenChange, open]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        setInternalOpen(true);
+        if (!open) {
+          onOpenChange(true);
+        }
+        return;
+      }
+      setInternalOpen(false);
+    },
+    [onOpenChange, open]
+  );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={internalOpen} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-[60] bg-neutral-900/60 backdrop-blur-md transition-opacity data-[state=closed]:opacity-0 data-[state=open]:opacity-100" />
+        <DialogOverlay className="fixed inset-0 z-[60] bg-neutral-900/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
         <DialogPrimitive.Content
           className={cn(
             "fixed inset-0 z-[70] m-0 flex h-full w-full flex-col overflow-hidden p-0",
+            "transform-gpu origin-bottom sm:origin-center",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
+            "data-[state=open]:slide-in-from-bottom-4 data-[state=closed]:slide-out-to-bottom-4",
+            "sm:data-[state=open]:slide-in-from-top-[4%] sm:data-[state=closed]:slide-out-to-top-[4%]",
+            "sm:data-[state=open]:zoom-in-95 sm:data-[state=closed]:zoom-out-95",
+            "data-[state=open]:duration-500 data-[state=closed]:duration-300 ease-out",
             "focus:outline-none"
           )}
         >

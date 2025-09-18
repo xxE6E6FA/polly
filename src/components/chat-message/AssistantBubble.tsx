@@ -285,16 +285,6 @@ export const AssistantBubble = ({
       messageId: message.id,
       conversationTitle: conversationTitle || null,
     });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("polly:zen-scroll-to-message", {
-          detail: {
-            messageId: message.id,
-            conversationId: conversationKey,
-          },
-        })
-      );
-    }
   }, [
     conversationTitle,
     conversationKey,
