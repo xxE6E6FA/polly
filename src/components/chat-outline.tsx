@@ -196,8 +196,8 @@ const ChatOutlineComponent = ({
       {/* Smooth morphing container */}
       <div
         className={cn(
-          "relative overflow-hidden bg-card shadow-lg backdrop-blur-sm transition-all duration-300 ease-out hover:shadow-xl",
-          isExpanded ? "rounded-xl" : "rounded-[14px] w-7"
+          "relative overflow-hidden bg-muted/70 backdrop-blur-md border border-border/40 shadow-sm transition-all duration-200 ease-out",
+          isExpanded ? "rounded-lg" : "rounded-lg w-7"
         )}
         style={{
           width: isExpanded ? `${EXPANDED_WIDTH}px` : undefined,
@@ -210,7 +210,7 @@ const ChatOutlineComponent = ({
           {/* Header */}
           <div
             className={cn(
-              "sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border/30 px-4 py-3 transition-opacity duration-300",
+              "sticky top-0 z-10 bg-muted/80 backdrop-blur-md border-b border-border/30 px-3 py-2 transition-opacity duration-200",
               !isExpanded && "opacity-0"
             )}
           >
@@ -218,7 +218,7 @@ const ChatOutlineComponent = ({
               <p className="text-xs font-medium text-muted-foreground">
                 Conversation Outline
               </p>
-              <p className="text-xs text-muted-foreground/60">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
                 {outlineItems.length} items
               </p>
             </div>
@@ -227,7 +227,7 @@ const ChatOutlineComponent = ({
           {/* Scrollable content */}
           <div
             className={cn(
-              "overflow-y-auto overflow-x-hidden overscroll-contain transition-opacity duration-300",
+              "overflow-y-auto overflow-x-hidden transition-opacity duration-200",
               !isExpanded && "opacity-0"
             )}
             style={{
@@ -248,10 +248,10 @@ const ChatOutlineComponent = ({
                   <button
                     key={item.id}
                     className={cn(
-                      "w-full text-left transition-all duration-150 hover:bg-muted/70 focus:bg-muted/80 focus:outline-none group/item relative focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                      "w-full text-left transition-colors duration-150 focus:outline-none group/item",
                       item.type === "user-message"
-                        ? "px-3 py-2.5 border-l-2 border-transparent hover:border-primary/40 hover:bg-primary/5"
-                        : "px-3 py-1.5 hover:bg-muted/30"
+                        ? "px-3 py-2 rounded-md bg-transparent hover:bg-muted/40"
+                        : "px-3 py-1.5 rounded-md hover:bg-muted/30"
                     )}
                     style={{
                       paddingLeft:
@@ -265,8 +265,8 @@ const ChatOutlineComponent = ({
                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       {item.type === "user-message" ? (
                         <>
-                          <UserIcon className="size-4 shrink-0 text-primary/80" />
-                          <div className="line-clamp-2 min-w-0 text-xs font-medium leading-relaxed text-foreground/90">
+                          <UserIcon className="size-4 shrink-0 text-muted-foreground/70" />
+                          <div className="line-clamp-2 min-w-0 text-xs font-medium leading-relaxed text-foreground/80">
                             {item.text}
                           </div>
                         </>
@@ -281,18 +281,12 @@ const ChatOutlineComponent = ({
                               item.level >= 3 && "size-1 bg-muted-foreground/30"
                             )}
                           />
-                          <div className="truncate text-xs text-muted-foreground/70 group-hover/item:text-muted-foreground/90 transition-colors">
+                          <div className="truncate text-xs text-muted-foreground/70 group-hover/item:text-foreground transition-colors">
                             {item.text}
                           </div>
                         </>
                       )}
                     </div>
-
-                    {/* Progress indicator on hover */}
-                    <div
-                      className="absolute left-0 top-0 h-full w-0.5 bg-primary/40 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200"
-                      aria-hidden="true"
-                    />
                   </button>
                 );
               })}
@@ -301,7 +295,7 @@ const ChatOutlineComponent = ({
 
           {/* Footer with scroll indicator */}
           {outlineItems.length > 20 && isExpanded && (
-            <div className="sticky bottom-0 h-3 bg-gradient-to-t from-background via-background/95 to-transparent pointer-events-none" />
+            <div className="sticky bottom-0 h-4 bg-muted/80 backdrop-blur-md pointer-events-none" />
           )}
 
           {/* Collapsed state indicators - overlay on top */}
@@ -318,9 +312,9 @@ const ChatOutlineComponent = ({
                 <div
                   key={`indicator-${item.id}`}
                   className={cn(
-                    "rounded-full w-2 h-2",
+                    "rounded-full w-1.5 h-1.5",
                     item.type === "user-message"
-                      ? "bg-primary/80"
+                      ? "bg-foreground/70"
                       : "bg-muted-foreground/40"
                   )}
                   style={{
