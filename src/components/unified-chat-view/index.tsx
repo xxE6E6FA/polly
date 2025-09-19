@@ -1,4 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
+import { CaretDownIcon } from "@phosphor-icons/react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChatHeader } from "@/components/chat-header";
 import { ChatOutline } from "@/components/chat-outline";
@@ -186,6 +187,9 @@ export const UnifiedChatView = memo(
       onDeleteMessage,
       onSendMessage,
     });
+    const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+    const scrollContainerRef = useRef<HTMLElement | null>(null);
+    const scrollEvaluationFrameRef = useRef<number | null>(null);
     const online = useOnline();
     const userMessageContents = useMemo(
       () =>
@@ -195,6 +199,66 @@ export const UnifiedChatView = memo(
           .reverse(),
       [messages]
     );
+
+    const evaluateScrollProximity = useCallback(() => {
+      const container = scrollContainerRef.current;
+      if (!container) {
+        setShowScrollToBottom(false);
+        return;
+      }
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+      const shouldShow = distanceFromBottom > 160;
+      setShowScrollToBottom(shouldShow);
+    }, []);
+
+    const handleScrollMonitor = useCallback(() => {
+      if (scrollEvaluationFrameRef.current !== null) {
+        cancelAnimationFrame(scrollEvaluationFrameRef.current);
+      }
+      scrollEvaluationFrameRef.current = requestAnimationFrame(
+        evaluateScrollProximity
+      );
+    }, [evaluateScrollProximity]);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: re-run when conversation context changes to keep scroll listener in sync
+    useEffect(() => {
+      const container =
+        messagesContainerRef.current?.querySelector<HTMLElement>(
+          "[data-vlist-id]"
+        );
+
+      if (!container) {
+        scrollContainerRef.current = null;
+        setShowScrollToBottom(false);
+        return;
+      }
+
+      scrollContainerRef.current = container;
+      container.addEventListener("scroll", handleScrollMonitor, {
+        passive: true,
+      });
+      evaluateScrollProximity();
+
+      return () => {
+        container.removeEventListener("scroll", handleScrollMonitor);
+        if (scrollEvaluationFrameRef.current !== null) {
+          cancelAnimationFrame(scrollEvaluationFrameRef.current);
+          scrollEvaluationFrameRef.current = null;
+        }
+      };
+    }, [
+      conversationId,
+      messages.length,
+      handleScrollMonitor,
+      evaluateScrollProximity,
+    ]);
+
+    useEffect(() => {
+      if (isEmpty) {
+        setShowScrollToBottom(false);
+      }
+    }, [isEmpty]);
 
     const handleStop = useCallback(() => {
       onStopGeneration();
@@ -236,6 +300,11 @@ export const UnifiedChatView = memo(
       },
       [onRetryAssistantMessage, temperature]
     );
+
+    const handleScrollToBottomClick = useCallback(() => {
+      virtualizedMessagesRef.current?.scrollToBottom();
+      requestAnimationFrame(evaluateScrollProximity);
+    }, [evaluateScrollProximity, virtualizedMessagesRef]);
 
     const ConversationZeroState = () => {
       return (
@@ -421,6 +490,22 @@ export const UnifiedChatView = memo(
                   <WarningBanners hasExistingMessages={messages.length > 0} />
 
                   <footer className="relative">
+                    <button
+                      type="button"
+                      aria-label="Scroll to latest messages"
+                      onClick={handleScrollToBottomClick}
+                      className={cn(
+                        "group absolute bottom-full left-1/2 mb-2 grid h-9 w-9 -translate-x-1/2 place-items-center rounded-full border border-border/70 bg-white/95 text-slate-600 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)] backdrop-blur-sm transition-all duration-200 ease-out hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400",
+                        "dark:border-white/15 dark:bg-slate-800/90 dark:text-slate-100 dark:shadow-[0_10px_28px_-14px_rgba(15,23,42,0.6)] dark:hover:text-white",
+                        "after:absolute after:inset-0 after:rounded-full after:border after:border-primary/25 after:opacity-0 after:transition-opacity after:duration-300 after:content-[''] group-hover:after:opacity-100 dark:after:border-primary/35",
+                        showScrollToBottom
+                          ? "pointer-events-auto translate-y-0 opacity-100"
+                          : "pointer-events-none translate-y-2 opacity-0"
+                      )}
+                    >
+                      <CaretDownIcon className="h-4 w-4 transition-transform duration-200 group-hover:translate-y-0.5" />
+                      <span className="sr-only">Scroll to latest messages</span>
+                    </button>
                     <ChatInput
                       ref={chatInputRef}
                       conversationId={conversationId}

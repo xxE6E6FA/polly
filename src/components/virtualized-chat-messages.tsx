@@ -484,7 +484,15 @@ export const VirtualizedChatMessages = memo(
           },
           scrollToBottom: () => {
             const container = getScrollContainer();
-            if (container) {
+            if (!container) {
+              return;
+            }
+            if (typeof container.scrollTo === "function") {
+              container.scrollTo({
+                top: container.scrollHeight,
+                behavior: "smooth",
+              });
+            } else {
               container.scrollTop = container.scrollHeight;
             }
           },
