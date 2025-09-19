@@ -288,9 +288,9 @@ const ChatSection = () => {
 const headingText = "What's on your mind?";
 
 const headingClassName = cn(
-  "text-balance font-serif font-medium text-foreground transition-colors",
-  "tracking-[0.01em] sm:tracking-[0.005em]",
-  "text-[1.5rem] leading-[1.14] sm:text-[2rem] sm:leading-[1.08] md:text-[2.25rem] lg:text-[2.4rem]"
+  "text-balance font-serif font-normal transition-colors",
+  "tracking-[0.006em] sm:tracking-[0.003em]",
+  "text-[1.35rem] leading-[1.18] sm:text-[1.85rem] sm:leading-[1.12] md:text-[2rem] lg:text-[2.15rem]"
 );
 
 export const ChatZeroState = () => {
@@ -300,7 +300,7 @@ export const ChatZeroState = () => {
         <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
           <div className="stack-lg text-center">
             <div className="flex justify-center mb-3">
-              <AnimatedLogo alt="Polly AI logo" size={112} />
+              <AnimatedLogo alt="Polly AI logo" size={84} />
             </div>
             <h1 className={headingClassName}>{headingText}</h1>
           </div>
@@ -308,7 +308,7 @@ export const ChatZeroState = () => {
 
         <div className="hidden text-center sm:block stack-lg sm:stack-xl">
           <div className="flex flex-row items-center justify-center gap-5">
-            <AnimatedLogo alt="Polly AI logo" size={50} />
+            <AnimatedLogo alt="Polly AI logo" size={38} />
             <h1 className={headingClassName}>{headingText}</h1>
           </div>
 
