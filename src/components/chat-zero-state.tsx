@@ -9,9 +9,10 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction, useMutation } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
+import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { startAuthorStream } from "@/lib/ai/http-stream";
@@ -289,17 +290,7 @@ export const ChatZeroState = () => {
         <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
           <div className="stack-lg text-center">
             <div className="flex justify-center mb-3">
-              <div className="relative">
-                <img
-                  alt="Polly AI Mascot"
-                  className="w-28 h-28 relative z-10 object-contain drop-shadow-lg"
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                  src="/polly-mascot.png"
-                />
-                <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
-              </div>
+              <AnimatedLogo alt="Polly AI logo" size={112} />
             </div>
             <h1 className="text-xl font-semibold text-foreground tracking-tight">
               What&apos;s on your mind?
@@ -310,17 +301,7 @@ export const ChatZeroState = () => {
         <div className="hidden max-w-full text-center sm:block stack-lg sm:stack-xl">
           <div className="stack-sm">
             <div className="flex justify-center mb-2 sm:mb-3">
-              <div className="relative">
-                <img
-                  alt="Polly AI Mascot"
-                  className="w-16 h-16 sm:w-20 sm:h-20 relative z-10 object-contain drop-shadow-lg"
-                  loading="lazy"
-                  decoding="async"
-                  fetchPriority="low"
-                  src="/polly-mascot.png"
-                />
-                <div className="absolute inset-0 scale-110 rounded-full bg-gradient-to-br from-accent-coral/15 via-accent-orange/15 to-accent-yellow/15 opacity-50 blur-lg" />
-              </div>
+              <AnimatedLogo alt="Polly AI logo" size={80} />
             </div>
             <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
               What&apos;s on your mind?

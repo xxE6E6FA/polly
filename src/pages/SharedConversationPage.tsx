@@ -3,7 +3,7 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-
+import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -85,11 +85,7 @@ export default function SharedConversationPage() {
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-3">
               <Link to={ROUTES.HOME} className="flex items-center gap-2">
-                <img
-                  src="/polly-mascot.png"
-                  alt="Polly"
-                  className="h-9 w-9 rounded-lg object-contain"
-                />
+                <AnimatedLogo alt="Polly" size={40} floating={false} />
                 <span className="hidden text-lg font-semibold text-foreground sm:inline">
                   Polly
                 </span>

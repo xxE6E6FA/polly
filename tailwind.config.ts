@@ -289,10 +289,12 @@ const config: Config = {
         "slide-up": "slideUp 0.4s ease-out",
         "scale-in": "scaleIn 0.3s ease-out",
         glow: "glow 3s ease-in-out infinite alternate",
-        float: "float 6s ease-in-out infinite",
+        "spin-slow": "spin 60s linear infinite",
+        "spin-slower": "spin 90s linear infinite",
+        "spin-very-slow": "spin 150s linear infinite",
         "pulse-soft": "pulseSoft 2s ease-in-out infinite",
-        "gradient-shift": "gradientShift 3s ease-in-out infinite",
-        "gradient-x": "gradientX 3s ease-in-out infinite",
+        "gradient-shift": "gradientShift 24s ease-in-out infinite",
+        "gradient-x": "gradientX 24s ease-in-out infinite",
         "spin-reverse": "spin-reverse 1s linear infinite",
       },
       keyframes: {
@@ -319,10 +321,6 @@ const config: Config = {
         glow: {
           from: { boxShadow: "0 0 20px -5px hsl(var(--primary) / 0.3)" },
           to: { boxShadow: "0 0 40px -5px hsl(var(--primary) / 0.6)" },
-        },
-        float: {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
         },
         pulseSoft: {
           "0%, 100%": { opacity: "1" },

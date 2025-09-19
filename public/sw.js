@@ -13,7 +13,6 @@ const APP_SHELL_URLS = [
   "/",
   "/index.html",
   "/favicon.svg",
-  "/polly-mascot.png",
   "/og-image.png",
 ];
 

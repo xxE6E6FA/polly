@@ -6,6 +6,7 @@ import {
   CopyIcon,
 } from "@phosphor-icons/react";
 import React from "react";
+import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { CACHE_KEYS, get as getLS } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
@@ -111,15 +112,7 @@ export class ErrorBoundary extends React.Component<
         <div className="flex min-h-[100dvh] items-center justify-center p-6">
           <div className="w-full max-w-2xl">
             <div className="flex flex-col items-center stack-xl rounded-xl bg-background/50 p-8 text-center backdrop-blur-sm">
-              <img
-                alt="Polly looking confused"
-                className="h-32 w-32 object-contain duration-500 animate-in fade-in-0 zoom-in-95"
-                src="/polly-404.png"
-                onError={e => {
-                  // Hide broken image when offline in dev/preview
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
+              <AnimatedLogo size={132} />
 
               <div className="stack-sm">
                 <h1 className="text-3xl font-bold text-foreground">
