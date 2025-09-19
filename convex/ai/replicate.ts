@@ -241,8 +241,8 @@ export const generateImage = action({
       ];
       const supportsAspectRatio = aspectRatioSupportedModels.some(supported => args.model.includes(supported));
       
-      // Determine if the model accepts an image input and prepare an input image
-      let inputImageUrl: string | undefined;
+      // Determine if the model accepts an image input and prepare input image(s)
+      let inputImageUrls: string[] = [];
       let imageInputConfig: { paramName: string; isArray: boolean } | null = null;
       
       // Resolve model version and introspect schema to detect image input param
@@ -274,63 +274,128 @@ export const generateImage = action({
         isArray: imageInputConfig?.isArray,
       });
 
-      if (acceptsImageInput) {
-        // Get conversation messages to find user-uploaded image first,
-        // otherwise fall back to the most recent assistant-generated image
-        const messages = await ctx.runQuery(internal.messages.getAllInConversationInternal, {
-          conversationId: args.conversationId,
-        });
+      const redactUrlForLog = (url: string) =>
+        url.startsWith("data:") ? "<data-url>" : url;
 
-        // 1) Prefer the most recent user message with an image attachment
-        if (!inputImageUrl) {
-          for (let i = messages.length - 1; i >= 0; i--) {
-            const m: any = messages[i];
-            if (m.role === "user" && Array.isArray(m.attachments) && m.attachments.length > 0) {
-              const userImg = m.attachments.find(
-                (att: any) => att.type === "image" && (att.url || att.storageId)
-              );
-              if (userImg?.url) {
-                inputImageUrl = userImg.url;
-                log.info("Using user-uploaded reference image for editing", {
-                  messageId: args.messageId,
-                  sourceMessageId: m._id,
-                  imageUrl: inputImageUrl,
-                  model: args.model,
-                });
-                break;
-              }
+      const previewUrlsForLog = (urls: string[]) =>
+        urls.slice(0, 3).map(redactUrlForLog);
+
+      const resolveImageUrlsFromAttachments = async (
+        attachments: any[] | undefined
+      ): Promise<string[]> => {
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+          return [];
+        }
+
+        const resolved: string[] = [];
+        for (const att of attachments) {
+          if (!att || att.type !== "image") {
+            continue;
+          }
+
+          if (typeof att.url === "string" && att.url.trim()) {
+            resolved.push(att.url);
+          } else if (att.storageId) {
+            const storageUrl = await ctx.storage.getUrl(att.storageId);
+            if (storageUrl) {
+              resolved.push(storageUrl);
             }
+          }
+        }
+
+        return resolved;
+      };
+
+      if (acceptsImageInput) {
+        // Get conversation messages to find user-uploaded image(s) first,
+        // otherwise fall back to the most recent assistant-generated image(s)
+        const messages = await ctx.runQuery(
+          internal.messages.getAllInConversationInternal,
+          {
+            conversationId: args.conversationId,
+          }
+        );
+
+        const assistantMessageIndex = messages.findIndex(
+          (msg: any) => msg._id === args.messageId
+        );
+
+        // 1) Prefer the most recent user message (typically the one that triggered this generation)
+        if (assistantMessageIndex !== -1) {
+          for (let i = assistantMessageIndex - 1; i >= 0; i--) {
+            const candidate: any = messages[i];
+            if (candidate.role !== "user") {
+              continue;
+            }
+
+            const urls = await resolveImageUrlsFromAttachments(candidate.attachments);
+            if (urls.length > 0) {
+              inputImageUrls = urls;
+              log.info("Using user-uploaded reference image(s) for editing", {
+                messageId: args.messageId,
+                sourceMessageId: candidate._id,
+                model: args.model,
+                referenceCount: urls.length,
+                referencesPreview: previewUrlsForLog(urls),
+              });
+              break;
+            }
+
+            // Stop scanning once we hit a user message even if it has no attachments,
+            // because older user uploads should not override the latest request.
+            break;
           }
         }
 
         // 2) Fallback: look for the most recent assistant message with generated image(s)
-        if (!inputImageUrl) {
-          for (let i = messages.length - 1; i >= 0; i--) {
+        if (inputImageUrls.length === 0) {
+          const startIndex =
+            assistantMessageIndex === -1
+              ? messages.length - 1
+              : assistantMessageIndex - 1;
+
+          for (let i = startIndex; i >= 0; i--) {
             const message: any = messages[i];
-            if (message.role === "assistant" && message.attachments) {
-              const generatedImageAttachment = message.attachments.find(
-                (att: any) => att.type === "image" && att.url && att.generatedImage?.isGenerated
-              );
-              const anyImageAttachment = message.attachments.find(
-                (att: any) => att.type === "image" && att.url
-              );
-              const selectedAttachment = generatedImageAttachment || anyImageAttachment;
-              if (selectedAttachment?.url) {
-                inputImageUrl = selectedAttachment.url;
-                log.info("Found previous assistant image for image-input (fallback)", {
+            if (message.role !== "assistant" || !message.attachments) {
+              continue;
+            }
+
+            const attachments = Array.isArray(message.attachments)
+              ? message.attachments.filter((att: any) => att?.type === "image")
+              : [];
+
+            if (attachments.length === 0) {
+              continue;
+            }
+
+            const generatedFirst = attachments.filter(
+              (att: any) => att.generatedImage?.isGenerated
+            );
+            const others = attachments.filter(
+              (att: any) => !att.generatedImage?.isGenerated
+            );
+            const prioritized = generatedFirst.concat(others);
+
+            const urls = await resolveImageUrlsFromAttachments(prioritized);
+            if (urls.length > 0) {
+              inputImageUrls = urls;
+              log.info(
+                "Found previous assistant image(s) for image-input (fallback)",
+                {
                   messageId: args.messageId,
                   sourceMessageId: message._id,
-                  imageUrl: inputImageUrl,
                   model: args.model,
-                  isGenerated: !!selectedAttachment.generatedImage?.isGenerated,
-                });
-                break;
-              }
+                  referenceCount: urls.length,
+                  referencesPreview: previewUrlsForLog(urls),
+                  generatedCount: generatedFirst.length,
+                }
+              );
+              break;
             }
           }
         }
-        
-        if (!inputImageUrl) {
+
+        if (inputImageUrls.length === 0) {
           log.info("No input image found; proceeding without reference (pure generation)", {
             messageId: args.messageId,
             model: args.model,
@@ -346,14 +411,17 @@ export const generateImage = action({
       };
       
       // Add input image when the model accepts an image input
-      if (imageInputConfig && inputImageUrl) {
-        input[imageInputConfig.paramName] = imageInputConfig.isArray ? [inputImageUrl] : inputImageUrl;
-        log.info("Added input image to model", {
+      if (imageInputConfig && inputImageUrls.length > 0) {
+        input[imageInputConfig.paramName] = imageInputConfig.isArray
+          ? inputImageUrls
+          : inputImageUrls[0];
+        log.info("Added input image(s) to model", {
           messageId: args.messageId,
           model: args.model,
           paramName: imageInputConfig.paramName,
-          imageUrl: inputImageUrl,
+          referenceCount: inputImageUrls.length,
           isArray: imageInputConfig.isArray,
+          referencesPreview: previewUrlsForLog(inputImageUrls),
         });
       }
 
