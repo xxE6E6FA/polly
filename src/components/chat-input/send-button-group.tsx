@@ -252,7 +252,7 @@ export const SendButtonGroup = ({
                     className={cn(
                       "absolute left-0 top-0 bottom-0",
                       "w-8 h-8 p-0",
-                      "inline-flex items-center justify-center rounded-full",
+                      "grid place-items-center rounded-full",
                       "relative z-10",
                       "transition-all transform-gpu",
                       // Upload-like hover/active scale when expanded
@@ -364,8 +364,8 @@ export const SendButtonGroup = ({
               variant="ghost"
               className={cn(
                 "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
-                // Use flexbox centering to align icon perfectly
-                "flex items-center justify-center",
+                // Use grid centering to align icon perfectly
+                "grid place-items-center",
                 "relative z-10",
                 // Keep icon color in sync with state
                 isStreaming || canSend
