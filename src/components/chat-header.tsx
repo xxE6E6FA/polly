@@ -228,7 +228,7 @@ const ChatHeaderComponent = ({
   return (
     <div
       className={cn(
-        "relative flex w-full items-center justify-between gap-1.5 bg-background/80 backdrop-blur-xs py-0 sm:gap-2",
+        "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
         !isSidebarVisible && "pl-12 sm:pl-14",
         isSidebarVisible && "transition-[padding] duration-300 ease-out",
         "z-10"

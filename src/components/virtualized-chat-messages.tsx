@@ -41,6 +41,8 @@ type VirtualizedChatMessagesProps = {
   onRetryImageGeneration?: (messageId: string) => void;
   scrollElement?: Element | null;
   shouldScrollToBottom?: boolean;
+  topInset?: number;
+  bottomInset?: number;
 };
 
 export interface VirtualizedChatMessagesRef {
@@ -199,6 +201,8 @@ export const VirtualizedChatMessages = memo(
         onRetryImageGeneration,
         scrollElement: _scrollElement,
         shouldScrollToBottom = false,
+        topInset,
+        bottomInset,
       },
       ref
     ) => {
@@ -610,6 +614,9 @@ export const VirtualizedChatMessages = memo(
         );
       }
 
+      const resolvedTopInset = Math.max((topInset ?? 0) + 12, 24);
+      const resolvedBottomInset = Math.max(bottomInset ?? 20, 20);
+
       return (
         <>
           <VList
@@ -619,12 +626,12 @@ export const VirtualizedChatMessages = memo(
               width: "100%",
               overflow: "auto",
               contain: "layout style size",
-              paddingTop: "16px",
-              paddingBottom: "20px",
+              paddingTop: resolvedTopInset,
+              paddingBottom: resolvedBottomInset,
               // biome-ignore lint/style/useNamingConvention: vendor-specific property
               WebkitOverflowScrolling: "touch",
             }}
-            className="overscroll-contain hide-scrollbar md:scrollbar-thin"
+            className="overscroll-contain scrollbar-thin"
             data-vlist-id={vlistId}
             reverse // This makes it a chat-like interface
             overscan={overscan}
