@@ -1,6 +1,6 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useCallback, useState } from "react";
-
+import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { CACHE_KEYS, set } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
@@ -36,13 +36,7 @@ export default function AuthPage() {
       <div className="w-full max-w-md stack-xl p-6">
         <div className="text-center">
           <div className="mb-6 flex justify-center">
-            <img
-              alt="Polly mascot"
-              className="h-24 w-24"
-              height={96}
-              src="/polly-mascot.png"
-              width={96}
-            />
+            <AnimatedLogo size={96} alt="Polly logo" />
           </div>
           <h1 className="mb-2 text-3xl font-bold text-foreground">
             Welcome to Polly
