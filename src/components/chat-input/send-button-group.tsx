@@ -24,6 +24,10 @@ import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
+const ICON_WRAPPER_CLASS = "grid h-full w-full place-items-center text-current";
+
+const ICON_CLASS = "h-4 w-4 shrink-0";
+
 type SendButtonGroupProps = {
   canSend: boolean;
   isStreaming: boolean;
@@ -144,33 +148,28 @@ export const SendButtonGroup = ({
   const renderButtonContent = useMemo(() => {
     if (isStreaming) {
       return (
-        <SquareIcon
-          weight="fill"
-          className={cn(
-            "h-3.5 w-3.5",
-            "block shrink-0",
-            "fill-current text-current"
-          )}
-          aria-hidden="true"
-        />
+        <span className={ICON_WRAPPER_CLASS}>
+          <SquareIcon className={ICON_CLASS} weight="fill" aria-hidden="true" />
+        </span>
       );
     }
 
     if (isLoading || isSummarizing) {
       return (
-        <Spinner
-          size="sm"
-          variant="white"
-          className="h-3.5 w-3.5 block shrink-0"
-        />
+        <span className={ICON_WRAPPER_CLASS}>
+          <Spinner
+            size="sm"
+            variant="white"
+            className="!grid h-full w-full place-items-center [&_svg]:h-4 [&_svg]:w-4"
+          />
+        </span>
       );
     }
 
     return (
-      <PaperPlaneTiltIcon
-        className={cn("h-3.5 w-3.5 text-current block shrink-0")}
-        aria-hidden="true"
-      />
+      <span className={ICON_WRAPPER_CLASS}>
+        <PaperPlaneTiltIcon className={ICON_CLASS} aria-hidden="true" />
+      </span>
     );
   }, [isStreaming, isLoading, isSummarizing]);
 
@@ -365,7 +364,7 @@ export const SendButtonGroup = ({
               className={cn(
                 "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
                 // Use grid centering to align icon perfectly
-                "grid place-items-center",
+                "!grid place-items-center !items-center !justify-center !gap-0",
                 "relative z-10",
                 // Keep icon color in sync with state
                 isStreaming || canSend
