@@ -28,7 +28,7 @@ export function ChatInputContainer({
       <div className="mx-auto w-full max-w-3xl">
         <div
           className={cn(
-            "relative chat-input-container rounded-xl p-2 sm:p-2.5 transition-colors duration-200",
+            "relative chat-input-container rounded-xl px-2 py-1.5 sm:px-2.5 sm:py-2 transition-colors duration-200",
             className,
             isDragOver && canSend && "ring-2 ring-primary/50 bg-primary/5"
           )}
