@@ -18,7 +18,15 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
@@ -105,6 +113,7 @@ export function CommandPalette({
   });
 
   const debouncedSearch = useDebounce(search, 300);
+  const deferredSearch = useDeferredValue(search);
   const inputRef = useRef<HTMLInputElement>(null);
   const commandListRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -220,13 +229,10 @@ export function CommandPalette({
 
   const handleSelectModel = useCallback(
     async (modelId: string, provider: string) => {
-      await selectModel(modelId, provider, [
-        ...(modelGroups?.freeModels ?? []),
-        ...Object.values(modelGroups?.providerModels ?? {}).flat(),
-      ] as AvailableModel[]);
+      await selectModel(modelId, provider, allModels);
       handleClose();
     },
-    [selectModel, modelGroups, handleClose]
+    [selectModel, allModels, handleClose]
   );
 
   const handleNavigateToConversation = useCallback(
@@ -244,22 +250,24 @@ export function CommandPalette({
     [navigateToMenu]
   );
 
-  const getActionConversationId = useCallback(() => {
-    return navigation.selectedConversationId || currentConversationId;
-  }, [navigation.selectedConversationId, currentConversationId]);
+  const actionConversationId =
+    navigation.selectedConversationId ?? currentConversationId ?? null;
 
   const actionConversation = useQuery(
     api.conversations.getWithAccessInfo,
-    getActionConversationId()
-      ? { id: getActionConversationId() as Id<"conversations"> }
+    actionConversationId
+      ? { id: actionConversationId as Id<"conversations"> }
       : "skip"
   );
 
-  const handleToggleFavorite = useCallback(async () => {
-    const conversationId = getActionConversationId();
-    const conversation = navigation.selectedConversationId
+  const resolvedActionContext =
+    navigation.selectedConversationId && actionConversation
       ? actionConversation
       : currentConversation;
+
+  const handleToggleFavorite = useCallback(async () => {
+    const conversationId = actionConversationId;
+    const conversation = resolvedActionContext;
 
     if (!(conversationId && conversation?.conversation)) {
       return;
@@ -280,21 +288,17 @@ export function CommandPalette({
       console.error("Failed to toggle favorite:", error);
     }
   }, [
-    getActionConversationId,
-    navigation.selectedConversationId,
+    actionConversationId,
+    resolvedActionContext,
     navigation.currentMenu,
-    actionConversation,
-    currentConversation,
     patchConversation,
     navigateBack,
     handleClose,
   ]);
 
   const confirmToggleArchive = useCallback(async () => {
-    const conversationId = getActionConversationId();
-    const conversation = navigation.selectedConversationId
-      ? actionConversation
-      : currentConversation;
+    const conversationId = actionConversationId;
+    const conversation = resolvedActionContext;
 
     if (!(conversationId && conversation?.conversation)) {
       return;
@@ -322,11 +326,9 @@ export function CommandPalette({
       console.error("Failed to toggle archive:", error);
     }
   }, [
-    getActionConversationId,
-    navigation.selectedConversationId,
+    actionConversationId,
+    resolvedActionContext,
     navigation.currentMenu,
-    actionConversation,
-    currentConversation,
     currentConversationId,
     patchConversation,
     navigate,
@@ -335,21 +337,14 @@ export function CommandPalette({
   ]);
 
   const handleToggleArchive = useCallback(() => {
-    const conversation = navigation.selectedConversationId
-      ? actionConversation
-      : currentConversation;
+    const conversation = resolvedActionContext;
 
     if (conversation?.conversation && !conversation.conversation.isArchived) {
       setArchiveConfirmOpen(true);
     } else {
       confirmToggleArchive();
     }
-  }, [
-    navigation.selectedConversationId,
-    actionConversation,
-    currentConversation,
-    confirmToggleArchive,
-  ]);
+  }, [resolvedActionContext, confirmToggleArchive]);
 
   const handleShareConversation = useCallback(() => {
     setIsShareDialogOpen(true);
@@ -361,10 +356,8 @@ export function CommandPalette({
   }, []);
 
   const confirmDeleteConversation = useCallback(async () => {
-    const conversationId = getActionConversationId();
-    const conversation = navigation.selectedConversationId
-      ? actionConversation
-      : currentConversation;
+    const conversationId = actionConversationId;
+    const conversation = resolvedActionContext;
 
     if (!(conversationId && conversation?.conversation)) {
       return;
@@ -386,11 +379,9 @@ export function CommandPalette({
       console.error("Failed to delete conversation:", error);
     }
   }, [
-    getActionConversationId,
-    navigation.selectedConversationId,
+    actionConversationId,
+    resolvedActionContext,
     navigation.currentMenu,
-    actionConversation,
-    currentConversation,
     currentConversationId,
     deleteConversation,
     navigate,
@@ -404,10 +395,8 @@ export function CommandPalette({
 
   const confirmRenameConversation = useCallback(
     async (newTitle: string) => {
-      const conversationId = getActionConversationId();
-      const conversation = navigation.selectedConversationId
-        ? actionConversation
-        : currentConversation;
+      const conversationId = actionConversationId;
+      const conversation = resolvedActionContext;
 
       if (!(conversationId && conversation?.conversation)) {
         return;
@@ -431,11 +420,9 @@ export function CommandPalette({
       }
     },
     [
-      getActionConversationId,
-      navigation.selectedConversationId,
+      actionConversationId,
       navigation.currentMenu,
-      actionConversation,
-      currentConversation,
+      resolvedActionContext,
       patchConversation,
       navigateBack,
       handleClose,
@@ -481,7 +468,7 @@ export function CommandPalette({
         return;
       }
 
-      const conversationId = getActionConversationId();
+      const conversationId = actionConversationId;
       if (!conversationId) {
         return;
       }
@@ -491,7 +478,7 @@ export function CommandPalette({
       setExportConversationId(conversationId);
       handleClose();
     },
-    [exportingFormat, getActionConversationId, handleClose]
+    [exportingFormat, actionConversationId, handleClose]
   );
 
   const handleNewConversation = useCallback(() => {
@@ -552,8 +539,11 @@ export function CommandPalette({
     };
   }, [open, navigation.currentMenu, navigateBack, handleClose]);
 
-  const hasSearchQuery = debouncedSearch.trim().length > 0;
-  const showSearchResults = hasSearchQuery && searchResults;
+  const normalizedDebouncedSearch = debouncedSearch.trim().toLowerCase();
+  const normalizedDeferredSearch = deferredSearch.trim().toLowerCase();
+  const hasSearchQuery = normalizedDeferredSearch.length > 0;
+  const hasRemoteSearchQuery = normalizedDebouncedSearch.length > 0;
+  const showSearchResults = hasRemoteSearchQuery && Boolean(searchResults);
   const isSearching = search.trim().length > 0 && search !== debouncedSearch;
 
   const globalActions = useMemo(
@@ -679,31 +669,40 @@ export function CommandPalette({
     if (!hasSearchQuery) {
       return globalActions;
     }
-    const query = debouncedSearch.toLowerCase();
     return globalActions.filter(action =>
-      action.label.toLowerCase().includes(query)
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
     );
-  }, [hasSearchQuery, debouncedSearch, globalActions]);
+  }, [hasSearchQuery, normalizedDeferredSearch, globalActions]);
 
   const filteredConversationActions = useMemo(() => {
     if (!hasSearchQuery) {
       return conversationActions;
     }
-    const query = debouncedSearch.toLowerCase();
     return conversationActions.filter(action =>
-      action.label.toLowerCase().includes(query)
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
     );
-  }, [hasSearchQuery, debouncedSearch, conversationActions]);
+  }, [hasSearchQuery, normalizedDeferredSearch, conversationActions]);
+
+  const recentConversationsList = useMemo(() => {
+    if (Array.isArray(recentConversations)) {
+      return recentConversations as ConversationType[];
+    }
+    return (recentConversations?.page ?? []) as ConversationType[];
+  }, [recentConversations]);
+
+  const searchResultsList = useMemo(() => {
+    if (!searchResults) {
+      return [] as ConversationType[];
+    }
+    return searchResults as ConversationType[];
+  }, [searchResults]);
 
   const conversationsToShow = useMemo(() => {
     if (showSearchResults) {
-      return searchResults?.slice(0, 10);
+      return searchResultsList.slice(0, 10);
     }
-    if (Array.isArray(recentConversations)) {
-      return recentConversations.slice(0, 6);
-    }
-    return recentConversations?.page?.slice(0, 6) || [];
-  }, [showSearchResults, searchResults, recentConversations]);
+    return recentConversationsList.slice(0, 6);
+  }, [showSearchResults, searchResultsList, recentConversationsList]);
 
   const filterModels = useCallback((models: ModelType[], query: string) => {
     const searchLower = query.toLowerCase();
@@ -725,12 +724,12 @@ export function CommandPalette({
   const modelsToShow = useMemo(() => {
     if (navigation.currentMenu === "model-categories") {
       return hasSearchQuery
-        ? filterModels(allModels, debouncedSearch)
+        ? filterModels(allModels, normalizedDeferredSearch)
         : allModels;
     }
 
     if (hasSearchQuery) {
-      return filterModels(allModels, debouncedSearch).slice(0, 8);
+      return filterModels(allModels, normalizedDeferredSearch).slice(0, 8);
     }
 
     if (recentlyUsedModels && recentlyUsedModels.length > 0) {
@@ -741,7 +740,7 @@ export function CommandPalette({
   }, [
     navigation.currentMenu,
     hasSearchQuery,
-    debouncedSearch,
+    normalizedDeferredSearch,
     allModels,
     recentlyUsedModels,
     filterModels,
@@ -774,16 +773,19 @@ export function CommandPalette({
     return sortedGroups;
   }, [navigation.currentMenu, modelsToShow]);
 
+  const allConversationsList = useMemo(() => {
+    if (Array.isArray(allConversations)) {
+      return allConversations as ConversationType[];
+    }
+    return (allConversations?.page ?? []) as ConversationType[];
+  }, [allConversations]);
+
   const conversationsByCategory = useMemo(() => {
     if (navigation.currentMenu !== "conversation-browser") {
       return {};
     }
 
-    const conversations = (
-      Array.isArray(allConversations)
-        ? allConversations
-        : allConversations?.page || []
-    ) as ConversationType[];
+    const conversations = allConversationsList;
 
     if (!conversations.length) {
       return {};
@@ -791,7 +793,7 @@ export function CommandPalette({
 
     const filteredConversations = hasSearchQuery
       ? conversations.filter(conv =>
-          conv.title?.toLowerCase().includes(debouncedSearch.toLowerCase())
+          conv.title?.toLowerCase().includes(normalizedDeferredSearch)
         )
       : conversations;
 
@@ -821,9 +823,162 @@ export function CommandPalette({
     return categories;
   }, [
     navigation.currentMenu,
-    allConversations,
+    allConversationsList,
     hasSearchQuery,
-    debouncedSearch,
+    normalizedDeferredSearch,
+  ]);
+
+  const conversationBrowserList = useMemo(() => {
+    return Object.values(conversationsByCategory).flat();
+  }, [conversationsByCategory]);
+
+  const getConversationById = useCallback(
+    (conversationId: string) => {
+      const fromRecent = conversationsToShow.find(
+        conversation => conversation._id === conversationId
+      );
+      if (fromRecent) {
+        return fromRecent;
+      }
+
+      return conversationBrowserList.find(
+        conversation => conversation._id === conversationId
+      );
+    },
+    [conversationsToShow, conversationBrowserList]
+  );
+
+  const handleRootKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!open) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+
+      if (
+        event.key === "ArrowLeft" &&
+        navigation.currentMenu !== "main" &&
+        !(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey)
+      ) {
+        if (target?.tagName === "INPUT") {
+          const input = target as HTMLInputElement;
+          const atStart =
+            input.selectionStart === 0 && input.selectionEnd === 0;
+          if (!atStart || input.value.length > 0) {
+            return;
+          }
+        }
+
+        event.preventDefault();
+        navigateBack();
+        return;
+      }
+
+      const isConversationSelected =
+        navigation.currentMenu !== "conversation-actions" &&
+        selectedValue?.startsWith("conversation-");
+
+      if (isConversationSelected) {
+        const conversationId = selectedValue.replace("conversation-", "");
+        const conversation = getConversationById(conversationId);
+        if (!conversation) {
+          return;
+        }
+
+        if (
+          event.key === "ArrowRight" &&
+          !(event.metaKey || event.altKey || event.ctrlKey || event.shiftKey)
+        ) {
+          if (target?.tagName === "INPUT") {
+            const input = target as HTMLInputElement;
+            const atEnd =
+              input.selectionStart === input.value.length &&
+              input.selectionEnd === input.value.length;
+            if (!atEnd) {
+              return;
+            }
+          }
+
+          if (target?.tagName !== "INPUT") {
+            event.preventDefault();
+          }
+          handleConversationActions(conversation._id, conversation.title);
+        }
+      }
+    },
+    [
+      open,
+      navigation.currentMenu,
+      navigateBack,
+      selectedValue,
+      getConversationById,
+      handleConversationActions,
+    ]
+  );
+
+  type FooterHint = {
+    key: string;
+    label: string;
+    desktopOnly?: boolean;
+  };
+
+  const footerHints = useMemo(() => {
+    const hints: FooterHint[] = [];
+    const escLabel = navigation.currentMenu !== "main" ? "Back" : "Close";
+    const addEscHint = () => hints.push({ key: "Esc", label: escLabel });
+
+    if (!selectedValue) {
+      hints.push({ key: "Enter", label: "Select" });
+      addEscHint();
+      return hints;
+    }
+
+    if (selectedValue === "back") {
+      hints.push({ key: "Enter", label: "Navigate" });
+      addEscHint();
+      return hints;
+    }
+
+    if (selectedValue.startsWith("conversation-")) {
+      hints.push({ key: "Enter", label: "Navigate" });
+      hints.push({ key: "→", label: "Actions", desktopOnly: true });
+      addEscHint();
+      return hints;
+    }
+
+    if (selectedValue.startsWith("model-")) {
+      hints.push({ key: "Enter", label: "Select" });
+      addEscHint();
+      return hints;
+    }
+
+    const conversationAction = conversationActions.find(
+      action => action.id === selectedValue
+    );
+    if (conversationAction) {
+      hints.push({ key: "Enter", label: "Select" });
+      addEscHint();
+      return hints;
+    }
+
+    const globalAction = globalActions.find(
+      action => action.id === selectedValue
+    );
+    if (globalAction) {
+      hints.push({ key: "Enter", label: "Select" });
+      addEscHint();
+      return hints;
+    }
+
+    hints.push({ key: "Enter", label: "Select" });
+    addEscHint();
+    return hints;
+  }, [
+    selectedValue,
+    navigation.currentMenu,
+    conversationActions,
+    globalActions,
   ]);
 
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
@@ -854,6 +1009,7 @@ export function CommandPalette({
           shouldFilter={false}
           value={selectedValue}
           onValueChange={setSelectedValue}
+          onKeyDown={handleRootKeyDown}
           loop
           vimBindings={false}
         >
@@ -898,7 +1054,7 @@ export function CommandPalette({
           </div>
           <CommandList
             ref={commandListRef}
-            className="max-h-[400px] overflow-y-auto py-3"
+            className="max-h-[400px] overflow-y-auto py-3 pb-16"
           >
             {/* Only show empty state if data is loaded (to prevent flash while loading) */}
             {modelsLoaded &&
@@ -1024,15 +1180,16 @@ export function CommandPalette({
                           <CommandItem
                             key={conversation._id}
                             value={`conversation-${conversation._id}`}
-                            onSelect={() => {
-                              const event = window.event as KeyboardEvent;
-                              if (event?.metaKey || event?.ctrlKey) {
+                            onSelect={() =>
+                              handleNavigateToConversation(conversation._id)
+                            }
+                            onPointerDown={event => {
+                              if (event.metaKey || event.ctrlKey) {
+                                event.preventDefault();
                                 handleConversationActions(
                                   conversation._id,
                                   conversation.title
                                 );
-                              } else {
-                                handleNavigateToConversation(conversation._id);
                               }
                             }}
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
@@ -1044,12 +1201,17 @@ export function CommandPalette({
                                 {conversation.title}
                               </div>
                             </div>
-                            {conversation.isPinned && (
-                              <PushPinIcon
-                                className="h-3 w-3 text-muted-foreground flex-shrink-0"
-                                weight="fill"
-                              />
-                            )}
+                            <div className="flex items-center gap-2">
+                              {conversation.isPinned && (
+                                <PushPinIcon
+                                  className="h-3 w-3 text-muted-foreground flex-shrink-0"
+                                  weight="fill"
+                                />
+                              )}
+                              {conversation.isArchived && (
+                                <ArchiveIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              )}
+                            </div>
                           </CommandItem>
                         )
                       )}
@@ -1267,15 +1429,16 @@ export function CommandPalette({
                           <CommandItem
                             key={conversation._id}
                             value={`conversation-${conversation._id}`}
-                            onSelect={() => {
-                              const event = window.event as KeyboardEvent;
-                              if (event?.metaKey || event?.ctrlKey) {
+                            onSelect={() =>
+                              handleNavigateToConversation(conversation._id)
+                            }
+                            onPointerDown={event => {
+                              if (event.metaKey || event.ctrlKey) {
+                                event.preventDefault();
                                 handleConversationActions(
                                   conversation._id,
                                   conversation.title
                                 );
-                              } else {
-                                handleNavigateToConversation(conversation._id);
                               }
                             }}
                             className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
@@ -1292,15 +1455,17 @@ export function CommandPalette({
                                 ).toLocaleDateString()}
                               </div>
                             </div>
-                            {conversation.isPinned && (
-                              <PushPinIcon
-                                className="h-3 w-3 text-muted-foreground flex-shrink-0"
-                                weight="fill"
-                              />
-                            )}
-                            {conversation.isArchived && (
-                              <ArchiveIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                            )}
+                            <div className="flex items-center gap-2">
+                              {conversation.isPinned && (
+                                <PushPinIcon
+                                  className="h-3 w-3 text-muted-foreground flex-shrink-0"
+                                  weight="fill"
+                                />
+                              )}
+                              {conversation.isArchived && (
+                                <ArchiveIcon className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                              )}
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -1319,6 +1484,21 @@ export function CommandPalette({
               </>
             )}
           </CommandList>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/40 bg-card/95 px-4 py-2 text-[11px] uppercase tracking-wide text-muted-foreground/80">
+            <div className="flex flex-wrap items-center gap-3">
+              {footerHints.map(hint => (
+                <span
+                  key={`${hint.key}-${hint.label}`}
+                  className={`flex items-center gap-1 ${hint.desktopOnly ? "hidden md:flex" : ""}`}
+                >
+                  <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                    {hint.key}
+                  </kbd>
+                  {hint.label}
+                </span>
+              ))}
+            </div>
+          </div>
         </Command>
       </div>
 
