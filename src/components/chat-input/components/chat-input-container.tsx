@@ -22,7 +22,7 @@ export function ChatInputContainer({
 }: ChatInputContainerProps) {
   return (
     <div
-      className="relative px-3 pb-3"
+      className="relative pb-3"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0.75rem)" }}
     >
       <div className="mx-auto w-full max-w-3xl">
