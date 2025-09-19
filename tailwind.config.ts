@@ -43,6 +43,7 @@ const config: Config = {
           "Arial",
           "sans-serif",
         ],
+        serif: ['"Source Serif 4"', "Source Serif Pro", "serif"],
         mono: [
           "IBM Plex Mono",
           "ui-monospace",
