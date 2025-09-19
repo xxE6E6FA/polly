@@ -270,18 +270,28 @@ const ChatSection = () => {
   };
 
   return (
-    <div className="relative">
-      <SimplePrompts
-        hasReachedLimit={!canSendMessage}
-        hasWarning={hasWarning}
-        isAnonymous={user?.isAnonymous ?? true}
-        userLoading={isLoading}
-        onQuickPrompt={handleQuickPrompt}
-      />
-      <ChatInput ref={chatInputRef} {...chatInputProps} autoFocus />
+    <div className="px-3 sm:px-6">
+      <div className="relative mx-auto w-full max-w-3xl">
+        <SimplePrompts
+          hasReachedLimit={!canSendMessage}
+          hasWarning={hasWarning}
+          isAnonymous={user?.isAnonymous ?? true}
+          userLoading={isLoading}
+          onQuickPrompt={handleQuickPrompt}
+        />
+        <ChatInput ref={chatInputRef} {...chatInputProps} autoFocus />
+      </div>
     </div>
   );
 };
+
+const headingText = "What's on your mind?";
+
+const headingClassName = cn(
+  "text-balance font-serif font-medium text-foreground transition-colors",
+  "tracking-[0.01em] sm:tracking-[0.005em]",
+  "text-[1.5rem] leading-[1.14] sm:text-[2rem] sm:leading-[1.08] md:text-[2.25rem] lg:text-[2.4rem]"
+);
 
 export const ChatZeroState = () => {
   return (
@@ -292,20 +302,14 @@ export const ChatZeroState = () => {
             <div className="flex justify-center mb-3">
               <AnimatedLogo alt="Polly AI logo" size={112} />
             </div>
-            <h1 className="text-xl font-semibold text-foreground tracking-tight">
-              What&apos;s on your mind?
-            </h1>
+            <h1 className={headingClassName}>{headingText}</h1>
           </div>
         </div>
 
-        <div className="hidden max-w-full text-center sm:block stack-lg sm:stack-xl">
-          <div className="stack-sm">
-            <div className="flex justify-center mb-2 sm:mb-3">
-              <AnimatedLogo alt="Polly AI logo" size={80} />
-            </div>
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground tracking-tight">
-              What&apos;s on your mind?
-            </h1>
+        <div className="hidden text-center sm:block stack-lg sm:stack-xl">
+          <div className="flex flex-row items-center justify-center gap-5">
+            <AnimatedLogo alt="Polly AI logo" size={50} />
+            <h1 className={headingClassName}>{headingText}</h1>
           </div>
 
           <ChatSection />
