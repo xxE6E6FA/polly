@@ -12,7 +12,6 @@ import { useAction, useMutation } from "convex/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
-import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { startAuthorStream } from "@/lib/ai/http-stream";
@@ -285,33 +284,11 @@ const ChatSection = () => {
   );
 };
 
-const headingText = "What's on your mind?";
-
-const headingClassName = cn(
-  "text-balance font-serif font-normal transition-colors",
-  "tracking-[0.006em] sm:tracking-[0.003em]",
-  "text-[1.35rem] leading-[1.18] sm:text-[1.85rem] sm:leading-[1.12] md:text-[2rem] lg:text-[2.15rem]"
-);
-
 export const ChatZeroState = () => {
   return (
     <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
       <div className="mx-auto flex h-full w-full min-w-0 flex-col sm:block sm:h-auto">
-        <div className="flex flex-1 flex-col items-center justify-center sm:hidden">
-          <div className="stack-lg text-center">
-            <div className="flex justify-center mb-3">
-              <AnimatedLogo alt="Polly AI logo" size={84} />
-            </div>
-            <h1 className={headingClassName}>{headingText}</h1>
-          </div>
-        </div>
-
         <div className="hidden text-center sm:block stack-lg sm:stack-xl">
-          <div className="flex flex-row items-center justify-center gap-5">
-            <AnimatedLogo alt="Polly AI logo" size={38} />
-            <h1 className={headingClassName}>{headingText}</h1>
-          </div>
-
           <ChatSection />
           <SetupChecklist />
         </div>
