@@ -11,6 +11,25 @@ import {
 import { log } from "./lib/logger";
 
 // Export conversation type definition
+export type ExportAttachment = {
+  type: "image" | "pdf" | "text";
+  url: string;
+  name: string;
+  size: number;
+  content?: string;
+  thumbnail?: string;
+  mimeType?: string;
+  storageId?: Id<"_storage">;
+  textFileId?: Id<"_storage">;
+  extractedText?: string;
+  generatedImage?: {
+    isGenerated: boolean;
+    source: string;
+    model?: string;
+    prompt?: string;
+  };
+};
+
 export type ExportConversation = {
   conversation: {
     title: string;
@@ -26,23 +45,21 @@ export type ExportConversation = {
     model: string | undefined;
     provider: string | undefined;
     reasoning: string | undefined;
-    attachments:
-      | Array<{
-          type: "image" | "pdf" | "text";
-          url: string;
-          name: string;
-          size: number;
-          content?: string;
-          thumbnail?: string;
-        }>
-      | undefined;
-    citations:
+    attachments?: ExportAttachment[];
+    citations?:
       | Array<{
           title: string;
           url: string;
-          text: string;
+          text?: string;
           author?: string;
           publishedDate?: string;
+          image?: string;
+          description?: string;
+          cited_text?: string;
+          snippet?: string;
+          favicon?: string;
+          siteName?: string;
+          type?: string;
         }>
       | undefined;
   }>;
@@ -612,7 +629,19 @@ export const getExportData = internalQuery({
             provider: message.provider,
             reasoning: message.reasoning,
             attachments: args.includeAttachments
-              ? message.attachments
+              ? message.attachments?.map(attachment => ({
+                  type: attachment.type,
+                  url: attachment.url,
+                  name: attachment.name,
+                  size: attachment.size,
+                  content: attachment.content,
+                  thumbnail: attachment.thumbnail,
+                  mimeType: attachment.mimeType,
+                  storageId: attachment.storageId,
+                  textFileId: attachment.textFileId,
+                  extractedText: attachment.extractedText,
+                  generatedImage: attachment.generatedImage,
+                }))
               : undefined,
             citations: message.citations,
           })),
@@ -627,14 +656,38 @@ export const getExportData = internalQuery({
 // Function to create Convex export data structure
 export const createConvexExportData = (
   conversations: ExportConversation[],
-  includeAttachments: boolean
+  includeAttachments: boolean,
+  embedAttachmentsInJson = true
 ) => {
+  // Calculate attachment statistics
+  let totalAttachments = 0;
+  const attachmentTypes = new Map<string, number>();
+  let totalAttachmentSize = 0;
+
+  for (const conversation of conversations) {
+    for (const message of conversation.messages) {
+      if (message.attachments) {
+        for (const attachment of message.attachments) {
+          totalAttachments++;
+          attachmentTypes.set(
+            attachment.type,
+            (attachmentTypes.get(attachment.type) || 0) + 1
+          );
+          totalAttachmentSize += attachment.size || 0;
+        }
+      }
+    }
+  }
+
   const manifest = {
     totalConversations: conversations.length,
     totalMessages: conversations.reduce(
       (sum, conv) => sum + conv.messages.length,
       0
     ),
+    totalAttachments,
+    attachmentTypes: Object.fromEntries(attachmentTypes),
+    totalAttachmentSizeBytes: totalAttachmentSize,
     conversationDateRange:
       conversations.length > 0
         ? {
@@ -671,7 +724,26 @@ export const createConvexExportData = (
         model: msg.model,
         provider: msg.provider,
         reasoning: msg.reasoning,
-        attachments: includeAttachments ? msg.attachments : undefined,
+        attachments:
+          includeAttachments && msg.attachments
+            ? msg.attachments.map(attachment => {
+                if (embedAttachmentsInJson) {
+                  // Include all attachment data when embedding in JSON
+                  return attachment as ExportAttachment;
+                }
+                // Exclude storage references and content when not embedding
+                const {
+                  storageId: _,
+                  textFileId: __,
+                  content: ___,
+                  ...rest
+                } = attachment;
+                return rest as Omit<
+                  ExportAttachment,
+                  "storageId" | "textFileId" | "content"
+                >;
+              })
+            : undefined,
         citations: msg.citations,
       })),
     })),

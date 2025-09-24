@@ -1,13 +1,15 @@
+import type { IconProps } from "@phosphor-icons/react";
 import {
   CalendarBlankIcon,
   ChatCircleIcon,
   ChatCircleTextIcon,
   CrownIcon,
   HashIcon,
-  SparkleIcon,
   TrendUpIcon,
 } from "@phosphor-icons/react";
+import type { ComponentType } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { useUserSettings } from "@/hooks/use-user-settings";
@@ -26,6 +28,68 @@ function getInitials(name?: string | null) {
     .slice(0, 2);
 }
 
+const STAT_ICON_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(260 85% 60%)",
+  "hsl(280 75% 65%)",
+];
+
+type StatCardProps = {
+  icon: ComponentType<IconProps>;
+  label: string;
+  value: number;
+  color: string;
+  showDivider: boolean;
+};
+
+const StatCard = ({
+  icon: Icon,
+  label,
+  value,
+  color,
+  showDivider,
+}: StatCardProps) => {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 px-4 py-3 text-sm",
+        showDivider && "border-b border-border/60"
+      )}
+    >
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" style={{ color }} weight="duotone" />
+        <span className="text-foreground">{label}</span>
+      </div>
+      <span className="font-mono text-sm text-foreground">{value}</span>
+    </div>
+  );
+};
+
+function formatResetDate(createdAt?: number | null) {
+  if (!createdAt) {
+    return "soon";
+  }
+
+  const joinDate = new Date(createdAt);
+  const now = new Date();
+  const joinDay = joinDate.getDate();
+
+  let resetDate = new Date(now.getFullYear(), now.getMonth(), joinDay);
+
+  if (resetDate <= now) {
+    resetDate = new Date(now.getFullYear(), now.getMonth() + 1, joinDay);
+  }
+
+  if (resetDate.getDate() !== joinDay) {
+    resetDate = new Date(resetDate.getFullYear(), resetDate.getMonth() + 1, 0);
+  }
+
+  return resetDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  });
+}
+
 export const UserIdCard = () => {
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { monthlyMessagesSent } = useMessageSentCount();
@@ -38,275 +102,145 @@ export const UserIdCard = () => {
   }
 
   const usagePercentage = monthlyUsage
-    ? (monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100
+    ? Math.min(100, (monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100)
     : 0;
+
+  const stats = [
+    {
+      icon: ChatCircleTextIcon,
+      label: "Conversations",
+      value: user.conversationCount ?? 0,
+      color: STAT_ICON_COLORS[0],
+    },
+    {
+      icon: ChatCircleIcon,
+      label: "Total Messages",
+      value: user.totalMessageCount ?? 0,
+      color: STAT_ICON_COLORS[1],
+    },
+    {
+      icon: TrendUpIcon,
+      label: "This Month",
+      value: monthlyMessagesSent || 0,
+      color: STAT_ICON_COLORS[2],
+    },
+  ];
 
   return (
     <div className="stack-lg">
-      {/* ID Card - desktop only */}
-      <div className="relative hidden lg:block">
-        <div
-          className="relative w-full shadow-lg"
-          style={{
-            background: "hsl(var(--surface-primary))",
-            borderRadius: "0.75rem",
-            overflow: "hidden",
-          }}
-        >
-          {/* Card content */}
-          <div className="relative z-10 p-4">
-            {/* Header with crown icon - hidden on mobile */}
-            <div className="mb-4 hidden items-center justify-between lg:flex">
-              <div className="flex items-center space-x-1.5">
-                <CrownIcon className="h-4 w-4 text-primary" />
-                <span className="text-xs font-bold tracking-wider text-primary">
-                  POLLY MEMBER
-                </span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <HashIcon className="h-3 w-3 text-muted-foreground" />
-                <span className="font-mono text-xs text-muted-foreground">
-                  {user?._id?.slice(-6).toUpperCase() || "LOAD"}
-                </span>
-              </div>
+      <div className="hidden overflow-hidden rounded-xl border border-border/60 bg-card/80 shadow-sm backdrop-blur lg:block">
+        <div className="flex flex-col gap-5 border-b border-border/60 bg-muted/40 p-6">
+          <div className="flex items-center justify-between">
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide"
+            >
+              <CrownIcon className="h-3.5 w-3.5 text-primary" weight="fill" />
+              Member
+            </Badge>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <HashIcon className="h-3 w-3" />
+              <span className="font-mono">
+                {user._id?.slice(-6).toUpperCase() ?? "------"}
+              </span>
             </div>
+          </div>
 
-            {/* Avatar - centered - hidden on mobile */}
-            <div className="mb-3 hidden justify-center lg:flex">
-              <div className={cn("relative", shouldAnonymize && "blur-lg")}>
-                <Avatar className="h-36 w-36 ring-2 ring-border">
-                  <AvatarImage
-                    alt={user.name || "User"}
-                    src={resizeGoogleImageUrl(user.image || "", 144)}
-                  />
-                  <AvatarFallback className="bg-gradient-primary text-sm text-primary-foreground">
-                    {getInitials(user.name)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
+          <div className="flex flex-col items-center gap-3">
+            <div className={cn("relative", shouldAnonymize && "blur-lg")}>
+              <Avatar className="h-24 w-24 ring-2 ring-border/60 shadow-sm">
+                <AvatarImage
+                  alt={user.name || "User"}
+                  src={resizeGoogleImageUrl(user.image || "", 144)}
+                />
+                <AvatarFallback className="bg-gradient-primary text-base text-primary-foreground">
+                  {getInitials(user.name)}
+                </AvatarFallback>
+              </Avatar>
             </div>
-
-            {/* User info - centered - hidden on mobile */}
-            <div className="mb-4 hidden stack-sm text-center lg:block">
-              <h2
+            <div className="text-center">
+              <p
                 className={cn(
-                  "truncate text-base font-bold text-foreground",
+                  "text-lg font-semibold",
                   shouldAnonymize && "blur-md"
                 )}
               >
                 {user.name || "Unnamed User"}
-              </h2>
+              </p>
               <p
                 className={cn(
-                  "truncate text-xs text-muted-foreground",
+                  "font-mono text-xs text-muted-foreground",
                   shouldAnonymize && "blur-md"
                 )}
               >
                 {user.email}
               </p>
-              <div className="flex items-center justify-center space-x-1 text-muted-foreground">
-                <CalendarBlankIcon className="h-3 w-3" />
-                <span className="text-xs">
+              <div className="mt-1 flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                <CalendarBlankIcon className="h-3.5 w-3.5" />
+                <span>
                   {user.createdAt
                     ? new Date(user.createdAt).toLocaleDateString("en-US", {
                         month: "long",
                         year: "numeric",
                       })
-                    : "Unknown"}
+                    : "Joined unknown"}
                 </span>
               </div>
             </div>
-
-            {/* Stats - vertical list - hidden on mobile */}
-            <div className="mb-4 hidden stack-sm lg:block">
-              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <ChatCircleTextIcon
-                    className="h-3.5 w-3.5"
-                    style={{ color: "hsl(220 95% 55%)" }}
-                  />
-                  <span className="text-xs text-foreground">Conversations</span>
-                </div>
-                <span className="font-mono text-sm text-foreground">
-                  {user.conversationCount ?? 0}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <ChatCircleIcon
-                    className="h-3.5 w-3.5"
-                    style={{ color: "hsl(260 85% 60%)" }}
-                  />
-                  <span className="text-xs text-foreground">
-                    Total Messages
-                  </span>
-                </div>
-                <span className="font-mono text-sm text-foreground">
-                  {user.totalMessageCount ?? 0}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-muted p-2.5 ring-1 ring-border/30 shadow-sm">
-                <div className="flex items-center space-x-2">
-                  <TrendUpIcon
-                    className="h-3.5 w-3.5"
-                    style={{ color: "hsl(280 75% 65%)" }}
-                  />
-                  <span className="text-xs text-foreground">This Month</span>
-                </div>
-                <span className="font-mono text-sm text-foreground">
-                  {monthlyMessagesSent || 0}
-                </span>
-              </div>
-            </div>
-
-            {/* Usage bar - hidden for unlimited users */}
-            {monthlyUsage && !hasUnlimitedCalls && (
-              <div className="rounded-lg bg-muted p-3 ring-1 ring-border/30 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5">
-                    <SparkleIcon className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs text-foreground">
-                      Monthly Usage
-                    </span>
-                  </div>
-                  <span className="font-mono text-xs text-foreground">
-                    {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
-                  </span>
-                </div>
-                <Progress
-                  className="h-2.5 rounded-full ring-1 ring-border/30 bg-muted/60 shadow-inner"
-                  value={usagePercentage}
-                />
-                <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{monthlyUsage.remainingMessages} remaining</span>
-                  <span>
-                    resets on {(() => {
-                      if (!user.createdAt) {
-                        return "unknown";
-                      }
-                      const joinDate = new Date(user.createdAt);
-                      const now = new Date();
-                      const joinDay = joinDate.getDate();
-
-                      // Calculate next reset date
-                      let resetDate = new Date(
-                        now.getFullYear(),
-                        now.getMonth(),
-                        joinDay
-                      );
-
-                      // If the reset date for this month has already passed, move to next month
-                      if (resetDate <= now) {
-                        resetDate = new Date(
-                          now.getFullYear(),
-                          now.getMonth() + 1,
-                          joinDay
-                        );
-                      }
-
-                      // Handle edge case where the join day doesn't exist in the target month (e.g., Jan 31 -> Feb 31)
-                      if (resetDate.getDate() !== joinDay) {
-                        resetDate = new Date(
-                          resetDate.getFullYear(),
-                          resetDate.getMonth() + 1,
-                          0
-                        ); // Last day of the month
-                      }
-
-                      return resetDate.toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                      });
-                    })()}
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* Bottom gradient border */}
-          <div
-            className="absolute bottom-0 left-0 right-0 h-0.5"
-            style={{
-              background: `linear-gradient(90deg,
-                hsl(220 95% 55%),
-                hsl(260 85% 60%),
-                hsl(280 75% 65%),
-                hsl(var(--primary)),
-                hsl(220 95% 55%)
-              )`,
-            }}
-          />
         </div>
+
+        {stats.map((stat, index) => (
+          <StatCard
+            key={stat.label}
+            icon={stat.icon}
+            label={stat.label}
+            value={stat.value}
+            color={stat.color}
+            showDivider={index < stats.length - 1}
+          />
+        ))}
+
+        {monthlyUsage &&
+          monthlyUsage.monthlyLimit > 0 &&
+          !hasUnlimitedCalls && (
+            <div className="space-y-3 bg-muted/40 p-4">
+              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                <span>Monthly Usage</span>
+                <span className="font-mono text-foreground">
+                  {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
+                </span>
+              </div>
+              <Progress className="h-2" value={usagePercentage} />
+              {typeof monthlyUsage.remainingMessages === "number" && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{monthlyUsage.remainingMessages} remaining</span>
+                  <span>Resets {formatResetDate(user.createdAt)}</span>
+                </div>
+              )}
+            </div>
+          )}
       </div>
 
-      {/* Mobile usage section - standalone - hidden for unlimited users */}
-      <div className="lg:hidden">
-        {monthlyUsage && !hasUnlimitedCalls && (
-          <div className="rounded-lg bg-muted p-3 shadow-sm ring-1 ring-border/30">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center space-x-1.5">
-                <SparkleIcon className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs text-foreground">Monthly Usage</span>
-              </div>
-              <span className="font-mono text-xs text-foreground">
-                {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
-              </span>
-            </div>
-            <Progress
-              className="h-2.5 rounded-full ring-1 ring-border/30 bg-muted/60 shadow-inner"
-              value={usagePercentage}
-            />
-            <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+      {monthlyUsage && monthlyUsage.monthlyLimit > 0 && !hasUnlimitedCalls && (
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-4 lg:hidden">
+          <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+            <span>Monthly Usage</span>
+            <span className="font-mono text-foreground">
+              {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
+            </span>
+          </div>
+          <Progress className="mt-3 h-2" value={usagePercentage} />
+          {typeof monthlyUsage.remainingMessages === "number" && (
+            <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
               <span className="font-mono">
                 {monthlyUsage.remainingMessages} remaining
               </span>
-              <span>
-                resets on {(() => {
-                  if (!user.createdAt) {
-                    return "unknown";
-                  }
-                  const joinDate = new Date(user.createdAt);
-                  const now = new Date();
-                  const joinDay = joinDate.getDate();
-
-                  // Calculate next reset date
-                  let resetDate = new Date(
-                    now.getFullYear(),
-                    now.getMonth(),
-                    joinDay
-                  );
-
-                  // If the reset date for this month has already passed, move to next month
-                  if (resetDate <= now) {
-                    resetDate = new Date(
-                      now.getFullYear(),
-                      now.getMonth() + 1,
-                      joinDay
-                    );
-                  }
-
-                  // Handle edge case where the join day doesn't exist in the target month (e.g., Jan 31 -> Feb 31)
-                  if (resetDate.getDate() !== joinDay) {
-                    resetDate = new Date(
-                      resetDate.getFullYear(),
-                      resetDate.getMonth() + 1,
-                      0
-                    ); // Last day of the month
-                  }
-
-                  return resetDate.toLocaleDateString("en-US", {
-                    month: "long",
-                    day: "numeric",
-                  });
-                })()}
-              </span>
+              <span>Resets {formatResetDate(user.createdAt)}</span>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

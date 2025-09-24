@@ -81,7 +81,7 @@ describe("useConversationSelection", () => {
   it("exposes includeAttachments toggler", () => {
     (useQuery as unknown as vi.Mock).mockReturnValue(convs);
     const { result } = renderHook(() => useConversationSelection());
-    expect(result.current.includeAttachments).toBe(false);
+    expect(result.current.includeAttachments).toBe(true);
     act(() => result.current.onIncludeAttachmentsChange(true));
     expect(result.current.includeAttachments).toBe(true);
   });

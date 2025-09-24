@@ -672,6 +672,9 @@ export const messageFavoriteSchema = v.object({
 export const backgroundJobManifestSchema = v.object({
   totalConversations: v.number(),
   totalMessages: v.number(),
+  totalAttachments: v.optional(v.number()),
+  attachmentTypes: v.optional(v.record(v.string(), v.number())),
+  totalAttachmentSizeBytes: v.optional(v.number()),
   conversationDateRange: v.object({
     earliest: v.number(),
     latest: v.number(),

@@ -5,7 +5,14 @@ import { toast } from "sonner";
 interface ToastContextValue {
   success: (
     message: string,
-    options?: { description?: string; id?: string }
+    options?: {
+      description?: string;
+      id?: string;
+      action?: {
+        label: string;
+        onClick: () => void;
+      };
+    }
   ) => void;
   error: (
     message: string,
@@ -24,10 +31,21 @@ interface ToastProviderProps {
 
 export function ToastProvider({ children }: ToastProviderProps) {
   const success = useCallback(
-    (message: string, options: { description?: string; id?: string } = {}) => {
+    (
+      message: string,
+      options: {
+        description?: string;
+        id?: string;
+        action?: {
+          label: string;
+          onClick: () => void;
+        };
+      } = {}
+    ) => {
       return toast.success(message, {
         description: options.description,
         id: options.id,
+        action: options.action,
       });
     },
     []

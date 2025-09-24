@@ -1,7 +1,11 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  downloadFromUrl,
+  generateBackgroundExportFilename,
+} from "@/lib/export";
 import type { ParsedConversation } from "@/lib/import-parsers";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { useToast } from "@/providers/toast-context";
@@ -30,6 +34,9 @@ export interface BackgroundJob {
   manifest?: {
     totalConversations: number;
     totalMessages: number;
+    totalAttachments?: number;
+    attachmentTypes?: Record<string, number>;
+    totalAttachmentSizeBytes?: number;
     conversationDateRange: {
       earliest: number;
       latest: number;
@@ -56,6 +63,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
   );
   const { suppressToasts = false } = options;
   const managedToast = useToast();
+  const convex = useConvex();
 
   const jobStatuses = useQuery(api.backgroundJobs.listUserJobs, { limit: 100 });
 
@@ -145,8 +153,73 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           const jobKey = job.jobId || job._id;
 
           let message = "";
+          let action: { label: string; onClick: () => void } | undefined;
+
           if (job.type === "export") {
             message = "Export completed successfully!";
+            action = {
+              label: "Download",
+              onClick: () => {
+                void (async () => {
+                  const loadingToastId = managedToast.loading(
+                    "Preparing download...",
+                    {
+                      id: `loading-download-${jobKey}`,
+                    }
+                  );
+
+                  try {
+                    const downloadData = await convex.query(
+                      api.backgroundJobs.getExportDownloadUrl,
+                      { jobId: jobKey }
+                    );
+
+                    if (downloadData?.downloadUrl) {
+                      const manifest = downloadData.manifest
+                        ? {
+                            totalConversations:
+                              downloadData.manifest.totalConversations,
+                            includeAttachments:
+                              downloadData.manifest.includeAttachments,
+                          }
+                        : job.manifest
+                          ? {
+                              totalConversations:
+                                job.manifest.totalConversations,
+                              includeAttachments:
+                                job.manifest.includeAttachments,
+                            }
+                          : undefined;
+
+                      const filename =
+                        generateBackgroundExportFilename(manifest);
+                      await downloadFromUrl(downloadData.downloadUrl, filename);
+
+                      managedToast.success("Download started", {
+                        description: `Export file downloaded as ${filename}`,
+                        id: `download-${jobKey}`,
+                      });
+                    } else {
+                      managedToast.error("Download failed", {
+                        description:
+                          "Export file is not available for download",
+                        id: `download-error-${jobKey}`,
+                      });
+                    }
+                  } catch (error) {
+                    managedToast.error("Download failed", {
+                      description:
+                        error instanceof Error
+                          ? error.message
+                          : "An error occurred while downloading the file",
+                      id: `download-error-${jobKey}`,
+                    });
+                  } finally {
+                    managedToast.dismiss(loadingToastId);
+                  }
+                })();
+              },
+            };
           } else if (job.type === "import") {
             message = "Import completed successfully!";
             // Invalidate conversations cache to reflect imported conversations
@@ -158,7 +231,10 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
           }
 
           if (message && !suppressToasts) {
-            managedToast.success(message, { id: `job-${jobKey}` });
+            managedToast.success(message, {
+              id: `job-${jobKey}`,
+              action,
+            });
           }
         } else if (job.status === "failed") {
           const jobKey = job.jobId || job._id;
@@ -180,7 +256,7 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
     });
 
     previousJobStatuses.current = jobStatuses;
-  }, [jobStatuses, suppressToasts, managedToast]);
+  }, [jobStatuses, suppressToasts, managedToast, convex]);
 
   const startExport = async (
     conversationIds: Id<"conversations">[],

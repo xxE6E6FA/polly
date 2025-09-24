@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivitySection } from "@/components/settings/chat-history-tab/ActivitySection";
 import { ConversationSelectionList } from "@/components/settings/chat-history-tab/ConversationSelectionList";
 import { ImportExportActions } from "@/components/settings/chat-history-tab/ImportExportActions";
@@ -9,6 +9,7 @@ import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConversationSelection } from "@/hooks/use-conversation-selection";
+import { generateBackgroundExportFilename } from "@/lib/export";
 import { useToast } from "@/providers/toast-context";
 
 export default function ChatHistoryPage() {
@@ -16,15 +17,17 @@ export default function ChatHistoryPage() {
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
+  const [pendingFilename, setPendingFilename] = useState<string | null>(null);
 
   const downloadData = useQuery(
     api.backgroundJobs.getExportDownloadUrl,
     downloadingJobId ? { jobId: downloadingJobId } : "skip"
   );
 
-  const handleDownload = (jobId: string) => {
+  const handleDownload = useCallback((jobId: string, filename?: string) => {
+    setPendingFilename(filename ?? null);
     setDownloadingJobId(jobId);
-  };
+  }, []);
 
   useEffect(() => {
     if (!(downloadData && downloadingJobId)) {
@@ -49,11 +52,9 @@ export default function ChatHistoryPage() {
           const blob = await response.blob();
 
           // Generate filename
-          let filename = "export.json";
-          if (downloadData.manifest) {
-            const timestamp = new Date().toISOString().split("T")[0];
-            const conversationCount = downloadData.manifest.totalConversations;
-            filename = `polly-export-${conversationCount}-conversations-${timestamp}.json`;
+          let filename = pendingFilename ?? "export.json";
+          if (filename === "export.json") {
+            filename = generateBackgroundExportFilename(downloadData.manifest);
           }
 
           // Create a blob URL and download link
@@ -99,6 +100,7 @@ export default function ChatHistoryPage() {
 
     downloadFile();
     setDownloadingJobId(null);
+    setPendingFilename(null);
   }, [
     downloadData,
     downloadingJobId,
@@ -106,7 +108,31 @@ export default function ChatHistoryPage() {
     managedToast.error,
     managedToast.loading,
     managedToast.dismiss,
+    pendingFilename,
   ]);
+
+  // Listen for download events from toast actions
+  useEffect(() => {
+    const handleDownloadExport = (event: CustomEvent) => {
+      const { jobId, filename } = event.detail as {
+        jobId: string;
+        filename?: string;
+      };
+      handleDownload(jobId, filename);
+    };
+
+    window.addEventListener(
+      "downloadExport",
+      handleDownloadExport as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "downloadExport",
+        handleDownloadExport as EventListener
+      );
+    };
+  }, [handleDownload]);
 
   const handleRemove = (jobId: string) => {
     backgroundJobs.removeJob(jobId);

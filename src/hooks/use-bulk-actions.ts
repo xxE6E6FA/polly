@@ -4,7 +4,10 @@ import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
-import { downloadFromUrl } from "@/lib/export";
+import {
+  downloadFromUrl,
+  generateBackgroundExportFilename,
+} from "@/lib/export";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { useBatchSelection } from "@/providers/batch-selection-context";
 import { useToast } from "@/providers/toast-context";
@@ -43,18 +46,6 @@ const BULK_ACTION_CONFIGS: Record<string, BulkActionConfig> = {
 
 const BACKGROUND_THRESHOLD = 10;
 
-function generateExportFilename(manifest?: {
-  totalConversations: number;
-}): string {
-  if (!manifest) {
-    return "export.json";
-  }
-
-  const timestamp = new Date().toISOString().split("T")[0];
-  const conversationCount = manifest.totalConversations;
-  return `polly-export-${conversationCount}-conversations-${timestamp}.json`;
-}
-
 export function useBulkActions() {
   const batch = useBatchSelection();
   const { getSelectedIds, clearSelection } = batch;
@@ -66,6 +57,7 @@ export function useBulkActions() {
     new Set()
   );
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
+  const [pendingFilename, setPendingFilename] = useState<string | null>(null);
 
   const backgroundJobs = useBackgroundJobs({ suppressToasts: true });
 
@@ -102,6 +94,29 @@ export function useBulkActions() {
     }
   }, [backgroundJobs.activeJobs, pendingAutoDownloads]);
 
+  // Listen for download events from toast actions
+  useEffect(() => {
+    const handleDownloadExport = (
+      event: CustomEvent<{ jobId: string; filename?: string }>
+    ) => {
+      const { jobId, filename } = event.detail;
+      setPendingFilename(filename ?? null);
+      setDownloadingJobId(jobId);
+    };
+
+    window.addEventListener(
+      "downloadExport",
+      handleDownloadExport as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "downloadExport",
+        handleDownloadExport as EventListener
+      );
+    };
+  }, []);
+
   // Handle automatic download using shared utility
   useEffect(() => {
     if (!(downloadData && downloadingJobId)) {
@@ -118,7 +133,9 @@ export function useBulkActions() {
             id: `loading-download-${downloadingJobId}`,
           });
 
-          const filename = generateExportFilename(downloadData.manifest);
+          const filename =
+            pendingFilename ??
+            generateBackgroundExportFilename(downloadData.manifest);
 
           // Use shared download utility
           await downloadFromUrl(downloadData.downloadUrl, filename);
@@ -156,7 +173,8 @@ export function useBulkActions() {
 
     downloadFile();
     setDownloadingJobId(null);
-  }, [downloadData, downloadingJobId, managedToast]);
+    setPendingFilename(null);
+  }, [downloadData, downloadingJobId, managedToast, pendingFilename]);
 
   const executeBulkAction = useCallback(
     async (actionKey: string, selectedIds: ConversationId[]) => {
@@ -217,7 +235,7 @@ export function useBulkActions() {
         case "export-json": {
           // Always use background jobs for exports (consistent with settings page)
           const jobId = await backgroundJobs.startExport(ids, {
-            includeAttachmentContent: false,
+            includeAttachmentContent: true,
           });
 
           // Track this export for auto-download
