@@ -149,3 +149,21 @@ export function generateFilename(title: string, format: "json" | "md"): string {
   const timestamp = new Date().toISOString().split("T")[0];
   return `${sanitized}-${timestamp}.${format}`;
 }
+
+type ExportManifestSummary = {
+  totalConversations: number;
+  includeAttachments?: boolean;
+};
+
+export function generateBackgroundExportFilename(
+  manifest?: ExportManifestSummary | null
+): string {
+  if (!manifest) {
+    return "export.json";
+  }
+
+  const timestamp = new Date().toISOString().split("T")[0];
+  const conversationCount = manifest.totalConversations;
+  const extension = manifest.includeAttachments ? "zip" : "json";
+  return `polly-export-${conversationCount}-conversations-${timestamp}.${extension}`;
+}

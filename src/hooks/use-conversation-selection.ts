@@ -26,7 +26,7 @@ export function useConversationSelection() {
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(
     null
   );
-  const [includeAttachments, setIncludeAttachments] = useState(false);
+  const [includeAttachments, setIncludeAttachments] = useState(true);
 
   const conversationSummaryRaw = useQuery(api.conversations.list, {
     includeArchived: true,
