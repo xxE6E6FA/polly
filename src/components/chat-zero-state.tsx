@@ -286,8 +286,8 @@ const ChatSection = () => {
 
 export const ChatZeroState = () => {
   return (
-    <div className="flex h-full w-full max-w-full flex-col overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
-      <div className="mx-auto flex h-full w-full min-w-0 flex-col sm:block sm:h-auto">
+    <div className="flex h-full w-full max-w-full flex-col justify-end overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
+      <div className="mx-auto flex w-full min-w-0 flex-col justify-end sm:block sm:h-auto">
         <div className="hidden text-center sm:block stack-lg sm:stack-xl">
           <ChatSection />
           <SetupChecklist />
