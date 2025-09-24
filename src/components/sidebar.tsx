@@ -360,8 +360,8 @@ export const Sidebar = () => {
                     : undefined
                 }
               >
-                <Link className="group ml-3" to={ROUTES.HOME}>
-                  <div className="flex items-center gap-1.5 transition-transform group-hover:scale-105">
+                <Link className="group ml-1.5" to={ROUTES.HOME}>
+                  <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
                     <div
                       className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
                       style={{
@@ -396,7 +396,7 @@ export const Sidebar = () => {
                 )}
               </div>
 
-              <div className="px-3 pt-2 pb-3">
+              <div className="px-3 py-2">
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (
