@@ -1,9 +1,5 @@
 import { api } from "@convex/_generated/api";
-import {
-  HeartIcon,
-  SidebarSimple,
-  SidebarSimpleIcon,
-} from "@phosphor-icons/react";
+import { HeartIcon, SidebarSimple } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -13,11 +9,6 @@ import { SidebarSearch } from "@/components/sidebar/search";
 import { UserSection } from "@/components/sidebar/user-section";
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import {
@@ -36,6 +27,7 @@ export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [shadowHeight, setShadowHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sidebarRootRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
@@ -170,6 +162,126 @@ export const Sidebar = () => {
     setSidebarVisible(false);
   }, [setSidebarVisible]);
 
+  const clearCursor = useCallback(() => {
+    if (sidebarRootRef.current) {
+      sidebarRootRef.current.style.cursor = "";
+    }
+    document.body.style.cursor = "";
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearCursor();
+    };
+  }, [clearCursor]);
+
+  const isInteractiveTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    if (target.isContentEditable) {
+      return true;
+    }
+
+    const interactiveSelector =
+      "a, button, input, textarea, select, [role='button'], [role='menuitem'], [role='menu'], [data-sidebar-interactive='true']";
+
+    return Boolean(target.closest(interactiveSelector));
+  }, []);
+
+  const updateCursorForTarget = useCallback(
+    (target: EventTarget | null) => {
+      if (isMobile) {
+        clearCursor();
+        return;
+      }
+
+      if (isInteractiveTarget(target)) {
+        clearCursor();
+        return;
+      }
+
+      if (sidebarRootRef.current) {
+        sidebarRootRef.current.style.cursor = "w-resize";
+      }
+      document.body.style.cursor = "w-resize";
+    },
+    [clearCursor, isInteractiveTarget, isMobile]
+  );
+
+  const handleSidebarContainerPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      updateCursorForTarget(event.target);
+
+      if (isMobile || isInteractiveTarget(event.target) || event.button > 0) {
+        return;
+      }
+
+      setSidebarVisible(false);
+      clearCursor();
+    },
+    [
+      clearCursor,
+      isInteractiveTarget,
+      isMobile,
+      setSidebarVisible,
+      updateCursorForTarget,
+    ]
+  );
+
+  const handleScrollContainerPointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      updateCursorForTarget(event.target);
+
+      if (isMobile || isInteractiveTarget(event.target) || event.button > 0) {
+        return;
+      }
+
+      setSidebarVisible(false);
+      clearCursor();
+    },
+    [
+      clearCursor,
+      isInteractiveTarget,
+      isMobile,
+      setSidebarVisible,
+      updateCursorForTarget,
+    ]
+  );
+
+  const handleExpandZoneClick = useCallback(() => {
+    if (isMobile) {
+      return;
+    }
+
+    setSidebarVisible(true);
+  }, [isMobile, setSidebarVisible]);
+
+  const handleSidebarPointerEnter = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      updateCursorForTarget(event.target);
+    },
+    [updateCursorForTarget]
+  );
+
+  const handleSidebarPointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      updateCursorForTarget(event.target);
+    },
+    [updateCursorForTarget]
+  );
+
+  const handleSidebarPointerLeave = useCallback(() => {
+    clearCursor();
+  }, [clearCursor]);
+
+  useEffect(() => {
+    if (!isSidebarVisible) {
+      clearCursor();
+    }
+  }, [clearCursor, isSidebarVisible]);
+
   const sidebarStyle = useMemo(
     () =>
       ({
@@ -196,35 +308,13 @@ export const Sidebar = () => {
 
   return (
     <>
-      {/* Always visible desktop toggle button */}
-      {!isMobile && (
-        <div
-          className="fixed top-2 z-50"
-          style={{
-            left: isSidebarVisible ? `${sidebarWidth - 52}px` : "8px",
-            transition: "left 300ms ease-out",
-          }}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-sm"
-                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-                variant="ghost"
-                className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
-                style={{
-                  cursor: isSidebarVisible ? "w-resize" : "e-resize",
-                }}
-                onClick={toggleSidebar}
-              >
-                <SidebarSimpleIcon className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>{isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}</p>
-            </TooltipContent>
-          </Tooltip>
-        </div>
+      {!(isMobile || isSidebarVisible) && (
+        <button
+          type="button"
+          aria-label="Expand sidebar"
+          className="fixed inset-y-0 left-0 z-40 w-5 cursor-e-resize bg-transparent transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring hover:bg-accent/40"
+          onClick={handleExpandZoneClick}
+        />
       )}
 
       <div
@@ -236,6 +326,7 @@ export const Sidebar = () => {
             : "transition-[width] duration-300 ease-out",
           isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : "")
         )}
+        ref={sidebarRootRef}
         style={{
           ...sidebarStyle,
           width: isMobile
@@ -251,9 +342,15 @@ export const Sidebar = () => {
         role={isMobile ? "dialog" : undefined}
         aria-modal={isMobile ? true : undefined}
         aria-hidden={!isSidebarVisible}
+        onPointerEnter={handleSidebarPointerEnter}
+        onPointerMove={handleSidebarPointerMove}
+        onPointerLeave={handleSidebarPointerLeave}
       >
         {isSidebarVisible && (
-          <div className="flex h-full flex-col">
+          <div
+            className="flex h-full flex-col"
+            onPointerDown={handleSidebarContainerPointerDown}
+          >
             <div className="flex-shrink-0">
               <div
                 className="flex h-10 items-center px-3 pt-2"
@@ -320,6 +417,7 @@ export const Sidebar = () => {
                   : "scrollbar-thin"
               )}
               style={scrollContainerStyle}
+              onPointerDown={handleScrollContainerPointerDown}
               onMouseEnter={() => {
                 setHoveringOverSidebar(true);
                 setIsScrollHovered(true);
@@ -371,6 +469,7 @@ export const Sidebar = () => {
           <div
             ref={resizeRef}
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/70 active:bg-accent transition-colors z-10"
+            data-sidebar-interactive="true"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
           />
