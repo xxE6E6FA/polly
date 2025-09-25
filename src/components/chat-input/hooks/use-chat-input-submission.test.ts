@@ -277,7 +277,8 @@ describe("useChatInputSubmission", () => {
         ],
         true,
         "p2" as Id<"personas">,
-        { enabled: true }
+        { enabled: true },
+        "text"
       );
     });
     expect(genSummary).toHaveBeenCalled();
@@ -297,8 +298,51 @@ describe("useChatInputSubmission", () => {
     onReset.mockClear();
     onSendAsNewConversation.mockResolvedValueOnce(undefined);
     await act(async () => {
-      await result.current.handleSendAsNewConversation("q", [], true);
+      await result.current.handleSendAsNewConversation(
+        "q",
+        [],
+        true,
+        undefined,
+        undefined,
+        "text"
+      );
     });
     expect(onReset).not.toHaveBeenCalled();
+  });
+
+  it("routes image forks through the image generation handler", async () => {
+    const genSummary = vi.fn();
+    (useAction as unknown as vi.Mock).mockReturnValue(genSummary);
+
+    const imageHandler = vi.fn().mockResolvedValue("new-img");
+    const onSendAsNewConversation = vi.fn();
+    const onReset = vi.fn();
+
+    const { result } = renderHook(() =>
+      useChatInputSubmission({
+        conversationId: "c1" as Id<"conversations">,
+        selectedPersonaId: "p1" as Id<"personas">,
+        onSendMessage: vi.fn(),
+        onSendAsNewConversation,
+        handleImageGenerationSubmit: vi.fn(),
+        handleImageGenerationSendAsNew: imageHandler,
+        onResetInputState: onReset,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handleSendAsNewConversation(
+        "describe",
+        [],
+        false,
+        "p2" as Id<"personas">,
+        undefined,
+        "image"
+      );
+    });
+
+    expect(imageHandler).toHaveBeenCalledWith(false, "p2");
+    expect(onSendAsNewConversation).not.toHaveBeenCalled();
+    expect(onReset).toHaveBeenCalled();
   });
 });

@@ -49,6 +49,7 @@ export function useChatInputSubmission({
   onSendMessage,
   onSendAsNewConversation,
   handleImageGenerationSubmit,
+  handleImageGenerationSendAsNew,
 
   onResetInputState,
 }: UseChatInputSubmissionProps) {
@@ -169,13 +170,26 @@ export function useChatInputSubmission({
       attachments: Attachment[],
       shouldNavigate = true,
       personaId?: Id<"personas"> | null,
-      customReasoningConfig?: ReasoningConfig
+      customReasoningConfig?: ReasoningConfig,
+      generationModeOverride?: GenerationMode
     ) => {
       if (!onSendAsNewConversation) {
         return;
       }
 
       try {
+        if (generationModeOverride === "image") {
+          const newConversationId = await handleImageGenerationSendAsNew(
+            shouldNavigate,
+            personaId
+          );
+
+          if (newConversationId) {
+            onResetInputState();
+          }
+          return;
+        }
+
         // Generate summary if we have a current conversation
         let contextSummary: string | undefined;
         if (conversationId) {
@@ -220,6 +234,7 @@ export function useChatInputSubmission({
       temperature,
       onResetInputState,
       uploadAttachmentsToConvex,
+      handleImageGenerationSendAsNew,
     ]
   );
 

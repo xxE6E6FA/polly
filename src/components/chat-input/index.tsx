@@ -334,7 +334,8 @@ const ChatInputInner = forwardRef(
           [...attachments],
           shouldNavigate,
           personaId,
-          customReasoningConfig
+          customReasoningConfig,
+          generationMode
         );
         setInput("");
         clearAttachments();
@@ -346,6 +347,7 @@ const ChatInputInner = forwardRef(
         attachments,
         clearAttachments,
         activeQuote,
+        generationMode,
       ]
     );
 
