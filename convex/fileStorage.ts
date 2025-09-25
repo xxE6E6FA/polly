@@ -96,21 +96,6 @@ export const getUserFiles = query({
       .withIndex("by_user_recent", q => q.eq("userId", userId))
       .collect();
 
-    log.info(
-      `[getUserFiles] Found ${conversations.length} conversations for user`
-    );
-
-    // Debug: Let's see what user IDs actually exist in conversations
-    const allConversations = await ctx.db.query("conversations").collect();
-    const uniqueUserIds = [...new Set(allConversations.map(c => c.userId))];
-    log.info(
-      "[getUserFiles] All unique user IDs in conversations:",
-      uniqueUserIds
-    );
-    log.info(
-      `[getUserFiles] Total conversations in database: ${allConversations.length}`
-    );
-
     const conversationIds = conversations.map(c => c._id);
 
     // Get messages from user's conversations
