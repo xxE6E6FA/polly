@@ -46,6 +46,14 @@ export const ConversationList = ({
     return getCachedConversations(userId);
   }, [conversationDataRaw, userId]);
 
+  const isLoading = useMemo(() => {
+    if (!userId) {
+      return false;
+    }
+    const hasConversations = conversations && conversations.length > 0;
+    return conversationDataRaw === undefined && !hasConversations;
+  }, [conversationDataRaw, conversations, userId]);
+
   useEffect(() => {
     if (
       userId &&
@@ -78,7 +86,7 @@ export const ConversationList = ({
     <ConversationListContent
       conversations={conversations}
       currentConversationId={currentConversationId}
-      isLoading={false}
+      isLoading={isLoading}
       searchQuery={searchQuery}
     />
   );
