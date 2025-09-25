@@ -173,8 +173,8 @@ export default function ConversationRoute() {
   const initialLoadHandledRef = useRef<string | null>(null);
   useEffect(() => {
     // Reset when conversation changes
-    initialLoadHandledRef.current = null;
-  }, []);
+    initialLoadHandledRef.current = conversationId ? null : null;
+  }, [conversationId]);
 
   // Auto-trigger a response for trailing user messages (but avoid image-gen follow-ups)
   const lastAutoTriggeredRef = useRef<string | null>(null);
