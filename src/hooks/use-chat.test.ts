@@ -109,4 +109,23 @@ describe("useChat", () => {
       /No model selected/
     );
   });
+
+  it("marks loading false when no conversation is selected", () => {
+    (useSelectedModel as unknown as vi.Mock).mockReturnValue([
+      { _id: "m1", modelId: "gpt", provider: "openai", name: "custom" },
+    ]);
+    (isUserModel as unknown as vi.Mock).mockReturnValue(true);
+    (createChatHandlers as unknown as vi.Mock).mockReturnValue({
+      sendMessage: vi.fn(),
+      stopGeneration: vi.fn(),
+      retryFromMessage: vi.fn(),
+      editMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      saveConversation: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useChat({}));
+
+    expect(result.current.isLoading).toBe(false);
+  });
 });
