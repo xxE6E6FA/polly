@@ -6,6 +6,7 @@ import { Link, useParams } from "react-router-dom";
 import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages";
 
@@ -37,7 +38,7 @@ export default function SharedConversationPage() {
   }
 
   if (sharedData === undefined) {
-    return null;
+    return <SharedConversationLoading />;
   }
 
   if (sharedData === null) {
@@ -133,3 +134,41 @@ export default function SharedConversationPage() {
     </div>
   );
 }
+
+const SharedConversationLoading = () => {
+  return (
+    <div
+      className="flex min-h-[100dvh] w-full flex-col bg-background"
+      aria-live="polite"
+    >
+      <div className="border-b bg-muted/30">
+        <div className="mx-auto max-w-5xl px-4 sm:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-10 w-32" />
+              <div className="h-5 w-px bg-border" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-10" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-6">
+        <div
+          className="w-full max-w-3xl space-y-4"
+          data-testid="shared-conversation-loading"
+        >
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <p className="sr-only">Loading shared conversation…</p>
+        </div>
+      </div>
+    </div>
+  );
+};

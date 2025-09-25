@@ -213,7 +213,7 @@ export const ConversationListContent = ({
 
 const ConversationListSkeleton = () => {
   return (
-    <div>
+    <div data-testid="conversation-list-skeleton">
       {/* Today section */}
       <div className="stack-sm pl-2">
         <div className="mb-1 h-4 w-12 animate-pulse rounded bg-muted/60" />

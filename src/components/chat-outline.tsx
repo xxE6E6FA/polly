@@ -1,5 +1,5 @@
 import { UserIcon } from "@phosphor-icons/react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { cn, generateHeadingId } from "@/lib/utils";
 import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
@@ -68,6 +68,7 @@ const ChatOutlineComponent = ({
   className,
 }: ChatOutlineProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { isSidebarVisible, isMobile } = useUI();
   const { sidebarWidth } = useSidebarWidth();
 
@@ -182,16 +183,28 @@ const ChatOutlineComponent = ({
   }
 
   return (
-    <div
-      className={cn(
-        "fixed top-1/2 -translate-y-1/2 z-10 transition-all duration-300 ease-out",
-        className
-      )}
+    <nav
+      ref={containerRef}
       style={{
         left: isSidebarVisible ? `${sidebarWidth + 12}px` : "12px",
       }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
+      onFocusCapture={() => setIsExpanded(true)}
+      onBlur={event => {
+        const next = event.relatedTarget as HTMLElement | null;
+        if (next && containerRef.current?.contains(next)) {
+          return;
+        }
+        setIsExpanded(false);
+      }}
+      aria-label="Conversation outline"
+      aria-expanded={isExpanded}
+      data-testid="chat-outline-container"
+      className={cn(
+        "fixed top-1/2 -translate-y-1/2 z-10 transition-all duration-300 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
+        className
+      )}
     >
       {/* Smooth morphing container */}
       <div
@@ -337,7 +350,7 @@ const ChatOutlineComponent = ({
           </div>
         </div>
       </div>
-    </div>
+    </nav>
   );
 };
 
