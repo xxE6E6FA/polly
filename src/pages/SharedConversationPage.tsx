@@ -1,9 +1,9 @@
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
+import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AnimatedLogo } from "@/components/ui/animated-logo";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,21 @@ import { VirtualizedChatMessages } from "@/components/virtualized-chat-messages"
 
 import { ROUTES } from "@/lib/routes";
 import type { ChatMessage, ConversationId } from "@/types";
+
+const logoMaskStyle: CSSProperties = {
+  maskImage: "url('/favicon.svg')",
+  maskSize: "contain",
+  maskRepeat: "no-repeat",
+  maskPosition: "center",
+  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
+  WebkitMaskImage: "url('/favicon.svg')",
+  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
+  WebkitMaskSize: "contain",
+  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
+  WebkitMaskRepeat: "no-repeat",
+  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
+  WebkitMaskPosition: "center",
+};
 
 export default function SharedConversationPage() {
   const { shareId } = useParams();
@@ -43,6 +58,10 @@ export default function SharedConversationPage() {
 
   if (sharedData === null) {
     return <NotFoundPage />;
+  }
+
+  if (sharedData.messages == null) {
+    return <SharedConversationLoading />;
   }
 
   const { conversation, messages } = sharedData;
@@ -83,25 +102,41 @@ export default function SharedConversationPage() {
     <div className="flex min-h-[100dvh] w-full flex-col bg-background">
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link to={ROUTES.HOME} className="flex items-center gap-2">
-                <AnimatedLogo alt="Polly" size={40} floating={false} />
-                <span className="hidden text-lg font-semibold text-foreground sm:inline">
+          <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:py-4">
+            <div className="flex w-full flex-col items-center gap-2 text-center sm:flex-1 sm:flex-row sm:items-center sm:gap-3 sm:text-left">
+              <Link
+                to={ROUTES.HOME}
+                className="group flex items-center gap-2 text-foreground"
+                aria-label="Go to Polly home"
+              >
+                <span
+                  className="polly-logo-gradient-unified h-7 w-7 shrink-0 sm:h-8 sm:w-8"
+                  style={logoMaskStyle}
+                  aria-hidden="true"
+                />
+                <span className="polly-logo-text-unified text-lg font-semibold leading-none">
                   Polly
                 </span>
               </Link>
 
-              <div className="h-5 w-px bg-border" />
+              <div className="hidden h-5 w-px flex-shrink-0 bg-border sm:block" />
 
-              <h1 className="truncate text-sm font-medium text-foreground">
+              <h1 className="min-w-0 truncate text-sm font-medium text-foreground sm:text-base">
                 {conversation.title || "Shared Conversation"}
               </h1>
             </div>
 
-            <div className="flex items-center gap-2">
-              <ThemeToggle />
-              <Button asChild size="sm" variant="primary">
+            <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
+              <ThemeToggle
+                className="h-9 w-9 rounded-lg sm:h-8 sm:w-8"
+                size="icon-sm"
+              />
+              <Button
+                asChild
+                size="sm"
+                variant="primary"
+                className="w-full sm:w-auto sm:px-4"
+              >
                 <Link to={ROUTES.HOME}>Try the app</Link>
               </Button>
             </div>
@@ -109,27 +144,27 @@ export default function SharedConversationPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        {chatMessages.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-muted-foreground">
-              No messages in this conversation
-            </p>
+      <div className="flex flex-1 min-h-0 flex-col bg-background">
+        <section className="relative flex min-h-0 flex-1">
+          <div className="relative flex flex-1 min-h-0">
+            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+              {chatMessages.length === 0 ? (
+                <div className="flex flex-1 items-center justify-center px-6">
+                  <p className="text-sm text-muted-foreground">
+                    No messages in this conversation
+                  </p>
+                </div>
+              ) : (
+                <VirtualizedChatMessages
+                  messages={allMessages}
+                  isStreaming={false}
+                  scrollElement={null}
+                  shouldScrollToBottom={false}
+                />
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="h-full">
-            <VirtualizedChatMessages
-              messages={allMessages}
-              isStreaming={false}
-              onEditMessage={undefined}
-              onRetryUserMessage={undefined}
-              onRetryAssistantMessage={undefined}
-              onDeleteMessage={undefined}
-              scrollElement={null}
-              shouldScrollToBottom={false}
-            />
-          </div>
-        )}
+        </section>
       </div>
     </div>
   );
@@ -143,15 +178,18 @@ const SharedConversationLoading = () => {
     >
       <div className="border-b bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 sm:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-32" />
-              <div className="h-5 w-px bg-border" />
-              <Skeleton className="h-4 w-40" />
+          <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-4">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <div className="flex shrink-0 items-center gap-2">
+                <Skeleton className="h-6 w-6 rounded-full sm:h-7 sm:w-7" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="hidden h-5 w-px flex-shrink-0 bg-border sm:block" />
+              <Skeleton className="h-4 flex-1" />
             </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-10" />
-              <Skeleton className="h-8 w-24" />
+            <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
+              <Skeleton className="h-9 w-9 rounded-lg sm:h-8 sm:w-8" />
+              <Skeleton className="h-9 flex-1 rounded-md sm:h-8 sm:w-28 sm:flex-none" />
             </div>
           </div>
         </div>
