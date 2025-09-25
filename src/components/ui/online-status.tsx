@@ -2,6 +2,24 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
+type NavigatorLike = Pick<Navigator, "onLine"> | undefined;
+
+export function getOnlineSnapshot(options?: {
+  hasWindowOverride?: boolean;
+  navigatorOverride?: NavigatorLike;
+}) {
+  const hasWindow = options?.hasWindowOverride ?? typeof window !== "undefined";
+  const nav: NavigatorLike =
+    options?.navigatorOverride ?? (hasWindow ? window.navigator : undefined);
+
+  const online = nav?.onLine ?? true;
+
+  return {
+    online,
+    canListen: hasWindow && !!nav,
+  } as const;
+}
+
 type OnlineStatusProps = {
   variant?: "floating" | "inline" | "sidebar";
   className?: string;
@@ -11,11 +29,21 @@ export function OnlineStatus({
   variant = "floating",
   className,
 }: OnlineStatusProps) {
-  const [online, setOnline] = useState(navigator.onLine);
+  const initialSnapshot = getOnlineSnapshot();
+  const [online, setOnline] = useState(initialSnapshot.online);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const snapshot = getOnlineSnapshot();
+    if (!snapshot.canListen) {
+      return;
+    }
+
     const updateOnlineStatus = () => {
-      setOnline(navigator.onLine);
+      setOnline(window.navigator.onLine);
     };
 
     updateOnlineStatus();

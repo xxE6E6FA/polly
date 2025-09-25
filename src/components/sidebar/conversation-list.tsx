@@ -2,7 +2,10 @@ import { api } from "convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useEffect, useMemo } from "react";
 import { useConversationPreload } from "@/hooks/use-conversation-preload";
-import { CACHE_KEYS, get, set } from "@/lib/local-storage";
+import {
+  getCachedConversations,
+  setCachedConversations,
+} from "@/lib/conversations-cache";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ConversationId } from "@/types";
 import { ConversationListContent } from "./conversation-list-content";
@@ -18,6 +21,7 @@ export const ConversationList = ({
 }: ConversationListProps) => {
   const { user } = useUserDataContext();
   const { preloadConversation } = useConversationPreload();
+  const userId = user?._id ? String(user._id) : undefined;
 
   const conversationDataRaw = useQuery(
     searchQuery.trim() ? api.conversations.search : api.conversations.list,
@@ -38,14 +42,20 @@ export const ConversationList = ({
     if (Array.isArray(conversationDataRaw)) {
       return conversationDataRaw;
     }
-    return get(CACHE_KEYS.conversations, []);
-  }, [conversationDataRaw]);
+
+    return getCachedConversations(userId);
+  }, [conversationDataRaw, userId]);
 
   useEffect(() => {
-    if (conversations && conversations.length > 0 && !searchQuery.trim()) {
-      set(CACHE_KEYS.conversations, conversations);
+    if (
+      userId &&
+      conversations &&
+      conversations.length > 0 &&
+      !searchQuery.trim()
+    ) {
+      setCachedConversations(userId, conversations);
     }
-  }, [conversations, searchQuery]);
+  }, [conversations, searchQuery, userId]);
 
   // Preload the most recent conversations for faster navigation
   useEffect(() => {
