@@ -211,7 +211,10 @@ export function useChat({ conversationId }: UseChatParams) {
         // Private mode is never loading from a server
         setIsLoading(false);
       }
+      return;
     }
+    // When there's no server conversation selected (private mode / new chat)
+    setIsLoading(false);
   }, [serverMessages, conversationId]);
 
   // --- Public API ---
