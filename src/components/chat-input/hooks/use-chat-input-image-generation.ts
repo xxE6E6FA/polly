@@ -67,8 +67,16 @@ export function useChatInputImageGeneration({
     };
   }, [imageParams.model]);
 
+  const sanitizedImageParams = useMemo((): ImageGenerationParams => {
+    const trimmedModel = imageParams.model?.trim() ?? "";
+    return {
+      ...imageParams,
+      model: trimmedModel,
+    };
+  }, [imageParams]);
+
   const handleImageGenerationSubmit = useCallback(async () => {
-    if (!imageParams.model?.trim()) {
+    if (!sanitizedImageParams.model) {
       throw new Error(
         "Please enter a Replicate model ID in the settings. You can copy model IDs from replicate.com."
       );
@@ -120,6 +128,8 @@ export function useChatInputImageGeneration({
         content: input.trim(),
         attachments: uploadedAttachments,
         personaId: selectedPersonaId || undefined,
+        model: sanitizedImageParams.model,
+        provider: "replicate",
       });
 
       await handleImageGeneration(
@@ -127,7 +137,7 @@ export function useChatInputImageGeneration({
         conversationId,
         result.userMessageId,
         input.trim(),
-        imageParams
+        sanitizedImageParams
       );
     } else {
       // No conversation exists, create a new one for image generation
@@ -143,6 +153,8 @@ export function useChatInputImageGeneration({
         content: input.trim(),
         attachments: uploadedAttachments,
         personaId: selectedPersonaId || undefined,
+        model: sanitizedImageParams.model,
+        provider: "replicate",
       });
 
       await handleImageGeneration(
@@ -150,7 +162,7 @@ export function useChatInputImageGeneration({
         newConversation.conversationId,
         result.userMessageId,
         input.trim(),
-        imageParams
+        sanitizedImageParams
       );
 
       navigate(ROUTES.CHAT_CONVERSATION(newConversation.conversationId));
@@ -159,7 +171,7 @@ export function useChatInputImageGeneration({
     // Reset input state after successful submission
     onResetInputState();
   }, [
-    imageParams,
+    sanitizedImageParams,
     conversationId,
     input,
     selectedPersonaId,
@@ -200,6 +212,8 @@ export function useChatInputImageGeneration({
             conversationId: newConversation.conversationId,
             content: input.trim(),
             personaId: personaId || selectedPersonaId || undefined,
+            model: sanitizedImageParams.model,
+            provider: "replicate",
           }
         );
 
@@ -208,7 +222,7 @@ export function useChatInputImageGeneration({
           newConversation.conversationId,
           result.userMessageId,
           input.trim(),
-          imageParams
+          sanitizedImageParams
         );
 
         if (shouldNavigate) {
@@ -228,7 +242,7 @@ export function useChatInputImageGeneration({
       conversationId,
       input,
       selectedPersonaId,
-      imageParams,
+      sanitizedImageParams,
       convex,
       navigate,
       generateSummaryAction,

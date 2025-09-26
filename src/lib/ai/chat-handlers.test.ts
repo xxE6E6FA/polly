@@ -174,6 +174,40 @@ describe("chat-handlers (server)", () => {
     });
   });
 
+  it("retryFromMessage does not start HTTP stream for replicate provider", async () => {
+    const actions = {
+      sendMessage: vi.fn(),
+      editAndResend: vi.fn(),
+      retryFromMessage: vi
+        .fn()
+        .mockResolvedValue({ assistantMessageId: "img-assistant" }),
+      deleteMessage: vi.fn(),
+      stopGeneration: vi.fn(),
+    };
+    const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
+    const handlers = createServerChatHandlers(
+      "conv-img",
+      actions,
+      modelOptions,
+      vi.fn(() => "token")
+    );
+
+    await handlers.retryFromMessage("img-user", {
+      model: "artist/model",
+      provider: "replicate",
+    });
+
+    expect(actions.retryFromMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv-img",
+        messageId: "img-user",
+        model: "artist/model",
+        provider: "replicate",
+      })
+    );
+    expect(vi.mocked(startAuthorStream)).not.toHaveBeenCalled();
+  });
+
   it("stopGeneration aborts HTTP stream and notifies server", async () => {
     const actions = {
       sendMessage: vi

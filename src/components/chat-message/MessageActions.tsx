@@ -19,7 +19,7 @@ import {
 import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
@@ -44,9 +44,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -56,6 +53,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 // Tooltip imports consolidated above
+import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
 import { startAuthorStream } from "@/lib/ai/http-stream";
@@ -81,6 +79,8 @@ type RetryDropdownProps = {
     instruction?: string
   ) => void;
   onDropdownOpenChange?: (open: boolean) => void;
+  currentModel?: string;
+  currentProvider?: string;
 };
 
 const RetryDropdown = memo(
@@ -93,6 +93,8 @@ const RetryDropdown = memo(
     onRetry,
     onRefine,
     onDropdownOpenChange,
+    currentModel,
+    currentProvider,
   }: RetryDropdownProps) => {
     const [open, setOpen] = useState(false);
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
@@ -100,7 +102,20 @@ const RetryDropdown = memo(
     const [refineText, setRefineText] = useState("");
     // no local ref needed; we move focus via element id
     const { modelGroups, userModels } = useModelCatalog();
+    const enabledImageModels = useEnabledImageModels();
     const { selectModel } = useSelectModel();
+
+    const normalizedProvider = currentProvider?.toLowerCase();
+    const isImageProvider = normalizedProvider === "replicate";
+
+    const imageModelOptions = useMemo(() => {
+      if (!enabledImageModels) {
+        return [] as Doc<"userImageModels">[];
+      }
+      return [...enabledImageModels].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+    }, [enabledImageModels]);
 
     const handleOpenChange = (newOpen: boolean) => {
       setOpen(newOpen);
@@ -119,7 +134,12 @@ const RetryDropdown = memo(
         onDropdownOpenChange?.(false);
 
         // If a specific model is selected, update the selected model
-        if (modelId && provider) {
+        if (
+          modelId &&
+          provider &&
+          provider.toLowerCase() !== "replicate" &&
+          Array.isArray(userModels)
+        ) {
           await selectModel(modelId, provider, userModels as AvailableModel[]);
         }
 
@@ -132,7 +152,11 @@ const RetryDropdown = memo(
       setOpen(false);
       setIsMobileSheetOpen(false);
       onDropdownOpenChange?.(false);
-      onRetry();
+      if (currentModel && currentProvider) {
+        onRetry(currentModel, currentProvider);
+      } else {
+        onRetry();
+      }
     };
 
     const handleRefine = (
@@ -151,7 +175,7 @@ const RetryDropdown = memo(
       onRefine(messageId, type, instruction);
     };
 
-    const renderModelList = () => (
+    const renderTextModelList = () => (
       <>
         <div className="text-xs font-medium text-muted-foreground px-2 py-2">
           Try a different model
@@ -307,6 +331,69 @@ const RetryDropdown = memo(
       </>
     );
 
+    const renderImageModelList = () => (
+      <>
+        <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+          Try a different image model
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {imageModelOptions.length === 0 ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              {enabledImageModels === undefined
+                ? "Loading image models..."
+                : "No image models enabled. Manage models in Settings → Image models."}
+            </div>
+          ) : (
+            imageModelOptions.map(model => {
+              const tags: string[] = [];
+              if (model.supportsMultipleImages) {
+                tags.push("Multi");
+              }
+              if (model.supportsNegativePrompt) {
+                tags.push("Negative");
+              }
+              if (model.supportsImageToImage) {
+                tags.push("Img2Img");
+              }
+              const isSelected = currentModel === model.modelId;
+              return (
+                <button
+                  key={model.modelId}
+                  onClick={() => handleRetry(model.modelId, model.provider)}
+                  className={cn(
+                    "flex items-center justify-between w-full px-4 py-3 text-left transition-colors",
+                    "border-b border-border/30 last:border-b-0",
+                    "hover:bg-muted/70",
+                    isSelected && "bg-primary/5 hover:bg-primary/10"
+                  )}
+                >
+                  <div className="flex min-w-0 flex-col">
+                    <span className="truncate font-medium">{model.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {model.modelId}
+                    </span>
+                  </div>
+                  <div className="ml-3 flex shrink-0 gap-1">
+                    {tags.map(tag => (
+                      <span
+                        key={`${model.modelId}-${tag}`}
+                        className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </>
+    );
+
+    const renderModelList = () =>
+      isImageProvider ? renderImageModelList() : renderTextModelList();
+
     return (
       <>
         {/* Desktop: Dropdown */}
@@ -444,155 +531,7 @@ const RetryDropdown = memo(
                 Retry with current model
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {(modelGroups.freeModels.length > 0 ||
-                Object.keys(modelGroups.providerModels).length > 0) && (
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  Try a different model
-                </DropdownMenuLabel>
-              )}
-              {/* Free Models Group */}
-              {modelGroups.freeModels.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="flex items-center gap-2">
-                    <ProviderIcon provider="polly" className="h-4 w-4" />
-                    Polly
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-auto min-w-[200px]">
-                    {modelGroups.freeModels.map((model: AvailableModel) => {
-                      const capabilities = getModelCapabilities({
-                        modelId: model.modelId,
-                        provider: model.provider,
-                        name: model.name,
-                        contextLength: model.contextLength,
-                        supportsReasoning: model.supportsReasoning,
-                        supportsImages: model.supportsImages,
-                        supportsTools: model.supportsTools,
-                        supportsFiles: model.supportsFiles,
-                        inputModalities: model.inputModalities,
-                      });
-                      return (
-                        <DropdownMenuItem
-                          key={model.modelId}
-                          onClick={() =>
-                            handleRetry(model.modelId, model.provider)
-                          }
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="truncate">{model.name}</span>
-                            {model.free && (
-                              <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                                Free
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1 ml-2">
-                            {capabilities.length > 0 &&
-                              capabilities.slice(0, 2).map(capability => {
-                                const IconComponent = capability.icon;
-                                return (
-                                  <Tooltip key={capability.label}>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex items-center justify-center w-4 h-4">
-                                        <IconComponent className="w-3 h-3 text-muted-foreground" />
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      {capability.description}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                );
-                              })}
-                          </div>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-              )}
-
-              {/* Provider Groups */}
-              {Object.entries(modelGroups.providerModels).map(
-                ([providerId, models]) => {
-                  const providerConfig =
-                    PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
-                  const providerTitle = providerConfig?.title || providerId;
-
-                  return (
-                    <DropdownMenuSub key={providerId}>
-                      <DropdownMenuSubTrigger className="flex items-center gap-2">
-                        <ProviderIcon
-                          provider={providerId}
-                          className="h-4 w-4"
-                        />
-                        {providerTitle}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-auto min-w-[200px]">
-                        {models.map((model: AvailableModel) => {
-                          const capabilities = getModelCapabilities({
-                            modelId: model.modelId,
-                            provider: model.provider,
-                            name: model.name,
-                            contextLength: model.contextLength,
-                            supportsReasoning: model.supportsReasoning,
-                            supportsImages: model.supportsImages,
-                            supportsTools: model.supportsTools,
-                            supportsFiles: model.supportsFiles,
-                            inputModalities: model.inputModalities,
-                          });
-                          return (
-                            <DropdownMenuItem
-                              key={model.modelId}
-                              onClick={() =>
-                                handleRetry(model.modelId, model.provider)
-                              }
-                              className="flex items-center justify-between gap-2"
-                            >
-                              <div className="flex min-w-0 flex-1 items-center gap-2">
-                                <span className="truncate">{model.name}</span>
-                                {model.free && (
-                                  <span className="text-xs text-muted-foreground">
-                                    Free
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex shrink-0 items-center gap-1">
-                                {capabilities.length > 0 &&
-                                  capabilities
-                                    .slice(0, 3)
-                                    .map((capability, index) => {
-                                      const IconComponent = capability.icon;
-                                      return (
-                                        <Tooltip
-                                          key={`${model.modelId}-${capability.label}-${index}`}
-                                        >
-                                          <TooltipTrigger asChild>
-                                            <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
-                                              <IconComponent className="h-3 w-3" />
-                                            </div>
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <div>
-                                              <div className="font-semibold text-foreground">
-                                                {capability.label}
-                                              </div>
-                                              <div className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                                                {capability.description}
-                                              </div>
-                                            </div>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      );
-                                    })}
-                              </div>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  );
-                }
-              )}
+              {renderModelList()}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1107,6 +1046,8 @@ export const MessageActions = memo(
               onRetry={onRetryMessage}
               onRefine={onRefineMessage}
               onDropdownOpenChange={setIsDropdownOpen}
+              currentModel={model}
+              currentProvider={provider}
             />
           )}
 

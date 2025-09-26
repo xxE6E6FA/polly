@@ -51,11 +51,18 @@ export function useSubmitLogic({
   const submit = useCallback(async () => {
     if (generationMode === "image") {
       // Handle image generation
-      if (!imageParams.model?.trim()) {
+      const trimmedModelId = imageParams.model?.trim();
+      if (!trimmedModelId) {
         throw new Error(
           "Please enter a Replicate model ID in the settings. You can copy model IDs from replicate.com."
         );
       }
+
+      const sanitizedParams: ImageGenerationParams = {
+        ...imageParams,
+        model: trimmedModelId,
+        prompt: imageParams.prompt || "",
+      } as ImageGenerationParams;
 
       if (conversationId) {
         // Existing conversation, proceed normally
@@ -65,6 +72,8 @@ export function useSubmitLogic({
             conversationId: conversationId as Id<"conversations">,
             content: "",
             personaId: selectedPersonaId || undefined,
+            model: sanitizedParams.model,
+            provider: "replicate",
           }
         );
 
@@ -73,10 +82,7 @@ export function useSubmitLogic({
           conversationId as Id<"conversations">,
           result.userMessageId,
           "",
-          {
-            ...imageParams,
-            prompt: imageParams.prompt || "",
-          } as ImageGenerationParams
+          sanitizedParams
         );
       } else {
         // No conversation exists, create a new one for image generation
@@ -93,6 +99,8 @@ export function useSubmitLogic({
             conversationId: newConversation.conversationId,
             content: "",
             personaId: selectedPersonaId || undefined,
+            model: sanitizedParams.model,
+            provider: "replicate",
           }
         );
 
@@ -101,10 +109,7 @@ export function useSubmitLogic({
           newConversation.conversationId as Id<"conversations">,
           result.userMessageId,
           "",
-          {
-            ...imageParams,
-            prompt: imageParams.prompt || "",
-          } as ImageGenerationParams
+          sanitizedParams
         );
 
         navigate(ROUTES.CHAT_CONVERSATION(newConversation.conversationId));

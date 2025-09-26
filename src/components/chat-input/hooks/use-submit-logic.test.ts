@@ -76,6 +76,11 @@ describe("useSubmitLogic", () => {
     });
 
     expect(action).toHaveBeenCalled();
+    const [, firstPayload] = action.mock.calls[0];
+    expect(firstPayload).toMatchObject({
+      model: "replicate/xx",
+      provider: "replicate",
+    });
     expect(handleImageGeneration).toHaveBeenCalledWith(
       expect.anything(),
       "c1",
@@ -123,6 +128,11 @@ describe("useSubmitLogic", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.stringContaining("/chat/newC")
     );
+    const [, secondPayload] = action.mock.calls[1];
+    expect(secondPayload).toMatchObject({
+      model: "replicate/xx",
+      provider: "replicate",
+    });
   });
 
   it("text mode still resets state without calling image handlers", async () => {

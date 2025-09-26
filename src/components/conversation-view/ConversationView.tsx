@@ -384,11 +384,23 @@ function ConversationContent({
         temperature: number;
       }> = {};
 
-      if (modelId) {
-        options.model = modelId;
-      }
-      if (provider) {
-        options.provider = provider;
+      const targetMessage = messages.find(message => message.id === messageId);
+      const resolvedModel = modelId || targetMessage?.model;
+      const resolvedProvider = provider || targetMessage?.provider;
+      const normalizedProvider = resolvedProvider?.toLowerCase();
+
+      if (normalizedProvider === "replicate") {
+        if (resolvedModel) {
+          options.model = resolvedModel;
+        }
+        options.provider = "replicate";
+      } else {
+        if (resolvedModel) {
+          options.model = resolvedModel;
+        }
+        if (resolvedProvider) {
+          options.provider = resolvedProvider;
+        }
       }
       if (reasoningConfig) {
         options.reasoningConfig = reasoningConfig;
@@ -399,7 +411,7 @@ function ConversationContent({
 
       return retryFromMessage(messageId, options);
     },
-    [retryFromMessage]
+    [messages, retryFromMessage]
   );
 
   // Handle conversation access scenarios

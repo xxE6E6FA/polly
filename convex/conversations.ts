@@ -1363,13 +1363,6 @@ export const retryFromMessage = action({
     const retryType =
       args.retryType || (targetMessage.role === "user" ? "user" : "assistant");
 
-    // Get user's effective model using centralized resolution with full capabilities
-    const fullModel = await getUserEffectiveModelWithCapabilities(
-      ctx,
-      args.model,
-      args.provider
-    );
-
     // If personaId is provided, update the conversation persona immediately
     const effectivePersonaId = args.personaId ?? conversation.personaId;
     if (args.personaId && args.personaId !== conversation.personaId) {
@@ -1380,7 +1373,18 @@ export const retryFromMessage = action({
       });
     }
 
+    const requestedModel =
+      args.model ?? (targetMessage.model as string | undefined);
+    const requestedProvider =
+      args.provider ?? (targetMessage.provider as string | undefined);
+    const normalizedProvider = requestedProvider?.toLowerCase();
+
     if (retryType === "assistant") {
+      const fullModel = await getUserEffectiveModelWithCapabilities(
+        ctx,
+        requestedModel,
+        requestedProvider
+      );
       // Assistant retry: delete messages AFTER this assistant message (preserve context),
       // then clear this assistant message and stream into the SAME messageId
 
@@ -1451,7 +1455,126 @@ export const retryFromMessage = action({
       return { assistantMessageId: targetMessage._id };
     }
 
+    if (retryType === "user" && normalizedProvider === "replicate") {
+      const prompt = targetMessage.content || "";
+
+      const subsequentAssistant = messages
+        .slice(messageIndex + 1)
+        .find(msg => msg.role === "assistant" && msg.imageGeneration);
+
+      const previousMetadata = subsequentAssistant?.imageGeneration?.metadata;
+      const candidateModel =
+        requestedModel || (previousMetadata?.model as string | undefined);
+
+      if (!candidateModel) {
+        throw new Error(
+          "Unable to determine Replicate model for retry. Please choose a model and try again."
+        );
+      }
+
+      const allowedParamKeys = new Set([
+        "aspectRatio",
+        "steps",
+        "guidanceScale",
+        "seed",
+        "negativePrompt",
+        "count",
+      ]);
+
+      const sanitizedParams = previousMetadata?.params
+        ? (Object.fromEntries(
+            Object.entries(previousMetadata.params).filter(
+              ([key, value]) =>
+                allowedParamKeys.has(key) &&
+                value !== undefined &&
+                value !== null
+            )
+          ) as {
+            aspectRatio?: string;
+            steps?: number;
+            guidanceScale?: number;
+            seed?: number;
+            negativePrompt?: string;
+            count?: number;
+          })
+        : undefined;
+
+      // Delete messages after the user message (preserve the user message and context)
+      await handleMessageDeletion(ctx, messages, messageIndex, "user");
+
+      if (
+        targetMessage.model !== candidateModel ||
+        targetMessage.provider?.toLowerCase() !== "replicate"
+      ) {
+        await ctx.runMutation(internal.messages.internalUpdate, {
+          id: targetMessage._id,
+          model: candidateModel,
+          provider: "replicate",
+        });
+      }
+
+      const imageGenerationMetadata: {
+        model: string;
+        prompt: string;
+        params?: {
+          aspectRatio?: string;
+          steps?: number;
+          guidanceScale?: number;
+          seed?: number;
+          negativePrompt?: string;
+          count?: number;
+        };
+      } = {
+        model: candidateModel,
+        prompt,
+      };
+
+      if (sanitizedParams && Object.keys(sanitizedParams).length > 0) {
+        imageGenerationMetadata.params = sanitizedParams;
+      }
+
+      const assistantMessageId = await ctx.runMutation(api.messages.create, {
+        conversationId: args.conversationId,
+        role: "assistant",
+        content: "",
+        status: "streaming",
+        model: "replicate",
+        provider: "replicate",
+        imageGeneration: {
+          status: "starting",
+          metadata: imageGenerationMetadata,
+        },
+      });
+
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: true },
+        setUpdatedAt: true,
+      });
+
+      await ctx.runAction(api.ai.replicate.generateImage, {
+        conversationId: args.conversationId,
+        messageId: assistantMessageId,
+        prompt,
+        model: candidateModel,
+        params:
+          sanitizedParams && Object.keys(sanitizedParams).length > 0
+            ? sanitizedParams
+            : undefined,
+      });
+
+      return {
+        assistantMessageId,
+      };
+    }
+
     // User retry: keep the user message, delete messages after it, and create a fresh assistant message
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      requestedModel,
+      requestedProvider
+    );
+
     const contextEndIndex = messageIndex;
 
     // Delete messages after the user message (preserve the user message and context)
