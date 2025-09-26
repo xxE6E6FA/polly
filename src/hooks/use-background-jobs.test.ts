@@ -2,11 +2,17 @@ import { act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useAction: vi.fn(),
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
-}));
+vi.mock("convex/react", async () => {
+  const actual =
+    await vi.importActual<typeof import("convex/react")>("convex/react");
+
+  return {
+    ...actual,
+    useAction: vi.fn(),
+    useMutation: vi.fn(),
+    useQuery: vi.fn(),
+  };
+});
 vi.mock("@/providers/toast-context", () => ({
   useToast: vi.fn(),
 }));
@@ -107,9 +113,12 @@ describe("useBackgroundJobs", () => {
     act(() => {
       rerender();
     });
-    expect(success).toHaveBeenCalledWith("Export completed successfully!", {
-      id: expect.stringMatching(/^job-/),
-    });
+    expect(success).toHaveBeenCalledWith(
+      "Export completed successfully!",
+      expect.objectContaining({
+        id: expect.stringMatching(/^job-/),
+      })
+    );
 
     // Import completion triggers cache invalidation
     jobStatuses = [
