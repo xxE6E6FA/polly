@@ -316,6 +316,8 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
+      const isImageProvider =
+        mergedOptions.provider?.toLowerCase() === "replicate";
       const result = await actions.editAndResend({
         messageId: messageId as Id<"messages">,
         newContent,
@@ -331,7 +333,7 @@ export const createServerChatHandlers = (
       });
 
       // Start HTTP streaming into the returned assistantMessageId if possible
-      if (canHttpStream) {
+      if (canHttpStream && !isImageProvider) {
         // For edit-and-resend, do NOT override model/provider in HTTP stream args.
         // The server should use the model recorded on the edited message to
         // preserve image-capable models.

@@ -1273,6 +1273,119 @@ export const editAndResendMessage = action({
     // client-provided overrides only when the message did not record a model.
     const preferredModelId = message.model || args.model;
     const preferredProvider = message.provider || args.provider;
+    const normalizedProvider = preferredProvider?.toLowerCase();
+
+    if (normalizedProvider === "replicate") {
+      const prompt = args.newContent;
+
+      const subsequentAssistant = messagesToDelete.find(
+        (
+          msg
+        ): msg is Doc<"messages"> & {
+          imageGeneration: Doc<"messages">["imageGeneration"];
+        } => msg.role === "assistant" && Boolean(msg.imageGeneration)
+      );
+
+      const previousMetadata = subsequentAssistant?.imageGeneration?.metadata;
+      const candidateModel =
+        preferredModelId || (previousMetadata?.model as string | undefined);
+
+      if (!candidateModel) {
+        throw new Error(
+          "Unable to determine Replicate model for edit. Please choose a model and try again."
+        );
+      }
+
+      const allowedParamKeys = new Set([
+        "aspectRatio",
+        "steps",
+        "guidanceScale",
+        "seed",
+        "negativePrompt",
+        "count",
+      ]);
+
+      const sanitizedParams = previousMetadata?.params
+        ? (Object.fromEntries(
+            Object.entries(previousMetadata.params).filter(
+              ([key, value]) =>
+                allowedParamKeys.has(key) &&
+                value !== undefined &&
+                value !== null
+            )
+          ) as {
+            aspectRatio?: string;
+            steps?: number;
+            guidanceScale?: number;
+            seed?: number;
+            negativePrompt?: string;
+            count?: number;
+          })
+        : undefined;
+
+      if (
+        message.model !== candidateModel ||
+        message.provider?.toLowerCase() !== "replicate"
+      ) {
+        await ctx.runMutation(internal.messages.internalUpdate, {
+          id: message._id,
+          model: candidateModel,
+          provider: "replicate",
+        });
+      }
+
+      const imageGenerationMetadata: {
+        model: string;
+        prompt: string;
+        params?: {
+          aspectRatio?: string;
+          steps?: number;
+          guidanceScale?: number;
+          seed?: number;
+          negativePrompt?: string;
+          count?: number;
+        };
+      } = {
+        model: candidateModel,
+        prompt,
+      };
+
+      if (sanitizedParams && Object.keys(sanitizedParams).length > 0) {
+        imageGenerationMetadata.params = sanitizedParams;
+      }
+
+      const assistantMessageId = await ctx.runMutation(api.messages.create, {
+        conversationId: message.conversationId,
+        role: "assistant",
+        content: "",
+        status: "streaming",
+        model: "replicate",
+        provider: "replicate",
+        imageGeneration: {
+          status: "starting",
+          metadata: imageGenerationMetadata,
+        },
+      });
+
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: message.conversationId,
+        updates: { isStreaming: true },
+        setUpdatedAt: true,
+      });
+
+      await ctx.runAction(api.ai.replicate.generateImage, {
+        conversationId: message.conversationId,
+        messageId: assistantMessageId,
+        prompt,
+        model: candidateModel,
+        params:
+          sanitizedParams && Object.keys(sanitizedParams).length > 0
+            ? sanitizedParams
+            : undefined,
+      });
+
+      return { assistantMessageId };
+    }
 
     // Get user's effective model using centralized resolution with full capabilities
     const fullModel = await getUserEffectiveModelWithCapabilities(

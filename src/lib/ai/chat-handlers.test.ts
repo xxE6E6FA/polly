@@ -208,6 +208,41 @@ describe("chat-handlers (server)", () => {
     expect(vi.mocked(startAuthorStream)).not.toHaveBeenCalled();
   });
 
+  it("editMessage does not start HTTP stream for replicate provider", async () => {
+    const actions = {
+      sendMessage: vi.fn(),
+      editAndResend: vi
+        .fn()
+        .mockResolvedValue({ assistantMessageId: "img-edit" }),
+      retryFromMessage: vi.fn(),
+      deleteMessage: vi.fn(),
+      stopGeneration: vi.fn(),
+    };
+    const handlers = createServerChatHandlers(
+      "conv-edit",
+      actions,
+      { model: "gpt", provider: "openai" },
+      vi.fn(() => "token")
+    );
+
+    vi.mocked(startAuthorStream).mockClear();
+
+    await handlers.editMessage("img-user", "updated prompt", {
+      model: "artist/model",
+      provider: "replicate",
+    });
+
+    expect(actions.editAndResend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: "img-user",
+        newContent: "updated prompt",
+        model: "artist/model",
+        provider: "replicate",
+      })
+    );
+    expect(vi.mocked(startAuthorStream)).not.toHaveBeenCalled();
+  });
+
   it("stopGeneration aborts HTTP stream and notifies server", async () => {
     const actions = {
       sendMessage: vi
