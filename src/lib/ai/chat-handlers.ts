@@ -241,6 +241,8 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
+      const isImageProvider =
+        mergedOptions.provider?.toLowerCase() === "replicate";
       // Abort any ongoing HTTP stream to avoid interleaved outputs
       if (httpAbortController) {
         try {
@@ -285,7 +287,7 @@ export const createServerChatHandlers = (
       });
 
       // Start HTTP streaming into the returned assistantMessageId if possible
-      if (canHttpStream) {
+      if (canHttpStream && !isImageProvider) {
         const handle = await startAuthorStream({
           convexUrl,
           authToken: _getAuthToken?.() || null,

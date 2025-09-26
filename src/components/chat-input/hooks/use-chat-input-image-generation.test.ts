@@ -85,6 +85,11 @@ describe("useChatInputImageGeneration", () => {
       await result.current.handleImageGenerationSubmit();
     });
     expect(action).toHaveBeenCalled();
+    const [, firstPayload] = action.mock.calls[0];
+    expect(firstPayload).toMatchObject({
+      model: "replicate/xx",
+      provider: "replicate",
+    });
     expect(handleImageGeneration).toHaveBeenCalledWith(
       expect.anything(),
       "c1",
@@ -128,6 +133,11 @@ describe("useChatInputImageGeneration", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.stringContaining("/chat/newC")
     );
+    const [, secondPayload] = action.mock.calls[1];
+    expect(secondPayload).toMatchObject({
+      model: "replicate/xx",
+      provider: "replicate",
+    });
     expect(onReset).toHaveBeenCalled();
   });
 
@@ -187,6 +197,7 @@ describe("useChatInputImageGeneration", () => {
       storageId: "s1",
       type: "image",
     });
+    expect(call).toMatchObject({ model: "seedream/4", provider: "replicate" });
   });
 
   it("uses data URLs for attachments in private mode", async () => {
@@ -227,6 +238,7 @@ describe("useChatInputImageGeneration", () => {
     const call = (useConvex as unknown as vi.Mock).mock.results[0].value.action
       .mock.calls[0][1];
     expect(call.attachments[0].url).toMatch(/^data:image\/png;base64,AQID/);
+    expect(call).toMatchObject({ model: "seedream/4", provider: "replicate" });
   });
 
   it("handleSendAsNewConversation optionally navigates and returns id", async () => {
@@ -261,6 +273,12 @@ describe("useChatInputImageGeneration", () => {
     await result.current.handleSendAsNewConversation();
     expect(navigate).toHaveBeenCalled();
     expect(onReset).toHaveBeenCalled();
+
+    const [, secondPayload] = action.mock.calls[1];
+    expect(secondPayload).toMatchObject({
+      model: "replicate/xx",
+      provider: "replicate",
+    });
 
     vi.clearAllMocks();
     // Should not navigate when shouldNavigate=false and accept override persona
