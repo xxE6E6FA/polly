@@ -105,7 +105,10 @@ const ImageContainer = ({
   onClick: (url: string) => void;
   className?: string;
 }) => {
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [displayUrl, setDisplayUrl] = useState<string | null>(
+    storageId ? null : imageUrl
+  );
 
   // Get Convex storage URL if we have a storageId
   const convexUrl = useQuery(
@@ -113,8 +116,44 @@ const ImageContainer = ({
     storageId ? { storageId } : "skip"
   );
 
-  // Use storage URL if available, otherwise fall back to original URL
   const actualImageUrl = storageId && convexUrl ? convexUrl : imageUrl;
+
+  useEffect(() => {
+    if (!storageId) {
+      setDisplayUrl(imageUrl);
+      return;
+    }
+
+    if (!actualImageUrl) {
+      setDisplayUrl(null);
+      setIsLoaded(false);
+      return;
+    }
+
+    if (displayUrl === actualImageUrl) {
+      return;
+    }
+
+    let cancelled = false;
+    const preload = new Image();
+    preload.src = actualImageUrl;
+
+    const handleReady = () => {
+      if (cancelled) {
+        return;
+      }
+
+      setDisplayUrl(actualImageUrl);
+      setIsLoaded(false);
+    };
+
+    preload.onload = handleReady;
+    preload.onerror = handleReady;
+
+    return () => {
+      cancelled = true;
+    };
+  }, [actualImageUrl, displayUrl, imageUrl, storageId]);
 
   const aspectClass = getAspectRatioClass(aspectRatio || "1:1");
   const isSingleImage = className?.includes("single-image");
@@ -122,39 +161,61 @@ const ImageContainer = ({
     ? getSingleImageMaxWidth(aspectRatio || "1:1")
     : "";
 
-  // Show loading skeleton if we're waiting for storage URL
-  const showSkeleton =
-    !isImageLoaded || (storageId && !convexUrl && convexUrl !== null);
+  useEffect(() => {
+    setIsLoaded(false);
+  }, []);
+
+  const finalizeReveal = () => {
+    const commit = () => setIsLoaded(true);
+
+    if (typeof window === "undefined") {
+      commit();
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(commit);
+    });
+  };
+
+  const hasDisplayUrl = Boolean(displayUrl);
+  const showSkeleton = !(hasDisplayUrl && isLoaded);
+  const showImage = hasDisplayUrl && !showSkeleton;
 
   return (
     <div
       className={cn("relative w-full", aspectClass, maxWidthClass, className)}
     >
-      {/* Skeleton background - always rendered */}
       <ImageLoadingSkeleton
         aspectRatio={aspectRatio as "1:1" | "16:9" | "9:16" | "4:3" | "3:4"}
         className={cn(
-          "absolute inset-0 transition-opacity duration-300",
+          "absolute inset-0 pointer-events-none transition-opacity duration-400 ease-out",
           showSkeleton ? "opacity-100" : "opacity-0"
         )}
       />
 
-      {/* Image overlay - constrained to same aspect ratio */}
-      {actualImageUrl && (
+      {hasDisplayUrl && (
         <button
           type="button"
           className={cn(
-            "absolute inset-0 rounded-lg hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 overflow-hidden cursor-zoom-in",
-            showSkeleton ? "opacity-0" : "opacity-100"
+            "absolute inset-0 rounded-lg hover:shadow-lg transition-all duration-400 ease-out focus:outline-none focus:ring-2 focus:ring-primary/50 overflow-hidden cursor-zoom-in",
+            showImage
+              ? "opacity-100 translate-y-0 scale-100"
+              : "pointer-events-none opacity-0 translate-y-1 scale-[0.985]"
           )}
-          onClick={() => onClick(actualImageUrl)}
+          onClick={() => {
+            if (displayUrl) {
+              onClick(displayUrl);
+            }
+          }}
           aria-label="Click to view full size image"
         >
           <img
-            src={actualImageUrl}
+            src={displayUrl ?? undefined}
             alt={altText}
-            className="w-full h-full object-cover rounded-lg shadow-lg"
-            onLoad={() => setIsImageLoaded(true)}
+            className="h-full w-full object-cover rounded-lg shadow-lg"
+            onLoad={finalizeReveal}
+            onError={finalizeReveal}
             loading="lazy"
             decoding="async"
           />
@@ -399,10 +460,7 @@ export const AssistantBubble = ({
 
         {/* Handle image generation messages */}
         {message.imageGeneration ? (
-          <div
-            key={`imageGen-${message.id}-${message.imageGeneration.status}-${message.imageGeneration.output?.length || 0}-${message.attachments?.filter(att => att.type === "image" && att.generatedImage?.isGenerated).length || 0}`}
-            className="mb-3"
-          >
+          <div className="mb-3">
             {message.imageGeneration.status === "failed" ||
             message.imageGeneration.status === "canceled" ? (
               <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-950/50">
