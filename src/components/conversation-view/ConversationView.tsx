@@ -344,9 +344,17 @@ function ConversationContent({
   const handleEditMessage = useCallback(
     async (messageId: string, content: string) => {
       clearConversationCache(conversationId);
-      await editMessage(messageId, content);
+      const targetMessage = messages.find(message => message.id === messageId);
+      const options =
+        targetMessage?.model && targetMessage?.provider
+          ? {
+              model: targetMessage.model,
+              provider: targetMessage.provider,
+            }
+          : undefined;
+      await editMessage(messageId, content, options);
     },
-    [clearConversationCache, conversationId, editMessage]
+    [clearConversationCache, conversationId, editMessage, messages]
   );
 
   const handleRefineMessage = useCallback(
