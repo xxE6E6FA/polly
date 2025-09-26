@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { cn } from "@/lib/utils";
 
 interface ImageGenerationSkeletonProps {
   aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
@@ -28,9 +29,15 @@ export const ImageGenerationSkeleton = memo<ImageGenerationSkeletonProps>(
 
     return (
       <div
-        className={`${aspectClass} bg-muted rounded-lg animate-pulse flex items-center justify-center ${className}`}
+        className={cn(
+          aspectClass,
+          "skeleton-surface rounded-lg flex items-center justify-center",
+          className
+        )}
       >
-        <div className="text-muted-foreground text-sm">Generating image...</div>
+        <div className="text-xs font-medium text-muted-foreground">
+          Generating image…
+        </div>
       </div>
     );
   }

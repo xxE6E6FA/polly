@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { cn } from "@/lib/utils";
 
 interface ImageLoadingSkeletonProps {
   aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
@@ -28,7 +29,11 @@ export const ImageLoadingSkeleton = memo<ImageLoadingSkeletonProps>(
 
     return (
       <div
-        className={`${aspectClass} bg-muted rounded-lg animate-pulse ${className}`}
+        className={cn(
+          aspectClass,
+          "relative skeleton-surface rounded-lg",
+          className
+        )}
       />
     );
   }
