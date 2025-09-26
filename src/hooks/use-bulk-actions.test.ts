@@ -23,9 +23,15 @@ vi.mock("@/lib/local-storage", () => ({
   CACHE_KEYS: { conversations: "conversations" },
   del: vi.fn(),
 }));
-vi.mock("@/lib/export", () => ({
-  downloadFromUrl: vi.fn(),
-}));
+vi.mock("@/lib/export", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/export")>("@/lib/export");
+
+  return {
+    ...actual,
+    downloadFromUrl: vi.fn(),
+  };
+});
 
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
