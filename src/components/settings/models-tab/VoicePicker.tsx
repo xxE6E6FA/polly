@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
-import { VoiceList } from "./voice-list";
+import { VoiceList } from "@/components/ui/voice-list";
 
 type VoicePickerProps = {
   label?: string;
