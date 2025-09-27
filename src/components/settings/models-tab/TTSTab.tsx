@@ -2,7 +2,6 @@ import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
-import { ModelPicker } from "@/components/ui/model-picker";
 import {
   Select,
   SelectContent,
@@ -11,10 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { VoicePicker } from "@/components/ui/voice-picker";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
+import { ModelPicker } from "./ModelPicker";
+import { VoicePicker } from "./VoicePicker";
 
 type ApiKeyInfo = {
   provider: string;

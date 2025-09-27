@@ -29,10 +29,10 @@ import {
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { VoicePicker } from "@/components/ui/voice-picker";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
+import { VoicePicker } from "./models-tab/VoicePicker";
 import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {

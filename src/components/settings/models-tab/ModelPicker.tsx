@@ -8,8 +8,8 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "./command";
-import { Label } from "./label";
+} from "@/components/ui/command";
+import { Label } from "@/components/ui/label";
 
 type ModelOption = {
   id: string;
