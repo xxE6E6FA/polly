@@ -241,7 +241,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
           <PopoverContent
             forceMount
             data-debug-id="ImageGenerationSettings"
-            className="w-80 max-h-[50vh] overflow-hidden border border-border/50 bg-popover flex flex-col"
+            className="flex w-80 max-h-[50vh] flex-col overflow-hidden border border-border/50 bg-popover p-4"
             align="end"
             sideOffset={8}
           >
