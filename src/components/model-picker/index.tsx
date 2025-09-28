@@ -5,7 +5,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -111,7 +111,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
         </div>
         <PopoverContent
           avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-sm"
+          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border border-border/50 bg-popover p-0 shadow-lg"
           side="top"
           sideOffset={4}
         >
@@ -145,7 +145,7 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
       </div>
       <PopoverContent
         avoidCollisions
-        className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-sm"
+        className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border border-border/50 bg-popover p-0 shadow-lg"
         side="top"
         sideOffset={4}
       >
