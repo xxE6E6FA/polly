@@ -29,8 +29,8 @@ export const ModelPickerTrigger = forwardRef<
         aria-labelledby="model-picker-label"
         variant="ghost"
         className={cn(
-          // Slightly larger than other chips
-          "h-8 w-auto gap-2 px-3 py-0.5 text-xs font-medium sm:h-8",
+          // Consistent chip sizing across pickers
+          "h-8 w-auto gap-2 px-2.5 text-xs font-medium sm:h-8",
           // Distinctive, but subtle gradient pill
           "rounded-full border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-foreground/90",
           // Motion + focus

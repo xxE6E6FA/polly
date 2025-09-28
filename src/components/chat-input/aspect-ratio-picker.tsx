@@ -11,7 +11,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -65,7 +65,6 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                   size="sm"
                   disabled={disabled}
                   className={cn(
-                    // Unified pill style
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
                     "rounded-full border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
@@ -89,8 +88,9 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
           <PopoverContent
             forceMount
             data-debug-id="AspectRatioPicker"
-            className="w-56"
+            className="w-56 border border-border/50 bg-popover"
             align="start"
+            sideOffset={4}
           >
             <div className="stack-sm">
               <div className="grid gap-0.5">

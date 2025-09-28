@@ -17,7 +17,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -87,7 +87,7 @@ function PersonaPickerComponent({
     () => (
       <div className="flex items-center gap-1">
         {currentPersona?.icon ? (
-          <span className="text-xs sm:text-sm">{currentPersona.icon}</span>
+          <span className="text-xs">{currentPersona.icon}</span>
         ) : (
           <UserIcon className="h-3.5 w-3.5" />
         )}
@@ -138,7 +138,7 @@ function PersonaPickerComponent({
           forceMount
           data-debug-id="PersonaPicker"
           avoidCollisions
-          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border-border/50 p-0 shadow-sm"
+          className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border border-border/50 bg-popover p-0 shadow-lg"
           side="top"
           sideOffset={4}
         >
@@ -158,7 +158,7 @@ function PersonaPickerComponent({
   return (
     <div className={cn("stack-md", className)}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">AI Personas</h3>
+        <h3 className="text-xs font-medium">AI Personas</h3>
         <Badge variant="secondary" className="text-xs">
           {availablePersonas.length} available
         </Badge>
@@ -170,15 +170,15 @@ function PersonaPickerComponent({
           type="button"
           onClick={() => handlePersonaSelect(null)}
           className={cn(
-            "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+            "flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2.5 text-left text-xs transition-colors hover:bg-muted/50",
             !selectedPersonaId && "border-primary bg-primary/5"
           )}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs">
             🤖
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">Default</div>
+            <div className="text-xs font-medium">Default</div>
             <div className="text-xs text-muted-foreground">
               Standard AI assistant
             </div>
@@ -193,15 +193,15 @@ function PersonaPickerComponent({
             type="button"
             onClick={() => handlePersonaSelect(persona._id)}
             className={cn(
-              "flex items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+              "flex items-center gap-2 rounded-lg border border-border/50 px-3 py-2.5 text-left text-xs transition-colors hover:bg-muted/50",
               selectedPersonaId === persona._id && "border-primary bg-primary/5"
             )}
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs">
               {persona.icon || "🤖"}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">{persona.name}</div>
+              <div className="text-xs font-medium">{persona.name}</div>
               <div className="text-xs text-muted-foreground">
                 {persona.description}
               </div>
@@ -253,7 +253,7 @@ const PersonaList = ({
       <CommandList className="max-h-[calc(100dvh-10rem)] sm:max-h-[350px]">
         <CommandEmpty>
           <div className="p-4 text-center">
-            <p className="mb-1 text-sm text-muted-foreground">
+            <p className="mb-1 text-xs text-muted-foreground">
               No personas found
             </p>
             <p className="text-xs text-muted-foreground">
@@ -267,10 +267,10 @@ const PersonaList = ({
           <CommandItem
             value="default"
             onSelect={() => onPersonaSelect(null)}
-            className="flex items-center justify-between"
+            className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-xs"
           >
             <div className="flex items-center gap-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-sm">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs">
                 🤖
               </div>
               <span>Default</span>
@@ -287,10 +287,10 @@ const PersonaList = ({
                 key={persona._id}
                 value={persona.name}
                 onSelect={() => onPersonaSelect(persona._id)}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-xs"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">{persona.icon || "🤖"}</span>
+                  <span className="text-xs">{persona.icon || "🤖"}</span>
                   <div>
                     <div className="font-medium">{persona.name}</div>
                     <div className="text-xs text-muted-foreground">
@@ -314,10 +314,10 @@ const PersonaList = ({
                 key={persona._id}
                 value={persona.name}
                 onSelect={() => onPersonaSelect(persona._id)}
-                className="flex items-center justify-between"
+                className="flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-xs"
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">{persona.icon || "🤖"}</span>
+                  <span className="text-xs">{persona.icon || "🤖"}</span>
                   <div>
                     <div className="font-medium">{persona.name}</div>
                     <div className="text-xs text-muted-foreground">

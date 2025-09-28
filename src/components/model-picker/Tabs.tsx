@@ -80,7 +80,7 @@ export function ModelPickerTabs({
       {/* Segmented control styled like Settings nav */}
       <div className="flex items-center justify-center p-2 border-b border-border/40">
         <div className="w-full">
-          <div className="bg-muted/50 border border-border/40 rounded-full p-1 backdrop-blur-[1px]">
+          <div className="rounded-full border border-border/40 bg-muted/60 p-1">
             <div className="flex space-x-1 overflow-x-auto">
               <button
                 type="button"
@@ -173,16 +173,16 @@ export function ModelPickerTabs({
                     value={`${m.name ?? m.modelId} ${m.modelId}`}
                     onSelect={() => onSelectImageModel(m.modelId)}
                     className={cn(
-                      "cursor-pointer mx-2 rounded-md px-3 py-2.5",
+                      "mx-2 cursor-pointer rounded-lg px-3 py-2.5 text-xs transition-colors hover:bg-accent/60",
                       selectedImageModelId === m.modelId && "bg-accent"
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm truncate">
+                      <div className="font-medium text-xs truncate">
                         {m.name || m.modelId}
                       </div>
                       {m.description && (
-                        <div className="text-xs text-muted-foreground truncate">
+                        <div className="text-[10px] text-muted-foreground truncate">
                           {m.description}
                         </div>
                       )}

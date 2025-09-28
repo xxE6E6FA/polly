@@ -9,7 +9,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -218,7 +218,6 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
                   size="sm"
                   disabled={disabled}
                   className={cn(
-                    // Unified pill style
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
                     "rounded-full border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
@@ -242,7 +241,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
           <PopoverContent
             forceMount
             data-debug-id="ImageGenerationSettings"
-            className="w-80 max-h-[50vh] overflow-hidden flex flex-col"
+            className="w-80 max-h-[50vh] overflow-hidden border border-border/50 bg-popover flex flex-col"
             align="end"
             sideOffset={8}
           >

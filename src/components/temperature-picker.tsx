@@ -7,7 +7,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover-with-backdrop";
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -67,9 +67,8 @@ const TemperaturePickerComponent = ({
               size="sm"
               disabled={disabled}
               className={cn(
-                // Unified pill size and look
                 "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                "rounded-full border border-border",
+                "rounded-full border border-border/50",
                 "bg-muted text-foreground hover:bg-muted/80",
                 "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 "transition-all duration-200"
@@ -90,13 +89,13 @@ const TemperaturePickerComponent = ({
         </TooltipContent>
       </Tooltip>
       <PopoverContent
-        className="w-64 p-4 border-border/50 shadow-sm"
+        className="w-64 border border-border/50 bg-popover p-4 shadow-lg"
         align="start"
         sideOffset={4}
       >
         <div className="stack-lg">
           <div className="stack-sm">
-            <Label className="text-sm font-medium">Temperature</Label>
+            <Label className="text-xs font-medium">Temperature</Label>
             <div className="text-xs text-muted-foreground">
               Controls response randomness. Higher = more varied and creative.
             </div>

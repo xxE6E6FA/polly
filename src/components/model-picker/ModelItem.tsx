@@ -60,7 +60,7 @@ const ModelItemComponent = ({
     <CommandItem
       key={model.modelId}
       className={cn(
-        "min-h-[44px] cursor-pointer px-4 py-3 transition-colors hover:bg-accent/70 dark:hover:bg-accent/50 sm:min-h-0 sm:px-3 sm:py-2.5",
+        "cursor-pointer rounded-lg px-3 py-2.5 text-xs transition-colors hover:bg-accent/70 dark:hover:bg-accent/50",
         isPollyDisabled && "cursor-not-allowed opacity-60 hover:bg-transparent"
       )}
       value={`${model.name} ${model.provider} ${model.modelId}`}
@@ -84,7 +84,7 @@ const ModelItemComponent = ({
               Limit Reached
             </Badge>
           )}
-          <span className={cn("font-medium text-sm truncate")}>
+          <span className={cn("font-medium text-xs truncate")}>
             {model.name}
           </span>
         </div>
