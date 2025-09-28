@@ -1,6 +1,7 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { memo, useCallback, useMemo } from "react";
+import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { CommandItem } from "@/components/ui/command";
 import {
@@ -60,33 +61,38 @@ const ModelItemComponent = ({
     <CommandItem
       key={model.modelId}
       className={cn(
-        "cursor-pointer rounded-lg px-3 py-2.5 text-xs transition-colors hover:bg-accent/70 dark:hover:bg-accent/50",
+        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-accent/70 dark:hover:bg-accent/50",
         isPollyDisabled && "cursor-not-allowed opacity-60 hover:bg-transparent"
       )}
       value={`${model.name} ${model.provider} ${model.modelId}`}
       onSelect={handleSelect}
     >
-      <div className="flex w-full items-center justify-between">
+      <div className="flex w-full items-center justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          {model.free && !isPollyDisabled && (
-            <Badge
-              className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
-              variant="secondary"
-            >
-              Free
-            </Badge>
-          )}
-          {isPollyDisabled && (
-            <Badge
-              className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
-              variant="secondary"
-            >
-              Limit Reached
-            </Badge>
-          )}
-          <span className={cn("font-medium text-xs truncate")}>
-            {model.name}
-          </span>
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center text-muted-foreground">
+            <ProviderIcon provider={model.provider} className="h-4 w-4" />
+          </div>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {model.free && !isPollyDisabled && (
+              <Badge
+                className="h-5 shrink-0 border-success-border bg-success-bg px-1.5 py-0 text-[10px] text-success"
+                variant="secondary"
+              >
+                Free
+              </Badge>
+            )}
+            {isPollyDisabled && (
+              <Badge
+                className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
+                variant="secondary"
+              >
+                Limit Reached
+              </Badge>
+            )}
+            <span className={cn("font-medium text-xs truncate")}>
+              {model.name}
+            </span>
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-1">

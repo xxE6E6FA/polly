@@ -1,8 +1,6 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { PROVIDER_CONFIG } from "@shared/provider-constants";
-import { memo } from "react";
-import { ProviderIcon } from "@/components/provider-icons";
+import { memo, useMemo } from "react";
 import {
   Command,
   CommandEmpty,
@@ -30,13 +28,19 @@ const ModelListComponent = ({
   hasReachedPollyLimit: boolean;
   autoFocusSearch?: boolean;
 }) => {
+  const orderedModels = useMemo(() => {
+    const providerModels = Object.values(modelGroups.providerModels).flat();
+    return [...modelGroups.freeModels, ...providerModels];
+  }, [modelGroups]);
+
   return (
-    <Command className="pt-2 [&_[cmdk-input-wrapper]]:mx-2 [&_[cmdk-input-wrapper]]:mb-2 [&_[cmdk-input-wrapper]]:rounded-md [&_[cmdk-input-wrapper]]:border [&_[cmdk-input-wrapper]]:border-border/50 [&_[cmdk-input-wrapper]]:bg-muted/40 dark:[&_[cmdk-input-wrapper]]:bg-muted/20 [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input-wrapper]_svg]:mr-2 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-9 [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-sm">
+    <Command className="flex h-full min-h-0 w-full flex-1 flex-col rounded-none [&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40 [&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20 [&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input-wrapper]_svg]:mr-2 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground [&_[cmdk-input]]:h-9 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-sm">
       <CommandInput
+        className="w-full rounded-none"
         placeholder="Search models..."
         autoFocus={autoFocusSearch}
       />
-      <CommandList className="max-h-[calc(100dvh-10rem)] sm:max-h-[350px]">
+      <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
         <CommandEmpty>
           <div className="p-4 text-center">
             <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
@@ -49,8 +53,7 @@ const ModelListComponent = ({
           </div>
         </CommandEmpty>
 
-        {modelGroups.freeModels.length === 0 &&
-        Object.keys(modelGroups.providerModels).length === 0 ? (
+        {orderedModels.length === 0 ? (
           <div className="p-6 text-center">
             <p className="mb-2 text-sm text-muted-foreground">
               No models available
@@ -60,67 +63,16 @@ const ModelListComponent = ({
             </p>
           </div>
         ) : (
-          <>
-            {/* Free Models Group */}
-            {modelGroups.freeModels.length > 0 && (
-              <CommandGroup>
-                <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
-                  <ProviderIcon provider="polly" className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Polly
-                  </span>
-                </div>
-                {modelGroups.freeModels.map((model: AvailableModel) => (
-                  <ModelItem
-                    key={model.modelId}
-                    model={model}
-                    onSelect={() => handleSelect(model.modelId, model.provider)}
-                    hasReachedPollyLimit={hasReachedPollyLimit ?? false}
-                  />
-                ))}
-                {Object.keys(modelGroups.providerModels).length > 0 && (
-                  <div className="mx-2 my-1.5 h-px bg-border/50" />
-                )}
-              </CommandGroup>
-            )}
-
-            {/* Provider Groups */}
-            {Object.entries(modelGroups.providerModels).map(
-              ([providerId, models], providerIndex: number) => {
-                const providerConfig =
-                  PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
-                const providerTitle = providerConfig?.title || providerId;
-
-                return (
-                  <CommandGroup key={providerId}>
-                    <div className="flex items-center gap-2 px-2 py-1.5 opacity-75">
-                      <ProviderIcon
-                        provider={providerId}
-                        className="h-3.5 w-3.5"
-                      />
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {providerTitle}
-                      </span>
-                    </div>
-                    {models.map((model: AvailableModel) => (
-                      <ModelItem
-                        key={model.modelId}
-                        model={model}
-                        onSelect={() =>
-                          handleSelect(model.modelId, model.provider)
-                        }
-                        hasReachedPollyLimit={hasReachedPollyLimit ?? false}
-                      />
-                    ))}
-                    {providerIndex <
-                      Object.keys(modelGroups.providerModels).length - 1 && (
-                      <div className="mx-2 my-1.5 h-px bg-border/50" />
-                    )}
-                  </CommandGroup>
-                );
-              }
-            )}
-          </>
+          <CommandGroup className="p-0">
+            {orderedModels.map((model: AvailableModel) => (
+              <ModelItem
+                key={model.modelId}
+                model={model}
+                onSelect={() => handleSelect(model.modelId, model.provider)}
+                hasReachedPollyLimit={hasReachedPollyLimit ?? false}
+              />
+            ))}
+          </CommandGroup>
         )}
       </CommandList>
     </Command>
