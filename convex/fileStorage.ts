@@ -1,9 +1,288 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-
+import type { Doc, Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import { mutation, query } from "./_generated/server";
 import { log } from "./lib/logger";
+
+type FileTypeFilter = "image" | "pdf" | "text" | "all";
+
+type PendingAttachmentRef = {
+  conversationId: Id<"conversations">;
+  messageId: Id<"messages">;
+  attachmentIndex: number;
+};
+
+type CursorState = {
+  resumeConversationId: Id<"conversations"> | null;
+  messageCursor: string | null;
+  nextConversationCursor: string | null;
+  pending?: PendingAttachmentRef[];
+};
+
+type MessageAttachment = NonNullable<Doc<"messages">["attachments"]>[number];
+
+type AttachmentCandidate = {
+  storageId: Id<"_storage"> | null;
+  attachment: MessageAttachment;
+  messageId: Id<"messages">;
+  conversationId: Id<"conversations">;
+  conversationTitle: string;
+  createdAt: number;
+  attachmentIndex: number;
+};
+
+const DEFAULT_CURSOR_STATE: CursorState = {
+  resumeConversationId: null,
+  messageCursor: null,
+  nextConversationCursor: null,
+  pending: [],
+};
+
+const MAX_LIMIT = 500;
+
+function parseCursor(raw?: string | null): CursorState {
+  if (!raw) {
+    return { ...DEFAULT_CURSOR_STATE };
+  }
+
+  // Backwards compatibility with legacy numeric cursors – treat as reset.
+  if (/^\d+$/.test(raw)) {
+    return { ...DEFAULT_CURSOR_STATE };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<CursorState>;
+    return {
+      resumeConversationId: (parsed.resumeConversationId ??
+        null) as Id<"conversations"> | null,
+      messageCursor: parsed.messageCursor ?? null,
+      nextConversationCursor: parsed.nextConversationCursor ?? null,
+      pending: Array.isArray(parsed.pending)
+        ? (parsed.pending as PendingAttachmentRef[])
+        : [],
+    };
+  } catch {
+    return { ...DEFAULT_CURSOR_STATE };
+  }
+}
+
+function encodeCursor(state: CursorState | null): string | null {
+  if (!state) {
+    return null;
+  }
+
+  const hasPending = state.pending && state.pending.length > 0;
+  const payload: CursorState = {
+    resumeConversationId: state.resumeConversationId ?? null,
+    messageCursor: state.resumeConversationId
+      ? (state.messageCursor ?? null)
+      : null,
+    nextConversationCursor: state.nextConversationCursor ?? null,
+    pending: hasPending ? state.pending : undefined,
+  };
+
+  const hasCursorState = Boolean(
+    payload.resumeConversationId || payload.nextConversationCursor || hasPending
+  );
+
+  if (!hasCursorState) {
+    return null;
+  }
+
+  return JSON.stringify(payload);
+}
+
+function buildAttachmentKey(
+  conversationId: Id<"conversations">,
+  messageId: Id<"messages">,
+  attachmentIndex: number,
+  storageId: Id<"_storage"> | null
+): string {
+  if (storageId) {
+    return `storage:${storageId}`;
+  }
+  return `message:${conversationId}:${messageId}:${attachmentIndex}`;
+}
+
+function attachmentMatchesFilters(
+  attachment: MessageAttachment,
+  fileType: FileTypeFilter,
+  includeGenerated: boolean
+): boolean {
+  if (!attachment) {
+    return false;
+  }
+
+  if (fileType !== "all" && attachment.type !== fileType) {
+    return false;
+  }
+
+  if (fileType === "image" && !includeGenerated) {
+    if (attachment.generatedImage?.isGenerated) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function resolvePendingAttachments(
+  ctx: QueryCtx,
+  refs: PendingAttachmentRef[],
+  userId: Id<"users">
+): Promise<AttachmentCandidate[]> {
+  if (refs.length === 0) {
+    return [];
+  }
+
+  const messageCache = new Map<Id<"messages">, Doc<"messages"> | null>();
+  const conversationCache = new Map<
+    Id<"conversations">,
+    Doc<"conversations"> | null
+  >();
+  const candidates: AttachmentCandidate[] = [];
+
+  for (const ref of refs) {
+    if (!messageCache.has(ref.messageId)) {
+      const message = await ctx.db.get(ref.messageId);
+      messageCache.set(ref.messageId, message ?? null);
+    }
+
+    const message = messageCache.get(ref.messageId);
+    if (!message || message.conversationId !== ref.conversationId) {
+      continue;
+    }
+
+    if (!conversationCache.has(ref.conversationId)) {
+      const conversation = await ctx.db.get(ref.conversationId);
+      if (!conversation || conversation.userId !== userId) {
+        conversationCache.set(ref.conversationId, null);
+      } else {
+        conversationCache.set(ref.conversationId, conversation);
+      }
+    }
+
+    const conversation = conversationCache.get(ref.conversationId);
+    if (!conversation) {
+      continue;
+    }
+
+    const attachments = (message.attachments ?? []) as MessageAttachment[];
+    const attachment = attachments[ref.attachmentIndex];
+    if (!attachment) {
+      continue;
+    }
+
+    candidates.push({
+      storageId: (attachment.storageId as Id<"_storage"> | undefined) ?? null,
+      attachment,
+      messageId: message._id,
+      conversationId: conversation._id,
+      conversationTitle: conversation.title ?? "Untitled conversation",
+      createdAt: message._creationTime,
+      attachmentIndex: ref.attachmentIndex,
+    });
+  }
+
+  return candidates;
+}
+
+async function collectFromConversation(options: {
+  ctx: QueryCtx;
+  conversation: Doc<"conversations">;
+  startCursor: string | null;
+  remaining: number;
+  fileType: FileTypeFilter;
+  includeGenerated: boolean;
+  seen: Set<string>;
+  results: AttachmentCandidate[];
+}): Promise<{
+  nextMessageCursor: string | null;
+  exhausted: boolean;
+}> {
+  const {
+    ctx,
+    conversation,
+    startCursor,
+    remaining,
+    fileType,
+    includeGenerated,
+    seen,
+    results,
+  } = options;
+
+  let messageCursor = startCursor;
+  let exhausted = false;
+  const conversationTitle = conversation.title ?? "Untitled conversation";
+
+  while (results.length <= remaining) {
+    const page = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", conversation._id)
+      )
+      .order("desc")
+      .paginate({ cursor: messageCursor, limit: 1 });
+
+    if (page.page.length === 0) {
+      messageCursor = null;
+      exhausted = true;
+      break;
+    }
+
+    const message = page.page[0] as Doc<"messages">;
+    messageCursor = page.continueCursor ?? null;
+
+    const attachments = (message.attachments ?? []) as MessageAttachment[];
+
+    for (let idx = 0; idx < attachments.length; idx++) {
+      const attachment = attachments[idx];
+      if (!attachmentMatchesFilters(attachment, fileType, includeGenerated)) {
+        continue;
+      }
+
+      const storageId =
+        (attachment.storageId as Id<"_storage"> | undefined) ?? null;
+      const key = buildAttachmentKey(
+        conversation._id,
+        message._id,
+        idx,
+        storageId
+      );
+
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+
+      results.push({
+        storageId,
+        attachment,
+        messageId: message._id,
+        conversationId: conversation._id,
+        conversationTitle,
+        createdAt: message._creationTime,
+        attachmentIndex: idx,
+      });
+    }
+
+    if (!page.continueCursor) {
+      messageCursor = null;
+      exhausted = true;
+      break;
+    }
+
+    if (results.length > remaining) {
+      break;
+    }
+  }
+
+  return {
+    nextMessageCursor: messageCursor,
+    exhausted,
+  };
+}
 
 /**
  * Generate an upload URL for a file
@@ -88,159 +367,173 @@ export const getUserFiles = query({
       throw new Error("Not authenticated");
     }
 
-    const limit = args.limit || 50;
+    const limit = Math.max(1, Math.min(args.limit ?? 50, MAX_LIMIT));
+    const fileType: FileTypeFilter = args.fileType ?? "all";
+    const includeGenerated = args.includeGenerated ?? true;
 
-    // Get user's conversations first
-    const conversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .collect();
+    const cursorState = parseCursor(args.cursor);
+    const seenKeys = new Set<string>();
+    const results: AttachmentCandidate[] = [];
+    const remainingTarget = limit * 2; // allow modest overflow before trimming
 
-    const conversationIds = conversations.map(c => c._id);
+    // Rehydrate any pending attachments that were deferred on the previous page.
+    const pendingRefs = cursorState.pending ?? [];
+    const remainingPending: PendingAttachmentRef[] = [];
+    if (pendingRefs.length > 0) {
+      const pendingCandidates = await resolvePendingAttachments(
+        ctx,
+        pendingRefs,
+        userId
+      );
 
-    // Get messages from user's conversations
-    const allMessages = await Promise.all(
-      conversationIds.map(async conversationId => {
-        return await ctx.db
-          .query("messages")
-          .withIndex("by_conversation", q =>
-            q.eq("conversationId", conversationId)
-          )
-          .collect();
-      })
-    );
+      for (const candidate of pendingCandidates) {
+        const key = buildAttachmentKey(
+          candidate.conversationId,
+          candidate.messageId,
+          candidate.attachmentIndex,
+          candidate.storageId
+        );
 
-    const messages = allMessages
-      .flat()
-      .sort((a, b) => b._creationTime - a._creationTime);
+        if (seenKeys.has(key)) {
+          continue;
+        }
+        seenKeys.add(key);
 
-    // Count messages with attachments
-    const messagesWithAttachments = messages.filter(
-      m => m.attachments && m.attachments.length > 0
-    );
-    log.info(
-      `[getUserFiles] Found ${messagesWithAttachments.length} messages with attachments`
-    );
-
-    // Extract all attachments with storage IDs
-    const attachmentsMap = new Map();
-    const conversationMap = new Map(); // Track which conversation each file belongs to
-    let totalAttachments = 0;
-    let attachmentsWithStorageId = 0;
-
-    for (const message of messages) {
-      if (message.attachments) {
-        for (const attachment of message.attachments) {
-          totalAttachments++;
-          log.info(
-            `[getUserFiles] Attachment: ${attachment.name}, type: ${attachment.type}, hasStorageId: ${!!attachment.storageId}`
-          );
-
-          // Include attachments with storageId OR text attachments with content
-          if (attachment.storageId) {
-            attachmentsWithStorageId++;
-            const key = attachment.storageId;
-            if (!attachmentsMap.has(key)) {
-              attachmentsMap.set(key, {
-                attachment,
-                messageId: message._id,
-                conversationId: message.conversationId,
-                createdAt: message._creationTime,
-              });
-              conversationMap.set(key, message.conversationId);
-            }
-          } else if (attachment.type === "text" && attachment.content) {
-            // Handle text attachments stored with content instead of storageId
-            const key = `${message._id}-${attachment.name}-${attachment.type}`;
-            if (!attachmentsMap.has(key)) {
-              attachmentsMap.set(key, {
-                attachment,
-                messageId: message._id,
-                conversationId: message.conversationId,
-                createdAt: message._creationTime,
-                isContentBased: true, // Flag to indicate this is content-based, not storage-based
-              });
-              conversationMap.set(key, message.conversationId);
-            }
-          }
+        if (results.length < limit) {
+          results.push(candidate);
+        } else {
+          remainingPending.push({
+            conversationId: candidate.conversationId,
+            messageId: candidate.messageId,
+            attachmentIndex: candidate.attachmentIndex,
+          });
         }
       }
     }
 
-    log.info(
-      `[getUserFiles] Total attachments: ${totalAttachments}, with storageId: ${attachmentsWithStorageId}, unique files: ${attachmentsMap.size}`
-    );
+    let resumeConversationId = cursorState.resumeConversationId;
+    let nextConversationCursor = cursorState.nextConversationCursor ?? null;
+    let messageCursor = cursorState.messageCursor ?? null;
 
-    // Create conversation names mapping from already fetched conversations
-    const conversationNames = Object.fromEntries(
-      conversations.map(c => [c._id, c.title])
-    );
+    // Continue within an in-flight conversation if needed.
+    if (results.length < limit && resumeConversationId) {
+      const conversation = await ctx.db.get(resumeConversationId);
 
-    // Filter by file type if specified
-    let filteredAttachments = Array.from(attachmentsMap.entries());
+      if (!conversation || conversation.userId !== userId) {
+        resumeConversationId = null;
+        messageCursor = null;
+      } else {
+        const { nextMessageCursor, exhausted } = await collectFromConversation({
+          ctx,
+          conversation,
+          startCursor: messageCursor,
+          remaining: remainingTarget,
+          fileType,
+          includeGenerated,
+          seen: seenKeys,
+          results,
+        });
 
-    if (args.fileType && args.fileType !== "all") {
-      filteredAttachments = filteredAttachments.filter(([_, data]) => {
-        const attachment = data.attachment;
-        if (args.fileType === "image") {
-          // Include both regular images and generated images if includeGenerated is true
-          return (
-            attachment.type === "image" &&
-            (args.includeGenerated || !attachment.generatedImage?.isGenerated)
-          );
+        messageCursor = nextMessageCursor;
+
+        if (exhausted) {
+          resumeConversationId = null;
+          messageCursor = null;
         }
-        return attachment.type === args.fileType;
-      });
+      }
     }
 
-    // Sort by creation time (newest first)
-    filteredAttachments.sort((a, b) => b[1].createdAt - a[1].createdAt);
+    // Walk additional conversations until we hit the limit or run out of data.
+    let conversationCursor: string | null = resumeConversationId
+      ? (nextConversationCursor ?? null)
+      : (cursorState.nextConversationCursor ?? null);
 
-    // Apply pagination
-    const startIndex = args.cursor ? parseInt(args.cursor) : 0;
-    const endIndex = startIndex + limit;
-    const paginatedAttachments = filteredAttachments.slice(
-      startIndex,
-      endIndex
-    );
+    while (results.length < limit) {
+      const page = await ctx.db
+        .query("conversations")
+        .withIndex("by_user_recent", q => q.eq("userId", userId))
+        .order("desc")
+        .paginate({ cursor: conversationCursor, limit: 1 });
 
-    // Get file metadata and URLs for the paginated results
+      if (page.page.length === 0) {
+        conversationCursor = null;
+        nextConversationCursor = null;
+        break;
+      }
+
+      const conversation = page.page[0] as Doc<"conversations">;
+      conversationCursor = page.continueCursor ?? null;
+      nextConversationCursor = conversationCursor;
+
+      const { nextMessageCursor, exhausted } = await collectFromConversation({
+        ctx,
+        conversation,
+        startCursor: null,
+        remaining: remainingTarget,
+        fileType,
+        includeGenerated,
+        seen: seenKeys,
+        results,
+      });
+
+      if (!exhausted) {
+        resumeConversationId = conversation._id;
+        messageCursor = nextMessageCursor;
+        break;
+      }
+
+      if (results.length >= limit) {
+        break;
+      }
+    }
+
+    // Trim overflow beyond the requested limit and capture as pending for the next page.
+    const overflowRefs: PendingAttachmentRef[] = [...remainingPending];
+    if (results.length > limit) {
+      const overflow = results.splice(limit);
+      for (const candidate of overflow) {
+        overflowRefs.push({
+          conversationId: candidate.conversationId,
+          messageId: candidate.messageId,
+          attachmentIndex: candidate.attachmentIndex,
+        });
+      }
+    }
+
     const filesWithMetadata = await Promise.all(
-      paginatedAttachments.map(async ([key, data]) => {
+      results.map(async candidate => {
         try {
-          if (data.isContentBased) {
-            // Handle text attachments with content but no storageId
+          if (!candidate.storageId) {
             return {
-              storageId: null, // No actual storage ID for content-based attachments
-              attachment: data.attachment,
-              messageId: data.messageId,
-              conversationId: data.conversationId,
-              conversationName:
-                conversationNames[data.conversationId] ||
-                "Unknown Conversation",
-              createdAt: data.createdAt,
-              url: null, // No download URL for content-based attachments
-              metadata: null, // No file metadata for content-based attachments
+              storageId: null,
+              attachment: candidate.attachment,
+              messageId: candidate.messageId,
+              conversationId: candidate.conversationId,
+              conversationName: candidate.conversationTitle,
+              createdAt: candidate.createdAt,
+              url: null,
+              metadata: null,
             };
           }
-          // Handle regular storage-based attachments
-          const storageId = key as Id<"_storage">;
-          const fileMetadata = await ctx.db.system.get(storageId);
-          const fileUrl = await ctx.storage.getUrl(storageId);
+
+          const fileMetadata = await ctx.db.system.get(candidate.storageId);
+          const fileUrl = await ctx.storage.getUrl(candidate.storageId);
 
           return {
-            storageId,
-            attachment: data.attachment,
-            messageId: data.messageId,
-            conversationId: data.conversationId,
-            conversationName:
-              conversationNames[data.conversationId] || "Unknown Conversation",
-            createdAt: data.createdAt,
+            storageId: candidate.storageId,
+            attachment: candidate.attachment,
+            messageId: candidate.messageId,
+            conversationId: candidate.conversationId,
+            conversationName: candidate.conversationTitle,
+            createdAt: candidate.createdAt,
             url: fileUrl,
             metadata: fileMetadata,
           };
         } catch (error) {
-          log.error(`Failed to get metadata for file ${key}:`, error);
+          log.error(
+            `Failed to get metadata for file ${candidate.storageId ?? candidate.messageId}:`,
+            error
+          );
           return null;
         }
       })
@@ -248,12 +541,24 @@ export const getUserFiles = query({
 
     const validFiles = filesWithMetadata.filter(Boolean);
 
+    const nextCursor = encodeCursor(
+      resumeConversationId || overflowRefs.length > 0 || nextConversationCursor
+        ? {
+            resumeConversationId,
+            messageCursor,
+            nextConversationCursor,
+            pending: overflowRefs,
+          }
+        : null
+    );
+
+    const hasMore = Boolean(nextCursor);
+
     return {
       files: validFiles,
-      hasMore: endIndex < filteredAttachments.length,
-      nextCursor:
-        endIndex < filteredAttachments.length ? endIndex.toString() : null,
-      total: filteredAttachments.length,
+      hasMore,
+      nextCursor,
+      total: hasMore ? undefined : validFiles.length,
     };
   },
 });
