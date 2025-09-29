@@ -30,6 +30,7 @@ const CommandDialog = ({ children, ...props }: DialogProps) => {
             "max-h-[520px] min-w-[540px] overflow-hidden",
             "[&_[cmdk-list]]:max-h-[360px]",
             "[&_[cmdk-input-wrapper]]:px-4 [&_[cmdk-input-wrapper]]:py-3",
+            "[&_[cmdk-input-wrapper]_svg]:h-4 [&_[cmdk-input-wrapper]_svg]:w-4 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
             "[&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-muted-foreground/70",
             "[&_[cmdk-group]:not([hidden])_~[cmdk-group]]:mt-3",
             "[&_[cmdk-group]]:px-0",
@@ -49,7 +50,7 @@ const CommandInput = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
   <div
-    className="flex items-center gap-3 border-b border-border/40 bg-popover px-4 py-3"
+    className="flex items-center gap-2 border-b border-border/40 bg-popover px-4 py-3"
     cmdk-input-wrapper=""
   >
     <MagnifyingGlassIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
