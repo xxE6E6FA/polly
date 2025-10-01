@@ -495,15 +495,6 @@ export default function AttachmentsPage() {
         </div>
       </div>
 
-      {/* Selection Controls */}
-      {filteredAndSortedFiles.length > 0 && (
-        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-          <span>
-            {selectedFiles.size} of {filteredAndSortedFiles.length} selected
-          </span>
-        </div>
-      )}
-
       {/* Files Table */}
       {filteredAndSortedFiles.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
