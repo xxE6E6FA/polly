@@ -129,7 +129,7 @@ function normalizeBreakTag(rawDuration: string): string {
 
 function stripUnsupportedTags(input: string): string {
   const allowedTags = new Set(["break", "phoneme"]);
-  return input.replace(/<([^>]+)>/g, (full, inner) => {
+  return input.replace(/<([^>]+)>/g, (_full, inner) => {
     const tagNameMatch = inner.trim().match(/^\/?([a-z0-9_-]+)/i);
     if (!tagNameMatch) return "";
     const tag = tagNameMatch[1].toLowerCase();

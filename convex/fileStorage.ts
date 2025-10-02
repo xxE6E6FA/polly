@@ -285,8 +285,8 @@ export const getUserFiles = query({
 
       return {
         page: [],
-        continueCursor: null,
-        cursor: null,
+        continueCursor: cursorToUse ?? "",
+        cursor: cursorToUse ?? "",
         isDone: true,
       } as PaginationResult<Doc<"messages">>;
     };

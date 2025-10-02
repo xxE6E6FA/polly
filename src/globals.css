@@ -948,6 +948,29 @@ pre {
 /* Chat Input Container States */
 .chat-input-container {
     position: relative;
+    --chat-input-border-width: 1px;
+    --chat-input-padding-x: 0.5rem;
+    --chat-input-padding-y: 0.5rem;
+    --chat-input-max-inset: max(
+        var(--chat-input-padding-x),
+        var(--chat-input-padding-y)
+    );
+    --chat-input-target-radius: 1rem;
+    --chat-input-outer-radius: calc(
+        var(--chat-input-target-radius) +
+        var(--chat-input-max-inset) +
+        var(--chat-input-border-width)
+    );
+    --chat-input-inner-radius: clamp(
+        0px,
+        var(--chat-input-target-radius),
+        calc(
+            var(--chat-input-outer-radius) -
+                (var(--chat-input-max-inset) + var(--chat-input-border-width))
+        )
+    );
+    --chat-input-bottom-control-radius: var(--chat-input-inner-radius);
+    border-radius: var(--chat-input-outer-radius);
     background: hsl(var(--background));
     background: color-mix(
         in srgb,
@@ -980,6 +1003,41 @@ pre {
         transform: none;
         box-shadow: none;
     }
+}
+
+@media (min-width: 640px) {
+    .chat-input-container {
+        --chat-input-padding-x: 0.625rem;
+        --chat-input-padding-y: 0.625rem;
+    }
+}
+
+.chat-input-surface {
+    border-radius: var(--chat-input-inner-radius);
+}
+
+.chat-input-bottom-bar {
+    --chat-input-bottom-control-gap: 0rem;
+    --chat-input-bottom-control-radius: clamp(
+        0px,
+        calc(
+            var(--chat-input-inner-radius) -
+                var(--chat-input-bottom-control-gap)
+        ),
+        var(--chat-input-inner-radius)
+    );
+}
+
+.chat-input-send-group {
+    border-radius: var(--chat-input-bottom-control-radius);
+}
+
+.chat-input-send-group button {
+    border-radius: inherit;
+}
+
+.chat-input-control {
+    border-radius: var(--chat-input-bottom-control-radius);
 }
 
 /* Hover state - clean, no glow */

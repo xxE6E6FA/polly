@@ -16,6 +16,7 @@ import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   ChatMessage,
   ConversationId,
+  MessageRole,
   ModelForCapabilities,
 } from "@/types";
 
@@ -183,7 +184,7 @@ export function useChat({ conversationId }: UseChatParams) {
         const convertedMessages: ChatMessage[] = messageArray.map(
           (msg: Doc<"messages">) => ({
             id: msg._id,
-            role: msg.role,
+            role: msg.role as MessageRole,
             content: msg.content,
             status: msg.status,
             reasoning: msg.reasoning,
@@ -195,12 +196,19 @@ export function useChat({ conversationId }: UseChatParams) {
             useWebSearch: msg.useWebSearch,
             attachments: msg.attachments,
             citations: msg.citations,
-            // Ensure UI sees finishReason consistently: mirror top-level finishReason into metadata
-            metadata: {
-              ...(msg.metadata || {}),
-              finishReason: msg.finishReason,
-            },
-            imageGeneration: msg.imageGeneration, // Add imageGeneration field
+            metadata: msg.metadata,
+            imageGeneration: msg.imageGeneration
+              ? {
+                  ...msg.imageGeneration,
+                  status: msg.imageGeneration.status as
+                    | "starting"
+                    | "processing"
+                    | "succeeded"
+                    | "failed"
+                    | "canceled"
+                    | undefined,
+                }
+              : undefined,
             createdAt: msg.createdAt,
           })
         );

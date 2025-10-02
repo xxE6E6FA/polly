@@ -187,15 +187,13 @@ export const SendButtonGroup = ({
     <div className="relative">
       <div
         className={cn(
-          "relative flex items-stretch",
+          "chat-input-send-group relative flex items-stretch",
           "h-8",
           "transition-all",
           isCollapsing
             ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
             : "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-          isExpanded
-            ? "w-[64px] rounded-full duration-500"
-            : "w-8 rounded-full duration-300",
+          isExpanded ? "w-[64px] duration-500" : "w-8 duration-300",
           // Always allow outer focus ring to be visible for both buttons
           "overflow-visible",
           isCollapsing && "scale-[0.98]",
@@ -219,7 +217,10 @@ export const SendButtonGroup = ({
         }}
       >
         {(isExpanded || isCollapsing) && (
-          <div className="pointer-events-none absolute inset-0 flex overflow-hidden rounded-full">
+          <div
+            className="pointer-events-none absolute inset-0 flex overflow-hidden"
+            style={{ borderRadius: "inherit" }}
+          >
             {/* Hover/focus background highlight for each segment when pill is expanded */}
             <div
               className={cn(
@@ -362,7 +363,7 @@ export const SendButtonGroup = ({
               type={isStreaming ? "button" : "submit"}
               variant="ghost"
               className={cn(
-                "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 rounded-full leading-none",
+                "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 leading-none rounded-full",
                 // Use grid centering to align icon perfectly
                 "!grid place-items-center !items-center !justify-center !gap-0",
                 "relative z-10",

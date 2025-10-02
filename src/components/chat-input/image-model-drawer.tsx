@@ -56,7 +56,7 @@ export function ImageModelDrawer({
           variant="ghost"
           size="sm"
           aria-label="Select image model"
-          className="h-9 w-9 p-0 rounded-full sm:hidden bg-accent/60 text-accent-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="chat-input-control h-9 w-9 p-0 sm:hidden bg-accent/60 text-accent-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           disabled={disabled}
         >
           <Image className="h-4 w-4" />

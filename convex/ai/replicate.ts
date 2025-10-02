@@ -246,11 +246,9 @@ export const generateImage = action({
       let imageInputConfig: { paramName: string; isArray: boolean } | null = null;
       
       // Resolve model version and introspect schema to detect image input param
-      let detectedVersionId: string | undefined;
       try {
         const [owner, name] = args.model.split("/");
         const modelData = await replicate.models.get(owner, name);
-        detectedVersionId = modelData.latest_version?.id;
         const schemaConfig = detectImageInputFromSchema(modelData);
         if (schemaConfig) {
           imageInputConfig = schemaConfig;

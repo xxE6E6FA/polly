@@ -99,7 +99,7 @@ export function ChatInputBottomBar({
   return (
     <div
       className={cn(
-        "flex items-center justify-between",
+        "chat-input-bottom-bar flex items-center justify-between",
         dense ? "mt-0.5 pt-1.5 gap-1" : "mt-1.5 pt-2 gap-1.5"
       )}
     >
