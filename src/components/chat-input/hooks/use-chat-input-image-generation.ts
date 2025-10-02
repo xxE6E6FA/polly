@@ -34,7 +34,7 @@ interface UseChatInputImageGenerationProps {
   generationMode: GenerationMode;
   onResetInputState: () => void;
   /** Optional user attachments to seed image-to-image generation. */
-  attachments?: Attachment[];
+  attachments?: readonly Attachment[];
 }
 
 export function useChatInputImageGeneration({

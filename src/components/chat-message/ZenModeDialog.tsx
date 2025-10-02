@@ -348,7 +348,7 @@ export const ZenModeDialog = ({
                             trackingClass
                           )}
                         >
-                          {content}
+                          {content ?? ""}
                         </StreamingMarkdown>
                       </div>
                     </article>

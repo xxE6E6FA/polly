@@ -317,9 +317,11 @@ export const PersonasTab = () => {
         description="Are you sure you want to delete this persona? This action cannot be undone."
         open={Boolean(deletingPersona)}
         title="Delete Persona"
-        onConfirm={() =>
-          deletingPersona && handleDeletePersona(deletingPersona)
-        }
+        onConfirm={() => {
+          if (deletingPersona) {
+            void handleDeletePersona(deletingPersona);
+          }
+        }}
         onOpenChange={open => !open && setDeletingPersona(null)}
       />
     </SettingsPageLayout>

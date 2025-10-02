@@ -117,7 +117,7 @@ function PersonaPickerComponent({
                 className={cn(
                   // Unified pill sizing
                   "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                  "rounded-full border border-border/50",
+                  "chat-input-control border border-border/50",
                   // Subtle pill effect to match ecosystem
                   "bg-muted text-foreground hover:bg-muted/80",
                   // Focus ring parity

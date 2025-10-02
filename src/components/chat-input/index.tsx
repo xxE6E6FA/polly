@@ -75,7 +75,6 @@ interface ChatInputProps {
   userMessageContents?: string[];
   autoFocus?: boolean;
   conversationPersonaId?: Id<"personas"> | null;
-  // Heuristic from parent: recent assistant output looks like image generation
   isLikelyImageConversation?: boolean;
 }
 
@@ -86,7 +85,7 @@ export type ChatInputRef = {
   getCurrentReasoningConfig: () => ReasoningConfig;
 };
 
-const ChatInputInner = forwardRef(
+const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
   (
     {
       onSendMessage,
@@ -102,7 +101,7 @@ const ChatInputInner = forwardRef(
       autoFocus = false,
       isLikelyImageConversation = false,
     },
-    ref: ForwardedRef<ChatInputRef>
+    ref
   ) => {
     const { canSendMessage } = useUserDataContext();
     const { hasReplicateApiKey } = useReplicateApiKey();

@@ -58,7 +58,7 @@ const createSyntaxTheme = (mode: ThemeMode) => ({
       types: ["keyword", "atrule", "selector", "important"],
       style: {
         color: "hsl(var(--primary))",
-        fontWeight: 600,
+        fontWeight: "600" as const,
       },
     },
     {
@@ -71,7 +71,7 @@ const createSyntaxTheme = (mode: ThemeMode) => ({
       types: ["function", "function-variable", "method"],
       style: {
         color: "hsl(var(--accent-blue))",
-        fontWeight: 600,
+        fontWeight: "600" as const,
       },
     },
     {
@@ -95,7 +95,7 @@ const createSyntaxTheme = (mode: ThemeMode) => ({
     {
       types: ["bold"],
       style: {
-        fontWeight: 700,
+        fontWeight: "700" as const,
       },
     },
     {

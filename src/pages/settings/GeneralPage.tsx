@@ -91,7 +91,7 @@ export default function GeneralPage() {
     const allConversationIds: Id<"conversations">[] = [];
 
     while (!isDone) {
-      const response = await convex.query(api.conversations.list, {
+      const response: unknown = await convex.query(api.conversations.list, {
         includeArchived: true,
         paginationOpts: {
           numItems: pageSize,

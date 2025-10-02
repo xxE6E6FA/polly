@@ -23,7 +23,7 @@ export function QuotePreview({ quote, onClear, className }: QuotePreviewProps) {
   return (
     <div
       className={cn(
-        "flex items-start gap-2 rounded-xl border bg-muted/40 px-3 py-2 text-sm",
+        "chat-input-surface flex items-start gap-2 border bg-muted/40 px-3 py-2 text-sm",
         "shadow-sm",
         className
       )}

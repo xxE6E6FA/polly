@@ -2,12 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
-import {
-  action,
-  internalMutation,
-  internalQuery,
-  query,
-} from "./_generated/server";
+import { action, internalMutation, query } from "./_generated/server";
 import { executeStreamingActionForRetry } from "./lib/conversation_utils";
 import { log } from "./lib/logger";
 import {

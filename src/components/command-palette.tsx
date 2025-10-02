@@ -55,6 +55,7 @@ import {
   generateFilename,
 } from "@/lib/export";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import type { ModelForCapabilities } from "@/types";
 
 type CommandPaletteProps = {
   open: boolean;
@@ -752,16 +753,16 @@ export function CommandPalette({
       return {};
     }
 
-    const grouped: Record<string, typeof modelsToShow> = {};
+    const grouped: Record<string, ModelType[]> = {};
     modelsToShow.forEach(model => {
       if (!grouped[model.provider]) {
         grouped[model.provider] = [];
       }
-      grouped[model.provider].push(model);
+      grouped[model.provider].push(model as ModelType);
     });
 
     // Sort providers alphabetically and sort models within each provider
-    const sortedGroups: Record<string, typeof modelsToShow> = {};
+    const sortedGroups: Record<string, ModelType[]> = {};
     Object.keys(grouped)
       .sort()
       .forEach(provider => {
@@ -1238,7 +1239,9 @@ export function CommandPalette({
                           currentSelectedModel?.modelId === model.modelId &&
                           currentSelectedModel?.provider === model.provider;
 
-                        const capabilities = getModelCapabilities(model);
+                        const capabilities = getModelCapabilities(
+                          model as ModelForCapabilities
+                        );
 
                         return (
                           <CommandItem
@@ -1350,7 +1353,9 @@ export function CommandPalette({
                             currentSelectedModel?.modelId === model.modelId &&
                             currentSelectedModel?.provider === model.provider;
 
-                          const capabilities = getModelCapabilities(model);
+                          const capabilities = getModelCapabilities(
+                            model as ModelForCapabilities
+                          );
 
                           return (
                             <CommandItem
