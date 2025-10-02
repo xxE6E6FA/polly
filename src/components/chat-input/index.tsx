@@ -504,7 +504,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               hasReplicateApiKey={hasReplicateApiKey}
               isPrivateMode={isPrivateMode}
               onSubmit={handleSubmit}
-              compact={isMobile && isComposeDrawerOpen}
             />
           </ChatInputContainer>
         </div>
@@ -567,8 +566,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
                 hasReplicateApiKey={hasReplicateApiKey}
                 isPrivateMode={isPrivateMode}
                 onSubmit={handleSubmit}
-                compact
-                dense
               />
             </DrawerFooter>
           </DrawerContent>
