@@ -44,6 +44,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -177,17 +180,21 @@ const RetryDropdown = memo(
 
     const renderTextModelList = () => (
       <>
-        <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
           Try a different model
-        </div>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {/* Free Models Group */}
-          {modelGroups.freeModels.length > 0 && (
-            <div className="border-b border-border/30">
-              <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
-                <ProviderIcon provider="polly" className="h-4 w-4" />
-                <span className="font-medium text-sm">Polly</span>
-              </div>
+        </DropdownMenuLabel>
+
+        {/* Free Models Group */}
+        {modelGroups.freeModels.length > 0 && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex items-center gap-2">
+              <ProviderIcon
+                provider="polly"
+                className="h-4 w-4 text-foreground"
+              />
+              <span>Polly</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
               {modelGroups.freeModels.map((model: AvailableModel) => {
                 const capabilities = getModelCapabilities({
                   modelId: model.modelId,
@@ -201,10 +208,10 @@ const RetryDropdown = memo(
                   inputModalities: model.inputModalities,
                 });
                 return (
-                  <button
+                  <DropdownMenuItem
                     key={model.modelId}
                     onClick={() => handleRetry(model.modelId, model.provider)}
-                    className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/70 transition-colors"
+                    className="flex items-center justify-between cursor-pointer"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
@@ -214,7 +221,7 @@ const RetryDropdown = memo(
                         </span>
                       )}
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1 ml-2">
                       {capabilities.length > 0 &&
                         capabilities.slice(0, 3).map((capability, index) => {
                           const IconComponent = capability.icon;
@@ -241,28 +248,30 @@ const RetryDropdown = memo(
                           );
                         })}
                     </div>
-                  </button>
+                  </DropdownMenuItem>
                 );
               })}
-            </div>
-          )}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
 
-          {/* Provider Groups */}
-          {Object.entries(modelGroups.providerModels).map(
-            ([providerId, models]) => {
-              const providerConfig =
-                PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
-              const providerTitle = providerConfig?.title || providerId;
+        {/* Provider Groups as Submenus */}
+        {Object.entries(modelGroups.providerModels).map(
+          ([providerId, models]) => {
+            const providerConfig =
+              PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+            const providerTitle = providerConfig?.title || providerId;
 
-              return (
-                <div
-                  key={providerId}
-                  className="border-b border-border/30 last:border-b-0"
-                >
-                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/30">
-                    <ProviderIcon provider={providerId} className="h-4 w-4" />
-                    <span className="font-medium text-sm">{providerTitle}</span>
-                  </div>
+            return (
+              <DropdownMenuSub key={providerId}>
+                <DropdownMenuSubTrigger className="flex items-center gap-2">
+                  <ProviderIcon
+                    provider={providerId}
+                    className="h-4 w-4 text-foreground"
+                  />
+                  <span>{providerTitle}</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
                   {models.map((model: AvailableModel) => {
                     const capabilities = getModelCapabilities({
                       modelId: model.modelId,
@@ -276,12 +285,12 @@ const RetryDropdown = memo(
                       inputModalities: model.inputModalities,
                     });
                     return (
-                      <button
+                      <DropdownMenuItem
                         key={model.modelId}
                         onClick={() =>
                           handleRetry(model.modelId, model.provider)
                         }
-                        className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-muted/70 transition-colors"
+                        className="flex items-center justify-between cursor-pointer"
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
@@ -291,7 +300,7 @@ const RetryDropdown = memo(
                             </span>
                           )}
                         </div>
-                        <div className="flex shrink-0 items-center gap-1">
+                        <div className="flex shrink-0 items-center gap-1 ml-2">
                           {capabilities.length > 0 &&
                             capabilities
                               .slice(0, 3)
@@ -320,6 +329,209 @@ const RetryDropdown = memo(
                                 );
                               })}
                         </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            );
+          }
+        )}
+      </>
+    );
+
+    const renderImageModelList = () => (
+      <>
+        <DropdownMenuLabel className="text-xs text-muted-foreground">
+          Try a different image model
+        </DropdownMenuLabel>
+        {imageModelOptions.length === 0 ? (
+          <div className="px-2 py-2 text-sm text-muted-foreground">
+            {enabledImageModels === undefined
+              ? "Loading image models..."
+              : "No image models enabled. Manage models in Settings → Image models."}
+          </div>
+        ) : (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger className="flex items-center gap-2">
+              <ProviderIcon
+                provider="replicate"
+                className="h-4 w-4 text-foreground"
+              />
+              <span>Replicate</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
+              {imageModelOptions.map(model => {
+                const tags: string[] = [];
+                if (model.supportsMultipleImages) {
+                  tags.push("Multi");
+                }
+                if (model.supportsNegativePrompt) {
+                  tags.push("Negative");
+                }
+                if (model.supportsImageToImage) {
+                  tags.push("Img2Img");
+                }
+                const isSelected = currentModel === model.modelId;
+                return (
+                  <DropdownMenuItem
+                    key={model.modelId}
+                    onClick={() => handleRetry(model.modelId, model.provider)}
+                    className={cn(
+                      "flex items-center justify-between cursor-pointer",
+                      isSelected && "bg-primary/5 hover:bg-primary/10"
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-col">
+                      <span className="truncate font-medium">{model.name}</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        {model.modelId}
+                      </span>
+                    </div>
+                    <div className="ml-2 flex shrink-0 gap-1">
+                      {tags.map(tag => (
+                        <span
+                          key={`${model.modelId}-${tag}`}
+                          className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        )}
+      </>
+    );
+
+    const renderTextModelListMobile = () => (
+      <>
+        <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+          Try a different model
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto">
+          {modelGroups.freeModels.length > 0 && (
+            <div className="border-b border-border/30">
+              <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/30">
+                <ProviderIcon
+                  provider="polly"
+                  className="h-4 w-4 text-foreground"
+                />
+                <span className="font-medium text-sm">Polly</span>
+              </div>
+              {modelGroups.freeModels.map((model: AvailableModel) => {
+                const capabilities = getModelCapabilities({
+                  modelId: model.modelId,
+                  provider: model.provider,
+                  name: model.name,
+                  contextLength: model.contextLength,
+                  supportsReasoning: model.supportsReasoning,
+                  supportsImages: model.supportsImages,
+                  supportsTools: model.supportsTools,
+                  supportsFiles: model.supportsFiles,
+                  inputModalities: model.inputModalities,
+                });
+                return (
+                  <button
+                    key={model.modelId}
+                    onClick={() => handleRetry(model.modelId, model.provider)}
+                    className="flex items-center justify-between w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <span className="truncate">{model.name}</span>
+                      {model.free && (
+                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                          Free
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1 ml-2">
+                      {capabilities.length > 0 &&
+                        capabilities.slice(0, 3).map((capability, index) => {
+                          const IconComponent = capability.icon;
+                          return (
+                            <div
+                              key={`${model.modelId}-${capability.label}-${index}`}
+                              className="flex h-5 w-5 items-center justify-center rounded-md bg-muted/70"
+                              title={capability.label}
+                            >
+                              <IconComponent className="h-3 w-3" />
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {Object.entries(modelGroups.providerModels).map(
+            ([providerId, models]) => {
+              const providerConfig =
+                PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG];
+              const providerTitle = providerConfig?.title || providerId;
+
+              return (
+                <div
+                  key={providerId}
+                  className="border-b border-border/30 last:border-b-0"
+                >
+                  <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/30">
+                    <ProviderIcon
+                      provider={providerId}
+                      className="h-4 w-4 text-foreground"
+                    />
+                    <span className="font-medium text-sm">{providerTitle}</span>
+                  </div>
+                  {models.map((model: AvailableModel) => {
+                    const capabilities = getModelCapabilities({
+                      modelId: model.modelId,
+                      provider: model.provider,
+                      name: model.name,
+                      contextLength: model.contextLength,
+                      supportsReasoning: model.supportsReasoning,
+                      supportsImages: model.supportsImages,
+                      supportsTools: model.supportsTools,
+                      supportsFiles: model.supportsFiles,
+                      inputModalities: model.inputModalities,
+                    });
+                    return (
+                      <button
+                        key={model.modelId}
+                        onClick={() =>
+                          handleRetry(model.modelId, model.provider)
+                        }
+                        className="flex items-center justify-between w-full px-3 py-2.5 text-left hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <span className="truncate">{model.name}</span>
+                          {model.free && (
+                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                              Free
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1 ml-2">
+                          {capabilities.length > 0 &&
+                            capabilities
+                              .slice(0, 3)
+                              .map((capability, index) => {
+                                const IconComponent = capability.icon;
+                                return (
+                                  <div
+                                    key={`${model.modelId}-${capability.label}-${index}`}
+                                    className="flex h-5 w-5 items-center justify-center rounded-md bg-muted/70"
+                                    title={capability.label}
+                                  >
+                                    <IconComponent className="h-3 w-3" />
+                                  </div>
+                                );
+                              })}
+                        </div>
                       </button>
                     );
                   })}
@@ -331,14 +543,14 @@ const RetryDropdown = memo(
       </>
     );
 
-    const renderImageModelList = () => (
+    const renderImageModelListMobile = () => (
       <>
         <div className="text-xs font-medium text-muted-foreground px-2 py-2">
           Try a different image model
         </div>
         <div className="max-h-[60vh] overflow-y-auto">
           {imageModelOptions.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
+            <div className="px-2 py-2 text-sm text-muted-foreground">
               {enabledImageModels === undefined
                 ? "Loading image models..."
                 : "No image models enabled. Manage models in Settings → Image models."}
@@ -361,9 +573,9 @@ const RetryDropdown = memo(
                   key={model.modelId}
                   onClick={() => handleRetry(model.modelId, model.provider)}
                   className={cn(
-                    "flex items-center justify-between w-full px-4 py-3 text-left transition-colors",
+                    "flex items-center justify-between w-full px-3 py-2.5 text-left transition-colors",
                     "border-b border-border/30 last:border-b-0",
-                    "hover:bg-muted/70",
+                    "hover:bg-muted/50",
                     isSelected && "bg-primary/5 hover:bg-primary/10"
                   )}
                 >
@@ -373,7 +585,7 @@ const RetryDropdown = memo(
                       {model.modelId}
                     </span>
                   </div>
-                  <div className="ml-3 flex shrink-0 gap-1">
+                  <div className="ml-2 flex shrink-0 gap-1">
                     {tags.map(tag => (
                       <span
                         key={`${model.modelId}-${tag}`}
@@ -393,6 +605,11 @@ const RetryDropdown = memo(
 
     const renderModelList = () =>
       isImageProvider ? renderImageModelList() : renderTextModelList();
+
+    const renderModelListMobile = () =>
+      isImageProvider
+        ? renderImageModelListMobile()
+        : renderTextModelListMobile();
 
     return (
       <>
@@ -589,46 +806,50 @@ const RetryDropdown = memo(
               </DrawerHeader>
               <DrawerBody>
                 <div className="flex flex-col">
-                  <div className="text-xs font-medium text-muted-foreground px-2 py-2">
-                    Refine response
-                  </div>
-                  <button
-                    onClick={() => {
-                      setIsMobileSheetOpen(false);
-                      setRefineText("");
-                      setIsRefineDialogOpen(true);
-                    }}
-                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <NotePencilIcon className="h-4 w-4" />
-                    Edit instruction…
-                  </button>
-                  <button
-                    onClick={() => handleRefine("add_details")}
-                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <ArrowsOutSimpleIcon className="h-4 w-4" />
-                    Add more detail
-                  </button>
-                  <button
-                    onClick={() => handleRefine("more_concise")}
-                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <ArrowsInSimpleIcon className="h-4 w-4" />
-                    Make more concise
-                  </button>
+                  {!isUser && (
+                    <>
+                      <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+                        Refine response
+                      </div>
+                      <button
+                        onClick={() => {
+                          setIsMobileSheetOpen(false);
+                          setRefineText("");
+                          setIsRefineDialogOpen(true);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <NotePencilIcon className="h-4 w-4" />
+                        Edit instruction…
+                      </button>
+                      <button
+                        onClick={() => handleRefine("add_details")}
+                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <ArrowsOutSimpleIcon className="h-4 w-4" />
+                        Add more detail
+                      </button>
+                      <button
+                        onClick={() => handleRefine("more_concise")}
+                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <ArrowsInSimpleIcon className="h-4 w-4" />
+                        Make more concise
+                      </button>
+                    </>
+                  )}
                   <div className="text-xs font-medium text-muted-foreground px-2 py-2">
                     Retry
                   </div>
                   <button
                     onClick={handleRetrySame}
-                    className="flex items-center gap-2 w-full p-3 border-b border-border/30 hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
                   >
                     <ArrowCounterClockwiseIcon className="h-4 w-4" />
                     Retry with current model
                   </button>
                 </div>
-                {renderModelList()}
+                {renderModelListMobile()}
               </DrawerBody>
             </DrawerContent>
           </Drawer>
