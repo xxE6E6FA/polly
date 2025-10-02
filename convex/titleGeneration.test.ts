@@ -41,7 +41,6 @@ describe("titleGeneration actions", () => {
     });
     const ctx = { runMutation };
 
-    // biome-ignore lint/suspicious/noExplicitAny: Required for testing Convex actions
     const title = await (generateTitle as any)(ctx, {
       message: "Hello world",
       conversationId: "c1",
@@ -67,7 +66,6 @@ describe("titleGeneration actions", () => {
     });
     const ctx = { runMutation };
 
-    // biome-ignore lint/suspicious/noExplicitAny: Required for testing Convex actions
     const title = await (generateTitle as any)(ctx, {
       message:
         "A very long message that should be truncated to ensure we do not exceed sixty characters in the title",
@@ -87,7 +85,6 @@ describe("titleGeneration actions", () => {
     });
     const ctx = { runAction, scheduler: { runAfter: vi.fn() } };
 
-    // biome-ignore lint/suspicious/noExplicitAny: Required for testing Convex actions
     await (generateTitleBackground as any)(ctx, {
       conversationId: "c3",
       message: "Hello",

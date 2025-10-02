@@ -1,7 +1,6 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import { useMutation } from "convex/react";
-import { useNavigate } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@/types";
 import { renderHook } from "../test/hook-utils";
@@ -99,7 +98,8 @@ describe("useChatMessages", () => {
     // Assert any mutation was called with removeMultiple payload
     const called = mutationCalls.some(m =>
       m.mock.calls.some(
-        args => JSON.stringify(args[0]) === JSON.stringify({ ids: ["m2"] })
+        (args: unknown[]) =>
+          JSON.stringify(args[0]) === JSON.stringify({ ids: ["m2"] })
       )
     );
     expect(called).toBe(true);
@@ -118,7 +118,7 @@ describe("useChatMessages", () => {
     });
     const called = mutationCalls.some(m =>
       m.mock.calls.some(
-        args =>
+        (args: unknown[]) =>
           JSON.stringify(args[0]) ===
           JSON.stringify({ id: "m1", content: "new" })
       )
@@ -142,7 +142,8 @@ describe("useChatMessages", () => {
     });
     const called = mutationCalls.some(m =>
       m.mock.calls.some(
-        args => JSON.stringify(args[0]) === JSON.stringify({ id: "c1" })
+        (args: unknown[]) =>
+          JSON.stringify(args[0]) === JSON.stringify({ id: "c1" })
       )
     );
     expect(called).toBe(true);
@@ -163,7 +164,8 @@ describe("useChatMessages", () => {
     });
     const called = mutationCalls.some(m =>
       m.mock.calls.some(
-        args => JSON.stringify(args[0]) === JSON.stringify({ ids: ["m2"] })
+        (args: unknown[]) =>
+          JSON.stringify(args[0]) === JSON.stringify({ ids: ["m2"] })
       )
     );
     expect(called).toBe(true);

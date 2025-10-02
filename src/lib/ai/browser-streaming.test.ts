@@ -21,12 +21,7 @@ describe("browser-streaming.streamChat", () => {
     vi.clearAllMocks();
 
     // Set up default mock behavior for streamText
-    type MockStreamOptions = {
-      abortSignal?: AbortSignal;
-      onChunk?: (arg: { chunk: { type?: string; textDelta?: string } }) => void;
-    };
-
-    vi.mocked(streamText).mockImplementation((options: MockStreamOptions) => {
+    vi.mocked(streamText).mockImplementation((options: any): any => {
       // Trigger reasoning chunk if handler provided
       options.onChunk?.({ chunk: { type: "reasoning", textDelta: "think" } });
 
@@ -75,9 +70,23 @@ describe("browser-streaming.streamChat", () => {
               name: "img.png",
               content: "AAA",
               mimeType: "image/png",
+              url: "blob:img",
+              size: 1024,
             },
-            { type: "text", name: "note.txt", content: "textbody" },
-            { type: "pdf", name: "doc.pdf", extractedText: "pdf text" },
+            {
+              type: "text",
+              name: "note.txt",
+              content: "textbody",
+              url: "blob:txt",
+              size: 8,
+            },
+            {
+              type: "pdf",
+              name: "doc.pdf",
+              extractedText: "pdf text",
+              url: "blob:pdf",
+              size: 2048,
+            },
           ],
         },
       ],
@@ -95,17 +104,19 @@ describe("browser-streaming.streamChat", () => {
 
     // Ensure conversion passed to streamText
     const call = vi.mocked(streamText).mock.calls.at(-1)?.[0];
-    expect(call.messages).toHaveLength(1);
-    const m = call.messages?.[0];
-    expect(m.role).toBe("user");
-    expect(Array.isArray(m.content)).toBe(true);
-    expect(m.content[0]).toBe("Hello");
-    expect(m.content[1]).toEqual({
+    expect(call).toBeDefined();
+    expect(call?.messages).toHaveLength(1);
+    const m = call?.messages?.[0];
+    expect(m).toBeDefined();
+    expect(m?.role).toBe("user");
+    expect(Array.isArray(m?.content)).toBe(true);
+    expect(m?.content[0]).toBe("Hello");
+    expect(m?.content[1]).toEqual({
       type: "image",
       data: "data:image/png;base64,AAA",
     });
-    expect(m.content[2]).toEqual({ type: "text", text: "textbody" });
-    expect(m.content[3]).toEqual({ type: "text", text: "pdf text" });
+    expect(m?.content[2]).toEqual({ type: "text", text: "textbody" });
+    expect(m?.content[3]).toEqual({ type: "text", text: "pdf text" });
   });
 
   it("throws if API key missing for provider", async () => {
@@ -132,23 +143,21 @@ describe("browser-streaming.streamChat", () => {
     const controller = new AbortController();
 
     // Override streamText for this test to abort after first yield
-    vi.mocked(streamText).mockImplementationOnce(
-      (options: MockStreamOptions) => {
-        options.onChunk?.({ chunk: { type: "text", textDelta: "x" } });
-        const ctrl = controller;
-        async function* gen() {
-          // eslint-disable-next-line no-await-in-loop
-          yield await Promise.resolve("chunk1");
-          ctrl.abort();
-          if (options.abortSignal?.aborted) {
-            return;
-          }
-          // eslint-disable-next-line no-await-in-loop
-          yield await Promise.resolve("chunk2");
+    vi.mocked(streamText).mockImplementationOnce((options: any): any => {
+      options.onChunk?.({ chunk: { type: "text", textDelta: "x" } });
+      const ctrl = controller;
+      async function* gen() {
+        // eslint-disable-next-line no-await-in-loop
+        yield await Promise.resolve("chunk1");
+        ctrl.abort();
+        if (options.abortSignal?.aborted) {
+          return;
         }
-        return { textStream: gen() };
+        // eslint-disable-next-line no-await-in-loop
+        yield await Promise.resolve("chunk2");
       }
-    );
+      return { textStream: gen() };
+    });
 
     const req: ChatStreamRequest = {
       model: { modelId: "gpt", provider: "openai" },

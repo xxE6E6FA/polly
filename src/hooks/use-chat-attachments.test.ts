@@ -17,7 +17,6 @@ vi.mock("./use-clear-on-conversation-change", () => ({
   useClearOnConversationChange: vi.fn(),
 }));
 
-import type { Id } from "@convex/_generated/dataModel";
 import { useChatInputStore } from "@/stores/chat-input-store";
 import { useChatAttachments } from "./use-chat-attachments";
 
@@ -26,8 +25,7 @@ describe("useChatAttachments", () => {
     const { result } = renderHook(() => useChatAttachments());
     expect(result.current.attachments).toHaveLength(1);
 
-    const _state =
-      (useChatInputStore as { getState?: () => unknown }).getState?.() || {};
+    useChatInputStore as { getState?: () => unknown };
     expect(typeof result.current.setAttachments).toBe("function");
     expect(typeof result.current.clearAttachments).toBe("function");
 

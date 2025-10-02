@@ -23,12 +23,14 @@
     "test:browser": "vitest --environment=jsdom",
     "test:convex": "vitest --environment=edge-runtime",
     "test:ci": "vitest run",
-    "test:pre-commit": "vitest run",
     "test:changed": "vitest run --changed",
     "test:related": "vitest related --run",
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
-    "coverage:ci": "vitest run --coverage"
+    "coverage:ci": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "pre-commit": "pnpm typecheck && pnpm lint && pnpm test:changed",
+    "validate": "pnpm typecheck && pnpm lint && pnpm test:ci"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
@@ -132,7 +134,8 @@
       "biome format --write --files-ignore-unknown=true --no-errors-on-unmatched",
       "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
     ],
-    "*.{js,jsx,ts,tsx}": ["vitest run --changed"],
+    "*.{ts,tsx}": ["bash -c 'tsc --noEmit'", "vitest run --changed"],
+    "*.{js,jsx}": ["vitest run --changed"],
     "convex/_generated/**": []
   }
 }

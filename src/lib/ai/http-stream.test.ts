@@ -8,6 +8,8 @@ import {
 import { startAuthorStream } from "./http-stream";
 
 type TestOverlays = {
+  set: ReturnType<typeof vi.fn>;
+  setReasoning: ReturnType<typeof vi.fn>;
   append: ReturnType<typeof vi.fn>;
   appendReasoning: ReturnType<typeof vi.fn>;
   setStatus: ReturnType<typeof vi.fn>;
@@ -42,7 +44,7 @@ describe("http-stream.startAuthorStream", () => {
     const { restore } = mockGlobalFetchOnce({
       ok: false,
       status: 429,
-      headers: { get: () => "text/plain" },
+      headers: { get: () => "text/plain" } as unknown as Headers,
       text: async () => "rate limit",
     });
 
@@ -58,7 +60,7 @@ describe("http-stream.startAuthorStream", () => {
   it("returns null on unexpected content-type", async () => {
     const { restore } = mockGlobalFetchOnce({
       ok: true,
-      headers: { get: () => "text/plain" },
+      headers: { get: () => "text/plain" } as unknown as Headers,
     });
     const res = await startAuthorStream({
       convexUrl: "https://convex",
@@ -72,7 +74,7 @@ describe("http-stream.startAuthorStream", () => {
   it("returns handle when ok but body missing", async () => {
     const { restore } = mockGlobalFetchOnce({
       ok: true,
-      headers: { get: () => "application/x-ndjson" },
+      headers: { get: () => "application/x-ndjson" } as unknown as Headers,
       body: null,
     });
     const handle = await startAuthorStream({

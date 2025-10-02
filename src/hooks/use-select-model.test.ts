@@ -9,7 +9,7 @@ vi.mock("@/lib/local-storage", () => ({
   set: vi.fn(),
 }));
 
-import type { Doc } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { set } from "@/lib/local-storage";
 import { useToast } from "@/providers/toast-context";
@@ -25,10 +25,10 @@ describe("useSelectModel", () => {
     (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
     (useToast as unknown as vi.Mock).mockReturnValue({ error: vi.fn() });
 
-    const catalog: Array<Doc<"userModels">> = [
-      { modelId: "gpt", provider: "openai", _id: "a" },
-      { modelId: "other", provider: "x", _id: "b" },
-    ];
+    const catalog = [
+      { modelId: "gpt", provider: "openai", _id: "a" as Id<"userModels"> },
+      { modelId: "other", provider: "x", _id: "b" as Id<"userModels"> },
+    ] as Array<Doc<"userModels">>;
 
     const { result } = renderHook(() => useSelectModel());
     await result.current.selectModel("gpt", "openai", catalog);

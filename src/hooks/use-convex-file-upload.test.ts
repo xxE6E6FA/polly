@@ -38,7 +38,7 @@ describe("useConvexFileUpload", () => {
       storageId: "sid",
       thumbnail: "data:image/jpeg;base64,THUMB",
     });
-    expect(progress.at(-1).status).toBe("complete");
+    expect(progress.at(-1)?.status).toBe("complete");
   });
 
   it("uploads text and returns attachment with content", async () => {

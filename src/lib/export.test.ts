@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { ExportData } from "@/types";
 import {
   mockGlobalFetchOnce,
   stubAnchorClicks,
@@ -44,7 +45,7 @@ describe("export", () => {
           metadata: { tokenCount: 10 },
         },
       ],
-    };
+    } as ExportData;
 
     const json = exportAsJSON(data);
     const parsed = JSON.parse(json);
@@ -87,7 +88,7 @@ describe("export", () => {
           ],
         },
       ],
-    };
+    } as ExportData;
 
     const md = exportAsMarkdown(data);
     // Title and separators

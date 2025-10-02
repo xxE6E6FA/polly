@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  detectAndParseImportData,
-  type ImportResult,
-  type ParsedConversation,
-} from "./import-parsers";
+import { detectAndParseImportData } from "./import-parsers";
 
 describe("import-parsers", () => {
   describe("detectAndParseImportData", () => {

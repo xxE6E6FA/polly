@@ -58,11 +58,7 @@ vi.mock("@/stores/actions/chat-input-actions", () => ({
 
 import type { Id } from "@convex/_generated/dataModel";
 import { isFileTypeSupported } from "@shared/model-capabilities-config";
-import {
-  convertImageToWebP,
-  readFileAsBase64,
-  readFileAsText,
-} from "@/lib/file-utils";
+import { convertImageToWebP, readFileAsText } from "@/lib/file-utils";
 import {
   appendAttachments,
   removeAttachmentAt,

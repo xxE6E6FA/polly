@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   installCanvasMock,
   installFileReaderSequence,
@@ -20,7 +20,6 @@ describe("file-utils", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     global.FileReader = RealFileReader;
-    // @ts-expect-error restore
     global.Image = RealImage;
   });
 

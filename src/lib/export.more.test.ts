@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadFile, downloadFromUrl, generateFilename } from "./export";
 
 describe("export helpers (DOM)", () => {
-  let createObjectURLSpy: ReturnType<typeof vi.spyOn>;
-  let revokeObjectURLSpy: ReturnType<typeof vi.spyOn>;
-  let appendSpy: ReturnType<typeof vi.spyOn>;
-  let removeSpy: ReturnType<typeof vi.spyOn>;
+  let createObjectURLSpy: ReturnType<typeof vi.spyOn<any, any>>;
+  let revokeObjectURLSpy: ReturnType<typeof vi.spyOn<any, any>>;
+  let appendSpy: ReturnType<typeof vi.spyOn<any, any>>;
+  let removeSpy: ReturnType<typeof vi.spyOn<any, any>>;
   let clickSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {

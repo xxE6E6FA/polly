@@ -90,7 +90,14 @@ describe("image-generation-handlers", () => {
         "conv-1" as Id<"conversations">,
         "user-msg" as Id<"messages">,
         "cat",
-        { model: "m", aspectRatio: "1:1", steps: 1, guidanceScale: 1, count: 1 }
+        {
+          prompt: "cat",
+          model: "m",
+          aspectRatio: "1:1",
+          steps: 1,
+          guidanceScale: 1,
+          count: 1,
+        }
       )
     ).rejects.toThrow(
       /No Replicate API key found\. Please add one in Settings → API Keys\./
@@ -108,7 +115,14 @@ describe("image-generation-handlers", () => {
         "conv-1" as Id<"conversations">,
         "user-msg" as Id<"messages">,
         "cat",
-        { model: "m", aspectRatio: "1:1", steps: 1, guidanceScale: 1, count: 1 }
+        {
+          prompt: "cat",
+          model: "m",
+          aspectRatio: "1:1",
+          steps: 1,
+          guidanceScale: 1,
+          count: 1,
+        }
       )
     ).rejects.toThrow(/boom/);
   });

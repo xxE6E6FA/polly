@@ -1,6 +1,6 @@
 import { act, waitFor } from "@testing-library/react";
-import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { ChatMessage } from "@/types";
 import { renderHook } from "../../test/hook-utils";
 
 vi.mock("./message-utils", () => ({
@@ -35,7 +35,7 @@ describe("use-message-state", () => {
       content: "hi",
       isMainBranch: true,
       createdAt: Date.now(),
-    };
+    } as ChatMessage;
     act(() => {
       result.current.addMessage(m1);
     });
@@ -79,17 +79,16 @@ describe("use-message-state", () => {
       .mockReturnValueOnce(undefined)
       .mockReturnValueOnce({});
 
-    const resultRef: ReturnType<typeof renderHook<typeof useMessageState>> =
-      renderHook(
-        (p?: { conversationId?: string; serverMessages?: unknown }) =>
-          useMessageState(p?.conversationId, p?.serverMessages),
-        {
-          initialProps: {
-            conversationId: "c1",
-            serverMessages: [{ id: "raw" }],
-          },
-        }
-      );
+    const resultRef = renderHook(
+      (p?: { conversationId?: string; serverMessages?: unknown }) =>
+        useMessageState(p?.conversationId as any, p?.serverMessages),
+      {
+        initialProps: {
+          conversationId: "c1",
+          serverMessages: [{ id: "raw" }],
+        },
+      }
+    );
 
     // initial with data present should be converted
     expect(resultRef.result.current.isLoading).toBe(false);
@@ -106,7 +105,10 @@ describe("use-message-state", () => {
     });
 
     // when serverMessages missing, loading true
-    resultRef.rerender({ conversationId: "c1", serverMessages: undefined });
+    resultRef.rerender({
+      conversationId: "c1",
+      serverMessages: undefined as any,
+    });
     await waitFor(() => {
       expect(resultRef.result.current.isLoading).toBe(true);
     });
