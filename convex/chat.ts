@@ -118,8 +118,10 @@ export const chatStream = httpAction(
               provider,
             });
 
+            const isFreePollyModel = model?.free === true;
+
             // Check monthly limits for built-in models
-            if (model?.free === true) {
+            if (isFreePollyModel) {
               const user = await ctx.runQuery(api.users.getById, {
                 id: userId,
               });
@@ -144,7 +146,16 @@ export const chatStream = httpAction(
             }
 
             // Increment user message stats - model is built-in if it has the 'free' field set to true
-            await incrementUserMessageStats(ctx, userId, modelId, provider);
+            await incrementUserMessageStats(
+              ctx,
+              userId,
+              modelId,
+              provider,
+              undefined,
+              {
+                countTowardsMonthly: isFreePollyModel,
+              }
+            );
           } catch (error) {
             // Don't fail the entire request if stats tracking fails
             log.warn("[chatStream] Failed to increment message stats:", error);

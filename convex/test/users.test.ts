@@ -19,6 +19,7 @@ describe("convex/users", () => {
       model: "gpt",
       provider: "openai",
       tokensUsed: 10,
+      countTowardsMonthly: true,
     });
     const u = await t.run(async (ctx: any) => {
       return await ctx.db.get(userId);
@@ -26,6 +27,32 @@ describe("convex/users", () => {
     expect(u?.messagesSent).toBe(1);
     expect(u?.monthlyMessagesSent).toBe(1);
     expect(u?.totalMessageCount).toBe(1);
+  });
+
+  it("incrementMessage skips monthly count when flagged", async () => {
+    const t = await makeConvexTest();
+    const userId = await t.run(async (ctx: any) => {
+      return await ctx.db.insert("users", {
+        isAnonymous: false,
+        createdAt: Date.now(),
+        messagesSent: 0,
+        monthlyMessagesSent: 0,
+        totalMessageCount: 0,
+      });
+    });
+    await t.mutation(api.users.incrementMessage, {
+      userId,
+      model: "gpt",
+      provider: "openai",
+      tokensUsed: 5,
+      countTowardsMonthly: false,
+    });
+    const updated = await t.run(async (ctx: any) => {
+      return await ctx.db.get(userId);
+    });
+    expect(updated?.messagesSent).toBe(1);
+    expect(updated?.monthlyMessagesSent).toBe(0);
+    expect(updated?.totalMessageCount).toBe(1);
   });
 
   it("graduateAnonymousUser transfers conversation ownership and aggregates counts", async () => {

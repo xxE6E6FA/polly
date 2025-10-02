@@ -142,12 +142,25 @@ describe("conversation/message_handling", () => {
 
   it("incrementUserMessageStats schedules mutation and swallows errors", async () => {
     const runAfter = vi.fn(async () => {});
-    await incrementUserMessageStats({ scheduler: { runAfter } } as any, "u1" as any, "m", "p");
+    const runQuery = vi.fn().mockResolvedValue({ free: true });
+    await incrementUserMessageStats(
+      { scheduler: { runAfter }, runQuery } as any,
+      "u1" as any,
+      "m",
+      "p"
+    );
     expect(runAfter).toHaveBeenCalled();
 
     // Error path
-    const failing = vi.fn(async () => { throw new Error("x"); });
-    await incrementUserMessageStats({ scheduler: { runAfter: failing } } as any, "u1" as any, "m", "p");
+    const failing = vi.fn(async () => {
+      throw new Error("x");
+    });
+    await incrementUserMessageStats(
+      { scheduler: { runAfter: failing }, runQuery } as any,
+      "u1" as any,
+      "m",
+      "p"
+    );
   });
 
   it("scheduleTitleGeneration schedules and catches errors", async () => {

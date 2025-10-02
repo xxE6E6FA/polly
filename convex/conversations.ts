@@ -182,11 +182,17 @@ export const createConversation = mutation({
 
     // Increment stats if needed (serialize to avoid user doc conflicts)
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
+      const effectiveModelId = args.model || fullModel.modelId;
+      const effectiveProvider = args.provider || fullModel.provider;
       await incrementUserMessageStats(
         ctx,
         user._id,
-        args.model || fullModel.modelId,
-        args.provider || fullModel.provider
+        effectiveModelId,
+        effectiveProvider,
+        undefined,
+        {
+          countTowardsMonthly: Boolean((fullModel as { free?: boolean })?.free),
+        }
       );
     }
 
