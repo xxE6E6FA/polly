@@ -7,7 +7,6 @@ import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
-import { cn } from "@/lib/utils";
 import {
   setPersona as setPersonaAction,
   setTemperature as setTemperatureAction,
@@ -50,8 +49,6 @@ interface ChatInputBottomBarProps {
   hasReplicateApiKey: boolean;
   isPrivateMode: boolean;
   onSubmit: () => void;
-  compact?: boolean;
-  dense?: boolean;
 }
 
 export function ChatInputBottomBar({
@@ -68,8 +65,6 @@ export function ChatInputBottomBar({
   hasReplicateApiKey,
   isPrivateMode,
   onSubmit,
-  compact = false,
-  dense = false,
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const online = useOnline();
@@ -97,18 +92,13 @@ export function ChatInputBottomBar({
   );
 
   return (
-    <div
-      className={cn(
-        "chat-input-bottom-bar flex items-center justify-between",
-        dense ? "mt-0.5 pt-1.5 gap-1" : "mt-1.5 pt-2 gap-1.5"
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
+    <div className="chat-input-bottom-bar flex items-center justify-between p-1.5">
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         {/* Unified model picker first: mobile drawer trigger */}
-        {canSend && !compact && <ModelDrawer disabled={disabled} />}
+        {canSend && <ModelDrawer disabled={disabled} />}
 
         {/* Mobile: Individual drawer controls for text */}
-        {canSend && generationMode === "text" && !compact && (
+        {canSend && generationMode === "text" && (
           <>
             <PersonaDrawer
               conversationId={conversationId}
@@ -139,8 +129,7 @@ export function ChatInputBottomBar({
         {canSend &&
           generationMode === "image" &&
           !isPrivateMode &&
-          hasReplicateApiKey &&
-          !compact && (
+          hasReplicateApiKey && (
             <>
               {/* Model selection handled by unified ModelDrawer above */}
               <AspectRatioDrawer
@@ -208,7 +197,7 @@ export function ChatInputBottomBar({
           generationMode === "image" &&
           !isPrivateMode &&
           hasReplicateApiKey && (
-            <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-3">
               <ModelPicker />
               <AspectRatioPicker
                 aspectRatio={imageParams.aspectRatio}
@@ -257,7 +246,7 @@ export function ChatInputBottomBar({
 
         {/* Desktop: Text generation controls */}
         {canSend && generationMode === "text" && (
-          <div className="hidden sm:flex items-center gap-0.5 sm:gap-1">
+          <div className="hidden sm:flex items-center gap-1 sm:gap-3">
             <ModelPicker />
             <PersonaSelector
               conversationId={conversationId}
@@ -280,7 +269,7 @@ export function ChatInputBottomBar({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1 sm:gap-3">
         {canSend && (
           <FileUploadButton
             disabled={disabled}
