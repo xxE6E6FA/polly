@@ -568,6 +568,23 @@
           }
         }
       }
+    },
+    {
+      "includes": [
+        "src/vitest.d.ts",
+        "**/*.test.{ts,tsx}",
+        "convex/**/*.test.{ts,tsx}"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNamespace": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
     }
   ],
   "assist": {

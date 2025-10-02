@@ -1,5 +1,4 @@
-import { act, render } from "@testing-library/react";
-import type React from "react";
+import { act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 import { useTextareaHeight } from "./use-textarea-height";
@@ -12,7 +11,7 @@ function mockComputedStyle({
 } = {}) {
   const orig = window.getComputedStyle;
   const spy = vi.spyOn(window, "getComputedStyle").mockImplementation(
-    (el: Element) =>
+    (_el: Element) =>
       ({
         lineHeight,
         paddingTop,

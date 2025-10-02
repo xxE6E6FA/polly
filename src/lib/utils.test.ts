@@ -55,7 +55,7 @@ describe("utils", () => {
 
   it("cleanAttachmentsForConvex returns undefined when empty and echoes attachments", () => {
     expect(cleanAttachmentsForConvex(undefined)).toBeUndefined();
-    const atts = [{ type: "text", name: "n", size: 1, url: "u" }];
+    const atts = [{ type: "text" as const, name: "n", size: 1, url: "u" }];
     expect(cleanAttachmentsForConvex(atts)).toEqual(atts);
   });
 });

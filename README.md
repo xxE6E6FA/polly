@@ -54,14 +54,19 @@ Install pnpm if needed: `npm i -g pnpm@9`.
 
 - Unit tests use Vitest + React Testing Library.
 - Local runs:
-  - `pnpm test` – run tests locally.
-  - `pnpm run test:ci` – CI-friendly test run.
+  - `pnpm test` – run tests locally in watch mode.
+  - `pnpm test:ci` – CI-friendly test run (all tests once).
+  - `pnpm test:changed` – run tests only for changed files.
+- Type checking:
+  - `pnpm typecheck` – TypeScript type validation (`tsc --noEmit`).
 - Lint/format:
   - `pnpm lint` – Biome lint report.
   - `pnpm lint:fix` – Biome lint with auto-fix.
   - `pnpm format` / `pnpm format:check` – format write/check.
   - `pnpm check` / `pnpm check:write` – lint+format check or write (also organizes imports).
   - `pnpm imports:organize` – organize imports only.
+- Complete validation:
+  - `pnpm validate` – run all checks (typecheck + lint + all tests).
 - CI:
   - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome, tests, and a frontend build on pushes and PRs.
 
@@ -72,10 +77,19 @@ Install pnpm if needed: `npm i -g pnpm@9`.
 
 ## Pre-commit Hooks
 
-This repo uses Husky + lint-staged:
+This repo uses Husky + lint-staged to ensure code quality:
 
-- On commit, staged files are formatted and lint-fixes are applied (Biome), then tests run (`vitest run`).
-- If needed, you can bypass hooks with `git commit --no-verify` (not recommended).
+**Automated checks on every commit:**
+- **Formatting & Linting**: Biome formats and applies lint fixes to staged files
+- **Type Checking**: TypeScript validates types across the entire codebase (`tsc --noEmit`)
+- **Testing**: Vitest runs tests for changed files (`vitest run --changed`)
+
+**Manual validation commands:**
+- `pnpm typecheck` - Run TypeScript type checking
+- `pnpm pre-commit` - Run all pre-commit checks manually (typecheck + lint + changed tests)
+- `pnpm validate` - Full validation (typecheck + lint + all tests)
+
+If absolutely necessary, bypass hooks with `git commit --no-verify` (not recommended).
 
 ## Environment Variables
 

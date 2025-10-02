@@ -90,7 +90,7 @@ describe("chat-handlers (server)", () => {
 
     const getAuthToken = vi.fn(() => "token");
     const handlers = createServerChatHandlers(
-      "conv-1",
+      "conv-1" as Id<"conversations">,
       actions,
       modelOptions,
       getAuthToken
@@ -136,7 +136,7 @@ describe("chat-handlers (server)", () => {
     const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
     const getAuthToken = vi.fn(() => "t");
     const handlers = createServerChatHandlers(
-      "conv-2",
+      "conv-2" as Id<"conversations">,
       actions,
       modelOptions,
       getAuthToken
@@ -186,7 +186,7 @@ describe("chat-handlers (server)", () => {
     };
     const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
     const handlers = createServerChatHandlers(
-      "conv-img",
+      "conv-img" as Id<"conversations">,
       actions,
       modelOptions,
       vi.fn(() => "token")
@@ -219,7 +219,7 @@ describe("chat-handlers (server)", () => {
       stopGeneration: vi.fn(),
     };
     const handlers = createServerChatHandlers(
-      "conv-edit",
+      "conv-edit" as Id<"conversations">,
       actions,
       { model: "gpt", provider: "openai" },
       vi.fn(() => "token")
@@ -253,10 +253,14 @@ describe("chat-handlers (server)", () => {
       deleteMessage: vi.fn(),
       stopGeneration: vi.fn(),
     };
-    const handlers = createServerChatHandlers("conv-3", actions, {
-      model: "gpt",
-      provider: "openai",
-    });
+    const handlers = createServerChatHandlers(
+      "conv-3" as Id<"conversations">,
+      actions,
+      {
+        model: "gpt",
+        provider: "openai",
+      }
+    );
     await handlers.sendMessage({ content: "x" });
     handlers.stopGeneration();
     expect(actions.stopGeneration).toHaveBeenCalledWith({
@@ -349,7 +353,8 @@ describe("chat-handlers (private)", () => {
     expect(msgs[1]).toMatchObject({ id: "a1", content: "" });
     // Stream called with context up to user message only
     const call = vi.mocked(streamChat).mock.calls.at(-1)?.[0];
-    expect(call.messages).toHaveLength(1);
-    expect(call.messages[0]).toMatchObject({ role: "user", content: "q" });
+    expect(call).toBeDefined();
+    expect(call?.messages).toHaveLength(1);
+    expect(call?.messages[0]).toMatchObject({ role: "user", content: "q" });
   });
 });

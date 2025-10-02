@@ -138,7 +138,8 @@ describe("ChatConversationPage auto-retry", () => {
     });
     mockUseChat.mockImplementation(
       ({ conversationId }: { conversationId: string }) => ({
-        messages: conversations[conversationId] ?? [],
+        messages:
+          conversations[conversationId as keyof typeof conversations] ?? [],
         isLoading: false,
         isStreaming: false,
         sendMessage: vi.fn(),

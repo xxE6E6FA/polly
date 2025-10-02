@@ -238,7 +238,7 @@ describe("process-files", () => {
       vi.mocked(isUserModel).mockReturnValue(true);
       vi.mocked(isFileTypeSupported).mockReturnValue({
         supported: false,
-        category: null,
+        category: "unsupported",
       });
 
       const result = await processFilesForAttachments(

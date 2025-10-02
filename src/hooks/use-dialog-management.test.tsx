@@ -1,5 +1,4 @@
 import { act } from "@testing-library/react";
-import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { renderHook, waitForResult } from "../test/hook-utils";
 import {

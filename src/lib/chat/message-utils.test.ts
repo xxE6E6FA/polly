@@ -40,7 +40,7 @@ describe("chat/message-utils", () => {
 
   describe("convertServerMessage", () => {
     it("converts server message to ChatMessage format", () => {
-      const serverMessage: Doc<"messages"> = {
+      const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
         role: "assistant",
@@ -59,7 +59,7 @@ describe("chat/message-utils", () => {
         imageGeneration: { prompt: "test image" },
         createdAt: 1234567890,
         conversationId: "conv_123",
-      } as Doc<"messages">;
+      } as unknown as Doc<"messages">;
 
       const result = convertServerMessage(serverMessage);
 
@@ -84,21 +84,21 @@ describe("chat/message-utils", () => {
     });
 
     it("falls back to _creationTime when createdAt is missing", () => {
-      const serverMessage: Doc<"messages"> = {
+      const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
         role: "user",
         content: "Test",
         status: "completed",
         conversationId: "conv_123",
-      } as Doc<"messages">;
+      } as unknown as Doc<"messages">;
 
       const result = convertServerMessage(serverMessage);
       expect(result.createdAt).toBe(1234567890);
     });
 
     it("handles undefined metadata gracefully", () => {
-      const serverMessage: Doc<"messages"> = {
+      const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
         role: "user",
@@ -106,7 +106,7 @@ describe("chat/message-utils", () => {
         status: "completed",
         conversationId: "conv_123",
         metadata: "invalid_metadata",
-      } as Doc<"messages">;
+      } as unknown as Doc<"messages">;
 
       const result = convertServerMessage(serverMessage);
       expect(result.metadata).toBeUndefined();
@@ -123,7 +123,7 @@ describe("chat/message-utils", () => {
       const messages = [
         { _id: "msg_1" },
         { _id: "msg_2" },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
       expect(extractMessagesArray(messages)).toEqual(messages);
     });
 
@@ -131,7 +131,7 @@ describe("chat/message-utils", () => {
       const messages = [
         { _id: "msg_1" },
         { _id: "msg_2" },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
       const paginatedResult = { page: messages, isDone: true };
 
       expect(extractMessagesArray(paginatedResult)).toEqual(messages);
@@ -163,7 +163,7 @@ describe("chat/message-utils", () => {
           status: "completed",
           conversationId: "conv_123",
         },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
 
       const result = convertServerMessages(serverMessages);
 
@@ -184,7 +184,7 @@ describe("chat/message-utils", () => {
           status: "completed",
           conversationId: "conv_123",
         },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
 
       const paginatedResult = { page: serverMessages };
       const result = convertServerMessages(paginatedResult);
@@ -210,7 +210,7 @@ describe("chat/message-utils", () => {
           status: "generating",
           conversationId: "conv_123",
           metadata: null,
-        } as Doc<"messages">;
+        } as unknown as Doc<"messages">;
 
         expect(isMessageStreaming(message)).toBe(true);
       });
@@ -224,7 +224,7 @@ describe("chat/message-utils", () => {
           status: "completed",
           conversationId: "conv_123",
           metadata: { finishReason: "stop" },
-        } as Doc<"messages">;
+        } as unknown as Doc<"messages">;
 
         expect(isMessageStreaming(message)).toBe(false);
       });
@@ -238,7 +238,7 @@ describe("chat/message-utils", () => {
           status: "completed",
           conversationId: "conv_123",
           metadata: { stopped: true },
-        } as Doc<"messages">;
+        } as unknown as Doc<"messages">;
 
         expect(isMessageStreaming(message)).toBe(false);
       });
@@ -251,7 +251,7 @@ describe("chat/message-utils", () => {
           content: "User message",
           status: "completed",
           conversationId: "conv_123",
-        } as Doc<"messages">;
+        } as unknown as Doc<"messages">;
 
         expect(isMessageStreaming(message)).toBe(false);
       });
@@ -264,6 +264,8 @@ describe("chat/message-utils", () => {
           role: "assistant" as const,
           content: "Partial response...",
           metadata: { finishReason: "streaming" },
+          isMainBranch: true,
+          createdAt: 0,
         };
 
         expect(isMessageStreaming(message, true)).toBe(true);
@@ -275,6 +277,8 @@ describe("chat/message-utils", () => {
           role: "assistant" as const,
           content: "Partial response...",
           metadata: { finishReason: "streaming" },
+          isMainBranch: true,
+          createdAt: 0,
         };
 
         expect(isMessageStreaming(message, false)).toBe(false);
@@ -286,6 +290,8 @@ describe("chat/message-utils", () => {
           role: "assistant" as const,
           content: "Complete response",
           metadata: { finishReason: "stop" },
+          isMainBranch: true,
+          createdAt: 0,
         };
 
         expect(isMessageStreaming(message, true)).toBe(false);
@@ -313,7 +319,7 @@ describe("chat/message-utils", () => {
           conversationId: "conv_123",
           metadata: null,
         },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
 
       const result = findStreamingMessage(messages);
       expect(result).toEqual({ id: "msg_2", isStreaming: true });
@@ -330,7 +336,7 @@ describe("chat/message-utils", () => {
           conversationId: "conv_123",
           metadata: {},
         },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
 
       const paginatedResult = { page: messages };
       const result = findStreamingMessage(paginatedResult);
@@ -348,7 +354,7 @@ describe("chat/message-utils", () => {
           conversationId: "conv_123",
           metadata: { finishReason: "stop" },
         },
-      ] as Doc<"messages">[];
+      ] as unknown as Doc<"messages">[];
 
       expect(findStreamingMessage(messages)).toBeNull();
     });
