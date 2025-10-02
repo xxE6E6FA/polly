@@ -253,15 +253,43 @@ export async function incrementUserMessageStats(
   userId: Id<"users">,
   model: string,
   provider: string,
-  tokensUsed?: number
+  tokensUsed?: number,
+  options?: { countTowardsMonthly?: boolean }
 ): Promise<void> {
   try {
+    let countTowardsMonthly = options?.countTowardsMonthly;
+
+    if (countTowardsMonthly === undefined) {
+      const canRunQuery = typeof (ctx as { runQuery?: unknown }).runQuery === "function";
+      if (canRunQuery) {
+        try {
+          const modelDoc = await (ctx as ActionCtx | MutationCtx).runQuery(
+            api.userModels.getModelByID,
+            {
+              modelId: model,
+              provider,
+            }
+          );
+          countTowardsMonthly = Boolean(modelDoc?.free);
+        } catch (lookupError) {
+          log.warn(
+            "[incrementUserMessageStats] Failed to determine model free status:",
+            lookupError
+          );
+          countTowardsMonthly = false;
+        }
+      } else {
+        countTowardsMonthly = false;
+      }
+    }
+
     // Schedule increment off the critical path to reduce contention
     await ctx.scheduler.runAfter(50, api.users.incrementMessage, {
       userId,
       model,
       provider,
       tokensUsed: tokensUsed || 0,
+      countTowardsMonthly: countTowardsMonthly ?? false,
     });
   } catch (error) {
     // Log error but don't fail the operation

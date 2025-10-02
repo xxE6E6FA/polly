@@ -68,6 +68,7 @@ export const incrementMessage = mutation({
     model: v.string(),
     provider: v.string(),
     tokensUsed: v.optional(v.number()),
+    countTowardsMonthly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await withRetry(
@@ -77,13 +78,16 @@ export const incrementMessage = mutation({
           throw new Error("User not found");
         }
 
+        const countTowardsMonthly = args.countTowardsMonthly ?? false;
+
         const updates: {
           messagesSent: number;
           monthlyMessagesSent: number;
           totalMessageCount: number;
         } = {
           messagesSent: (fresh.messagesSent || 0) + 1,
-          monthlyMessagesSent: (fresh.monthlyMessagesSent || 0) + 1,
+          monthlyMessagesSent:
+            (fresh.monthlyMessagesSent || 0) + (countTowardsMonthly ? 1 : 0),
           totalMessageCount: (fresh.totalMessageCount || 0) + 1,
         };
 
