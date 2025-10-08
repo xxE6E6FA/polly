@@ -387,6 +387,14 @@ export const UnifiedChatView = memo(
 
     const headerOverlayRef = useRef<HTMLElement | null>(null);
     const footerOverlayRef = useRef<HTMLDivElement | null>(null);
+    const [headerInset, setHeaderInset] = useState(0);
+    const [footerInset, setFooterInset] = useState(0);
+
+    const updateInsets = useCallback(() => {
+      setHeaderInset(headerOverlayRef.current?.offsetHeight ?? 0);
+      setFooterInset(footerOverlayRef.current?.offsetHeight ?? 0);
+    }, []);
+
     const overlayScrollbarOffset = "calc(env(safe-area-inset-right) + 12px)";
     const handleMessagesContainerRef = useCallback(
       (node: HTMLDivElement | null) => {
@@ -395,15 +403,7 @@ export const UnifiedChatView = memo(
       [messagesContainerRef]
     );
 
-    const [headerInset, setHeaderInset] = useState(0);
-    const [footerInset, setFooterInset] = useState(0);
-
     useEffect(() => {
-      const updateInsets = () => {
-        setHeaderInset(headerOverlayRef.current?.offsetHeight ?? 0);
-        setFooterInset(footerOverlayRef.current?.offsetHeight ?? 0);
-      };
-
       updateInsets();
 
       if (typeof window === "undefined") {
@@ -416,8 +416,12 @@ export const UnifiedChatView = memo(
       let footerObserver: ResizeObserver | undefined;
 
       if (typeof ResizeObserver !== "undefined") {
-        headerObserver = new ResizeObserver(updateInsets);
-        footerObserver = new ResizeObserver(updateInsets);
+        headerObserver = new ResizeObserver(() => {
+          updateInsets();
+        });
+        footerObserver = new ResizeObserver(() => {
+          updateInsets();
+        });
 
         if (headerOverlayRef.current) {
           headerObserver.observe(headerOverlayRef.current);
@@ -432,7 +436,43 @@ export const UnifiedChatView = memo(
         headerObserver?.disconnect();
         footerObserver?.disconnect();
       };
-    }, []);
+    }, [updateInsets]);
+
+    useEffect(() => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      let rafId: number | null = null;
+      const handleChatInputResize = () => {
+        const schedule = typeof requestAnimationFrame === "function";
+        if (rafId != null && schedule) {
+          cancelAnimationFrame(rafId);
+        }
+
+        if (schedule) {
+          rafId = requestAnimationFrame(() => {
+            updateInsets();
+            rafId = null;
+          });
+          return;
+        }
+
+        updateInsets();
+      };
+
+      window.addEventListener("polly:chat-input-resize", handleChatInputResize);
+
+      return () => {
+        if (rafId != null && typeof cancelAnimationFrame === "function") {
+          cancelAnimationFrame(rafId);
+        }
+        window.removeEventListener(
+          "polly:chat-input-resize",
+          handleChatInputResize
+        );
+      };
+    }, [updateInsets]);
 
     return (
       <div className="flex h-full w-full min-h-0">

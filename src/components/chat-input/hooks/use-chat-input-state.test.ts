@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
 vi.mock("@/stores/chat-ui-store", () => ({
-  useChatFullscreenUI: vi.fn(),
   useChatHistory: vi.fn(),
 }));
 vi.mock("@/hooks/use-chat-attachments", () => ({
@@ -20,7 +19,7 @@ vi.mock("@/hooks/use-chat-input-preservation", () => ({
   }),
 }));
 
-import { useChatFullscreenUI, useChatHistory } from "@/stores/chat-ui-store";
+import { useChatHistory } from "@/stores/chat-ui-store";
 import { useChatInputState } from "./use-chat-input-state";
 
 describe("useChatInputState", () => {
@@ -28,19 +27,7 @@ describe("useChatInputState", () => {
     vi.clearAllMocks();
   });
 
-  it("resets multiline for new conversation, integrates history and clearOnSend", async () => {
-    const setMultiline = vi.fn();
-    const clearOnSend = vi.fn();
-    (useChatFullscreenUI as ReturnType<typeof vi.fn>).mockReturnValue({
-      isFullscreen: false,
-      isMultiline: false,
-      isTransitioning: false,
-      setFullscreen: vi.fn(),
-      setMultiline,
-      setTransitioning: vi.fn(),
-      clearOnSend,
-    });
-
+  it("integrates history handlers and reset helpers", () => {
     const prev = vi.fn().mockReturnValue("prev text");
     const next = vi.fn().mockReturnValue(null);
     const resetIndex = vi.fn();
@@ -52,14 +39,11 @@ describe("useChatInputState", () => {
       clear: vi.fn(),
     });
 
-    const { result, rerender } = renderHook(
+    const { result } = renderHook(
       ({ cid }) =>
         useChatInputState({ conversationId: cid, hasExistingMessages: false }),
       { initialProps: { cid: undefined as Id<"conversations"> | undefined } }
     );
-
-    // New conversation + empty input => reset multiline
-    expect(setMultiline).toHaveBeenCalledWith(false);
 
     // History navigation hooks
     const upHandled = result.current.handleHistoryNavigation();
@@ -73,14 +57,5 @@ describe("useChatInputState", () => {
     // Reset input state calls resetIndex
     act(() => result.current.resetInputState());
     expect(resetIndex).toHaveBeenCalled();
-
-    // Clear on send delegates to UI store
-    act(() => result.current.clearOnSend());
-    expect(clearOnSend).toHaveBeenCalled();
-
-    // Changing conversationId forces multiline reset again
-    await act(async () => rerender({ cid: "c1" as Id<"conversations"> }));
-    await act(async () => rerender({ cid: undefined }));
-    expect(setMultiline).toHaveBeenCalledWith(false);
   });
 });

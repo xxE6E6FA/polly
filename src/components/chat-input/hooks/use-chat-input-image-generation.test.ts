@@ -16,11 +16,19 @@ vi.mock("react-router-dom", () => ({ useNavigate: vi.fn() }));
 vi.mock("@/lib/ai/image-generation-handlers", () => ({
   handleImageGeneration: vi.fn(),
 }));
+vi.mock("@/hooks/use-enabled-image-models", () => ({
+  useEnabledImageModels: vi.fn(),
+}));
+vi.mock("@/hooks/use-generation", () => ({
+  useImageParams: vi.fn(),
+}));
 
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useConvex } from "convex/react";
 import { useNavigate } from "react-router-dom";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
+import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
+import { useImageParams } from "@/hooks/use-generation";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useChatInputImageGeneration } from "./use-chat-input-image-generation";
@@ -33,6 +41,11 @@ describe("useChatInputImageGeneration", () => {
     });
     (usePrivateMode as ReturnType<typeof vi.fn>).mockReturnValue({
       isPrivateMode: false,
+    });
+    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([]);
+    (useImageParams as ReturnType<typeof vi.fn>).mockReturnValue({
+      setParams: vi.fn(),
+      setNegativePromptEnabled: vi.fn(),
     });
   });
 
@@ -287,5 +300,69 @@ describe("useChatInputImageGeneration", () => {
       "p2" as Id<"personas">
     );
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("returns capability flags when enabled model matches selection", () => {
+    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([
+      {
+        modelId: "seedream/4",
+        name: "Seedream",
+        supportsMultipleImages: true,
+        supportsNegativePrompt: true,
+      },
+    ]);
+    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({
+      action: vi.fn(),
+    });
+    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+
+    const { result } = renderHook(() =>
+      useChatInputImageGeneration({
+        conversationId: "c1" as Id<"conversations">,
+        selectedPersonaId: null,
+        input: "prompt",
+        imageParams: { model: "seedream/4", prompt: "" },
+        generationMode: "image",
+        onResetInputState: vi.fn(),
+      })
+    );
+
+    expect(result.current.selectedImageModel).toEqual({
+      modelId: "seedream/4",
+      supportsMultipleImages: true,
+      supportsNegativePrompt: true,
+    });
+  });
+
+  it("falls back to defaults when model capabilities unavailable", () => {
+    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([
+      {
+        modelId: "other/model",
+        name: "Other",
+        supportsMultipleImages: true,
+        supportsNegativePrompt: true,
+      },
+    ]);
+    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({
+      action: vi.fn(),
+    });
+    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+
+    const { result } = renderHook(() =>
+      useChatInputImageGeneration({
+        conversationId: "c1" as Id<"conversations">,
+        selectedPersonaId: null,
+        input: "prompt",
+        imageParams: { model: "seedream/4", prompt: "" },
+        generationMode: "image",
+        onResetInputState: vi.fn(),
+      })
+    );
+
+    expect(result.current.selectedImageModel).toEqual({
+      modelId: "seedream/4",
+      supportsMultipleImages: false,
+      supportsNegativePrompt: false,
+    });
   });
 });

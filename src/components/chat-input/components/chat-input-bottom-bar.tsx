@@ -1,7 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
-import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
@@ -23,7 +22,6 @@ import { FileUploadButton } from "../file-upload-button";
 import { ImageGenerationSettings } from "../image-generation-settings";
 import { ImageSettingsDrawer } from "../image-settings-drawer";
 import { ModelDrawer } from "../model-drawer";
-import { NegativePromptDrawer } from "../negative-prompt-drawer";
 import { PersonaDrawer } from "../persona-drawer";
 import { PersonaSelector } from "../persona-selector";
 import { ReasoningDrawer } from "../reasoning-drawer";
@@ -48,7 +46,11 @@ interface ChatInputBottomBarProps {
   ) => Promise<void>;
   hasReplicateApiKey: boolean;
   isPrivateMode: boolean;
-  onSubmit: () => void;
+  selectedImageModel?: {
+    modelId: string;
+    supportsMultipleImages: boolean;
+    supportsNegativePrompt: boolean;
+  } | null;
 }
 
 export function ChatInputBottomBar({
@@ -64,7 +66,7 @@ export function ChatInputBottomBar({
   onSendAsNewConversation,
   hasReplicateApiKey,
   isPrivateMode,
-  onSubmit,
+  selectedImageModel,
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const online = useOnline();
@@ -72,14 +74,19 @@ export function ChatInputBottomBar({
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
   const [generationMode] = useGenerationMode();
-  const {
-    params: imageParams,
-    setParams: setImageParams,
-    negativePromptEnabled,
-    setNegativePromptEnabled,
-  } = useImageParams();
-  const enabledImageModels = useEnabledImageModels();
+  const { params: imageParams, setParams: setImageParams } = useImageParams();
   const { clearOnSend } = useChatFullscreenUI();
+  const normalizedSelectedImageModel = useMemo(() => {
+    if (!selectedImageModel) {
+      return undefined;
+    }
+
+    return {
+      modelId: selectedImageModel.modelId,
+      supportsMultipleImages:
+        selectedImageModel.supportsMultipleImages ?? false,
+    };
+  }, [selectedImageModel]);
 
   const handlePersonaSelect = useCallback(
     (id: Id<"personas"> | null) => setPersonaAction(conversationId, id),
@@ -163,32 +170,9 @@ export function ChatInputBottomBar({
                 onParamsChange={updates =>
                   setImageParams(prev => ({ ...prev, ...updates }))
                 }
-                selectedModel={
-                  enabledImageModels?.find(m => m.modelId === imageParams.model)
-                    ? {
-                        modelId: imageParams.model || "",
-                        supportsMultipleImages:
-                          enabledImageModels.find(
-                            m => m.modelId === imageParams.model
-                          )?.supportsMultipleImages ?? false,
-                      }
-                    : undefined
-                }
+                selectedModel={normalizedSelectedImageModel}
                 disabled={disabled}
               />
-              {enabledImageModels?.find(m => m.modelId === imageParams.model)
-                ?.supportsNegativePrompt && (
-                <NegativePromptDrawer
-                  enabled={negativePromptEnabled}
-                  value={imageParams.negativePrompt || ""}
-                  onEnabledChange={setNegativePromptEnabled}
-                  onValueChange={(value: string) =>
-                    setImageParams(prev => ({ ...prev, negativePrompt: value }))
-                  }
-                  disabled={disabled}
-                  onSubmit={onSubmit}
-                />
-              )}
             </>
           )}
 
@@ -229,17 +213,7 @@ export function ChatInputBottomBar({
                 onParamsChange={updates =>
                   setImageParams(prev => ({ ...prev, ...updates }))
                 }
-                selectedModel={
-                  enabledImageModels?.find(m => m.modelId === imageParams.model)
-                    ? {
-                        modelId: imageParams.model || "",
-                        supportsMultipleImages:
-                          enabledImageModels.find(
-                            m => m.modelId === imageParams.model
-                          )?.supportsMultipleImages ?? false,
-                      }
-                    : undefined
-                }
+                selectedModel={normalizedSelectedImageModel}
               />
             </div>
           )}

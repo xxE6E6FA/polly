@@ -1,7 +1,6 @@
 // New focused hooks
 export { useChatInputCoreState } from "./use-chat-input-core-state";
 export { useChatInputDragDrop } from "./use-chat-input-drag-drop";
-export { useChatInputFullscreen } from "./use-chat-input-fullscreen";
 // History moved to Zustand: use useChatHistory from '@/stores/chat-ui-store'
 export { useChatInputImageGeneration } from "./use-chat-input-image-generation";
 export { useChatInputImageGenerationParams } from "./use-chat-input-image-generation-params";
@@ -11,4 +10,3 @@ export { useDebouncedValue } from "./use-debounced-value";
 export { useEvent } from "./use-event";
 export { useKeyboardNavigation } from "./use-keyboard-navigation";
 export { createHashMemoComparison, usePropsHash } from "./use-props-hash";
-export { useTextareaHeight } from "./use-textarea-height";
