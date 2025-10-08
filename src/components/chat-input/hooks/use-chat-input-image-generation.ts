@@ -4,6 +4,8 @@ import { useAction, useConvex } from "convex/react";
 import { useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
+import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
+import { useImageParams } from "@/hooks/use-generation";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -53,19 +55,33 @@ export function useChatInputImageGeneration({
   );
   const { uploadFile } = useConvexFileUpload();
   const { isPrivateMode } = usePrivateMode();
+  const enabledImageModels = useEnabledImageModels();
+  const { setParams: setImageParams, setNegativePromptEnabled } =
+    useImageParams();
 
   const selectedImageModel = useMemo(() => {
     if (!imageParams.model) {
       return null;
     }
 
-    // This will be provided by the parent component
+    const matchingModel = enabledImageModels?.find(
+      model => model.modelId === imageParams.model
+    );
+
+    if (!matchingModel) {
+      return {
+        modelId: imageParams.model,
+        supportsMultipleImages: false,
+        supportsNegativePrompt: false,
+      };
+    }
+
     return {
-      modelId: imageParams.model,
-      supportsMultipleImages: false,
-      supportsNegativePrompt: false,
+      modelId: matchingModel.modelId,
+      supportsMultipleImages: matchingModel.supportsMultipleImages ?? false,
+      supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
     };
-  }, [imageParams.model]);
+  }, [enabledImageModels, imageParams.model]);
 
   const sanitizedImageParams = useMemo((): ImageGenerationParams => {
     const trimmedModel = imageParams.model?.trim() ?? "";
@@ -170,6 +186,7 @@ export function useChatInputImageGeneration({
 
     // Reset input state after successful submission
     onResetInputState();
+    setImageParams(prev => ({ ...prev, negativePrompt: "" }));
   }, [
     sanitizedImageParams,
     conversationId,
@@ -181,6 +198,7 @@ export function useChatInputImageGeneration({
     attachments,
     isPrivateMode,
     uploadFile,
+    setImageParams,
   ]);
 
   const handleSendAsNewConversation = useCallback(
@@ -231,6 +249,8 @@ export function useChatInputImageGeneration({
 
         // Reset input state after successful submission
         onResetInputState();
+        setImageParams(prev => ({ ...prev, negativePrompt: "" }));
+        setNegativePromptEnabled(false);
 
         return newConversation.conversationId;
       } catch (_error) {
@@ -240,13 +260,15 @@ export function useChatInputImageGeneration({
     },
     [
       conversationId,
+      generateSummaryAction,
+      convex,
       input,
       selectedPersonaId,
       sanitizedImageParams,
-      convex,
       navigate,
-      generateSummaryAction,
       onResetInputState,
+      setImageParams,
+      setNegativePromptEnabled,
     ]
   );
 

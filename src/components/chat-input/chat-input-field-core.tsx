@@ -1,7 +1,7 @@
 import type React from "react";
 import { memo, useCallback, useLayoutEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { useKeyboardNavigation, useTextareaHeight } from "./hooks";
+import { useKeyboardNavigation } from "./hooks";
 import { createHashMemoComparison } from "./hooks/use-props-hash";
 
 interface ChatInputFieldCoreProps {
@@ -16,6 +16,7 @@ interface ChatInputFieldCoreProps {
   isFullscreen?: boolean;
   isTransitioning?: boolean;
   disableAutoResize?: boolean;
+  onHeightChange?: (isMultiline: boolean) => void;
 
   navigation?: {
     onHistoryNavigation?: () => boolean;
@@ -39,15 +40,10 @@ export const ChatInputFieldCore = memo(
     isFullscreen = false,
     isTransitioning = false,
     disableAutoResize = false,
+    onHeightChange,
     navigation,
   }: ChatInputFieldCoreProps) {
     const { onHistoryNavigation, onHistoryNavigationDown } = navigation || {};
-
-    const { resizeTextarea } = useTextareaHeight({
-      value,
-      onHeightChange: undefined,
-      isFullscreen,
-    });
 
     const { handleKeyDown } = useKeyboardNavigation({
       onHistoryNavigation,
@@ -56,27 +52,31 @@ export const ChatInputFieldCore = memo(
       onSubmit,
     });
 
-    const textareaClassName = useMemo(
+    const shouldAutoResize = !disableAutoResize;
+
+    const wrapperClassName = useMemo(
       () =>
         cn(
-          // Core layout & appearance
-          "w-full resize-none bg-transparent border-0 outline-none ring-0",
-          "text-base leading-relaxed",
-          // Padding: more left and top for breathing room; right handled by parent
-          "overflow-y-auto pl-2.5 pt-2 pb-1 sm:pl-2.5",
-          // Keep focus state transparent so container styling stays cohesive
-          "focus:bg-transparent transition-colors duration-200",
-          // Prevent zoom on mobile Chrome
-          "touch-action: manipulation",
-          // Performance optimizations
-          "will-change-[height] contain-layout transform-gpu md:scrollbar-thin",
-          // Browser performance hints
-          "[content-visibility:auto] [contain-intrinsic-size:24px_100px]",
-          // States
+          "relative w-full",
+          shouldAutoResize &&
+            "auto-resize-textarea overflow-y-auto max-h-60 sm:max-h-72",
+          "pl-2.5 pt-2 pb-1 pr-10 sm:pr-12",
           disabled && "cursor-not-allowed opacity-50",
           className
         ),
-      [disabled, className]
+      [shouldAutoResize, disabled, className]
+    );
+
+    const textareaClassName = useMemo(
+      () =>
+        cn(
+          "w-full bg-transparent border-0 outline-none ring-0 text-base leading-relaxed",
+          "transition-colors duration-200 focus:bg-transparent focus:outline-none",
+          "touch-action-manipulation md:scrollbar-thin resize-none overflow-y-auto",
+          "placeholder:text-muted-foreground/60",
+          "p-0"
+        ),
+      []
     );
 
     const textareaStyle = useMemo(
@@ -96,25 +96,37 @@ export const ChatInputFieldCore = memo(
       [isTransitioning]
     );
 
-    const handleChange = useCallback(
-      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        onChange(e.target.value);
-        // Resize immediately on user input
-        if (!disableAutoResize) {
-          resizeTextarea(textareaRef.current);
+    const updateMultilineFlag = useCallback(
+      (nextValue: string) => {
+        if (!onHeightChange) {
+          return;
         }
+        const textarea = textareaRef.current;
+        if (!textarea) {
+          onHeightChange(nextValue.includes("\n"));
+          return;
+        }
+        const isMultiline =
+          nextValue.includes("\n") ||
+          textarea.scrollHeight > textarea.clientHeight + 1;
+        onHeightChange(isMultiline);
       },
-      [onChange, resizeTextarea, textareaRef, disableAutoResize]
+      [onHeightChange, textareaRef]
     );
 
-    // Handle textarea resize when value changes
-    useLayoutEffect(() => {
-      if (!disableAutoResize) {
-        resizeTextarea(textareaRef.current);
-      }
-    }, [resizeTextarea, textareaRef, disableAutoResize]);
+    const handleChange = useCallback(
+      (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const nextValue = e.target.value;
+        onChange(nextValue);
+        updateMultilineFlag(nextValue);
+      },
+      [onChange, updateMultilineFlag]
+    );
 
-    // Animate grow/shrink on fullscreen toggle explicitly
+    useLayoutEffect(() => {
+      updateMultilineFlag(value);
+    }, [updateMultilineFlag, value]);
+
     const animTimeoutRef = useRef<number | null>(null);
     useLayoutEffect(() => {
       const el = textareaRef.current;
@@ -132,7 +144,6 @@ export const ChatInputFieldCore = memo(
           return;
         }
         if (isFullscreen) {
-          // Expanding: aim for at least 50vh, but cap to 85vh
           const minVh = Math.round(window.innerHeight * 0.5);
           const maxVh = Math.round(window.innerHeight * 0.85);
           const target = Math.max(
@@ -140,9 +151,6 @@ export const ChatInputFieldCore = memo(
             Math.min(maxVh, Math.max(startH, minVh))
           );
           el.style.height = `${target}px`;
-        } else if (!disableAutoResize) {
-          // Collapsing: let our auto-grow logic compute the compact target
-          resizeTextarea(el);
         }
       });
 
@@ -161,32 +169,39 @@ export const ChatInputFieldCore = memo(
           animTimeoutRef.current = null;
         }
       };
-    }, [
-      isFullscreen,
-      isTransitioning,
-      resizeTextarea,
-      textareaRef,
-      disableAutoResize,
-    ]);
+    }, [isFullscreen, isTransitioning, textareaRef]);
+
+    const dataValue = useMemo(() => {
+      if (!shouldAutoResize) {
+        return undefined;
+      }
+      return `${value || ""}\u200b`;
+    }, [shouldAutoResize, value]);
 
     return (
-      <textarea
-        ref={textareaRef}
-        className={textareaClassName}
-        style={textareaStyle}
-        data-transitioning={isTransitioning ? "true" : undefined}
-        disabled={disabled}
-        placeholder={placeholder}
-        rows={1}
-        value={value}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        inputMode="text"
-        tabIndex={0}
-        aria-label="Chat message input"
-        // biome-ignore lint/a11y/noAutofocus: Needed for chat input auto-focus on home page
-        autoFocus={autoFocus}
-      />
+      <div
+        className={wrapperClassName}
+        data-replicated-value={dataValue}
+        data-autoresize={shouldAutoResize ? "true" : undefined}
+      >
+        <textarea
+          ref={textareaRef}
+          className={textareaClassName}
+          style={textareaStyle}
+          data-transitioning={isTransitioning ? "true" : undefined}
+          disabled={disabled}
+          placeholder={placeholder}
+          rows={1}
+          value={value}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          inputMode="text"
+          tabIndex={0}
+          aria-label="Chat message input"
+          // biome-ignore lint/a11y/noAutofocus: Needed for chat input auto-focus on home page
+          autoFocus={autoFocus}
+        />
+      </div>
     );
   },
   createHashMemoComparison(["textareaRef"]) // Exclude ref from comparison

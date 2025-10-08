@@ -1095,6 +1095,37 @@ pre {
     color: hsl(var(--muted-foreground));
 }
 
+.auto-resize-textarea[data-autoresize="true"] {
+    display: grid;
+    align-items: stretch;
+    width: 100%;
+}
+
+.auto-resize-textarea[data-autoresize="true"] > textarea,
+.auto-resize-textarea[data-autoresize="true"]::after {
+    grid-area: 1 / 1 / 2 / 2;
+    font: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    width: 100%;
+}
+
+.auto-resize-textarea[data-autoresize="true"] > textarea {
+    height: 100%;
+    min-height: 0;
+    resize: none;
+}
+
+.auto-resize-textarea[data-autoresize="true"]::after {
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    visibility: hidden;
+    padding: inherit;
+    border: inherit;
+    pointer-events: none;
+}
+
 
 
 /* Chat Input States */
