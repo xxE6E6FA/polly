@@ -11,7 +11,10 @@ describe("image-generation-handlers", () => {
   it("handleImageGeneration creates assistant message and triggers action", async () => {
     const mutation = vi.fn().mockResolvedValue("msg-1");
     const action = vi.fn().mockResolvedValue(undefined);
-    const convexClient = { mutation, action } as unknown as ConvexReactClient;
+    const convexClient = {
+      mutation,
+      action,
+    } as unknown as ConvexReactClient;
 
     const params = {
       model: "black-forest-labs/flux",
@@ -32,9 +35,10 @@ describe("image-generation-handlers", () => {
       params
     );
 
-    // Created assistant message with imageGeneration metadata
-    expect(mutation).toHaveBeenCalled();
-    const [, createPayload] = mutation.mock.calls[0];
+    expect(mutation).toHaveBeenCalledTimes(2);
+
+    const [createCall, streamingCall] = mutation.mock.calls;
+    const [, createPayload] = createCall;
     expect(createPayload).toMatchObject({
       conversationId: "conv-1",
       role: "assistant",
@@ -56,6 +60,13 @@ describe("image-generation-handlers", () => {
           },
         },
       },
+    });
+
+    // Conversation marked as streaming immediately
+    const [, streamingPayload] = streamingCall;
+    expect(streamingPayload).toEqual({
+      conversationId: "conv-1",
+      isStreaming: true,
     });
 
     // Action called with returned assistant message id and params
@@ -82,7 +93,10 @@ describe("image-generation-handlers", () => {
     const action = vi
       .fn()
       .mockRejectedValue(new ConvexError("No Replicate API key configured"));
-    const convexClient = { mutation, action } as unknown as ConvexReactClient;
+    const convexClient = {
+      mutation,
+      action,
+    } as unknown as ConvexReactClient;
 
     await expect(
       handleImageGeneration(
@@ -107,7 +121,10 @@ describe("image-generation-handlers", () => {
   it("handleImageGeneration rethrows other errors with message", async () => {
     const mutation = vi.fn().mockResolvedValue("msg-1");
     const action = vi.fn().mockRejectedValue(new Error("boom"));
-    const convexClient = { mutation, action } as unknown as ConvexReactClient;
+    const convexClient = {
+      mutation,
+      action,
+    } as unknown as ConvexReactClient;
 
     await expect(
       handleImageGeneration(
@@ -128,8 +145,12 @@ describe("image-generation-handlers", () => {
   });
 
   it("retryImageGeneration calls action with original params", async () => {
+    const mutation = vi.fn().mockResolvedValue(undefined);
     const action = vi.fn().mockResolvedValue(undefined);
-    const convexClient = { action } as unknown as ConvexReactClient;
+    const convexClient = {
+      action,
+      mutation,
+    } as unknown as ConvexReactClient;
 
     await retryImageGeneration(
       convexClient,
@@ -141,6 +162,13 @@ describe("image-generation-handlers", () => {
         params: { aspectRatio: "16:9", steps: 20, guidanceScale: 4, count: 1 },
       }
     );
+
+    expect(mutation).toHaveBeenCalledTimes(1);
+    const [, streamingPayload] = mutation.mock.calls[0];
+    expect(streamingPayload).toEqual({
+      conversationId: "conv-2",
+      isStreaming: true,
+    });
 
     const [, payload] = action.mock.calls[0];
     expect(payload).toEqual({

@@ -45,6 +45,12 @@ export async function handleImageGeneration(
       messageData
     );
 
+    // Mark conversation as streaming so UI ordering and badges stay in sync.
+    await convexClient.mutation(api.conversations.setStreaming, {
+      conversationId,
+      isStreaming: true,
+    });
+
     // Call Convex action for image generation
     await convexClient.action(api.ai.replicate.generateImage, {
       conversationId,
@@ -91,6 +97,10 @@ export async function retryImageGeneration(
     params: Omit<ImageGenerationParams, "prompt" | "model">;
   }
 ): Promise<void> {
+  await convexClient.mutation(api.conversations.setStreaming, {
+    conversationId,
+    isStreaming: true,
+  });
   await convexClient.action(api.ai.replicate.generateImage, {
     conversationId,
     messageId,

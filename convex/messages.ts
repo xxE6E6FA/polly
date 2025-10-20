@@ -1903,6 +1903,28 @@ export const updateImageGeneration = internalMutation({
 
       await ctx.db.patch(messageId, updateData);
 
+      const terminalStatuses = new Set(["succeeded", "failed", "canceled"]);
+      if (
+        args.status &&
+        terminalStatuses.has(args.status) &&
+        message.conversationId
+      ) {
+        try {
+          await ctx.db.patch(message.conversationId, {
+            isStreaming: false,
+          });
+        } catch (error) {
+          log.warn(
+            "[updateImageGeneration] Failed to clear conversation streaming state",
+            {
+              conversationId: message.conversationId,
+              status: args.status,
+              error: error instanceof Error ? error.message : String(error),
+            }
+          );
+        }
+      }
+
       // Get the updated message to verify it was saved correctly
       const updatedMessage = await ctx.db.get(messageId);
       log.info("[updateImageGeneration] Updated message verification", {
