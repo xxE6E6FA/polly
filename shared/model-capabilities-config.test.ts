@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  isFileTypeSupported,
   isImageType,
   isTextType,
-  isFileTypeSupported,
 } from "./model-capabilities-config";
 
 describe("model-capabilities-config", () => {
@@ -20,10 +20,21 @@ describe("model-capabilities-config", () => {
 
   it("file type support checks", () => {
     const model = { supportsImages: true, supportsFiles: true } as any;
-    expect(isFileTypeSupported("image/jpeg", model)).toEqual({ supported: true, category: "image" });
-    expect(isFileTypeSupported("application/pdf", model)).toEqual({ supported: true, category: "pdf" });
-    expect(isFileTypeSupported("text/markdown", model)).toEqual({ supported: true, category: "text" });
-    expect(isFileTypeSupported("application/zip", model)).toEqual({ supported: false, category: "unsupported" });
+    expect(isFileTypeSupported("image/jpeg", model)).toEqual({
+      supported: true,
+      category: "image",
+    });
+    expect(isFileTypeSupported("application/pdf", model)).toEqual({
+      supported: true,
+      category: "pdf",
+    });
+    expect(isFileTypeSupported("text/markdown", model)).toEqual({
+      supported: true,
+      category: "text",
+    });
+    expect(isFileTypeSupported("application/zip", model)).toEqual({
+      supported: false,
+      category: "unsupported",
+    });
   });
 });
-

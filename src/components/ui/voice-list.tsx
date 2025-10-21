@@ -29,6 +29,89 @@ type VoiceListProps = {
   defaultLabel?: string;
 };
 
+type VoiceRowProps = VoiceListOption & {
+  isDefault?: boolean;
+  selected: boolean;
+  isPlaying: boolean;
+  defaultLabel: string;
+  onSelect: () => void;
+  onPlayToggle: (id: string) => void;
+};
+
+const VoiceRow = ({
+  id,
+  name,
+  description,
+  previewUrl,
+  isDefault,
+  selected,
+  isPlaying,
+  defaultLabel,
+  onSelect,
+  onPlayToggle,
+}: VoiceRowProps) => {
+  const containerClass = selected
+    ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-accent text-accent-foreground"
+    : "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 hover:bg-muted/50 focus-within:bg-muted/50";
+
+  return (
+    <CommandItem
+      value={`${name} ${description ?? ""}`}
+      onSelect={onSelect}
+      data-current={selected ? "true" : undefined}
+      aria-current={selected ? "true" : undefined}
+      className="group"
+      data-voice-id={isDefault ? "__default__" : id}
+    >
+      <div className={containerClass}>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium leading-5">
+            {isDefault ? defaultLabel : name}
+          </div>
+          {!isDefault && description && (
+            <div
+              className={`mt-1.5 line-clamp-2 text-xs ${selected ? "text-accent-foreground/80" : "text-muted-foreground"}`}
+            >
+              {description}
+            </div>
+          )}
+        </div>
+        {!isDefault && previewUrl && (
+          <div className="ml-3 flex flex-shrink-0 items-center">
+            <Button
+              size="sm"
+              variant="outline"
+              type="button"
+              className={`h-8 w-8 rounded-full p-0 ${
+                isPlaying
+                  ? "bg-accent text-accent-foreground border-accent"
+                  : "hover:bg-muted/60 focus-visible:bg-muted/60"
+              }`}
+              aria-label={isPlaying ? "Pause preview" : "Play preview"}
+              aria-pressed={isPlaying}
+              onMouseDown={e => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={e => {
+                e.preventDefault();
+                e.stopPropagation();
+                onPlayToggle(id);
+              }}
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-4 w-4" />
+              ) : (
+                <PlayIcon className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        )}
+      </div>
+    </CommandItem>
+  );
+};
+
 export function VoiceList({
   label,
   options,
@@ -90,76 +173,6 @@ export function VoiceList({
 
   const selectionKey = value ?? "__default__";
 
-  const Row = ({
-    id,
-    name,
-    description,
-    previewUrl,
-    isDefault,
-  }: VoiceListOption & { isDefault?: boolean }) => {
-    const selected = isDefault ? value === undefined : value === id;
-    const isPlaying = playingId === id;
-    const containerClass = selected
-      ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-accent text-accent-foreground"
-      : "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 hover:bg-muted/50 focus-within:bg-muted/50";
-    return (
-      <CommandItem
-        value={`${name} ${description ?? ""}`}
-        onSelect={() => onChange(isDefault ? undefined : id)}
-        data-current={selected ? "true" : undefined}
-        aria-current={selected ? "true" : undefined}
-        className="group"
-        data-voice-id={isDefault ? "__default__" : id}
-      >
-        <div className={containerClass}>
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-medium leading-5">
-              {isDefault ? defaultLabel : name}
-            </div>
-            {!isDefault && description && (
-              <div
-                className={`mt-1.5 line-clamp-2 text-xs ${selected ? "text-accent-foreground/80" : "text-muted-foreground"}`}
-              >
-                {description}
-              </div>
-            )}
-          </div>
-          {!isDefault && previewUrl && (
-            <div className="ml-3 flex flex-shrink-0 items-center">
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                className={`h-8 w-8 rounded-full p-0 ${
-                  isPlaying
-                    ? "bg-accent text-accent-foreground border-accent"
-                    : "hover:bg-muted/60 focus-visible:bg-muted/60"
-                }`}
-                aria-label={isPlaying ? "Pause preview" : "Play preview"}
-                aria-pressed={isPlaying}
-                onMouseDown={e => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-                onClick={e => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handlePlayToggle(id);
-                }}
-              >
-                {isPlaying ? (
-                  <PauseIcon className="h-4 w-4" />
-                ) : (
-                  <PlayIcon className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-          )}
-        </div>
-      </CommandItem>
-    );
-  };
-
   // Auto-scroll to selected item after options render (first pass only)
   const scrollToCurrent = useCallback(() => {
     if (hasAutoScrolled.current) {
@@ -205,16 +218,29 @@ export function VoiceList({
           <CommandEmpty>No voices found</CommandEmpty>
           <CommandGroup className="px-2 py-3 stack-md">
             {includeDefaultItem && (
-              <Row
+              <VoiceRow
                 id="__default__"
                 name={defaultLabel}
                 isDefault
                 description={undefined}
                 previewUrl={undefined}
+                selected={value === undefined}
+                isPlaying={false}
+                defaultLabel={defaultLabel}
+                onSelect={() => onChange(undefined)}
+                onPlayToggle={handlePlayToggle}
               />
             )}
             {options.map(opt => (
-              <Row key={opt.id} {...opt} />
+              <VoiceRow
+                key={opt.id}
+                {...opt}
+                selected={value === opt.id}
+                isPlaying={playingId === opt.id}
+                defaultLabel={defaultLabel}
+                onSelect={() => onChange(opt.id)}
+                onPlayToggle={handlePlayToggle}
+              />
             ))}
           </CommandGroup>
         </CommandList>

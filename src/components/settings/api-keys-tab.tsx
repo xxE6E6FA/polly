@@ -198,9 +198,10 @@ export const ApiKeysTab = () => {
 
         <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           {(
-            Object.entries(API_KEY_INFO) as Array<
-              [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
-            >
+            Object.entries(API_KEY_INFO) as [
+              ApiProvider,
+              (typeof API_KEY_INFO)[ApiProvider],
+            ][]
           ).map(([provider]) => (
             <div
               key={provider}
@@ -224,9 +225,10 @@ export const ApiKeysTab = () => {
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
         {(
-          Object.entries(API_KEY_INFO) as Array<
-            [ApiProvider, (typeof API_KEY_INFO)[ApiProvider]]
-          >
+          Object.entries(API_KEY_INFO) as [
+            ApiProvider,
+            (typeof API_KEY_INFO)[ApiProvider],
+          ][]
         ).map(([provider, info]) => {
           const keyInfo = apiKeys.find(
             (k: ApiKeyInfo) => k.provider === provider

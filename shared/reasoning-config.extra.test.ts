@@ -1,10 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./reasoning-model-detection", () => ({
   getModelReasoningInfo: vi.fn(),
 }));
 
-import { getProviderReasoningConfig, getProviderReasoningOptions, normalizeReasoningEffort, ANTHROPIC_BUDGET_MAP, GOOGLE_THINKING_BUDGET_MAP } from "./reasoning-config";
+import {
+  ANTHROPIC_BUDGET_MAP,
+  GOOGLE_THINKING_BUDGET_MAP,
+  getProviderReasoningConfig,
+  getProviderReasoningOptions,
+  normalizeReasoningEffort,
+} from "./reasoning-config";
 import { getModelReasoningInfo } from "./reasoning-model-detection";
 
 describe("reasoning-config (extra)", () => {
@@ -19,7 +25,10 @@ describe("reasoning-config (extra)", () => {
       needsSpecialHandling: false,
     });
 
-    const cfg = getProviderReasoningConfig({ provider: "openai", modelId: "gpt", supportsReasoning: false }, { enabled: true });
+    const cfg = getProviderReasoningConfig(
+      { provider: "openai", modelId: "gpt", supportsReasoning: false },
+      { enabled: true }
+    );
     expect(cfg).toEqual({});
   });
 
@@ -31,20 +40,47 @@ describe("reasoning-config (extra)", () => {
     });
 
     // OpenAI => simple flag
-    let cfg = getProviderReasoningConfig({ provider: "openai", modelId: "o1-preview" });
+    let cfg = getProviderReasoningConfig({
+      provider: "openai",
+      modelId: "o1-preview",
+    });
     expect(cfg).toEqual({ openai: { reasoning: true } });
 
     // Google => thinking budget uses default for medium
-    cfg = getProviderReasoningConfig({ provider: "google", modelId: "gemini-2.5-pro" });
-    expect(cfg).toMatchObject({ providerOptions: { google: { thinkingConfig: { thinkingBudget: GOOGLE_THINKING_BUDGET_MAP["medium"] } } } });
+    cfg = getProviderReasoningConfig({
+      provider: "google",
+      modelId: "gemini-2.5-pro",
+    });
+    expect(cfg).toMatchObject({
+      providerOptions: {
+        google: {
+          thinkingConfig: {
+            thinkingBudget: GOOGLE_THINKING_BUDGET_MAP["medium"],
+          },
+        },
+      },
+    });
 
     // Anthropic => budgetTokens uses default for medium
-    cfg = getProviderReasoningConfig({ provider: "anthropic", modelId: "claude-opus-4" });
-    expect(cfg).toEqual({ anthropic: { thinking: { type: "enabled", budgetTokens: ANTHROPIC_BUDGET_MAP["medium"] } } });
+    cfg = getProviderReasoningConfig({
+      provider: "anthropic",
+      modelId: "claude-opus-4",
+    });
+    expect(cfg).toEqual({
+      anthropic: {
+        thinking: {
+          type: "enabled",
+          budgetTokens: ANTHROPIC_BUDGET_MAP["medium"],
+        },
+      },
+    });
   });
 
   it("maps Groq options with effort and max tokens", () => {
-    const cfg: any = getProviderReasoningOptions("groq", { effort: "high", maxTokens: 1234 });
+    const cfg: any = getProviderReasoningOptions("groq", {
+      effort: "high",
+      maxTokens: 1234,
+    });
     expect(cfg.providerOptions.groq).toMatchObject({
       reasoningFormat: "parsed",
       reasoningEffort: "high",
@@ -60,13 +96,21 @@ describe("reasoning-config (extra)", () => {
 
   it("builds OpenRouter extraBody with effort or default enabled", () => {
     // With explicit effort
-    const cfg: any = getProviderReasoningOptions("openrouter", { effort: "low" });
-    expect(cfg.extraBody.reasoning).toMatchObject({ effort: "low", exclude: false });
+    const cfg: any = getProviderReasoningOptions("openrouter", {
+      effort: "low",
+    });
+    expect(cfg.extraBody.reasoning).toMatchObject({
+      effort: "low",
+      exclude: false,
+    });
     expect(cfg.extraBody.reasoning.enabled).toBeUndefined();
 
     // With no explicit config: exclude is set and enabled defaults to true
     const defCfg: any = getProviderReasoningOptions("openrouter");
-    expect(defCfg.extraBody.reasoning).toMatchObject({ exclude: false, enabled: true });
+    expect(defCfg.extraBody.reasoning).toMatchObject({
+      exclude: false,
+      enabled: true,
+    });
   });
 
   it("normalizes invalid effort values to medium", () => {
@@ -74,4 +118,3 @@ describe("reasoning-config (extra)", () => {
     expect(normalizeReasoningEffort(undefined)).toBe("medium");
   });
 });
-

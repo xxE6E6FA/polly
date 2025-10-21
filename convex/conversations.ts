@@ -558,7 +558,7 @@ export const savePrivateConversation = action({
         storageId?: Id<"_storage">;
         mimeType?: string;
       }>;
-      citations?: Array<Citation>;
+      citations?: Citation[];
       metadata?: {
         tokenCount?: number;
         reasoningTokenCount?: number;

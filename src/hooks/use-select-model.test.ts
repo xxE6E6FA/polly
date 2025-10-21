@@ -28,7 +28,7 @@ describe("useSelectModel", () => {
     const catalog = [
       { modelId: "gpt", provider: "openai", _id: "a" as Id<"userModels"> },
       { modelId: "other", provider: "x", _id: "b" as Id<"userModels"> },
-    ] as Array<Doc<"userModels">>;
+    ] as Doc<"userModels">[];
 
     const { result } = renderHook(() => useSelectModel());
     await result.current.selectModel("gpt", "openai", catalog);

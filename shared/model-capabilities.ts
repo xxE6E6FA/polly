@@ -1,4 +1,3 @@
-
 /**
  * Check which sampling parameters are supported by a specific provider
  * This helps avoid sending unsupported parameters that could cause API errors
@@ -95,14 +94,23 @@ export function filterSamplingParameters(
   repetitionPenalty?: number;
 } {
   const supported = getSupportedSamplingParameters(provider);
-  
+
   return {
-    ...(supported.temperature && params.temperature !== undefined && { temperature: params.temperature }),
+    ...(supported.temperature &&
+      params.temperature !== undefined && { temperature: params.temperature }),
     ...(supported.topP && params.topP !== undefined && { topP: params.topP }),
     ...(supported.topK && params.topK !== undefined && { topK: params.topK }),
-    ...(supported.frequencyPenalty && params.frequencyPenalty !== undefined && { frequencyPenalty: params.frequencyPenalty }),
-    ...(supported.presencePenalty && params.presencePenalty !== undefined && { presencePenalty: params.presencePenalty }),
-    ...(supported.repetitionPenalty && params.repetitionPenalty !== undefined && { repetitionPenalty: params.repetitionPenalty }),
+    ...(supported.frequencyPenalty &&
+      params.frequencyPenalty !== undefined && {
+        frequencyPenalty: params.frequencyPenalty,
+      }),
+    ...(supported.presencePenalty &&
+      params.presencePenalty !== undefined && {
+        presencePenalty: params.presencePenalty,
+      }),
+    ...(supported.repetitionPenalty &&
+      params.repetitionPenalty !== undefined && {
+        repetitionPenalty: params.repetitionPenalty,
+      }),
   };
 }
-

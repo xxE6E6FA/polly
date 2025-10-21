@@ -34,7 +34,7 @@ describe("useChatMessages", () => {
   beforeEach(() => vi.clearAllMocks());
 
   function setupMutationSpies() {
-    const calls: Array<vi.Mock> = [];
+    const calls: vi.Mock[] = [];
     (useMutation as unknown as vi.Mock).mockImplementation(() => {
       const fn = vi.fn(async () => {
         /* noop */

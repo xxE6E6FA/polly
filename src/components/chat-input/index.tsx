@@ -204,7 +204,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       }
       // Only re-evaluate when the conversation context or heuristic changes; avoid
       // triggering on unrelated state updates to preserve user choice.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       conversationId,
       hasExistingMessages,

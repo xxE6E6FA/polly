@@ -29,4 +29,4 @@ export const IMAGE_GENERATION_DEFAULTS = {
   GUIDANCE_SCALE: 7.5,
   COUNT: 1,
   NEGATIVE_PROMPT: "",
-} as const; 
+} as const;

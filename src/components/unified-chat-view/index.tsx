@@ -23,6 +23,21 @@ import { WarningBanners } from "../chat-input/warning-banners";
 import { ArchivedBanner } from "./ArchivedBanner";
 import { useChatViewState } from "./hooks/useChatViewState";
 
+const ConversationZeroState = () => {
+  return (
+    <div className="flex h-full w-full items-center justify-center">
+      <div className="text-center stack-sm max-w-md px-4">
+        <p className="text-base font-medium text-foreground">
+          Start a conversation
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Send a message to begin chatting
+        </p>
+      </div>
+    </div>
+  );
+};
+
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
   messages: ChatMessage[];
@@ -305,21 +320,6 @@ export const UnifiedChatView = memo(
       virtualizedMessagesRef.current?.scrollToBottom();
       requestAnimationFrame(evaluateScrollProximity);
     }, [evaluateScrollProximity, virtualizedMessagesRef]);
-
-    const ConversationZeroState = () => {
-      return (
-        <div className="flex h-full w-full items-center justify-center">
-          <div className="text-center stack-sm max-w-md px-4">
-            <p className="text-base font-medium text-foreground">
-              Start a conversation
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Send a message to begin chatting
-            </p>
-          </div>
-        </div>
-      );
-    };
 
     const renderMessageArea = () => {
       if (isEmpty) {

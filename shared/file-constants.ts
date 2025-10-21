@@ -49,4 +49,4 @@ export const FILE_EXTENSIONS = {
   ],
   IMAGE: ["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"],
   PDF: ["pdf"],
-} as const; 
+} as const;

@@ -1,4 +1,3 @@
-
 /**
  * Remove duplicate source/reference sections that some LLMs add at the end of their responses
  * This is especially common with models like R1 that are trained to include sources
@@ -49,4 +48,4 @@ export function removeDuplicateSourceSections(text: string): string {
   }
 
   return cleanedText.trim();
-} 
+}

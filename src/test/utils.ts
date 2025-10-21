@@ -18,7 +18,6 @@ export function makeNdjsonStream(lines: string[]): ReadableStream<Uint8Array> {
 /** Flush pending microtasks in streaming tests. */
 export async function flushPromises(times = 2): Promise<void> {
   for (let i = 0; i < times; i++) {
-    // eslint-disable-next-line no-await-in-loop
     await Promise.resolve();
   }
 }

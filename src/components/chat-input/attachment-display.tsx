@@ -24,7 +24,7 @@ const truncateMiddle = (filename: string, maxLength = 20) => {
 };
 
 interface AttachmentDisplayProps {
-  attachments: ReadonlyArray<Attachment>;
+  attachments: readonly Attachment[];
   onRemoveAttachment: (index: number) => void;
 }
 

@@ -1,4 +1,3 @@
-
 import { getModelReasoningInfo } from "./reasoning-model-detection";
 
 export type ReasoningEffortLevel = "low" | "medium" | "high";
@@ -15,26 +14,40 @@ export type ModelWithCapabilities = {
   supportsReasoning?: boolean;
 };
 
+type OpenRouterReasoningOptions = {
+  effort?: "low" | "medium" | "high";
+  exclude?: boolean;
+  enabled?: boolean;
+} & Partial<Record<"max_tokens", number>>;
+
 export type ProviderStreamOptions =
   | Record<string, never> // Empty object for non-reasoning models
   | { openai: { reasoning: boolean } }
   | {
       providerOptions: {
         google: {
-          thinkingConfig: { thinkingBudget: number };
+          thinkingConfig: {
+            thinkingBudget: number;
+            includeThoughts?: boolean;
+          };
         };
       };
     }
   | { anthropic: { thinking: { type: "enabled"; budgetTokens: number } } }
-  | { 
-      extraBody: { 
-        reasoning: { 
-          effort?: "low" | "medium" | "high";
-          max_tokens?: number;
-          exclude?: boolean;
-          enabled?: boolean;
-        } 
-      } 
+  | {
+      providerOptions: {
+        groq: {
+          reasoningFormat: "parsed";
+          reasoningEffort: "low" | "default" | "high";
+          maxOutputTokens?: number;
+          parallelToolCalls: boolean;
+        };
+      };
+    }
+  | {
+      extraBody: {
+        reasoning: OpenRouterReasoningOptions;
+      };
     };
 
 export const ANTHROPIC_BUDGET_MAP = {
@@ -53,21 +66,28 @@ export function getProviderReasoningConfig(
   model: ModelWithCapabilities,
   reasoningConfig?: ReasoningConfig
 ): ProviderStreamOptions {
-  const { provider, modelId, supportsReasoning: modelSupportsReasoning } = model;
+  const {
+    provider,
+    modelId,
+    supportsReasoning: modelSupportsReasoning,
+  } = model;
 
   // Use centralized reasoning detection
   const reasoningInfo = getModelReasoningInfo(provider, modelId);
-  
+
   // If model doesn't support reasoning at all, return empty config
-  if (!reasoningInfo.supportsReasoning && !modelSupportsReasoning) {
+  if (!(reasoningInfo.supportsReasoning || modelSupportsReasoning)) {
     return {};
   }
 
   // Handle built-in provider mapping - use provider as-is since it should already be resolved
-  let actualProvider = provider;
+  const actualProvider = provider;
 
   // For models with mandatory reasoning or special handling requirements
-  if (reasoningInfo.needsSpecialHandling || reasoningInfo.reasoningType === "mandatory") {
+  if (
+    reasoningInfo.needsSpecialHandling ||
+    reasoningInfo.reasoningType === "mandatory"
+  ) {
     return getProviderReasoningOptions(
       actualProvider,
       reasoningConfig || {
@@ -77,7 +97,15 @@ export function getProviderReasoningConfig(
   }
 
   // For all other models (optional or unknown), only enable if explicitly requested
-  if (!reasoningConfig || reasoningConfig.enabled === false || (!reasoningConfig.enabled && !reasoningConfig.effort && !reasoningConfig.maxTokens)) {
+  if (
+    !reasoningConfig ||
+    reasoningConfig.enabled === false ||
+    !(
+      reasoningConfig.enabled ||
+      reasoningConfig.effort ||
+      reasoningConfig.maxTokens
+    )
+  ) {
     return {}; // Simply omit reasoning settings when not enabled
   }
 
@@ -108,7 +136,7 @@ export function getProviderReasoningOptions(
             thinkingConfig: {
               thinkingBudget,
               includeThoughts: true,
-            } as any, // Type assertion - includeThoughts is supported by Google API but not yet in AI SDK types
+            },
           },
         },
       };
@@ -138,26 +166,24 @@ export function getProviderReasoningOptions(
         providerOptions: {
           groq: {
             reasoningFormat: "parsed",
-            reasoningEffort: effort === "low" ? "low" : effort === "high" ? "high" : "default",
+            reasoningEffort:
+              effort === "low" ? "low" : effort === "high" ? "high" : "default",
             ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
             parallelToolCalls: true,
-          } as any,
+          },
         },
-      } as any;
+      };
     }
 
     case "openrouter": {
       // OpenRouter's unified reasoning API supports:
       // - effort: "low", "medium", "high" (for o-series, Grok models)
-      // - max_tokens: Direct token allocation (for Gemini, Anthropic models)  
+      // - max_tokens: Direct token allocation (for Gemini, Anthropic models)
       // - exclude: true/false to hide reasoning from response
       // - enabled: true to use default settings
-      const reasoningOptions: {
-        effort?: "low" | "medium" | "high";
-        max_tokens?: number;
-        exclude?: boolean;
-        enabled?: boolean;
-      } = {};
+      const reasoningOptions: OpenRouterReasoningOptions = {
+        exclude: false,
+      };
 
       // Set effort level if provided (preferred for o-series and Grok models)
       if (reasoningConfig?.effort) {
@@ -166,7 +192,7 @@ export function getProviderReasoningOptions(
 
       // Set max tokens if provided (preferred for Gemini and Anthropic models)
       if (reasoningConfig?.maxTokens) {
-        reasoningOptions.max_tokens = reasoningConfig.maxTokens;
+        reasoningOptions["max_tokens"] = reasoningConfig.maxTokens;
       }
 
       // Control reasoning token visibility - set to false to include reasoning in response
@@ -174,7 +200,10 @@ export function getProviderReasoningOptions(
       reasoningOptions.exclude = false;
 
       // Enable reasoning with provided config or use enabled: true for defaults
-      if (Object.keys(reasoningOptions).length === 1) { // Only exclude is set
+      const hasExplicitConfig =
+        reasoningOptions.effort !== undefined ||
+        reasoningOptions["max_tokens"] !== undefined;
+      if (!hasExplicitConfig) {
         reasoningOptions.enabled = true;
       }
 
@@ -196,7 +225,9 @@ export function getProviderReasoningOptions(
 export function normalizeReasoningEffort(
   effort?: string | ReasoningEffortLevel
 ): ReasoningEffortLevel {
-  if (!effort) return "medium";
+  if (!effort) {
+    return "medium";
+  }
 
   const normalizedEffort = effort.toLowerCase();
   if (
@@ -208,4 +239,4 @@ export function normalizeReasoningEffort(
   }
 
   return "medium";
-} 
+}

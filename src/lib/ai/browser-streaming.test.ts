@@ -27,13 +27,11 @@ describe("browser-streaming.streamChat", () => {
 
       async function* gen() {
         // ensure at least one await for async generator lint rule
-        // eslint-disable-next-line no-await-in-loop
         yield await Promise.resolve("chunk1");
         // cooperatively break if aborted
         if (options.abortSignal?.aborted) {
           return;
         }
-        // eslint-disable-next-line no-await-in-loop
         yield await Promise.resolve("chunk2");
       }
       return {
@@ -147,13 +145,11 @@ describe("browser-streaming.streamChat", () => {
       options.onChunk?.({ chunk: { type: "text", textDelta: "x" } });
       const ctrl = controller;
       async function* gen() {
-        // eslint-disable-next-line no-await-in-loop
         yield await Promise.resolve("chunk1");
         ctrl.abort();
         if (options.abortSignal?.aborted) {
           return;
         }
-        // eslint-disable-next-line no-await-in-loop
         yield await Promise.resolve("chunk2");
       }
       return { textStream: gen() };

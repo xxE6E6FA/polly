@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  MONTHLY_MESSAGE_LIMIT,
   ANONYMOUS_MESSAGE_LIMIT,
-  DEFAULT_BUILTIN_MODEL_ID,
-  DEFAULT_TEMPERATURE,
-  DEFAULT_MAX_TOKENS,
-  MESSAGE_BATCH_SIZE,
-  CHUNK_SIZE,
   BATCH_SIZE,
-  WEB_SEARCH_MAX_RESULTS,
+  CHUNK_SIZE,
+  DEFAULT_BUILTIN_MODEL_ID,
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_TEMPERATURE,
   IMAGE_GENERATION_DEFAULTS,
+  MESSAGE_BATCH_SIZE,
+  MONTHLY_MESSAGE_LIMIT,
+  WEB_SEARCH_MAX_RESULTS,
 } from "./constants";
 
 describe("shared/constants", () => {
@@ -32,7 +32,7 @@ describe("shared/constants", () => {
       expect(DEFAULT_TEMPERATURE).toBe(0.7);
       expect(DEFAULT_TEMPERATURE).toBeGreaterThan(0);
       expect(DEFAULT_TEMPERATURE).toBeLessThanOrEqual(2);
-      
+
       expect(DEFAULT_MAX_TOKENS).toBe(-1);
     });
   });
@@ -64,7 +64,9 @@ describe("shared/constants", () => {
 
   describe("image generation defaults", () => {
     it("has valid default model", () => {
-      expect(IMAGE_GENERATION_DEFAULTS.MODEL).toBe("black-forest-labs/flux-dev");
+      expect(IMAGE_GENERATION_DEFAULTS.MODEL).toBe(
+        "black-forest-labs/flux-dev"
+      );
       expect(typeof IMAGE_GENERATION_DEFAULTS.MODEL).toBe("string");
     });
 
@@ -95,7 +97,7 @@ describe("shared/constants", () => {
       const defaults = IMAGE_GENERATION_DEFAULTS;
       expect(typeof defaults).toBe("object");
       expect(defaults).toBeDefined();
-      
+
       // The const assertion should prevent runtime modification
       // This is more of a TypeScript compile-time feature, but we can test the values
       expect(defaults.MODEL).toBe("black-forest-labs/flux-dev");
