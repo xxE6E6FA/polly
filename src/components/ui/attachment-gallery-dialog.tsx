@@ -13,7 +13,7 @@ import { getFileLanguage } from "@/lib/file-utils";
 import type { Attachment } from "@/types";
 
 type AttachmentGalleryDialogProps = {
-  attachments: ReadonlyArray<Attachment>;
+  attachments: readonly Attachment[];
   currentAttachment: Attachment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;

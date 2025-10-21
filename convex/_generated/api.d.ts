@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* biome-ignore */
 /**
  * Generated `api` utility.
  *

@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { PROVIDER_NAMES, PROVIDER_CONFIG } from "./provider-constants";
+import { describe, expect, it } from "vitest";
+import { PROVIDER_CONFIG, PROVIDER_NAMES } from "./provider-constants";
 
 describe("provider-constants", () => {
   it("has consistent provider keys and titles", () => {
@@ -12,4 +12,3 @@ describe("provider-constants", () => {
     expect(PROVIDER_CONFIG.openrouter.title).toBe("OpenRouter");
   });
 });
-

@@ -5,16 +5,14 @@ import { useClearOnConversationChange } from "./use-clear-on-conversation-change
 export function useChatAttachments(conversationId?: ConversationId) {
   const key = getChatKey(conversationId as unknown as string);
   const hookCache = useChatAttachments as unknown as {
-    emptyAttachments?: ReadonlyArray<Attachment>;
+    emptyAttachments?: readonly Attachment[];
   };
   if (!hookCache.emptyAttachments) {
-    hookCache.emptyAttachments = Object.freeze([]) as ReadonlyArray<Attachment>;
+    hookCache.emptyAttachments = Object.freeze([]) as readonly Attachment[];
   }
-  const Empty: ReadonlyArray<Attachment> = hookCache.emptyAttachments;
+  const Empty: readonly Attachment[] = hookCache.emptyAttachments;
   const attachments = useChatInputStore(
-    s =>
-      (s.attachmentsByKey[key] as ReadonlyArray<Attachment> | undefined) ??
-      Empty
+    s => (s.attachmentsByKey[key] as readonly Attachment[] | undefined) ?? Empty
   );
   const set = useChatInputStore(s => s.setAttachments);
   const clearKey = useChatInputStore(s => s.clearAttachmentsKey);

@@ -46,4 +46,3 @@ describe("reasoning-config helpers", () => {
     expect(normalizeReasoningEffort("high")).toBeDefined();
   });
 });
-

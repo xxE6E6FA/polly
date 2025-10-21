@@ -492,7 +492,7 @@ http.route({
         log.debug("Starting message processing");
         const streamMsgs: Array<{
           role: "user" | "assistant" | "system";
-          content: string | Array<Record<string, unknown>>;
+          content: string | Record<string, unknown>[];
         }> = [];
 
         streamMsgs.push({ role: "system", content: system });
@@ -525,7 +525,7 @@ http.route({
           }
 
           // Default to string content
-          let content: string | Array<Record<string, unknown>> =
+          let content: string | Record<string, unknown>[] =
             typeof m.content === "string" ? m.content : [];
 
           if (
@@ -563,7 +563,7 @@ http.route({
             log.debug("Processed attachments, count:", processed?.length || 0);
             lastUserAttachments = processed;
 
-            const parts: Array<Record<string, unknown>> = [];
+            const parts: Record<string, unknown>[] = [];
             if (typeof content === "string" && content.trim().length > 0) {
               parts.push({ type: "text", text: content });
             }

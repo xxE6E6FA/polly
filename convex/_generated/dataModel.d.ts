@@ -1,4 +1,4 @@
-/* eslint-disable */
+/* biome-ignore */
 /**
  * Generated data model types.
  *

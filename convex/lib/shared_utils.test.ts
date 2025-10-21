@@ -43,7 +43,22 @@ describe("lib/shared_utils", () => {
   });
 
   it("resolveModelWithCapabilities delegates to model_resolution", async () => {
-    const ctx: any = { db: {} };
+    const mockQuery = vi.fn().mockReturnValue({
+      withIndex: vi.fn().mockReturnValue({
+        filter: vi.fn().mockReturnValue({
+          unique: vi.fn().mockResolvedValue(null)
+        })
+      }),
+      filter: vi.fn().mockReturnValue({
+        unique: vi.fn().mockResolvedValue(null)
+      })
+    });
+    
+    const ctx: any = { 
+      db: { 
+        query: mockQuery
+      } 
+    };
     const res = await resolveModelWithCapabilities(ctx, "m", "p");
     expect(res.modelId ?? "m").toBeDefined();
   });

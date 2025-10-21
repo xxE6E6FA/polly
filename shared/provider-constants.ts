@@ -4,7 +4,7 @@
 
 export const PROVIDER_NAMES = {
   openai: "OpenAI",
-  anthropic: "Anthropic", 
+  anthropic: "Anthropic",
   google: "Google",
   groq: "Groq",
   openrouter: "OpenRouter",
@@ -21,4 +21,4 @@ export const PROVIDER_CONFIG = {
   groq: { title: "Groq" },
   openrouter: { title: "OpenRouter" },
   elevenlabs: { title: "ElevenLabs" },
-} as const; 
+} as const;

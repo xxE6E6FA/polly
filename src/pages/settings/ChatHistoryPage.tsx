@@ -174,7 +174,7 @@ export default function ChatHistoryPage() {
         onSelectAll={conversationSelection.onSelectAll}
         clearSelection={conversationSelection.clearSelection}
         recentlyImportedIds={
-          new Set(recentlyImportedIds as Array<Id<"conversations">>)
+          new Set(recentlyImportedIds as Id<"conversations">[])
         }
         includeAttachments={conversationSelection.includeAttachments}
         onIncludeAttachmentsChange={

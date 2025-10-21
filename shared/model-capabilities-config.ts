@@ -18,8 +18,6 @@ export function isTextType(fileType: string): boolean {
   );
 }
 
-
-
 export interface ModelForCapabilityCheck {
   provider: string;
   modelId: string;

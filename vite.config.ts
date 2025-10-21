@@ -8,7 +8,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [
-      react(),
+      react({
+        babel: {
+          plugins: ["babel-plugin-react-compiler"],
+        },
+      }),
       tsconfigPaths(),
       // Bundle analyzer - only in build mode
       mode === "production" &&

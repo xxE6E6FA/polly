@@ -63,4 +63,3 @@ describe("model-capabilities sampling helpers", () => {
     expect(unknown).not.toHaveProperty("topK");
   });
 });
-

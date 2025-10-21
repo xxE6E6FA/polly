@@ -20,17 +20,17 @@ describe("convex/lib/logger", () => {
     vi.restoreAllMocks();
     // restore process to avoid leaking env across tests
     if (originalProcess) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: Test file allows any type
       (globalThis as any).process = originalProcess;
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: Test file allows any type
       delete (globalThis as any).process;
     }
   });
 
   it("logs all levels in development (convex.dev)", () => {
     // simulate development environment
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: Test file allows any type
     (globalThis as any).process = { env: { CONVEX_CLOUD_URL: "https://xyz.convex.dev" } };
 
     log.debug("d", { a: 1 });
@@ -53,7 +53,7 @@ describe("convex/lib/logger", () => {
 
   it("suppresses debug/info in production, keeps warn/error", () => {
     // simulate production environment (no convex.dev or localhost)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: Test file allows any type
     (globalThis as any).process = { env: { CONVEX_CLOUD_URL: "https://app.example.com" } };
 
     log.debug("d");
@@ -68,7 +68,7 @@ describe("convex/lib/logger", () => {
   });
 
   it("treats missing process as production (no crash)", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // biome-ignore lint/suspicious/noExplicitAny: Test file allows any type
     delete (globalThis as any).process;
     log.debug("d");
     log.info("i");
