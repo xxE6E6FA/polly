@@ -192,22 +192,6 @@ function ConversationContent({
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  const conversationTitle = (
-    conversationAccessInfo?.conversation as { title?: string } | undefined
-  )?.title;
-
-  useEffect(() => {
-    if (conversationTitle && conversationTitle !== document.title) {
-      document.title = conversationTitle;
-    }
-
-    return () => {
-      if (!conversationId) {
-        document.title = "Polly";
-      }
-    };
-  }, [conversationTitle, conversationId]);
-
   // Defer redirect if conversation was deleted
   useEffect(() => {
     if (conversationAccessInfo?.isDeleted) {

@@ -63,7 +63,7 @@ export function useConversationPreload() {
         preloadedConversations.add(conversationId);
 
         // Preload the conversation page component code
-        preloadChatConversation();
+        preloadChatConversation(conversationId);
 
         try {
           // Preload and cache all conversation data

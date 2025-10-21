@@ -10,15 +10,16 @@ export default function HomePage() {
   const { user } = useUserDataContext();
 
   useEffect(() => {
-    document.title = "Polly";
-
     setPrivateMode(false);
   }, [setPrivateMode]);
 
   return (
-    <SharedChatLayout>
-      {user && !user.isAnonymous && <PrivateToggle />}
-      <ChatZeroState />
-    </SharedChatLayout>
+    <>
+      <title>Polly</title>
+      <SharedChatLayout>
+        {user && !user.isAnonymous && <PrivateToggle />}
+        <ChatZeroState />
+      </SharedChatLayout>
+    </>
   );
 }

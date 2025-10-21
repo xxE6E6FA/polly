@@ -136,7 +136,7 @@ export const VirtualizedImageModelList = memo<VirtualizedImageModelListProps>(
 
     const enabledImageModelsRaw = useQuery(
       api.imageModels.getUserImageModels,
-      user?._id ? {} : "skip"
+      user?._id ? {} : undefined
     );
 
     const enabledImageModels = Array.isArray(enabledImageModelsRaw)

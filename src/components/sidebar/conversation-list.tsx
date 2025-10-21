@@ -1,4 +1,4 @@
-import { api } from "convex/_generated/api";
+import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useEffect, useMemo } from "react";
 import { useConversationPreload } from "@/hooks/use-conversation-preload";

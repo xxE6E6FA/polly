@@ -28,3 +28,7 @@ export const ConvexProvider = ({ children }: ConvexProviderProps) => {
 
   return <ConvexAuthProvider client={client}>{children}</ConvexAuthProvider>;
 };
+
+export function getConvexClient() {
+  return getOrCreateClient();
+}

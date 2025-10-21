@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
@@ -132,23 +132,16 @@ export default function ConversationRoute() {
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  // Update document title to match conversation title
   const conversationTitle = (
     conversationAccessInfo?.conversation as { title?: string } | undefined
   )?.title;
 
-  useEffect(() => {
-    if (conversationTitle && conversationTitle !== document.title) {
-      document.title = conversationTitle;
+  const pageTitle = useMemo(() => {
+    if (conversationTitle && conversationTitle.trim().length > 0) {
+      return conversationTitle;
     }
-
-    return () => {
-      // Reset title when navigating away or when no conversation id exists
-      if (!conversationId) {
-        document.title = "Polly";
-      }
-    };
-  }, [conversationTitle, conversationId]);
+    return "Polly";
+  }, [conversationTitle]);
 
   const {
     messages,
@@ -359,149 +352,152 @@ export default function ConversationRoute() {
   const conversation = conversationAccessInfo.conversation;
 
   return (
-    <UnifiedChatView
-      conversationId={conversationId as ConversationId}
-      messages={messages}
-      isLoading={isLoading || hasApiKeys === undefined}
-      isLoadingMessages={conversationAccessInfo === undefined}
-      isStreaming={messageIsStreaming}
-      currentPersonaId={conversation?.personaId ?? null}
-      canSavePrivateChat={false}
-      hasApiKeys={hasApiKeys === true}
-      isArchived={conversation?.isArchived}
-      onSendMessage={async (
-        content: string,
-        attachments?: Attachment[],
-        personaId?: Id<"personas"> | null,
-        reasoningConfig?: ReasoningConfig,
-        temperature?: number
-      ) => {
-        await sendMessage({
-          content,
-          attachments,
-          personaId,
+    <>
+      <title>{pageTitle}</title>
+      <UnifiedChatView
+        conversationId={conversationId as ConversationId}
+        messages={messages}
+        isLoading={isLoading || hasApiKeys === undefined}
+        isLoadingMessages={conversationAccessInfo === undefined}
+        isStreaming={messageIsStreaming}
+        currentPersonaId={conversation?.personaId ?? null}
+        canSavePrivateChat={false}
+        hasApiKeys={hasApiKeys === true}
+        isArchived={conversation?.isArchived}
+        onSendMessage={async (
+          content: string,
+          attachments?: Attachment[],
+          personaId?: Id<"personas"> | null,
+          reasoningConfig?: ReasoningConfig,
+          temperature?: number
+        ) => {
+          await sendMessage({
+            content,
+            attachments,
+            personaId,
+            reasoningConfig,
+            temperature,
+          });
+        }}
+        onSendAsNewConversation={handleSendAsNewConversation}
+        onDeleteMessage={deleteMessage}
+        onEditMessage={editMessage}
+        onRefineMessage={async (messageId, type, instruction) => {
+          await convex.action(api.messages.refineAssistantMessage, {
+            messageId: messageId as Id<"messages">,
+            mode:
+              type === "custom"
+                ? "custom"
+                : type === "more_concise"
+                  ? "more_concise"
+                  : "add_details",
+            instruction,
+          });
+        }}
+        onStopGeneration={stopGeneration}
+        onRetryUserMessage={async (
+          messageId,
+          modelId,
+          provider,
           reasoningConfig,
-          temperature,
-        });
-      }}
-      onSendAsNewConversation={handleSendAsNewConversation}
-      onDeleteMessage={deleteMessage}
-      onEditMessage={editMessage}
-      onRefineMessage={async (messageId, type, instruction) => {
-        await convex.action(api.messages.refineAssistantMessage, {
-          messageId: messageId as Id<"messages">,
-          mode:
-            type === "custom"
-              ? "custom"
-              : type === "more_concise"
-                ? "more_concise"
-                : "add_details",
-          instruction,
-        });
-      }}
-      onStopGeneration={stopGeneration}
-      onRetryUserMessage={async (
-        messageId,
-        modelId,
-        provider,
-        reasoningConfig,
-        temperature
-      ) => {
-        // Optimistically prune UI after the user message: clear overlays for later messages
-        try {
-          const overlays = useStreamOverlays.getState();
-          const index = messages.findIndex(m => m.id === messageId);
-          if (index !== -1) {
-            for (let i = index + 1; i < messages.length; i++) {
-              const m = messages[i];
-              if (m.role === "assistant") {
-                const id = String(m.id);
-                overlays.set(id, "");
-                overlays.setReasoning(id, "");
-                overlays.setStatus(id, undefined);
-                overlays.clearCitations(id);
-                overlays.clearTools(id);
+          temperature
+        ) => {
+          // Optimistically prune UI after the user message: clear overlays for later messages
+          try {
+            const overlays = useStreamOverlays.getState();
+            const index = messages.findIndex(m => m.id === messageId);
+            if (index !== -1) {
+              for (let i = index + 1; i < messages.length; i++) {
+                const m = messages[i];
+                if (m.role === "assistant") {
+                  const id = String(m.id);
+                  overlays.set(id, "");
+                  overlays.setReasoning(id, "");
+                  overlays.setStatus(id, undefined);
+                  overlays.clearCitations(id);
+                  overlays.clearTools(id);
+                }
               }
             }
-          }
-        } catch (_e) {
-          // ignore
-        }
-
-        const options: Partial<{
-          model: string;
-          provider: string;
-          reasoningConfig: ReasoningConfig;
-          temperature: number;
-        }> = {};
-        if (modelId) {
-          options.model = modelId;
-        }
-        if (provider) {
-          options.provider = provider;
-        }
-        if (reasoningConfig) {
-          options.reasoningConfig = reasoningConfig;
-        }
-        if (temperature !== undefined) {
-          options.temperature = temperature;
-        }
-
-        await retryFromMessage(messageId, options);
-      }}
-      onRetryAssistantMessage={async (
-        messageId,
-        modelId,
-        provider,
-        reasoningConfig,
-        temperature
-      ) => {
-        // Immediately clear the retried assistant message in the UI
-        try {
-          const overlays = useStreamOverlays.getState();
-          const id = String(messageId);
-          overlays.set(id, "");
-          overlays.setReasoning(id, "");
-          overlays.setStatus(id, "thinking");
-          overlays.clearCitations(id);
-          overlays.clearTools(id);
-        } catch {
-          // non-fatal
-        }
-
-        // If retrying with a different model, update the message model label optimistically
-        if (modelId || provider) {
-          try {
-            // Update happens server-side; front-end displays from DB.
-            // Optimistically reflect by setting thinking status (already done) until DB patch returns.
-            // No direct local message update to avoid divergent state.
           } catch (_e) {
             // ignore
           }
-        }
 
-        const options: Partial<{
-          model: string;
-          provider: string;
-          reasoningConfig: ReasoningConfig;
-          temperature: number;
-        }> = {};
-        if (modelId) {
-          options.model = modelId;
-        }
-        if (provider) {
-          options.provider = provider;
-        }
-        if (reasoningConfig) {
-          options.reasoningConfig = reasoningConfig;
-        }
-        if (temperature !== undefined) {
-          options.temperature = temperature;
-        }
+          const options: Partial<{
+            model: string;
+            provider: string;
+            reasoningConfig: ReasoningConfig;
+            temperature: number;
+          }> = {};
+          if (modelId) {
+            options.model = modelId;
+          }
+          if (provider) {
+            options.provider = provider;
+          }
+          if (reasoningConfig) {
+            options.reasoningConfig = reasoningConfig;
+          }
+          if (temperature !== undefined) {
+            options.temperature = temperature;
+          }
 
-        await retryFromMessage(messageId, options);
-      }}
-      onRetryImageGeneration={handleRetryImageGeneration}
-    />
+          await retryFromMessage(messageId, options);
+        }}
+        onRetryAssistantMessage={async (
+          messageId,
+          modelId,
+          provider,
+          reasoningConfig,
+          temperature
+        ) => {
+          // Immediately clear the retried assistant message in the UI
+          try {
+            const overlays = useStreamOverlays.getState();
+            const id = String(messageId);
+            overlays.set(id, "");
+            overlays.setReasoning(id, "");
+            overlays.setStatus(id, "thinking");
+            overlays.clearCitations(id);
+            overlays.clearTools(id);
+          } catch {
+            // non-fatal
+          }
+
+          // If retrying with a different model, update the message model label optimistically
+          if (modelId || provider) {
+            try {
+              // Update happens server-side; front-end displays from DB.
+              // Optimistically reflect by setting thinking status (already done) until DB patch returns.
+              // No direct local message update to avoid divergent state.
+            } catch (_e) {
+              // ignore
+            }
+          }
+
+          const options: Partial<{
+            model: string;
+            provider: string;
+            reasoningConfig: ReasoningConfig;
+            temperature: number;
+          }> = {};
+          if (modelId) {
+            options.model = modelId;
+          }
+          if (provider) {
+            options.provider = provider;
+          }
+          if (reasoningConfig) {
+            options.reasoningConfig = reasoningConfig;
+          }
+          if (temperature !== undefined) {
+            options.temperature = temperature;
+          }
+
+          await retryFromMessage(messageId, options);
+        }}
+        onRetryImageGeneration={handleRetryImageGeneration}
+      />
+    </>
   );
 }
