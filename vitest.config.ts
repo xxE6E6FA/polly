@@ -1,11 +1,49 @@
+import { createRequire, Module } from "node:module";
 import path from "node:path";
-import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
+
+const require = createRequire(import.meta.url);
+
+const nativeRollupModule = `@rollup/rollup-${process.platform}-${process.arch}`;
+let fallbackRollupPath: string | null = null;
+try {
+  require.resolve(nativeRollupModule);
+} catch {
+  try {
+    fallbackRollupPath = require.resolve("rollup/dist/es/shared/node-entry.js");
+  } catch {
+    fallbackRollupPath = null;
+  }
+}
+
+if (fallbackRollupPath) {
+  const originalResolveFilename = Module._resolveFilename;
+  // @ts-expect-error: using private Node API to shim missing native bindings
+  Module._resolveFilename = function (request, parent, isMain, options) {
+    if (request === nativeRollupModule) {
+      return originalResolveFilename.call(
+        this,
+        fallbackRollupPath,
+        parent,
+        isMain,
+        options
+      );
+    }
+    return originalResolveFilename.call(this, request, parent, isMain, options);
+  };
+}
 
 export default defineConfig({
   // Write SSR/transform cache to a stable local folder to avoid tmp cleanup races
   cacheDir: ".vite-temp",
-  plugins: [tsconfigPaths()],
+  resolve: {
+    alias: {
+      "@": path.resolve(process.cwd(), "src"),
+      "@convex": path.resolve(process.cwd(), "convex"),
+      "@shared": path.resolve(process.cwd(), "shared"),
+      "convex/_generated": path.resolve(process.cwd(), "convex/_generated"),
+    },
+  },
   test: {
     // Run in a single forked process to avoid Vite SSR temp cache races
     pool: "forks",
@@ -15,21 +53,8 @@ export default defineConfig({
     // (Vitest v3 ignores this but older flags may help in some environments)
     // @ts-expect-error legacy option
     threads: false,
-    // Default to edge-runtime, override for browser tests below
+    // Default to edge-runtime unless a project overrides it
     environment: "edge-runtime",
-    // Route environments per directory (deprecated, but kept for stability per project preference)
-    environmentMatchGlobs: [
-      ["src/**", "jsdom"],
-      ["shared/**", "jsdom"],
-      ["convex/**", "edge-runtime"],
-    ],
-    setupFiles: ["./src/test/setup.ts"],
-    include: [
-      "src/**/*.test.{ts,tsx}",
-      "shared/**/*.test.{ts,tsx}",
-      "convex/**/*.test.ts",
-    ],
-    globals: true,
     coverage: {
       provider: "v8",
       exclude: [
@@ -59,5 +84,47 @@ export default defineConfig({
       temp: path.resolve(".tmp"),
       tmp: path.resolve(".tmp"),
     },
+    projects: [
+      {
+        test: {
+          name: "browser",
+          include: ["src/**/*.test.{ts,tsx}", "shared/**/*.test.{ts,tsx}"],
+          environment: "jsdom",
+          setupFiles: ["./src/test/setup.ts"],
+          globals: true,
+        },
+        resolve: {
+          alias: {
+            "@": path.resolve(process.cwd(), "src"),
+            "@convex": path.resolve(process.cwd(), "convex"),
+            "@shared": path.resolve(process.cwd(), "shared"),
+            "convex/_generated": path.resolve(
+              process.cwd(),
+              "convex/_generated"
+            ),
+          },
+        },
+      },
+      {
+        test: {
+          name: "edge",
+          include: ["convex/**/*.test.ts"],
+          environment: "edge-runtime",
+          setupFiles: ["./src/test/setup.ts"],
+          globals: true,
+        },
+        resolve: {
+          alias: {
+            "@": path.resolve(process.cwd(), "src"),
+            "@convex": path.resolve(process.cwd(), "convex"),
+            "@shared": path.resolve(process.cwd(), "shared"),
+            "convex/_generated": path.resolve(
+              process.cwd(),
+              "convex/_generated"
+            ),
+          },
+        },
+      },
+    ],
   },
 });

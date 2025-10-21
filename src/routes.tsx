@@ -1,3 +1,5 @@
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router";
 import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
@@ -18,6 +20,7 @@ const AuthPage = lazy(() => import("./pages/AuthPage"));
 import { RouteErrorBoundary } from "./components/layouts/RouteErrorBoundary";
 // Prefer eager import for critical error/404 UI so offline navigation has a guard
 import { NotFoundPage } from "./components/ui/not-found-page";
+import { getConvexClient } from "./providers/convex-provider";
 
 const SharePage = lazy(() => import("./pages/SharedConversationPage"));
 const SettingsLayout = lazy(
@@ -86,8 +89,43 @@ export const preloadSettings = () => {
 export const preloadAuth = () => {
   import("./pages/AuthPage");
 };
-export const preloadChatConversation = () => {
+export const preloadChatConversation = (conversationId?: string) => {
   import("./pages/ChatConversationPage");
+
+  if (!conversationId) {
+    return;
+  }
+
+  try {
+    const client = getConvexClient();
+    const id = conversationId as Id<"conversations">;
+    void Promise.all([
+      client.query(api.conversations.getWithAccessInfo, { id }).catch(() => {
+        /* ignore preload errors */
+      }),
+      client.query(api.messages.list, { conversationId: id }).catch(() => {
+        /* ignore preload errors */
+      }),
+      client
+        .query(api.messages.getLastUsedModel, {
+          conversationId: id,
+        })
+        .catch(() => {
+          /* ignore preload errors */
+        }),
+      client
+        .query(api.conversations.isStreaming, {
+          conversationId: id,
+        })
+        .catch(() => {
+          /* ignore preload errors */
+        }),
+    ]);
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.warn("Failed to preload conversation data", error);
+    }
+  }
 };
 
 export const routes: RouteObject[] = [

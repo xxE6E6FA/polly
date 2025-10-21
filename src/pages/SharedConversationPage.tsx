@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
@@ -36,17 +36,13 @@ export default function SharedConversationPage() {
     shareId ? { shareId } : "skip"
   );
 
-  const sharedTitle = sharedData?.conversation?.title as string | undefined;
-
-  useEffect(() => {
-    if (sharedTitle && sharedTitle !== document.title) {
-      document.title = sharedTitle;
+  const pageTitle = useMemo(() => {
+    const title = sharedData?.conversation?.title;
+    if (typeof title === "string" && title.trim().length > 0) {
+      return title;
     }
-
-    return () => {
-      document.title = "Polly";
-    };
-  }, [sharedTitle]);
+    return "Polly";
+  }, [sharedData?.conversation?.title]);
 
   if (!shareId) {
     return <NotFoundPage />;
@@ -99,74 +95,77 @@ export default function SharedConversationPage() {
   const allMessages = [notificationMessage, ...chatMessages];
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col bg-background">
-      <div className="border-b bg-muted/30">
-        <div className="mx-auto max-w-5xl px-4 sm:px-8">
-          <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:py-4">
-            <div className="flex w-full flex-col items-center gap-2 text-center sm:flex-1 sm:flex-row sm:items-center sm:gap-3 sm:text-left">
-              <Link
-                to={ROUTES.HOME}
-                className="group flex items-center gap-2 text-foreground"
-                aria-label="Go to Polly home"
-              >
-                <span
-                  className="polly-logo-gradient-unified h-7 w-7 shrink-0 sm:h-8 sm:w-8"
-                  style={logoMaskStyle}
-                  aria-hidden="true"
+    <>
+      <title>{pageTitle}</title>
+      <div className="flex min-h-[100dvh] w-full flex-col bg-background">
+        <div className="border-b bg-muted/30">
+          <div className="mx-auto max-w-5xl px-4 sm:px-8">
+            <div className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:py-4">
+              <div className="flex w-full flex-col items-center gap-2 text-center sm:flex-1 sm:flex-row sm:items-center sm:gap-3 sm:text-left">
+                <Link
+                  to={ROUTES.HOME}
+                  className="group flex items-center gap-2 text-foreground"
+                  aria-label="Go to Polly home"
+                >
+                  <span
+                    className="polly-logo-gradient-unified h-7 w-7 shrink-0 sm:h-8 sm:w-8"
+                    style={logoMaskStyle}
+                    aria-hidden="true"
+                  />
+                  <span className="polly-logo-text-unified text-lg font-semibold leading-none">
+                    Polly
+                  </span>
+                </Link>
+
+                <div className="hidden h-5 w-px flex-shrink-0 bg-border sm:block" />
+
+                <h1 className="min-w-0 truncate text-sm font-medium text-foreground sm:text-base">
+                  {conversation.title || "Shared Conversation"}
+                </h1>
+              </div>
+
+              <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
+                <ThemeToggle
+                  className="h-9 w-9 rounded-lg sm:h-8 sm:w-8"
+                  size="icon-sm"
                 />
-                <span className="polly-logo-text-unified text-lg font-semibold leading-none">
-                  Polly
-                </span>
-              </Link>
-
-              <div className="hidden h-5 w-px flex-shrink-0 bg-border sm:block" />
-
-              <h1 className="min-w-0 truncate text-sm font-medium text-foreground sm:text-base">
-                {conversation.title || "Shared Conversation"}
-              </h1>
-            </div>
-
-            <div className="flex w-full items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
-              <ThemeToggle
-                className="h-9 w-9 rounded-lg sm:h-8 sm:w-8"
-                size="icon-sm"
-              />
-              <Button
-                asChild
-                size="sm"
-                variant="primary"
-                className="w-full sm:w-auto sm:px-4"
-              >
-                <Link to={ROUTES.HOME}>Try the app</Link>
-              </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="primary"
+                  className="w-full sm:w-auto sm:px-4"
+                >
+                  <Link to={ROUTES.HOME}>Try the app</Link>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex flex-1 min-h-0 flex-col bg-background">
-        <section className="relative flex min-h-0 flex-1">
-          <div className="relative flex flex-1 min-h-0">
-            <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-              {chatMessages.length === 0 ? (
-                <div className="flex flex-1 items-center justify-center px-6">
-                  <p className="text-sm text-muted-foreground">
-                    No messages in this conversation
-                  </p>
-                </div>
-              ) : (
-                <VirtualizedChatMessages
-                  messages={allMessages}
-                  isStreaming={false}
-                  scrollElement={null}
-                  shouldScrollToBottom={false}
-                />
-              )}
+        <div className="flex flex-1 min-h-0 flex-col bg-background">
+          <section className="relative flex min-h-0 flex-1">
+            <div className="relative flex flex-1 min-h-0">
+              <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
+                {chatMessages.length === 0 ? (
+                  <div className="flex flex-1 items-center justify-center px-6">
+                    <p className="text-sm text-muted-foreground">
+                      No messages in this conversation
+                    </p>
+                  </div>
+                ) : (
+                  <VirtualizedChatMessages
+                    messages={allMessages}
+                    isStreaming={false}
+                    scrollElement={null}
+                    shouldScrollToBottom={false}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -39,7 +39,7 @@ describe("useConversationPreload", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(preloadChatConversation).toHaveBeenCalled();
+    expect(preloadChatConversation).toHaveBeenCalledWith("c1");
     expect(query).toHaveBeenCalledTimes(4);
 
     const cached = result.current.getCachedData("c1" as Id<"conversations">);

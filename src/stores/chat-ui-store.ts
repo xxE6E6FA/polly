@@ -1,5 +1,6 @@
-import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { shallow } from "zustand/shallow";
+import { createWithEqualityFn } from "zustand/traditional";
 
 type ConversationId = string | null | undefined;
 
@@ -34,7 +35,7 @@ type ChatUIState = {
   clearHistory: (conversationId: ConversationId) => void;
 };
 
-export const useChatUIStore = create<ChatUIState>()(
+export const useChatUIStore = createWithEqualityFn<ChatUIState>()(
   devtools((set, get) => ({
     isFullscreen: false,
     isMultiline: false,
@@ -109,8 +110,14 @@ export const useChatUIStore = create<ChatUIState>()(
       delete idxMap[conversationId];
       set({ historyByConversation: map, historyIndexByConversation: idxMap });
     },
-  }))
+  })),
+  shallow
 );
+
+export const useChatUIState = <T>(
+  selector: (state: ChatUIState) => T,
+  equalityFn = shallow
+) => useChatUIStore(selector, equalityFn);
 
 export const useChatFullscreenUI = () => {
   return useChatUIStore(s => ({

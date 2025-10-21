@@ -1,5 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { create } from "zustand";
+import { shallow } from "zustand/shallow";
+import { createWithEqualityFn } from "zustand/traditional";
 
 type ConversationKey = string; // conversationId string or "global"
 
@@ -52,7 +53,7 @@ type ChatInputStore = ChatInputPersonaState &
     setReasoningConfig: (cfg: import("@/types").ReasoningConfig) => void;
   };
 
-export const useChatInputStore = create<
+export const useChatInputStore = createWithEqualityFn<
   ChatInputStore & {
     attachmentsByKey: Record<ConversationKey, import("@/types").Attachment[]>;
     setAttachments: (
@@ -65,82 +66,85 @@ export const useChatInputStore = create<
     ) => void;
     clearAttachmentsKey: (key: ConversationKey) => void;
   }
->(set => ({
-  // Models slice
-  selectedModel: null,
-  setSelectedModel: model => set({ selectedModel: model }),
+>()(
+  (set, get) => ({
+    // Models slice
+    selectedModel: null,
+    setSelectedModel: model => set({ selectedModel: model }),
 
-  // Generation & image params
-  generationMode: "text",
-  imageParams: { prompt: "", model: "" },
-  negativePromptEnabled: false,
-  setGenerationMode: mode => set({ generationMode: mode }),
-  setImageParams: value =>
-    set(state => ({
-      imageParams:
-        typeof value === "function"
-          ? (
-              value as (
-                prev: import("@/types").ImageGenerationParams
-              ) => import("@/types").ImageGenerationParams
-            )(state.imageParams)
-          : value,
-    })),
-  setNegativePromptEnabled: enabled => set({ negativePromptEnabled: enabled }),
+    // Generation & image params
+    generationMode: "text",
+    imageParams: { prompt: "", model: "" },
+    negativePromptEnabled: false,
+    setGenerationMode: mode => set({ generationMode: mode }),
+    setImageParams: value =>
+      set(state => ({
+        imageParams:
+          typeof value === "function"
+            ? (
+                value as (
+                  prev: import("@/types").ImageGenerationParams
+                ) => import("@/types").ImageGenerationParams
+              )(state.imageParams)
+            : value,
+      })),
+    setNegativePromptEnabled: enabled =>
+      set({ negativePromptEnabled: enabled }),
 
-  // Reasoning
-  reasoningConfig: { enabled: false },
-  setReasoningConfig: cfg => set({ reasoningConfig: cfg }),
+    // Reasoning
+    reasoningConfig: { enabled: false },
+    setReasoningConfig: cfg => set({ reasoningConfig: cfg }),
 
-  // Persona slice
-  selectedByKey: {},
-  setSelectedPersonaId: (key, id) =>
-    set(state => {
-      if (state.selectedByKey[key] === id) {
-        return state;
+    // Persona slice
+    selectedByKey: {},
+    setSelectedPersonaId: (key, id) => {
+      const current = get().selectedByKey[key];
+      if (current === id) {
+        return;
       }
-      return { selectedByKey: { ...state.selectedByKey, [key]: id } };
-    }),
-  clearKey: key =>
-    set(state => {
-      const next = { ...state.selectedByKey };
-      delete next[key];
-      return { selectedByKey: next };
-    }),
-  clearAll: () => set({ selectedByKey: {} }),
+      set(state => ({ selectedByKey: { ...state.selectedByKey, [key]: id } }));
+    },
+    clearKey: key =>
+      set(state => {
+        const next = { ...state.selectedByKey };
+        delete next[key];
+        return { selectedByKey: next };
+      }),
+    clearAll: () => set({ selectedByKey: {} }),
 
-  // Temperature slice
-  temperatureByKey: {},
-  setTemperature: (key, value) =>
-    set(state => {
-      if (state.temperatureByKey[key] === value) {
-        return state;
+    // Temperature slice
+    temperatureByKey: {},
+    setTemperature: (key, value) => {
+      const current = get().temperatureByKey[key];
+      if (current === value) {
+        return;
       }
-      return { temperatureByKey: { ...state.temperatureByKey, [key]: value } };
-    }),
-  clearTemperatureKey: key =>
-    set(state => {
-      const next = { ...state.temperatureByKey };
-      delete next[key];
-      return { temperatureByKey: next };
-    }),
-  clearAllTemperature: () => set({ temperatureByKey: {} }),
+      set(state => ({
+        temperatureByKey: { ...state.temperatureByKey, [key]: value },
+      }));
+    },
+    clearTemperatureKey: key =>
+      set(state => {
+        const next = { ...state.temperatureByKey };
+        delete next[key];
+        return { temperatureByKey: next };
+      }),
+    clearAllTemperature: () => set({ temperatureByKey: {} }),
 
-  // Attachments slice
-  attachmentsByKey: {} as Record<
-    ConversationKey,
-    import("@/types").Attachment[]
-  >,
-  setAttachments: (
-    key: ConversationKey,
-    value:
-      | import("@/types").Attachment[]
-      | ((
-          prev: import("@/types").Attachment[]
-        ) => import("@/types").Attachment[])
-  ) =>
-    set(state => {
-      const prev = state.attachmentsByKey[key] ?? [];
+    // Attachments slice
+    attachmentsByKey: {} as Record<
+      ConversationKey,
+      import("@/types").Attachment[]
+    >,
+    setAttachments: (
+      key: ConversationKey,
+      value:
+        | import("@/types").Attachment[]
+        | ((
+            prev: import("@/types").Attachment[]
+          ) => import("@/types").Attachment[])
+    ) => {
+      const prev = get().attachmentsByKey[key] ?? [];
       const next =
         typeof value === "function"
           ? (
@@ -150,7 +154,7 @@ export const useChatInputStore = create<
             )(prev)
           : value;
       if (prev === next) {
-        return state;
+        return;
       }
       if (
         Array.isArray(prev) &&
@@ -158,19 +162,21 @@ export const useChatInputStore = create<
         prev.length === next.length &&
         prev.every((item, i) => item === next[i])
       ) {
-        return state;
+        return;
       }
-      return {
+      set(state => ({
         attachmentsByKey: { ...state.attachmentsByKey, [key]: next },
-      };
-    }),
-  clearAttachmentsKey: (key: ConversationKey) =>
-    set(state => {
-      const next = { ...state.attachmentsByKey };
-      delete next[key];
-      return { attachmentsByKey: next };
-    }),
-}));
+      }));
+    },
+    clearAttachmentsKey: (key: ConversationKey) =>
+      set(state => {
+        const next = { ...state.attachmentsByKey };
+        delete next[key];
+        return { attachmentsByKey: next };
+      }),
+  }),
+  shallow
+);
 
 export function makeChatInputKey(
   conversationId?: string,
