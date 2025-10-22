@@ -43,6 +43,26 @@ vi.mock("@/hooks/use-conversation-model-override", () => ({
   useConversationModelOverride: () => ({}),
 }));
 
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual("react-router");
+  return {
+    ...actual,
+    useLoaderData: () => ({
+      conversationAccessInfo: {
+        hasAccess: true,
+        isDeleted: false,
+        conversation: {
+          isArchived: false,
+          title: "Conversation",
+        },
+      },
+      messages: [],
+      lastUsedModel: null,
+      streamingStatus: false,
+    }),
+  };
+});
+
 vi.mock("@/hooks/use-online", () => ({ useOnline: () => true }));
 
 vi.mock("@/providers/private-mode-context", () => ({
