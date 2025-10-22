@@ -1,0 +1,220 @@
+---
+description: Common patterns and utilities used throughout the codebase
+globs: ["src/**/*.tsx", "src/**/*.ts"]
+---
+
+# Common Patterns & Utilities
+
+## Component Patterns
+
+### Memoization Usage
+- **Use `memo()`**: For components that receive stable props but render frequently
+- **Use `useCallback()`**: For event handlers passed to child components
+- **Use `useMemo()`**: For expensive calculations or object creation
+- **Avoid Over-memoization**: Only memoize when there's a clear performance benefit
+
+### Error Boundaries
+- **Class Components**: Error boundaries must be class components (React requirement)
+- **Higher-Order Components**: Use `withErrorBoundary()` wrapper for functional components
+- **Fallback UI**: Provide meaningful fallback UI for error states
+
+### Context Usage
+- **Provider Pattern**: Wrap components with context providers
+- **Custom Hooks**: Create custom hooks to consume context (`usePrivateMode`, `useChatScopedState`)
+- **Context Splitting**: Split contexts to avoid unnecessary re-renders
+
+### Effect Guidelines
+Based on [React's official guidance](https://react.dev/learn/you-might-not-need-an-effect):
+
+#### When NOT to Use Effects
+- **Don't transform data for rendering**: Calculate derived values during render instead of using Effects
+- **Don't handle user events**: Use event handlers instead of Effects for user interactions  
+- **Don't update state based on props/state**: Calculate during render or use `useMemo` for expensive calculations
+
+#### When to Use Effects
+- **Synchronizing with external systems**: APIs, DOM manipulation, third-party libraries
+- **Data fetching**: When you need to fetch data based on props/state changes
+- **Subscriptions**: WebSocket connections, event listeners, timers
+- **Cleanup operations**: Always provide cleanup functions for subscriptions
+
+#### Effect Best Practices
+- **Always provide cleanup**: For subscriptions, timers, and async operations
+- **Avoid race conditions**: Use cleanup functions in data fetching Effects
+- **Calculate during render**: If something can be calculated from existing props/state, don't put it in state
+- **Use useMemo for expensive calculations**: Cache expensive computations instead of using Effects
+
+## Utility Patterns
+
+### Class Variance Authority (CVA)
+- **Component Variants**: Use CVA for complex component styling variants
+- **Type Safety**: Leverage `VariantProps` for proper TypeScript support
+- **Consistent API**: Follow established patterns from shadcn/ui components
+
+```typescript
+// ✅ Good CVA usage (from button.tsx)
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[.98] active:shadow-sm",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
+        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:bg-destructive/90",
+        outline: "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+        // ... more variants
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-5",
+        // ... more sizes
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+);
+```
+
+### Conditional Rendering
+- **Early Returns**: Use early returns for loading and error states
+- **Ternary Operators**: Use for simple boolean conditions
+- **Logical AND**: Use `&&` for conditional rendering
+- **Avoid Nested Ternaries**: Break complex conditions into separate components
+
+### State Management
+- **Local State**: Use `useState` for component-local state
+- **Derived State**: Use `useMemo` for computed values
+- **State Lifting**: Lift state up when needed for sharing
+- **Context for Global State**: Use React context for app-wide state
+
+## File Organization
+
+### Component Structure
+- **Index Files**: Use `index.tsx` for main component exports
+- **Sub-components**: Place related components in subdirectories
+- **Hooks**: Extract custom hooks to separate files when reused
+- **Types**: Define component types in the same file or separate type files
+
+### Import Patterns
+- **External Libraries**: Import from external packages first
+- **Internal Aliases**: Use `@/` for internal imports
+- **Relative Imports**: Use for closely related files
+- **Type Imports**: Use `import type` for type-only imports
+
+## Performance Patterns
+
+### Virtualization
+- **Large Lists**: Use virtual scrolling for large datasets
+- **Window Scrolling**: Implement window-based rendering
+- **Dynamic Heights**: Handle variable height items properly
+
+### Lazy Loading
+- **Route Components**: Use `React.lazy()` for route-based code splitting
+- **Heavy Components**: Lazy load components that aren't immediately needed
+- **Suspense Boundaries**: Wrap lazy components with Suspense
+
+### Image Optimization
+- **Lazy Loading**: Implement lazy loading for images
+- **Responsive Images**: Use appropriate image sizes
+- **Format Optimization**: Use modern formats when supported
+
+## Accessibility Patterns
+
+### Focus Management
+- **Focus Traps**: Implement focus traps for modals and dialogs
+- **Focus Restoration**: Restore focus after closing modals
+- **Keyboard Navigation**: Ensure all interactive elements are keyboard accessible
+
+### ARIA Patterns
+- **Labels**: Use proper labels for form inputs
+- **Roles**: Use semantic HTML elements and ARIA roles
+- **States**: Communicate component states to screen readers
+
+## Examples
+
+### Good Component Structure
+```tsx
+// ✅ Well-structured component with proper patterns
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+interface ComponentProps {
+  id: string;
+  onUpdate?: (data: any) => void;
+  className?: string;
+}
+
+export const Component = memo(({ id, onUpdate, className }: ComponentProps) => {
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Memoized calculations
+  const processedData = useMemo(() => {
+    return data ? processData(data) : null;
+  }, [data]);
+
+  // Stable callbacks
+  const handleUpdate = useCallback((newData: any) => {
+    setData(newData);
+    onUpdate?.(newData);
+  }, [onUpdate]);
+
+  // Effects with proper dependencies
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const result = await fetchComponentData(id);
+        setData(result);
+      } catch (error) {
+        console.error("Failed to fetch data", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  // Early returns for loading/error states
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!data) {
+    return <div>No data available</div>;
+  }
+
+  return (
+    <div className={cn("stack-md", className)}>
+      <h2>{processedData?.title}</h2>
+      <Button onClick={() => handleUpdate(processedData)}>
+        Update
+      </Button>
+    </div>
+  );
+});
+```
+
+### Anti-Patterns to Avoid
+```tsx
+// ❌ Bad patterns
+export function BadComponent({ id }) { // Missing types
+  const [data, setData] = useState(null);
+  
+  // ❌ Function in component causing re-renders
+  const processData = (rawData) => {
+    return rawData.map(item => item.value * 2);
+  };
+  
+  // ❌ Missing dependencies
+  useEffect(() => {
+    fetchData(id);
+  }, []); // Missing id dependency
+  
+  // ❌ Nested ternaries
+  return data ? data.length > 0 ? <div>{data.map(item => <span key={item.id}>{item.name}</span>)}</div> : <div>No items</div> : <div>Loading</div>;
+}
+```

@@ -1,0 +1,207 @@
+---
+description: Vitest testing patterns and utilities
+globs: ["**/*.test.ts", "**/*.test.tsx"]
+---
+
+# Testing Guidelines (Vitest)
+
+## Test Structure
+- **Location**: Place tests near implementation files (`*.test.ts`, `*.test.tsx`)
+- **Naming**: Use descriptive test names that explain the scenario
+- **Organization**: Group related tests with `describe` blocks
+
+## Test Utilities
+- **Import from `src/test/utils.ts`**: Use provided test utilities
+- **Mock Helpers**: Leverage existing mock functions
+- **Environment Setup**: Tests run in `jsdom` for src/shared, `edge-runtime` for convex
+
+## Key Test Utilities
+
+### Streaming Tests
+```typescript
+import { makeNdjsonStream, mockFetchNDJSON, flushAll } from "@/test/utils";
+
+// Mock NDJSON streaming
+const mockStream = mockFetchNDJSON([
+  { type: "chunk", data: "Hello" },
+  { type: "chunk", data: " World" },
+  { type: "done" }
+]);
+
+// Create NDJSON stream
+const stream = makeNdjsonStream([
+  '{"message": "test"}',
+  '{"message": "test2"}'
+]);
+```
+
+### Additional Utilities Available
+- `mockGlobalFetchOnce()` - One-shot fetch mock
+- `mockGlobalFetchSequence()` - Multiple fetch responses
+- `withMockedURLObjectURL()` - URL object mocking
+- `stubAnchorClicks()` - Anchor click stubbing
+- `installFileReaderDataURLMock()` - FileReader mocking
+- `installImageMock()` - Image loading mocking
+- `installCanvasMock()` - Canvas context mocking
+- `makeFileList()` - FileList construction
+- `createOverlaysMock()` - Stream overlays mocking
+- `withFakeTimers()` - Timer mocking helper
+
+### Timer Tests
+```typescript
+import { withFakeTimers, flushAll } from "@/test/utils";
+
+test("handles timers correctly", async () => {
+  await withFakeTimers(async () => {
+    // Test code with timers
+    const promise = someAsyncFunction();
+    
+    // Advance timers
+    await flushAll({ timersMs: 1000 });
+    
+    const result = await promise;
+    expect(result).toBeDefined();
+  });
+});
+```
+
+### File Upload Tests
+```typescript
+import { makeFileList, installFileReaderMock } from "@/test/utils";
+
+test("handles file uploads", async () => {
+  installFileReaderMock();
+  
+  const files = [
+    new File(["content"], "test.txt", { type: "text/plain" })
+  ];
+  const fileList = makeFileList(files);
+  
+  // Test file handling
+  expect(fileList.length).toBe(1);
+});
+```
+
+### Convex/Overlays Mocking
+```typescript
+import { createOverlaysMock } from "@/test/utils";
+
+// Mock overlays store
+const { overlays, factory } = createOverlaysMock();
+vi.mock("@/stores/stream-overlays", () => factory);
+```
+
+## Test Patterns
+
+### Component Testing
+```typescript
+import { render, screen, fireEvent } from "@testing-library/react";
+import { UserProfile } from "./UserProfile";
+
+test("renders user profile correctly", () => {
+  const mockUser = { id: "1", name: "John Doe", email: "john@example.com" };
+  
+  render(<UserProfile user={mockUser} />);
+  
+  expect(screen.getByText("John Doe")).toBeInTheDocument();
+  expect(screen.getByText("john@example.com")).toBeInTheDocument();
+});
+
+test("handles user update", async () => {
+  const mockOnUpdate = vi.fn();
+  const mockUser = { id: "1", name: "John Doe" };
+  
+  render(<UserProfile user={mockUser} onUpdate={mockOnUpdate} />);
+  
+  fireEvent.click(screen.getByRole("button", { name: /update/i }));
+  
+  expect(mockOnUpdate).toHaveBeenCalledWith(mockUser);
+});
+```
+
+### Hook Testing
+```typescript
+import { renderHook, act } from "@testing-library/react";
+import { useUserData } from "./useUserData";
+
+test("fetches user data on mount", async () => {
+  const mockFetch = vi.fn().mockResolvedValue({
+    json: () => Promise.resolve({ id: "1", name: "John" })
+  });
+  global.fetch = mockFetch;
+  
+  const { result } = renderHook(() => useUserData("1"));
+  
+  await act(async () => {
+    await flushAll({ microtasks: 1 });
+  });
+  
+  expect(result.current.user).toEqual({ id: "1", name: "John" });
+  expect(mockFetch).toHaveBeenCalledWith("/api/users/1");
+});
+```
+
+### Convex Function Testing
+```typescript
+import { ConvexTestingHelper } from "convex/testing";
+import { api } from "@convex/_generated/api";
+
+test("creates user successfully", async () => {
+  const t = ConvexTestingHelper();
+  
+  const userId = await t.mutation(api.users.create, {
+    name: "John Doe",
+    email: "john@example.com"
+  });
+  
+  const user = await t.query(api.users.get, { id: userId });
+  expect(user).toEqual({
+    _id: userId,
+    name: "John Doe",
+    email: "john@example.com"
+  });
+});
+```
+
+## Mock Patterns
+
+### Module Mocking
+```typescript
+// Mock at module scope before imports
+vi.mock("@/lib/api", () => ({
+  fetchUser: vi.fn().mockResolvedValue({ id: "1", name: "John" })
+}));
+
+// Dynamic import in factory (for complex mocks)
+vi.mock("@/stores/stream-overlays", async () => {
+  const { createOverlaysMock } = await import("../../test/utils");
+  return createOverlaysMock().factory;
+});
+```
+
+### Global Mocking
+```typescript
+import { mockGlobalFetchOnce, mockGlobalFetchSequence } from "@/test/utils";
+
+// One-shot fetch mock
+mockGlobalFetchOnce({ json: () => Promise.resolve({ data: "test" }) });
+
+// Multiple fetch responses
+mockGlobalFetchSequence([
+  { json: () => Promise.resolve({ data: "first" }) },
+  { json: () => Promise.resolve({ data: "second" }) }
+]);
+```
+
+## Best Practices
+- **Deterministic Tests**: Avoid network calls and file system operations
+- **Pure Functions**: Test pure utility functions extensively
+- **Mock External Dependencies**: Mock APIs, databases, and external services
+- **Test Edge Cases**: Include error conditions and boundary cases
+- **Fast Tests**: Keep tests fast and focused
+- **Clear Assertions**: Use descriptive assertions and error messages
+
+## Coverage Requirements
+- **100% Coverage**: Lines, functions, branches, and statements
+- **Run Coverage**: `pnpm coverage` locally, `pnpm coverage:ci` in CI
+- **Thresholds**: Defined in `vitest.config.ts` with strict requirements

@@ -1,0 +1,65 @@
+---
+description: Core code style and formatting standards
+alwaysApply: true
+---
+
+# Code Style & Formatting
+
+## Biome Configuration
+- **Indentation**: 2 spaces (not tabs)
+- **Line Width**: 80 characters maximum
+- **Quotes**: Double quotes for strings
+- **Semicolons**: Always required
+- **Trailing Commas**: ES5 style
+
+## Naming Conventions
+- **Functions/Variables**: camelCase (`getUserData`, `isLoading`)
+- **Components/Types**: PascalCase (`UserProfile`, `ApiResponse`)
+- **Constants**: CONSTANT_CASE (`API_BASE_URL`, `MAX_RETRIES`)
+- **Files**: kebab-case for components (`user-profile.tsx`), camelCase for utilities (`userUtils.ts`)
+
+## TypeScript Standards
+- **Strict Mode**: Always enabled
+- **No `any` Types**: Use proper typing or `unknown` with type guards
+- **Type Imports**: Use `import type` for type-only imports
+- **Optional Chaining**: Prefer `?.` over manual null checks
+- **Exhaustive Dependencies**: All useEffect dependencies must be declared
+
+## Import Organization
+- **Aliases**: Use `@/` for src imports, `@convex/` for convex, `@shared/` for shared
+- **Order**: External packages → Internal aliases → Relative imports
+- **Auto-organize**: Run `pnpm check:write` to auto-organize imports
+
+## Code Quality
+- **No Console**: Use `log.*` from `convex/lib/logger` in backend (console blocked by lint)
+- **Error Handling**: Proper try/catch with meaningful error messages
+- **Comments**: Only for complex logic, not obvious code
+- **DRY Principle**: Avoid duplicate logic, extract reusable functions
+- **React Hooks Rules**: Follow Rules of Hooks (enforced by Biome ESLint plugin)
+- **Exhaustive Dependencies**: All useEffect dependencies must be declared (enforced by Biome)
+
+## Examples
+
+```typescript
+// ✅ Good
+import type { User } from "@/types";
+import { log } from "@convex/lib/logger";
+import { Button } from "@/components/ui/button";
+
+const getUserData = async (userId: string): Promise<User | null> => {
+  try {
+    const response = await fetch(`/api/users/${userId}`);
+    return await response.json();
+  } catch (error) {
+    log.error("Failed to fetch user data", { userId, error });
+    return null;
+  }
+};
+
+// ❌ Bad
+import { User } from "@/types"; // Should be type import
+console.log("Debug info"); // Use log instead
+const getUserData = async (userId: string) => { // Missing return type
+  // ...
+};
+```

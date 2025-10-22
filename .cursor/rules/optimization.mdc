@@ -1,0 +1,191 @@
+---
+description: Performance optimization guidelines and best practices
+---
+
+# Performance & Optimization Guidelines
+
+## React Performance
+
+### Component Optimization
+- **Avoid Functions in Components**: Don't define functions inside components that cause re-renders
+- **Memoization**: Use `useMemo` and `useCallback` only when necessary (avoid premature optimization)
+- **Component Splitting**: Break down large components (>200 lines) into smaller, focused ones
+- **Key Props**: Use stable, unique keys for list items (never array indices)
+
+### State Management
+- **Local State First**: Use `useState` for component-local state
+- **Context Optimization**: Split contexts to avoid unnecessary re-renders
+- **State Lifting**: Lift state up only when needed for sharing
+- **Avoid Prop Drilling**: Use context or state management for deep prop passing
+
+### Custom Hooks
+- **Single Responsibility**: One hook per concern
+- **Reusability**: Only create custom hooks when logic is reused in multiple places
+- **Performance**: Avoid expensive operations in custom hooks
+- **Dependencies**: Properly declare all dependencies in useEffect
+
+## Bundle Optimization
+
+### Code Splitting
+- **Route-based**: Use React.lazy for route components
+- **Component-based**: Dynamic imports for large components
+- **Vendor Splitting**: Separate vendor chunks for better caching
+
+### Import Optimization
+- **Tree Shaking**: Use named imports instead of default imports where possible
+- **Dynamic Imports**: Load heavy dependencies on demand
+- **Bundle Analysis**: Monitor bundle size with `pnpm build:analyze`
+
+## Data Loading
+
+### Pagination
+- **Never Load All**: Don't fetch large datasets (1000+ items) at once
+- **Implement Pagination**: Use Convex pagination patterns
+- **Virtual Scrolling**: For large lists, use virtualization
+- **Infinite Scroll**: Implement infinite loading for better UX
+
+### Caching
+- **Convex Caching**: Leverage Convex's built-in caching
+- **React Query**: Use for complex data fetching patterns
+- **Local Storage**: Cache user preferences and settings
+- **Service Worker**: Cache static assets for offline support
+
+## Rendering Optimization
+
+### List Rendering
+- **Virtualization**: Use virtual scrolling for large lists
+- **Window Scrolling**: Implement window-based rendering
+- **Key Optimization**: Use stable keys for list items
+
+### Image Optimization
+- **Lazy Loading**: Implement lazy loading for images
+- **Responsive Images**: Use appropriate image sizes
+- **Format Optimization**: Use modern formats (WebP, AVIF) when supported
+
+## Memory Management
+
+### Event Listeners
+- **Cleanup**: Always remove event listeners in useEffect cleanup
+- **Passive Listeners**: Use passive listeners for scroll/touch events
+- **Debouncing**: Debounce expensive operations
+
+### Object References
+- **Stable References**: Use stable object references to prevent re-renders
+- **Memoization**: Cache expensive calculations
+- **Garbage Collection**: Avoid memory leaks with proper cleanup
+
+## Network Optimization
+
+### API Calls
+- **Batching**: Batch multiple API calls when possible
+- **Debouncing**: Debounce user input for search/autocomplete
+- **Retry Logic**: Implement exponential backoff for failed requests
+- **Offline Support**: Handle offline scenarios gracefully
+
+### Streaming
+- **Progressive Loading**: Use streaming for large responses
+- **Chunk Processing**: Process data in chunks to avoid blocking
+- **Error Recovery**: Handle streaming errors gracefully
+
+## Performance Monitoring
+
+### Metrics to Track
+- **Core Web Vitals**: LCP, FID, CLS
+- **Bundle Size**: Monitor JavaScript bundle size
+- **Memory Usage**: Track memory consumption
+- **Network Performance**: Monitor API response times
+
+### Tools
+- **React DevTools**: Use Profiler for component performance
+- **Chrome DevTools**: Monitor performance and memory
+- **Bundle Analyzer**: Analyze bundle composition
+- **Lighthouse**: Regular performance audits
+
+## Anti-Patterns to Avoid
+
+### Premature Optimization
+- **Don't Optimize Early**: Only optimize when there's a clear performance issue
+- **Measure First**: Profile before optimizing
+- **Simple Solutions**: Prefer simple solutions over complex optimizations
+
+### Common Mistakes
+- **Unnecessary Re-renders**: Avoid functions in JSX that cause re-renders
+- **Memory Leaks**: Clean up subscriptions and event listeners
+- **Blocking Operations**: Don't block the main thread with heavy computations
+- **Over-fetching**: Don't fetch more data than needed
+
+## Examples
+
+### Good Performance Patterns
+```tsx
+// ✅ Stable references
+const UserList = ({ users }: { users: User[] }) => {
+  const stableUsers = useMemo(() => users, [users]);
+  
+  return (
+    <VirtualizedList
+      items={stableUsers}
+      renderItem={({ item }) => <UserCard user={item} />}
+    />
+  );
+};
+
+// ✅ Proper cleanup
+const useWebSocket = (url: string) => {
+  useEffect(() => {
+    const ws = new WebSocket(url);
+    
+    return () => {
+      ws.close(); // Cleanup
+    };
+  }, [url]);
+};
+
+// ✅ Debounced search
+const useSearch = (query: string) => {
+  const [results, setResults] = useState([]);
+  
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query) {
+        searchUsers(query).then(setResults);
+      }
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [query]);
+  
+  return results;
+};
+```
+
+### Performance Anti-Patterns
+```tsx
+// ❌ Function in component causing re-renders
+const BadComponent = ({ items }) => {
+  const processItems = () => { // This recreates on every render
+    return items.map(item => item.value * 2);
+  };
+  
+  return <div>{processItems().join(', ')}</div>;
+};
+
+// ❌ Missing cleanup
+const BadWebSocket = (url: string) => {
+  useEffect(() => {
+    const ws = new WebSocket(url);
+    // Missing cleanup - memory leak!
+  }, [url]);
+};
+
+// ❌ Unnecessary re-renders
+const BadList = ({ users }) => {
+  return (
+    <div>
+      {users.map((user, index) => (
+        <UserCard key={index} user={user} /> // Using index as key
+      ))}
+    </div>
+  );
+};
+```
