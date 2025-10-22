@@ -1,0 +1,51 @@
+---
+description: Package management and build commands
+alwaysApply: true
+---
+
+# Package Management & Build Commands
+
+## Package Manager
+- **Always use pnpm**: Never use npm or yarn
+- **Install**: `pnpm install` for dependencies
+- **Add Package**: `pnpm add <package>` for new dependencies
+- **Dev Dependencies**: `pnpm add -D <package>` for dev-only packages
+
+## Build Commands
+- **NEVER run `pnpm build`**: This triggers Convex deploy requiring user interaction
+- **Frontend Build**: Use `npx vite build` for frontend-only builds
+- **NEVER run `pnpm dev`**: User will run development servers themselves
+- **Convex Dev**: `npx convex dev` (run in separate terminal)
+
+## Development Workflow
+- **Backend**: `npx convex dev` (terminal A)
+- **Frontend**: `pnpm dev` (terminal B)
+- **Full Check**: `pnpm check` (lint + typecheck + build)
+- **Auto-fix**: `pnpm check:write` (fixes linting and organizes imports)
+
+## Code Quality Commands
+- **Lint**: `pnpm lint` (report only) or `pnpm lint:fix` (auto-fix)
+- **Format**: `pnpm format` (write) or `pnpm format:check` (check only)
+- **Type Check**: `pnpm typecheck` (TypeScript validation)
+- **Test**: `pnpm test` (watch mode) or `pnpm test:ci` (CI mode)
+
+## Database Management
+- **Clear DB**: `pnpm clear-db` (development only)
+- **Clear Auth**: `pnpm clear-auth` (auth tables only)
+
+## Examples
+
+```bash
+# ✅ Correct workflow
+pnpm install
+npx convex dev  # Terminal A
+pnpm dev        # Terminal B
+
+# ✅ Build commands
+npx vite build  # Frontend only
+pnpm check:write  # Auto-fix all issues
+
+# ❌ Never run these
+pnpm build      # Triggers Convex deploy
+pnpm dev        # User manages dev servers
+```
