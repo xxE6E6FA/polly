@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useEffect, useMemo } from "react";
-import { useConversationPreload } from "@/hooks/use-conversation-preload";
 import {
   getCachedConversations,
   setCachedConversations,
@@ -20,7 +19,6 @@ export const ConversationList = ({
   currentConversationId,
 }: ConversationListProps) => {
   const { user } = useUserDataContext();
-  const { preloadConversation } = useConversationPreload();
   const userId = user?._id ? String(user._id) : undefined;
 
   const conversationDataRaw = useQuery(
@@ -64,23 +62,6 @@ export const ConversationList = ({
       setCachedConversations(userId, conversations);
     }
   }, [conversations, searchQuery, userId]);
-
-  // Preload the most recent conversations for faster navigation
-  useEffect(() => {
-    if (conversations && conversations.length > 0 && !searchQuery.trim()) {
-      // Preload the first 3 most recent conversations (excluding current one)
-      const conversationsToPreload = conversations
-        .filter(conv => conv._id !== currentConversationId)
-        .slice(0, 3);
-
-      conversationsToPreload.forEach(conversation => {
-        // Use a timeout to spread out the preloading and not block the UI
-        setTimeout(() => {
-          preloadConversation(conversation._id);
-        }, 100);
-      });
-    }
-  }, [conversations, searchQuery, currentConversationId, preloadConversation]);
 
   return (
     <ConversationListContent

@@ -198,7 +198,6 @@ export const UnifiedChatView = memo(
     } = useChatViewState({
       conversationId,
       messages,
-      isLoadingMessages,
       onDeleteMessage,
       onSendMessage,
     });
@@ -322,6 +321,14 @@ export const UnifiedChatView = memo(
     }, [evaluateScrollProximity, virtualizedMessagesRef]);
 
     const renderMessageArea = () => {
+      if (isLoadingMessages) {
+        const insetStyle = {
+          paddingTop: headerInset,
+          paddingBottom: footerInset,
+        };
+        return <div className="h-full w-full" style={insetStyle} />;
+      }
+
       if (isEmpty) {
         const insetStyle = {
           paddingTop: headerInset,

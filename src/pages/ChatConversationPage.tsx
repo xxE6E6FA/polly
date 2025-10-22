@@ -1,24 +1,143 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLoaderData, useNavigate, useParams } from "react-router";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { UnifiedChatView } from "@/components/unified-chat-view";
-import { useChat } from "@/hooks/use-chat";
+import { mapServerMessageToChatMessage, useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
 import { startAuthorStream } from "@/lib/ai/http-stream";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
+import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
+import { useChatInputStore } from "@/stores/chat-input-store";
 import { useStreamOverlays } from "@/stores/stream-overlays";
-import type { Attachment, ConversationId, ReasoningConfig } from "@/types";
+import type {
+  Attachment,
+  ChatMessage,
+  ConversationId,
+  ReasoningConfig,
+} from "@/types";
+
+type ConversationAccessInfo = {
+  hasAccess: boolean;
+  conversation?: {
+    title?: string | null;
+    personaId?: Id<"personas"> | null;
+    isArchived?: boolean | null;
+  } | null;
+  isDeleted?: boolean;
+} | null;
+
+type LastUsedModel = {
+  modelId: string;
+  provider: string;
+} | null;
+
+function normalizeConversationAccess(raw: unknown): ConversationAccessInfo {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const data = raw as {
+    hasAccess?: boolean;
+    conversation?: {
+      title?: string | null;
+      personaId?: Id<"personas"> | null;
+      isArchived?: boolean | null;
+    } | null;
+    isDeleted?: boolean;
+  };
+
+  if (typeof data.hasAccess !== "boolean") {
+    return null;
+  }
+
+  return {
+    hasAccess: data.hasAccess,
+    conversation: data.conversation ?? null,
+    isDeleted: data.isDeleted,
+  };
+}
+
+function normalizeMessagesResult(raw: unknown): ChatMessage[] {
+  if (!raw) {
+    return [];
+  }
+
+  let docs: Doc<"messages">[] = [];
+
+  if (Array.isArray(raw)) {
+    docs = raw as Doc<"messages">[];
+  } else if (
+    typeof raw === "object" &&
+    raw !== null &&
+    Array.isArray((raw as { page?: Doc<"messages">[] }).page)
+  ) {
+    docs = ((raw as { page?: Doc<"messages">[] }).page ??
+      []) as Doc<"messages">[];
+  }
+
+  return docs.map(doc => mapServerMessageToChatMessage(doc));
+}
+
+function normalizeLastUsedModel(raw: unknown): LastUsedModel {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const data = raw as { modelId?: string; provider?: string };
+  if (!(data.modelId && data.provider)) {
+    return null;
+  }
+  return {
+    modelId: data.modelId,
+    provider: data.provider,
+  };
+}
+
+function normalizeStreamingStatus(raw: unknown): boolean {
+  if (typeof raw === "boolean") {
+    return raw;
+  }
+  if (raw && typeof raw === "object" && "isStreaming" in raw) {
+    return Boolean((raw as { isStreaming?: boolean }).isStreaming);
+  }
+  return false;
+}
 
 export default function ConversationRoute() {
+  const loaderData = useLoaderData() as ConversationLoaderResult;
+
+  return (
+    <ConversationRouteContent
+      initialConversationAccessInfo={normalizeConversationAccess(
+        loaderData.conversationAccessInfo
+      )}
+      initialMessages={normalizeMessagesResult(loaderData.messages)}
+      initialLastUsedModel={normalizeLastUsedModel(loaderData.lastUsedModel)}
+      initialStreaming={normalizeStreamingStatus(loaderData.streamingStatus)}
+    />
+  );
+}
+
+type ConversationRouteContentProps = {
+  initialConversationAccessInfo: ConversationAccessInfo;
+  initialMessages: ChatMessage[];
+  initialLastUsedModel: LastUsedModel;
+  initialStreaming: boolean;
+};
+
+function ConversationRouteContent({
+  initialConversationAccessInfo,
+  initialMessages,
+  initialLastUsedModel,
+  initialStreaming,
+}: ConversationRouteContentProps) {
   const { conversationId } = useParams();
   const { setPrivateMode } = usePrivateMode();
   const navigate = useNavigate();
@@ -34,7 +153,6 @@ export default function ConversationRoute() {
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
-  // temperature managed by store
 
   useEffect(() => {
     setPrivateMode(false);
@@ -78,7 +196,6 @@ export default function ConversationRoute() {
             setTimeout(() => {
               (async () => {
                 try {
-                  // Wait briefly for auth token
                   const start = Date.now();
                   let token = authRef.current;
                   while (!token && Date.now() - start < 2000) {
@@ -123,18 +240,25 @@ export default function ConversationRoute() {
     throw new Error("Conversation ID is required");
   }
 
-  // Override the selected model to match the last used model in this conversation
-  useConversationModelOverride(conversationId as ConversationId);
+  useConversationModelOverride(
+    conversationId as ConversationId,
+    initialLastUsedModel
+  );
 
-  const conversationAccessInfo = useQuery(api.conversations.getWithAccessInfo, {
-    id: conversationId as Id<"conversations">,
-  });
+  const conversationAccessInfoQuery = useQuery(
+    api.conversations.getWithAccessInfo,
+    {
+      id: conversationId as Id<"conversations">,
+    }
+  );
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  const conversationTitle = (
-    conversationAccessInfo?.conversation as { title?: string } | undefined
-  )?.title;
+  const conversationAccessInfo =
+    conversationAccessInfoQuery ?? initialConversationAccessInfo ?? null;
+  const isAccessResolved = conversationAccessInfoQuery !== undefined;
+
+  const conversationTitle = conversationAccessInfo?.conversation?.title ?? null;
 
   const pageTitle = useMemo(() => {
     if (conversationTitle && conversationTitle.trim().length > 0) {
@@ -154,25 +278,18 @@ export default function ConversationRoute() {
     stopGeneration,
   } = useChat({
     conversationId: conversationId as ConversationId,
+    initialMessages,
   });
 
-  // Keep a ref to the latest messages for deferred checks
   const latestMessagesRef = useRef(messages);
   useEffect(() => {
     latestMessagesRef.current = messages;
   }, [messages]);
 
-  // Track initial load for this conversation; auto-trigger only once on first load
   const initialLoadHandledRef = useRef<string | null>(null);
-  useEffect(() => {
-    // Reset when conversation changes
-    initialLoadHandledRef.current = conversationId ? null : null;
-  }, [conversationId]);
 
-  // Auto-trigger a response for trailing user messages (but avoid image-gen follow-ups)
   const lastAutoTriggeredRef = useRef<string | null>(null);
   useEffect(() => {
-    // Only consider auto-trigger when messages first load for this conversation
     if (isLoading || messageIsStreaming) {
       return;
     }
@@ -183,7 +300,6 @@ export default function ConversationRoute() {
       return;
     }
 
-    // Mark handled so later updates (e.g., deletes) don't re-trigger
     initialLoadHandledRef.current = conversationId || null;
 
     const current = latestMessagesRef.current;
@@ -198,13 +314,11 @@ export default function ConversationRoute() {
       return;
     }
 
-    // If there is any assistant message after the last user message, do not auto-trigger
-    const hasAssistantAfter = false; // Last item is the user; nothing follows on initial load
+    const hasAssistantAfter = false;
     if (hasAssistantAfter) {
       return;
     }
 
-    // If there is an active image-generation assistant anywhere (starting/processing), skip
     const hasActiveImageGen = current.some(
       m =>
         m.role === "assistant" &&
@@ -241,11 +355,9 @@ export default function ConversationRoute() {
           throw new Error("Image generation message not found");
         }
 
-        // Find the previous user message to get the prompt
         const messageIndex = messages.findIndex(m => m.id === messageId);
         let userMessage = null;
 
-        // Look backwards from the current message to find the most recent user message
         for (let i = messageIndex - 1; i >= 0; i--) {
           if (messages[i].role === "user") {
             userMessage = messages[i];
@@ -259,7 +371,6 @@ export default function ConversationRoute() {
           );
         }
 
-        // Use metadata for model and params, but user message content for prompt
         const metadata = message.imageGeneration.metadata;
 
         if (!metadata?.model) {
@@ -278,7 +389,7 @@ export default function ConversationRoute() {
           conversationId as Id<"conversations">,
           messageId as Id<"messages">,
           {
-            prompt: userMessage.content, // Use the previous user message content
+            prompt: userMessage.content,
             model: metadata.model,
             params: {
               ...metadata.params,
@@ -302,202 +413,310 @@ export default function ConversationRoute() {
     [messages, convex, conversationId, managedToast.error]
   );
 
-  // Proactively re-fetch when coming back online
+  // Keep generation mode and image params in sync with the latest message context
   useEffect(() => {
-    if (online && conversationAccessInfo === undefined) {
+    if (!conversationId) {
+      return;
+    }
+
+    const store = useChatInputStore.getState();
+    const { setGenerationMode, setImageParams, setNegativePromptEnabled } =
+      store;
+    const { generationMode, imageParams, negativePromptEnabled } = store;
+
+    const latestWithContext = (() => {
+      if (!messages || messages.length === 0) {
+        return undefined;
+      }
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        const hasGeneratedAttachment = (message.attachments ?? []).some(
+          att => att.type === "image" && att.generatedImage?.isGenerated
+        );
+        if (
+          message.imageGeneration ||
+          hasGeneratedAttachment ||
+          (message.provider && message.model)
+        ) {
+          return message;
+        }
+      }
+      return undefined;
+    })();
+
+    const targetMode: "text" | "image" = (() => {
+      if (!latestWithContext) {
+        return "text";
+      }
+      if (
+        latestWithContext.imageGeneration ||
+        latestWithContext.provider === "replicate" ||
+        (latestWithContext.attachments ?? []).some(
+          att => att.type === "image" && att.generatedImage?.isGenerated
+        )
+      ) {
+        return "image";
+      }
+      return "text";
+    })();
+
+    if (generationMode !== targetMode) {
+      setGenerationMode(targetMode);
+    }
+
+    if (targetMode === "image") {
+      const metadata = latestWithContext?.imageGeneration?.metadata;
+      const modelFromMessage = metadata?.model || latestWithContext?.model;
+
+      const nextParams = { ...imageParams };
+      let paramsChanged = false;
+
+      if (modelFromMessage && nextParams.model !== modelFromMessage) {
+        nextParams.model = modelFromMessage;
+        paramsChanged = true;
+      }
+
+      const incomingParams = metadata?.params;
+      if (incomingParams) {
+        const ratio = incomingParams.aspectRatio;
+        if (
+          ratio &&
+          ["1:1", "16:9", "9:16", "4:3", "3:4"].includes(ratio) &&
+          nextParams.aspectRatio !== ratio
+        ) {
+          nextParams.aspectRatio = ratio as typeof nextParams.aspectRatio;
+          paramsChanged = true;
+        }
+
+        if (
+          incomingParams.count !== undefined &&
+          nextParams.count !== incomingParams.count
+        ) {
+          nextParams.count = incomingParams.count;
+          paramsChanged = true;
+        }
+
+        if (incomingParams.negativePrompt !== undefined) {
+          const trimmedNegative = incomingParams.negativePrompt.trim();
+          const shouldEnableNegative = trimmedNegative.length > 0;
+          if (negativePromptEnabled !== shouldEnableNegative) {
+            setNegativePromptEnabled(shouldEnableNegative);
+          }
+        } else if (negativePromptEnabled) {
+          setNegativePromptEnabled(false);
+        }
+      } else if (negativePromptEnabled) {
+        setNegativePromptEnabled(false);
+      }
+
+      if (paramsChanged) {
+        setImageParams(nextParams);
+      }
+    } else if (negativePromptEnabled) {
+      setNegativePromptEnabled(false);
+    }
+  }, [conversationId, messages]);
+
+  useEffect(() => {
+    if (
+      online &&
+      conversationAccessInfoQuery === undefined &&
+      !initialConversationAccessInfo
+    ) {
       (async () => {
         try {
           await convex.query(api.conversations.getWithAccessInfo, {
             id: conversationId as Id<"conversations">,
           });
-          // Also nudge messages subscription
           await convex.query(api.messages.list, {
             conversationId: conversationId as Id<"conversations">,
           });
         } catch (_e) {
-          // Silent; useQuery will update as soon as the connection is restored
+          // Silent; useQuery updates once connection restores
         }
       })();
     }
-  }, [online, conversationAccessInfo, convex, conversationId]);
+  }, [
+    online,
+    conversationAccessInfoQuery,
+    convex,
+    conversationId,
+    initialConversationAccessInfo,
+  ]);
 
-  // Handle conversation access scenarios
-  if (conversationAccessInfo === undefined) {
-    // Still loading; if offline, show a friendly placeholder instead of a blank screen
-    if (!online) {
-      return (
-        <OfflinePlaceholder
-          title="Can't load conversation while offline"
-          description="Reconnect to view this conversation or start a new one."
-          onRetry={() => window.location.reload()}
-        />
-      );
-    }
-    return null;
-  }
+  const isConversationLoading =
+    conversationAccessInfoQuery === undefined && !initialConversationAccessInfo;
+  const shouldShowOfflineOverlay =
+    !online &&
+    conversationAccessInfoQuery === undefined &&
+    !initialConversationAccessInfo;
 
-  // (Note) re-fetch logic lives above the guard to keep hook order stable
-
-  if (conversationAccessInfo.isDeleted) {
-    // Conversation was deleted, redirect to home
+  if (isAccessResolved && conversationAccessInfo?.isDeleted) {
     navigate(ROUTES.HOME);
     return null;
   }
 
-  if (!conversationAccessInfo.hasAccess) {
-    // User doesn't have access to this conversation, show 404
+  if (
+    isAccessResolved &&
+    conversationAccessInfo &&
+    !conversationAccessInfo.hasAccess
+  ) {
     return <NotFoundPage />;
   }
 
-  const conversation = conversationAccessInfo.conversation;
+  const conversation = conversationAccessInfo?.conversation;
+
+  const effectiveStreaming =
+    messageIsStreaming || (isConversationLoading && initialStreaming);
 
   return (
     <>
       <title>{pageTitle}</title>
-      <UnifiedChatView
-        conversationId={conversationId as ConversationId}
-        messages={messages}
-        isLoading={isLoading || hasApiKeys === undefined}
-        isLoadingMessages={conversationAccessInfo === undefined}
-        isStreaming={messageIsStreaming}
-        currentPersonaId={conversation?.personaId ?? null}
-        canSavePrivateChat={false}
-        hasApiKeys={hasApiKeys === true}
-        isArchived={conversation?.isArchived}
-        onSendMessage={async (
-          content: string,
-          attachments?: Attachment[],
-          personaId?: Id<"personas"> | null,
-          reasoningConfig?: ReasoningConfig,
-          temperature?: number
-        ) => {
-          await sendMessage({
-            content,
-            attachments,
-            personaId,
+      <div className="relative flex h-full min-h-0 w-full">
+        <UnifiedChatView
+          conversationId={conversationId as ConversationId}
+          messages={messages}
+          isLoading={
+            isLoading || hasApiKeys === undefined || isConversationLoading
+          }
+          isLoadingMessages={isLoading || isConversationLoading}
+          isStreaming={effectiveStreaming}
+          currentPersonaId={conversation?.personaId ?? null}
+          canSavePrivateChat={false}
+          hasApiKeys={hasApiKeys === true}
+          isArchived={conversation?.isArchived ?? undefined}
+          onSendMessage={async (
+            content: string,
+            attachments?: Attachment[],
+            personaId?: Id<"personas"> | null,
+            reasoningConfig?: ReasoningConfig,
+            temperature?: number
+          ) => {
+            await sendMessage({
+              content,
+              attachments,
+              personaId,
+              reasoningConfig,
+              temperature,
+            });
+          }}
+          onSendAsNewConversation={handleSendAsNewConversation}
+          onDeleteMessage={deleteMessage}
+          onEditMessage={editMessage}
+          onRefineMessage={async (messageId, type, instruction) => {
+            await convex.action(api.messages.refineAssistantMessage, {
+              messageId: messageId as Id<"messages">,
+              mode:
+                type === "custom"
+                  ? "custom"
+                  : type === "more_concise"
+                    ? "more_concise"
+                    : "add_details",
+              instruction,
+            });
+          }}
+          onStopGeneration={stopGeneration}
+          onRetryUserMessage={async (
+            messageId,
+            modelId,
+            provider,
             reasoningConfig,
-            temperature,
-          });
-        }}
-        onSendAsNewConversation={handleSendAsNewConversation}
-        onDeleteMessage={deleteMessage}
-        onEditMessage={editMessage}
-        onRefineMessage={async (messageId, type, instruction) => {
-          await convex.action(api.messages.refineAssistantMessage, {
-            messageId: messageId as Id<"messages">,
-            mode:
-              type === "custom"
-                ? "custom"
-                : type === "more_concise"
-                  ? "more_concise"
-                  : "add_details",
-            instruction,
-          });
-        }}
-        onStopGeneration={stopGeneration}
-        onRetryUserMessage={async (
-          messageId,
-          modelId,
-          provider,
-          reasoningConfig,
-          temperature
-        ) => {
-          // Optimistically prune UI after the user message: clear overlays for later messages
-          try {
-            const overlays = useStreamOverlays.getState();
-            const index = messages.findIndex(m => m.id === messageId);
-            if (index !== -1) {
-              for (let i = index + 1; i < messages.length; i++) {
-                const m = messages[i];
-                if (m.role === "assistant") {
-                  const id = String(m.id);
-                  overlays.set(id, "");
-                  overlays.setReasoning(id, "");
-                  overlays.setStatus(id, undefined);
-                  overlays.clearCitations(id);
-                  overlays.clearTools(id);
+            temperature
+          ) => {
+            try {
+              const overlays = useStreamOverlays.getState();
+              const index = messages.findIndex(m => m.id === messageId);
+              if (index !== -1) {
+                for (let i = index + 1; i < messages.length; i++) {
+                  const m = messages[i];
+                  if (m.role === "assistant") {
+                    const id = String(m.id);
+                    overlays.set(id, "");
+                    overlays.setReasoning(id, "");
+                    overlays.setStatus(id, undefined);
+                    overlays.clearCitations(id);
+                    overlays.clearTools(id);
+                  }
                 }
               }
-            }
-          } catch (_e) {
-            // ignore
-          }
-
-          const options: Partial<{
-            model: string;
-            provider: string;
-            reasoningConfig: ReasoningConfig;
-            temperature: number;
-          }> = {};
-          if (modelId) {
-            options.model = modelId;
-          }
-          if (provider) {
-            options.provider = provider;
-          }
-          if (reasoningConfig) {
-            options.reasoningConfig = reasoningConfig;
-          }
-          if (temperature !== undefined) {
-            options.temperature = temperature;
-          }
-
-          await retryFromMessage(messageId, options);
-        }}
-        onRetryAssistantMessage={async (
-          messageId,
-          modelId,
-          provider,
-          reasoningConfig,
-          temperature
-        ) => {
-          // Immediately clear the retried assistant message in the UI
-          try {
-            const overlays = useStreamOverlays.getState();
-            const id = String(messageId);
-            overlays.set(id, "");
-            overlays.setReasoning(id, "");
-            overlays.setStatus(id, "thinking");
-            overlays.clearCitations(id);
-            overlays.clearTools(id);
-          } catch {
-            // non-fatal
-          }
-
-          // If retrying with a different model, update the message model label optimistically
-          if (modelId || provider) {
-            try {
-              // Update happens server-side; front-end displays from DB.
-              // Optimistically reflect by setting thinking status (already done) until DB patch returns.
-              // No direct local message update to avoid divergent state.
             } catch (_e) {
               // ignore
             }
-          }
 
-          const options: Partial<{
-            model: string;
-            provider: string;
-            reasoningConfig: ReasoningConfig;
-            temperature: number;
-          }> = {};
-          if (modelId) {
-            options.model = modelId;
-          }
-          if (provider) {
-            options.provider = provider;
-          }
-          if (reasoningConfig) {
-            options.reasoningConfig = reasoningConfig;
-          }
-          if (temperature !== undefined) {
-            options.temperature = temperature;
-          }
+            const options: Partial<{
+              model: string;
+              provider: string;
+              reasoningConfig: ReasoningConfig;
+              temperature: number;
+            }> = {};
+            if (modelId) {
+              options.model = modelId;
+            }
+            if (provider) {
+              options.provider = provider;
+            }
+            if (reasoningConfig) {
+              options.reasoningConfig = reasoningConfig;
+            }
+            if (temperature !== undefined) {
+              options.temperature = temperature;
+            }
 
-          await retryFromMessage(messageId, options);
-        }}
-        onRetryImageGeneration={handleRetryImageGeneration}
-      />
+            await retryFromMessage(messageId, options);
+          }}
+          onRetryAssistantMessage={async (
+            messageId,
+            modelId,
+            provider,
+            reasoningConfig,
+            temperature
+          ) => {
+            try {
+              const overlays = useStreamOverlays.getState();
+              const id = String(messageId);
+              overlays.set(id, "");
+              overlays.setReasoning(id, "");
+              overlays.setStatus(id, "thinking");
+              overlays.clearCitations(id);
+              overlays.clearTools(id);
+            } catch {
+              // non-fatal
+            }
+
+            const options: Partial<{
+              model: string;
+              provider: string;
+              reasoningConfig: ReasoningConfig;
+              temperature: number;
+            }> = {};
+            if (modelId) {
+              options.model = modelId;
+            }
+            if (provider) {
+              options.provider = provider;
+            }
+            if (reasoningConfig) {
+              options.reasoningConfig = reasoningConfig;
+            }
+            if (temperature !== undefined) {
+              options.temperature = temperature;
+            }
+
+            await retryFromMessage(messageId, options);
+          }}
+          onRetryImageGeneration={handleRetryImageGeneration}
+        />
+
+        {shouldShowOfflineOverlay ? (
+          <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+            <OfflinePlaceholder
+              title="Can't load conversation while offline"
+              description="Reconnect to view this conversation or start a new one."
+              onRetry={() => window.location.reload()}
+            />
+          </div>
+        ) : null}
+      </div>
     </>
   );
 }
