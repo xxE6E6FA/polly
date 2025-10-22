@@ -26,7 +26,9 @@ describe("useConversationModelOverride", () => {
       // lastUsedModel
       .mockReturnValueOnce({ modelId: "gpt", provider: "openai" })
       // currentSelectedModel
-      .mockReturnValueOnce({ modelId: "other", provider: "x" });
+      .mockReturnValueOnce({ modelId: "other", provider: "x" })
+      // resolvedModel
+      .mockReturnValueOnce({ modelId: "gpt", provider: "openai" });
 
     renderHook(() => useConversationModelOverride("c1" as Id<"conversations">));
 
@@ -39,6 +41,7 @@ describe("useConversationModelOverride", () => {
     });
     (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
     (useQuery as unknown as vi.Mock)
+      .mockReturnValueOnce({ modelId: "m", provider: "p" })
       .mockReturnValueOnce({ modelId: "m", provider: "p" })
       .mockReturnValueOnce({ modelId: "m", provider: "p" });
     renderHook(() => useConversationModelOverride("c2" as Id<"conversations">));
@@ -56,7 +59,8 @@ describe("useConversationModelOverride", () => {
     (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
     (useQuery as unknown as vi.Mock)
       .mockReturnValueOnce({ modelId: "x", provider: "y" })
-      .mockReturnValueOnce({ modelId: "a", provider: "b" });
+      .mockReturnValueOnce({ modelId: "a", provider: "b" })
+      .mockReturnValueOnce({ modelId: "x", provider: "y" });
     renderHook(() => useConversationModelOverride("c3" as Id<"conversations">));
     expect(mutate).not.toHaveBeenCalled();
     // Reset mock return for other tests
@@ -72,7 +76,8 @@ describe("useConversationModelOverride", () => {
     (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
     (useQuery as unknown as vi.Mock)
       .mockReturnValueOnce({ modelId: "g1", provider: "p1" })
-      .mockReturnValueOnce({ modelId: "g2", provider: "p2" });
+      .mockReturnValueOnce({ modelId: "g2", provider: "p2" })
+      .mockReturnValueOnce({ modelId: "g1", provider: "p1" });
     const { rerender } = renderHook(() =>
       useConversationModelOverride("c5" as Id<"conversations">)
     );
