@@ -17,7 +17,6 @@ import type {
 interface UseChatViewStateOptions {
   conversationId?: ConversationId;
   messages: ChatMessage[];
-  isLoadingMessages?: boolean;
   onSendMessage: (
     content: string,
     attachments?: Attachment[],
@@ -31,7 +30,6 @@ interface UseChatViewStateOptions {
 export function useChatViewState({
   conversationId,
   messages,
-  isLoadingMessages,
   onSendMessage,
   onDeleteMessage,
 }: UseChatViewStateOptions) {
@@ -46,7 +44,6 @@ export function useChatViewState({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
   const hasInitializedScroll = useRef(false);
-  const hasLoadedConversation = useRef(false);
 
   // UI state
   const { selection, lockSelection, unlockSelection } = useTextSelection();
@@ -61,13 +58,6 @@ export function useChatViewState({
       hasInitializedScroll.current = false;
     }
   }, [conversationId]);
-
-  // Track when we've successfully loaded any conversation
-  useEffect(() => {
-    if (!isLoadingMessages && messages.length > 0) {
-      hasLoadedConversation.current = true;
-    }
-  }, [isLoadingMessages, messages.length]);
 
   // Handle outline navigation
   const handleOutlineNavigate = useCallback(
@@ -182,8 +172,6 @@ export function useChatViewState({
     virtualizedMessagesRef,
     messagesContainerRef,
     chatInputRef,
-    hasLoadedConversation,
-
     // UI state
     selection,
     confirmationDialog,

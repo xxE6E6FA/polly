@@ -22,11 +22,50 @@ import type {
 
 type UseChatParams = {
   conversationId?: ConversationId;
+  initialMessages?: ChatMessage[];
 };
 
-export function useChat({ conversationId }: UseChatParams) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function mapServerMessageToChatMessage(
+  msg: Doc<"messages">
+): ChatMessage {
+  return {
+    id: msg._id,
+    role: msg.role as MessageRole,
+    content: msg.content,
+    status: msg.status,
+    reasoning: msg.reasoning,
+    model: msg.model,
+    provider: msg.provider,
+    parentId: msg.parentId,
+    isMainBranch: msg.isMainBranch,
+    sourceConversationId: msg.sourceConversationId,
+    useWebSearch: msg.useWebSearch,
+    attachments: msg.attachments,
+    citations: msg.citations,
+    metadata: msg.metadata,
+    imageGeneration: msg.imageGeneration
+      ? {
+          ...msg.imageGeneration,
+          status: msg.imageGeneration.status as
+            | "starting"
+            | "processing"
+            | "succeeded"
+            | "failed"
+            | "canceled"
+            | undefined,
+        }
+      : undefined,
+    createdAt: msg.createdAt,
+  };
+}
+
+export function useChat({ conversationId, initialMessages }: UseChatParams) {
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    initialMessages ?? []
+  );
+  const [isLoading, setIsLoading] = useState(
+    conversationId ? initialMessages === undefined : false
+  );
   const { user } = useUserDataContext();
 
   // Get user's selected model via Zustand-backed hook
@@ -107,6 +146,11 @@ export function useChat({ conversationId }: UseChatParams) {
     authRef.current = authToken;
   }, [authToken]);
 
+  useEffect(() => {
+    setMessages(initialMessages ?? []);
+    setIsLoading(conversationId ? initialMessages === undefined : false);
+  }, [conversationId, initialMessages]);
+
   const chatHandlers = useMemo(() => {
     if (conversationId) {
       const mode: ChatMode = {
@@ -174,6 +218,10 @@ export function useChat({ conversationId }: UseChatParams) {
   // Sync server messages to local state
   useEffect(() => {
     if (conversationId) {
+      if (serverMessages === undefined) {
+        setIsLoading(initialMessages === undefined);
+        return;
+      }
       if (serverMessages) {
         // Handle both array and paginated results
         const messageArray = Array.isArray(serverMessages)
@@ -182,48 +230,21 @@ export function useChat({ conversationId }: UseChatParams) {
 
         // Convert server messages to ChatMessage format
         const convertedMessages: ChatMessage[] = messageArray.map(
-          (msg: Doc<"messages">) => ({
-            id: msg._id,
-            role: msg.role as MessageRole,
-            content: msg.content,
-            status: msg.status,
-            reasoning: msg.reasoning,
-            model: msg.model,
-            provider: msg.provider,
-            parentId: msg.parentId,
-            isMainBranch: msg.isMainBranch,
-            sourceConversationId: msg.sourceConversationId,
-            useWebSearch: msg.useWebSearch,
-            attachments: msg.attachments,
-            citations: msg.citations,
-            metadata: msg.metadata,
-            imageGeneration: msg.imageGeneration
-              ? {
-                  ...msg.imageGeneration,
-                  status: msg.imageGeneration.status as
-                    | "starting"
-                    | "processing"
-                    | "succeeded"
-                    | "failed"
-                    | "canceled"
-                    | undefined,
-                }
-              : undefined,
-            createdAt: msg.createdAt,
-          })
+          (msg: Doc<"messages">) => mapServerMessageToChatMessage(msg)
         );
 
         setMessages(convertedMessages);
         setIsLoading(false); // Set loading to false when we have messages
       } else {
-        // Private mode is never loading from a server
+        // No messages returned; treat as empty state
+        setMessages([]);
         setIsLoading(false);
       }
       return;
     }
     // When there's no server conversation selected (private mode / new chat)
     setIsLoading(false);
-  }, [serverMessages, conversationId]);
+  }, [serverMessages, conversationId, initialMessages]);
 
   // --- Public API ---
   const sendMessage = useCallback(

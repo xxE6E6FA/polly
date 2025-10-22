@@ -8,7 +8,6 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
-import { useConversationPreload } from "@/hooks/use-conversation-preload";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import {
   downloadFile,
@@ -62,7 +61,6 @@ const ConversationItemComponent = ({
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
   const backgroundJobs = useBackgroundJobs();
-  const { preloadConversation } = useConversationPreload();
 
   const isCurrentConversation = currentConversationId === conversation._id;
   const isItemSelected = isSelected(conversation._id);
@@ -355,8 +353,6 @@ const ConversationItemComponent = ({
             onMouseEnter={() => {
               if (!isMobile) {
                 setIsHovered(true);
-                // Preload conversation data on hover for faster navigation
-                preloadConversation(conversation._id);
               }
             }}
             onMouseLeave={() => !isMobile && setIsHovered(false)}
@@ -399,6 +395,7 @@ const ConversationItemComponent = ({
 
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
+              prefetch="intent"
               className={cn(
                 "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
                 isMobile ? "py-2" : "py-1.5",

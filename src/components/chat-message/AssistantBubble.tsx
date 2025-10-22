@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,8 @@ const ImageContainer = ({
   onClick: (url: string) => void;
   className?: string;
 }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
+  const skipInitialAnimationRef = useRef(true);
+  const [isLoaded, setIsLoaded] = useState(true);
   const [displayUrl, setDisplayUrl] = useState<string | null>(
     storageId ? null : imageUrl
   );
@@ -121,6 +122,7 @@ const ImageContainer = ({
   useEffect(() => {
     if (!storageId) {
       setDisplayUrl(imageUrl);
+      setIsLoaded(skipInitialAnimationRef.current);
       return;
     }
 
@@ -144,7 +146,7 @@ const ImageContainer = ({
       }
 
       setDisplayUrl(actualImageUrl);
-      setIsLoaded(false);
+      setIsLoaded(skipInitialAnimationRef.current);
     };
 
     preload.onload = handleReady;
@@ -162,13 +164,18 @@ const ImageContainer = ({
     : "";
 
   useEffect(() => {
-    setIsLoaded(false);
+    if (!skipInitialAnimationRef.current) {
+      setIsLoaded(false);
+    }
   }, []);
 
   const finalizeReveal = () => {
-    const commit = () => setIsLoaded(true);
+    const commit = () => {
+      skipInitialAnimationRef.current = false;
+      setIsLoaded(true);
+    };
 
-    if (typeof window === "undefined") {
+    if (skipInitialAnimationRef.current || typeof window === "undefined") {
       commit();
       return;
     }
