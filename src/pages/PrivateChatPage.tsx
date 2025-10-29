@@ -197,12 +197,15 @@ export default function PrivateChatPage() {
         .map((msg, index) => ({
           role: msg.role,
           content: msg.content,
-          createdAt:
-            typeof msg.createdAt === "number"
-              ? msg.createdAt
-              : msg.createdAt instanceof Date
-                ? msg.createdAt.getTime()
-                : Date.now() - (messages.length - index) * 1000, // Preserve relative timing
+          createdAt: (() => {
+            if (typeof msg.createdAt === "number") {
+              return msg.createdAt;
+            }
+            if (msg.createdAt instanceof Date) {
+              return msg.createdAt.getTime();
+            }
+            return Date.now() - (messages.length - index) * 1000;
+          })(),
           // Only add model/provider for assistant messages
           model: msg.role === "assistant" ? selectedModel?.modelId : undefined,
           provider:

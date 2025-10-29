@@ -172,20 +172,23 @@ export function useFileUpload({
         managedToast.success(
           `File${newAttachments.length > 1 ? "s" : ""} added successfully`,
           {
-            description:
-              imageAttachments.length > 0
-                ? `${newAttachments.length} file${
-                    newAttachments.length > 1 ? "s" : ""
-                  } ready to use. ${imageAttachments.length} image${
-                    imageAttachments.length > 1 ? "s" : ""
-                  } optimized to WebP format.`
-                : privateMode
-                  ? `${newAttachments.length} file${
-                      newAttachments.length > 1 ? "s" : ""
-                    } ready to use in your private conversation.`
-                  : `${newAttachments.length} file${
-                      newAttachments.length > 1 ? "s" : ""
-                    } ready to use. Will be uploaded when message is sent.`,
+            description: (() => {
+              if (imageAttachments.length > 0) {
+                return `${newAttachments.length} file${
+                  newAttachments.length > 1 ? "s" : ""
+                } ready to use. ${imageAttachments.length} image${
+                  imageAttachments.length > 1 ? "s" : ""
+                } optimized to WebP format.`;
+              }
+              if (privateMode) {
+                return `${newAttachments.length} file${
+                  newAttachments.length > 1 ? "s" : ""
+                } ready to use in your private conversation.`;
+              }
+              return `${newAttachments.length} file${
+                newAttachments.length > 1 ? "s" : ""
+              } ready to use. Will be uploaded when message is sent.`;
+            })(),
           }
         );
       }

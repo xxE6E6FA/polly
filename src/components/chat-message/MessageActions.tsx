@@ -950,6 +950,44 @@ const ActionButton = memo(
 
 ActionButton.displayName = "ActionButton";
 
+type TtsState = "idle" | "loading" | "playing";
+
+function getTTSTooltip(ttsState: TtsState): string {
+  if (ttsState === "loading") {
+    return "Cancel generation";
+  }
+  if (ttsState === "playing") {
+    return "Stop audio";
+  }
+  return "Listen";
+}
+
+function getTTSAriaLabel(ttsState: TtsState): string {
+  if (ttsState === "loading") {
+    return "Cancel TTS generation";
+  }
+  if (ttsState === "playing") {
+    return "Stop audio playback";
+  }
+  return "Listen to assistant response";
+}
+
+function getTTSIcon(ttsState: TtsState): React.ReactNode {
+  if (ttsState === "loading") {
+    return <Spinner size="sm" className="h-3.5 w-3.5" />;
+  }
+  if (ttsState === "playing") {
+    return (
+      <Square
+        className="h-3.5 w-3.5 text-red-500"
+        weight="fill"
+        aria-hidden="true"
+      />
+    );
+  }
+  return <SpeakerHighIcon className="h-3.5 w-3.5" aria-hidden="true" />;
+}
+
 type MessageActionsProps = {
   isUser: boolean;
   isStreaming: boolean;
@@ -1183,33 +1221,9 @@ export const MessageActions = memo(
           {!isUser && messageId && (
             <ActionButton
               disabled={isEditing}
-              tooltip={
-                ttsState === "loading"
-                  ? "Cancel generation"
-                  : ttsState === "playing"
-                    ? "Stop audio"
-                    : "Listen"
-              }
-              ariaLabel={
-                ttsState === "loading"
-                  ? "Cancel TTS generation"
-                  : ttsState === "playing"
-                    ? "Stop audio playback"
-                    : "Listen to assistant response"
-              }
-              icon={
-                ttsState === "loading" ? (
-                  <Spinner size="sm" className="h-3.5 w-3.5" />
-                ) : ttsState === "playing" ? (
-                  <Square
-                    className="h-3.5 w-3.5 text-red-500"
-                    weight="fill"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <SpeakerHighIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                )
-              }
+              tooltip={getTTSTooltip(ttsState)}
+              ariaLabel={getTTSAriaLabel(ttsState)}
+              icon={getTTSIcon(ttsState)}
               onClick={handleTTS}
               className={
                 ttsState === "playing"

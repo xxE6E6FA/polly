@@ -64,11 +64,13 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         typeof profile.email === "string" ? profile.email : undefined;
       const profileImage =
         typeof profile.image === "string" ? profile.image : undefined;
-      const profileEmailVerified = profile.emailVerified
-        ? typeof profile.emailVerified === "number"
-          ? profile.emailVerified
-          : Date.now()
-        : undefined;
+      let profileEmailVerified: number | undefined;
+      if (profile.emailVerified) {
+        profileEmailVerified =
+          typeof profile.emailVerified === "number"
+            ? profile.emailVerified
+            : Date.now();
+      }
 
       // Update existing user
       if (existingUserId) {

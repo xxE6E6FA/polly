@@ -1,6 +1,16 @@
 import Markdown from "markdown-to-jsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+function getReasoningButtonLabel(
+  isLoading: boolean,
+  displayLabel: string | null
+): string {
+  if (isLoading) {
+    return displayLabel ? `Thinking for ${displayLabel}` : "Thinking";
+  }
+  return displayLabel ? `Thought for ${displayLabel}` : "Thoughts";
+}
+
 // Spinner no longer used here; header uses a static icon and timer for a cleaner look
 
 type ReasoningProps = {
@@ -141,13 +151,7 @@ export const Reasoning = ({
             <path d="M9 6l6 6-6 6" />
           </svg>
           <span>
-            {isLoading
-              ? displayLabel
-                ? `Thinking for ${displayLabel}`
-                : "Thinking"
-              : displayLabel
-                ? `Thought for ${displayLabel}`
-                : "Thoughts"}
+            {getReasoningButtonLabel(isLoading, displayLabel ?? null)}
           </span>
         </button>
       )}

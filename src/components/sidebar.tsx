@@ -329,11 +329,15 @@ export const Sidebar = () => {
         ref={sidebarRootRef}
         style={{
           ...sidebarStyle,
-          width: isMobile
-            ? "clamp(280px, 88vw, 420px)"
-            : isSidebarVisible
-              ? "var(--sidebar-width)"
-              : "0",
+          width: (() => {
+            if (isMobile) {
+              return "clamp(280px, 88vw, 420px)";
+            }
+            if (isSidebarVisible) {
+              return "var(--sidebar-width)";
+            }
+            return "0";
+          })(),
           transform:
             isMobile && !isSidebarVisible
               ? "translateX(-100%)"

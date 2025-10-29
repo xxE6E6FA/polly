@@ -1414,9 +1414,9 @@ export const refineAssistantMessage = action({
 
     let targetTemperature = 0.3;
 
-    const modeInstruction =
-      args.mode === "custom"
-        ? dedent`
+    const modeInstruction = (() => {
+      if (args.mode === "custom") {
+        return dedent`
             Apply the user's instruction below to refine the assistant's response.
             - Do not change the intent, stance, or technical correctness of the message.
             - Preserve all important facts, steps, numbers, variable names, links, and any citations in square brackets like [1], [2].
@@ -1428,11 +1428,11 @@ export const refineAssistantMessage = action({
             - Return only the rewritten response.
 
             User instruction: ${args.instruction || "(none)"}
-          `
-        : args.mode === "more_concise"
-          ? (() => {
-              targetTemperature = 0.15;
-              return dedent`
+          `;
+      }
+      if (args.mode === "more_concise") {
+        targetTemperature = 0.15;
+        return dedent`
                 Rewrite the assistant's response to be substantially more concise while strictly preserving meaning.
                 Fidelity constraints (must hold):
                 - Keep all claims, caveats, requirements, and conclusions unchanged.
@@ -1448,8 +1448,8 @@ export const refineAssistantMessage = action({
                 If any conflict arises, prioritize fidelity over brevity.
                 Return only the rewritten response.
               `;
-            })()
-          : dedent`
+      }
+      return dedent`
               Expand the assistant's response with helpful clarifications while strictly preserving meaning.
               Fidelity constraints (must hold):
               - Keep all original claims, numbers, constraints, and conclusions unchanged.
@@ -1465,6 +1465,7 @@ export const refineAssistantMessage = action({
               If any conflict arises, prioritize fidelity over expansion.
               Return only the rewritten response.
             `;
+    })();
 
     const basePrompt = dedent`
       You will refine an assistant's previous response.

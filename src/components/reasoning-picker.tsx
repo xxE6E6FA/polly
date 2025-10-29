@@ -33,6 +33,7 @@ type ReasoningPickerProps = {
   config: ReasoningConfig;
   onConfigChange: (config: ReasoningConfig) => void;
   className?: string;
+  disabled?: boolean;
 };
 
 type ReasoningOption = {
@@ -128,6 +129,7 @@ const ReasoningPickerComponent = ({
   config,
   onConfigChange,
   className,
+  disabled = false,
 }: ReasoningPickerProps) => {
   const [selectOpen, setSelectOpen] = useState(false);
 
@@ -181,14 +183,26 @@ const ReasoningPickerComponent = ({
         const effort = config.effort || "medium";
 
         switch (provider) {
-          case "anthropic":
-            maxTokens =
-              effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+          case "anthropic": {
+            if (effort === "low") {
+              maxTokens = 5000;
+            } else if (effort === "medium") {
+              maxTokens = 10000;
+            } else {
+              maxTokens = 20000;
+            }
             break;
-          case "google":
-            maxTokens =
-              effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+          }
+          case "google": {
+            if (effort === "low") {
+              maxTokens = 5000;
+            } else if (effort === "medium") {
+              maxTokens = 10000;
+            } else {
+              maxTokens = 20000;
+            }
             break;
+          }
           default:
             maxTokens = 8192;
         }
@@ -217,14 +231,26 @@ const ReasoningPickerComponent = ({
         // Auto-set appropriate token budgets if not already set
         if (!maxTokens && model && provider) {
           switch (provider) {
-            case "anthropic":
-              maxTokens =
-                effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+            case "anthropic": {
+              if (effort === "low") {
+                maxTokens = 5000;
+              } else if (effort === "medium") {
+                maxTokens = 10000;
+              } else {
+                maxTokens = 20000;
+              }
               break;
-            case "google":
-              maxTokens =
-                effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+            }
+            case "google": {
+              if (effort === "low") {
+                maxTokens = 5000;
+              } else if (effort === "medium") {
+                maxTokens = 10000;
+              } else {
+                maxTokens = 20000;
+              }
               break;
+            }
             case "openrouter": {
               // For OpenRouter, use different defaults based on model type
               const requirements =
@@ -239,8 +265,13 @@ const ReasoningPickerComponent = ({
 
               if (isTokenModel) {
                 // For token-based models (Anthropic, Gemini via OpenRouter)
-                maxTokens =
-                  effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+                if (effort === "low") {
+                  maxTokens = 5000;
+                } else if (effort === "medium") {
+                  maxTokens = 10000;
+                } else {
+                  maxTokens = 20000;
+                }
               } else {
                 // For effort-based models (OpenAI, Grok via OpenRouter)
                 maxTokens = 8192; // Default fallback
@@ -289,16 +320,22 @@ const ReasoningPickerComponent = ({
     <Select
       value={currentValue}
       onValueChange={handleChange}
-      open={selectOpen}
-      onOpenChange={setSelectOpen}
+      open={disabled ? false : selectOpen}
+      onOpenChange={disabled ? undefined : setSelectOpen}
+      disabled={disabled}
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <SelectTrigger asChild data-debug-id="ReasoningPicker">
+          <SelectTrigger
+            asChild
+            data-debug-id="ReasoningPicker"
+            disabled={disabled}
+          >
             <Button
               type="button"
               variant="ghost"
               size="sm"
+              disabled={disabled}
               className={cn(
                 // Unified pill sizing/styling
                 "h-8 w-auto gap-2 px-2.5 text-xs font-medium",

@@ -32,6 +32,7 @@ type PersonaPickerProps = {
   selectedPersonaId?: Id<"personas"> | null;
   onPersonaSelect?: (personaId: Id<"personas"> | null) => void;
   tooltip?: string | React.ReactNode;
+  disabled?: boolean;
 };
 
 function PersonaPickerComponent({
@@ -40,6 +41,7 @@ function PersonaPickerComponent({
   selectedPersonaId = null,
   onPersonaSelect,
   tooltip,
+  disabled = false,
 }: PersonaPickerProps) {
   const { user } = useUserDataContext();
 
@@ -105,15 +107,19 @@ function PersonaPickerComponent({
   if (compact) {
     const tooltipText = tooltip || "Select persona";
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={disabled ? false : open}
+        onOpenChange={disabled ? undefined : setOpen}
+      >
         <Tooltip>
           <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
+            <PopoverTrigger asChild disabled={disabled}>
               <Button
                 ref={triggerRef}
                 type="button"
                 variant="ghost"
                 size="sm"
+                disabled={disabled}
                 className={cn(
                   // Unified pill sizing
                   "h-8 w-auto gap-2 px-2.5 text-xs font-medium",

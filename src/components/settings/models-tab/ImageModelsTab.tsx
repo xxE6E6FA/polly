@@ -79,6 +79,64 @@ function imageFilterReducer(
   }
 }
 
+function getModelCountText(
+  hasActiveFilters: boolean,
+  searchMode: "local" | "api"
+): string {
+  if (hasActiveFilters) {
+    if (searchMode === "api") {
+      return "matching filters (API search)";
+    }
+    return "matching filters";
+  }
+  if (searchMode === "api") {
+    return "from API search";
+  }
+  return "available";
+}
+
+function renderImageModelsContent(
+  isLoading: boolean,
+  isSearching: boolean,
+  filteredModels: FetchedImageModel[],
+  hasActiveFilters: boolean,
+  isPending: boolean,
+  clearAllFilters: () => void
+) {
+  if (isLoading || isSearching) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Spinner className="text-blue-500" size="lg" />
+      </div>
+    );
+  }
+  if (filteredModels.length > 0) {
+    return <VirtualizedImageModelList models={filteredModels} />;
+  }
+  return (
+    <SettingsZeroState
+      icon={<MagnifyingGlassIcon className="h-12 w-12" />}
+      title="No image models found"
+      description={
+        hasActiveFilters
+          ? "Try adjusting your search terms or filters to find what you're looking for."
+          : "No image models are available from Replicate."
+      }
+      cta={
+        hasActiveFilters ? (
+          <Button
+            disabled={isPending}
+            variant="outline"
+            onClick={clearAllFilters}
+          >
+            Clear all filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+}
+
 export const ImageModelsTab = () => {
   const [filterState, dispatch] = useReducer(
     imageFilterReducer,
@@ -303,7 +361,7 @@ export const ImageModelsTab = () => {
       // Create a map of model definitions for quick lookup
       const definitionsMap = new Map(
         modelDefinitions
-          .filter(def => def !== null)
+          .filter((def): def is NonNullable<typeof def> => def !== null)
           .map(def => [def.modelId, def])
       );
 
@@ -417,7 +475,7 @@ export const ImageModelsTab = () => {
   }, [fuzzySearchResults, debouncedFilters, enabledImageModelIds]);
 
   const hasActiveFilters =
-    filterState.searchQuery || filterState.showOnlySelected;
+    Boolean(filterState.searchQuery) || filterState.showOnlySelected;
 
   // Memoized action handlers to prevent unnecessary re-renders
   const handleSearchChange = useCallback((value: string) => {
@@ -683,11 +741,7 @@ export const ImageModelsTab = () => {
           <p className="text-sm text-muted-foreground">
             {filteredModels.length} model
             {filteredModels.length !== 1 ? "s" : ""}{" "}
-            {hasActiveFilters
-              ? `matching filters${searchMode === "api" ? " (API search)" : ""}`
-              : searchMode === "api"
-                ? "from API search"
-                : "available"}
+            {getModelCountText(hasActiveFilters, searchMode)}
           </p>
           {isPending && !isLoading && !isSearching && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -697,33 +751,13 @@ export const ImageModelsTab = () => {
           )}
         </div>
 
-        {isLoading || isSearching ? (
-          <div className="flex min-h-[400px] items-center justify-center">
-            <Spinner className="text-blue-500" size="lg" />
-          </div>
-        ) : filteredModels.length > 0 ? (
-          <VirtualizedImageModelList models={filteredModels} />
-        ) : (
-          <SettingsZeroState
-            icon={<MagnifyingGlassIcon className="h-12 w-12" />}
-            title="No image models found"
-            description={
-              hasActiveFilters
-                ? "Try adjusting your search terms or filters to find what you're looking for."
-                : "No image models are available from Replicate."
-            }
-            cta={
-              hasActiveFilters ? (
-                <Button
-                  disabled={isPending}
-                  variant="outline"
-                  onClick={clearAllFilters}
-                >
-                  Clear all filters
-                </Button>
-              ) : undefined
-            }
-          />
+        {renderImageModelsContent(
+          isLoading,
+          isSearching,
+          filteredModels,
+          hasActiveFilters,
+          isPending,
+          clearAllFilters
         )}
       </div>
     </div>

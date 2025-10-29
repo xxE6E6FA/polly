@@ -32,6 +32,16 @@ const DialogHeader = ({ title, onClose }: DialogHeaderProps) => (
   </div>
 );
 
+function formatTextContent(
+  attachmentName: string,
+  attachmentContent: string
+): string {
+  const language = getFileLanguage(attachmentName);
+  return language !== "text"
+    ? `\`\`\`${language}\n${attachmentContent}\n\`\`\``
+    : attachmentContent;
+}
+
 export const FilePreviewDialog = ({
   attachment,
   open,
@@ -105,12 +115,7 @@ export const FilePreviewDialog = ({
             />
             <div className="overflow-y-auto p-6">
               <StreamingMarkdown isStreaming={false}>
-                {(() => {
-                  const language = getFileLanguage(attachment.name);
-                  return language !== "text"
-                    ? `\`\`\`${language}\n${attachment.content}\n\`\`\``
-                    : attachment.content;
-                })()}
+                {formatTextContent(attachment.name, attachment.content)}
               </StreamingMarkdown>
             </div>
           </div>

@@ -12,6 +12,7 @@ interface PersonaSelectorProps {
   hasExistingMessages?: boolean;
   selectedPersonaId?: Id<"personas"> | null;
   onPersonaSelect: (id: Id<"personas"> | null) => void;
+  disabled?: boolean;
 }
 
 const PersonaSelectorComponent = ({
@@ -19,6 +20,7 @@ const PersonaSelectorComponent = ({
   hasExistingMessages,
   selectedPersonaId = null,
   onPersonaSelect,
+  disabled = false,
 }: PersonaSelectorProps) => {
   const { canSendMessage } = useUserDataContext();
   const userSettingsRaw = useUserSettings();
@@ -46,6 +48,7 @@ const PersonaSelectorComponent = ({
       compact={true}
       selectedPersonaId={selectedPersonaId}
       onPersonaSelect={onPersonaSelect}
+      disabled={disabled}
     />
   );
 };

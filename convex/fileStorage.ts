@@ -95,12 +95,14 @@ function encodeCursor(state: CursorState | null): string | null {
 }
 
 function isInvalidCursorError(error: unknown): boolean {
-  const message =
-    error instanceof ConvexError
-      ? error.message
-      : error instanceof Error
-        ? error.message
-        : String(error ?? "");
+  let message: string;
+  if (error instanceof ConvexError) {
+    message = error.message;
+  } else if (error instanceof Error) {
+    message = error.message;
+  } else {
+    message = String(error ?? "");
+  }
 
   return message.includes("InvalidCursor");
 }

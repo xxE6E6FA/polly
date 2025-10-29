@@ -6,7 +6,6 @@ import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
-import { cn } from "@/lib/utils";
 import {
   setPersona as setPersonaAction,
   setTemperature as setTemperatureAction,
@@ -27,50 +26,8 @@ import { PersonaDrawer } from "../persona-drawer";
 import { PersonaSelector } from "../persona-selector";
 import { ReasoningDrawer } from "../reasoning-drawer";
 import { SendButtonGroup } from "../send-button-group";
-import { SpeechInputButton } from "../speech-input-button";
 import { useSpeechInputContext } from "../speech-input-context";
 import { TemperatureDrawer } from "../temperature-drawer";
-
-const TRANSITION_CLASS = "transform transition duration-200 ease-out";
-
-type SpeechInputButtonSlotProps = {
-  disabled: boolean;
-  isSupported: boolean;
-  isRecording: boolean;
-  isTranscribing: boolean;
-  waveform: number[];
-  onStart: () => Promise<void>;
-  onCancel: () => Promise<void>;
-  onSubmit: () => Promise<void>;
-};
-
-function SpeechInputButtonSlot({
-  disabled,
-  isSupported,
-  isRecording,
-  isTranscribing,
-  waveform,
-  onStart,
-  onCancel,
-  onSubmit,
-}: SpeechInputButtonSlotProps) {
-  if (!isSupported) {
-    return <div className="h-8 w-[132px]" aria-hidden="true" />;
-  }
-
-  return (
-    <SpeechInputButton
-      disabled={disabled}
-      isSupported
-      isRecording={isRecording}
-      isTranscribing={isTranscribing}
-      waveform={waveform}
-      onStart={onStart}
-      onCancel={onCancel}
-      onSubmit={onSubmit}
-    />
-  );
-}
 
 interface ChatInputBottomBarProps {
   canSend: boolean;
@@ -114,7 +71,14 @@ export function ChatInputBottomBar({
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const online = useOnline();
-  const disabled = isLoading || isStreaming || isProcessing || !online;
+  const speech = useSpeechInputContext();
+  const isRecordingOrTranscribing = speech.isRecording || speech.isTranscribing;
+  const disabled =
+    isLoading ||
+    isStreaming ||
+    isProcessing ||
+    !online ||
+    isRecordingOrTranscribing;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
   const [generationMode] = useGenerationMode();
@@ -142,23 +106,9 @@ export function ChatInputBottomBar({
     [conversationId]
   );
 
-  const speech = useSpeechInputContext();
-
-  const isTranscribeMode = speech.isRecording || speech.isTranscribing;
-
-  const speechButtonDisabled =
-    !(canSend && online) || isLoading || isStreaming || isProcessing;
-
   return (
     <div className="relative">
-      <div
-        className={cn(
-          "chat-input-bottom-bar flex items-center justify-between p-1.5",
-          TRANSITION_CLASS,
-          isTranscribeMode && "pointer-events-none opacity-0 translate-y-1"
-        )}
-        aria-hidden={isTranscribeMode}
-      >
+      <div className="chat-input-bottom-bar flex items-center justify-between p-1.5">
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {canSend && <ModelDrawer disabled={disabled} />}
 
@@ -236,7 +186,7 @@ export function ChatInputBottomBar({
             !isPrivateMode &&
             hasReplicateApiKey && (
               <div className="hidden sm:flex items-center gap-1 sm:gap-3">
-                <ModelPicker />
+                <ModelPicker disabled={disabled} />
                 <AspectRatioPicker
                   aspectRatio={imageParams.aspectRatio}
                   onAspectRatioChange={aspectRatio =>
@@ -250,6 +200,7 @@ export function ChatInputBottomBar({
                         | "3:4",
                     }))
                   }
+                  disabled={disabled}
                 />
                 <ImageGenerationSettings
                   params={{
@@ -268,18 +219,20 @@ export function ChatInputBottomBar({
                     setImageParams(prev => ({ ...prev, ...updates }))
                   }
                   selectedModel={normalizedSelectedImageModel}
+                  disabled={disabled}
                 />
               </div>
             )}
 
           {canSend && generationMode === "text" && (
             <div className="hidden sm:flex items-center gap-1 sm:gap-3">
-              <ModelPicker />
+              <ModelPicker disabled={disabled} />
               <PersonaSelector
                 conversationId={conversationId}
                 hasExistingMessages={hasExistingMessages}
                 selectedPersonaId={selectedPersonaId}
                 onPersonaSelect={handlePersonaSelect}
+                disabled={disabled}
               />
               <TemperaturePicker
                 temperature={temperature}
@@ -291,22 +244,13 @@ export function ChatInputBottomBar({
                   model={selectedModel}
                   config={reasoningConfig}
                   onConfigChange={setReasoningConfig}
+                  disabled={disabled}
                 />
               ) : null}
             </div>
           )}
         </div>
         <div className="flex items-center gap-1 sm:gap-3">
-          <SpeechInputButtonSlot
-            disabled={speechButtonDisabled}
-            isSupported={speech.isSupported}
-            isRecording={speech.isRecording}
-            isTranscribing={speech.isTranscribing}
-            waveform={speech.waveform}
-            onStart={speech.startRecording}
-            onCancel={speech.cancelRecording}
-            onSubmit={speech.acceptRecording}
-          />
           {canSend && (
             <FileUploadButton
               disabled={disabled}
@@ -335,29 +279,13 @@ export function ChatInputBottomBar({
               await onSendAsNewConversation?.(shouldNavigate, personaId);
             }}
             personaId={selectedPersonaId}
-          />
-        </div>
-      </div>
-      <div
-        className={cn(
-          "chat-input-bottom-bar pointer-events-none absolute inset-0 flex items-center justify-end p-1.5",
-          TRANSITION_CLASS,
-          isTranscribeMode
-            ? "pointer-events-auto opacity-100 translate-y-0"
-            : "opacity-0 translate-y-1"
-        )}
-        aria-hidden={!isTranscribeMode}
-      >
-        <div className="flex w-full justify-end">
-          <SpeechInputButtonSlot
-            disabled={speechButtonDisabled}
             isSupported={speech.isSupported}
             isRecording={speech.isRecording}
             isTranscribing={speech.isTranscribing}
             waveform={speech.waveform}
-            onStart={speech.startRecording}
-            onCancel={speech.cancelRecording}
-            onSubmit={speech.acceptRecording}
+            onStartTranscribe={speech.startRecording}
+            onCancelTranscribe={speech.cancelRecording}
+            onAcceptTranscribe={speech.acceptRecording}
           />
         </div>
       </div>

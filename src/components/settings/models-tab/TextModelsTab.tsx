@@ -92,6 +92,47 @@ function filterReducer(state: FilterState, action: FilterAction): FilterState {
   }
 }
 
+function renderTextModelsContent(
+  isLoading: boolean,
+  filteredModels: FetchedModel[],
+  hasActiveFilters: boolean,
+  isPending: boolean,
+  clearAllFilters: () => void
+) {
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[400px] items-center justify-center">
+        <Spinner className="text-blue-500" size="lg" />
+      </div>
+    );
+  }
+  if (filteredModels.length > 0) {
+    return <VirtualizedModelList models={filteredModels} />;
+  }
+  return (
+    <SettingsZeroState
+      icon={<MagnifyingGlassIcon className="h-12 w-12" />}
+      title="No models found"
+      description={
+        hasActiveFilters
+          ? "Try adjusting your search terms or filters to find what you're looking for."
+          : "No models are available from your configured providers."
+      }
+      cta={
+        hasActiveFilters ? (
+          <Button
+            disabled={isPending}
+            variant="outline"
+            onClick={clearAllFilters}
+          >
+            Clear all filters
+          </Button>
+        ) : undefined
+      }
+    />
+  );
+}
+
 export const TextModelsTab = () => {
   const [filterState, dispatch] = useReducer(filterReducer, initialFilterState);
   const [isPending, startTransition] = useTransition();
@@ -282,11 +323,12 @@ export const TextModelsTab = () => {
     return { providerCounts, capabilityCounts };
   }, [unfilteredModels]);
 
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     filterState.searchQuery ||
-    filterState.selectedProviders.length > 0 ||
-    filterState.selectedCapabilities.length > 0 ||
-    filterState.showOnlySelected;
+      filterState.selectedProviders.length > 0 ||
+      filterState.selectedCapabilities.length > 0 ||
+      filterState.showOnlySelected
+  );
 
   // Memoized action handlers to prevent unnecessary re-renders
   const handleSearchChange = useCallback((value: string) => {
@@ -432,33 +474,12 @@ export const TextModelsTab = () => {
           )}
         </div>
 
-        {isLoading ? (
-          <div className="flex min-h-[400px] items-center justify-center">
-            <Spinner className="text-blue-500" size="lg" />
-          </div>
-        ) : filteredModels.length > 0 ? (
-          <VirtualizedModelList models={filteredModels} />
-        ) : (
-          <SettingsZeroState
-            icon={<MagnifyingGlassIcon className="h-12 w-12" />}
-            title="No models found"
-            description={
-              hasActiveFilters
-                ? "Try adjusting your search terms or filters to find what you're looking for."
-                : "No models are available from your configured providers."
-            }
-            cta={
-              hasActiveFilters ? (
-                <Button
-                  disabled={isPending}
-                  variant="outline"
-                  onClick={clearAllFilters}
-                >
-                  Clear all filters
-                </Button>
-              ) : undefined
-            }
-          />
+        {renderTextModelsContent(
+          isLoading,
+          filteredModels,
+          hasActiveFilters,
+          isPending,
+          clearAllFilters
         )}
 
         {/* Unavailable Models Section */}

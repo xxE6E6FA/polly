@@ -94,6 +94,21 @@ type Action = {
   disabled: boolean;
 };
 
+function getCommandInputPlaceholder(
+  currentMenu: NavigationState["currentMenu"]
+): string {
+  if (currentMenu === "conversation-actions") {
+    return "Search actions...";
+  }
+  if (currentMenu === "model-categories") {
+    return "Search models...";
+  }
+  if (currentMenu === "conversation-browser") {
+    return "Search conversations...";
+  }
+  return "Search conversations, switch models, or take actions...";
+}
+
 export function CommandPalette({
   open,
   onOpenChange,
@@ -1035,15 +1050,7 @@ export function CommandPalette({
             <CommandInput
               ref={inputRef}
               className="h-14 border-0 bg-transparent text-base focus:ring-0 [&_.cmdk-input]:h-14"
-              placeholder={
-                navigation.currentMenu === "conversation-actions"
-                  ? "Search actions..."
-                  : navigation.currentMenu === "model-categories"
-                    ? "Search models..."
-                    : navigation.currentMenu === "conversation-browser"
-                      ? "Search conversations..."
-                      : "Search conversations, switch models, or take actions..."
-              }
+              placeholder={getCommandInputPlaceholder(navigation.currentMenu)}
               value={search}
               onValueChange={setSearch}
             />

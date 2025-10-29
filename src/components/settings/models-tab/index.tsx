@@ -11,11 +11,15 @@ import { TTSTab } from "./TTSTab";
 
 export const ModelsTab = () => {
   const location = useLocation();
-  const activeTab = location.pathname.includes("/image")
-    ? "image"
-    : location.pathname.includes("/tts")
-      ? "tts"
-      : "text";
+  const activeTab = (() => {
+    if (location.pathname.includes("/image")) {
+      return "image";
+    }
+    if (location.pathname.includes("/tts")) {
+      return "tts";
+    }
+    return "text";
+  })();
 
   const tabs = [
     {
@@ -64,13 +68,9 @@ export const ModelsTab = () => {
 
       {/* Tab Content */}
       <div className="mt-6">
-        {activeTab === "text" ? (
-          <TextModelsTab />
-        ) : activeTab === "image" ? (
-          <ImageModelsTab />
-        ) : (
-          <TTSTab />
-        )}
+        {activeTab === "text" && <TextModelsTab />}
+        {activeTab === "image" && <ImageModelsTab />}
+        {activeTab === "tts" && <TTSTab />}
       </div>
     </SettingsPageLayout>
   );

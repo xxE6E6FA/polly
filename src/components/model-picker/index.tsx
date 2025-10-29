@@ -24,9 +24,13 @@ import { ModelPickerTabs } from "./Tabs";
 
 type ModelPickerProps = {
   className?: string;
+  disabled?: boolean;
 };
 
-const ModelPickerComponent = ({ className }: ModelPickerProps) => {
+const ModelPickerComponent = ({
+  className,
+  disabled = false,
+}: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { modelGroups } = useModelCatalog();
@@ -122,19 +126,23 @@ const ModelPickerComponent = ({ className }: ModelPickerProps) => {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={disabled ? false : open}
+      onOpenChange={disabled ? undefined : setOpen}
+    >
       <div className={className}>
         <label id="model-picker-label" className="sr-only">
           Select a model
         </label>
         <Tooltip>
           <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
+            <PopoverTrigger asChild disabled={disabled}>
               <ModelPickerTrigger
                 open={open}
                 selectedModel={displayModel}
                 displayLabel={triggerDisplayLabel}
                 displayProvider={triggerDisplayProvider}
+                disabled={disabled}
               />
             </PopoverTrigger>
           </TooltipTrigger>

@@ -58,12 +58,44 @@ const FILE_TYPE_OPTIONS = [
   { value: "text", label: "Text Files", icon: FileTextIcon },
 ] as const;
 
+const TEXT_FILE_EXTENSIONS = [
+  "txt",
+  "text",
+  "md",
+  "markdown",
+  "mdx",
+  "rtf",
+  "log",
+  "csv",
+  "tsv",
+] as const;
+
 function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+function getFileAttachmentIcon(attachment: Attachment) {
+  if (attachment.type === "pdf") {
+    return <FilePdfIcon className="h-4 w-4 text-red-500" />;
+  }
+
+  if (attachment.type === "text") {
+    const extension = attachment.name.split(".").pop()?.toLowerCase();
+    const isTextFile =
+      extension &&
+      (TEXT_FILE_EXTENSIONS as readonly string[]).includes(extension);
+
+    if (isTextFile) {
+      return <FileTextIcon className="h-4 w-4 text-blue-500" />;
+    }
+    return <FileCodeIcon className="h-4 w-4 text-green-500" />;
+  }
+
+  return <FileTextIcon className="h-4 w-4 text-gray-500" />;
 }
 
 export default function AttachmentsPage() {
@@ -616,37 +648,7 @@ export default function AttachmentsPage() {
                                 onClick={() => setPreviewFile(file)}
                                 className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
                               >
-                                {file.attachment.type === "pdf" ? (
-                                  <FilePdfIcon className="h-4 w-4 text-red-500" />
-                                ) : file.attachment.type === "text" ? (
-                                  (() => {
-                                    const extension = file.attachment.name
-                                      .split(".")
-                                      .pop()
-                                      ?.toLowerCase();
-                                    const isTextFile =
-                                      extension &&
-                                      [
-                                        "txt",
-                                        "text",
-                                        "md",
-                                        "markdown",
-                                        "mdx",
-                                        "rtf",
-                                        "log",
-                                        "csv",
-                                        "tsv",
-                                      ].includes(extension);
-
-                                    return isTextFile ? (
-                                      <FileTextIcon className="h-4 w-4 text-blue-500" />
-                                    ) : (
-                                      <FileCodeIcon className="h-4 w-4 text-green-500" />
-                                    );
-                                  })()
-                                ) : (
-                                  <FileTextIcon className="h-4 w-4 text-gray-500" />
-                                )}
+                                {getFileAttachmentIcon(file.attachment)}
                               </button>
                             )}
                           </div>
