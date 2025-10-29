@@ -29,7 +29,7 @@
     "coverage": "vitest run --coverage",
     "coverage:ci": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "pre-commit": "pnpm typecheck && pnpm lint && pnpm test:changed",
+    "pre-commit": "pnpm typecheck && pnpm lint && pnpm compiler:check && pnpm test:changed",
     "validate": "pnpm typecheck && pnpm lint && pnpm test:ci"
   },
   "dependencies": {
@@ -134,11 +134,7 @@
       "biome format --write --files-ignore-unknown=true --no-errors-on-unmatched",
       "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
     ],
-    "*.{ts,tsx}": [
-      "bash -c 'tsc --noEmit'",
-      "vitest run --changed",
-      "pnpm compiler:check"
-    ],
+    "*.{ts,tsx}": ["bash -c 'tsc --noEmit'", "vitest run --changed"],
     "*.{js,jsx}": ["vitest run --changed"],
     "convex/_generated/**": []
   }
