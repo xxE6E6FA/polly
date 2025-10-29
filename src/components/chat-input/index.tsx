@@ -34,7 +34,9 @@ import {
   useChatInputImageGeneration,
   useChatInputSubmission,
 } from "./hooks";
+import { useSpeechInput } from "./hooks/use-speech-input";
 import { TextInputSection } from "./sections/text-input-section";
+import { SpeechInputProvider } from "./speech-input-context";
 
 interface ChatInputProps {
   onSendMessage: (
@@ -370,55 +372,71 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       [reasoningConfig]
     );
 
-    return (
-      <ChatInputContainer
-        className={chatInputStateClass}
-        isDragOver={isDragOver}
-        canSend={canSendMessage}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <TextInputSection
-          onSubmit={handleSubmit}
-          textareaRef={inlineTextareaRef}
-          placeholder={dynamicPlaceholder}
-          disabled={
-            isLoading ||
-            isStreaming ||
-            isProcessing ||
-            !canSendMessage ||
-            !online
-          }
-          autoFocus={autoFocus}
-          value={input}
-          onValueChange={setInput}
-          hasExistingMessages={hasExistingMessages}
-          conversationId={conversationId}
-          canSend={canSendMessage && online}
-          generationMode={generationMode}
-          hasReplicateApiKey={hasReplicateApiKey}
-          selectedImageModel={selectedImageModel}
-          quote={activeQuote ?? undefined}
-          onClearQuote={() => setActiveQuote(null)}
-        />
+    const handleTranscriptionInsert = useCallback((raw: string) => {
+      const trimmed = raw.trim();
+      if (trimmed.length === 0 || trimmed === "Silence.") {
+        return;
+      }
+      setInput(trimmed);
+    }, []);
 
-        <ChatInputBottomBar
-          canSend={canSendMessage && online}
-          isStreaming={isStreaming}
-          isLoading={isLoading}
-          isProcessing={isProcessing}
-          hasExistingMessages={hasExistingMessages}
-          conversationId={conversationId}
-          hasInputText={deferredInputHasText}
-          onSend={handleSubmit}
-          onStop={onStop}
-          onSendAsNewConversation={handleSendAsNew}
-          hasReplicateApiKey={hasReplicateApiKey}
-          isPrivateMode={isPrivateMode}
-          selectedImageModel={selectedImageModel}
-        />
-      </ChatInputContainer>
+    const speechInput = useSpeechInput({
+      onTranscription: handleTranscriptionInsert,
+    });
+
+    return (
+      <SpeechInputProvider value={speechInput}>
+        <ChatInputContainer
+          className={chatInputStateClass}
+          isDragOver={isDragOver}
+          canSend={canSendMessage}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <TextInputSection
+            onSubmit={handleSubmit}
+            textareaRef={inlineTextareaRef}
+            placeholder={dynamicPlaceholder}
+            disabled={
+              isLoading ||
+              isStreaming ||
+              isProcessing ||
+              !canSendMessage ||
+              !online ||
+              speechInput.isRecording ||
+              speechInput.isTranscribing
+            }
+            autoFocus={autoFocus}
+            value={input}
+            onValueChange={setInput}
+            hasExistingMessages={hasExistingMessages}
+            conversationId={conversationId}
+            canSend={canSendMessage && online}
+            generationMode={generationMode}
+            hasReplicateApiKey={hasReplicateApiKey}
+            selectedImageModel={selectedImageModel}
+            quote={activeQuote ?? undefined}
+            onClearQuote={() => setActiveQuote(null)}
+          />
+
+          <ChatInputBottomBar
+            canSend={canSendMessage && online}
+            isStreaming={isStreaming}
+            isLoading={isLoading}
+            isProcessing={isProcessing}
+            hasExistingMessages={hasExistingMessages}
+            conversationId={conversationId}
+            hasInputText={deferredInputHasText}
+            onSend={handleSubmit}
+            onStop={onStop}
+            onSendAsNewConversation={handleSendAsNew}
+            hasReplicateApiKey={hasReplicateApiKey}
+            isPrivateMode={isPrivateMode}
+            selectedImageModel={selectedImageModel}
+          />
+        </ChatInputContainer>
+      </SpeechInputProvider>
     );
   }
 );
