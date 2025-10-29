@@ -175,21 +175,23 @@ export function useBackgroundJobs(options: { suppressToasts?: boolean } = {}) {
                     );
 
                     if (downloadData?.downloadUrl) {
-                      const manifest = downloadData.manifest
-                        ? {
+                      const manifest = (() => {
+                        if (downloadData.manifest) {
+                          return {
                             totalConversations:
                               downloadData.manifest.totalConversations,
                             includeAttachments:
                               downloadData.manifest.includeAttachments,
-                          }
-                        : job.manifest
-                          ? {
-                              totalConversations:
-                                job.manifest.totalConversations,
-                              includeAttachments:
-                                job.manifest.includeAttachments,
-                            }
-                          : undefined;
+                          };
+                        }
+                        if (job.manifest) {
+                          return {
+                            totalConversations: job.manifest.totalConversations,
+                            includeAttachments: job.manifest.includeAttachments,
+                          };
+                        }
+                        return undefined;
+                      })();
 
                       const filename =
                         generateBackgroundExportFilename(manifest);

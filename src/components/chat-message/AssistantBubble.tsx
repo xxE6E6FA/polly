@@ -2,6 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
@@ -410,6 +411,250 @@ export const AssistantBubble = ({
     return MODEL_DISPLAY_NAMES[modelId] || modelId;
   };
 
+  function renderToolActivitySummary(
+    overlayTools: Array<{
+      t: string;
+      name: string;
+      ok?: boolean;
+      count?: number;
+    }>
+  ): ReactNode {
+    const last = overlayTools[overlayTools.length - 1];
+    if (last.t === "tool_call") {
+      return <span>Calling {last.name}…</span>;
+    }
+    return (
+      <span>
+        {last.ok === false ? "Failed" : "Finished"} {last.name}
+        {typeof last.count === "number" ? ` (${last.count} results)` : null}
+      </span>
+    );
+  }
+
+  function renderImageGenerationContent(
+    imageGeneration: ChatMessageType["imageGeneration"],
+    hasAnyGeneratedImages: boolean,
+    hasStoredImages: boolean,
+    generatedImageAttachments: Attachment[],
+    outputUrls: string[],
+    messageId: string,
+    findAttachmentByUrl: (url: string) => Attachment,
+    onPreviewFile?: (attachment: Attachment) => void,
+    onRetryImageGeneration?: (messageId: string) => void
+  ): ReactNode {
+    if (!imageGeneration) {
+      return null;
+    }
+
+    const isFailedOrCanceled =
+      imageGeneration.status === "failed" ||
+      imageGeneration.status === "canceled";
+    const isSucceededWithImages =
+      imageGeneration.status === "succeeded" && hasAnyGeneratedImages;
+
+    if (isFailedOrCanceled) {
+      return (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-950/50">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-red-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Image generation{" "}
+                {imageGeneration.status === "canceled" ? "canceled" : "failed"}
+              </h4>
+              {imageGeneration.error && (
+                <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+                  {imageGeneration.error}
+                </p>
+              )}
+              {onRetryImageGeneration && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => onRetryImageGeneration(messageId)}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-200 dark:hover:bg-red-800/30"
+                  >
+                    <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+                    Retry generation
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isSucceededWithImages) {
+      return (
+        <ImageViewToggle
+          images={
+            hasStoredImages
+              ? generatedImageAttachments.map(att => att.url)
+              : outputUrls
+          }
+          aspectRatio={imageGeneration.metadata?.params?.aspectRatio}
+          onImageClick={url => {
+            const att = findAttachmentByUrl(url);
+            onPreviewFile?.(att);
+          }}
+          messageId={messageId}
+          className="image-gallery-wrapper"
+          gridComponent={renderImageGrid(
+            hasStoredImages,
+            generatedImageAttachments,
+            outputUrls,
+            messageId,
+            imageGeneration?.metadata?.params?.aspectRatio,
+            findAttachmentByUrl,
+            onPreviewFile
+          )}
+        />
+      );
+    }
+
+    return renderImageGenerationLoadingSkeleton(
+      imageGeneration.metadata?.params?.count || 1,
+      imageGeneration.metadata?.params?.aspectRatio,
+      messageId
+    );
+  }
+
+  function renderImageGenerationLoadingSkeleton(
+    count: number,
+    aspectRatio: string | undefined,
+    messageId: string
+  ): ReactNode {
+    if (count === 1) {
+      const maxWidthClass = getSingleImageMaxWidth(aspectRatio || "1:1");
+      return (
+        <div className="flex flex-col items-start">
+          <div className={cn("w-full", maxWidthClass)}>
+            <ImageGenerationSkeleton
+              aspectRatio={
+                aspectRatio as
+                  | "1:1"
+                  | "16:9"
+                  | "9:16"
+                  | "4:3"
+                  | "3:4"
+                  | undefined
+              }
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className={cn(
+          "grid gap-3",
+          count === 2 && "grid-cols-1 sm:grid-cols-2",
+          count === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+          count >= 4 && "grid-cols-1 sm:grid-cols-2"
+        )}
+      >
+        {Array.from({ length: count }).map((_, index) => (
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: Skeleton placeholders don't have unique IDs
+            key={`skeleton-${messageId}-${index}`}
+            className="w-full max-w-sm"
+          >
+            <ImageGenerationSkeleton
+              aspectRatio={
+                aspectRatio as
+                  | "1:1"
+                  | "16:9"
+                  | "9:16"
+                  | "4:3"
+                  | "3:4"
+                  | undefined
+              }
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function renderImageGrid(
+    hasStoredImages: boolean,
+    generatedImageAttachments: Attachment[],
+    outputUrls: string[],
+    messageId: string,
+    aspectRatio: string | undefined,
+    findAttachmentByUrl: (url: string) => Attachment,
+    onPreviewFile?: (attachment: Attachment) => void
+  ): ReactNode {
+    const items = hasStoredImages
+      ? generatedImageAttachments
+      : outputUrls.map(url => ({ url }));
+
+    return (
+      <div
+        className={cn(
+          "overflow-visible",
+          items.length === 1
+            ? "stack-md flex flex-col items-start"
+            : "grid gap-6",
+          items.length === 2 && "grid-cols-1 sm:grid-cols-2",
+          items.length === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+          items.length >= 4 && "grid-cols-1 sm:grid-cols-2"
+        )}
+      >
+        {items.map((item, index) => {
+          const attachment = hasStoredImages ? (item as Attachment) : null;
+          const url = hasStoredImages
+            ? (item as Attachment).url
+            : (item as { url: string }).url;
+
+          return (
+            <ImageContainer
+              key={url || `${messageId}-img-${index}`}
+              imageUrl={url}
+              storageId={attachment?.storageId as Id<"_storage"> | undefined}
+              altText={`Generated content ${index + 1}`}
+              aspectRatio={aspectRatio}
+              onClick={finalUrl => {
+                if (attachment) {
+                  onPreviewFile?.(attachment);
+                } else {
+                  onPreviewFile?.(findAttachmentByUrl(finalUrl));
+                }
+              }}
+              className={cn(items.length === 1 ? "single-image" : "w-full")}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  function hasGeneratedImages(
+    attachments: Attachment[] | undefined,
+    imageGeneration: ChatMessageType["imageGeneration"]
+  ): boolean {
+    const generatedImages =
+      attachments?.filter(
+        att => att.type === "image" && att.generatedImage?.isGenerated
+      ) || [];
+    const outputUrls = imageGeneration?.output || [];
+    return generatedImages.length > 0 || outputUrls.length > 0;
+  }
+
   return (
     <div className="w-full">
       <div
@@ -431,20 +676,7 @@ export const AssistantBubble = ({
             {/* Tool activity summary (non-intrusive, single line) */}
             {overlayTools.length > 0 && (
               <div className="mt-1 text-xs text-muted-foreground">
-                {(() => {
-                  const last = overlayTools[overlayTools.length - 1];
-                  if (last.t === "tool_call") {
-                    return <span>Calling {last.name}…</span>;
-                  }
-                  return (
-                    <span>
-                      {last.ok === false ? "Failed" : "Finished"} {last.name}
-                      {typeof last.count === "number"
-                        ? ` (${last.count} results)`
-                        : null}
-                    </span>
-                  );
-                })()}
+                {renderToolActivitySummary(overlayTools)}
               </div>
             )}
           </div>
@@ -468,185 +700,16 @@ export const AssistantBubble = ({
         {/* Handle image generation messages */}
         {message.imageGeneration ? (
           <div className="mb-3">
-            {message.imageGeneration.status === "failed" ||
-            message.imageGeneration.status === "canceled" ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-950/50">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-500"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
-                      Image generation{" "}
-                      {message.imageGeneration.status === "canceled"
-                        ? "canceled"
-                        : "failed"}
-                    </h4>
-                    {message.imageGeneration.error && (
-                      <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-                        {message.imageGeneration.error}
-                      </p>
-                    )}
-                    {onRetryImageGeneration && (
-                      <div className="mt-3">
-                        <button
-                          onClick={() => onRetryImageGeneration(message.id)}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-200 dark:hover:bg-red-800/30"
-                        >
-                          <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
-                          Retry generation
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : message.imageGeneration.status === "succeeded" &&
-              hasAnyGeneratedImages ? (
-              <ImageViewToggle
-                images={
-                  hasStoredImages
-                    ? generatedImageAttachments.map(att => att.url)
-                    : outputUrls
-                }
-                aspectRatio={
-                  message.imageGeneration.metadata?.params?.aspectRatio
-                }
-                onImageClick={url => {
-                  const att = findAttachmentByUrl(url);
-                  onPreviewFile?.(att);
-                }}
-                messageId={message.id}
-                className="image-gallery-wrapper"
-                gridComponent={(() => {
-                  const items = hasStoredImages
-                    ? generatedImageAttachments
-                    : outputUrls.map(url => ({ url }));
-
-                  return (
-                    <div
-                      className={cn(
-                        "overflow-visible",
-                        items.length === 1
-                          ? "stack-md flex flex-col items-start"
-                          : "grid gap-6",
-                        items.length === 2 && "grid-cols-1 sm:grid-cols-2",
-                        items.length === 3 &&
-                          "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-                        items.length >= 4 && "grid-cols-1 sm:grid-cols-2"
-                      )}
-                    >
-                      {items.map((item, index) => {
-                        const attachment = hasStoredImages
-                          ? (item as Attachment)
-                          : null;
-                        const url = hasStoredImages
-                          ? (item as Attachment).url
-                          : (item as { url: string }).url;
-
-                        return (
-                          <ImageContainer
-                            key={`${message.id}-img-${index}`}
-                            imageUrl={url}
-                            storageId={
-                              attachment?.storageId as
-                                | Id<"_storage">
-                                | undefined
-                            }
-                            altText={`Generated content ${index + 1}`}
-                            aspectRatio={
-                              message.imageGeneration?.metadata?.params
-                                ?.aspectRatio
-                            }
-                            onClick={finalUrl => {
-                              if (attachment) {
-                                onPreviewFile?.(attachment);
-                              } else {
-                                onPreviewFile?.(findAttachmentByUrl(finalUrl));
-                              }
-                            }}
-                            className={cn(
-                              items.length === 1 ? "single-image" : "w-full"
-                            )}
-                          />
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              />
-            ) : (
-              (() => {
-                const count =
-                  message.imageGeneration.metadata?.params?.count || 1;
-                const aspectRatio =
-                  message.imageGeneration.metadata?.params?.aspectRatio;
-
-                if (count === 1) {
-                  const maxWidthClass = getSingleImageMaxWidth(
-                    aspectRatio || "1:1"
-                  );
-                  return (
-                    <div className="flex flex-col items-start">
-                      <div className={cn("w-full", maxWidthClass)}>
-                        <ImageGenerationSkeleton
-                          aspectRatio={
-                            aspectRatio as
-                              | "1:1"
-                              | "16:9"
-                              | "9:16"
-                              | "4:3"
-                              | "3:4"
-                              | undefined
-                          }
-                        />
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    className={cn(
-                      "grid gap-3",
-                      count === 2 && "grid-cols-1 sm:grid-cols-2",
-                      count === 3 &&
-                        "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-                      count >= 4 && "grid-cols-1 sm:grid-cols-2"
-                    )}
-                  >
-                    {Array.from({ length: count }).map((_, index) => (
-                      <div
-                        key={`skeleton-${message.id}-${index}`}
-                        className="w-full max-w-sm"
-                      >
-                        <ImageGenerationSkeleton
-                          aspectRatio={
-                            aspectRatio as
-                              | "1:1"
-                              | "16:9"
-                              | "9:16"
-                              | "4:3"
-                              | "3:4"
-                              | undefined
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()
+            {renderImageGenerationContent(
+              message.imageGeneration,
+              hasAnyGeneratedImages,
+              hasStoredImages,
+              generatedImageAttachments,
+              outputUrls,
+              message.id,
+              findAttachmentByUrl,
+              onPreviewFile,
+              onRetryImageGeneration
             )}
           </div>
         ) : (
@@ -730,14 +793,7 @@ export const AssistantBubble = ({
         {/* Show image-specific actions for image generation messages */}
         {message.imageGeneration &&
         message.imageGeneration.status === "succeeded" &&
-        (() => {
-          const generatedImages =
-            message.attachments?.filter(
-              att => att.type === "image" && att.generatedImage?.isGenerated
-            ) || [];
-          const outputUrls = message.imageGeneration.output || [];
-          return generatedImages.length > 0 || outputUrls.length > 0;
-        })() ? (
+        hasGeneratedImages(message.attachments, message.imageGeneration) ? (
           <div
             className={cn(
               "flex items-center gap-2 mt-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 ease-out",

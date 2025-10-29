@@ -37,6 +37,8 @@ alwaysApply: true
 - **DRY Principle**: Avoid duplicate logic, extract reusable functions
 - **React Hooks Rules**: Follow Rules of Hooks (enforced by Biome ESLint plugin)
 - **Exhaustive Dependencies**: All useEffect dependencies must be declared (enforced by Biome)
+- **Avoid Nested Ternaries**: Use if-else statements or helper functions instead of nested ternary operators for readability
+- **Avoid IIFEs in JSX**: Never use Immediately Invoked Function Expressions `(() => { ... })()` inside JSX. Extract logic into helper functions or components instead for better readability and performance.
 
 ## Examples
 
@@ -62,4 +64,38 @@ console.log("Debug info"); // Use log instead
 const getUserData = async (userId: string) => { // Missing return type
   // ...
 };
+
+// ✅ Good - Avoiding nested ternaries
+const getButtonTitle = () => {
+  if (isStreaming) {
+    return "Stop";
+  }
+  if (hasInputText) {
+    return "Send message";
+  }
+  return "Start voice input";
+};
+
+// ❌ Bad - Nested ternaries
+const getButtonTitle = () => {
+  return isStreaming ? "Stop" : hasInputText ? "Send message" : "Start voice input";
+};
+
+// ❌ Bad - IIFE in JSX
+<button>
+  {(() => {
+    if (condition) return <Icon1 />;
+    return <Icon2 />;
+  })()}
+</button>
+
+// ✅ Good - Extract to helper function
+function getIcon(condition: boolean) {
+  if (condition) return <Icon1 />;
+  return <Icon2 />;
+}
+
+<button>
+  {getIcon(condition)}
+</button>
 ```

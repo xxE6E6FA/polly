@@ -87,6 +87,7 @@
         "noInferrableTypes": "error",
         "noNamespace": "error",
         "noNegationElse": "error",
+        "noNestedTernary": "error",
         "noNonNullAssertion": "warn",
         "noParameterAssign": "error",
         "noShoutyConstants": "error",

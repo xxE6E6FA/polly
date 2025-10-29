@@ -2,11 +2,14 @@ import type { Id } from "@convex/_generated/dataModel";
 import {
   CaretDownIcon,
   ChatCircleIcon,
+  CheckIcon,
   GitBranchIcon,
+  MicrophoneIcon,
   PaperPlaneTiltIcon,
   SquareIcon,
+  XIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +31,70 @@ const ICON_WRAPPER_CLASS = "grid h-full w-full place-items-center text-current";
 
 const ICON_CLASS = "h-4 w-4 shrink-0";
 
+type RecordingWaveformProps = {
+  data: number[];
+};
+
+const RecordingWaveform = ({ data }: RecordingWaveformProps) => {
+  const hasSamples = data.length > 0;
+  const barCount = 12;
+
+  const bars = Array.from({ length: barCount }, (_, index) => {
+    if (!hasSamples) {
+      const progress = index / Math.max(1, barCount - 1);
+      const wave = Math.sin(Math.PI * progress);
+      const normalized = (wave + 1) / 2;
+      const smoothed = normalized ** 0.8;
+      return 0.28 + smoothed * 0.24;
+    }
+
+    const segmentSize = data.length / barCount;
+    const start = Math.floor(index * segmentSize);
+    const end = Math.max(start + 1, Math.floor((index + 1) * segmentSize));
+
+    let peak = 0;
+    for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+      const sample = Math.abs(data[sampleIndex] ?? 0);
+      if (sample > peak) {
+        peak = sample;
+      }
+    }
+
+    if (peak < 0.025) {
+      return 0.15;
+    }
+
+    const amplified = Math.min(1.1, peak * 4.0);
+    const curved = amplified ** 0.55;
+    return Math.min(1, Math.max(0.15, curved));
+  });
+
+  return (
+    <div
+      className="flex h-8 items-center justify-end gap-0.5 px-2 py-1.5"
+      aria-hidden="true"
+    >
+      {bars.map((value, index) => {
+        const height = `${Math.min(1, value) * 100}%`;
+        const opacity = 0.5 + value * 0.5;
+        const barId = `bar-${index}-${Math.floor(value * 1000)}`;
+
+        return (
+          <div
+            key={barId}
+            className="flex h-full w-0.5 items-center justify-center transition-all duration-500 ease-in-out"
+          >
+            <div
+              className="w-full rounded-full bg-primary-foreground transition-all duration-500 ease-in-out"
+              style={{ height, opacity }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 type SendButtonGroupProps = {
   canSend: boolean;
   isStreaming: boolean;
@@ -46,6 +113,13 @@ type SendButtonGroupProps = {
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
   personaId?: Id<"personas"> | null;
+  isSupported?: boolean;
+  isRecording?: boolean;
+  isTranscribing?: boolean;
+  waveform?: number[];
+  onStartTranscribe?: () => Promise<void>;
+  onCancelTranscribe?: () => Promise<void>;
+  onAcceptTranscribe?: () => Promise<void>;
 };
 
 export const SendButtonGroup = ({
@@ -62,6 +136,13 @@ export const SendButtonGroup = ({
   hasApiKeys,
   hasEnabledModels,
   personaId,
+  isSupported = false,
+  isRecording = false,
+  isTranscribing = false,
+  waveform = [],
+  onStartTranscribe,
+  onCancelTranscribe,
+  onAcceptTranscribe,
 }: SendButtonGroupProps) => {
   const [reasoningConfig] = useReasoningConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -80,23 +161,31 @@ export const SendButtonGroup = ({
     "dropdown" | "send" | null
   >(null);
 
-  const dropdownHighlightClass =
-    hoveredSegment === "dropdown"
-      ? isStreaming
-        ? "bg-danger/80"
-        : canSend
-          ? "bg-primary/80"
-          : "bg-primary/15"
-      : "bg-transparent";
+  const dropdownHighlightClass = (() => {
+    if (hoveredSegment !== "dropdown") {
+      return "bg-transparent";
+    }
+    if (isStreaming) {
+      return "bg-danger/80";
+    }
+    if (canSend) {
+      return "bg-primary/80";
+    }
+    return "bg-primary/15";
+  })();
 
-  const sendHighlightClass =
-    hoveredSegment === "send"
-      ? isStreaming
-        ? "bg-danger/75"
-        : canSend
-          ? "bg-primary/80"
-          : "bg-primary/15"
-      : "bg-transparent";
+  const sendHighlightClass = (() => {
+    if (hoveredSegment !== "send") {
+      return "bg-transparent";
+    }
+    if (isStreaming) {
+      return "bg-danger/75";
+    }
+    if (canSend) {
+      return "bg-primary/80";
+    }
+    return "bg-primary/15";
+  })();
 
   useEffect(() => {
     if (dropdownOpen) {
@@ -110,6 +199,15 @@ export const SendButtonGroup = ({
     if (isStreaming) {
       return "Stop generation";
     }
+    if (!hasInputText && isRecording) {
+      return "Click to accept recording";
+    }
+    if (!hasInputText && isTranscribing) {
+      return "Transcribing...";
+    }
+    if (!hasInputText && isSupported) {
+      return "Start voice input";
+    }
     if (hasApiKeys === false) {
       return "Configure API keys to start chatting";
     }
@@ -119,7 +217,10 @@ export const SendButtonGroup = ({
     if (canSend) {
       return "Send message";
     }
-    return undefined;
+    if (hasInputText) {
+      return "Send message";
+    }
+    return "Start voice input";
   };
 
   useEffect(() => {
@@ -166,12 +267,48 @@ export const SendButtonGroup = ({
       );
     }
 
+    if (!hasInputText && isTranscribing) {
+      return (
+        <span className={ICON_WRAPPER_CLASS}>
+          <Spinner
+            size="sm"
+            variant="white"
+            className="!grid h-full w-full place-items-center [&_svg]:h-4 [&_svg]:w-4"
+          />
+        </span>
+      );
+    }
+
+    if (!hasInputText && isRecording) {
+      return (
+        <span className={ICON_WRAPPER_CLASS}>
+          <CheckIcon className={ICON_CLASS} weight="bold" aria-hidden="true" />
+        </span>
+      );
+    }
+
+    if (!hasInputText && isSupported) {
+      return (
+        <span className={ICON_WRAPPER_CLASS}>
+          <MicrophoneIcon className={ICON_CLASS} aria-hidden="true" />
+        </span>
+      );
+    }
+
     return (
       <span className={ICON_WRAPPER_CLASS}>
         <PaperPlaneTiltIcon className={ICON_CLASS} aria-hidden="true" />
       </span>
     );
-  }, [isStreaming, isLoading, isSummarizing]);
+  }, [
+    isStreaming,
+    isLoading,
+    isSummarizing,
+    hasInputText,
+    isSupported,
+    isTranscribing,
+    isRecording,
+  ]);
 
   const dropdownMenuTriggerAnimationClasses = useMemo(() => {
     if (isExpanded && !isCollapsing) {
@@ -183,6 +320,100 @@ export const SendButtonGroup = ({
     return "opacity-0 scale-75 duration-300 ease-out";
   }, [isExpanded, isCollapsing]);
 
+  const isButtonDisabled = useMemo(() => {
+    if (isStreaming) {
+      return !onStop;
+    }
+    const isZeroState = !hasInputText;
+    if (isZeroState && isRecording) {
+      return false;
+    }
+    if (isZeroState && (isTranscribing || !isSupported)) {
+      return true;
+    }
+    return !canSend || isLoading || isSummarizing;
+  }, [
+    isStreaming,
+    onStop,
+    hasInputText,
+    isRecording,
+    isTranscribing,
+    isSupported,
+    canSend,
+    isLoading,
+    isSummarizing,
+  ]);
+
+  const handleButtonClick = useCallback(() => {
+    if (isStreaming && onStop) {
+      onStop();
+      return;
+    }
+    if (!hasInputText && isRecording && onAcceptTranscribe) {
+      onAcceptTranscribe();
+      return;
+    }
+    const isZeroState = !hasInputText;
+    if (isZeroState && !isRecording && !isTranscribing && onStartTranscribe) {
+      onStartTranscribe();
+      return;
+    }
+    if (hasInputText && !isStreaming) {
+      onSend();
+    }
+  }, [
+    isStreaming,
+    onStop,
+    hasInputText,
+    isRecording,
+    onAcceptTranscribe,
+    isTranscribing,
+    onStartTranscribe,
+    onSend,
+  ]);
+
+  const isRecordingInZeroState = !hasInputText && isRecording;
+  const shouldShowWaveform = isRecordingInZeroState;
+
+  const isNotCollapsing = !isCollapsing;
+  const canShowHoverScale = isNotCollapsing && !shouldShowWaveform;
+
+  // Calculate transition easing
+  const easingClass = isCollapsing
+    ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
+    : "ease-[cubic-bezier(0.34,1.56,0.64,1)]";
+
+  // Calculate width based on state
+  let widthClass: string;
+  if (shouldShowWaveform) {
+    widthClass = "w-[120px] duration-300";
+  } else if (isExpanded) {
+    widthClass = "w-[64px] duration-500";
+  } else {
+    widthClass = "w-8 duration-300";
+  }
+
+  // Calculate background and border styles
+  let backgroundClass: string;
+  if (isStreaming) {
+    backgroundClass =
+      "bg-danger hover:bg-danger/90 border border-danger shadow-md hover:shadow-lg";
+  } else if (canSend || isRecordingInZeroState) {
+    backgroundClass =
+      "bg-primary hover:bg-primary/90 border border-primary shadow-md hover:shadow-lg";
+  } else {
+    backgroundClass =
+      "bg-primary/20 border border-primary/30 shadow-sm dark:bg-primary/15 dark:border-primary/25";
+  }
+
+  // Calculate hover scale classes
+  let hoverScaleClasses: string | undefined;
+  if (canShowHoverScale) {
+    hoverScaleClasses = isExpanded
+      ? "hover:scale-[1.02] active:scale-[0.98]"
+      : "hover:scale-105 active:scale-95";
+  }
+
   return (
     <div className="relative">
       <div
@@ -190,33 +421,79 @@ export const SendButtonGroup = ({
           "chat-input-send-group relative flex items-stretch",
           "h-8",
           "transition-all",
-          isCollapsing
-            ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
-            : "ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-          isExpanded ? "w-[64px] duration-500" : "w-8 duration-300",
-          // Always allow outer focus ring to be visible for both buttons
+          easingClass,
+          widthClass,
           "overflow-visible",
           isCollapsing && "scale-[0.98]",
-          isStreaming
-            ? "bg-danger hover:bg-danger/90 border border-danger shadow-md hover:shadow-lg"
-            : canSend
-              ? "bg-primary hover:bg-primary/90 border border-primary shadow-md hover:shadow-lg"
-              : "bg-primary/20 border border-primary/30 shadow-sm dark:bg-primary/15 dark:border-primary/25",
-          // Upload-like hover/active when collapsed; gentler when expanded
-          !isCollapsing &&
-            (isExpanded
-              ? "hover:scale-[1.02] active:scale-[0.98]"
-              : "hover:scale-105 active:scale-95"),
+          backgroundClass,
+          hoverScaleClasses,
           "transform-gpu"
         )}
         style={{
           animation:
-            hasBeenEnabled && canSend && !isExpanded && !isCollapsing
+            hasBeenEnabled &&
+            canSend &&
+            !isExpanded &&
+            !isCollapsing &&
+            !shouldShowWaveform
               ? "button-entrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)"
               : undefined,
         }}
       >
-        {(isExpanded || isCollapsing) && (
+        {shouldShowWaveform && (
+          <>
+            <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-0.5 z-10">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="h-7 w-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={() => onAcceptTranscribe?.()}
+                    aria-label="Use transcript"
+                  >
+                    <CheckIcon
+                      className="h-3.5 w-3.5"
+                      weight="bold"
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">Use transcript</div>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="h-7 w-7 rounded-full text-primary-foreground hover:bg-primary-foreground/15"
+                    onClick={() => onCancelTranscribe?.()}
+                    aria-label="Discard recording"
+                  >
+                    <XIcon
+                      className="h-3.5 w-3.5"
+                      weight="bold"
+                      aria-hidden="true"
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <div className="text-xs">Discard recording</div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="absolute right-[60px] top-0 bottom-0 left-0 flex items-center overflow-hidden">
+              <div className="ml-auto">
+                <RecordingWaveform data={waveform} />
+              </div>
+            </div>
+          </>
+        )}
+        {(isExpanded || isCollapsing) && !shouldShowWaveform && (
           <div
             className="pointer-events-none absolute inset-0 flex overflow-hidden"
             style={{ borderRadius: "inherit" }}
@@ -357,18 +634,21 @@ export const SendButtonGroup = ({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              disabled={
-                isStreaming ? !onStop : !canSend || isLoading || isSummarizing
+              disabled={isButtonDisabled}
+              type={
+                isStreaming || (!hasInputText && isRecording)
+                  ? "button"
+                  : "submit"
               }
-              type={isStreaming ? "button" : "submit"}
               variant="ghost"
               className={cn(
                 "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 leading-none rounded-full",
                 // Use grid centering to align icon perfectly
                 "!grid place-items-center !items-center !justify-center !gap-0",
                 "relative z-10",
+                shouldShowWaveform && "opacity-0 pointer-events-none",
                 // Keep icon color in sync with state
-                isStreaming || canSend
+                isStreaming || canSend || (!hasInputText && isSupported)
                   ? [
                       "text-primary-foreground",
                       "hover:text-primary-foreground",
@@ -386,13 +666,7 @@ export const SendButtonGroup = ({
                 // Focus ring: use outside ring like upload for consistency
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               )}
-              onClick={() => {
-                if (isStreaming && onStop) {
-                  onStop();
-                } else if (!isStreaming) {
-                  onSend();
-                }
-              }}
+              onClick={handleButtonClick}
               onMouseEnter={() => setHoveredSegment("send")}
               onFocus={() => setHoveredSegment("send")}
               onMouseLeave={() =>
@@ -406,9 +680,7 @@ export const SendButtonGroup = ({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <div className="text-xs">
-              {getButtonTitle() || (isStreaming ? "Stop" : "Send message")}
-            </div>
+            <div className="text-xs">{getButtonTitle()}</div>
           </TooltipContent>
         </Tooltip>
       </div>

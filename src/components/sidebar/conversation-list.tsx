@@ -21,19 +21,25 @@ export const ConversationList = ({
   const { user } = useUserDataContext();
   const userId = user?._id ? String(user._id) : undefined;
 
+  const conversationQueryArg = (() => {
+    if (!user) {
+      return "skip";
+    }
+    if (searchQuery.trim()) {
+      return {
+        searchQuery,
+        includeArchived: false,
+        limit: 100,
+      };
+    }
+    return {
+      includeArchived: false,
+    };
+  })();
+
   const conversationDataRaw = useQuery(
     searchQuery.trim() ? api.conversations.search : api.conversations.list,
-    user
-      ? searchQuery.trim()
-        ? {
-            searchQuery,
-            includeArchived: false,
-            limit: 100,
-          }
-        : {
-            includeArchived: false,
-          }
-      : "skip"
+    conversationQueryArg
   );
 
   const conversations = useMemo(() => {

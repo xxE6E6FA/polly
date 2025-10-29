@@ -62,11 +62,13 @@ export function extractMessagesArray(
     return [];
   }
 
-  return Array.isArray(convexMessages)
-    ? (convexMessages as Doc<"messages">[])
-    : hasPageArray(convexMessages)
-      ? (convexMessages.page as Doc<"messages">[])
-      : [];
+  if (Array.isArray(convexMessages)) {
+    return convexMessages as Doc<"messages">[];
+  }
+  if (hasPageArray(convexMessages)) {
+    return convexMessages.page as Doc<"messages">[];
+  }
+  return [];
 }
 
 /**

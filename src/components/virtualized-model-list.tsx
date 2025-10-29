@@ -37,6 +37,39 @@ interface VirtualizedModelListProps {
   models: BaseModel[];
 }
 
+function getModelCardClassName(
+  isEnabled: boolean,
+  isUnavailable: boolean
+): string {
+  if (isEnabled && !isUnavailable) {
+    return "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20";
+  }
+  if (isUnavailable) {
+    return "border-red-200 bg-red-50 cursor-not-allowed dark:border-red-800 dark:bg-red-950/20";
+  }
+  return "border-border/40 bg-background hover:border-border hover:bg-muted/30";
+}
+
+function getCapabilityIconClassName(
+  isEnabled: boolean,
+  isUnavailable: boolean
+): string {
+  if (isEnabled && !isUnavailable) {
+    return "border border-border/40 bg-background hover:bg-muted";
+  }
+  if (isUnavailable) {
+    return "bg-red-100 dark:bg-red-900/30";
+  }
+  return "bg-muted hover:bg-muted-foreground/10";
+}
+
+function getContextBadgeClassName(
+  isEnabled: boolean,
+  isUnavailable: boolean
+): string {
+  return getCapabilityIconClassName(isEnabled, isUnavailable);
+}
+
 const ModelCard = memo(
   ({
     model,
@@ -79,13 +112,10 @@ const ModelCard = memo(
 
     return (
       <div
-        className={`group relative min-h-[160px] rounded-lg border p-4 transition-all duration-200 flex flex-col ${
-          isEnabled && !isUnavailable
-            ? "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20"
-            : isUnavailable
-              ? "border-red-200 bg-red-50 cursor-not-allowed dark:border-red-800 dark:bg-red-950/20"
-              : "border-border/40 bg-background hover:border-border hover:bg-muted/30"
-        }`}
+        className={`group relative min-h-[160px] rounded-lg border p-4 transition-all duration-200 flex flex-col ${getModelCardClassName(
+          isEnabled,
+          isUnavailable
+        )}`}
         onClick={handleClick}
         onKeyDown={e => {
           if ((e.key === "Enter" || e.key === " ") && !isUnavailable) {
@@ -153,13 +183,10 @@ const ModelCard = memo(
               <Tooltip key={capability.label || `capability-${index}`}>
                 <TooltipTrigger asChild>
                   <div
-                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${
-                      isEnabled && !isUnavailable
-                        ? "border border-border/40 bg-background hover:bg-muted"
-                        : isUnavailable
-                          ? "bg-red-100 dark:bg-red-900/30"
-                          : "bg-muted hover:bg-muted-foreground/10"
-                    }`}
+                    className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${getCapabilityIconClassName(
+                      isEnabled,
+                      isUnavailable
+                    )}`}
                   >
                     <IconComponent
                       className={`h-3 w-3 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
@@ -181,13 +208,10 @@ const ModelCard = memo(
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${
-                    isEnabled && !isUnavailable
-                      ? "border border-border/40 bg-background hover:bg-muted"
-                      : isUnavailable
-                        ? "bg-red-100 dark:bg-red-900/30"
-                        : "bg-muted hover:bg-muted-foreground/10"
-                  }`}
+                  className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${getContextBadgeClassName(
+                    isEnabled,
+                    isUnavailable
+                  )}`}
                 >
                   <span
                     className={

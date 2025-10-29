@@ -60,12 +60,15 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
       shouldQuery ? {} : "skip"
     );
 
-    const enabledImageModels: ImageModel[] =
-      enabledImageModelsProp && Array.isArray(enabledImageModelsProp)
-        ? enabledImageModelsProp
-        : Array.isArray(enabledImageModelsRaw)
-          ? enabledImageModelsRaw
-          : [];
+    const enabledImageModels: ImageModel[] = (() => {
+      if (enabledImageModelsProp && Array.isArray(enabledImageModelsProp)) {
+        return enabledImageModelsProp;
+      }
+      if (Array.isArray(enabledImageModelsRaw)) {
+        return enabledImageModelsRaw;
+      }
+      return [];
+    })();
 
     const handleModelSelect = useCallback(
       (selectedModel: string) => {

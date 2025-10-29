@@ -67,13 +67,7 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
           value="image"
           disabled={isImageModeDisabled}
           aria-pressed={mode === "image"}
-          title={
-            isPrivateMode
-              ? "Image generation not available in private mode"
-              : hasReplicateApiKey
-                ? "Image Generation"
-                : "Image generation requires a Replicate API key"
-          }
+          title={getImageGenerationTitle(isPrivateMode, hasReplicateApiKey)}
         >
           <ImageIcon
             size={16}
@@ -85,5 +79,18 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
     );
   }
 );
+
+function getImageGenerationTitle(
+  isPrivateMode: boolean,
+  hasReplicateApiKey: boolean
+): string {
+  if (isPrivateMode) {
+    return "Image generation not available in private mode";
+  }
+  if (hasReplicateApiKey) {
+    return "Image Generation";
+  }
+  return "Image generation requires a Replicate API key";
+}
 
 GenerationModeToggle.displayName = "GenerationModeToggle";

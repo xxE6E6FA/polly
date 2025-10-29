@@ -213,11 +213,15 @@ export function SpeechInputButton({
     return <div className="h-8 w-[132px]" aria-hidden="true" />;
   }
 
-  const state: ButtonState = isRecording
-    ? "recording"
-    : isTranscribing
-      ? "transcribing"
-      : "idle";
+  const state: ButtonState = (() => {
+    if (isRecording) {
+      return "recording";
+    }
+    if (isTranscribing) {
+      return "transcribing";
+    }
+    return "idle";
+  })();
 
   const primaryAction = getPrimaryAction({
     state,

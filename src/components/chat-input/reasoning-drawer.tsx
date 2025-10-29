@@ -79,14 +79,26 @@ export function ReasoningDrawer({
     // Auto-set appropriate token budgets if not already set
     if (!maxTokens && model && provider) {
       switch (provider) {
-        case "anthropic":
-          maxTokens =
-            effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+        case "anthropic": {
+          if (effort === "low") {
+            maxTokens = 5000;
+          } else if (effort === "medium") {
+            maxTokens = 10000;
+          } else {
+            maxTokens = 20000;
+          }
           break;
-        case "google":
-          maxTokens =
-            effort === "low" ? 5000 : effort === "medium" ? 10000 : 20000;
+        }
+        case "google": {
+          if (effort === "low") {
+            maxTokens = 5000;
+          } else if (effort === "medium") {
+            maxTokens = 10000;
+          } else {
+            maxTokens = 20000;
+          }
           break;
+        }
         default:
           maxTokens = 8192;
       }

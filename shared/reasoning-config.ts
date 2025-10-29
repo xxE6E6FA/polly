@@ -166,8 +166,15 @@ export function getProviderReasoningOptions(
         providerOptions: {
           groq: {
             reasoningFormat: "parsed",
-            reasoningEffort:
-              effort === "low" ? "low" : effort === "high" ? "high" : "default",
+            reasoningEffort: (() => {
+              if (effort === "low") {
+                return "low";
+              }
+              if (effort === "high") {
+                return "high";
+              }
+              return "default";
+            })(),
             ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
             parallelToolCalls: true,
           },

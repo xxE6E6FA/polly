@@ -606,12 +606,15 @@ function ConversationRouteContent({
           onRefineMessage={async (messageId, type, instruction) => {
             await convex.action(api.messages.refineAssistantMessage, {
               messageId: messageId as Id<"messages">,
-              mode:
-                type === "custom"
-                  ? "custom"
-                  : type === "more_concise"
-                    ? "more_concise"
-                    : "add_details",
+              mode: (() => {
+                if (type === "custom") {
+                  return "custom";
+                }
+                if (type === "more_concise") {
+                  return "more_concise";
+                }
+                return "add_details";
+              })(),
               instruction,
             });
           }}

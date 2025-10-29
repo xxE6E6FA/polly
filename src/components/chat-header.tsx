@@ -59,6 +59,39 @@ type ChatHeaderProps = {
   privatePersonaId?: Id<"personas">;
 };
 
+function getBranchLabel(
+  branches: Array<{ _id: string }>,
+  currentConversationId: string | undefined
+): string {
+  const idx = branches.findIndex(
+    b => b._id === (currentConversationId as unknown as string)
+  );
+  const pos = idx >= 0 ? idx + 1 : 1;
+  return `Branch ${pos} of ${branches.length}`;
+}
+
+function sortBranches(
+  branches: Array<{
+    _id: string;
+    parentConversationId?: string;
+    createdAt?: number;
+    title?: string;
+  }>,
+  rootId: string | undefined
+) {
+  return [...branches].sort((a, b) => {
+    const aRoot = !a.parentConversationId || a._id === rootId;
+    const bRoot = !b.parentConversationId || b._id === rootId;
+    if (aRoot && !bRoot) {
+      return -1;
+    }
+    if (!aRoot && bRoot) {
+      return 1;
+    }
+    return (a.createdAt || 0) - (b.createdAt || 0);
+  });
+}
+
 const ChatHeaderComponent = ({
   conversationId,
   isPrivateMode,
@@ -101,14 +134,17 @@ const ChatHeaderComponent = ({
     conversationId && shouldLoadExportData ? { id: conversationId } : "skip"
   );
 
-  const persona = useQuery(
-    api.personas.get,
-    conversation?.personaId
-      ? { id: conversation.personaId }
-      : privatePersonaId
-        ? { id: privatePersonaId }
-        : "skip"
-  );
+  const personaQueryArg = (() => {
+    if (conversation?.personaId) {
+      return { id: conversation.personaId };
+    }
+    if (privatePersonaId) {
+      return { id: privatePersonaId };
+    }
+    return "skip";
+  })();
+
+  const persona = useQuery(api.personas.get, personaQueryArg);
 
   const patchConversation = useMutation(api.conversations.patch);
 
@@ -260,82 +296,64 @@ const ChatHeaderComponent = ({
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-7">
                   <span className="text-xxs">
-                    {(() => {
-                      const idx = branches.findIndex(
-                        b => b._id === (conversation?._id as unknown as string)
-                      );
-                      const pos = idx >= 0 ? idx + 1 : 1;
-                      return `Branch ${pos} of ${branches.length}`;
-                    })()}
+                    {getBranchLabel(
+                      branches,
+                      conversation?._id as unknown as string
+                    )}
                   </span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
-                {(() => {
+                {sortBranches(
+                  branches,
+                  conversation?.rootConversationId || conversation?._id
+                ).map(b => {
                   const rootId =
                     conversation?.rootConversationId || conversation?._id;
-                  // Keep a stable order: root first, then branches by createdAt
-                  const sorted = [...branches].sort((a, b) => {
-                    const aRoot = !a.parentConversationId || a._id === rootId;
-                    const bRoot = !b.parentConversationId || b._id === rootId;
-                    if (aRoot && !bRoot) {
-                      return -1;
-                    }
-                    if (!aRoot && bRoot) {
-                      return 1;
-                    }
-                    return (a.createdAt || 0) - (b.createdAt || 0);
-                  });
-                  return sorted.map(b => {
-                    const isRoot = !b.parentConversationId || b._id === rootId;
-                    const isActive = b._id === conversation?._id;
-                    const created = formatDate(b.createdAt || 0);
-                    return (
-                      <DropdownMenuItem
-                        key={b._id}
-                        onClick={() =>
-                          navigate(ROUTES.CHAT_CONVERSATION(b._id))
-                        }
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          {/* Active dot first (aligned) */}
-                          <span
-                            className={cn(
-                              "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
-                              isActive ? "bg-primary" : "bg-transparent"
-                            )}
-                            aria-label={isActive ? "Active" : undefined}
-                          />
-                          {/* Fixed icon slot for alignment */}
-                          <div className="w-4 flex items-center justify-center flex-shrink-0">
-                            {isRoot ? (
-                              <GitCommitIcon
-                                className="h-3.5 w-3.5 text-muted-foreground"
-                                aria-label="Root conversation"
-                              />
-                            ) : (
-                              <GitBranchIcon
-                                className="h-3.5 w-3.5 text-muted-foreground"
-                                aria-label="Branch"
-                              />
-                            )}
-                          </div>
-                          {/* Text */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="text-sm truncate">
-                                {b.title}
-                              </span>
-                              <span className="text-xxs text-muted-foreground whitespace-nowrap">
-                                {created}
-                              </span>
-                            </div>
+                  const isRoot = !b.parentConversationId || b._id === rootId;
+                  const isActive = b._id === conversation?._id;
+                  const created = formatDate(b.createdAt || 0);
+                  return (
+                    <DropdownMenuItem
+                      key={b._id}
+                      onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        {/* Active dot first (aligned) */}
+                        <span
+                          className={cn(
+                            "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
+                            isActive ? "bg-primary" : "bg-transparent"
+                          )}
+                          aria-label={isActive ? "Active" : undefined}
+                        />
+                        {/* Fixed icon slot for alignment */}
+                        <div className="w-4 flex items-center justify-center flex-shrink-0">
+                          {isRoot ? (
+                            <GitCommitIcon
+                              className="h-3.5 w-3.5 text-muted-foreground"
+                              aria-label="Root conversation"
+                            />
+                          ) : (
+                            <GitBranchIcon
+                              className="h-3.5 w-3.5 text-muted-foreground"
+                              aria-label="Branch"
+                            />
+                          )}
+                        </div>
+                        {/* Text */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm truncate">{b.title}</span>
+                            <span className="text-xxs text-muted-foreground whitespace-nowrap">
+                              {created}
+                            </span>
                           </div>
                         </div>
-                      </DropdownMenuItem>
-                    );
-                  });
-                })()}
+                      </div>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
