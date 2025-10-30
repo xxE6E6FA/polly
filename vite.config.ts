@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig, loadEnv } from "vite";
@@ -13,6 +14,7 @@ export default defineConfig(({ mode }) => {
           plugins: ["babel-plugin-react-compiler"],
         },
       }),
+      tailwindcss(),
       tsconfigPaths(),
       // Bundle analyzer - only in build mode
       mode === "production" &&
