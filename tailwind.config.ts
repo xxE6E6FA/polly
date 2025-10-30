@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
+  darkMode: "class",
   content: ["./src/pages/**/*.{ts,tsx}", "./src/components/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
@@ -483,59 +483,6 @@ const config: Config = {
     require("tailwindcss-animate"),
     // biome-ignore lint/style/noCommonJs: Tailwind config requires CommonJS imports
     require("@tailwindcss/typography"),
-    // Custom stack spacing utilities with responsive variants
-    // Generates:
-    //  - .stack-{n} where n is spacing key (e.g. 1,2,3,4,6)
-    //  - .stack-xs/.stack-sm/.stack-md/.stack-lg/.stack-xl semantic shorthands
-    // Works with responsive prefixes: sm:stack-md, lg:stack-xl, etc.
-    // biome-ignore lint/style/noCommonJs: Tailwind plugin uses CommonJS
-    require("tailwindcss/plugin")(function ({ addUtilities, theme }) {
-      const spacing = theme("spacing") as Record<string, string>;
-
-      const escapeClass = (name: string) => name.replace(/\./g, "\\.");
-      const numericUtilities = Object.fromEntries(
-        Object.entries(spacing).map(([key, value]) => [
-          `.stack-${escapeClass(key)} > * + *`,
-          { marginTop: value },
-        ])
-      );
-
-      const semanticMap: Record<string, string> = {
-        xs: spacing["1"], // 0.25rem
-        sm: spacing["2"], // 0.5rem
-        md: spacing["3"], // 0.75rem
-        lg: spacing["4"], // 1rem
-        xl: spacing["6"], // 1.5rem
-      };
-
-      const semanticUtilities = Object.fromEntries(
-        Object.entries(semanticMap).map(([k, v]) => [
-          `.stack-${k} > * + *`,
-          { marginTop: v },
-        ])
-      );
-
-      addUtilities(numericUtilities, { variants: ["responsive"] as const });
-      addUtilities(semanticUtilities, { variants: ["responsive"] as const });
-
-      // Density wrappers: compact and spacious (semantic stacks only)
-      const compact: Record<string, { marginTop: string }> = {
-        [".density-compact .stack-xs > * + *"]: { marginTop: spacing["0.5"] }, // 0.125rem
-        [".density-compact .stack-sm > * + *"]: { marginTop: spacing["1"] }, // 0.25rem
-        [".density-compact .stack-md > * + *"]: { marginTop: spacing["2"] }, // 0.5rem
-        [".density-compact .stack-lg > * + *"]: { marginTop: spacing["3"] }, // 0.75rem
-        [".density-compact .stack-xl > * + *"]: { marginTop: spacing["4"] }, // 1rem
-      };
-      const spacious: Record<string, { marginTop: string }> = {
-        [".density-spacious .stack-xs > * + *"]: { marginTop: spacing["1.5"] }, // 0.375rem
-        [".density-spacious .stack-sm > * + *"]: { marginTop: spacing["3"] }, // 0.75rem
-        [".density-spacious .stack-md > * + *"]: { marginTop: spacing["4"] }, // 1rem
-        [".density-spacious .stack-lg > * + *"]: { marginTop: spacing["6"] }, // 1.5rem
-        [".density-spacious .stack-xl > * + *"]: { marginTop: spacing["8"] }, // 2rem
-      };
-      addUtilities(compact, { variants: ["responsive"] });
-      addUtilities(spacious, { variants: ["responsive"] });
-    }),
     // Custom duration and easing utilities using CSS custom properties
     // biome-ignore lint/style/noCommonJs: Tailwind plugin uses CommonJS
     require("tailwindcss/plugin")(function ({ addUtilities }) {
