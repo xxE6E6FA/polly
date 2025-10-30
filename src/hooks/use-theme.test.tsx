@@ -135,13 +135,19 @@ describe("useTheme", () => {
 
   it("resolves system theme to dark when prefers dark", async () => {
     mockGetLS("system");
-    matchMediaMock.mockReturnValue({ matches: true });
+    const addEventListenerMock = vi.fn();
+    const removeEventListenerMock = vi.fn();
+    matchMediaMock.mockReturnValue({
+      matches: true,
+      addEventListener: addEventListenerMock,
+      removeEventListener: removeEventListenerMock,
+    });
     // Mock that current class is "light" so that theme change is detected
     documentElementMock.classList.contains.mockImplementation(
       cls => cls === "light"
     );
 
-    renderHook(() => useTheme());
+    const { unmount } = renderHook(() => useTheme());
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -149,20 +155,34 @@ describe("useTheme", () => {
 
     expect(matchMediaMock).toHaveBeenCalledWith("(prefers-color-scheme: dark)");
     expect(documentElementMock.classList.add).toHaveBeenCalledWith("dark");
+    expect(addEventListenerMock).toHaveBeenCalled();
+
+    unmount();
+    expect(removeEventListenerMock).toHaveBeenCalled();
   });
 
   it("resolves system theme to light when prefers light", async () => {
     mockGetLS("system");
-    matchMediaMock.mockReturnValue({ matches: false });
+    const addEventListenerMock = vi.fn();
+    const removeEventListenerMock = vi.fn();
+    matchMediaMock.mockReturnValue({
+      matches: false,
+      addEventListener: addEventListenerMock,
+      removeEventListener: removeEventListenerMock,
+    });
     documentElementMock.classList.contains.mockReturnValue(false);
 
-    renderHook(() => useTheme());
+    const { unmount } = renderHook(() => useTheme());
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(documentElementMock.classList.add).toHaveBeenCalledWith("light");
+    expect(addEventListenerMock).toHaveBeenCalled();
+
+    unmount();
+    expect(removeEventListenerMock).toHaveBeenCalled();
   });
 
   it("does not update DOM if theme hasn't changed", async () => {

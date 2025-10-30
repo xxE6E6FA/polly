@@ -1,6 +1,8 @@
 import type { Doc } from "@convex/types";
 import {
+  CheckIcon,
   GearIcon,
+  MonitorIcon,
   MoonIcon,
   SignInIcon,
   SignOutIcon,
@@ -13,6 +15,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTheme } from "@/hooks/use-theme";
@@ -28,16 +35,35 @@ type UserSectionContentProps = {
   shouldAnonymize: boolean;
 };
 
+function getThemeIcon(theme: "light" | "dark" | "system") {
+  switch (theme) {
+    case "light":
+      return <SunIcon className="h-4 w-4" />;
+    case "dark":
+      return <MoonIcon className="h-4 w-4" />;
+    case "system":
+      return <MonitorIcon className="h-4 w-4" />;
+    default:
+      return <MonitorIcon className="h-4 w-4" />;
+  }
+}
+
 const UserSectionContent = ({
   user,
   isAuthenticated,
   shouldAnonymize,
 }: UserSectionContentProps) => {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSignOut = () => {
     navigate("/signout");
+  };
+
+  const handleThemeChange = (value: string) => {
+    if (value === "light" || value === "dark" || value === "system") {
+      setTheme(value);
+    }
   };
 
   if (!isAuthenticated) {
@@ -113,14 +139,61 @@ const UserSectionContent = ({
               Settings
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={toggleTheme}>
-            {theme === "dark" ? (
-              <SunIcon className="h-4 w-4" />
-            ) : (
-              <MoonIcon className="h-4 w-4" />
-            )}
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </DropdownMenuItem>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              {getThemeIcon(theme)}
+              <span>Theme</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuRadioGroup
+                value={theme}
+                onValueChange={handleThemeChange}
+              >
+                <DropdownMenuRadioItem
+                  value="light"
+                  className={cn(
+                    "pl-2",
+                    theme === "light" &&
+                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                  )}
+                >
+                  <SunIcon className="mr-2 h-4 w-4" />
+                  <span>Light</span>
+                  {theme === "light" && (
+                    <CheckIcon className="ml-auto h-4 w-4" />
+                  )}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="dark"
+                  className={cn(
+                    "pl-2",
+                    theme === "dark" &&
+                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                  )}
+                >
+                  <MoonIcon className="mr-2 h-4 w-4" />
+                  <span>Dark</span>
+                  {theme === "dark" && (
+                    <CheckIcon className="ml-auto h-4 w-4" />
+                  )}
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem
+                  value="system"
+                  className={cn(
+                    "pl-2",
+                    theme === "system" &&
+                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                  )}
+                >
+                  <MonitorIcon className="mr-2 h-4 w-4" />
+                  <span>System</span>
+                  {theme === "system" && (
+                    <CheckIcon className="ml-auto h-4 w-4" />
+                  )}
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
           <DropdownMenuItem
             onClick={handleSignOut}
             className="text-red-600 dark:text-red-400"

@@ -30,24 +30,36 @@ export function useTheme() {
       return;
     }
 
-    // Resolve the actual theme for DOM application
-    let actualTheme: "light" | "dark";
-    if (theme === "light" || theme === "dark") {
-      actualTheme = theme;
-    } else {
-      // theme is "system" - resolve to actual preference
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      actualTheme = prefersDark ? "dark" : "light";
-    }
+    const updateTheme = () => {
+      let actualTheme: "light" | "dark";
+      if (theme === "light" || theme === "dark") {
+        actualTheme = theme;
+      } else {
+        const prefersDark = window.matchMedia(
+          "(prefers-color-scheme: dark)"
+        ).matches;
+        actualTheme = prefersDark ? "dark" : "light";
+      }
 
-    const root = document.documentElement;
-    // Only update if the theme actually changed
-    const currentTheme = root.classList.contains("light") ? "light" : "dark";
-    if (currentTheme !== actualTheme) {
-      root.classList.remove("light", "dark");
-      root.classList.add(actualTheme);
+      const root = document.documentElement;
+      const currentTheme = root.classList.contains("light") ? "light" : "dark";
+      if (currentTheme !== actualTheme) {
+        root.classList.remove("light", "dark");
+        root.classList.add(actualTheme);
+      }
+    };
+
+    updateTheme();
+
+    if (theme === "system") {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleChange = () => {
+        updateTheme();
+      };
+      mediaQuery.addEventListener("change", handleChange);
+      return () => {
+        mediaQuery.removeEventListener("change", handleChange);
+      };
     }
   }, [theme, mounted]);
 
