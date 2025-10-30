@@ -102,12 +102,8 @@ If absolutely necessary, bypass hooks with `git commit --no-verify` (not recomme
 #### Core Services
 
 - `GEMINI_API_KEY` - Google Gemini API key (required for title and summary generation)
+- `OPENAI_API_KEY` - OpenAI API key (required for audio transcription) 
 - `EXA_API_KEY` - Exa.ai API key (enables web search for all AI models)
-
-#### Optional Providers
-
-- `REPLICATE_API_TOKEN` - Enables Replicate image generation (model browsing/search and custom IDs)
-- `ELEVENLABS_API_KEY` - Enables ElevenLabs text-to-speech (voices, models, message playback)
 
 #### OAuth Authentication
 
@@ -158,7 +154,7 @@ This contextual approach ensures web search is used only when it adds value, avo
 
 ## Replicate (Images)
 
-- Add `REPLICATE_API_TOKEN` in Convex → Settings → Environment Variables.
+- Add your Replicate API key in Settings → API Keys
 - Go to Settings → Models → Image to:
   - Browse curated text-to-image models from Replicate
   - Search all Replicate models
@@ -166,7 +162,7 @@ This contextual approach ensures web search is used only when it adds value, avo
 
 ## ElevenLabs (TTS)
 
-- Add `ELEVENLABS_API_KEY` in Convex → Settings → Environment Variables.
+- Add your ElevenLabs API key in Settings → API Keys
 - Configure in Settings → Models → Text-to-Speech:
   - Pick model and voice (your ElevenLabs voices are listed)
   - Choose stability mode and enhanced processing
