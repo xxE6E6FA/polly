@@ -5,17 +5,23 @@ import {
   ArchiveIcon,
   ArrowLeftIcon,
   ChatCircleIcon,
+  CloudArrowDownIcon,
   EyeSlashIcon,
   FileCodeIcon,
   FileTextIcon,
+  GearIcon,
+  KeyIcon,
   MagnifyingGlassIcon,
   MoonIcon,
+  PaperclipIcon,
   PencilSimpleIcon,
   PlusIcon,
   PushPinIcon,
+  RobotIcon,
   ShareNetworkIcon,
   SunIcon,
   TrashIcon,
+  UsersIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import {
@@ -55,6 +61,7 @@ import {
   generateFilename,
 } from "@/lib/export";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import { ROUTES } from "@/lib/routes";
 import type { ModelForCapabilities } from "@/types";
 
 type CommandPaletteProps = {
@@ -512,6 +519,14 @@ export function CommandPalette({
     handleClose();
   }, [navigate, handleClose]);
 
+  const handleNavigateToSettings = useCallback(
+    (path: string) => {
+      navigate(path);
+      handleClose();
+    },
+    [navigate, handleClose]
+  );
+
   useEffect(() => {
     if (open) {
       const timeoutId = setTimeout(() => inputRef.current?.focus(), 100);
@@ -561,6 +576,70 @@ export function CommandPalette({
   const hasRemoteSearchQuery = normalizedDebouncedSearch.length > 0;
   const showSearchResults = hasRemoteSearchQuery && Boolean(searchResults);
   const isSearching = search.trim().length > 0 && search !== debouncedSearch;
+
+  const settingsActions = useMemo(
+    (): Action[] => [
+      {
+        id: "settings-general",
+        label: "General",
+        icon: GearIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.GENERAL),
+        disabled: !online,
+      },
+      {
+        id: "settings-api-keys",
+        label: "API Keys",
+        icon: KeyIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.API_KEYS),
+        disabled: !online,
+      },
+      {
+        id: "settings-models",
+        label: "Models",
+        icon: RobotIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.MODELS),
+        disabled: !online,
+      },
+      {
+        id: "settings-personas",
+        label: "Personas",
+        icon: UsersIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.PERSONAS),
+        disabled: !online,
+      },
+      {
+        id: "settings-shares",
+        label: "Shares",
+        icon: ShareNetworkIcon,
+        handler: () =>
+          handleNavigateToSettings(ROUTES.SETTINGS.SHARED_CONVERSATIONS),
+        disabled: !online,
+      },
+      {
+        id: "settings-archive",
+        label: "Archive",
+        icon: ArchiveIcon,
+        handler: () =>
+          handleNavigateToSettings(ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS),
+        disabled: !online,
+      },
+      {
+        id: "settings-chat-history",
+        label: "Chat History",
+        icon: CloudArrowDownIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.CHAT_HISTORY),
+        disabled: !online,
+      },
+      {
+        id: "settings-attachments",
+        label: "Attachments",
+        icon: PaperclipIcon,
+        handler: () => handleNavigateToSettings(ROUTES.SETTINGS.ATTACHMENTS),
+        disabled: !online,
+      },
+    ],
+    [handleNavigateToSettings, online]
+  );
 
   const globalActions = useMemo(
     (): Action[] => [
@@ -698,6 +777,15 @@ export function CommandPalette({
       action.label.toLowerCase().includes(normalizedDeferredSearch)
     );
   }, [hasSearchQuery, normalizedDeferredSearch, conversationActions]);
+
+  const filteredSettingsActions = useMemo(() => {
+    if (!hasSearchQuery) {
+      return settingsActions;
+    }
+    return settingsActions.filter(action =>
+      action.label.toLowerCase().includes(normalizedDeferredSearch)
+    );
+  }, [hasSearchQuery, normalizedDeferredSearch, settingsActions]);
 
   const recentConversationsList = useMemo(() => {
     if (Array.isArray(recentConversations)) {
@@ -987,6 +1075,15 @@ export function CommandPalette({
       return hints;
     }
 
+    const settingsAction = settingsActions.find(
+      action => action.id === selectedValue
+    );
+    if (settingsAction) {
+      hints.push({ key: "Enter", label: "Navigate" });
+      addEscHint();
+      return hints;
+    }
+
     hints.push({ key: "Enter", label: "Select" });
     addEscHint();
     return hints;
@@ -995,6 +1092,7 @@ export function CommandPalette({
     navigation.currentMenu,
     conversationActions,
     globalActions,
+    settingsActions,
   ]);
 
   const [hasBeenOpened, setHasBeenOpened] = useState(false);
@@ -1166,10 +1264,42 @@ export function CommandPalette({
                   </>
                 )}
 
-                {/* Conversations - Show after actions */}
+                {filteredSettingsActions.length > 0 && (
+                  <>
+                    {(filteredGlobalActions.length > 0 ||
+                      (isConversationPage &&
+                        currentConversation?.conversation &&
+                        filteredConversationActions.length > 0)) && (
+                      <CommandSeparator className="my-2" />
+                    )}
+                    <CommandGroup
+                      heading="Settings"
+                      className="[&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:px-4 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:mb-1"
+                    >
+                      {filteredSettingsActions.map(action => {
+                        const IconComponent = action.icon;
+
+                        return (
+                          <CommandItem
+                            key={action.id}
+                            value={action.id}
+                            onSelect={action.handler}
+                            className="flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-md mx-2"
+                            disabled={action.disabled}
+                          >
+                            <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <span className="flex-1">{action.label}</span>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  </>
+                )}
+
                 {conversationsToShow && conversationsToShow.length > 0 && (
                   <>
                     {(filteredGlobalActions.length > 0 ||
+                      filteredSettingsActions.length > 0 ||
                       (isConversationPage &&
                         currentConversation?.conversation &&
                         filteredConversationActions.length > 0)) && (
@@ -1227,10 +1357,10 @@ export function CommandPalette({
                   </>
                 )}
 
-                {/* Models - Only show when models are loaded */}
                 {modelsLoaded && modelsToShow && modelsToShow.length > 0 && (
                   <>
                     {(filteredGlobalActions.length > 0 ||
+                      filteredSettingsActions.length > 0 ||
                       (isConversationPage &&
                         currentConversation?.conversation &&
                         filteredConversationActions.length > 0) ||
