@@ -9,9 +9,7 @@ import {
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { processFilesForAttachments } from "@/lib/process-files";
 import { cn } from "@/lib/utils";
-import { appendAttachments } from "@/stores/actions/chat-input-actions";
 import type { Attachment } from "@/types";
 
 interface FileUploadButtonProps {
@@ -36,6 +34,7 @@ export function FileUploadButton({
       return;
     }
 
+    const { processFilesForAttachments } = await import("@/lib/process-files");
     const newAttachments: Attachment[] = await processFilesForAttachments(
       input.files,
       selectedModel,
@@ -46,6 +45,9 @@ export function FileUploadButton({
         })
     );
     if (newAttachments.length > 0) {
+      const { appendAttachments } = await import(
+        "@/stores/actions/chat-input-actions"
+      );
       appendAttachments(conversationId ?? undefined, newAttachments);
     }
 
