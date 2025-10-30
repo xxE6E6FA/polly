@@ -636,6 +636,293 @@ pre {
     margin-top: 3rem;
 }
 
+/* Responsive variants for stack utilities - semantic variants */
+@media (min-width: 640px) {
+    .sm\:stack-xs > * + * {
+        margin-top: 0.25rem;
+    }
+    .sm\:stack-sm > * + * {
+        margin-top: 0.5rem;
+    }
+    .sm\:stack-md > * + * {
+        margin-top: 0.75rem;
+    }
+    .sm\:stack-lg > * + * {
+        margin-top: 1rem;
+    }
+    .sm\:stack-xl > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .md\:stack-xs > * + * {
+        margin-top: 0.25rem;
+    }
+    .md\:stack-sm > * + * {
+        margin-top: 0.5rem;
+    }
+    .md\:stack-md > * + * {
+        margin-top: 0.75rem;
+    }
+    .md\:stack-lg > * + * {
+        margin-top: 1rem;
+    }
+    .md\:stack-xl > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .lg\:stack-xs > * + * {
+        margin-top: 0.25rem;
+    }
+    .lg\:stack-sm > * + * {
+        margin-top: 0.5rem;
+    }
+    .lg\:stack-md > * + * {
+        margin-top: 0.75rem;
+    }
+    .lg\:stack-lg > * + * {
+        margin-top: 1rem;
+    }
+    .lg\:stack-xl > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .xl\:stack-xs > * + * {
+        margin-top: 0.25rem;
+    }
+    .xl\:stack-sm > * + * {
+        margin-top: 0.5rem;
+    }
+    .xl\:stack-md > * + * {
+        margin-top: 0.75rem;
+    }
+    .xl\:stack-lg > * + * {
+        margin-top: 1rem;
+    }
+    .xl\:stack-xl > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+@media (min-width: 1536px) {
+    .\32xl\:stack-xs > * + * {
+        margin-top: 0.25rem;
+    }
+    .\32xl\:stack-sm > * + * {
+        margin-top: 0.5rem;
+    }
+    .\32xl\:stack-md > * + * {
+        margin-top: 0.75rem;
+    }
+    .\32xl\:stack-lg > * + * {
+        margin-top: 1rem;
+    }
+    .\32xl\:stack-xl > * + * {
+        margin-top: 1.5rem;
+    }
+}
+
+/* Responsive variants for stack utilities - numeric variants */
+@media (min-width: 640px) {
+    .sm\:stack-0 > * + * {
+        margin-top: 0;
+    }
+    .sm\:stack-1 > * + * {
+        margin-top: 0.25rem;
+    }
+    .sm\:stack-1\.5 > * + * {
+        margin-top: 0.375rem;
+    }
+    .sm\:stack-2 > * + * {
+        margin-top: 0.5rem;
+    }
+    .sm\:stack-2\.5 > * + * {
+        margin-top: 0.625rem;
+    }
+    .sm\:stack-3 > * + * {
+        margin-top: 0.75rem;
+    }
+    .sm\:stack-4 > * + * {
+        margin-top: 1rem;
+    }
+    .sm\:stack-5 > * + * {
+        margin-top: 1.25rem;
+    }
+    .sm\:stack-6 > * + * {
+        margin-top: 1.5rem;
+    }
+    .sm\:stack-8 > * + * {
+        margin-top: 2rem;
+    }
+    .sm\:stack-10 > * + * {
+        margin-top: 2.5rem;
+    }
+    .sm\:stack-12 > * + * {
+        margin-top: 3rem;
+    }
+}
+
+@media (min-width: 768px) {
+    .md\:stack-0 > * + * {
+        margin-top: 0;
+    }
+    .md\:stack-1 > * + * {
+        margin-top: 0.25rem;
+    }
+    .md\:stack-1\.5 > * + * {
+        margin-top: 0.375rem;
+    }
+    .md\:stack-2 > * + * {
+        margin-top: 0.5rem;
+    }
+    .md\:stack-2\.5 > * + * {
+        margin-top: 0.625rem;
+    }
+    .md\:stack-3 > * + * {
+        margin-top: 0.75rem;
+    }
+    .md\:stack-4 > * + * {
+        margin-top: 1rem;
+    }
+    .md\:stack-5 > * + * {
+        margin-top: 1.25rem;
+    }
+    .md\:stack-6 > * + * {
+        margin-top: 1.5rem;
+    }
+    .md\:stack-8 > * + * {
+        margin-top: 2rem;
+    }
+    .md\:stack-10 > * + * {
+        margin-top: 2.5rem;
+    }
+    .md\:stack-12 > * + * {
+        margin-top: 3rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .lg\:stack-0 > * + * {
+        margin-top: 0;
+    }
+    .lg\:stack-1 > * + * {
+        margin-top: 0.25rem;
+    }
+    .lg\:stack-1\.5 > * + * {
+        margin-top: 0.375rem;
+    }
+    .lg\:stack-2 > * + * {
+        margin-top: 0.5rem;
+    }
+    .lg\:stack-2\.5 > * + * {
+        margin-top: 0.625rem;
+    }
+    .lg\:stack-3 > * + * {
+        margin-top: 0.75rem;
+    }
+    .lg\:stack-4 > * + * {
+        margin-top: 1rem;
+    }
+    .lg\:stack-5 > * + * {
+        margin-top: 1.25rem;
+    }
+    .lg\:stack-6 > * + * {
+        margin-top: 1.5rem;
+    }
+    .lg\:stack-8 > * + * {
+        margin-top: 2rem;
+    }
+    .lg\:stack-10 > * + * {
+        margin-top: 2.5rem;
+    }
+    .lg\:stack-12 > * + * {
+        margin-top: 3rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .xl\:stack-0 > * + * {
+        margin-top: 0;
+    }
+    .xl\:stack-1 > * + * {
+        margin-top: 0.25rem;
+    }
+    .xl\:stack-1\.5 > * + * {
+        margin-top: 0.375rem;
+    }
+    .xl\:stack-2 > * + * {
+        margin-top: 0.5rem;
+    }
+    .xl\:stack-2\.5 > * + * {
+        margin-top: 0.625rem;
+    }
+    .xl\:stack-3 > * + * {
+        margin-top: 0.75rem;
+    }
+    .xl\:stack-4 > * + * {
+        margin-top: 1rem;
+    }
+    .xl\:stack-5 > * + * {
+        margin-top: 1.25rem;
+    }
+    .xl\:stack-6 > * + * {
+        margin-top: 1.5rem;
+    }
+    .xl\:stack-8 > * + * {
+        margin-top: 2rem;
+    }
+    .xl\:stack-10 > * + * {
+        margin-top: 2.5rem;
+    }
+    .xl\:stack-12 > * + * {
+        margin-top: 3rem;
+    }
+}
+
+@media (min-width: 1536px) {
+    .\32xl\:stack-0 > * + * {
+        margin-top: 0;
+    }
+    .\32xl\:stack-1 > * + * {
+        margin-top: 0.25rem;
+    }
+    .\32xl\:stack-1\.5 > * + * {
+        margin-top: 0.375rem;
+    }
+    .\32xl\:stack-2 > * + * {
+        margin-top: 0.5rem;
+    }
+    .\32xl\:stack-2\.5 > * + * {
+        margin-top: 0.625rem;
+    }
+    .\32xl\:stack-3 > * + * {
+        margin-top: 0.75rem;
+    }
+    .\32xl\:stack-4 > * + * {
+        margin-top: 1rem;
+    }
+    .\32xl\:stack-5 > * + * {
+        margin-top: 1.25rem;
+    }
+    .\32xl\:stack-6 > * + * {
+        margin-top: 1.5rem;
+    }
+    .\32xl\:stack-8 > * + * {
+        margin-top: 2rem;
+    }
+    .\32xl\:stack-10 > * + * {
+        margin-top: 2.5rem;
+    }
+    .\32xl\:stack-12 > * + * {
+        margin-top: 3rem;
+    }
+}
+
 /* Density wrappers: compact and spacious (semantic stacks only) */
 .density-compact .stack-xs > * + * {
     margin-top: 0.125rem;

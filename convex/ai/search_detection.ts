@@ -1,9 +1,11 @@
 // Determine which Exa feature to use based on query type
 export type ExaFeatureType = "search" | "answer" | "similar";
+export type SearchMode = "fast" | "auto" | "deep";
 
 export interface SearchDecision {
   shouldSearch: boolean;
   searchType: ExaFeatureType;
+  searchMode?: SearchMode;
   category?: string;
   reasoning: string;
   confidence: number;
@@ -87,6 +89,7 @@ export const generateSearchStrategy = (
     OUTPUT (JSON only):
     {
       "searchType": "search" | "answer" | "similar",
+      "searchMode": "fast" | "auto" | "deep",
       "category": null | "news" | "company" | "research paper" | "github" | "tweet" | "pdf" | "financial report",
       "reasoning": "brief explanation of search strategy",
       "suggestedSources": 12,
@@ -97,6 +100,11 @@ export const generateSearchStrategy = (
     - "answer": For specific, factual questions needing direct answers (CEO names, prices, dates, definitions)
     - "search": For general information gathering, research, or complex topics (default choice)
     - "similar": Only when a URL is provided and user wants similar content
+
+    SEARCH MODES:
+    - "fast": Default for most queries (<350ms, best UX, cost-effective)
+    - "deep": For research, academic, comprehensive analysis queries (3.5s, highest quality, use when query explicitly asks for research/in-depth analysis)
+    - "auto": Balanced mode (use sparingly as fallback)
 
     CATEGORIES (use sparingly - default to null for 95% of queries):
     - "news": Breaking news, current events, recent developments
@@ -182,9 +190,31 @@ export const parseSearchStrategy = (
 
     const parsed = JSON.parse(jsonMatch[0]);
 
+    function detectResearchQuery(query: string): boolean {
+      const researchKeywords = [
+        "research",
+        "academic",
+        "comprehensive",
+        "detailed analysis",
+        "in-depth",
+        "thorough",
+        "study",
+        "investigation",
+        "examine",
+        "analyze",
+        "literature review",
+        "systematic review",
+      ];
+      const lowerQuery = query.toLowerCase();
+      return researchKeywords.some(keyword => lowerQuery.includes(keyword));
+    }
+
+    const searchMode = parsed.searchMode || (detectResearchQuery(userQuery) ? "deep" : "fast");
+
     return {
       shouldSearch: true, // Always true since we've already determined we need to search
       searchType: parsed.searchType || "search",
+      searchMode,
       category: parsed.category || undefined,
       reasoning: parsed.reasoning || "No reasoning provided",
       confidence: 0.8, // Set a default high confidence since we're committing to search
@@ -194,10 +224,32 @@ export const parseSearchStrategy = (
   } catch (error) {
     log.error("Failed to parse search strategy response:", error);
 
+    function detectResearchQuery(query: string): boolean {
+      const researchKeywords = [
+        "research",
+        "academic",
+        "comprehensive",
+        "detailed analysis",
+        "in-depth",
+        "thorough",
+        "study",
+        "investigation",
+        "examine",
+        "analyze",
+        "literature review",
+        "systematic review",
+      ];
+      const lowerQuery = query.toLowerCase();
+      return researchKeywords.some(keyword => lowerQuery.includes(keyword));
+    }
+
+    const searchMode = detectResearchQuery(userQuery) ? "deep" : "fast";
+
     // If we can't parse the response, default to basic search
     return {
       shouldSearch: true, // Always true since we've already determined we need to search
       searchType: "search",
+      searchMode,
       reasoning: "Fallback decision due to parsing error",
       confidence: 0.8, // Set a default high confidence since we're committing to search
       suggestedSources: 12,

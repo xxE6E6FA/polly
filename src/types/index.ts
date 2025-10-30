@@ -207,6 +207,7 @@ export type ChatMessage = {
     searchQuery?: string;
     searchFeature?: string;
     searchCategory?: string;
+    searchMode?: "fast" | "auto" | "deep";
     status?: "pending" | "error";
   };
   imageGeneration?: {

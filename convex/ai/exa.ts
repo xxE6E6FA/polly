@@ -8,7 +8,7 @@ export const exaSearchArgs = v.object({
   query: v.string(),
   maxResults: v.optional(v.number()),
   searchType: v.optional(
-    v.union(v.literal("keyword"), v.literal("neural"), v.literal("auto"), v.literal("fast"))
+    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))
   ),
   category: v.optional(
     v.union(
@@ -37,7 +37,24 @@ export const exaSearchArgs = v.object({
 
 export type ExaSearchArgs = Infer<typeof exaSearchArgs>;
 
-
+function detectResearchQuery(query: string): boolean {
+  const researchKeywords = [
+    "research",
+    "academic",
+    "comprehensive",
+    "detailed analysis",
+    "in-depth",
+    "thorough",
+    "study",
+    "investigation",
+    "examine",
+    "analyze",
+    "literature review",
+    "systematic review",
+  ];
+  const lowerQuery = query.toLowerCase();
+  return researchKeywords.some(keyword => lowerQuery.includes(keyword));
+}
 
 export const exaResultsToCitations = (
   results: Array<{
@@ -79,16 +96,16 @@ export async function searchWithExa(
   try {
     const exa = new Exa(apiKey);
 
+    const searchMode = args.searchType || (detectResearchQuery(args.query) ? "deep" : "fast");
+
     const searchOptions: Record<string, unknown> = {
       numResults: args.maxResults || WEB_SEARCH_MAX_RESULTS,
-      type: args.searchType || "fast",
+      mode: searchMode,
       useAutoprompt: true,
       category: args.category,
       startPublishedDate: args.startPublishedDate,
       endPublishedDate: args.endPublishedDate,
       ...(args.excludeDomains && { excludeDomains: args.excludeDomains }),
-      // Optimize for fast search type by using cached content
-      ...(args.searchType === "fast" && { livecrawl: "never" }),
       text:
         args.includeText !== false
           ? {
@@ -261,6 +278,7 @@ export async function findSimilarWithExa(
 export interface WebSearchArgs {
   query: string;
   searchType?: "search" | "answer" | "similar";
+  searchMode?: "fast" | "auto" | "deep";
   category?: string;
   maxResults?: number;
   excludeDomains?: string[];
@@ -320,10 +338,11 @@ export async function performWebSearch(
           return result;
         }
 
+        const searchMode = args.searchMode || (detectResearchQuery(args.query) ? "deep" : "fast");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
-          searchType: "fast",
+          searchType: searchMode,
           category: args.category as
             | "company"
             | "research paper"
@@ -345,11 +364,11 @@ export async function performWebSearch(
 
       case "search":
       default: {
-        // Regular search with optional category
+        const searchMode = args.searchMode || (detectResearchQuery(args.query) ? "deep" : "fast");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
-          searchType: "fast",
+          searchType: searchMode,
           category: args.category as
             | "company"
             | "research paper"
