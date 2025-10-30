@@ -418,13 +418,67 @@ export const AssistantBubble = ({
     overlayTools: Array<{
       t: string;
       name: string;
+      args?: unknown;
       ok?: boolean;
       count?: number;
     }>
   ): ReactNode {
     const last = overlayTools[overlayTools.length - 1];
     if (last.t === "tool_call") {
+      if (last.name === "exa.search") {
+        const args = last.args as
+          | { query?: string; searchType?: string; searchMode?: string }
+          | undefined;
+        const searchType = args?.searchType || "search";
+        const searchMode = args?.searchMode;
+
+        if (searchType === "answer") {
+          return <span>Looking for a direct answer…</span>;
+        }
+        if (searchType === "similar") {
+          return <span>Discovering similar pages…</span>;
+        }
+        if (searchMode === "deep") {
+          return <span>Performing deep research search…</span>;
+        }
+        return <span>Searching the web for relevant information…</span>;
+      }
       return <span>Calling {last.name}…</span>;
+    }
+    if (last.name === "exa.search") {
+      const previousCall = overlayTools.find(
+        tool => tool.t === "tool_call" && tool.name === "exa.search"
+      );
+      const args = previousCall?.args as
+        | { query?: string; searchType?: string; searchMode?: string }
+        | undefined;
+      const searchType = args?.searchType || "search";
+      const count = typeof last.count === "number" ? last.count : 0;
+
+      if (last.ok === false) {
+        return <span>Search failed</span>;
+      }
+
+      if (searchType === "answer") {
+        return (
+          <span>
+            Found answer
+            {count > 0 ? ` (${count} source${count !== 1 ? "s" : ""})` : ""}
+          </span>
+        );
+      }
+      if (searchType === "similar") {
+        return (
+          <span>
+            Found {count} similar {count === 1 ? "page" : "pages"}
+          </span>
+        );
+      }
+      return (
+        <span>
+          Found {count} {count === 1 ? "source" : "sources"}
+        </span>
+      );
     }
     return (
       <span>

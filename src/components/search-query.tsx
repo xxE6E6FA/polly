@@ -21,30 +21,12 @@ export const SearchQuery = ({
 
   // Get user-friendly search message based on feature type and state
   const getSearchMessage = () => {
-    // Show done state if we have citations (search complete, but still processing)
-    if (citations && citations.length > 0) {
-      const categoryLabels: Record<string, string> = {
-        news: "news articles",
-        company: "company information",
-        "research paper": "academic papers",
-        github: "code repositories",
-        tweet: "social media posts",
-        pdf: "PDF documents",
-        "financial report": "financial reports",
-      };
-
-      const sourceType = category
-        ? categoryLabels[category] || category
-        : "sources";
-      return `Found ${citations.length} ${sourceType}`;
-    }
-
     // Active searching messages
     switch (feature) {
       case "answer":
-        return "Finding the best answer to your question...";
+        return "Looking for a direct answer...";
       case "similar":
-        return "Finding similar pages and resources...";
+        return "Discovering similar pages...";
       default:
         if (category) {
           const categoryLabels: Record<string, string> = {
@@ -56,35 +38,59 @@ export const SearchQuery = ({
             pdf: "PDF documents",
             "financial report": "financial reports",
           };
-          return `Searching ${categoryLabels[category] || category} for relevant information...`;
+          return `Finding the best ${categoryLabels[category] || category} for you...`;
         }
-        return "Searching for relevant information...";
+        return "Searching the web for relevant information...";
     }
   };
 
   const isDone = citations && citations.length > 0;
 
+  const categoryLabels: Record<string, string> = {
+    news: "news articles",
+    company: "company information",
+    "research paper": "academic papers",
+    github: "code repositories",
+    tweet: "social media posts",
+    pdf: "PDF documents",
+    "financial report": "financial reports",
+  };
+
+  const sourceType = category
+    ? categoryLabels[category] || category
+    : "sources";
+
   return (
     <div className="text-sm text-muted-foreground py-2 stack-sm">
       <div className="flex items-center gap-2">
         {isDone ? (
-          <svg
-            className="h-3 w-3 text-green-600 dark:text-green-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
+          <>
+            <svg
+              className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span>
+              Found {citations.length} {sourceType}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+              {citations.length}
+            </span>
+          </>
         ) : (
-          <Spinner className="h-3 w-3" />
+          <>
+            <Spinner className="h-3 w-3 flex-shrink-0" />
+            <span>{getSearchMessage()}</span>
+          </>
         )}
-        <span>{getSearchMessage()}</span>
       </div>
     </div>
   );

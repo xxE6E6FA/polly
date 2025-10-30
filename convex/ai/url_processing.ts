@@ -116,7 +116,7 @@ export async function fetchUrlContents(
           result.url === url || result.url.replace(/^https?:\/\//, '') === url.replace(/^https?:\/\//, '')
         );
         
-        if (originalUrlResult && originalUrlResult.text) {
+        if (originalUrlResult) {
           // Type assertion to match existing pattern
           const result = originalUrlResult as {
             url: string;
@@ -156,7 +156,7 @@ export async function fetchUrlContents(
           // Fallback: try to search for the URL content
           const searchOptions: Record<string, unknown> = {
             numResults: 1,
-            type: "fast",
+            mode: "fast",
             text: args.includeText !== false ? {
               maxCharacters: args.maxCharacters || 8000,
               includeHtmlTags: false,
@@ -169,7 +169,7 @@ export async function fetchUrlContents(
           
           const searchResults = await exa.searchAndContents(url, searchOptions);
           
-          if (searchResults.results.length > 0 && searchResults.results[0].text) {
+          if (searchResults.results.length > 0) {
             // Type assertion to match existing pattern
             const result = searchResults.results[0] as {
               url: string;
@@ -182,27 +182,29 @@ export async function fetchUrlContents(
               favicon?: string;
             };
             
-            const urlContent: UrlContent = {
-              url: result.url || url,
-              title: result.title || 'Web Page',
-              content: result.text || '',
-              summary: (result.text || '').substring(0, 500),
-              highlights: result.highlights || [],
-              chunks: chunkContent(result.text || '', 1500),
-              publishedDate: result.publishedDate,
-              author: result.author,
-              image: result.image,
-              favicon: result.favicon,
-            };
-            
-            contents.push(urlContent);
-            
-            // Create source for reference (but not formal citations)
-            sources.push({
-              url: urlContent.url,
-              title: urlContent.title,
-              snippet: urlContent.summary,
-            });
+            if (result.text) {
+              const urlContent: UrlContent = {
+                url: result.url || url,
+                title: result.title || 'Web Page',
+                content: result.text || '',
+                summary: (result.text || '').substring(0, 500),
+                highlights: result.highlights || [],
+                chunks: chunkContent(result.text || '', 1500),
+                publishedDate: result.publishedDate,
+                author: result.author,
+                image: result.image,
+                favicon: result.favicon,
+              };
+              
+              contents.push(urlContent);
+              
+              // Create source for reference (but not formal citations)
+              sources.push({
+                url: urlContent.url,
+                title: urlContent.title,
+                snippet: urlContent.summary,
+              });
+            }
             
             log.debug(`✅ Successfully processed URL via search: ${url}`);
           } else {

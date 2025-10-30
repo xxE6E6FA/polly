@@ -777,6 +777,8 @@ http.route({
                   name: "exa.search",
                   args: {
                     query: decision.suggestedQuery || latestText,
+                    searchType: decision.searchType,
+                    searchMode: decision.searchMode,
                     maxResults: Number(CONFIG.PERF?.EXA_FULL_TOPK ?? 6),
                   },
                 });
@@ -784,6 +786,7 @@ http.route({
                 const result = await performWebSearch(exaApiKey, {
                   query: decision.suggestedQuery || latestText,
                   searchType: decision.searchType,
+                  searchMode: decision.searchMode,
                   category: decision.category,
                   maxResults: Number(CONFIG.PERF?.EXA_FULL_TOPK ?? 6),
                 });
@@ -798,6 +801,7 @@ http.route({
                       searchQuery: decision.suggestedQuery || latestText,
                       searchFeature: decision.searchType,
                       searchCategory: decision.category,
+                      searchMode: decision.searchMode,
                     },
                   }
                 );

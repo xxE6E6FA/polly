@@ -187,6 +187,7 @@ export const messageMetadataSchema = v.object({
   searchQuery: v.optional(v.string()),
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
+  searchMode: v.optional(v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))),
 });
 
 // Extended message metadata schema with status field
@@ -200,6 +201,7 @@ export const extendedMessageMetadataSchema = v.object({
   searchQuery: v.optional(v.string()),
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
+  searchMode: v.optional(v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))),
   status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
   webSearchCost: v.optional(v.number()),
   temperature: v.optional(v.number()),

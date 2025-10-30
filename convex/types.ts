@@ -229,11 +229,13 @@ export type ProviderStreamOptions =
 // ============================================================================
 
 export type ExaFeatureType = "search" | "answer" | "similar";
+export type SearchMode = "fast" | "auto" | "deep";
 
 export interface SearchDecision {
   shouldSearch: boolean;
   searchQuery?: string;
   feature?: ExaFeatureType;
+  searchMode?: SearchMode;
   category?: string;
   reason?: string;
   confidence?: number;
