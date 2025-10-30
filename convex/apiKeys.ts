@@ -334,9 +334,7 @@ function hasEnvironmentApiKeys(): boolean {
       process.env.ANTHROPIC_API_KEY ||
       process.env.GEMINI_API_KEY ||
       process.env.GROQ_API_KEY ||
-      process.env.OPENROUTER_API_KEY ||
-      process.env.REPLICATE_API_TOKEN ||
-      process.env.ELEVENLABS_API_KEY
+      process.env.OPENROUTER_API_KEY
   );
 }
 
