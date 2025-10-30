@@ -536,6 +536,33 @@ const config: Config = {
       addUtilities(compact, { variants: ["responsive"] });
       addUtilities(spacious, { variants: ["responsive"] });
     }),
+    // Custom duration and easing utilities using CSS custom properties
+    // biome-ignore lint/style/noCommonJs: Tailwind plugin uses CommonJS
+    require("tailwindcss/plugin")(function ({ addUtilities }) {
+      addUtilities({
+        ".duration-fast": {
+          transitionDuration: "var(--duration-fast)",
+        },
+        ".duration-normal": {
+          transitionDuration: "var(--duration-normal)",
+        },
+        ".ease-standard": {
+          transitionTimingFunction: "var(--ease-standard)",
+        },
+        ".ease-bounce": {
+          transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
+        },
+        ".ease-collapse": {
+          transitionTimingFunction: "cubic-bezier(0.5, 0, 0.75, 0)",
+        },
+        ".ease-expand": {
+          transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        },
+        ".ease-smooth": {
+          transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
+        },
+      });
+    }),
   ],
 } satisfies Config;
 

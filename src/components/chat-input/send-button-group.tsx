@@ -312,7 +312,7 @@ export const SendButtonGroup = ({
 
   const dropdownMenuTriggerAnimationClasses = useMemo(() => {
     if (isExpanded && !isCollapsing) {
-      return "opacity-100 scale-100 duration-500 delay-100 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)]";
+      return "opacity-100 scale-100 duration-500 delay-100 ease-bounce";
     }
     if (isCollapsing) {
       return "opacity-0 scale-90 duration-200 ease-out";
@@ -378,10 +378,7 @@ export const SendButtonGroup = ({
   const isNotCollapsing = !isCollapsing;
   const canShowHoverScale = isNotCollapsing && !shouldShowWaveform;
 
-  // Calculate transition easing
-  const easingClass = isCollapsing
-    ? "ease-[cubic-bezier(0.5,0,0.75,0)]"
-    : "ease-[cubic-bezier(0.34,1.56,0.64,1)]";
+  const easingClass = isCollapsing ? "ease-collapse" : "ease-expand";
 
   // Calculate width based on state
   let widthClass: string;

@@ -60,7 +60,7 @@ export const ZenModeHeader = forwardRef<HTMLDivElement, ZenModeHeaderProps>(
       <header
         ref={ref}
         className={cn(
-          "fixed inset-x-0 z-[70] flex items-center justify-between gap-3 border-b border-black/5 px-5 transition-[top,opacity,padding] duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] sm:px-10 dark:border-white/10",
+          "fixed inset-x-0 z-[70] flex items-center justify-between gap-3 border-b border-black/5 px-5 transition-[top,opacity,padding] duration-500 ease-smooth sm:px-10 dark:border-white/10",
           "transform-gpu backdrop-blur-md supports-[backdrop-filter]:backdrop-blur-xl",
           isHeaderCondensed
             ? "bg-white/70 supports-[backdrop-filter]:bg-white/45 py-2.5 dark:bg-[#11111a]/70 dark:supports-[backdrop-filter]:bg-[#11111a]/45"
