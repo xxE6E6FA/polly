@@ -3,6 +3,7 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
 import { create } from "zustand";
+import { useShallow } from "zustand/shallow";
 
 type UserModel = Doc<"userModels">;
 type BuiltInModel = Doc<"builtInModels">;
@@ -81,9 +82,11 @@ export function useModelCatalog() {
     }
   }, [enabledUserModels, enabledBuiltIns, setCatalog]);
 
-  return useModelCatalogStore(s => ({
-    initialized: s.initialized,
-    userModels: s.userModels,
-    modelGroups: s.modelGroups,
-  }));
+  return useModelCatalogStore(
+    useShallow(s => ({
+      initialized: s.initialized,
+      userModels: s.userModels,
+      modelGroups: s.modelGroups,
+    }))
+  );
 }
