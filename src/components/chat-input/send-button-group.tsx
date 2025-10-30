@@ -396,14 +396,12 @@ export const SendButtonGroup = ({
   // Calculate background and border styles
   let backgroundClass: string;
   if (isStreaming) {
-    backgroundClass =
-      "bg-danger hover:bg-danger/90 border border-danger shadow-md hover:shadow-lg";
+    backgroundClass = "bg-danger hover:bg-danger/90 border border-danger";
   } else if (canSend || isRecordingInZeroState) {
-    backgroundClass =
-      "bg-primary hover:bg-primary/90 border border-primary shadow-md hover:shadow-lg";
+    backgroundClass = "bg-primary hover:bg-primary/90 border border-primary";
   } else {
     backgroundClass =
-      "bg-primary/20 border border-primary/30 shadow-sm dark:bg-primary/15 dark:border-primary/25";
+      "bg-primary/20 border border-primary/30 dark:bg-primary/15 dark:border-primary/25";
   }
 
   // Calculate hover scale classes
