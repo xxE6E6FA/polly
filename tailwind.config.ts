@@ -2,7 +2,6 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   darkMode: "class",
-  content: ["./src/pages/**/*.{ts,tsx}", "./src/components/**/*.{ts,tsx}"],
   prefix: "",
   theme: {
     container: {
@@ -298,48 +297,6 @@ const config: Config = {
         "gradient-x": "gradientX 24s ease-in-out infinite",
         "spin-reverse": "spin-reverse 1s linear infinite",
       },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-        fadeIn: {
-          from: { opacity: "0" },
-          to: { opacity: "1" },
-        },
-        slideUp: {
-          from: { opacity: "0", transform: "translateY(20px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
-        },
-        scaleIn: {
-          from: { opacity: "0", transform: "scale(0.95)" },
-          to: { opacity: "1", transform: "scale(1)" },
-        },
-        glow: {
-          from: { boxShadow: "0 0 20px -5px hsl(var(--primary) / 0.3)" },
-          to: { boxShadow: "0 0 40px -5px hsl(var(--primary) / 0.6)" },
-        },
-        pulseSoft: {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.7" },
-        },
-        gradientShift: {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
-        },
-        gradientX: {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
-        },
-        "spin-reverse": {
-          from: { transform: "rotate(360deg)" },
-          to: { transform: "rotate(0deg)" },
-        },
-      },
       backdropBlur: {
         xs: "2px",
       },
@@ -483,33 +440,6 @@ const config: Config = {
     require("tailwindcss-animate"),
     // biome-ignore lint/style/noCommonJs: Tailwind config requires CommonJS imports
     require("@tailwindcss/typography"),
-    // Custom duration and easing utilities using CSS custom properties
-    // biome-ignore lint/style/noCommonJs: Tailwind plugin uses CommonJS
-    require("tailwindcss/plugin")(function ({ addUtilities }) {
-      addUtilities({
-        ".duration-fast": {
-          transitionDuration: "var(--duration-fast)",
-        },
-        ".duration-normal": {
-          transitionDuration: "var(--duration-normal)",
-        },
-        ".ease-standard": {
-          transitionTimingFunction: "var(--ease-standard)",
-        },
-        ".ease-bounce": {
-          transitionTimingFunction: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
-        },
-        ".ease-collapse": {
-          transitionTimingFunction: "cubic-bezier(0.5, 0, 0.75, 0)",
-        },
-        ".ease-expand": {
-          transitionTimingFunction: "cubic-bezier(0.34, 1.56, 0.64, 1)",
-        },
-        ".ease-smooth": {
-          transitionTimingFunction: "cubic-bezier(0.33, 1, 0.68, 1)",
-        },
-      });
-    }),
   ],
 } satisfies Config;
 
