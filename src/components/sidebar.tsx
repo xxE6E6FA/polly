@@ -44,6 +44,12 @@ export const Sidebar = () => {
   const { user } = useUserDataContext();
   const { isSelectionMode, hasSelection } = useBatchSelection();
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  const toggleSidebarWithCheck = useCallback(() => {
+    if (!isSelectionMode) {
+      toggleSidebar();
+    }
+  }, [toggleSidebar, isSelectionMode]);
   const favorites = useQuery(
     api.messages.listFavorites,
     user && !user.isAnonymous ? { limit: 1 } : "skip"
@@ -86,7 +92,7 @@ export const Sidebar = () => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
-        toggleSidebar();
+        toggleSidebarWithCheck();
         return;
       }
       if (e.key === "Escape" && isMobile && isSidebarVisible) {
@@ -97,7 +103,7 @@ export const Sidebar = () => {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar, isMobile, isSidebarVisible, setSidebarVisible]);
+  }, [toggleSidebarWithCheck, isMobile, isSidebarVisible, setSidebarVisible]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -202,19 +208,29 @@ export const Sidebar = () => {
         return;
       }
 
+      if (isSelectionMode) {
+        clearCursor();
+        return;
+      }
+
       if (sidebarRootRef.current) {
         sidebarRootRef.current.style.cursor = "w-resize";
       }
       document.body.style.cursor = "w-resize";
     },
-    [clearCursor, isInteractiveTarget, isMobile]
+    [clearCursor, isInteractiveTarget, isMobile, isSelectionMode]
   );
 
   const handleSidebarContainerPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       updateCursorForTarget(event.target);
 
-      if (isMobile || isInteractiveTarget(event.target) || event.button > 0) {
+      if (
+        isMobile ||
+        isInteractiveTarget(event.target) ||
+        event.button > 0 ||
+        isSelectionMode
+      ) {
         return;
       }
 
@@ -227,6 +243,7 @@ export const Sidebar = () => {
       isMobile,
       setSidebarVisible,
       updateCursorForTarget,
+      isSelectionMode,
     ]
   );
 
@@ -234,7 +251,12 @@ export const Sidebar = () => {
     (event: React.PointerEvent<HTMLDivElement>) => {
       updateCursorForTarget(event.target);
 
-      if (isMobile || isInteractiveTarget(event.target) || event.button > 0) {
+      if (
+        isMobile ||
+        isInteractiveTarget(event.target) ||
+        event.button > 0 ||
+        isSelectionMode
+      ) {
         return;
       }
 
@@ -247,6 +269,7 @@ export const Sidebar = () => {
       isMobile,
       setSidebarVisible,
       updateCursorForTarget,
+      isSelectionMode,
     ]
   );
 
@@ -281,6 +304,12 @@ export const Sidebar = () => {
       clearCursor();
     }
   }, [clearCursor, isSidebarVisible]);
+
+  useEffect(() => {
+    if (isSelectionMode) {
+      clearCursor();
+    }
+  }, [clearCursor, isSelectionMode]);
 
   const sidebarStyle = useMemo(
     () =>
@@ -503,7 +532,7 @@ export const Sidebar = () => {
                 variant="ghost"
                 className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
                 style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
-                onClick={toggleSidebar}
+                onClick={toggleSidebarWithCheck}
               >
                 <SidebarSimple className="h-5 w-5" />
               </Button>

@@ -101,9 +101,25 @@ export const BatchSelectionProvider = ({
 
   // Shift key detection
   useEffect(() => {
+    const isTextInput = (target: EventTarget | null): boolean => {
+      if (target === null) {
+        return false;
+      }
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tagName = target.tagName.toLowerCase();
+      if (tagName === "input" || tagName === "textarea") {
+        return true;
+      }
+      return target.isContentEditable === true;
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Shift") {
-        setIsShiftPressed(true);
+        if (!isTextInput(event.target)) {
+          setIsShiftPressed(true);
+        }
       } else if (event.key === "Escape") {
         // Clear selection when ESC is pressed
         setSelectedConversationIds(new Set());
