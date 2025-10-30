@@ -1,7 +1,228 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+@theme {
+    /* Container */
+    --container-center: true;
+    --container-padding: 2rem;
+    --container-screen-2xl: 1400px;
 
+    /* Font Families */
+    --font-family-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-family-serif: "Source Serif 4", "Source Serif Pro", serif;
+    --font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+    /* Font Sizes - Base */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    --font-size-5xl: 3rem;
+    --font-size-6xl: 3.75rem;
+    --font-size-7xl: 4.5rem;
+    --font-size-8xl: 6rem;
+    --font-size-9xl: 8rem;
+
+    /* Display Font Sizes */
+    --font-size-display-sm: 2.5rem;
+    --font-size-display-md: 3.5rem;
+    --font-size-display-lg: 4.5rem;
+    --font-size-display-xl: 6rem;
+
+    /* Body Font Sizes */
+    --font-size-body-sm: 0.875rem;
+    --font-size-body: 1rem;
+    --font-size-body-lg: 1.125rem;
+
+    /* UI Font Sizes */
+    --font-size-caption: 0.75rem;
+    --font-size-overline: 0.625rem;
+
+    /* Font Weights */
+    --font-weight-thin: 100;
+    --font-weight-extralight: 200;
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    --font-weight-black: 900;
+
+    /* Letter Spacing */
+    --letter-spacing-tightest: -0.075em;
+    --letter-spacing-tighter: -0.05em;
+    --letter-spacing-tight: -0.025em;
+    --letter-spacing-normal: 0;
+    --letter-spacing-wide: 0.025em;
+    --letter-spacing-wider: 0.05em;
+    --letter-spacing-widest: 0.1em;
+    --letter-spacing-extra-wide: 0.15em;
+
+    /* Line Heights */
+    --line-height-none: 1;
+    --line-height-tight: 1.1;
+    --line-height-snug: 1.2;
+    --line-height-normal: 1.4;
+    --line-height-relaxed: 1.5;
+    --line-height-comfortable: 1.6;
+    --line-height-loose: 1.7;
+    --line-height-3: 0.75rem;
+    --line-height-4: 1rem;
+    --line-height-5: 1.25rem;
+    --line-height-6: 1.5rem;
+    --line-height-7: 1.75rem;
+    --line-height-8: 2rem;
+    --line-height-9: 2.25rem;
+    --line-height-10: 2.5rem;
+
+    /* Border Radius */
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-soft: 1.5rem;
+    --radius-organic: 2rem;
+    --radius-blob: 2.5rem;
+    --radius-pill: 50rem;
+    --radius-xl: 1.25rem;
+    --radius-2xl: 2rem;
+    --radius-3xl: 2.5rem;
+    --radius-4xl: 3rem;
+
+    /* Backdrop Blur */
+    --backdrop-blur-xs: 2px;
+
+    /* Box Shadows */
+    --shadow-sm: var(--shadow-1);
+    --shadow: var(--shadow-2);
+    --shadow-md: var(--shadow-2);
+    --shadow-lg: var(--shadow-3);
+    --shadow-xl: var(--shadow-4);
+    --shadow-2xl: var(--shadow-5);
+    --shadow-elevation-1: var(--shadow-1);
+    --shadow-elevation-2: var(--shadow-2);
+    --shadow-elevation-3: var(--shadow-3);
+    --shadow-elevation-4: var(--shadow-4);
+    --shadow-elevation-5: var(--shadow-5);
+    --shadow-soft: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    --shadow-organic: 0 20px 40px -8px rgb(0 0 0 / 0.15), 0 10px 20px -4px rgb(0 0 0 / 0.1);
+    --shadow-glow: 0 0 20px -5px hsl(var(--primary) / 0.3);
+
+    /* Background Images */
+    --gradient-radial: radial-gradient(var(--tw-gradient-stops));
+    --gradient-conic: conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops));
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent-blue)) 100%);
+    --gradient-surface: linear-gradient(135deg, hsl(var(--surface-primary)) 0%, hsl(var(--surface-secondary)) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent-purple)) 0%, hsl(var(--accent-blue)) 100%);
+    --gradient-tropical: var(--gradient-tropical);
+    --gradient-organic: radial-gradient(ellipse 70% 70% at 50% 50%, hsl(var(--primary) / 0.15) 0%, transparent 70%);
+    --gradient-header-from-logo: var(--header-gradient-from-logo);
+
+    /* Animations */
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
+    --animate-fade-in: fadeIn 0.5s ease-out;
+    --animate-slide-up: slideUp 0.4s ease-out;
+    --animate-scale-in: scaleIn 0.3s ease-out;
+    --animate-glow: glow 3s ease-in-out infinite alternate;
+    --animate-spin-slow: spin 60s linear infinite;
+    --animate-spin-slower: spin 90s linear infinite;
+    --animate-spin-very-slow: spin 150s linear infinite;
+    --animate-pulse-soft: pulseSoft 2s ease-in-out infinite;
+    --animate-gradient-shift: gradientShift 24s ease-in-out infinite;
+    --animate-gradient-x: gradientX 24s ease-in-out infinite;
+    --animate-spin-reverse: spin-reverse 1s linear infinite;
+}
+
+/* Keyframes for animations */
+@keyframes accordion-down {
+    from {
+        height: 0;
+    }
+    to {
+        height: var(--radix-accordion-content-height);
+    }
+}
+
+@keyframes accordion-up {
+    from {
+        height: var(--radix-accordion-content-height);
+    }
+    to {
+        height: 0;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.3);
+    }
+    to {
+        box-shadow: 0 0 40px -5px hsl(var(--primary) / 0.6);
+    }
+}
+
+@keyframes pulseSoft {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes gradientX {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
 
 @layer base {
     :root {
@@ -448,6 +669,36 @@ pre {
     margin-top: 2rem;
 }
 
+/* Duration utilities */
+@utility duration-fast {
+    transition-duration: var(--duration-fast);
+}
+
+@utility duration-normal {
+    transition-duration: var(--duration-normal);
+}
+
+/* Easing utilities */
+@utility ease-standard {
+    transition-timing-function: var(--ease-standard);
+}
+
+@utility ease-bounce {
+    transition-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@utility ease-collapse {
+    transition-timing-function: cubic-bezier(0.5, 0, 0.75, 0);
+}
+
+@utility ease-expand {
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@utility ease-smooth {
+    transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
 /* Smooth scrolling for sidebar */
 .sidebar-scroll {
     scroll-behavior: smooth;
@@ -504,35 +755,13 @@ pre {
     color: inherit;
 }
 
-/* Custom animations */
-@keyframes fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes slide-up {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
+/* Custom animations - using keyframes defined above */
 .animate-fade-in {
-    animation: fade-in 0.3s ease-out;
+    animation: fadeIn 0.3s ease-out;
 }
 
 .animate-slide-up {
-    animation: slide-up 0.4s ease-out;
+    animation: slideUp 0.4s ease-out;
 }
 
 /* Private mode background animations */
@@ -641,11 +870,6 @@ pre {
 }
 
 /* Ticker animations */
-
-/* Message transitions */
-.message-appear {
-    animation: fade-in 0.3s ease-out;
-}
 
 /* Input focus styles */
 .focus-gradient:focus-within {
@@ -779,7 +1003,7 @@ pre {
 
 /* Smooth transitions for all interactive elements */
 .sidebar-interactive {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--duration-normal) var(--ease-standard);
 }
 
 /* Enhanced dark mode gradients */
@@ -832,7 +1056,7 @@ pre {
 /* Refined dark mode effects */
 .dark .conversation-item-hover:hover {
     background: hsl(var(--accent));
-    transition: background-color 0.2s ease;
+    transition: background-color var(--duration-normal) var(--ease-standard);
 }
 
 /* Removed broad button LED effects - now handled by button variants */
@@ -840,7 +1064,7 @@ pre {
 /* Refined model name text in chat messages */
 .dark [data-message-role] .text-muted-foreground {
     color: hsl(var(--muted-foreground));
-    transition: color 0.2s ease;
+    transition: color var(--duration-normal) var(--ease-standard);
 }
 
 .dark [data-message-role] .text-muted-foreground:hover {
@@ -1017,7 +1241,7 @@ pre {
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    transition: opacity var(--duration-normal) var(--ease-standard);
     pointer-events: none;
 }
 
@@ -1257,7 +1481,7 @@ pre {
     background: transparent;
     border: 1px solid transparent;
     color: hsl(var(--muted-foreground));
-    transition: all 0.2s ease;
+    transition: all var(--duration-normal) var(--ease-standard);
 }
 
 .dark .btn-action {
@@ -1295,7 +1519,7 @@ pre {
 
 /* Icon effects for action buttons */
 .btn-action svg {
-    transition: all 0.2s ease;
+    transition: all var(--duration-normal) var(--ease-standard);
 }
 
 /* Destructive Action Button Styles */
@@ -1303,7 +1527,7 @@ pre {
     background: transparent;
     border: 1px solid transparent;
     color: hsl(var(--muted-foreground));
-    transition: all 0.2s ease;
+    transition: all var(--duration-normal) var(--ease-standard);
 }
 
 .dark .btn-action-destructive {
@@ -1342,7 +1566,7 @@ pre {
 
 /* Icon effects for destructive action buttons */
 .btn-action-destructive svg {
-    transition: all 0.2s ease;
+    transition: all var(--duration-normal) var(--ease-standard);
 }
 
 /* Organic bounce animation for send button */
@@ -1409,7 +1633,7 @@ pre {
     padding: 0 2px;
     margin: 0 -2px;
     border-radius: 4px;
-    transition: background-color 0.2s ease;
+    transition: background-color var(--duration-normal) var(--ease-standard);
 }
 
 /* Show hover area on group hover */
@@ -1447,7 +1671,7 @@ pre {
     font-weight: 600;
     border-radius: 50%;
     text-decoration: none !important;
-    transition: all 0.2s ease;
+    transition: all var(--duration-normal) var(--ease-standard);
     vertical-align: super;
     position: relative;
     margin: 0 2px;
@@ -1497,7 +1721,7 @@ pre {
 
 /* Temperature Slider Styling */
 .temperature-slider {
-  @apply h-2 w-full appearance-none rounded-full bg-accent/40 outline-none transition-all duration-200;
+  @apply h-2 w-full appearance-none rounded-full bg-accent/40 outline-none transition-all duration-normal;
 }
 
 .temperature-slider::-webkit-slider-thumb {
