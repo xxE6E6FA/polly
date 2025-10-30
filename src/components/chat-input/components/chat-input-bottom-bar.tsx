@@ -6,10 +6,6 @@ import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
-import {
-  setPersona as setPersonaAction,
-  setTemperature as setTemperatureAction,
-} from "@/stores/actions/chat-input-actions";
 import { useChatFullscreenUI } from "@/stores/chat-ui-store";
 // Fullscreen overlay toggle is handled inside the input section now
 import type { ConversationId, ReasoningConfig } from "@/types";
@@ -97,12 +93,22 @@ export function ChatInputBottomBar({
   }, [selectedImageModel]);
 
   const handlePersonaSelect = useCallback(
-    (id: Id<"personas"> | null) => setPersonaAction(conversationId, id),
+    async (id: Id<"personas"> | null) => {
+      const { setPersona } = await import(
+        "@/stores/actions/chat-input-actions"
+      );
+      setPersona(conversationId, id);
+    },
     [conversationId]
   );
 
   const handleTemperatureChange = useCallback(
-    (value: number | undefined) => setTemperatureAction(conversationId, value),
+    async (value: number | undefined) => {
+      const { setTemperature } = await import(
+        "@/stores/actions/chat-input-actions"
+      );
+      setTemperature(conversationId, value);
+    },
     [conversationId]
   );
 

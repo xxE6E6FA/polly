@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useImageParams } from "@/hooks/use-generation";
-import { removeAttachmentAt } from "@/stores/actions/chat-input-actions";
 import { useChatHistory } from "@/stores/chat-ui-store";
 import type { ConversationId, GenerationMode } from "@/types";
 import { AttachmentDisplay } from "../attachment-display";
@@ -55,7 +54,12 @@ export function TextInputSection({
 }: TextInputSectionProps) {
   const { attachments } = useChatAttachments(conversationId);
   const handleRemoveAttachment = useCallback(
-    (index: number) => removeAttachmentAt(conversationId, index),
+    async (index: number) => {
+      const { removeAttachmentAt } = await import(
+        "@/stores/actions/chat-input-actions"
+      );
+      removeAttachmentAt(conversationId, index);
+    },
     [conversationId]
   );
   const { params: imageParams, setParams: setImageParams } = useImageParams();
