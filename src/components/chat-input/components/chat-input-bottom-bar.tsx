@@ -108,8 +108,8 @@ export function ChatInputBottomBar({
 
   return (
     <div className="relative">
-      <div className="chat-input-bottom-bar flex items-center justify-between p-1.5">
-        <div className="flex min-w-0 flex-1 items-center gap-1">
+      <div className="chat-input-bottom-bar flex items-center justify-between p-1">
+        <div className="flex min-w-0 flex-1 items-center gap-0.5">
           {canSend && <ModelDrawer disabled={disabled} />}
 
           {canSend && generationMode === "text" && (
@@ -185,7 +185,7 @@ export function ChatInputBottomBar({
             generationMode === "image" &&
             !isPrivateMode &&
             hasReplicateApiKey && (
-              <div className="hidden sm:flex items-center gap-1 sm:gap-3">
+              <div className="hidden sm:flex items-center gap-1 sm:gap-2">
                 <ModelPicker disabled={disabled} />
                 <AspectRatioPicker
                   aspectRatio={imageParams.aspectRatio}
@@ -225,7 +225,7 @@ export function ChatInputBottomBar({
             )}
 
           {canSend && generationMode === "text" && (
-            <div className="hidden sm:flex items-center gap-1 sm:gap-3">
+            <div className="hidden sm:flex items-center gap-1 sm:gap-2">
               <ModelPicker disabled={disabled} />
               <PersonaSelector
                 conversationId={conversationId}
@@ -250,7 +250,7 @@ export function ChatInputBottomBar({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1 sm:gap-3">
+        <div className="flex items-center gap-0.5 sm:gap-2">
           {canSend && (
             <FileUploadButton
               disabled={disabled}

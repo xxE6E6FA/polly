@@ -76,7 +76,6 @@ export function FileUploadButton({
               "bg-primary text-primary-foreground",
               "hover:bg-primary/90 hover:text-primary-foreground",
               "hover:scale-105 active:scale-95",
-              "shadow-sm hover:shadow-md",
               disabled && "cursor-not-allowed opacity-50 hover:scale-100"
             )}
             disabled={disabled || isSubmitting}
