@@ -161,7 +161,7 @@ export const Reasoning = ({
         className={`
           relative mt-2 w-[calc(100%+24px)] sm:w-[calc(100%+48px)] rounded-xl border border-border bg-muted/30 shadow-sm dark:bg-muted/20
           max-w-none mx-[-12px] sm:mx-[-24px] overflow-hidden
-          transition-[max-height,opacity,transform] duration-[var(--duration-normal)] ease-[var(--ease-standard)]
+          transition-[max-height,opacity,transform] duration-normal ease-standard
           ${isExpanded ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-0.5"}
         `}
         style={{
@@ -179,7 +179,7 @@ export const Reasoning = ({
             className="py-3 sm:py-6 px-3 sm:px-6 text-foreground/90"
           >
             <div
-              className="break-words text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch] transition-opacity duration-[var(--duration-fast)] ease-[var(--ease-standard)]"
+              className="break-words text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch] transition-opacity duration-fast ease-standard"
               style={{
                 wordBreak: "break-word",
                 overflowWrap: "break-word",
