@@ -4,6 +4,7 @@ import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useShallow } from "zustand/shallow";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { Button } from "@/components/ui/button";
@@ -249,7 +250,9 @@ export const AssistantBubble = ({
 }: AssistantBubbleProps) => {
   // Use global conversation-level preview via onPreviewFile passed from parent
   const [showReasoning, setShowReasoning] = useState(false);
-  const overlayTools = useStreamOverlays(s => s.tools[message.id] || []);
+  const overlayTools = useStreamOverlays(
+    useShallow(s => s.tools[message.id] || [])
+  );
   const conversationTitle = useQuery(
     api.conversations.getWithAccessInfo,
     conversationId ? { id: conversationId as Id<"conversations"> } : "skip"

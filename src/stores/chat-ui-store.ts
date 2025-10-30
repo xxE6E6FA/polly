@@ -1,5 +1,5 @@
 import { devtools } from "zustand/middleware";
-import { shallow } from "zustand/shallow";
+import { shallow, useShallow } from "zustand/shallow";
 import { createWithEqualityFn } from "zustand/traditional";
 
 type ConversationId = string | null | undefined;
@@ -120,15 +120,17 @@ export const useChatUIState = <T>(
 ) => useChatUIStore(selector, equalityFn);
 
 export const useChatFullscreenUI = () => {
-  return useChatUIStore(s => ({
-    isFullscreen: s.isFullscreen,
-    isMultiline: s.isMultiline,
-    isTransitioning: s.isTransitioning,
-    setFullscreen: s.setFullscreen,
-    setMultiline: s.setMultiline,
-    setTransitioning: s.setTransitioning,
-    clearOnSend: s.clearOnSend,
-  }));
+  return useChatUIStore(
+    useShallow(s => ({
+      isFullscreen: s.isFullscreen,
+      isMultiline: s.isMultiline,
+      isTransitioning: s.isTransitioning,
+      setFullscreen: s.setFullscreen,
+      setMultiline: s.setMultiline,
+      setTransitioning: s.setTransitioning,
+      clearOnSend: s.clearOnSend,
+    }))
+  );
 };
 
 export const useChatHistory = (conversationId: ConversationId) => {

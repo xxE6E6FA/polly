@@ -1,22 +1,19 @@
+import { useShallow } from "zustand/shallow";
 import { useChatInputStore } from "@/stores/chat-input-store";
 
 export function useGenerationMode() {
-  const mode = useChatInputStore(s => s.generationMode);
-  const setMode = useChatInputStore(s => s.setGenerationMode);
-  return [mode, setMode] as const;
+  return useChatInputStore(
+    useShallow(s => [s.generationMode, s.setGenerationMode] as const)
+  );
 }
 
 export function useImageParams() {
-  const params = useChatInputStore(s => s.imageParams);
-  const setParams = useChatInputStore(s => s.setImageParams);
-  const negativePromptEnabled = useChatInputStore(s => s.negativePromptEnabled);
-  const setNegativePromptEnabled = useChatInputStore(
-    s => s.setNegativePromptEnabled
+  return useChatInputStore(
+    useShallow(s => ({
+      params: s.imageParams,
+      setParams: s.setImageParams,
+      negativePromptEnabled: s.negativePromptEnabled,
+      setNegativePromptEnabled: s.setNegativePromptEnabled,
+    }))
   );
-  return {
-    params,
-    setParams,
-    negativePromptEnabled,
-    setNegativePromptEnabled,
-  } as const;
 }
