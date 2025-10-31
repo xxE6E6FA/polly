@@ -1,4 +1,4 @@
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/hook-utils";
@@ -19,7 +19,33 @@ vi.mock("@/providers/user-data-context", () => ({
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { createChatHandlers } from "@/lib/ai/chat-handlers";
 import { isUserModel } from "@/lib/type-guards";
-import { useChat } from "./use-chat";
+import { mapServerMessageToChatMessage, useChat } from "./use-chat";
+
+describe("mapServerMessageToChatMessage", () => {
+  it("preserves error fields from the server", () => {
+    const serverMessage = {
+      _id: "m1",
+      role: "assistant",
+      content: "",
+      status: "error",
+      statusText: "Model unavailable",
+      error: "No endpoints found for x-ai/grok-4-fast:free.",
+      parentId: undefined,
+      isMainBranch: true,
+      sourceConversationId: undefined,
+      useWebSearch: false,
+      attachments: [],
+      citations: [],
+      metadata: {},
+      createdAt: 0,
+    } as unknown as Doc<"messages">;
+
+    const mapped = mapServerMessageToChatMessage(serverMessage);
+    expect(mapped.status).toBe("error");
+    expect(mapped.statusText).toBe("Model unavailable");
+    expect(mapped.error).toBe("No endpoints found for x-ai/grok-4-fast:free.");
+  });
+});
 
 describe("useChat", () => {
   beforeEach(() => {

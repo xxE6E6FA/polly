@@ -33,6 +33,7 @@ export function mapServerMessageToChatMessage(
     role: msg.role as MessageRole,
     content: msg.content,
     status: msg.status,
+    statusText: msg.statusText ?? undefined,
     reasoning: msg.reasoning,
     model: msg.model,
     provider: msg.provider,
@@ -42,6 +43,7 @@ export function mapServerMessageToChatMessage(
     useWebSearch: msg.useWebSearch,
     attachments: msg.attachments,
     citations: msg.citations,
+    error: msg.error,
     metadata: msg.metadata,
     imageGeneration: msg.imageGeneration
       ? {

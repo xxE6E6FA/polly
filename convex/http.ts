@@ -201,12 +201,6 @@ http.route({
   path: "/conversation/stream",
   method: "POST",
   handler: httpAction(async (ctx, request): Promise<Response> => {
-    log.debug(
-      "HTTP Action started - method:",
-      request.method,
-      "url:",
-      request.url
-    );
     // Relaxed CORS: reflect Origin and allow credentials for cookie-based auth
     const origin = request.headers.get("origin") || "*";
     const reqAllowed =
@@ -240,8 +234,6 @@ http.route({
         presencePenalty,
       } = body || {};
 
-      log.debug("HTTP Request Body:", JSON.stringify(body, null, 2));
-
       if (!(conversationId && messageId)) {
         return new Response(
           JSON.stringify({ error: "Missing required fields" }),
@@ -253,11 +245,8 @@ http.route({
       }
 
       // AuthN: require user
-      log.debug("About to call getAuthUserId");
       const userId = await getAuthUserId(ctx);
-      log.debug("getAuthUserId returned:", userId);
       if (!userId) {
-        log.debug("No user ID - returning 401");
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...cors, "Content-Type": "application/json" },
@@ -273,20 +262,10 @@ http.route({
       }
 
       // AuthZ: ensure user owns the conversation and message
-      log.debug("About to fetch conversation and message");
       const [conversation, message] = await Promise.all([
         ctx.runQuery(api.conversations.get, { id: conversationId }),
         ctx.runQuery(api.messages.getById, { id: messageId }),
       ]);
-      log.debug("Fetched conversation:", !!conversation, "message:", !!message);
-      log.debug("Message details:", {
-        id: message?._id,
-        role: message?.role,
-        model: message?.model,
-        provider: message?.provider,
-        hasReasoning: !!message?.reasoning,
-        content: `${message?.content?.slice(0, 50)}...`,
-      });
       if (!conversation || conversation.userId !== userId) {
         return new Response(JSON.stringify({ error: "Forbidden" }), {
           status: 403,
@@ -320,26 +299,11 @@ http.route({
           }
         );
       }
-      log.debug("Resolved model/provider:", {
-        reqModelId,
-        reqProvider,
-        messageModel: message?.model,
-        messageProvider: message?.provider,
-        finalModelId: modelId,
-        finalProvider: provider,
-      });
-
       // Update message with current model/provider to ensure consistency
       // This handles race conditions where HTTP stream starts before retryFromMessage DB updates complete
       // Also ensures reasoning is properly cleared for retry scenarios
       if (reqModelId || reqProvider) {
         try {
-          log.debug("Updating message with:", {
-            messageId,
-            model: modelId,
-            provider: provider,
-            clearingReasoning: true,
-          });
           await ctx.runMutation(internal.messages.internalUpdate, {
             id: messageId,
             model: modelId,
@@ -353,26 +317,8 @@ http.route({
               | "elevenlabs",
             reasoning: "", // Clear reasoning for retry by setting to empty string
           });
-          log.info(
-            "Successfully updated message model/provider and cleared reasoning"
-          );
-
-          // Verify the update worked
-          const updatedMessage = await ctx.runQuery(api.messages.getById, {
-            id: messageId,
-          });
-          log.debug("Message after update:", {
-            id: updatedMessage?._id,
-            model: updatedMessage?.model,
-            provider: updatedMessage?.provider,
-            hasReasoning: !!updatedMessage?.reasoning,
-            content: `${updatedMessage?.content?.slice(0, 30)}...`,
-          });
-        } catch (error) {
-          log.error(
-            "Failed to update message model/provider/reasoning:",
-            error
-          );
+        } catch {
+          // Ignore update failures
         }
       }
 
@@ -388,17 +334,14 @@ http.route({
       }
 
       // Create stream to the browser
-      log.debug("Creating TransformStream");
       const ts = new TransformStream();
       const writer = ts.writable.getWriter();
       const encoder = new TextEncoder();
-      log.debug("Stream setup complete");
 
       const writeFrame = async (obj: unknown) => {
         try {
           await writer.write(encoder.encode(`${JSON.stringify(obj)}\n`));
-        } catch (error) {
-          log.warn("Write frame error:", error);
+        } catch {
           // Ignore write errors during streaming
         }
       };
@@ -425,11 +368,9 @@ http.route({
       const response = new Response(ts.readable, { headers: streamHeaders });
 
       // Prefetch all Convex data needed before returning the Response
-      log.debug("Getting all messages in conversation");
       const all = await ctx.runQuery(api.messages.getAllInConversation, {
         conversationId,
       });
-      log.debug("Got", all.length, "messages");
 
       // Persona prompt used to build system message
       const personaPrompt = await getPersonaPrompt(
@@ -478,29 +419,22 @@ http.route({
       // Start all processing in background - don't block the response
       (async () => {
         // Build context messages (simplified, preserves system + conversation)
-        log.debug("Building context messages");
-        log.debug("Got persona prompt");
         const baseline = getBaselineInstructions(modelId);
         const system = mergeSystemPrompts(baseline, personaPrompt);
-        log.debug("Built system prompt");
-        log.debug("Got model info:", !!modelInfo);
 
         // Watchdog: if conversation shows isStreaming=true but there is no active thinking/streaming message,
         // clear the flag (stale state from a prior crash) before we begin.
         // Avoid DB writes here; stale flags will be corrected by finish handler
 
         // Build stream messages with attachment processing for the last user message
-        log.debug("Starting message processing");
         const streamMsgs: Array<{
           role: "user" | "assistant" | "system";
           content: string | Record<string, unknown>[];
         }> = [];
 
         streamMsgs.push({ role: "system", content: system });
-        log.debug("Added system message");
 
         // Copy messages and handle attachments on the last user item
-        log.debug("Finding last user message in", all.length, "messages");
         let lastUserIdx = -1;
         for (let i = 0; i < all.length; i++) {
           const m: Doc<"messages"> = all[i];
@@ -508,20 +442,16 @@ http.route({
             lastUserIdx = i;
           }
         }
-        log.debug("Last user message index:", lastUserIdx);
 
         let lastUserAttachments: Doc<"messages">["attachments"];
-        log.debug("Processing messages loop");
         for (let i = 0; i < all.length; i++) {
           const m: Doc<"messages"> = all[i];
-          log.debug("Processing message", i, "role:", m.role);
           if (m.role !== "user" && m.role !== "assistant") {
             continue;
           }
 
           // Skip assistant messages with empty content (they're the message being generated)
           if (m.role === "assistant" && (!m.content || m.content === "")) {
-            log.debug("Skipping empty assistant message");
             continue;
           }
 
@@ -534,10 +464,6 @@ http.route({
             Array.isArray(m.attachments) &&
             m.attachments.length > 0
           ) {
-            log.debug(
-              "Processing attachments for last user message, count:",
-              m.attachments.length
-            );
             // If PDFs present and extraction is needed, notify client about reading status
             const hasPdf = m.attachments.some(a => a.type === "pdf");
             const needsExtraction =
@@ -547,12 +473,10 @@ http.route({
                 modelId,
                 Boolean(modelInfo?.supportsFiles)
               );
-            log.debug("PDF extraction needed:", needsExtraction);
             if (needsExtraction) {
               await writeFrame({ t: "status", status: "reading_pdf" });
             }
             // Process attachments for LLM consumption (PDF extraction, etc.)
-            log.debug("About to process attachments for LLM");
             const processed = await processAttachmentsForLLM(
               ctx,
               m.attachments,
@@ -561,7 +485,6 @@ http.route({
               Boolean(modelInfo?.supportsFiles),
               messageId
             );
-            log.debug("Processed attachments, count:", processed?.length || 0);
             lastUserAttachments = processed;
 
             const parts: Record<string, unknown>[] = [];
@@ -603,8 +526,6 @@ http.route({
 
           streamMsgs.push({ role: m.role, content });
         }
-
-        log.debug("Built", streamMsgs.length, "stream messages");
 
         // Web search pre-check + EXA search (blocking path before LLM)
         try {
@@ -884,12 +805,9 @@ http.route({
         }
 
         // Convert to AI SDK CoreMessage format
-        log.debug("Converting messages to AI SDK format");
         const context = await convertMessages(ctx, streamMsgs, provider);
-        log.debug("Converted to", context.length, "context messages");
 
         // Send init frame to client
-        log.debug("Sending init frame to client");
         const personaInit = personaId ?? conversation.personaId;
         await writeFrame({
           t: "init",
@@ -905,10 +823,6 @@ http.route({
               }))
             : [],
         });
-        log.debug("Sent init frame");
-
-        // Model created above; no ctx.* in background
-        log.debug("Model and stream options prepared");
 
         // Content accumulation (DB writes deferred until end)
         let pending = "";
@@ -964,17 +878,9 @@ http.route({
           reasoningFull += toSend;
         };
 
-        // Flip to streaming on first chunk
-        let didStart = false;
-
         // Kick off LLM stream
         (async () => {
           try {
-            log.debug(
-              "Starting LLM stream with context messages:",
-              context.length
-            );
-            log.debug("Last message:", context[context.length - 1]);
             const result = streamText({
               model,
               messages: context,
@@ -1017,27 +923,10 @@ http.route({
               },
             });
 
-            // Proactively mark as streaming once the request is in flight
-            if (!didStart) {
-              didStart = true;
-              await writeFrame({ t: "status", status: "streaming" });
-            }
+            // Mark as streaming once the request is in flight
+            await writeFrame({ t: "status", status: "streaming" });
 
-            log.debug("Entering stream reading loop");
-            let chunkCount = 0;
             for await (const chunk of result.textStream) {
-              chunkCount++;
-              log.debug(
-                "Received chunk #",
-                chunkCount,
-                ":",
-                chunk.slice(0, 50)
-              );
-              if (!didStart) {
-                didStart = true;
-                await writeFrame({ t: "status", status: "streaming" });
-              }
-
               pending += chunk;
               // Stream content delta to author as NDJSON line: {"t":"content","d":"..."}\n
               await writeFrame({ t: "content", d: chunk });
@@ -1047,12 +936,15 @@ http.route({
                 flush();
                 lastFlush = now;
               }
+            }
 
-              // Skip periodic DB polling for stop to avoid dangling queries
+            // Check result for errors even if stream completed
+            const finishReason = await result.finishReason;
+            if (finishReason === "error" || finishReason === "other") {
+              throw new Error("Stream completed with error finish reason");
             }
 
             // Final flush and finalize
-            log.info("Stream completed, total chunks received:", chunkCount);
             flush();
             flushReasoning();
             const metadata: {
@@ -1123,6 +1015,8 @@ http.route({
                   updates: { isStreaming: false },
                 }
               );
+              // Send error event to client before finish event
+              await writeFrame({ t: "error", error: friendlyError });
             } catch {
               // ignore scheduling failures
             }
@@ -1133,8 +1027,6 @@ http.route({
             } catch {
               // Ignore errors when closing writer
             }
-          } finally {
-            // No DB calls here to avoid dangling query warnings
           }
         })();
       })(); // End of main processing async function

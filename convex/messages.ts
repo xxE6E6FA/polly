@@ -361,6 +361,27 @@ export const internalUpdate = internalMutation({
           return; // Return silently instead of throwing
         }
 
+        // Don't overwrite error status - if message already has an error, skip metadata updates
+        if (message.status === "error" && rest.metadata) {
+          log.info(
+            "[internalUpdate] Message already has error status, skipping metadata update:",
+            id
+          );
+          // Still allow non-metadata updates (like model/provider changes)
+          const { metadata: _metadata, ...nonMetadataUpdates } = rest;
+          if (Object.keys(nonMetadataUpdates).length > 0) {
+            const updates: Partial<Doc<"messages">> = { ...nonMetadataUpdates };
+            if (appendContent) {
+              updates.content = (message.content || "") + appendContent;
+            }
+            if (appendReasoning) {
+              updates.reasoning = (message.reasoning || "") + appendReasoning;
+            }
+            return await ctx.db.patch(id, updates);
+          }
+          return;
+        }
+
         const updates: Partial<Doc<"messages">> = { ...rest };
         if (appendContent) {
           updates.content = (message.content || "") + appendContent;
@@ -416,6 +437,15 @@ export const updateContent = internalMutation({
         "- likely already finalized or deleted"
       );
       return; // Return silently instead of throwing
+    }
+
+    // Don't overwrite error status - if message already has an error, skip this update
+    if (message.status === "error") {
+      log.info(
+        "[updateContent] Message already has error status, skipping update:",
+        messageId
+      );
+      return;
     }
 
     // Build the update object
@@ -1138,6 +1168,15 @@ export const updateMessageStatus = internalMutation({
     const message = await ctx.db.get(args.messageId);
     if (!message) {
       log.error("[updateMessageStatus] Message not found:", args.messageId);
+      return;
+    }
+
+    // Don't overwrite error status - if message already has an error, skip this update
+    if (message.status === "error" && args.status !== "error") {
+      log.info(
+        "[updateMessageStatus] Message already has error status, skipping update:",
+        args.messageId
+      );
       return;
     }
 

@@ -98,20 +98,10 @@ export async function startAuthorStream(
     // Validate response before proceeding; fall back if not OK or wrong content type
     const contentType = res.headers.get("content-type") || "";
     if (!res.ok) {
-      const errorText = await res.text().catch(() => "Unable to read response");
-      console.error(`HTTP stream failed with status ${res.status}:`, errorText);
-
-      // Handle specific error cases
-      if (res.status === 429) {
-        console.warn("Rate limit exceeded - falling back to Convex streaming");
-      } else if (res.status === 401) {
-        console.warn("Authentication failed - check auth token");
-      }
-
+      await res.text().catch(() => null);
       return null;
     }
     if (!contentType.includes("application/x-ndjson")) {
-      console.error(`Unexpected content type: ${contentType}`);
       return null;
     }
 
@@ -130,6 +120,7 @@ export async function startAuthorStream(
     const decoder = new TextDecoder();
     let buffer = "";
     let didFinish = false;
+    let hadError = false;
     (async () => {
       try {
         while (true) {
@@ -158,6 +149,7 @@ export async function startAuthorStream(
                 args?: unknown;
                 ok?: boolean;
                 count?: number;
+                error?: string;
               };
               if (evt.t === "content" && evt.d) {
                 overlays.append(id, evt.d);
@@ -180,8 +172,16 @@ export async function startAuthorStream(
                   ok: evt.ok,
                   count: evt.count,
                 });
+              } else if (evt.t === "error" && evt.error) {
+                // Set error status immediately so UI can display it
+                hadError = true;
+                overlays.setStatus(id, "error");
               } else if (evt.t === "finish") {
                 didFinish = true;
+                const isError = evt.reason === "error";
+                if (isError) {
+                  hadError = true;
+                }
                 // Inform caller that the stream is finished
                 try {
                   args.onFinish?.(evt.reason || "stop");
@@ -189,10 +189,13 @@ export async function startAuthorStream(
                   // ignore callback errors
                 }
                 // Delay overlay clearing slightly to allow DB updates to propagate
+                // Don't clear status overlay if there was an error - let DB be source of truth
                 setTimeout(() => {
                   overlays.clear(id);
                   overlays.clearReasoning(id);
-                  overlays.clearStatus(id);
+                  if (!hadError) {
+                    overlays.clearStatus(id);
+                  }
                   overlays.clearCitations(id);
                   overlays.clearTools(id);
                 }, 250);

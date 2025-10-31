@@ -14,6 +14,46 @@ export interface StreamError {
   shouldMarkDeleted: boolean;
 }
 
+const resolveProviderName = (error: unknown): string | undefined => {
+  const url = typeof (error as { url?: unknown })?.url === "string"
+    ? (error as { url: string }).url
+    : undefined;
+  const provider =
+    typeof (error as { requestBodyValues?: { provider?: unknown } })?.requestBodyValues?.provider ===
+    "string"
+      ? ((error as { requestBodyValues?: { provider?: string } }).requestBodyValues?.provider ?? "")
+      : "";
+  const hostMatch = url ? new URL(url).hostname : "";
+  const hint = provider || hostMatch;
+
+  if (!hint) {
+    return undefined;
+  }
+
+  if (hint.includes("openrouter")) {
+    return "OpenRouter";
+  }
+  if (hint.includes("openai")) {
+    return "OpenAI";
+  }
+  if (hint.includes("anthropic")) {
+    return "Anthropic";
+  }
+  if (hint.includes("google")) {
+    return "Google";
+  }
+  if (hint.includes("groq")) {
+    return "Groq";
+  }
+  if (hint.includes("replicate")) {
+    return "Replicate";
+  }
+  if (hint.includes("xai") || hint.includes("x-ai")) {
+    return "xAI";
+  }
+  return undefined;
+};
+
 /**
  * Classify errors in the streaming context
  */
@@ -136,8 +176,37 @@ export async function handleStreamOperationWithRetry<T>(
  * Generate user-friendly error messages for common server-side errors
  */
 export const getUserFriendlyErrorMessage = (error: unknown): string => {
-  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessage = error instanceof Error ? error.message : (typeof error === 'object' && error !== null && 'message' in error ? (error as { message: unknown }).message as string : String(error));
   const errorMessageLower = errorMessage.toLowerCase();
+  const statusCode =
+    typeof (error as { statusCode?: unknown })?.statusCode === "number"
+      ? ((error as { statusCode: number }).statusCode ?? undefined)
+      : undefined;
+  const model =
+    typeof (error as { requestBodyValues?: { model?: unknown } })?.requestBodyValues?.model ===
+    "string"
+      ? ((error as { requestBodyValues?: { model?: string } }).requestBodyValues?.model ?? "")
+      : "";
+  const providerName = resolveProviderName(error);
+
+  const appendModelHint = (message: string) =>
+    model ? `${message} (requested model: ${model}).` : message;
+
+  if (statusCode === 401 || errorMessageLower.includes("unauthorized")) {
+    const base =
+      providerName
+        ? `Authentication with ${providerName} failed. Please double-check your API key or refresh the connection.`
+        : "Authentication failed with the AI provider. Please double-check your API key or refresh the connection.";
+    return appendModelHint(base);
+  }
+
+  if (statusCode === 403) {
+    const base =
+      providerName
+        ? `Access to this ${providerName} model is not permitted for your account. Please choose another model or update your provider permissions.`
+        : "Access to this model is not permitted for your account. Please choose another model or update your provider permissions.";
+    return appendModelHint(base);
+  }
 
   // Model unavailability errors
   if (
@@ -149,7 +218,19 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
       errorMessageLower.includes("disabled") ||
       errorMessageLower.includes("invalid model"))
   ) {
-    return "This model is no longer available. Please select a different model or remove it from Settings if it's disabled.";
+    const base =
+      providerName
+        ? `The model you selected is no longer available from ${providerName}. Please pick a different model or update your Settings.`
+        : "This model is no longer available. Please select a different model or remove it from Settings if it's disabled.";
+    return appendModelHint(base);
+  }
+
+  if (errorMessageLower.includes("no endpoints found")) {
+    const base =
+      providerName
+        ? `${providerName} cannot reach the requested model right now. Please choose another model or switch providers.`
+        : "The selected provider does not currently offer this model. Choose another model or switch providers.";
+    return appendModelHint(base);
   }
 
   // Common error patterns and their user-friendly messages
@@ -160,9 +241,14 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
   if (
     errorMessageLower.includes("api key") ||
     errorMessageLower.includes("authentication") ||
-    errorMessageLower.includes("unauthorized")
+    errorMessageLower.includes("unauthorized") ||
+    errorMessageLower.includes("invalid credentials")
   ) {
-    return errorMessage; // These are already user-friendly
+    const base =
+      providerName
+        ? `Authentication with ${providerName} failed: ${errorMessage}`
+        : errorMessage;
+    return appendModelHint(base);
   }
 
   if (errorMessageLower.includes("rate limit") || errorMessageLower.includes("429")) {
@@ -173,8 +259,22 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
     return "The response took too long. Please try again with a shorter message.";
   }
 
-  if (errorMessageLower.includes("network") || errorMessageLower.includes("fetch")) {
-    return "I'm having trouble connecting to the AI service. Please check your connection and try again.";
+  if (
+    errorMessageLower.includes("network") ||
+    errorMessageLower.includes("fetch") ||
+    errorMessageLower.includes("econnrefused") ||
+    errorMessageLower.includes("econnreset") ||
+    errorMessageLower.includes("enotfound") ||
+    errorMessageLower.includes("socket hang up") ||
+    errorMessageLower.includes("service unavailable") ||
+    errorMessageLower.includes("503") ||
+    errorMessageLower.includes("unreachable")
+  ) {
+    const base =
+      providerName
+        ? `I'm having trouble connecting to ${providerName}. Please check the provider status or try again in a moment.`
+        : "I'm having trouble connecting to the AI service. Please check your connection and try again.";
+    return appendModelHint(base);
   }
 
   if (
@@ -185,5 +285,9 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
   }
 
   // Generic fallback
-  return "I encountered an unexpected error. Please try again or contact support if the issue persists.";
+  const base = "I encountered an unexpected error. Please try again or contact support if the issue persists.";
+  if (statusCode) {
+    return appendModelHint(`${base} (provider status code: ${statusCode}).`);
+  }
+  return appendModelHint(base);
 };
