@@ -1,13 +1,13 @@
 # Agent Guidelines for Polly
 
 ## Build/Lint/Test Commands
-- **Build**: `pnpm build` (includes Convex deploy)
-- **Lint**: `pnpm lint` or `pnpm lint:fix` (auto-fix)
-- **Format**: `pnpm format` or `pnpm format:check`
-- **Check all**: `pnpm check` (lint + build) or `pnpm check:write` (auto-fix)
-- **Dev**: `pnpm dev`
-- **Test**: `pnpm test` (Vitest), `pnpm run test:ci` (Vitest threads pool for CI)
-- **Imports**: organize via `pnpm check:write` (Biome organizes imports when writing)
+- **Build**: `bun run build` (includes Convex deploy)
+- **Lint**: `bun run lint` or `bun run lint:fix` (auto-fix)
+- **Format**: `bun run format` or `bun run format:check`
+- **Check all**: `bun run check` (lint + build) or `bun run check:write` (auto-fix)
+- **Dev**: `bun run dev`
+- **Test**: `bun run test` (Vitest), `bun run test:ci` (Vitest threads pool for CI)
+- **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
 
 ## Code Style (Biome enforced)
 - **Formatting**: 2 spaces, 80 char line width, double quotes, semicolons

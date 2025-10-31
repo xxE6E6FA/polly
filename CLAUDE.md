@@ -5,20 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 **Core Development:**
-- `pnpm dev` - Start React Router development server
+- `bun run dev` - Start React Router development server
 - `npx convex dev` - Start Convex backend (run in separate terminal)
-- `pnpm build` - Build for production (includes `convex deploy`)
+- `bun run build` - Build for production (includes `convex deploy`)
 
 **Code Quality:**
-- `pnpm lint` - Analyze code with Biome
-- `pnpm lint:fix` - Auto-fix linting issues
-- `pnpm format` - Format code with Biome
-- `pnpm check` - Run lint + typecheck + build
-- `pnpm check:write` - Auto-fix all issues (also organizes imports)
+- `bun run lint` - Analyze code with Biome
+- `bun run lint:fix` - Auto-fix linting issues
+- `bun run format` - Format code with Biome
+- `bun run check` - Run lint + typecheck + build
+- `bun run check:write` - Auto-fix all issues (also organizes imports)
 
 **Database Management:**
-- `pnpm clear-db` - Clear entire database (development)
-- `pnpm clear-auth` - Clear authentication tables only
+- `bun run clear-db` - Clear entire database (development)
+- `bun run clear-auth` - Clear authentication tables only
 
 ## Architecture Overview
 
@@ -75,7 +75,7 @@ The app supports multiple AI providers through a unified interface:
 - All styling follows TailwindCSS + shadcn/ui patterns
 - Code formatting enforced by Biome with pre-commit hooks
 - Unit testing configured with Vitest + React Testing Library
-- Use `pnpm test` for local runs or `pnpm run test:ci` (threads pool) in constrained environments
+- Use `bun run test` for local runs or `bun run test:ci` (threads pool) in constrained environments
 
 ## CI Notes
 - GitHub Actions workflow `.github/workflows/ci.yml` runs Biome checks and unit tests on pushes and PRs.
