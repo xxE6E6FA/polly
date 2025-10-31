@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { ArrowCounterClockwiseIcon, TrashIcon } from "@phosphor-icons/react";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +26,7 @@ import { ImageGenerationSkeleton } from "./ImageGenerationSkeleton";
 import { ImageLoadingSkeleton } from "./ImageLoadingSkeleton";
 import { ImageViewToggle } from "./ImageViewToggle";
 import { MessageActions } from "./MessageActions";
+import { MessageError } from "./MessageError";
 import { useAssistantDisplayPhase } from "./useAssistantDisplayPhase";
 
 type AssistantBubbleProps = {
@@ -497,7 +498,8 @@ export const AssistantBubble = ({
     messageId: string,
     findAttachmentByUrl: (url: string) => Attachment,
     onPreviewFile?: (attachment: Attachment) => void,
-    onRetryImageGeneration?: (messageId: string) => void
+    onRetryImageGeneration?: (messageId: string) => void,
+    message?: ChatMessageType
   ): ReactNode {
     if (!imageGeneration) {
       return null;
@@ -509,48 +511,13 @@ export const AssistantBubble = ({
     const isSucceededWithImages =
       imageGeneration.status === "succeeded" && hasAnyGeneratedImages;
 
-    if (isFailedOrCanceled) {
+    if (isFailedOrCanceled && message) {
       return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/50 dark:bg-red-950/50">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-red-500"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
-                Image generation{" "}
-                {imageGeneration.status === "canceled" ? "canceled" : "failed"}
-              </h4>
-              {imageGeneration.error && (
-                <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-                  {imageGeneration.error}
-                </p>
-              )}
-              {onRetryImageGeneration && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => onRetryImageGeneration(messageId)}
-                    className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-200 dark:hover:bg-red-800/30"
-                  >
-                    <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
-                    Retry generation
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <MessageError
+          message={message}
+          messageId={messageId}
+          onRetry={onRetryImageGeneration}
+        />
       );
     }
 
@@ -766,7 +733,8 @@ export const AssistantBubble = ({
               message.id,
               findAttachmentByUrl,
               onPreviewFile,
-              onRetryImageGeneration
+              onRetryImageGeneration,
+              message
             )}
           </div>
         ) : (
@@ -799,10 +767,12 @@ export const AssistantBubble = ({
               </div>
             )}
 
-            {message.status === "error" && (
-              <div className="mt-2 text-xs text-red-500">
-                An error occurred while generating the response.
-              </div>
+            {message.status === "error" && message.error && (
+              <MessageError
+                message={message}
+                messageId={message.id}
+                onRetry={onRetryMessage}
+              />
             )}
           </div>
         )}

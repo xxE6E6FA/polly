@@ -6,6 +6,7 @@ import { getApiKey } from "./encryption";
 import { log } from "../lib/logger";
 import Replicate from "replicate";
 import type { Prediction } from "replicate";
+import { getUserFriendlyErrorMessage } from "./error_handlers";
 
 // Helper function to detect image editing models
 function isImageEditingModel(modelName: string): boolean {
@@ -555,11 +556,11 @@ export const generateImage = action({
     } catch (error) {
       log.error("Image generation failed", { error });
       
-      // Update message with error
+      const friendlyError = getUserFriendlyErrorMessage(error);
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
         status: "failed",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: friendlyError,
       });
       
       throw error;
@@ -590,7 +591,7 @@ export const pollPrediction = internalAction({
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
         status: "failed",
-        error: "Generation timed out",
+        error: getUserFriendlyErrorMessage(new Error("Generation timed out")),
       });
       return;
     }
@@ -681,10 +682,14 @@ export const pollPrediction = internalAction({
           error: prediction.error,
         });
         
+        const errorMessage = prediction.error
+          ? getUserFriendlyErrorMessage(new Error(String(prediction.error)))
+          : "Generation failed";
+        
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "failed",
-          error: prediction.error ? String(prediction.error) : "Generation failed",
+          error: errorMessage,
         });
         return;
       }
@@ -726,7 +731,7 @@ export const pollPrediction = internalAction({
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "failed",
-          error: "Failed to check generation status",
+          error: getUserFriendlyErrorMessage(new Error("Failed to check generation status")),
         });
       }
     }

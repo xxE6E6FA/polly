@@ -1314,6 +1314,38 @@ export const updateAssistantStatus = internalMutation({
   },
 });
 
+export const updateMessageError = internalMutation({
+  args: {
+    messageId: v.id("messages"),
+    error: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { messageId, error } = args;
+    try {
+      const message = await ctx.db.get(messageId);
+      if (!message) {
+        log.error("[updateMessageError] Message not found:", messageId);
+        return;
+      }
+
+      await ctx.db.patch(messageId, {
+        status: "error",
+        error,
+        metadata: {
+          ...message.metadata,
+          finishReason: "error",
+        },
+      });
+    } catch (error) {
+      log.error(
+        "[updateMessageError] Failed to update message error:",
+        messageId,
+        error
+      );
+    }
+  },
+});
+
 // Helper query to get the last assistant model used in a conversation
 export const getLastAssistantModel = query({
   args: { conversationId: v.id("conversations") },

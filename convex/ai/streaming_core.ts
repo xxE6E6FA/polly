@@ -9,6 +9,7 @@ import {
   isReasoningDelta,
 } from "../lib/shared/stream_utils";
 import { CONFIG } from "./config";
+import { getUserFriendlyErrorMessage } from "./error_handlers";
 
 type StreamingParams = {
   ctx: ActionCtx;
@@ -195,16 +196,10 @@ export async function streamLLMToMessage({
     }
   } catch (error) {
     log.streamError("stream failed", error);
-    await ctx.runMutation(internal.messages.updateContent, {
+    const errorMessage = getUserFriendlyErrorMessage(error);
+    await ctx.runMutation(internal.messages.updateMessageError, {
       messageId,
-      content:
-        "The AI provider returned an error. Please try again or rephrase your request.",
-      finishReason: "error",
-      usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-    });
-    await ctx.runMutation(internal.messages.updateMessageStatus, {
-      messageId,
-      status: "error",
+      error: errorMessage,
     });
   } finally {
     await stopAll();
