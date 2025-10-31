@@ -4,10 +4,10 @@ Thanks for your interest in contributing! This doc outlines how to set up, test,
 
 ## Development Setup
 
-- Node 20.x + pnpm 9.x
-- Install deps: `pnpm install`
+- Bun (latest) + Node 20.x (for Convex compatibility)
+- Install deps: `bun install` (or use `mise install` if using mise)
 - Start backend (terminal A): `npx convex dev`
-- Start frontend (terminal B): `pnpm dev`
+- Start frontend (terminal B): `bun run dev`
 
 ## Pre-commit Hooks
 
@@ -19,11 +19,11 @@ We use Husky + lint-staged to keep quality high:
 
 ## Code Quality
 
-- Lint report: `pnpm lint`
-- Lint with fixes: `pnpm lint:fix`
-- Format write/check: `pnpm format` / `pnpm format:check`
-- One-shot check/fix: `pnpm check` / `pnpm check:write`
-- Organize imports: `pnpm imports:organize`
+- Lint report: `bun run lint`
+- Lint with fixes: `bun run lint:fix`
+- Format write/check: `bun run format` / `bun run format:check`
+- One-shot check/fix: `bun run check` / `bun run check:write`
+- Organize imports: `bun run imports:organize`
 - Logging (Convex only): use `log.*` from `convex/lib/logger` — `console.*` is lint-blocked in `convex/**` (except `convex/lib/logger.ts`).
 
 ### Code Style (Biome enforced)
@@ -38,8 +38,8 @@ We use Husky + lint-staged to keep quality high:
 ## Testing
 
 - Unit tests use Vitest + React Testing Library
-- Local: `pnpm test`
-- CI/threads pool (recommended in constrained envs): `pnpm run test:ci`
+- Local: `bun run test`
+- CI/threads pool (recommended in constrained envs): `bun run test:ci`
 - Add tests near implementation files (e.g., `src/lib/foo.test.ts`)
 
 ### Test Environments & Setup
@@ -47,7 +47,7 @@ We use Husky + lint-staged to keep quality high:
 - Default environment is `edge-runtime` for Convex code; `jsdom` for `src/**` and `shared/**` (see `vitest.config.ts`).
 - Global setup: `src/test/setup.ts` (jest-dom + minor env shims).
 - Coverage: V8 provider with strict thresholds (lines/functions/branches/statements at 100%).
-- Run coverage locally with `pnpm coverage` or in CI with `pnpm coverage:ci`.
+- Run coverage locally with `bun run coverage` or in CI with `bun run coverage:ci`.
 
 Notes:
 - Keep tests deterministic (no network/file system when possible)

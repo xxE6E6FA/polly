@@ -1,9 +1,9 @@
 {
   "framework": "vite",
-  "buildCommand": "pnpm build",
+  "buildCommand": "bun run build",
   "outputDirectory": "dist",
-  "devCommand": "pnpm dev",
-  "installCommand": "pnpm install",
+  "devCommand": "bun run dev",
+  "installCommand": "bun install",
   "rewrites": [
     {
       "source": "/(.*)",

@@ -17,7 +17,13 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 2. **Install Dependencies**
 
    ```bash
-   pnpm install
+   bun install
+   ```
+
+   Or if using mise:
+   ```bash
+   mise install
+   bun install
    ```
 
 3. **Start Development**
@@ -27,15 +33,21 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
    npx convex dev
 
    # Start React Router dev server (in another terminal)
-   pnpm dev
+   bun run dev
    ```
 
 ## Prerequisites
 
-- Node 20.x
-- pnpm 9.x
+- Bun (latest)
+- Node 20.x (for Convex compatibility)
 
-Install pnpm if needed: `npm i -g pnpm@9`.
+Install Bun if needed: `curl -fsSL https://bun.sh/install | bash` or use mise (see below).
+
+### Using mise (Recommended)
+
+Install mise: `curl https://mise.run | sh`
+
+Then run `mise install` in the project directory to install Bun and Node automatically.
 
 ## Features
 
@@ -54,26 +66,26 @@ Install pnpm if needed: `npm i -g pnpm@9`.
 
 - Unit tests use Vitest + React Testing Library.
 - Local runs:
-  - `pnpm test` – run tests locally in watch mode.
-  - `pnpm test:ci` – CI-friendly test run (all tests once).
-  - `pnpm test:changed` – run tests only for changed files.
+  - `bun run test` – run tests locally in watch mode.
+  - `bun run test:ci` – CI-friendly test run (all tests once).
+  - `bun run test:changed` – run tests only for changed files.
 - Type checking:
-  - `pnpm typecheck` – TypeScript type validation (`tsc --noEmit`).
+  - `bun run typecheck` – TypeScript type validation (`tsc --noEmit`).
 - Lint/format:
-  - `pnpm lint` – Biome lint report.
-  - `pnpm lint:fix` – Biome lint with auto-fix.
-  - `pnpm format` / `pnpm format:check` – format write/check.
-  - `pnpm check` / `pnpm check:write` – lint+format check or write (also organizes imports).
-  - `pnpm imports:organize` – organize imports only.
+  - `bun run lint` – Biome lint report.
+  - `bun run lint:fix` – Biome lint with auto-fix.
+  - `bun run format` / `bun run format:check` – format write/check.
+  - `bun run check` / `bun run check:write` – lint+format check or write (also organizes imports).
+  - `bun run imports:organize` – organize imports only.
 - Complete validation:
-  - `pnpm validate` – run all checks (typecheck + lint + all tests).
+  - `bun run validate` – run all checks (typecheck + lint + all tests).
 - CI:
   - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome, tests, and a frontend build on pushes and PRs.
 
 ### Coverage
 
 - Coverage uses V8 provider with strict thresholds defined in `vitest.config.ts`.
-- Run `pnpm coverage` locally; CI uses `pnpm coverage:ci`.
+- Run `bun run coverage` locally; CI uses `bun run coverage:ci`.
 
 ## Pre-commit Hooks
 
@@ -85,9 +97,9 @@ This repo uses Husky + lint-staged to ensure code quality:
 - **Testing**: Vitest runs tests for changed files (`vitest run --changed`)
 
 **Manual validation commands:**
-- `pnpm typecheck` - Run TypeScript type checking
-- `pnpm pre-commit` - Run all pre-commit checks manually (typecheck + lint + changed tests)
-- `pnpm validate` - Full validation (typecheck + lint + all tests)
+- `bun run typecheck` - Run TypeScript type checking
+- `bun run pre-commit` - Run all pre-commit checks manually (typecheck + lint + changed tests)
+- `bun run validate` - Full validation (typecheck + lint + all tests)
 
 If absolutely necessary, bypass hooks with `git commit --no-verify` (not recommended).
 
@@ -170,8 +182,8 @@ This contextual approach ensures web search is used only when it adds value, avo
 
 ## Build Notes
 
-- `pnpm build` runs `convex deploy && vite build` and requires your Convex project to be configured.
-- If you only need a static frontend build, use `pnpm run build:frontend`.
+- `bun run build` runs `convex deploy && vite build` and requires your Convex project to be configured.
+- If you only need a static frontend build, use `bun run build:frontend`.
 - In CI we build the frontend with `build:frontend`; backend deploys are handled separately.
 
 ### PWA
