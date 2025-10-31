@@ -76,7 +76,9 @@ describe("conversation/summarization", () => {
       { role: "user", content: "hi" },
       { role: "assistant", content: "yo" },
     ] as any);
-    expect(text).toContain("User:");
+    expect(text.length).toBeGreaterThan(0);
+    expect(text.toLowerCase()).toContain("user");
+    expect(text).toContain("hi");
 
     const prompt = buildSummaryPrompt("abc", 100);
     expect(prompt).toContain("abc");

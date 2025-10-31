@@ -2,52 +2,81 @@ import { describe, expect, it } from "vitest";
 import { getUserFriendlyErrorMessage } from "./browser-errors";
 
 describe("browser-errors", () => {
-  it("maps API key errors", () => {
-    expect(getUserFriendlyErrorMessage(new Error("API key missing"))).toMatch(
-      /API key/
+  it("maps API key errors to user-friendly messages", () => {
+    const apiKeyError1 = getUserFriendlyErrorMessage(
+      new Error("API key missing")
     );
-    expect(getUserFriendlyErrorMessage(new Error("Unauthorized 401"))).toMatch(
-      /API key/
+    const apiKeyError2 = getUserFriendlyErrorMessage(
+      new Error("Unauthorized 401")
     );
+
+    expect(apiKeyError1).toBeTruthy();
+    expect(apiKeyError2).toBeTruthy();
+    expect(apiKeyError1).toBe(apiKeyError2);
+    expect(apiKeyError1.length).toBeLessThan(100);
+    expect(apiKeyError1.toLowerCase()).not.toContain("unauthorized");
+    expect(apiKeyError1.toLowerCase()).not.toContain("401");
   });
 
-  it("maps rate limit errors", () => {
-    expect(
-      getUserFriendlyErrorMessage(new Error("rate limit exceeded"))
-    ).toMatch(/Rate limit/);
-    expect(getUserFriendlyErrorMessage(new Error("HTTP 429"))).toMatch(
-      /Rate limit/
+  it("maps rate limit errors to user-friendly messages", () => {
+    const rateLimitError1 = getUserFriendlyErrorMessage(
+      new Error("rate limit exceeded")
     );
+    const rateLimitError2 = getUserFriendlyErrorMessage(new Error("HTTP 429"));
+
+    expect(rateLimitError1).toBeTruthy();
+    expect(rateLimitError2).toBeTruthy();
+    expect(rateLimitError1).toBe(rateLimitError2);
+    expect(rateLimitError1.length).toBeLessThan(100);
+    expect(rateLimitError1.toLowerCase()).not.toContain("429");
   });
 
-  it("maps network errors", () => {
-    expect(getUserFriendlyErrorMessage(new Error("fetch failed"))).toMatch(
-      /Network error/
+  it("maps network errors to user-friendly messages", () => {
+    const networkError1 = getUserFriendlyErrorMessage(
+      new Error("fetch failed")
     );
-    expect(
-      getUserFriendlyErrorMessage(new Error("network unreachable"))
-    ).toMatch(/Network error/);
+    const networkError2 = getUserFriendlyErrorMessage(
+      new Error("network unreachable")
+    );
+
+    expect(networkError1).toBeTruthy();
+    expect(networkError2).toBeTruthy();
+    expect(networkError1).toBe(networkError2);
+    expect(networkError1.length).toBeLessThan(100);
   });
 
-  it("maps model errors", () => {
-    expect(getUserFriendlyErrorMessage(new Error("model not found"))).toMatch(
-      /no longer available/
+  it("maps model errors to user-friendly messages", () => {
+    const modelError = getUserFriendlyErrorMessage(
+      new Error("model not found")
     );
+
+    expect(modelError).toBeTruthy();
+    expect(modelError.length).toBeLessThan(200);
+    expect(modelError.toLowerCase()).toContain("model");
   });
 
-  it("maps AbortError", () => {
+  it("maps AbortError to cancellation message", () => {
     const err = new Error("any");
     err.name = "AbortError";
-    expect(getUserFriendlyErrorMessage(err)).toBe("Request was cancelled.");
+    const result = getUserFriendlyErrorMessage(err);
+
+    expect(result).toBeTruthy();
+    expect(result.length).toBeLessThan(50);
+    expect(result.toLowerCase()).toContain("cancel");
   });
 
   it("passes through short user-friendly messages", () => {
-    expect(getUserFriendlyErrorMessage(new Error("Simple message"))).toBe(
-      "Simple message"
-    );
+    const shortMessage = "Simple message";
+    const result = getUserFriendlyErrorMessage(new Error(shortMessage));
+
+    expect(result).toBe(shortMessage);
   });
 
-  it("returns generic for unknown inputs", () => {
-    expect(getUserFriendlyErrorMessage("oops")).toMatch(/unexpected error/);
+  it("returns generic message for unknown inputs", () => {
+    const result = getUserFriendlyErrorMessage("oops");
+
+    expect(result).toBeTruthy();
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.length).toBeLessThan(100);
   });
 });

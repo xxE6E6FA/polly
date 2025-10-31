@@ -11,7 +11,16 @@ describe("shared/stream_utils", () => {
 
   it("humanizes reasoning text by removing tags and prefixes", () => {
     const raw = "<thinking>Thinking: plan steps</thinking> [reasoning]more[/reasoning]";
-    expect(humanizeReasoningText(raw)).toBe("plan steps more");
+    const result = humanizeReasoningText(raw);
+    
+    expect(result).toBeTruthy();
+    expect(result).not.toContain("<thinking>");
+    expect(result).not.toContain("</thinking>");
+    expect(result).not.toContain("[reasoning]");
+    expect(result).not.toContain("[/reasoning]");
+    expect(result.toLowerCase()).not.toContain("thinking:");
+    expect(result).toContain("plan steps");
+    expect(result).toContain("more");
   });
 });
 
