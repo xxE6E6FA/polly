@@ -44,12 +44,12 @@ function getModelCardClassName(
   isUnavailable: boolean
 ): string {
   if (isEnabled && !isUnavailable) {
-    return "border-blue-500/40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:border-blue-500/50 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20";
+    return "border-primary/40 bg-primary/10 hover:border-primary/50 hover:bg-primary/15 cursor-pointer";
   }
   if (isUnavailable) {
     return "border-red-200 bg-red-50 cursor-not-allowed dark:border-red-800 dark:bg-red-950/20";
   }
-  return "border-border/40 bg-background hover:border-border hover:bg-muted/30";
+  return "border-border/40 bg-background hover:border-border hover:bg-muted/30 cursor-pointer";
 }
 
 function getCapabilityIconClassName(
@@ -142,13 +142,15 @@ const ModelCard = memo(
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-2">
-            <h4
-              className={`mb-1.5 break-words text-sm font-medium leading-tight line-clamp-2 ${
-                isUnavailable ? "text-red-700 dark:text-red-300" : ""
-              }`}
-            >
-              {model.name}
-            </h4>
+            <div className="mb-1.5 min-h-[2.5rem]">
+              <h4
+                className={`break-words text-sm font-medium leading-tight line-clamp-2 ${
+                  isUnavailable ? "text-red-700 dark:text-red-300" : ""
+                }`}
+              >
+                {model.name}
+              </h4>
+            </div>
             <div className="flex items-center gap-2">
               <ProviderIcon
                 provider={model.provider}

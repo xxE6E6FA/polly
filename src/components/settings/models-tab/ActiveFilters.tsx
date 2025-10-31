@@ -66,7 +66,7 @@ export const ActiveFilters = ({
       <div className="flex flex-wrap items-center gap-2">
         {filterState.searchQuery && (
           <FilterTag
-            className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
+            className="border border-primary/30 bg-primary/10 text-primary"
             onClick={onRemoveSearchFilter}
           >
             Search: &ldquo;{filterState.searchQuery}&rdquo;
@@ -74,7 +74,7 @@ export const ActiveFilters = ({
         )}
         {filterState.showOnlySelected && (
           <FilterTag
-            className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
+            className="border border-primary/30 bg-primary/10 text-primary"
             onClick={onRemoveSelectedFilter}
           >
             Selected only
@@ -83,7 +83,7 @@ export const ActiveFilters = ({
         {filterState.selectedProviders.map((provider: string) => (
           <FilterTag
             key={provider}
-            className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
+            className="border border-primary/30 bg-primary/10 text-primary"
             onClick={() => onRemoveProviderFilter(provider)}
           >
             <ProviderIcon provider={provider} className="h-3 w-3" />
@@ -98,7 +98,7 @@ export const ActiveFilters = ({
           return (
             <FilterTag
               key={capability}
-              className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
+              className="border border-primary/30 bg-primary/10 text-primary"
               onClick={() => onRemoveCapabilityFilter(capability)}
             >
               <span className="max-w-[120px] truncate">
