@@ -449,17 +449,19 @@ export const TextModelsTab = () => {
         </Alert>
       )}
 
-      <SectionHeader title="Providers" />
-      <ProviderSummary
-        availableProviders={availableProviders}
-        selectedProviders={filterState.selectedProviders}
-        stats={stats}
-        onProviderToggle={handleProviderToggle}
-        isLoading={isLoading}
-        isInitialLoad={isInitialLoad}
-      />
+      <div className="stack-xl">
+        <SectionHeader title="Providers" />
+        <ProviderSummary
+          availableProviders={availableProviders}
+          selectedProviders={filterState.selectedProviders}
+          stats={stats}
+          onProviderToggle={handleProviderToggle}
+          isLoading={isLoading}
+          isInitialLoad={isInitialLoad}
+        />
+      </div>
 
-      <div className="stack-lg">
+      <div className="stack-xl">
         <ModelFilters
           filterState={filterState}
           onSearchChange={handleSearchChange}

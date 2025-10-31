@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { getAllCapabilities } from "@/lib/model-capabilities";
-import { cn } from "@/lib/utils";
 import type { FilterState } from "./TextModelsTab";
 
 interface ModelFiltersProps {
@@ -76,17 +75,13 @@ export const ModelFilters = memo(
             disabled={isPending}
             size="sm"
             variant={filterState.showOnlySelected ? "secondary" : "outline"}
-            className={cn(
-              "gap-2 h-9 text-sm",
-              filterState.showOnlySelected &&
-                "bg-blue-500 hover:bg-blue-600 text-white border-blue-500"
-            )}
+            className="gap-2 h-9 text-sm"
             onClick={onShowSelectedToggle}
           >
             Selected
             {filterState.showOnlySelected &&
               enabledModelsCount !== undefined && (
-                <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-xs text-blue-600 dark:bg-white/20 dark:text-white">
+                <span className="rounded-full bg-secondary-foreground/20 px-1.5 py-0.5 text-xs text-secondary-foreground">
                   {enabledModelsCount}
                 </span>
               )}
