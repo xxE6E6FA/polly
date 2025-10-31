@@ -325,19 +325,22 @@ export const AssistantBubble = ({
   ]);
 
   // Helper: given a URL, find the corresponding attachment object
-  const findAttachmentByUrl = (url: string) => {
-    const att = imageAttachments.find(a => a.url === url);
-    if (att) {
-      return att;
-    }
-    // Fallback minimal attachment if not found (should be rare)
-    return {
-      type: "image" as const,
-      name: url.split("/").pop() || "Image",
-      url,
-      size: 0,
-    } satisfies Attachment;
-  };
+  const findAttachmentByUrl = useCallback(
+    (url: string) => {
+      const att = imageAttachments.find(a => a.url === url);
+      if (att) {
+        return att;
+      }
+      // Fallback minimal attachment if not found (should be rare)
+      return {
+        type: "image" as const,
+        name: url.split("/").pop() || "Image",
+        url,
+        size: 0,
+      } satisfies Attachment;
+    },
+    [imageAttachments]
+  );
 
   const reasoning = message.reasoning;
   const displayContent = message.content;
@@ -407,277 +410,295 @@ export const AssistantBubble = ({
     return;
   }, [phase, showReasoning]);
 
-  // Get the model name for display
-  const getModelDisplayName = (modelId: string | undefined): string => {
-    if (!modelId) {
-      return "replicate";
-    }
-    return MODEL_DISPLAY_NAMES[modelId] || modelId;
-  };
+  // Get the model name for display - memoized to avoid recalculations
+  const getModelDisplayName = useCallback(
+    (modelId: string | undefined): string => {
+      if (!modelId) {
+        return "replicate";
+      }
+      return MODEL_DISPLAY_NAMES[modelId] || modelId;
+    },
+    []
+  );
 
-  function renderToolActivitySummary(
-    overlayTools: Array<{
-      t: string;
-      name: string;
-      args?: unknown;
-      ok?: boolean;
-      count?: number;
-    }>
-  ): ReactNode {
-    const last = overlayTools[overlayTools.length - 1];
-    if (last.t === "tool_call") {
+  const renderToolActivitySummary = useCallback(
+    (
+      overlayTools: Array<{
+        t: string;
+        name: string;
+        args?: unknown;
+        ok?: boolean;
+        count?: number;
+      }>
+    ): ReactNode => {
+      const last = overlayTools[overlayTools.length - 1];
+      if (last.t === "tool_call") {
+        if (last.name === "exa.search") {
+          const args = last.args as
+            | { query?: string; searchType?: string; searchMode?: string }
+            | undefined;
+          const searchType = args?.searchType || "search";
+          const searchMode = args?.searchMode;
+
+          if (searchType === "answer") {
+            return <span>Looking for a direct answer…</span>;
+          }
+          if (searchType === "similar") {
+            return <span>Discovering similar pages…</span>;
+          }
+          if (searchMode === "deep") {
+            return <span>Performing deep research search…</span>;
+          }
+          return <span>Searching the web for relevant information…</span>;
+        }
+        return <span>Calling {last.name}…</span>;
+      }
       if (last.name === "exa.search") {
-        const args = last.args as
+        const previousCall = overlayTools.find(
+          tool => tool.t === "tool_call" && tool.name === "exa.search"
+        );
+        const args = previousCall?.args as
           | { query?: string; searchType?: string; searchMode?: string }
           | undefined;
         const searchType = args?.searchType || "search";
-        const searchMode = args?.searchMode;
+        const count = typeof last.count === "number" ? last.count : 0;
+
+        if (last.ok === false) {
+          return <span>Search failed</span>;
+        }
 
         if (searchType === "answer") {
-          return <span>Looking for a direct answer…</span>;
+          return (
+            <span>
+              Found answer
+              {count > 0 ? ` (${count} source${count !== 1 ? "s" : ""})` : ""}
+            </span>
+          );
         }
         if (searchType === "similar") {
-          return <span>Discovering similar pages…</span>;
+          return (
+            <span>
+              Found {count} similar {count === 1 ? "page" : "pages"}
+            </span>
+          );
         }
-        if (searchMode === "deep") {
-          return <span>Performing deep research search…</span>;
-        }
-        return <span>Searching the web for relevant information…</span>;
-      }
-      return <span>Calling {last.name}…</span>;
-    }
-    if (last.name === "exa.search") {
-      const previousCall = overlayTools.find(
-        tool => tool.t === "tool_call" && tool.name === "exa.search"
-      );
-      const args = previousCall?.args as
-        | { query?: string; searchType?: string; searchMode?: string }
-        | undefined;
-      const searchType = args?.searchType || "search";
-      const count = typeof last.count === "number" ? last.count : 0;
-
-      if (last.ok === false) {
-        return <span>Search failed</span>;
-      }
-
-      if (searchType === "answer") {
         return (
           <span>
-            Found answer
-            {count > 0 ? ` (${count} source${count !== 1 ? "s" : ""})` : ""}
-          </span>
-        );
-      }
-      if (searchType === "similar") {
-        return (
-          <span>
-            Found {count} similar {count === 1 ? "page" : "pages"}
+            Found {count} {count === 1 ? "source" : "sources"}
           </span>
         );
       }
       return (
         <span>
-          Found {count} {count === 1 ? "source" : "sources"}
+          {last.ok === false ? "Failed" : "Finished"} {last.name}
+          {typeof last.count === "number" ? ` (${last.count} results)` : null}
         </span>
       );
-    }
-    return (
-      <span>
-        {last.ok === false ? "Failed" : "Finished"} {last.name}
-        {typeof last.count === "number" ? ` (${last.count} results)` : null}
-      </span>
-    );
-  }
+    },
+    []
+  );
 
-  function renderImageGenerationContent(
-    imageGeneration: ChatMessageType["imageGeneration"],
-    hasAnyGeneratedImages: boolean,
-    hasStoredImages: boolean,
-    generatedImageAttachments: Attachment[],
-    outputUrls: string[],
-    messageId: string,
-    findAttachmentByUrl: (url: string) => Attachment,
-    onPreviewFile?: (attachment: Attachment) => void,
-    onRetryImageGeneration?: (messageId: string) => void,
-    message?: ChatMessageType
-  ): ReactNode {
-    if (!imageGeneration) {
-      return null;
-    }
-
-    const isFailedOrCanceled =
-      imageGeneration.status === "failed" ||
-      imageGeneration.status === "canceled";
-    const isSucceededWithImages =
-      imageGeneration.status === "succeeded" && hasAnyGeneratedImages;
-
-    if (isFailedOrCanceled && message) {
-      return (
-        <MessageError
-          message={message}
-          messageId={messageId}
-          onRetry={onRetryImageGeneration}
-        />
-      );
-    }
-
-    if (isSucceededWithImages) {
-      return (
-        <ImageViewToggle
-          images={
-            hasStoredImages
-              ? generatedImageAttachments.map(att => att.url)
-              : outputUrls
-          }
-          aspectRatio={imageGeneration.metadata?.params?.aspectRatio}
-          onImageClick={url => {
-            const att = findAttachmentByUrl(url);
-            onPreviewFile?.(att);
-          }}
-          messageId={messageId}
-          className="image-gallery-wrapper"
-          gridComponent={renderImageGrid(
-            hasStoredImages,
-            generatedImageAttachments,
-            outputUrls,
-            messageId,
-            imageGeneration?.metadata?.params?.aspectRatio,
-            findAttachmentByUrl,
-            onPreviewFile
-          )}
-        />
-      );
-    }
-
-    return renderImageGenerationLoadingSkeleton(
-      imageGeneration.metadata?.params?.count || 1,
-      imageGeneration.metadata?.params?.aspectRatio,
-      messageId
-    );
-  }
-
-  function renderImageGenerationLoadingSkeleton(
-    count: number,
-    aspectRatio: string | undefined,
-    messageId: string
-  ): ReactNode {
-    if (count === 1) {
-      const maxWidthClass = getSingleImageMaxWidth(aspectRatio || "1:1");
-      return (
-        <div className="flex flex-col items-start">
-          <div className={cn("w-full", maxWidthClass)}>
-            <ImageGenerationSkeleton
-              aspectRatio={
-                aspectRatio as
-                  | "1:1"
-                  | "16:9"
-                  | "9:16"
-                  | "4:3"
-                  | "3:4"
-                  | undefined
-              }
-            />
+  const renderImageGenerationLoadingSkeleton = useCallback(
+    (
+      count: number,
+      aspectRatio: string | undefined,
+      messageId: string
+    ): ReactNode => {
+      if (count === 1) {
+        const maxWidthClass = getSingleImageMaxWidth(aspectRatio || "1:1");
+        return (
+          <div className="flex flex-col items-start">
+            <div className={cn("w-full", maxWidthClass)}>
+              <ImageGenerationSkeleton
+                aspectRatio={
+                  aspectRatio as
+                    | "1:1"
+                    | "16:9"
+                    | "9:16"
+                    | "4:3"
+                    | "3:4"
+                    | undefined
+                }
+              />
+            </div>
           </div>
+        );
+      }
+
+      return (
+        <div
+          className={cn(
+            "grid gap-3",
+            count === 2 && "grid-cols-1 sm:grid-cols-2",
+            count === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+            count >= 4 && "grid-cols-1 sm:grid-cols-2"
+          )}
+        >
+          {Array.from({ length: count }).map((_, index) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: Skeleton placeholders don't have unique IDs
+              key={`skeleton-${messageId}-${index}`}
+              className="w-full max-w-sm"
+            >
+              <ImageGenerationSkeleton
+                aspectRatio={
+                  aspectRatio as
+                    | "1:1"
+                    | "16:9"
+                    | "9:16"
+                    | "4:3"
+                    | "3:4"
+                    | undefined
+                }
+              />
+            </div>
+          ))}
         </div>
       );
-    }
+    },
+    []
+  );
 
-    return (
-      <div
-        className={cn(
-          "grid gap-3",
-          count === 2 && "grid-cols-1 sm:grid-cols-2",
-          count === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-          count >= 4 && "grid-cols-1 sm:grid-cols-2"
-        )}
-      >
-        {Array.from({ length: count }).map((_, index) => (
-          <div
-            // biome-ignore lint/suspicious/noArrayIndexKey: Skeleton placeholders don't have unique IDs
-            key={`skeleton-${messageId}-${index}`}
-            className="w-full max-w-sm"
-          >
-            <ImageGenerationSkeleton
-              aspectRatio={
-                aspectRatio as
-                  | "1:1"
-                  | "16:9"
-                  | "9:16"
-                  | "4:3"
-                  | "3:4"
-                  | undefined
-              }
-            />
-          </div>
-        ))}
-      </div>
-    );
-  }
+  const renderImageGrid = useCallback(
+    (
+      hasStoredImages: boolean,
+      generatedImageAttachments: Attachment[],
+      outputUrls: string[],
+      messageId: string,
+      aspectRatio: string | undefined,
+      findAttachmentByUrl: (url: string) => Attachment,
+      onPreviewFile?: (attachment: Attachment) => void
+    ): ReactNode => {
+      const items = hasStoredImages
+        ? generatedImageAttachments
+        : outputUrls.map(url => ({ url }));
 
-  function renderImageGrid(
-    hasStoredImages: boolean,
-    generatedImageAttachments: Attachment[],
-    outputUrls: string[],
-    messageId: string,
-    aspectRatio: string | undefined,
-    findAttachmentByUrl: (url: string) => Attachment,
-    onPreviewFile?: (attachment: Attachment) => void
-  ): ReactNode {
-    const items = hasStoredImages
-      ? generatedImageAttachments
-      : outputUrls.map(url => ({ url }));
+      return (
+        <div
+          className={cn(
+            "overflow-visible",
+            items.length === 1
+              ? "stack-md flex flex-col items-start"
+              : "grid gap-6",
+            items.length === 2 && "grid-cols-1 sm:grid-cols-2",
+            items.length === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+            items.length >= 4 && "grid-cols-1 sm:grid-cols-2"
+          )}
+        >
+          {items.map((item, index) => {
+            const attachment = hasStoredImages ? (item as Attachment) : null;
+            const url = hasStoredImages
+              ? (item as Attachment).url
+              : (item as { url: string }).url;
 
-    return (
-      <div
-        className={cn(
-          "overflow-visible",
-          items.length === 1
-            ? "stack-md flex flex-col items-start"
-            : "grid gap-6",
-          items.length === 2 && "grid-cols-1 sm:grid-cols-2",
-          items.length === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-          items.length >= 4 && "grid-cols-1 sm:grid-cols-2"
-        )}
-      >
-        {items.map((item, index) => {
-          const attachment = hasStoredImages ? (item as Attachment) : null;
-          const url = hasStoredImages
-            ? (item as Attachment).url
-            : (item as { url: string }).url;
+            return (
+              <ImageContainer
+                key={url || `${messageId}-img-${index}`}
+                imageUrl={url}
+                storageId={attachment?.storageId as Id<"_storage"> | undefined}
+                altText={`Generated content ${index + 1}`}
+                aspectRatio={aspectRatio}
+                onClick={finalUrl => {
+                  if (attachment) {
+                    onPreviewFile?.(attachment);
+                  } else {
+                    onPreviewFile?.(findAttachmentByUrl(finalUrl));
+                  }
+                }}
+                className={cn(items.length === 1 ? "single-image" : "w-full")}
+              />
+            );
+          })}
+        </div>
+      );
+    },
+    []
+  );
 
-          return (
-            <ImageContainer
-              key={url || `${messageId}-img-${index}`}
-              imageUrl={url}
-              storageId={attachment?.storageId as Id<"_storage"> | undefined}
-              altText={`Generated content ${index + 1}`}
-              aspectRatio={aspectRatio}
-              onClick={finalUrl => {
-                if (attachment) {
-                  onPreviewFile?.(attachment);
-                } else {
-                  onPreviewFile?.(findAttachmentByUrl(finalUrl));
-                }
-              }}
-              className={cn(items.length === 1 ? "single-image" : "w-full")}
-            />
-          );
-        })}
-      </div>
-    );
-  }
+  const renderImageGenerationContent = useCallback(
+    (
+      imageGeneration: ChatMessageType["imageGeneration"],
+      hasAnyGeneratedImages: boolean,
+      hasStoredImages: boolean,
+      generatedImageAttachments: Attachment[],
+      outputUrls: string[],
+      messageId: string,
+      findAttachmentByUrl: (url: string) => Attachment,
+      onPreviewFile?: (attachment: Attachment) => void,
+      onRetryImageGeneration?: (messageId: string) => void,
+      message?: ChatMessageType
+    ): ReactNode => {
+      if (!imageGeneration) {
+        return null;
+      }
 
-  function hasGeneratedImages(
-    attachments: Attachment[] | undefined,
-    imageGeneration: ChatMessageType["imageGeneration"]
-  ): boolean {
-    const generatedImages =
-      attachments?.filter(
-        att => att.type === "image" && att.generatedImage?.isGenerated
-      ) || [];
-    const outputUrls = imageGeneration?.output || [];
-    return generatedImages.length > 0 || outputUrls.length > 0;
-  }
+      const isFailedOrCanceled =
+        imageGeneration.status === "failed" ||
+        imageGeneration.status === "canceled";
+      const isSucceededWithImages =
+        imageGeneration.status === "succeeded" && hasAnyGeneratedImages;
+
+      if (isFailedOrCanceled && message) {
+        return (
+          <MessageError
+            message={message}
+            messageId={messageId}
+            onRetry={onRetryImageGeneration}
+          />
+        );
+      }
+
+      if (isSucceededWithImages) {
+        return (
+          <ImageViewToggle
+            images={
+              hasStoredImages
+                ? generatedImageAttachments.map(att => att.url)
+                : outputUrls
+            }
+            aspectRatio={imageGeneration.metadata?.params?.aspectRatio}
+            onImageClick={url => {
+              const att = findAttachmentByUrl(url);
+              onPreviewFile?.(att);
+            }}
+            messageId={messageId}
+            className="image-gallery-wrapper"
+            gridComponent={renderImageGrid(
+              hasStoredImages,
+              generatedImageAttachments,
+              outputUrls,
+              messageId,
+              imageGeneration?.metadata?.params?.aspectRatio,
+              findAttachmentByUrl,
+              onPreviewFile
+            )}
+          />
+        );
+      }
+
+      return renderImageGenerationLoadingSkeleton(
+        imageGeneration.metadata?.params?.count || 1,
+        imageGeneration.metadata?.params?.aspectRatio,
+        messageId
+      );
+    },
+    [renderImageGrid, renderImageGenerationLoadingSkeleton]
+  );
+
+  const hasGeneratedImages = useCallback(
+    (
+      attachments: Attachment[] | undefined,
+      imageGeneration: ChatMessageType["imageGeneration"]
+    ): boolean => {
+      const generatedImages =
+        attachments?.filter(
+          att => att.type === "image" && att.generatedImage?.isGenerated
+        ) || [];
+      const outputUrls = imageGeneration?.output || [];
+      return generatedImages.length > 0 || outputUrls.length > 0;
+    },
+    []
+  );
 
   return (
     <div className="w-full">

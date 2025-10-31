@@ -68,11 +68,20 @@ export default defineConfig(({ mode }) => {
 
             // Markdown / rendering toolchain
             if (
-              /[\\/]node_modules[\\/](react-markdown|markdown-to-jsx|remark|rehype|katex|prism-react-renderer)[\\/]/.test(
+              /[\\/]node_modules[\\/](react-markdown|markdown-to-jsx|remark|rehype|katex)[\\/]/.test(
                 id
               )
             ) {
               return "markdown";
+            }
+
+            // Syntax highlighting (Prism) - separate chunk since it's heavy
+            if (
+              /[\\/]node_modules[\\/](prism-react-renderer|prismjs)[\\/]/.test(
+                id
+              )
+            ) {
+              return "syntax-highlight";
             }
 
             // UI libraries
@@ -82,6 +91,11 @@ export default defineConfig(({ mode }) => {
               )
             ) {
               return "ui-lib";
+            }
+
+            // Carousel library (embla) - lazy loaded
+            if (/[\\/]node_modules[\\/]embla-carousel[\\/]/.test(id)) {
+              return "carousel";
             }
 
             // Styling helpers
@@ -101,6 +115,11 @@ export default defineConfig(({ mode }) => {
             // Date utilities
             if (/[\\/]node_modules[\\/]date-fns[\\/]/.test(id)) {
               return "date";
+            }
+
+            // AI/LLM libraries
+            if (/[\\/]node_modules[\\/](@llm-ui|@ai-sdk)[\\/]/.test(id)) {
+              return "ai-sdk";
             }
 
             // Fallback vendor bucket
