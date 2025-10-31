@@ -5,7 +5,7 @@ This guide covers deploying the Polly app to Vercel.
 ## Prerequisites
 
 1. A Vercel account (sign up at https://vercel.com)
-2. Vercel CLI installed (optional): `pnpm i -g vercel`
+2. Vercel CLI installed (optional): `bun i -g vercel`
 3. Your Convex deployment URL
 
 ## Deployment Steps
@@ -46,7 +46,7 @@ Required environment variables for production:
 ### vercel.json
 
 - Framework: Vite
-- Build Command: `pnpm build`
+- Build Command: `bun run build`
 - Output Directory: `dist`
 - Rewrites: All routes redirect to index.html for client-side routing
 - Headers: Static assets are cached for 1 year
@@ -98,7 +98,7 @@ If you see warnings about chunk sizes:
 ## Quick Deploy Checklist
 
 - [ ] Environment variables configured (especially `VITE_CONVEX_URL`)
-- [ ] Build runs successfully locally (`pnpm build`)
+- [ ] Build runs successfully locally (`bun run build`)
 - [ ] Git repository is up to date
 - [ ] Vercel project connected to Git repository
 - [ ] Custom domain configured (optional)
