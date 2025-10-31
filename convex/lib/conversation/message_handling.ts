@@ -2,10 +2,10 @@ import type { ActionCtx, MutationCtx, QueryCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { DEFAULT_POLLY_PERSONA } from "../../constants";
 import { CreateMessageArgs, CreateConversationArgs } from "../schemas";
 import { api } from "../../_generated/api";
 import { log } from "../logger";
+import { mergeSystemPrompts } from "@shared/system-prompts";
 
 // Helper function to handle message deletion logic for retry and edit operations
 export const handleMessageDeletion = async (
@@ -341,16 +341,7 @@ export function generateExportMetadata(
 }
 
 // DRY Helper: Merge baseline instructions with persona prompt
-export const mergeSystemPrompts = (
-  baselineInstructions: string,
-  personaPrompt?: string
-): string => {
-  if (!personaPrompt) {
-    return baselineInstructions;
-  }
-
-  return `${baselineInstructions}\n\n${DEFAULT_POLLY_PERSONA}\n\n${personaPrompt}`;
-};
+export { mergeSystemPrompts };
 
 // Overloaded function for access control
 export async function checkConversationAccess(

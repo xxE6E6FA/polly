@@ -1381,7 +1381,7 @@ export const refineAssistantMessage = action({
       throw new Error("Missing API key for provider");
     }
     const model = await createLanguageModel(
-      ctx as unknown as import("./_generated/server").ActionCtx,
+      ctx,
       provider as "openai" | "anthropic" | "google" | "openrouter",
       modelId,
       apiKey

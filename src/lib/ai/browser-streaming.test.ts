@@ -23,7 +23,7 @@ describe("browser-streaming.streamChat", () => {
     // Set up default mock behavior for streamText
     vi.mocked(streamText).mockImplementation((options: any): any => {
       // Trigger reasoning chunk if handler provided
-      options.onChunk?.({ chunk: { type: "reasoning", textDelta: "think" } });
+      options.onChunk?.({ chunk: { type: "reasoning-delta", text: "think" } });
 
       async function* gen() {
         // ensure at least one await for async generator lint rule
@@ -108,10 +108,10 @@ describe("browser-streaming.streamChat", () => {
     expect(m).toBeDefined();
     expect(m?.role).toBe("user");
     expect(Array.isArray(m?.content)).toBe(true);
-    expect(m?.content[0]).toBe("Hello");
+    expect(m?.content[0]).toEqual({ type: "text", text: "Hello" });
     expect(m?.content[1]).toEqual({
       type: "image",
-      data: "data:image/png;base64,AAA",
+      image: "data:image/png;base64,AAA",
     });
     expect(m?.content[2]).toEqual({ type: "text", text: "textbody" });
     expect(m?.content[3]).toEqual({ type: "text", text: "pdf text" });

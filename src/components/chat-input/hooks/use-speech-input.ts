@@ -330,7 +330,7 @@ export function useSpeechInput({
       }
 
       const buffer = await audioBlob.arrayBuffer();
-      const openai = createOpenAI({ apiKey, compatibility: "strict" });
+      const openai = createOpenAI({ apiKey });
       const result = await transcribe({
         model: openai.transcription("whisper-1"),
         audio: new Uint8Array(buffer),
