@@ -137,6 +137,20 @@ export async function handleStreamOperationWithRetry<T>(
  */
 export const getUserFriendlyErrorMessage = (error: unknown): string => {
   const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorMessageLower = errorMessage.toLowerCase();
+
+  // Model unavailability errors
+  if (
+    errorMessageLower.includes("model") &&
+    (errorMessageLower.includes("not found") ||
+      errorMessageLower.includes("not available") ||
+      errorMessageLower.includes("404") ||
+      errorMessageLower.includes("deprecated") ||
+      errorMessageLower.includes("disabled") ||
+      errorMessageLower.includes("invalid model"))
+  ) {
+    return "This model is no longer available. Please select a different model or remove it from Settings if it's disabled.";
+  }
 
   // Common error patterns and their user-friendly messages
   if (errorMessage.includes("Documents read from or written to")) {
@@ -144,27 +158,28 @@ export const getUserFriendlyErrorMessage = (error: unknown): string => {
   }
 
   if (
-    errorMessage.includes("API key") ||
-    errorMessage.includes("Authentication")
+    errorMessageLower.includes("api key") ||
+    errorMessageLower.includes("authentication") ||
+    errorMessageLower.includes("unauthorized")
   ) {
     return errorMessage; // These are already user-friendly
   }
 
-  if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+  if (errorMessageLower.includes("rate limit") || errorMessageLower.includes("429")) {
     return "The AI service is currently busy. Please wait a moment and try again.";
   }
 
-  if (errorMessage.includes("timeout") || errorMessage.includes("timed out")) {
+  if (errorMessageLower.includes("timeout") || errorMessageLower.includes("timed out")) {
     return "The response took too long. Please try again with a shorter message.";
   }
 
-  if (errorMessage.includes("network") || errorMessage.includes("fetch")) {
+  if (errorMessageLower.includes("network") || errorMessageLower.includes("fetch")) {
     return "I'm having trouble connecting to the AI service. Please check your connection and try again.";
   }
 
   if (
-    errorMessage.includes("context length") ||
-    errorMessage.includes("token")
+    errorMessageLower.includes("context length") ||
+    errorMessageLower.includes("token")
   ) {
     return "Your conversation has become too long. Please start a new conversation.";
   }

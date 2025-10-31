@@ -3,9 +3,8 @@ import {
   ArrowCounterClockwiseIcon,
   KeyIcon,
   MagnifyingGlassIcon,
-  TrashIcon,
 } from "@phosphor-icons/react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import Fuse from "fuse.js";
 import {
   useCallback,
@@ -202,9 +201,6 @@ export const TextModelsTab = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const fetchAllModelsAction = useAction(api.models.fetchAllModels);
-  const removeUnavailableModels = useMutation(
-    api.userModels.removeUnavailableModels
-  );
 
   const fetchAllModels = useCallback(async () => {
     setIsLoading(true);
@@ -234,15 +230,35 @@ export const TextModelsTab = () => {
     return enabledModels.filter(model => !availableModelIds.has(model.modelId));
   }, [enabledModels, availableModelIds]);
 
+  // Create unavailable model objects for display
+  const unavailableForDisplay: FetchedModel[] = useMemo(() => {
+    return unavailableEnabledModels.map(model => ({
+      modelId: model.modelId,
+      name: model.name,
+      provider: model.provider,
+      contextWindow: model.contextLength || 0,
+      supportsReasoning: model.supportsReasoning,
+      supportsTools: model.supportsTools,
+      supportsImages: model.supportsImages,
+      supportsFiles: model.supportsFiles ?? false,
+      isAvailable: false,
+    }));
+  }, [unavailableEnabledModels]);
+
+  // Combine all models for search
+  const allModelsForSearch = useMemo(() => {
+    return [...unfilteredModels, ...unavailableForDisplay];
+  }, [unfilteredModels, unavailableForDisplay]);
+
   // Fuzzy search for models
   const fuse = useMemo(() => {
-    return new Fuse(unfilteredModels, {
+    return new Fuse(allModelsForSearch, {
       keys: ["modelId", "name", "provider"],
       threshold: 0.4,
       distance: 100,
       minMatchCharLength: 2,
     });
-  }, [unfilteredModels]);
+  }, [allModelsForSearch]);
 
   const fuzzySearchResults = useMemo(() => {
     if (!debouncedFilters.searchQuery.trim()) {
@@ -270,36 +286,44 @@ export const TextModelsTab = () => {
       result = result.filter(model => enabledModelIds.includes(model.modelId));
     }
 
-    // Add unavailable user models first (only if no filters are active)
-    if (
-      !debouncedFilters.searchQuery.trim() &&
-      debouncedFilters.selectedProviders.length === 0 &&
-      debouncedFilters.selectedCapabilities.length === 0 &&
-      !debouncedFilters.showOnlySelected
-    ) {
-      // Create unavailable model objects for display
-      const unavailableForDisplay: FetchedModel[] =
-        unavailableEnabledModels.map(model => ({
-          modelId: model.modelId,
-          name: model.name,
-          provider: model.provider,
-          contextWindow: model.contextLength || 0,
-          supportsReasoning: model.supportsReasoning,
-          supportsTools: model.supportsTools,
-          supportsImages: model.supportsImages,
-          supportsFiles: model.supportsFiles ?? false,
-          isAvailable: false, // Custom property to mark as unavailable
-        }));
+    // Separate unavailable and available models from search results
+    const unavailable = result.filter(model => model.isAvailable === false);
+    const available = result.filter(model => model.isAvailable !== false);
 
-      result = [...unavailableForDisplay, ...result];
-    }
+    // If no search query, include all unavailable models (filtered by other filters)
+    const filteredUnavailable = debouncedFilters.searchQuery.trim()
+      ? unavailable
+      : unavailableForDisplay.filter(model => {
+          if (debouncedFilters.selectedProviders.length > 0) {
+            if (!debouncedFilters.selectedProviders.includes(model.provider)) {
+              return false;
+            }
+          }
+          if (debouncedFilters.selectedCapabilities.length > 0) {
+            if (
+              !matchesCapabilityFilters(
+                model,
+                debouncedFilters.selectedCapabilities
+              )
+            ) {
+              return false;
+            }
+          }
+          if (debouncedFilters.showOnlySelected) {
+            if (!enabledModelIds.includes(model.modelId)) {
+              return false;
+            }
+          }
+          return true;
+        });
 
-    return result;
+    // Show unavailable models first, then available models
+    return [...filteredUnavailable, ...available];
   }, [
     fuzzySearchResults,
     debouncedFilters,
     enabledModelIds,
-    unavailableEnabledModels,
+    unavailableForDisplay,
   ]);
 
   const stats = useMemo(() => {
@@ -480,70 +504,6 @@ export const TextModelsTab = () => {
           hasActiveFilters,
           isPending,
           clearAllFilters
-        )}
-
-        {/* Unavailable Models Section */}
-        {unavailableEnabledModels.length > 0 && (
-          <div className="stack-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-medium">Unavailable Models</h3>
-                <p className="text-xs text-muted-foreground">
-                  These models are no longer available from their providers and
-                  can be removed.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const result = await removeUnavailableModels();
-                    if (result.success) {
-                      // Refresh the models list
-                      await fetchAllModels();
-                    }
-                  } catch (error) {
-                    console.error(
-                      "Failed to remove unavailable models:",
-                      error
-                    );
-                  }
-                }}
-                className="gap-2"
-              >
-                <TrashIcon className="h-4 w-4" />
-                Remove All
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {unavailableEnabledModels.map(model => (
-                <div
-                  key={`${model.provider}-${model.modelId}`}
-                  className="relative min-h-[120px] rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950/20"
-                >
-                  <div className="mb-2 flex items-start justify-between">
-                    <div className="min-w-0 flex-1 pr-2">
-                      <h4 className="break-words text-sm font-medium leading-tight line-clamp-2 text-red-700 dark:text-red-300">
-                        {model.name}
-                      </h4>
-                      <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                        {model.provider}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
-                        Unavailable
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-auto text-xs text-red-600 dark:text-red-400">
-                    Model ID: {model.modelId}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
       </div>
     </div>

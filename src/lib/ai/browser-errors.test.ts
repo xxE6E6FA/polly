@@ -31,7 +31,7 @@ describe("browser-errors", () => {
 
   it("maps model errors", () => {
     expect(getUserFriendlyErrorMessage(new Error("model not found"))).toMatch(
-      /not available/
+      /no longer available/
     );
   });
 
