@@ -197,6 +197,7 @@ export type ChatMessage = {
   useWebSearch?: boolean;
   attachments?: Attachment[];
   citations?: WebSearchCitation[];
+  error?: string; // Error message for failed text-to-text requests
   metadata?: {
     tokenCount?: number;
     reasoningTokenCount?: number;

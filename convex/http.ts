@@ -1103,22 +1103,18 @@ http.route({
             await writer.close();
           } catch (error: unknown) {
             log.error("Stream error:", error);
-            const errorMessage =
-              error instanceof Error ? error.message : "stream failed";
             // Schedule error finalization updates
             try {
-              await ctx.scheduler.runAfter(0, internal.messages.updateContent, {
-                messageId,
-                content: `Error: ${errorMessage}`,
-                finishReason: "error",
-                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-              });
+              const { getUserFriendlyErrorMessage } = await import(
+                "./ai/error_handlers"
+              );
+              const friendlyError = getUserFriendlyErrorMessage(error);
               await ctx.scheduler.runAfter(
                 0,
-                internal.messages.updateMessageStatus,
+                internal.messages.updateMessageError,
                 {
                   messageId,
-                  status: "error",
+                  error: friendlyError,
                 }
               );
               await ctx.scheduler.runAfter(

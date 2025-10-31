@@ -656,6 +656,7 @@ export const messageSchema = v.object({
   citations: v.optional(v.array(webCitationSchema)),
   metadata: v.optional(extendedMessageMetadataSchema),
   imageGeneration: v.optional(imageGenerationSchema), // Add image generation support
+  error: v.optional(v.string()), // Error message for failed text-to-text requests
   ttsAudioCache: v.optional(v.array(ttsAudioCacheEntrySchema)),
   createdAt: v.number(),
   completedAt: v.optional(v.number()),
