@@ -118,22 +118,17 @@ export const getUnavailableModelIds = query({
       return [];
     }
 
+    // Get user models that have been checked and marked as unavailable
+    // Models without isAvailable set (null/undefined) are considered available
+    // by default - we only mark models as unavailable when we've explicitly
+    // checked and found them to be unavailable
     const userModels = await ctx.db
       .query("userModels")
       .withIndex("by_user", q => q.eq("userId", userId))
       .collect();
 
-    const builtInModels = await ctx.db
-      .query("builtInModels")
-      .filter(q => q.eq(q.field("isActive"), true))
-      .collect();
-
-    const builtInModelKeys = new Set(
-      builtInModels.map(model => `${model.modelId}:${model.provider}`)
-    );
-
     const unavailableModels = userModels.filter(
-      model => !builtInModelKeys.has(`${model.modelId}:${model.provider}`)
+      model => model.isAvailable === false
     );
 
     return unavailableModels.map(model => ({
@@ -631,6 +626,42 @@ export const removeModel = mutation({
         name: existing.name,
       },
     };
+  },
+});
+
+export const updateModelAvailability = mutation({
+  args: {
+    availableModelIds: v.array(v.string()),
+    provider: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { success: false, error: "User not authenticated" };
+    }
+
+    const userModels = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+
+    const availableModelIdsSet = new Set(args.availableModelIds);
+    const checkedAt = Date.now();
+
+    // Update availability for all user models of this provider
+    const updates = userModels
+      .filter(model => model.provider === args.provider)
+      .map(async model => {
+        const isAvailable = availableModelIdsSet.has(model.modelId);
+        await ctx.db.patch(model._id, {
+          isAvailable,
+          availabilityCheckedAt: checkedAt,
+        });
+      });
+
+    await Promise.all(updates);
+
+    return { success: true };
   },
 });
 
