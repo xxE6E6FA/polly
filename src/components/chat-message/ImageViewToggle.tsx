@@ -1,6 +1,6 @@
 import { GridFour, Slideshow } from "@phosphor-icons/react";
 import type React from "react";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -8,8 +8,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { ImageGallery } from "./ImageGallery";
 import "./OverflowImageGallery.css";
+
+const ImageGallery = lazy(() =>
+  import("./ImageGallery").then(m => ({ default: m.ImageGallery }))
+);
 
 interface ImageViewToggleProps {
   images: string[];
@@ -117,12 +120,20 @@ export const ImageViewToggle: React.FC<ImageViewToggleProps> = ({
         >
           <div className="gallery-overflow-wrapper">
             <div className="gallery-overflow-inner">
-              <ImageGallery
-                images={images}
-                aspectRatio={aspectRatio}
-                onImageClick={onImageClick}
-                messageId={messageId}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center min-h-[200px]">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  </div>
+                }
+              >
+                <ImageGallery
+                  images={images}
+                  aspectRatio={aspectRatio}
+                  onImageClick={onImageClick}
+                  messageId={messageId}
+                />
+              </Suspense>
             </div>
           </div>
         </div>
