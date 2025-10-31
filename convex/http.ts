@@ -8,6 +8,7 @@ import { httpAction } from "./_generated/server";
 import { CONFIG } from "./ai/config.js";
 import { streamTTS } from "./ai/elevenlabs.js";
 import { getApiKey } from "./ai/encryption.js";
+import { getUserFriendlyErrorMessage } from "./ai/error_handlers.js";
 import { performWebSearch } from "./ai/exa.js";
 import { convertMessages } from "./ai/messages.js";
 import { shouldExtractPdfText } from "./ai/pdf.js";
@@ -1105,9 +1106,6 @@ http.route({
             log.error("Stream error:", error);
             // Schedule error finalization updates
             try {
-              const { getUserFriendlyErrorMessage } = await import(
-                "./ai/error_handlers"
-              );
               const friendlyError = getUserFriendlyErrorMessage(error);
               await ctx.scheduler.runAfter(
                 0,

@@ -5,6 +5,20 @@ globs: ["convex/**/*.ts"]
 
 # Convex Backend Patterns
 
+## Imports
+- **Static Imports Only**: Always use static imports (`import`), never dynamic imports (`await import()`)
+- **TypeScript Compatibility**: Dynamic imports are not supported in Convex's TypeScript configuration
+- **Module Resolution**: Use explicit `.js` extensions for relative imports in Convex files
+
+```typescript
+// ✅ Good - static import
+import { getUserFriendlyErrorMessage } from "./ai/error_handlers.js";
+import { log } from "../lib/logger.js";
+
+// ❌ Bad - dynamic import (not supported)
+const { getUserFriendlyErrorMessage } = await import("./ai/error_handlers");
+```
+
 ## Logging (CRITICAL)
 - **MUST use `log.*`**: Import from `convex/lib/logger`
 - **Console is BLOCKED**: `console.log`, `console.error` are lint-blocked in convex files (except in `convex/lib/logger.ts`)
