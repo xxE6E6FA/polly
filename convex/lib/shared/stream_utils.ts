@@ -3,51 +3,13 @@
  * across both Convex and client-side implementations
  */
 
-export type StreamPartType =
-  | "text-delta"
-  | "reasoning"
-  | "thinking_delta"
-  | "thinking"
-  | "step-start"
-  | "step-finish";
-
-export interface StreamPart {
-  type: string;
-  textDelta?: string;
-  text?: string;
-  thinking?: string;
-}
-
 /**
- * Determines if a stream part contains reasoning content
+ * Type guard for AI SDK v5 reasoning delta chunks
  */
-export function isReasoningPart(part: StreamPart): boolean {
-  return (
-    part.type === "reasoning" ||
-    part.type === "thinking_delta" ||
-    part.type === "thinking" ||
-    part.type === "step-start" ||
-    part.type === "step-finish"
-  );
-}
-
-/**
- * Extracts reasoning content from a stream part
- */
-export function extractReasoningContent(part: StreamPart): string | undefined {
-  if (!isReasoningPart(part)) {
-    return undefined;
-  }
-
-  // Handle different formats from different providers
-  const partWithContent = part as StreamPart & {
-    thinking?: string;
-    text?: string;
-  };
-
-  return (
-    part.textDelta || partWithContent.text || partWithContent.thinking || ""
-  );
+export function isReasoningDelta(
+  chunk: { type?: string; text?: string }
+): chunk is { type: "reasoning-delta"; text: string } {
+  return chunk.type === "reasoning-delta" && typeof chunk.text === "string";
 }
 
 /**

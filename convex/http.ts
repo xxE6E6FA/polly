@@ -585,7 +585,7 @@ http.route({
                     attachment: att,
                   };
                   (filePart.file as Record<string, unknown>)["file_data"] =
-                    att.content as unknown as string;
+                    att.content;
                   parts.push(filePart);
                 } else {
                   // Fallback to text-only placeholder
@@ -989,9 +989,9 @@ http.route({
                 chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/, // CJK-aware
               }),
               onChunk: async ({ chunk }) => {
-                // Stream reasoning deltas to DB so UI can render traces live
-                if (chunk.type === "reasoning" && chunk.textDelta) {
-                  const delta = dedupeDelta(reasoningTail, chunk.textDelta);
+                // Stream reasoning deltas to DB so UI can render traces live (v5 uses "reasoning-delta" type)
+                if (chunk.type === "reasoning-delta" && chunk.text) {
+                  const delta = dedupeDelta(reasoningTail, chunk.text);
                   if (delta) {
                     if (reasoningStartMs === null) {
                       reasoningStartMs = Date.now();

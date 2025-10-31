@@ -11,6 +11,9 @@ import {
   storeChunkSummary
 } from "./summarization";
 import { api } from "../../_generated/api";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { getPersonaPrompt, mergeSystemPrompts } from "../conversation/message_handling";
+import { getBaselineInstructions } from "../../constants";
 
 export const buildHierarchicalContextMessages = async (
   ctx: ActionCtx,
@@ -316,10 +319,5 @@ export const buildContextMessages = async (
     throw error;
   }
 };
-
-// Import required functions
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { getPersonaPrompt, mergeSystemPrompts } from "../conversation/message_handling";
-import { getBaselineInstructions } from "../../constants";
 
 export { buildHierarchicalContext, buildFinalContext, buildContextContent, buildAIInstructions, buildSummaryGuidance };

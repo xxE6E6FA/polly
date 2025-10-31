@@ -61,7 +61,6 @@ import type * as lib_model_resolution from "../lib/model_resolution.js";
 import type * as lib_pagination from "../lib/pagination.js";
 import type * as lib_process_attachments from "../lib/process_attachments.js";
 import type * as lib_schemas from "../lib/schemas.js";
-import type * as lib_shared_anthropic_stream from "../lib/shared/anthropic_stream.js";
 import type * as lib_shared_citations from "../lib/shared/citations.js";
 import type * as lib_shared_stream_utils from "../lib/shared/stream_utils.js";
 import type * as lib_shared_utils from "../lib/shared_utils.js";
@@ -136,7 +135,6 @@ declare const fullApi: ApiFromModules<{
   "lib/pagination": typeof lib_pagination;
   "lib/process_attachments": typeof lib_process_attachments;
   "lib/schemas": typeof lib_schemas;
-  "lib/shared/anthropic_stream": typeof lib_shared_anthropic_stream;
   "lib/shared/citations": typeof lib_shared_citations;
   "lib/shared/stream_utils": typeof lib_shared_stream_utils;
   "lib/shared_utils": typeof lib_shared_utils;

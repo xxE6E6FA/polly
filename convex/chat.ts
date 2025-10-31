@@ -1,19 +1,146 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { smoothStream, streamText } from "ai";
-import { createBasicLanguageModel } from "../shared/ai-provider-factory";
+import {
+  type CoreMessage,
+  convertToCoreMessages,
+  type FileUIPart,
+  isFileUIPart,
+  isReasoningUIPart,
+  isTextUIPart,
+  type ReasoningUIPart,
+  smoothStream,
+  streamText,
+  type TextUIPart,
+  type UIDataTypes,
+  type UIMessage,
+  type UIMessagePart,
+  type UITools,
+} from "ai";
 import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
 import { getProviderReasoningConfig } from "../shared/reasoning-config";
+import { mergeSystemPrompts } from "../shared/system-prompts";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
 import { CONFIG } from "./ai/config";
-import {
-  incrementUserMessageStats,
-  mergeSystemPrompts,
-} from "./lib/conversation_utils";
+import { createLanguageModel } from "./ai/server_streaming";
+import { getBaselineInstructions } from "./constants";
+import { incrementUserMessageStats } from "./lib/conversation_utils";
 import { log } from "./lib/logger";
+
+type IncomingUIMessage = UIMessage<unknown, UIDataTypes, UITools> & {
+  content?: unknown;
+};
+
+type IncomingFilePart =
+  | (FileUIPart & { data?: unknown; url?: string })
+  | (UIMessagePart<UIDataTypes, UITools> & { mediaType?: string });
+
+const normalizeMessageParts = (
+  message: IncomingUIMessage
+): UIMessagePart<UIDataTypes, UITools>[] => {
+  if (Array.isArray(message.parts) && message.parts.length > 0) {
+    return message.parts as UIMessagePart<UIDataTypes, UITools>[];
+  }
+
+  if (Array.isArray(message.content)) {
+    return message.content as UIMessagePart<UIDataTypes, UITools>[];
+  }
+
+  return [];
+};
+
+const extractSystemText = (
+  parts: UIMessagePart<UIDataTypes, UITools>[]
+): string => {
+  return parts
+    .filter(part => isTextUIPart(part))
+    .map(part => (part as TextUIPart).text)
+    .join("");
+};
+
+const convertFilePartForModel = (part: IncomingFilePart) => {
+  const filePart = part as FileUIPart & { data?: unknown; url?: string };
+  const dataSource =
+    typeof filePart.url === "string"
+      ? filePart.url
+      : (filePart as { data?: unknown }).data;
+
+  if (dataSource === undefined || dataSource === null || dataSource === "") {
+    return null;
+  }
+
+  const converted: Record<string, unknown> = {
+    type: "file",
+    mediaType: "mediaType" in part ? part.mediaType : undefined,
+    filename: "filename" in filePart ? filePart.filename : undefined,
+  };
+
+  if (
+    typeof dataSource === "string" ||
+    dataSource instanceof Uint8Array ||
+    dataSource instanceof ArrayBuffer
+  ) {
+    converted.data = dataSource;
+  }
+
+  return converted;
+};
+
+const coerceUiMessageContent = (
+  message: IncomingUIMessage
+): IncomingUIMessage => {
+  if (message.content !== undefined) {
+    return message;
+  }
+
+  const parts = normalizeMessageParts(message);
+
+  if (message.role === "system") {
+    return {
+      ...message,
+      content: extractSystemText(parts),
+    };
+  }
+
+  const convertedParts = parts
+    .map(part => {
+      if (isTextUIPart(part)) {
+        return {
+          type: "text",
+          text: (part as TextUIPart).text,
+        };
+      }
+
+      if (isReasoningUIPart(part)) {
+        return {
+          type: "reasoning",
+          text: (part as ReasoningUIPart).text,
+        };
+      }
+
+      if (isFileUIPart(part)) {
+        return convertFilePartForModel(part as IncomingFilePart);
+      }
+
+      return null;
+    })
+    .filter((part): part is Record<string, unknown> => part !== null);
+
+  return {
+    ...message,
+    content: convertedParts,
+  };
+};
 
 export const chatStream = httpAction(
   async (ctx, request): Promise<Response> => {
+    // Log request details for debugging 404 errors
+    log.debug("[chatStream] Request received", {
+      method: request.method,
+      url: request.url,
+      pathname: new URL(request.url).pathname,
+      hasBody: !!request.body,
+    });
+
     // Relaxed CORS: reflect Origin and allow credentials for cookie-based auth
     const origin = request.headers.get("origin") || "*";
     const reqAllowed =
@@ -48,20 +175,33 @@ export const chatStream = httpAction(
 
     try {
       const body = await request.json();
+      log.debug("[chatStream] Request body received", {
+        hasMessages: !!body.messages,
+        messageCount: Array.isArray(body.messages) ? body.messages.length : 0,
+        modelId: body.modelId,
+        provider: body.provider,
+        hasTemperature: body.temperature !== undefined,
+      });
       const {
-        messages,
+        messages: rawMessages,
         modelId,
         provider,
+        temperature,
         _temperature,
+        maxTokens,
         _maxTokens,
+        topP,
         _topP,
+        frequencyPenalty,
         _frequencyPenalty,
+        presencePenalty,
         _presencePenalty,
+        reasoningConfig,
         _reasoningConfig,
         personaId,
       } = body;
 
-      if (!messages) {
+      if (!rawMessages) {
         return new Response(
           JSON.stringify({ error: "Missing required field: messages" }),
           {
@@ -100,14 +240,52 @@ export const chatStream = httpAction(
         );
       }
 
+      const uiMessages: IncomingUIMessage[] = Array.isArray(rawMessages)
+        ? (rawMessages as IncomingUIMessage[])
+        : [];
+
+      log.debug("[chatStream] Processing messages", {
+        uiMessageCount: uiMessages.length,
+        firstMessageRole: uiMessages[0]?.role,
+        lastMessageRole: uiMessages[uiMessages.length - 1]?.role,
+      });
+
+      const messagesWithContent = uiMessages.map(coerceUiMessageContent);
+
+      let coreMessages: CoreMessage[];
+      try {
+        coreMessages = convertToCoreMessages(
+          messagesWithContent as UIMessage<unknown, UIDataTypes, UITools>[]
+        );
+        log.debug("[chatStream] Converted to core messages", {
+          coreMessageCount: coreMessages.length,
+        });
+      } catch (conversionError) {
+        log.error(
+          "[chatStream] Failed to convert UI messages:",
+          conversionError
+        );
+        return new Response(
+          JSON.stringify({
+            error: "Invalid message format",
+          }),
+          {
+            status: 400,
+            headers: {
+              "Content-Type": "application/json",
+              ...corsHeaders,
+            },
+          }
+        );
+      }
+
       // Get API key using proper authentication
       let apiKey: string;
+      // Check if user is authenticated via JWT token in Authorization header
+      const userId = await getAuthUserId(ctx);
       try {
         // Try to get user API key first if authenticated
         let userApiKey: string | null = null;
-
-        // Check if user is authenticated via JWT token in Authorization header
-        const userId = await getAuthUserId(ctx);
 
         // Track message usage stats for authenticated users
         if (userId) {
@@ -270,16 +448,29 @@ export const chatStream = httpAction(
       }
 
       // Merge baseline instructions with persona prompt
-      const mergedSystemPrompt = mergeSystemPrompts(modelId, personaPrompt);
+      const baselineInstructions = getBaselineInstructions(modelId);
+      const mergedSystemPrompt = mergeSystemPrompts(
+        baselineInstructions,
+        personaPrompt
+      );
+
+      const resolvedTemperature = temperature ?? _temperature;
+      const resolvedTopP = topP ?? _topP;
+      const resolvedFrequencyPenalty = frequencyPenalty ?? _frequencyPenalty;
+      const resolvedPresencePenalty = presencePenalty ?? _presencePenalty;
+      const resolvedMaxTokens = maxTokens ?? _maxTokens;
+      const resolvedReasoningConfig = reasoningConfig ?? _reasoningConfig;
 
       // Ensure messages have proper system prompt
-      const processedMessages = [...messages];
+      const processedMessages = [...coreMessages];
       if (
         processedMessages.length > 0 &&
         processedMessages[0].role === "system"
       ) {
-        // Override existing system message with merged prompt
-        processedMessages[0].content = mergedSystemPrompt;
+        processedMessages[0] = {
+          ...processedMessages[0],
+          content: mergedSystemPrompt,
+        };
       } else {
         // Prepend system message if not present
         processedMessages.unshift({
@@ -295,32 +486,35 @@ export const chatStream = httpAction(
           provider,
           supportsReasoning: true, // We'll assume true for now
         },
-        _reasoningConfig
+        resolvedReasoningConfig
       );
 
       // Create language model
       try {
-        const languageModel = createBasicLanguageModel(
+        // Use createLanguageModel which handles type compatibility properly
+        const languageModel = await createLanguageModel(
+          ctx,
           provider,
           modelId,
-          apiKey
+          apiKey,
+          userId ?? undefined
         );
 
         // Configure streaming options
         const baseOptions = {
           model: languageModel,
           messages: processedMessages,
-          temperature: _temperature,
-          topP: _topP,
-          frequencyPenalty: _frequencyPenalty,
-          presencePenalty: _presencePenalty,
+          temperature: resolvedTemperature,
+          topP: resolvedTopP,
+          frequencyPenalty: resolvedFrequencyPenalty,
+          presencePenalty: resolvedPresencePenalty,
           ...reasoningOptions,
         };
 
-        // Add maxTokens conditionally
+        // Add maxOutputTokens conditionally
         const streamOptions =
-          _maxTokens && _maxTokens > 0
-            ? { ...baseOptions, maxTokens: _maxTokens }
+          resolvedMaxTokens && resolvedMaxTokens > 0
+            ? { ...baseOptions, maxOutputTokens: resolvedMaxTokens }
             : baseOptions;
 
         // Start streaming
@@ -333,15 +527,18 @@ export const chatStream = httpAction(
           }),
         });
 
-        // Return the proper data stream for AI SDK useChat with CORS headers
-        const response = result.toDataStreamResponse({
-          sendReasoning: true,
-        });
+        log.debug("[chatStream] Stream started, creating response");
+
+        // Return the proper text stream for AI SDK useChat with CORS headers
+        // TextStreamChatTransport expects text stream format, so use toTextStreamResponse
+        const response = result.toTextStreamResponse();
 
         // Add CORS headers to the streaming response
         Object.entries(corsHeaders).forEach(([key, value]) => {
           response.headers.set(key, value);
         });
+
+        log.debug("[chatStream] Response created, returning stream");
 
         return response;
       } catch (modelCreationError) {

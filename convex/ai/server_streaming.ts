@@ -24,41 +24,28 @@ const createProviderModel = {
   openai: (apiKey: string, model: string) => {
     const openai = createOpenAI({ 
       apiKey,
-      // Enable automatic prompt caching for eligible prompts (1024+ tokens)
-      compatibility: "strict"
     });
     
-    // Configure model-specific settings based on AI SDK best practices
-    return openai.chat(model, {
-      // Enable structured outputs for better JSON schema compatibility
-      structuredOutputs: true,
-      // Download images for multimodal support
-      downloadImages: true,
-    });
+    // In v5, model options are passed via providerOptions in streamText, not here
+    return openai.chat(model);
   },
 
   anthropic: (apiKey: string, model: string) => {
     const anthropic = createAnthropic({ 
       apiKey,
-      // Cache control is enabled by default in v1
     });
     
-    return anthropic.languageModel(model, {
-      // Enable cache control for performance optimization
-      cacheControl: true,
-    });
+    // In v5, model options are passed via providerOptions in streamText, not here
+    return anthropic.languageModel(model);
   },
 
   google: (apiKey: string, model: string) => {
     const google = createGoogleGenerativeAI({ 
       apiKey,
-      // Implicit caching is automatic for Gemini 2.5 models
     });
     
-    return google.chat(model, {
-      // Enable structured outputs
-      structuredOutputs: true,
-    });
+    // In v5, model options are passed via providerOptions in streamText, not here
+    return google.chat(model);
   },
 
   groq: (apiKey: string, model: string) => {
@@ -110,7 +97,9 @@ const createProviderModel = {
 
       const chatModel = openrouter.chat(modifiedModel);
       log.info("[server_streaming] OpenRouter chat model created successfully");
-      return chatModel;
+      // Cast to LanguageModel to handle OpenRouter type compatibility
+      // Use double cast through unknown to avoid type overlap error
+      return chatModel as unknown as LanguageModel;
     } catch (error) {
       log.error("[server_streaming] Error creating OpenRouter model:", {
         error,

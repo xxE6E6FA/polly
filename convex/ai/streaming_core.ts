@@ -1,9 +1,13 @@
-import { smoothStream, streamText, type CoreMessage } from "ai";
+import { smoothStream, streamText, type ModelMessage } from "ai";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
 import { log } from "../lib/logger";
-import { DEFAULT_STREAM_CONFIG, humanizeReasoningText } from "../lib/shared/stream_utils";
+import {
+  DEFAULT_STREAM_CONFIG,
+  humanizeReasoningText,
+  isReasoningDelta,
+} from "../lib/shared/stream_utils";
 import { CONFIG } from "./config";
 
 type StreamingParams = {
@@ -11,10 +15,10 @@ type StreamingParams = {
   conversationId: Id<"conversations">;
   messageId: Id<"messages">;
   model: any; // AI SDK LanguageModel
-  messages: CoreMessage[];
+  messages: ModelMessage[];
   // Optional generation params
   temperature?: number;
-  maxTokens?: number;
+  maxOutputTokens?: number;
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
@@ -29,7 +33,7 @@ export async function streamLLMToMessage({
   model,
   messages,
   temperature,
-  maxTokens,
+  maxOutputTokens,
   topP,
   frequencyPenalty,
   presencePenalty,
@@ -116,7 +120,7 @@ export async function streamLLMToMessage({
 
     if (abortController) genOpts.abortSignal = abortController.signal;
     if (temperature !== undefined) genOpts.temperature = temperature;
-    if (maxTokens && maxTokens > 0) genOpts.maxTokens = maxTokens;
+    if (maxOutputTokens && maxOutputTokens > 0) genOpts.maxOutputTokens = maxOutputTokens;
     if (topP !== undefined) genOpts.topP = topP;
     if (frequencyPenalty !== undefined) genOpts.frequencyPenalty = frequencyPenalty;
     if (presencePenalty !== undefined) genOpts.presencePenalty = presencePenalty;
@@ -135,18 +139,18 @@ export async function streamLLMToMessage({
           });
         }
 
-        // Reasoning chunks
-        if (chunk.type === "reasoning" && chunk.textDelta) {
-          reasoningBuf += humanizeReasoningText(chunk.textDelta);
+        // Reasoning chunks (v5 uses "reasoning-delta" type)
+        if (isReasoningDelta(chunk)) {
+          reasoningBuf += humanizeReasoningText(chunk.text);
           if (reasoningBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE) {
             await flushReasoning();
           }
           return;
         }
 
-        // Text deltas
-        if (chunk.type === "text-delta" && chunk.textDelta) {
-          contentBuf += chunk.textDelta;
+        // Text deltas (v5 uses "text" property instead of "textDelta")
+        if (chunk.type === "text-delta" && chunk.text) {
+          contentBuf += chunk.text;
           chunkCounter++;
           if (
             contentBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE ||

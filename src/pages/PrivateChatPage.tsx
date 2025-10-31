@@ -1,11 +1,11 @@
-import { useChat } from "@ai-sdk/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { UnifiedChatView } from "@/components/unified-chat-view";
+import { usePrivateChat } from "@/hooks/use-private-chat";
+import { usePrivatePersona } from "@/lib/ai/private-personas";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
@@ -17,45 +17,21 @@ import type {
   ReasoningConfig,
 } from "@/types";
 
+const processedInitialMessageKeys = new Set<string>();
+
 export default function PrivateChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useUserDataContext();
   const { setPrivateMode } = usePrivateMode();
-  const authToken = useAuthToken();
   const managedToast = useToast();
 
   const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
 
-  // Get user's selected model
   const selectedModel = useQuery(api.userModels.getUserSelectedModel, {});
 
-  // Save conversation action
   const saveConversationAction = useAction(
     api.conversations.savePrivateConversation
-  );
-
-  // Helper function to convert data URL back to base64 content
-  const convertDataUrlToAttachment = useCallback(
-    (dataUrl: string, name: string) => {
-      const [header, base64] = dataUrl.split(",");
-      const mimeTypeMatch = header.match(/data:([^;]+)/);
-      const mimeType = mimeTypeMatch
-        ? mimeTypeMatch[1]
-        : "application/octet-stream";
-
-      return {
-        type: mimeType.startsWith("image/")
-          ? ("image" as const)
-          : ("text" as const),
-        url: dataUrl, // Keep original data URL for compatibility
-        name,
-        size: Math.floor(base64.length * 0.75), // Approximate size from base64
-        content: base64,
-        mimeType,
-      };
-    },
-    []
   );
 
   const [navigationState, setNavigationState] = useState<{
@@ -71,17 +47,22 @@ export default function PrivateChatPage() {
       navigationState?.personaId as Id<"personas"> | null
     );
 
-  // temperature managed by store; keep navigationState.temperature for initial message if needed
+  const initialMessageSentRef = useRef(false);
 
-  // Stable timestamp management - moved outside useMemo to avoid mutation
-  const messageTimestampsRef = useRef(new Map<string, number>());
+  const { systemPrompt } = usePrivatePersona(
+    currentPersonaId,
+    selectedModel?.modelId || "AI Model"
+  );
 
-  const getOrCreateTimestamp = useCallback((messageId: string) => {
-    if (!messageTimestampsRef.current.has(messageId)) {
-      messageTimestampsRef.current.set(messageId, Date.now());
-    }
-    return messageTimestampsRef.current.get(messageId) || Date.now();
-  }, []);
+  const privateChat = usePrivateChat({
+    modelId: selectedModel?.modelId,
+    provider: selectedModel?.provider,
+    supportsReasoning: selectedModel?.supportsReasoning,
+    personaId: currentPersonaId,
+    systemPrompt,
+    temperature: navigationState?.temperature,
+    reasoningConfig: navigationState?.reasoningConfig,
+  });
 
   useEffect(() => {
     setPrivateMode(true);
@@ -91,83 +72,64 @@ export default function PrivateChatPage() {
     };
   }, [setPrivateMode]);
 
-  // Prepare API request body for AI SDK
-  const apiBody = useMemo(
-    () => ({
-      modelId: selectedModel?.modelId,
-      provider: selectedModel?.provider,
-      convexUrl: import.meta.env.VITE_CONVEX_URL,
-    }),
-    [selectedModel]
-  );
-
-  // Prepare headers with authentication
-  const apiHeaders = useMemo(() => {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-
-    if (authToken) {
-      headers.Authorization = `Bearer ${authToken}`;
-    }
-
-    return headers;
-  }, [authToken]);
-
-  const { messages, append, stop, status, setMessages, reload } = useChat({
-    api: `${import.meta.env.VITE_CONVEX_URL}/http/chat`,
-    body: apiBody,
-    headers: apiHeaders,
-    onError: error => {
-      managedToast.error("Chat error", {
-        description: error.message,
-      });
-    },
-  });
-
-  // Handle initial message from navigation state
   useEffect(() => {
-    if (
-      navigationState?.initialMessage &&
-      messages.length === 0 &&
-      selectedModel &&
-      authToken
-    ) {
-      append(
-        {
-          role: "user",
-          content: navigationState.initialMessage,
-        },
-        {
-          body: {
-            ...apiBody,
-            reasoningConfig: navigationState.reasoningConfig,
-            temperature: navigationState.temperature,
-          },
-          headers: apiHeaders,
-          // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
-          experimental_attachments: navigationState.attachments,
-        }
-      );
-      // Clear navigation state after sending
-      setNavigationState(null);
+    if (navigationState?.initialMessage) {
+      initialMessageSentRef.current = false;
     }
-  }, [
-    navigationState,
-    messages.length,
-    append,
-    selectedModel,
-    authToken,
-    apiBody,
-    apiHeaders,
-  ]);
+  }, [navigationState?.initialMessage]);
 
-  // Check if we can save (has messages and user is authenticated)
+  useEffect(() => {
+    if (!navigationState?.initialMessage) {
+      return;
+    }
+
+    if (processedInitialMessageKeys.has(location.key)) {
+      if (navigationState !== null) {
+        setNavigationState(null);
+      }
+      return;
+    }
+
+    if (initialMessageSentRef.current) {
+      return;
+    }
+
+    if (!(selectedModel && privateChat.messages.length === 0)) {
+      return;
+    }
+
+    initialMessageSentRef.current = true;
+    processedInitialMessageKeys.add(location.key);
+
+    privateChat
+      .sendMessage(
+        navigationState.initialMessage,
+        navigationState.attachments,
+        {
+          personaId:
+            navigationState.personaId !== null
+              ? (navigationState.personaId as Id<"personas">)
+              : undefined,
+          reasoningConfig: navigationState.reasoningConfig,
+          temperature: navigationState.temperature,
+        }
+      )
+      .catch(error => {
+        managedToast.error("Chat error", {
+          description: error.message,
+        });
+      });
+
+    setCurrentPersonaId(
+      (navigationState.personaId as Id<"personas"> | null) ?? null
+    );
+    setNavigationState(null);
+  }, [navigationState, privateChat, selectedModel, location.key, managedToast]);
+
   const canSave = useMemo(() => {
-    return messages.length > 0 && !user?.isAnonymous && user?._id;
-  }, [messages, user]);
+    return privateChat.messages.length > 0 && !user?.isAnonymous && user?._id;
+  }, [privateChat.messages, user]);
 
-  // Handle saving private chat to Convex
   const handleSavePrivateChat = useCallback(async () => {
     if (!user?._id) {
       managedToast.error("Cannot save chat", {
@@ -184,75 +146,60 @@ export default function PrivateChatPage() {
     }
 
     try {
-      // Convert AI SDK messages to the format expected by savePrivateConversation
-      const convertedMessages = messages
+      const convertedMessages = privateChat.messages
+        .filter(msg => msg.role === "user" || msg.role === "assistant")
+        .map(msg => {
+          const hasContent = msg.content.trim().length > 0;
+          const hasAttachments = Boolean(msg.attachments?.length);
+
+          if (!hasContent) {
+            if (!hasAttachments) {
+              return null;
+            }
+          }
+
+          return {
+            role: msg.role,
+            content: msg.content,
+            createdAt: msg.createdAt,
+            model:
+              msg.role === "assistant" ? selectedModel?.modelId : undefined,
+            provider:
+              msg.role === "assistant"
+                ? (selectedModel?.provider as
+                    | "openai"
+                    | "anthropic"
+                    | "google"
+                    | "openrouter")
+                : undefined,
+            reasoning: msg.reasoning,
+            attachments: msg.attachments || [],
+            citations: [],
+            metadata: {
+              finishReason: "stop",
+            },
+          };
+        })
         .filter(
           (
             msg
-          ): msg is typeof msg & { role: "user" | "assistant" | "system" } =>
-            msg.role !== "data" &&
-            typeof msg.content === "string" &&
-            msg.content.trim() !== ""
-        )
-        .map((msg, index) => ({
-          role: msg.role,
-          content: msg.content,
-          createdAt: (() => {
-            if (typeof msg.createdAt === "number") {
-              return msg.createdAt;
-            }
-            if (msg.createdAt instanceof Date) {
-              return msg.createdAt.getTime();
-            }
-            return Date.now() - (messages.length - index) * 1000;
-          })(),
-          // Only add model/provider for assistant messages
-          model: msg.role === "assistant" ? selectedModel?.modelId : undefined,
-          provider:
-            msg.role === "assistant"
-              ? (selectedModel?.provider as
-                  | "openai"
-                  | "anthropic"
-                  | "google"
-                  | "openrouter")
-              : undefined,
-          // Extract reasoning from AI SDK v4 message parts
-          reasoning:
-            (
-              msg.parts?.find(part => part.type === "reasoning") as
-                | { type: string; text?: string }
-                | undefined
-            )?.text || undefined,
-          // Extract attachments from AI SDK message and convert data URLs to uploadable format
-          attachments:
-            (
-              msg.experimental_attachments as
-                | Array<{ contentType?: string; url?: string; name?: string }>
-                | undefined
-            )?.map(attachment => {
-              if (attachment.url?.startsWith("data:")) {
-                return convertDataUrlToAttachment(
-                  attachment.url,
-                  attachment.name || "attachment"
-                );
-              }
-              // For non-data URLs, create a basic attachment structure
-              return {
-                type: attachment.contentType?.startsWith("image/")
-                  ? ("image" as const)
-                  : ("text" as const),
-                url: attachment.url || "",
-                name: attachment.name || "attachment",
-                size: 0,
-                content: undefined,
-                mimeType: attachment.contentType,
-              };
-            }) || [],
-          citations: [],
-          metadata: {
-            finishReason: "stop",
-          },
-        }));
+          ): msg is {
+            role: "user" | "assistant";
+            content: string;
+            createdAt: number;
+            model: string | undefined;
+            provider:
+              | "openai"
+              | "anthropic"
+              | "google"
+              | "openrouter"
+              | undefined;
+            reasoning: string | undefined;
+            attachments: Attachment[];
+            citations: [];
+            metadata: { finishReason: string };
+          } => msg !== null
+        );
 
       const conversationId = await saveConversationAction({
         messages: convertedMessages,
@@ -271,130 +218,42 @@ export default function PrivateChatPage() {
   }, [
     user,
     canSave,
-    messages,
+    privateChat.messages,
     selectedModel,
     saveConversationAction,
     navigate,
-    convertDataUrlToAttachment,
-    managedToast.success,
-    managedToast.error,
+    managedToast,
   ]);
 
-  // Convert AI SDK messages to ChatMessage format for UnifiedChatView
   const chatMessages: ChatMessage[] = useMemo(() => {
-    const isLoading = status === "submitted";
-
-    const convertedMessages = messages.map((msg, index) => {
-      const messageId = msg.id || `msg-${index}`;
-      const timestamp = getOrCreateTimestamp(messageId);
-
-      // Determine status based on message completion and streaming state
-      let messageStatus:
-        | "thinking"
-        | "streaming"
-        | "done"
-        | "error"
-        | undefined;
-      if (msg.role === "assistant" && index === messages.length - 1) {
-        if (status === "submitted") {
-          // We're waiting for the response to start
-          messageStatus = "thinking";
-        } else if (status === "streaming") {
-          // We're actively streaming content or reasoning
-          messageStatus = "streaming";
-        } else {
-          messageStatus = "done";
-        }
-      } else if (msg.role === "assistant") {
-        messageStatus = "done";
-      }
-
-      return {
-        _id: `private-${messageId}` as Id<"messages">,
-        _creationTime: timestamp,
-        id: messageId,
-        role: msg.role as "user" | "assistant" | "system",
-        content: msg.content,
-        conversationId: "private" as Id<"conversations">,
-        userId: user?._id || ("anonymous" as Id<"users">),
-        isMainBranch: true,
-        createdAt: timestamp,
-        status: messageStatus,
-        // Extract reasoning from AI SDK v4 message parts
-        reasoning:
-          (
-            msg.parts?.find(part => part.type === "reasoning") as
-              | { type: string; text?: string }
-              | undefined
-          )?.text || undefined,
-        model: selectedModel?.modelId,
-        provider: selectedModel?.provider,
-        // Extract attachments from AI SDK message
-        attachments:
-          (
-            msg.experimental_attachments as
-              | Array<{ contentType?: string; url?: string; name?: string }>
-              | undefined
-          )?.map(attachment => ({
-            type: attachment.contentType?.startsWith("image/")
-              ? ("image" as const)
-              : ("text" as const),
-            url: attachment.url || "",
-            name: attachment.name || "attachment",
-            size: 0, // Size not available from AI SDK format
-            content: undefined,
-            thumbnail: undefined,
-            storageId: undefined,
-          })) || [],
-        citations: [],
-        metadata: {
-          finishReason: "stop",
-        },
-      };
-    });
-
-    // Add a thinking message if we're loading but have no assistant response yet
-    if (isLoading && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      const hasAssistantResponse = messages.some(
-        msg => msg.role === "assistant"
-      );
-
-      // If the last message is from user and we don't have an assistant response yet,
-      // or if we have messages but no assistant response, show thinking state
-      if (lastMessage.role === "user" && !hasAssistantResponse) {
-        const thinkingMessageId = `thinking-${Date.now()}`;
-        convertedMessages.push({
-          _id: `private-${thinkingMessageId}` as Id<"messages">,
-          _creationTime: Date.now(),
-          id: thinkingMessageId,
-          role: "assistant" as const,
-          content: "",
-          conversationId: "private" as Id<"conversations">,
-          userId: user?._id || ("anonymous" as Id<"users">),
-          isMainBranch: true,
-          createdAt: Date.now(),
-          status: "thinking" as const,
-          reasoning: undefined,
-          model: selectedModel?.modelId,
-          provider: selectedModel?.provider,
-          attachments: [],
-          citations: [],
-          metadata: {
-            finishReason: "stop",
-          },
-        });
-      }
-    }
-
-    return convertedMessages;
-  }, [messages, user?._id, selectedModel, getOrCreateTimestamp, status]);
+    return privateChat.messages.map(msg => ({
+      _id: `private-${msg.id}` as Id<"messages">,
+      _creationTime: msg.createdAt,
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      conversationId: "private" as Id<"conversations">,
+      userId: user?._id || ("anonymous" as Id<"users">),
+      isMainBranch: true,
+      createdAt: msg.createdAt,
+      status: msg.status,
+      reasoning: msg.reasoning,
+      model: msg.model,
+      provider: msg.provider,
+      attachments: msg.attachments || [],
+      citations: [],
+      metadata: {
+        finishReason: "stop",
+      },
+    }));
+  }, [privateChat.messages, user?._id]);
 
   const isStreaming = useMemo(() => {
-    return status === "streaming" && messages.length > 0;
-  }, [status, messages.length]);
+    return (
+      privateChat.status === "streaming" || privateChat.status === "submitted"
+    );
+  }, [privateChat.status]);
 
-  // Handle sending messages through AI SDK
   const handleSendMessage = useCallback(
     async (
       content: string,
@@ -403,39 +262,19 @@ export default function PrivateChatPage() {
       reasoningConfig?: ReasoningConfig,
       temperature?: number
     ) => {
-      // Convert attachments to clean format expected by AI SDK
-      const aiSdkAttachments = attachments?.map(attachment => ({
-        name: attachment.name,
-        contentType: attachment.mimeType,
-        url: attachment.url,
-      }));
-
-      await append(
-        {
-          role: "user",
-          content,
-        },
-        {
-          body: {
-            ...apiBody,
-            reasoningConfig,
-            personaId,
-            temperature,
-          },
-          headers: apiHeaders,
-          // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
-          experimental_attachments: aiSdkAttachments,
-        }
-      );
+      await privateChat.sendMessage(content, attachments, {
+        personaId,
+        reasoningConfig,
+        temperature,
+      });
 
       if (personaId !== currentPersonaId) {
         setCurrentPersonaId(personaId || null);
       }
     },
-    [append, apiBody, apiHeaders, currentPersonaId]
+    [privateChat, currentPersonaId]
   );
 
-  // Handle sending as new conversation (same as regular send in private mode)
   const handleSendAsNewConversation = useCallback(
     async (
       content: string,
@@ -452,13 +291,12 @@ export default function PrivateChatPage() {
     [handleSendMessage]
   );
 
-  // These handlers are no-ops for private mode since AI SDK manages messages
   const handleDeleteMessage = useCallback(
     (_messageId: string) => {
       managedToast.error("Cannot delete messages in private mode");
       return Promise.resolve();
     },
-    [managedToast.error]
+    [managedToast]
   );
 
   const handleEditMessage = useCallback(
@@ -466,7 +304,7 @@ export default function PrivateChatPage() {
       managedToast.error("Cannot edit messages in private mode");
       return Promise.resolve();
     },
-    [managedToast.error]
+    [managedToast]
   );
 
   const handleRetryUserMessage = useCallback(
@@ -477,65 +315,62 @@ export default function PrivateChatPage() {
       reasoningConfig?: ReasoningConfig,
       temperature?: number
     ) => {
-      const messageIndex = messages.findIndex(m => m.id === messageId);
+      const messageIndex = privateChat.messages.findIndex(
+        m => m.id === messageId
+      );
       if (messageIndex === -1) {
         return;
       }
 
-      const targetMessage = messages[messageIndex];
+      const targetMessage = privateChat.messages[messageIndex];
 
       if (targetMessage.role === "user") {
-        // Retry from user message - keep the user message and regenerate assistant response
-        const messagesToKeep = messages.slice(0, messageIndex + 1);
-        setMessages(messagesToKeep);
+        const messagesToKeep = privateChat.messages.slice(0, messageIndex + 1);
+        privateChat.setMessages(messagesToKeep);
 
-        // Regenerate response from this point with new model options
-        reload({
-          body: {
-            ...apiBody,
+        privateChat
+          .regenerate({
             modelId: modelId || selectedModel?.modelId,
             provider: provider || selectedModel?.provider,
-            reasoningConfig: reasoningConfig || undefined,
-            temperature: temperature,
-          },
-          headers: apiHeaders,
-        });
+            reasoningConfig,
+            temperature,
+          })
+          .catch(error => {
+            managedToast.error("Failed to regenerate", {
+              description: error.message,
+            });
+          });
       } else {
-        // If retrying from assistant message, go back to previous user message
         const previousUserMessageIndex = messageIndex - 1;
-        const previousUserMessage = messages[previousUserMessageIndex];
+        const previousUserMessage =
+          privateChat.messages[previousUserMessageIndex];
 
         if (!previousUserMessage || previousUserMessage.role !== "user") {
           managedToast.error("Cannot find previous user message to retry from");
           return;
         }
 
-        // Keep messages up to (and including) the previous user message
-        const messagesToKeep = messages.slice(0, previousUserMessageIndex + 1);
-        setMessages(messagesToKeep);
+        const messagesToKeep = privateChat.messages.slice(
+          0,
+          previousUserMessageIndex + 1
+        );
+        privateChat.setMessages(messagesToKeep);
 
-        // Regenerate response from the previous user message
-        reload({
-          body: {
-            ...apiBody,
+        privateChat
+          .regenerate({
             modelId: modelId || selectedModel?.modelId,
             provider: provider || selectedModel?.provider,
-            reasoningConfig: reasoningConfig || undefined,
-            temperature: temperature,
-          },
-          headers: apiHeaders,
-        });
+            reasoningConfig,
+            temperature,
+          })
+          .catch(error => {
+            managedToast.error("Failed to regenerate", {
+              description: error.message,
+            });
+          });
       }
     },
-    [
-      messages,
-      apiBody,
-      apiHeaders,
-      selectedModel,
-      setMessages,
-      reload,
-      managedToast.error,
-    ]
+    [privateChat, selectedModel, managedToast]
   );
 
   const handleRetryAssistantMessage = useCallback(
@@ -546,51 +381,48 @@ export default function PrivateChatPage() {
       reasoningConfig?: ReasoningConfig,
       temperature?: number
     ) => {
-      const messageIndex = messages.findIndex(m => m.id === messageId);
+      const messageIndex = privateChat.messages.findIndex(
+        m => m.id === messageId
+      );
       if (messageIndex === -1) {
         return;
       }
 
-      // For assistant messages, go back to the previous user message
       const previousUserMessageIndex = messageIndex - 1;
-      const previousUserMessage = messages[previousUserMessageIndex];
+      const previousUserMessage =
+        privateChat.messages[previousUserMessageIndex];
 
       if (!previousUserMessage || previousUserMessage.role !== "user") {
         managedToast.error("Cannot find previous user message to retry from");
         return;
       }
 
-      // Keep messages up to (and including) the previous user message
-      const messagesToKeep = messages.slice(0, previousUserMessageIndex + 1);
-      setMessages(messagesToKeep);
+      const messagesToKeep = privateChat.messages.slice(
+        0,
+        previousUserMessageIndex + 1
+      );
+      privateChat.setMessages(messagesToKeep);
 
-      // Regenerate response from the previous user message
-      reload({
-        body: {
-          ...apiBody,
+      privateChat
+        .regenerate({
           modelId: modelId || selectedModel?.modelId,
           provider: provider || selectedModel?.provider,
-          reasoningConfig: reasoningConfig || undefined,
-          temperature: temperature,
-        },
-        headers: apiHeaders,
-      });
+          reasoningConfig,
+          temperature,
+        })
+        .catch(error => {
+          managedToast.error("Failed to regenerate", {
+            description: error.message,
+          });
+        });
     },
-    [
-      messages,
-      apiBody,
-      apiHeaders,
-      selectedModel,
-      setMessages,
-      reload,
-      managedToast.error,
-    ]
+    [privateChat, selectedModel, managedToast]
   );
 
   return (
     <UnifiedChatView
       messages={chatMessages}
-      isLoading={status === "submitted"}
+      isLoading={isStreaming}
       isLoadingMessages={false}
       isStreaming={isStreaming}
       currentPersonaId={currentPersonaId}
@@ -601,24 +433,24 @@ export default function PrivateChatPage() {
       onDeleteMessage={handleDeleteMessage}
       onEditMessage={handleEditMessage}
       onRefineMessage={async (messageId, type, instruction) => {
-        const idx = messages.findIndex(m => m.id === messageId);
+        const idx = privateChat.messages.findIndex(m => m.id === messageId);
         if (idx === -1) {
           return;
         }
         let targetIndex = idx;
-        if (messages[idx].role === "assistant") {
+        if (privateChat.messages[idx].role === "assistant") {
           for (let i = idx - 1; i >= 0; i--) {
-            if (messages[i].role === "user") {
+            if (privateChat.messages[i].role === "user") {
               targetIndex = i;
               break;
             }
           }
         }
-        const target = messages[targetIndex];
+        const target = privateChat.messages[targetIndex];
         if (!target || target.role !== "user") {
           return;
         }
-        let newContent = target.content as string;
+        let newContent = target.content;
         if (type === "custom" && instruction && instruction.trim().length > 0) {
           newContent = `${target.content}\n\n[Refine request]: ${instruction.trim()}`;
         } else if (type === "add_details") {
@@ -626,19 +458,15 @@ export default function PrivateChatPage() {
         } else if (type === "more_concise") {
           newContent = `${target.content}\n\nPlease provide a much more concise summary.`;
         }
-        // In private mode, we cannot edit past messages via AI SDK; append a new instruction
-        await append(
-          { role: "user", content: newContent },
-          { body: apiBody, headers: apiHeaders }
-        );
+        await privateChat.sendMessage(newContent, target.attachments);
       }}
       onStopGeneration={() => {
-        stop();
+        privateChat.stop();
       }}
       onRetryUserMessage={handleRetryUserMessage}
       onRetryAssistantMessage={handleRetryAssistantMessage}
       onSavePrivateChat={handleSavePrivateChat}
-      onRetryImageGeneration={undefined} // Image generation not supported in private mode
+      onRetryImageGeneration={undefined}
     />
   );
 }
