@@ -16,6 +16,8 @@ export const userModelSchema = v.object({
     inputModalities: v.optional(v.array(v.string())),
     selected: v.optional(v.boolean()),
     free: v.optional(v.boolean()),
+    isAvailable: v.optional(v.boolean()),
+    availabilityCheckedAt: v.optional(v.number()),
     createdAt: v.number(),
 });
 
