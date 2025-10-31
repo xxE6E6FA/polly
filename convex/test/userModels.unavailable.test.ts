@@ -114,9 +114,9 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     const authed = t.withIdentity({ subject: userId, issuer: "test" });
     const res = await authed.runQuery(api.userModels.getUnavailableModelIds, {});
     expect(res).toHaveLength(2);
-    expect(res.some(m => m.modelId === "gpt-3.5-turbo-old" && m.provider === "openai")).toBe(true);
-    expect(res.some(m => m.modelId === "claude-2" && m.provider === "anthropic")).toBe(true);
-    expect(res.some(m => m.modelId === "gpt-4" && m.provider === "openai")).toBe(false);
+    expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "gpt-3.5-turbo-old" && m.provider === "openai")).toBe(true);
+    expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "claude-2" && m.provider === "anthropic")).toBe(true);
+    expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "gpt-4" && m.provider === "openai")).toBe(false);
   });
 
   it("returns empty array when models are explicitly marked as available", async () => {
@@ -329,8 +329,8 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     const authed = t.withIdentity({ subject: userId, issuer: "test" });
     const res = await authed.runQuery(api.userModels.getUnavailableModelIds, {});
     expect(res).toHaveLength(2);
-    expect(res.some(m => m.modelId === "gpt-3.5-turbo-old" && m.provider === "openai")).toBe(true);
-    expect(res.some(m => m.modelId === "claude-2" && m.provider === "anthropic")).toBe(true);
+    expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "gpt-3.5-turbo-old" && m.provider === "openai")).toBe(true);
+    expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "claude-2" && m.provider === "anthropic")).toBe(true);
   });
 
   it("scenario: free models are never marked as unavailable", async () => {
