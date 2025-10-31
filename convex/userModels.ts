@@ -110,6 +110,39 @@ export const getModelByID = query({
   },
 });
 
+export const getUnavailableModelIds = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    const userModels = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .collect();
+
+    const builtInModels = await ctx.db
+      .query("builtInModels")
+      .filter(q => q.eq(q.field("isActive"), true))
+      .collect();
+
+    const builtInModelKeys = new Set(
+      builtInModels.map(model => `${model.modelId}:${model.provider}`)
+    );
+
+    const unavailableModels = userModels.filter(
+      model => !builtInModelKeys.has(`${model.modelId}:${model.provider}`)
+    );
+
+    return unavailableModels.map(model => ({
+      modelId: model.modelId,
+      provider: model.provider,
+    }));
+  },
+});
+
 export const getAvailableModels = query({
   args: {},
   handler: async ctx => {
@@ -559,6 +592,45 @@ export const selectModel = mutation({
     }
 
     return { success: true, modelId: args.modelId, isDefault: false };
+  },
+});
+
+export const removeModel = mutation({
+  args: {
+    modelId: v.string(),
+    provider: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return { success: false, error: "User not authenticated" };
+    }
+
+    const existing = await ctx.db
+      .query("userModels")
+      .withIndex("by_user", q => q.eq("userId", userId))
+      .filter(q =>
+        q.and(
+          q.eq(q.field("modelId"), args.modelId),
+          q.eq(q.field("provider"), args.provider)
+        )
+      )
+      .unique();
+
+    if (!existing) {
+      return { success: false, error: "Model not found" };
+    }
+
+    await ctx.db.delete(existing._id);
+
+    return {
+      success: true,
+      removedModel: {
+        modelId: existing.modelId,
+        provider: existing.provider,
+        name: existing.name,
+      },
+    };
   },
 });
 

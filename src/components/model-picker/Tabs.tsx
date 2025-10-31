@@ -1,5 +1,6 @@
 import type { Doc } from "@convex/_generated/dataModel";
-import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { GearIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { Link } from "react-router-dom";
 import {
   Command,
   CommandEmpty,
@@ -8,6 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { ModelList } from "./ModelList";
 
@@ -128,75 +130,103 @@ export function ModelPickerTabs({
 
       {/* Content */}
       {activeTab === "text" ? (
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ModelList
-            modelGroups={modelGroups}
-            handleSelect={onSelectTextModel}
-            hasReachedPollyLimit={hasReachedPollyLimit}
-            autoFocusSearch={autoFocusSearch}
-          />
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <ModelList
+              modelGroups={modelGroups}
+              handleSelect={onSelectTextModel}
+              hasReachedPollyLimit={hasReachedPollyLimit}
+              autoFocusSearch={autoFocusSearch}
+            />
+          </div>
+          <div className="flex-shrink-0 border-t border-border/40 px-3 py-2">
+            <Link
+              to={ROUTES.SETTINGS.MODELS}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={e => {
+                e.stopPropagation();
+              }}
+            >
+              <GearIcon className="h-3.5 w-3.5" />
+              <span>Manage models</span>
+            </Link>
+          </div>
         </div>
       ) : (
-        <Command
-          className={cn(
-            "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
-            // Style the input wrapper to look like Settings search
-            "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40",
-            "[&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20",
-            // Tune the search icon and input sizing
-            "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
-            "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs"
-          )}
-        >
-          <CommandInput
-            className="h-8 w-full rounded-none text-xs"
-            placeholder="Search image models..."
-            autoFocus={autoFocusSearch}
-          />
-          <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
-            <CommandEmpty>
-              <div className="p-4 text-center">
-                <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-                <p className="mb-1 text-sm text-muted-foreground">
-                  No models found
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Try adjusting your search terms
-                </p>
-              </div>
-            </CommandEmpty>
-            {imageModels.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                No image models available
-              </div>
-            ) : (
-              <CommandGroup className="p-0">
-                {imageModels.map(m => (
-                  <CommandItem
-                    key={m.modelId}
-                    value={`${m.name ?? m.modelId} ${m.modelId}`}
-                    onSelect={() => onSelectImageModel(m.modelId)}
-                    className={cn(
-                      "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-accent/60",
-                      selectedImageModelId === m.modelId && "bg-accent"
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-xs truncate">
-                        {m.name || m.modelId}
-                      </div>
-                      {m.description && (
-                        <div className="text-[10px] text-muted-foreground truncate">
-                          {m.description}
-                        </div>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <Command
+            className={cn(
+              "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
+              // Style the input wrapper to look like Settings search
+              "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40",
+              "[&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20",
+              // Tune the search icon and input sizing
+              "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
+              "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs"
             )}
-          </CommandList>
-        </Command>
+          >
+            <CommandInput
+              className="h-8 w-full rounded-none text-xs"
+              placeholder="Search image models..."
+              autoFocus={autoFocusSearch}
+            />
+            <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
+              <CommandEmpty>
+                <div className="p-4 text-center">
+                  <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
+                  <p className="mb-1 text-sm text-muted-foreground">
+                    No models found
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Try adjusting your search terms
+                  </p>
+                </div>
+              </CommandEmpty>
+              {imageModels.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  No image models available
+                </div>
+              ) : (
+                <CommandGroup className="p-0">
+                  {imageModels.map(m => (
+                    <CommandItem
+                      key={m.modelId}
+                      value={`${m.name ?? m.modelId} ${m.modelId}`}
+                      onSelect={() => onSelectImageModel(m.modelId)}
+                      className={cn(
+                        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-accent/60",
+                        selectedImageModelId === m.modelId && "bg-accent"
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-xs truncate">
+                          {m.name || m.modelId}
+                        </div>
+                        {m.description && (
+                          <div className="text-[10px] text-muted-foreground truncate">
+                            {m.description}
+                          </div>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+          <div className="flex-shrink-0 border-t border-border/40 px-3 py-2">
+            <Link
+              to={ROUTES.SETTINGS.MODELS}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={e => {
+                e.stopPropagation();
+              }}
+            >
+              <GearIcon className="h-3.5 w-3.5" />
+              <span>Manage models</span>
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   );

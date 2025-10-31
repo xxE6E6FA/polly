@@ -1,9 +1,11 @@
 import { api } from "@convex/_generated/api";
+import { TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WindowVirtualizer } from "virtua";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -75,10 +77,12 @@ const ModelCard = memo(
     model,
     isEnabled,
     onToggle,
+    onRemove,
   }: {
     model: BaseModel;
     isEnabled: boolean;
     onToggle: (model: BaseModel) => void;
+    onRemove?: (model: BaseModel) => void;
   }) => {
     const capabilities = useMemo(() => getModelCapabilities(model), [model]);
     const isUnavailable = model.isAvailable === false;
@@ -110,6 +114,16 @@ const ModelCard = memo(
       e.stopPropagation();
     }, []);
 
+    const handleRemoveClick = useCallback(
+      (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onRemove && isUnavailable) {
+          onRemove(model);
+        }
+      },
+      [onRemove, model, isUnavailable]
+    );
+
     return (
       <div
         className={`group relative min-h-[160px] rounded-lg border p-4 transition-all duration-200 flex flex-col ${getModelCardClassName(
@@ -128,14 +142,18 @@ const ModelCard = memo(
       >
         <div className="mb-3 flex items-start justify-between">
           <div className="min-w-0 flex-1 pr-2">
-            <div className="mb-1 flex items-start gap-2">
-              <h4
-                className={`break-words text-sm font-medium leading-tight line-clamp-2 ${
-                  isUnavailable ? "text-red-700 dark:text-red-300" : ""
-                }`}
-              >
-                {model.name}
-              </h4>
+            <h4
+              className={`mb-1.5 break-words text-sm font-medium leading-tight line-clamp-2 ${
+                isUnavailable ? "text-red-700 dark:text-red-300" : ""
+              }`}
+            >
+              {model.name}
+            </h4>
+            <div className="flex items-center gap-2">
+              <ProviderIcon
+                provider={model.provider}
+                className={`h-4 w-4 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
+              />
               {model.free && !isUnavailable && (
                 <Badge
                   className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
@@ -153,18 +171,32 @@ const ModelCard = memo(
                 </Badge>
               )}
             </div>
-            <div className="mt-1 flex items-center">
-              <ProviderIcon
-                provider={model.provider}
-                className={`h-4 w-4 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
-              />
-            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {isUnavailable ? (
-              <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
-                Unavailable
-              </span>
+              onRemove ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveClick}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                      title="Remove model"
+                      aria-label="Remove unavailable model"
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Remove model</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
+                  Unavailable
+                </span>
+              )
             ) : (
               <Switch
                 checked={isEnabled}
@@ -279,11 +311,41 @@ export const VirtualizedModelList = memo(
     );
 
     const toggleModel = useMutation(api.userModels.toggleModel);
+    const removeModel = useMutation(api.userModels.removeModel);
 
     // Memoize enabled models lookup for better performance
     const enabledModelsLookup = enabledModels
       ? new Set(enabledModels.map((m: BaseModel) => m.modelId))
       : new Set();
+
+    const handleRemoveModel = useCallback(
+      async (model: BaseModel) => {
+        if (!authenticatedUserId) {
+          return;
+        }
+
+        try {
+          const result = await removeModel({
+            modelId: model.modelId,
+            provider: model.provider,
+          });
+
+          if (result.success) {
+            managedToast.success("Model removed successfully");
+          } else {
+            managedToast.error(result.error || "Failed to remove model");
+          }
+        } catch (_error) {
+          managedToast.error("Failed to remove model");
+        }
+      },
+      [
+        removeModel,
+        authenticatedUserId,
+        managedToast.success,
+        managedToast.error,
+      ]
+    );
 
     const handleToggleModel = useCallback(
       async (model: BaseModel, acknowledgeConflict = false) => {
@@ -435,6 +497,7 @@ export const VirtualizedModelList = memo(
                       isEnabled={enabledModelsLookup.has(model.modelId)}
                       model={model}
                       onToggle={onToggleModel}
+                      onRemove={handleRemoveModel}
                     />
                   ))}
               </div>
@@ -482,6 +545,7 @@ export const VirtualizedModelList = memo(
                       isEnabled={enabledModelsLookup.has(model.modelId)}
                       model={model}
                       onToggle={onToggleModel}
+                      onRemove={handleRemoveModel}
                     />
                   ))}
               </div>

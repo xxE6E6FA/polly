@@ -490,6 +490,7 @@ export type FetchedModel = {
   supportsTools: boolean;
   supportsImages: boolean;
   supportsFiles: boolean;
+  isAvailable?: boolean;
 };
 
 export type FetchedImageModel = {
