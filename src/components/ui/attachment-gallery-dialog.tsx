@@ -235,7 +235,6 @@ export const AttachmentGalleryDialog = ({
           className="fixed inset-0 z-50 flex items-center justify-center focus:outline-none 
                      data-[state=open]:animate-in data-[state=closed]:animate-out 
                      data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
-                     data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95
                      data-[state=open]:duration-300 data-[state=closed]:duration-200"
           onOpenAutoFocus={e => e.preventDefault()}
         >
@@ -312,7 +311,7 @@ export const AttachmentGalleryDialog = ({
               key={
                 currentDisplayAttachment.url || currentDisplayAttachment.name
               }
-              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 zoom-in-95 ${
+              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 ${
                 isImage ? "pointer-events-none" : ""
               }`}
             >
