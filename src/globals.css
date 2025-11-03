@@ -2271,7 +2271,7 @@ pre {
 }
 
 .zen-prose .prose :where(blockquote)::before {
-  content: "?";
+  content: """;
   font-family: "Playfair Display", Georgia, serif;
   font-size: clamp(
     calc(2.2rem * var(--zen-font-scale, 1)),
