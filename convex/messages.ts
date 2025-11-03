@@ -969,7 +969,7 @@ export const getMessageCount = query({
   },
 });
 
-// Rough token estimate helper (1 token ≈ 4 characters)
+// Rough token estimate helper (1 token ? 4 characters)
 function estimateTokensFromText(text: string): number {
   if (!text) {
     return 0;
@@ -1227,15 +1227,27 @@ export const updateAssistantContent = internalMutation({
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
 
+    // Fetch current message once for status check and metadata merging
+    const needsMessageCheck =
+      (args.status && args.status !== "done") || filteredUpdates.metadata;
+    const currentMessage = needsMessageCheck
+      ? await ctx.db.get(messageId)
+      : null;
+
     // Never overwrite "done" status - once a message is done, it stays done
     let finalUpdates = filteredUpdates;
-    if (args.status && args.status !== "done") {
-      const currentMessage = await ctx.db.get(messageId);
-      if (currentMessage?.status === "done") {
-        // Don't overwrite "done" status with any other status
-        const { status: _, ...updatesWithoutStatus } = filteredUpdates;
-        finalUpdates = updatesWithoutStatus;
-      }
+    if (args.status && args.status !== "done" && currentMessage?.status === "done") {
+      // Don't overwrite "done" status with any other status
+      const { status: _, ...updatesWithoutStatus } = filteredUpdates;
+      finalUpdates = updatesWithoutStatus;
+    }
+
+    // Merge metadata if provided to preserve existing metadata fields
+    if (finalUpdates.metadata && currentMessage?.metadata) {
+      finalUpdates.metadata = {
+        ...currentMessage.metadata,
+        ...finalUpdates.metadata,
+      };
     }
 
     if (!(appendContent || appendReasoning)) {
@@ -1269,6 +1281,14 @@ export const updateAssistantContent = internalMutation({
         ) {
           const { status: _, ...updatesWithoutStatus } = appendUpdates;
           finalAppendUpdates = updatesWithoutStatus;
+        }
+
+        // Merge metadata if provided to preserve existing metadata fields
+        if (finalAppendUpdates.metadata && message.metadata) {
+          finalAppendUpdates.metadata = {
+            ...message.metadata,
+            ...finalAppendUpdates.metadata,
+          };
         }
 
         if (appendContent) {
@@ -1511,7 +1531,7 @@ export const refineAssistantMessage = action({
                 - Preserve Markdown structure, headings, list order, and code/JSON blocks exactly (do not edit code or JSON).
                 - Maintain modality and tone (e.g., "must", "should", "may").
                 Concision guidance:
-                - Target ~40–50% reduction in length.
+                - Target ~40?50% reduction in length.
                 - Remove filler, hedging, repeated ideas, and verbose preludes/outros.
                 - Prefer compact sentences and bullets when it improves clarity.
                 - Keep terminology consistent; avoid synonyms that shift nuance.
@@ -1528,7 +1548,7 @@ export const refineAssistantMessage = action({
               - Preserve Markdown structure, headings, list order, and code/JSON blocks exactly (do not edit code or JSON).
               - Maintain modality and tone.
               Expansion guidance:
-              - Target ~40–60% increase in length with focused clarifications.
+              - Target ~40?60% increase in length with focused clarifications.
               - Add brief examples, short definitions, or one-sentence rationale that are generic and consistent with the original.
               - Prefer adding parentheticals or short follow-up sentences rather than new sections.
               - Keep terminology consistent; avoid synonyms that shift nuance.
@@ -1613,7 +1633,7 @@ export const refineAssistantMessage = action({
       if (receivedAny) {
         // Finalize message content and mark finishReason so UI knows stream is complete
         log.info(
-          "🎯 [server-streaming] Finalizing message with finishReason:",
+          "?? [server-streaming] Finalizing message with finishReason:",
           {
             messageId: newAssistantId,
             contentLength: fullContent.length,

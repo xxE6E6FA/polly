@@ -163,17 +163,17 @@ export async function streamLLMToMessage({
       },
       onFinish: async ({ finishReason }) => {
         if (stopped) return;
+        
+        // Flush any remaining content/reasoning first
         await flushReasoning();
         await flushContent();
 
-        // Do not overwrite content; only set finishReason metadata
-        await ctx.runMutation(internal.messages.internalUpdate, {
-          id: messageId,
-          metadata: { finishReason: finishReason || "stop" },
-        });
-        await ctx.runMutation(internal.messages.updateMessageStatus, {
+        // Atomically update status and metadata in a single mutation to avoid UI reload
+        // Use updateAssistantContent to set both status and finishReason at once
+        await ctx.runMutation(internal.messages.updateAssistantContent, {
           messageId,
           status: "done",
+          metadata: { finishReason: finishReason || "stop" },
         });
       },
     });
