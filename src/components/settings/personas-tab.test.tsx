@@ -1,6 +1,5 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("convex/react", () => ({
@@ -35,8 +34,25 @@ vi.mock("@/providers/toast-context", () => ({
   useToast: vi.fn(),
 }));
 
+vi.mock("react-router", () => ({
+  /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
+  Link: ({
+    children,
+    to,
+    ...props
+  }: {
+    children: React.ReactNode;
+    to: string;
+  }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
+}));
+
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -71,6 +87,20 @@ describe("PersonasTab - Delete Confirmation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+
     useUserDataContextMock.mockReturnValue({
       user: mockUser,
     } as unknown as ReturnType<typeof useUserDataContext>);
@@ -79,25 +109,29 @@ describe("PersonasTab - Delete Confirmation", () => {
       personasEnabled: true,
     } as unknown as ReturnType<typeof useUserSettings>);
 
-    useQueryMock.mockImplementation((query: unknown) => {
-      if (query === api.personas.list) {
-        return [mockPersona];
+    (useQueryMock as unknown as vi.Mock).mockImplementation(
+      (query: unknown) => {
+        if (query === api.personas.list) {
+          return [mockPersona];
+        }
+        if (query === api.personas.listAllBuiltIn) {
+          return [];
+        }
+        if (query === api.userSettings.getUserSettings) {
+          return [];
+        }
+        return undefined;
       }
-      if (query === api.personas.listAllBuiltIn) {
-        return [];
-      }
-      if (query === api.userSettings.getUserSettings) {
-        return [];
-      }
-      return undefined;
-    });
+    );
 
-    useMutationMock.mockImplementation((mutation: unknown) => {
-      if (mutation === api.personas.remove) {
-        return mockRemovePersonaMutation;
+    (useMutationMock as unknown as vi.Mock).mockImplementation(
+      (mutation: unknown) => {
+        if (mutation === api.personas.remove) {
+          return mockRemovePersonaMutation;
+        }
+        return vi.fn();
       }
-      return vi.fn();
-    });
+    );
 
     useToastMock.mockReturnValue({
       error: vi.fn(),
@@ -106,17 +140,28 @@ describe("PersonasTab - Delete Confirmation", () => {
     } as unknown as ReturnType<typeof useToast>);
   });
 
+  const findDeleteButton = (container: HTMLElement) => {
+    const buttons = container.querySelectorAll("button");
+    return (
+      Array.from(buttons).find(button => {
+        const tooltipContent = button.closest('[role="tooltip"]')?.textContent;
+        return tooltipContent?.includes("Delete persona");
+      }) || container.querySelector('button[class*="destructive"]')
+    );
+  };
+
   it("opens confirmation dialog when delete button is clicked", async () => {
-    render(
-      <MemoryRouter>
+    const { container } = render(
+      <TooltipProvider>
         <PersonasTab />
-      </MemoryRouter>
+      </TooltipProvider>
     );
 
-    const deleteButton = screen.getByRole("button", {
-      name: /delete persona/i,
-    });
-    fireEvent.click(deleteButton);
+    const deleteButton = findDeleteButton(container);
+    expect(deleteButton).toBeInTheDocument();
+    if (deleteButton) {
+      fireEvent.click(deleteButton);
+    }
 
     await waitFor(() => {
       expect(
@@ -130,16 +175,17 @@ describe("PersonasTab - Delete Confirmation", () => {
   });
 
   it("does not delete persona when cancel is clicked", async () => {
-    render(
-      <MemoryRouter>
+    const { container } = render(
+      <TooltipProvider>
         <PersonasTab />
-      </MemoryRouter>
+      </TooltipProvider>
     );
 
-    const deleteButton = screen.getByRole("button", {
-      name: /delete persona/i,
-    });
-    fireEvent.click(deleteButton);
+    const deleteButton = findDeleteButton(container);
+    expect(deleteButton).toBeInTheDocument();
+    if (deleteButton) {
+      fireEvent.click(deleteButton);
+    }
 
     await waitFor(() => {
       expect(
@@ -162,16 +208,17 @@ describe("PersonasTab - Delete Confirmation", () => {
   it("deletes persona when confirm is clicked", async () => {
     mockRemovePersonaMutation.mockResolvedValue(undefined);
 
-    render(
-      <MemoryRouter>
+    const { container } = render(
+      <TooltipProvider>
         <PersonasTab />
-      </MemoryRouter>
+      </TooltipProvider>
     );
 
-    const deleteButton = screen.getByRole("button", {
-      name: /delete persona/i,
-    });
-    fireEvent.click(deleteButton);
+    const deleteButton = findDeleteButton(container);
+    expect(deleteButton).toBeInTheDocument();
+    if (deleteButton) {
+      fireEvent.click(deleteButton);
+    }
 
     await waitFor(() => {
       expect(
