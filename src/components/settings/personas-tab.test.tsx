@@ -113,7 +113,9 @@ describe("PersonasTab - Delete Confirmation", () => {
       </MemoryRouter>
     );
 
-    const deleteButton = screen.getByRole("button", { name: /delete persona/i });
+    const deleteButton = screen.getByRole("button", {
+      name: /delete persona/i,
+    });
     fireEvent.click(deleteButton);
 
     await waitFor(() => {
@@ -122,7 +124,9 @@ describe("PersonasTab - Delete Confirmation", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/are you sure you want to delete/i)
+    ).toBeInTheDocument();
   });
 
   it("does not delete persona when cancel is clicked", async () => {
@@ -132,7 +136,9 @@ describe("PersonasTab - Delete Confirmation", () => {
       </MemoryRouter>
     );
 
-    const deleteButton = screen.getByRole("button", { name: /delete persona/i });
+    const deleteButton = screen.getByRole("button", {
+      name: /delete persona/i,
+    });
     fireEvent.click(deleteButton);
 
     await waitFor(() => {
@@ -162,7 +168,9 @@ describe("PersonasTab - Delete Confirmation", () => {
       </MemoryRouter>
     );
 
-    const deleteButton = screen.getByRole("button", { name: /delete persona/i });
+    const deleteButton = screen.getByRole("button", {
+      name: /delete persona/i,
+    });
     fireEvent.click(deleteButton);
 
     await waitFor(() => {
