@@ -1018,7 +1018,30 @@ pre {
 }
 
 /* Code block styling */
- 
+.prose pre {
+  padding: 1rem 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .prose pre {
+    padding: 1rem 1.5rem;
+  }
+}
+
+.prose pre code {
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+@media (min-width: 640px) {
+  .prose pre code {
+    font-size: 0.9375rem;
+  }
+}
+
 
 /* Math rendering */
 .katex-display {
@@ -2248,7 +2271,7 @@ pre {
 }
 
 .zen-prose .prose :where(blockquote)::before {
-  content: "“";
+  content: "?";
   font-family: "Playfair Display", Georgia, serif;
   font-size: clamp(
     calc(2.2rem * var(--zen-font-scale, 1)),
