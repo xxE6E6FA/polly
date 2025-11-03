@@ -122,12 +122,16 @@ If absolutely necessary, bypass hooks with `git commit --no-verify` (not recomme
    - Application type: Web application
    - Authorized JavaScript origins:
      - `http://localhost:5173` (development)
-     - Your production domain
+     - Your production domain (e.g., `https://your-app.vercel.app`)
+     - Note: For preview deployments, you'll need to add each preview URL individually, or use a single production domain
    - Authorized redirect URIs:
-     - `http://localhost:5173/auth/callback` (development)
-     - `https://your-domain.com/auth/callback` (production)
+     - `https://your-convex-deployment.convex.cloud/auth/callback/google` (required - this is your Convex deployment URL)
+     - Note: For preview deployments, the OAuth callback goes to Convex, not Vercel, so you only need to register your Convex deployment URL once. This single redirect URI works for all preview deployments.
 6. Copy the Client ID and Client Secret
 7. Add them to Convex Dashboard → Settings → Environment Variables
+8. Set `CONVEX_SITE_URL` in Convex Dashboard to your Convex deployment URL (e.g., `https://your-app.convex.cloud`) - this ensures OAuth callbacks work for all preview deployments
+
+**Important for Preview Deployments:** Since Google OAuth doesn't support wildcards in redirect URIs, ensure `CONVEX_SITE_URL` points to your Convex deployment URL (not the Vercel preview URL). This way, all preview deployments use the same Convex callback URL, which you only need to register once in Google Cloud Console.
 
 ## Web Search Integration
 
