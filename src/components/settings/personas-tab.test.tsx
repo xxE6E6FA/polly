@@ -37,10 +37,9 @@ vi.mock("@/providers/toast-context", () => ({
 
 import { api } from "@convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
-
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { useUserDataContext } from "@/providers/user-data-context";
 import { useToast } from "@/providers/toast-context";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { PersonasTab } from "./personas-tab";
 
 const useMutationMock = vi.mocked(useMutation);
