@@ -1,7 +1,7 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("convex/react", () => ({
   useMutation: vi.fn(),
@@ -35,13 +35,13 @@ vi.mock("@/providers/toast-context", () => ({
   useToast: vi.fn(),
 }));
 
-import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useMutation, useQuery } from "convex/react";
 
-import { PersonasTab } from "./personas-tab";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useToast } from "@/providers/toast-context";
+import { PersonasTab } from "./personas-tab";
 
 const useMutationMock = vi.mocked(useMutation);
 const useQueryMock = vi.mocked(useQuery);
