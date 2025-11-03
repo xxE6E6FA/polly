@@ -73,7 +73,6 @@ export const PersonasTab = () => {
 
   const handleDeletePersona = useCallback(
     async (personaId: Id<"personas">) => {
-      setDeletingPersona(personaId);
       try {
         await removePersonaMutation({ id: personaId });
       } catch (_error) {
@@ -275,7 +274,7 @@ export const PersonasTab = () => {
                                 className="text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleDeletePersona(persona._id)}
+                                onClick={() => setDeletingPersona(persona._id)}
                               >
                                 <TrashIcon className="h-3 w-3" />
                               </Button>
