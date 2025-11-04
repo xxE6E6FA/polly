@@ -141,14 +141,14 @@ test("fetches user data on mount", async () => {
 });
 ```
 
-#### CRITICAL: Wait for Hook Initialization Before Calling Methods
+#### CRITICAL: Flush Microtasks After Hook Initialization
 
-**Always use `waitFor` to ensure hooks are fully initialized before calling their methods.**
+**Always flush microtasks after rendering a hook before calling its methods.**
 
-This prevents timing issues, especially in CI environments where tests may run slower:
+This ensures all initial effects, memoized values, and mock setups are complete, preventing timing issues in CI:
 
 ```typescript
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
 
 // ❌ BAD - Can fail in CI due to timing
 test("calls action immediately", async () => {
@@ -162,14 +162,14 @@ test("calls action immediately", async () => {
   expect(mockAction).toHaveBeenCalled(); // May fail in CI!
 });
 
-// ✅ GOOD - Wait for hook to be ready first
+// ✅ GOOD - Flush microtasks before calling methods
 test("calls action after initialization", async () => {
   const mockAction = vi.fn();
   const { result } = renderHook(() => useChat({ conversationId: "c1" }));
   
-  // Wait for critical dependencies to be initialized
-  await waitFor(() => {
-    expect(result.current.selectedModel).toBeDefined();
+  // Flush microtasks to ensure all initial effects/memos execute
+  await act(async () => {
+    await Promise.resolve();
   });
   
   await act(async () => {
@@ -180,17 +180,17 @@ test("calls action after initialization", async () => {
 });
 ```
 
-**When to use `waitFor`:**
-- Before calling hook methods that depend on async initialization
-- When testing hooks that use `useSelectedModel`, `useQuery`, or other async sources
-- When mocks need to be processed before the hook can function
+**When to flush microtasks:**
+- After rendering any hook that uses `useMemo`, `useEffect`, or calls other hooks
+- Before calling hook methods, especially those that depend on initialization
+- When testing hooks with mocked dependencies (`useQuery`, `useAction`, etc.)
 - In any test that fails only in CI but passes locally (timing issue indicator)
 
-**What to wait for:**
-- Model selection: `result.current.selectedModel`
-- Data loading: `!result.current.isLoading`
-- Required state: specific state values being truthy
-- Query results: data being defined from `useQuery`
+**Why `act + Promise.resolve` instead of `waitFor`:**
+- `waitFor` waits for specific state that might never arrive if mocks aren't set up correctly
+- `Promise.resolve()` flushes the microtask queue without making assumptions about state
+- Works reliably in CI environments where timing is less predictable
+- Simpler and faster than polling with `waitFor`
 
 ### Convex Function Testing
 ```typescript
