@@ -1,43 +1,49 @@
-import { describe, test, expect, mock, afterAll, beforeAll } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
+import { mockModuleWithRestore } from "../../../src/test/utils";
 
-// Mock logger to keep output quiet
-mock.module("../logger", () => ({
-  log: {
-    debug: mock(),
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("../logger"),
+  () => ({
+    log: {
+      debug: mock(),
+      info: mock(),
+      warn: mock(),
+      error: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 
-// Mock model resolution to provide a context window
-mock.module("../model_resolution", () => ({
-  getUserEffectiveModelWithCapabilities: mock(async () => ({
-    modelId: "x",
-    provider: "google",
-    name: "x",
-    supportsReasoning: false,
-    contextLength: 50, // small context window for test
-  })),
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("../model_resolution"),
+  () => ({
+    getUserEffectiveModelWithCapabilities: mock(async () => ({
+      modelId: "x",
+      provider: "google",
+      name: "x",
+      supportsReasoning: false,
+      contextLength: 50,
+    })),
+  })
+);
 
 const summarizationModule = await import("./summarization");
-const processSummariesMock = mock(async (_ctx: any, _cid: string, _msgs: any[]) => [
+const processSummariesMock = mock(async () => [
   { summary: "SUM", chunkIndex: 0, originalMessageCount: 2 },
 ]);
 const createMetaSummaryMock = mock(async (_ctx: any, _cid: string, summaries: string[]) =>
-  summaries.map(s => ({ summary: s })),
+  summaries.map(s => ({ summary: s }))
 );
 const summarizeChunkMock = mock(async () => "SUM");
 const storeChunkSummaryMock = mock(async () => {});
 
-beforeAll(() => {
-  mock.module("./summarization", () => ({
+await mockModuleWithRestore(
+  import.meta.resolve("./summarization"),
+  () => ({
     ...summarizationModule,
     CONTEXT_CONFIG: {
       ...summarizationModule.CONTEXT_CONFIG,
@@ -49,13 +55,10 @@ beforeAll(() => {
     createRecursiveMetaSummary: createMetaSummaryMock,
     summarizeChunk: summarizeChunkMock,
     storeChunkSummary: storeChunkSummaryMock,
-  }));
-});
-afterAll(() => {
-  mock.restore();
-});
+  })
+);
 
-import { buildHierarchicalContextMessages } from "./context_building";
+const { buildHierarchicalContextMessages } = await import("./context_building?test=token-threshold");
 
 describe("context building: token-based threshold", () => {
 
@@ -68,8 +71,8 @@ describe("context building: token-based threshold", () => {
   });
 
   test("returns a context system message when token estimate exceeds threshold", async () => {
-    // 60 + 60 chars ≈ 30 tokens (chars/4), MIN_TOKEN_THRESHOLD=10 → summarize
-    const ctx: any = { runQuery: mock().mockResolvedValue([mkMsg("user", 60), mkMsg("assistant", 60)]) };
+    // 400 + 400 chars ≈ 200 tokens (chars/4), exceeds context window of 50 → summarize
+    const ctx: any = { runQuery: mock().mockResolvedValue([mkMsg("user", 400), mkMsg("assistant", 400)]) };
     const res = await buildHierarchicalContextMessages(ctx, "c2" as any, "u1" as any, "m1", 0);
     expect(res).toHaveLength(1);
     const first = res[0];

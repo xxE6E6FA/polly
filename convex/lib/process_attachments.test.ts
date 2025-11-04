@@ -1,27 +1,43 @@
 import { describe, test, expect, mock } from "bun:test";
 import type { Id } from "../_generated/dataModel";
+import { mockModuleWithRestore } from "../../src/test/utils";
 
-const updatePdfReadingStatusMock = mock(async () => {});
-const clearPdfReadingStatusMock = mock(async () => {});
-mock.module("../ai/pdf_status", () => ({
-  updatePdfReadingStatus: updatePdfReadingStatusMock,
-  clearPdfReadingStatus: clearPdfReadingStatusMock,
-}));
-mock.module("./logger", () => ({
-  log: {
-    debug: mock(),
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("./logger"),
+  () => ({
+    log: {
+      debug: mock(),
+      info: mock(),
+      warn: mock(),
+      error: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 
-import { processAttachmentsForLLM } from "./process_attachments";
+await mockModuleWithRestore(
+  import.meta.resolve("../ai/pdf"),
+  actual => ({
+    ...actual,
+    shouldExtractPdfText: mock(() => true),
+  })
+);
+
+const { processAttachmentsForLLM } = await import("./process_attachments");
+
+function findStatusCall(
+  calls: unknown[],
+  status: string
+): [unknown, { status?: string } | undefined] | undefined {
+  return calls.find(call => {
+    const [, args] = (call as [unknown, { status?: string } | undefined]) ?? [];
+    return args?.status === status;
+  }) as [unknown, { status?: string } | undefined] | undefined;
+}
 
 describe("lib/process_attachments", () => {
   test("returns undefined when attachments not provided", async () => {
@@ -61,12 +77,12 @@ describe("lib/process_attachments", () => {
     );
     expect(res?.[0]?.content).toContain("Hello PDF");
     expect(ctx.runMutation).toHaveBeenCalled();
-    const readingStatusCall = (ctx.runMutation.mock.calls as unknown[]).find((call) => {
-      const [, args] = (call as [unknown, { status?: string } | undefined]) ?? [];
-      return args?.status === "reading_pdf";
-    });
-    expect(readingStatusCall).toBeTruthy();
-    expect(clearPdfReadingStatusMock).toHaveBeenCalledWith(ctx, "msg1");
+    expect(ctx.runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ messageId: "msg1", status: "reading_pdf" })
+    );
+    const thinkingStatusCall = findStatusCall(ctx.runMutation.mock.calls, "thinking");
+    expect(thinkingStatusCall).toBeTruthy();
   });
 
   test("stores extractedText to storage when provided inline and returns textFileId", async () => {
@@ -90,12 +106,10 @@ describe("lib/process_attachments", () => {
     expect(storage.store).toHaveBeenCalled();
     expect(String(res?.[0]?.textFileId ?? "")).toBe("newTextId");
     expect(res?.[0]?.content).toBe("EXTRACT");
-    const readingStatusCall = (ctx.runMutation.mock.calls as unknown[]).find((call) => {
-      const [, args] = (call as [unknown, { status?: string } | undefined]) ?? [];
-      return args?.status === "reading_pdf";
-    });
+    const readingStatusCall = findStatusCall(ctx.runMutation.mock.calls, "reading_pdf");
     expect(readingStatusCall).toBeTruthy();
-    expect(clearPdfReadingStatusMock).toHaveBeenCalledWith(ctx, "msg1");
+    const thinkingStatusCall = findStatusCall(ctx.runMutation.mock.calls, "thinking");
+    expect(thinkingStatusCall).toBeTruthy();
   });
 
   test("calls server extraction when only storageId available and handles error", async () => {

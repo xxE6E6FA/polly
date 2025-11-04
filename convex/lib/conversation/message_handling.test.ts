@@ -1,53 +1,60 @@
 import { test, expect, beforeEach, mock } from "bun:test";
 import type { Mock } from "bun:test";
+import { mockModuleWithRestore } from "../../../src/test/utils";
 
 // Mock auth util to control getAuthUserId in access checks
-mock.module("@convex-dev/auth/server", () => ({
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({
   getAuthUserId: mock(async () => "u1"),
 }));
 
 // Mock logger to avoid noisy output in failure branches
-mock.module("../logger", () => ({
-  log: {
-    warn: mock(),
-    info: mock(),
-    debug: mock(),
-    error: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("../logger"),
+  () => ({
+    log: {
+      warn: mock(),
+      info: mock(),
+      debug: mock(),
+      error: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 
 // Mock api module to prevent undefined reference errors
-mock.module("../../_generated/api", () => ({
-  api: {
-    messages: {
-      remove: "messages.remove",
-      removeMultiple: "messages.removeMultiple",
-      getAllInConversation: "messages.getAllInConversation",
-      create: "messages.create",
+await mockModuleWithRestore(
+  import.meta.resolve("../../_generated/api"),
+  () => ({
+    api: {
+      messages: {
+        remove: "messages.remove",
+        removeMultiple: "messages.removeMultiple",
+        getAllInConversation: "messages.getAllInConversation",
+        create: "messages.create",
+      },
+      personas: {
+        get: "personas.get",
+      },
+      conversations: {
+        get: "conversations.get",
+        createConversation: "conversations.createConversation",
+      },
+      userModels: {
+        getModelByID: "userModels.getModelByID",
+      },
+      users: {
+        incrementMessage: "users.incrementMessage",
+      },
+      titleGeneration: {
+        generateTitle: "titleGeneration.generateTitle",
+      },
     },
-    personas: {
-      get: "personas.get",
-    },
-    conversations: {
-      get: "conversations.get",
-      createConversation: "conversations.createConversation",
-    },
-    userModels: {
-      getModelByID: "userModels.getModelByID",
-    },
-    users: {
-      incrementMessage: "users.incrementMessage",
-    },
-    titleGeneration: {
-      generateTitle: "titleGeneration.generateTitle",
-    },
-  },
-}));
+  })
+);
 
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { Id } from "../../_generated/dataModel";

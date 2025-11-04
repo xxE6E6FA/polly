@@ -1,30 +1,34 @@
 import { describe, test, expect, mock } from "bun:test";
+import { mockModuleWithRestore } from "../../../src/test/utils";
 
 // Note: The Convex action functions expose their handlers via `_handler` property
 // We don't need to mock the action function since we can access the handler directly
 
 // Mock api module to prevent undefined reference errors
-mock.module("../../_generated/api", () => ({
-  api: {
-    backgroundJobs: {
-      create: "backgroundJobs.create",
-      updateStatus: "backgroundJobs.updateStatus",
-      updateProgress: "backgroundJobs.updateProgress",
-      saveImportResult: "backgroundJobs.saveImportResult",
+await mockModuleWithRestore(
+  import.meta.resolve("../../_generated/api"),
+  () => ({
+    api: {
+      backgroundJobs: {
+        create: "backgroundJobs.create",
+        updateStatus: "backgroundJobs.updateStatus",
+        updateProgress: "backgroundJobs.updateProgress",
+        saveImportResult: "backgroundJobs.saveImportResult",
+      },
+      conversationImport: {
+        processImport: "conversationImport.processImport",
+      },
+      conversations: {
+        get: "conversations.get",
+        bulkRemove: "conversations.bulkRemove",
+        processBulkDelete: "conversations.processBulkDelete",
+      },
     },
-    conversationImport: {
-      processImport: "conversationImport.processImport",
-    },
-    conversations: {
-      get: "conversations.get",
-      bulkRemove: "conversations.bulkRemove",
-      processBulkDelete: "conversations.processBulkDelete",
-    },
-  },
-}));
+  })
+);
 
 // Mock auth util so we can control user presence
-mock.module("@convex-dev/auth/server", () => ({
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({
   getAuthUserId: mock(),
 }));
 

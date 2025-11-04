@@ -1,21 +1,23 @@
-import { expect, mock, test, afterAll } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import type { Mock } from "bun:test";
+import { mockModuleWithRestore } from "../../../src/test/utils";
 
-mock.module("../logger", () => ({
-  log: {
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    debug: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
-
-mock.restore();
+await mockModuleWithRestore(
+  import.meta.resolve("../logger"),
+  () => ({
+    log: {
+      info: mock(),
+      warn: mock(),
+      error: mock(),
+      debug: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 const summarizationModule = await import(
   new URL("./summarization.ts", import.meta.url).href + "?test-original"
 );
@@ -37,10 +39,6 @@ let {
   createRecursiveMetaSummary,
   summarizeChunk,
 } = summarizationModule;
-
-afterAll(() => {
-  mock.restore();
-});
 
 async function ensureRealSummarization(): Promise<void> {
   Object.assign(CONTEXT_CONFIG as any, DEFAULT_CONTEXT_CONFIG);

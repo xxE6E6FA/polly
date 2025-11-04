@@ -1,4 +1,4 @@
-import { mock, spyOn } from "bun:test";
+import { afterAll, mock, spyOn } from "bun:test";
 
 /**
  * Create a ReadableStream of NDJSON-encoded chunks for streaming tests.
@@ -168,6 +168,49 @@ export function mockFetchNDJSON(
     headers: { "content-type": "application/x-ndjson" },
     body: stream,
     ...init,
+  });
+}
+
+type MaybePromise<T> = T | Promise<T>;
+
+/**
+ * Mock a module and automatically restore its original exports after the suite finishes.
+ * This prevents cross-file leakage from `mock.module`.
+ */
+export async function mockModuleWithRestore<
+  TModule extends Record<string, unknown>,
+>(
+  specifier: string,
+  factory: (actual: TModule) => MaybePromise<Partial<TModule>>,
+  options: { from?: string } = {}
+): Promise<void> {
+  const shouldResolveRelative =
+    options.from && (specifier.startsWith(".") || specifier.startsWith("/"));
+  const resolvedSpecifier = shouldResolveRelative
+    ? new URL(specifier, options.from).href
+    : specifier;
+
+  let actualModule: TModule;
+  const snapshot: Record<string, unknown> = {};
+  let loadFailed = false;
+  try {
+    actualModule = (await import(resolvedSpecifier)) as TModule;
+    for (const key of Object.keys(actualModule)) {
+      snapshot[key] = actualModule[key as keyof TModule];
+    }
+  } catch (_error) {
+    loadFailed = true;
+    actualModule = Object.create(null) as TModule;
+  }
+
+  const overrides = await factory(actualModule);
+  mock.module(resolvedSpecifier, () => ({
+    ...(loadFailed ? {} : actualModule),
+    ...overrides,
+  }));
+
+  afterAll(() => {
+    mock.module(resolvedSpecifier, () => ({ ...snapshot }));
   });
 }
 

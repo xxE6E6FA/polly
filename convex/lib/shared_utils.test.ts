@@ -8,8 +8,9 @@ import {
   mock,
   spyOn
 } from "bun:test";
+import { mockModuleWithRestore } from "../../src/test/utils";
 
-mock.module("@convex-dev/auth/server", () => ({
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({
   getAuthUserId: mock(async () => "u1"),
 }));
 
