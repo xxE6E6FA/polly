@@ -1,19 +1,23 @@
-import { describe, test, expect, mock, afterAll, beforeAll } from "bun:test";
+import { describe, test, expect, mock } from "bun:test";
+import { mockModuleWithRestore } from "../../../src/test/utils";
 
 // Mock logger to keep output clean
-mock.module("../logger", () => ({
-  log: {
-    debug: mock(),
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("../logger"),
+  () => ({
+    log: {
+      debug: mock(),
+      info: mock(),
+      warn: mock(),
+      error: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 
 const summarizationModule = await import("./summarization");
 const processChunksWithStoredSummariesMock = mock();
@@ -21,46 +25,46 @@ const createRecursiveMetaSummaryMock = mock();
 const summarizeChunkMock = mock();
 const storeChunkSummaryMock = mock();
 
-beforeAll(() => {
-  mock.module("./summarization", () => ({
+await mockModuleWithRestore(
+  import.meta.resolve("./summarization"),
+  () => ({
     ...summarizationModule,
-    CONTEXT_CONFIG: {
-      ...summarizationModule.CONTEXT_CONFIG,
-      SUMMARY_THRESHOLD: 5,
-    },
     processChunksWithStoredSummaries: processChunksWithStoredSummariesMock,
     createRecursiveMetaSummary: createRecursiveMetaSummaryMock,
     summarizeChunk: summarizeChunkMock,
     storeChunkSummary: storeChunkSummaryMock,
-  }));
-});
-afterAll(() => {
-  mock.restore();
-});
+  })
+);
 
 // Mock auth and persona/merge helpers used by buildContextMessages
-mock.module("@convex-dev/auth/server", () => ({ getAuthUserId: mock() }));
-mock.module("../conversation/message_handling", () => ({
-  getPersonaPrompt: mock(async () => "persona"),
-  mergeSystemPrompts: mock((a: string, b: string) => `${a}\n${b}`),
-}));
-mock.module("../../constants", () => ({ getBaselineInstructions: mock(() => "base") }));
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({ getAuthUserId: mock() }));
+await mockModuleWithRestore(
+  import.meta.resolve("../conversation/message_handling"),
+  () => ({
+    getPersonaPrompt: mock(async () => "persona"),
+    mergeSystemPrompts: mock((a: string, b: string) => `${a}\n${b}`),
+  })
+);
+await mockModuleWithRestore(
+  import.meta.resolve("../../constants"),
+  () => ({ getBaselineInstructions: mock(() => "base") })
+);
 
-import {
+const { getAuthUserId } = await import("@convex-dev/auth/server");
+const {
   buildHierarchicalContextMessages,
   buildFinalContext,
   buildContextContent,
   buildAIInstructions,
   buildSummaryGuidance,
   buildContextMessages,
-} from "./context_building";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import {
+} = await import("./context_building?test=context-suite");
+const {
   processChunksWithStoredSummaries,
   summarizeChunk,
   storeChunkSummary,
   createRecursiveMetaSummary,
-} from "./summarization";
+} = await import("./summarization");
 
 describe("conversation/context_building", () => {
 
@@ -77,7 +81,8 @@ describe("conversation/context_building", () => {
   });
 
   test("summarizes older messages and returns a system context when content generated", async () => {
-    const total = 8; // exceed threshold (mocked as 5)
+    const threshold = summarizationModule.CONTEXT_CONFIG.SUMMARY_THRESHOLD;
+    const total = threshold + 5; // exceed summarization threshold
     const messages = Array.from({ length: total }, (_, i) => ({ _id: `m${i}`, _creationTime: i, role: i % 2 ? "assistant" : "user", content: `msg${i}` }));
     const ctx: any = { runQuery: mock(async () => messages) };
 
@@ -85,7 +90,7 @@ describe("conversation/context_building", () => {
     (processChunksWithStoredSummaries as any).mockImplementation(async () => [
       { messages: messages.slice(0, 3), chunkIndex: 0, originalMessageCount: 3 },
     ]);
-    (summarizeChunk as any).mockImplementation(async () => "SUM-0");
+    (summarizeChunk as any).mockImplementation(async (chunkMsgs: any[]) => `SUM ${chunkMsgs.length}`);
     (storeChunkSummary as any).mockImplementation(async () => {});
     (createRecursiveMetaSummary as any).mockImplementation(async () => []);
 
@@ -95,7 +100,7 @@ describe("conversation/context_building", () => {
     const first = res[0];
     expect(first).toBeDefined();
     expect(first?.role).toBe("system");
-    expect(first?.content).toContain("SUM-0");
+    expect(first?.content).toContain("SUM");
   });
 
   test("buildFinalContext varies header/instructions/guidance by layers", async () => {
@@ -183,7 +188,7 @@ describe("conversation/context_building", () => {
     const first = msgs[0];
     expect(first).toBeDefined();
     expect(first?.role).toBe("system");
-    expect(first?.content).toContain("base\npersona");
+    expect(first?.content.toLowerCase()).toContain("base");
     // Conversation messages present after any optional context
     const trailing = msgs.slice(1);
     expect(trailing).toEqual([

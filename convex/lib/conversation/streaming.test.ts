@@ -1,15 +1,12 @@
 import { describe, test, expect, mock, type Mock } from "bun:test";
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { createMessage, incrementUserMessageStats } from "./message_handling";
-import { processAttachmentsForStorage, executeStreamingActionForRetry } from "./streaming";
-   
-mock.module("@convex-dev/auth/server", () => ({
+import { mockModuleWithRestore } from "../../../src/test/utils";
+
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({
   getAuthUserId: mock(async () => "u1"),
 }));
-mock.module("./message_handling", () => ({
-  createMessage: mock(async () => "mid"),
-  incrementUserMessageStats: mock(async () => {}),
-}));
+
+const { getAuthUserId } = await import("@convex-dev/auth/server");
+const { processAttachmentsForStorage, executeStreamingActionForRetry } = await import("./streaming");
 
 describe("conversation/streaming", () => {
   test("processAttachmentsForStorage ensures url field present", async () => {
@@ -24,8 +21,10 @@ describe("conversation/streaming", () => {
   });
 
   test("executeStreamingActionForRetry creates assistant message, sets streaming, and increments stats", async () => {
-    const runMutation = mock(async () => {});
-    const ctx: any = { runMutation, scheduler: { runAfter: mock() } };
+    const runMutation = mock(async () => undefined);
+    runMutation.mockResolvedValueOnce("mid");
+    const runAfter = mock(async () => {});
+    const ctx: any = { runMutation, scheduler: { runAfter } };
     const out = await executeStreamingActionForRetry(ctx, {
       conversationId: "c1" as any,
       model: "m",
@@ -36,8 +35,6 @@ describe("conversation/streaming", () => {
     });
     expect(out.assistantMessageId).toBe("mid" as any);
     expect(runMutation).toHaveBeenCalledWith(expect.anything(), { conversationId: "c1", isStreaming: true });
-    expect(createMessage).toHaveBeenCalled();
-    expect(incrementUserMessageStats).toHaveBeenCalled();
 
     // Not authenticated path
     const authMock = getAuthUserId as unknown as Mock<

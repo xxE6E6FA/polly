@@ -1,21 +1,25 @@
 import { describe, test, expect, mock } from "bun:test";
+import { mockModuleWithRestore } from "../../src/test/utils";
 
-mock.module("@convex-dev/auth/server", () => ({
+await mockModuleWithRestore("@convex-dev/auth/server", () => ({
   getAuthUserId: mock(async () => "u1"),
 }));
-mock.module("./logger", () => ({
-  log: {
-    debug: mock(),
-    info: mock(),
-    warn: mock(),
-    error: mock(),
-    streamStart: mock(),
-    streamReasoning: mock(),
-    streamComplete: mock(),
-    streamError: mock(),
-    streamAbort: mock(),
-  },
-}));
+await mockModuleWithRestore(
+  import.meta.resolve("./logger"),
+  () => ({
+    log: {
+      debug: mock(),
+      info: mock(),
+      warn: mock(),
+      error: mock(),
+      streamStart: mock(),
+      streamReasoning: mock(),
+      streamComplete: mock(),
+      streamError: mock(),
+      streamAbort: mock(),
+    },
+  })
+);
 
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { getUserEffectiveModel, getUserEffectiveModelWithCapabilities } from "./model_resolution";
