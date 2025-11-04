@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
 import { renderHook } from "../../../test/hook-utils";
+import { mockModuleWithRestore } from "../../../test/utils";
 
 let useActionMock: ReturnType<typeof mock>;
 let useConvexFileUploadMock: ReturnType<typeof mock>;
@@ -29,7 +30,9 @@ mock.module("@/hooks/use-dialog-management", () => ({
 mock.module("@/hooks/use-reasoning", () => ({
   useReasoningConfig: (...args: unknown[]) => useReasoningConfigMock(...args),
 }));
-mock.module("@/providers/private-mode-context", () => ({
+
+await mockModuleWithRestore("@/providers/private-mode-context", actual => ({
+  ...actual,
   usePrivateMode: (...args: unknown[]) => usePrivateModeMock(...args),
 }));
 
