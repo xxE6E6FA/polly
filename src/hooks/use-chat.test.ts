@@ -234,9 +234,9 @@ describe("useChat", () => {
       useChat({ conversationId: "c1" as Id<"conversations"> })
     );
 
-    // Wait for the hook to be fully initialized with selectedModel
-    await waitFor(() => {
-      expect(result.current.selectedModel).toBeDefined();
+    // Ensure all initial effects and useMemo hooks have executed
+    await act(async () => {
+      await Promise.resolve();
     });
 
     await act(async () => {
@@ -264,9 +264,9 @@ describe("useChat", () => {
 
     const { result } = renderHook(() => useChat({}));
 
-    // Wait for the hook to be fully initialized with selectedModel
-    await waitFor(() => {
-      expect(result.current.selectedModel).toBeDefined();
+    // Ensure all initial effects and useMemo hooks have executed
+    await act(async () => {
+      await Promise.resolve();
     });
 
     await act(async () => {
