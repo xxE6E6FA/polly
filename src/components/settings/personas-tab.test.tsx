@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc } from "@convex/_generated/dataModel";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import {
+  createToastMock,
+  mockModuleWithRestore,
+  mockToastContext,
+} from "../../test/utils";
 
 let useMutationMock: ReturnType<typeof mock>;
 let useQueryMock: ReturnType<typeof mock>;
 let useUserSettingsMock: ReturnType<typeof mock>;
 let useUserDataContextMock: ReturnType<typeof mock>;
-let useToastMock: ReturnType<typeof mock>;
+const toastMock = createToastMock();
 
 const personasApi = {
   list: mock(),
@@ -37,13 +42,12 @@ mock.module("@/hooks/use-user-settings", () => ({
   useUserSettings: (...args: unknown[]) => useUserSettingsMock(...args),
 }));
 
-mock.module("@/providers/user-data-context", () => ({
+await mockModuleWithRestore("@/providers/user-data-context", actual => ({
+  ...actual,
   useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
-mock.module("@/providers/toast-context", () => ({
-  useToast: (...args: unknown[]) => useToastMock(...args),
-}));
+await mockToastContext(toastMock);
 
 mock.module("react-router-dom", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
@@ -63,9 +67,6 @@ type UseUserSettingsReturn = ReturnType<
 >;
 type UseUserDataContextReturn = ReturnType<
   typeof import("@/providers/user-data-context").useUserDataContext
->;
-type UseToastReturn = ReturnType<
-  typeof import("@/providers/toast-context").useToast
 >;
 
 describe("PersonasTab - Delete Confirmation", () => {
@@ -93,8 +94,8 @@ describe("PersonasTab - Delete Confirmation", () => {
     useQueryMock = mock();
     useUserSettingsMock = mock();
     useUserDataContextMock = mock();
-    useToastMock = mock();
     mockRemovePersonaMutation = mock();
+    Object.assign(toastMock, createToastMock());
 
     personasApi.list.mockReset();
     personasApi.listAllBuiltIn.mockReset();
@@ -145,11 +146,13 @@ describe("PersonasTab - Delete Confirmation", () => {
       return mock();
     });
 
-    useToastMock.mockReturnValue({
+    Object.assign(toastMock, {
       error: mock(),
       success: mock(),
-      info: mock(),
-    } as unknown as UseToastReturn);
+      loading: mock(),
+      dismiss: mock(),
+      dismissAll: mock(),
+    });
   });
 
   const findDeleteButton = (container: HTMLElement) => {

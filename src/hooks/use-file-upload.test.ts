@@ -1,9 +1,17 @@
-import { afterAll, describe, expect, mock, spyOn, test } from "bun:test";
+import {
+  afterAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import type { AIModel, Attachment } from "@/types";
 import { renderHook } from "../test/hook-utils";
-import { makeFileList } from "../test/utils";
+import { createToastMock, makeFileList, mockToastContext } from "../test/utils";
 
 mock.module("@shared/file-constants", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
@@ -37,15 +45,8 @@ mock.module("@/hooks/use-convex-file-upload", () => ({
 mock.module("@/hooks/use-dialog-management", () => ({
   useNotificationDialog: () => ({ notify: mock() }),
 }));
-mock.module("@/providers/toast-context", () => ({
-  useToast: () => ({
-    success: mock(),
-    error: mock(),
-    loading: mock(),
-    dismiss: mock(),
-    dismissAll: mock(),
-  }),
-}));
+const toastMock = createToastMock();
+await mockToastContext(toastMock);
 mock.module("@/stores/actions/chat-input-actions", () => ({
   appendAttachments: mock(),
   removeAttachmentAt: mock(),
@@ -77,6 +78,12 @@ afterAll(() => {
 });
 
 describe("useFileUpload", () => {
+  beforeEach(() => {
+    for (const fn of Object.values(toastMock)) {
+      fn.mockClear();
+    }
+  });
+
   test("adds text and image attachments and supports removal/clear", async () => {
     const { result } = renderHook(() =>
       useFileUpload({

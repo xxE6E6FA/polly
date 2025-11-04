@@ -10,14 +10,15 @@ import {
 import { act } from "@testing-library/react";
 import { generateBackgroundExportFilename as realGenerateBackgroundExportFilename } from "@/lib/export";
 import { renderHook } from "../test/hook-utils";
+import { createToastMock, mockToastContext } from "../test/utils";
 
 let useMutationMock: ReturnType<typeof mock>;
 let useQueryMock: ReturnType<typeof mock>;
 let useBackgroundJobsMock: ReturnType<typeof mock>;
 let useConfirmationDialogMock: ReturnType<typeof mock>;
 let useBatchSelectionMock: ReturnType<typeof mock>;
-let useToastMock: ReturnType<typeof mock>;
 let downloadFromUrlMock: ReturnType<typeof mock>;
+const toastMock = createToastMock();
 
 mock.module("convex/react", () => ({
   useMutation: (...args: unknown[]) => useMutationMock(...args),
@@ -33,9 +34,6 @@ mock.module("@/hooks/use-dialog-management", () => ({
 mock.module("@/providers/batch-selection-context", () => ({
   useBatchSelection: (...args: unknown[]) => useBatchSelectionMock(...args),
 }));
-mock.module("@/providers/toast-context", () => ({
-  useToast: (...args: unknown[]) => useToastMock(...args),
-}));
 mock.module("@/lib/export", () => ({
   exportAsJSON: mock(),
   exportAsMarkdown: mock(),
@@ -45,12 +43,12 @@ mock.module("@/lib/export", () => ({
   generateBackgroundExportFilename: realGenerateBackgroundExportFilename,
 }));
 
+await mockToastContext(toastMock);
+
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { downloadFromUrl } from "@/lib/export";
 import * as LocalStorageModule from "@/lib/local-storage";
-import { useBatchSelection } from "@/providers/batch-selection-context";
-import { useToast } from "@/providers/toast-context";
 import { useBackgroundJobs } from "./use-background-jobs";
 import { useBulkActions } from "./use-bulk-actions";
 import { useConfirmationDialog } from "./use-dialog-management";
@@ -76,13 +74,7 @@ describe("useBulkActions", () => {
       clearSelection: mock(),
       selectAllVisible: mock(),
     }));
-    useToastMock = mock(() => ({
-      success: mock(),
-      error: mock(),
-      loading: mock(),
-      dismiss: mock(),
-      dismissAll: mock(),
-    }));
+    Object.assign(toastMock, createToastMock());
     downloadFromUrlMock = mock();
 
     delSpy = spyOn(LocalStorageModule, "del").mockImplementation(() => {
@@ -108,14 +100,7 @@ describe("useBulkActions", () => {
       },
     }));
 
-    const toast = {
-      success: mock(),
-      error: mock(),
-      loading: mock(),
-      dismiss: mock(),
-      dismissAll: mock(),
-    };
-    useToastMock.mockImplementation(() => toast);
+    const toast = toastMock;
 
     const startExportFn = mock(() => Promise.resolve("job1"));
     const startBulkDeleteFn = mock(() => Promise.resolve("job2"));
@@ -178,14 +163,14 @@ describe("useBulkActions", () => {
 
   test("auto-downloads when export job completes", async () => {
     // First render: start export and register pending auto-download
-    const toast = {
+    Object.assign(toastMock, {
       success: mock(),
       error: mock(),
       loading: mock(() => "toast-id"),
       dismiss: mock(),
       dismissAll: mock(),
-    };
-    useToastMock.mockImplementation(() => toast);
+    });
+    const toast = toastMock;
     useBatchSelectionMock.mockImplementation(() => ({
       getSelectedIds: () => ["c1", "c2"],
       clearSelection: mock(),

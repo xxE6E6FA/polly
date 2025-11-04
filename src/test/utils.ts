@@ -442,6 +442,35 @@ export function createOverlaysMock() {
   return { overlays, factory };
 }
 
+export type ToastMock = {
+  success: ReturnType<typeof mock>;
+  error: ReturnType<typeof mock>;
+  loading: ReturnType<typeof mock>;
+  dismiss: ReturnType<typeof mock>;
+  dismissAll: ReturnType<typeof mock>;
+};
+
+export function createToastMock(overrides: Partial<ToastMock> = {}): ToastMock {
+  const base: ToastMock = {
+    success: mock(),
+    error: mock(),
+    loading: mock(),
+    dismiss: mock(),
+    dismissAll: mock(),
+  };
+  return {
+    ...base,
+    ...overrides,
+  };
+}
+
+export async function mockToastContext(toastMock: ToastMock): Promise<void> {
+  await mockModuleWithRestore("@/providers/toast-context", actual => ({
+    ...actual,
+    useToast: () => toastMock,
+  }));
+}
+
 // Manual timer mocking for Bun (since Bun doesn't support vi.useFakeTimers for setTimeout)
 let fakeTimerTime = 0;
 let timerIdCounter = 0;

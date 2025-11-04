@@ -4,6 +4,7 @@ import { act } from "@testing-library/react";
 import { useMutation } from "convex/react";
 import type { ChatMessage } from "@/types";
 import { renderHook } from "../test/hook-utils";
+import { mockModuleWithRestore } from "../test/utils";
 
 let useQueryMock: ReturnType<typeof mock>;
 let useMutationMock: ReturnType<typeof mock>;
@@ -19,7 +20,8 @@ mock.module("convex/react", () => ({
 mock.module("react-router-dom", () => ({
   useNavigate: () => useNavigateMock,
 }));
-mock.module("@/providers/user-data-context", () => ({
+await mockModuleWithRestore("@/providers/user-data-context", actual => ({
+  ...actual,
   useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 mock.module("@/lib/chat/message-utils", () => ({

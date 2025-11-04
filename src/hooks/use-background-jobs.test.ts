@@ -11,13 +11,18 @@ import type { Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import * as LocalStorageModule from "@/lib/local-storage";
 import { renderHook } from "../test/hook-utils";
+import { createToastMock, mockToastContext } from "../test/utils";
 import { useBackgroundJobs } from "./use-background-jobs";
+
+const toastMock = createToastMock();
+await mockToastContext(toastMock);
 
 describe("useBackgroundJobs", () => {
   let delSpy: ReturnType<typeof spyOn<typeof LocalStorageModule, "del">>;
 
   beforeEach(() => {
     delSpy = spyOn(LocalStorageModule, "del");
+    Object.assign(toastMock, createToastMock());
   });
 
   afterEach(() => {
@@ -58,13 +63,13 @@ describe("useBackgroundJobs", () => {
     const error = mock();
     const loading = mock();
     const dismiss = mock();
-    const useToastMock = mock(() => ({
+    Object.assign(toastMock, {
       success,
       error,
       loading,
       dismiss,
       dismissAll: mock(),
-    }));
+    });
 
     const useQueryMock = mock(() => {
       return [...jobStatuses];
@@ -83,10 +88,6 @@ describe("useBackgroundJobs", () => {
       useMutation: useMutationMock,
       useQuery: useQueryMock,
       useConvex: useConvexMock,
-    }));
-
-    mock.module("@/providers/toast-context", () => ({
-      useToast: useToastMock,
     }));
 
     const { result, rerender } = renderHook(() => useBackgroundJobs());
@@ -169,23 +170,19 @@ describe("useBackgroundJobs", () => {
     const deleteJob = mock(() => Promise.resolve(undefined));
     const useMutationMock = mock(() => deleteJob);
     const success = mock();
-    const useToastMock = mock(() => ({
+    Object.assign(toastMock, {
       success,
       error: mock(),
       loading: mock(),
       dismiss: mock(),
       dismissAll: mock(),
-    }));
+    });
 
     mock.module("convex/react", () => ({
       useAction: mock(),
       useMutation: useMutationMock,
       useQuery: mock(() => []),
       useConvex: mock(),
-    }));
-
-    mock.module("@/providers/toast-context", () => ({
-      useToast: useToastMock,
     }));
 
     const { result } = renderHook(() => useBackgroundJobs());
@@ -230,21 +227,13 @@ describe("useBackgroundJobs", () => {
       return [...jobStatuses];
     });
 
+    Object.assign(toastMock, createToastMock());
+
     mock.module("convex/react", () => ({
       useAction: mock(),
       useMutation: mock(),
       useQuery: useQueryMock,
       useConvex: mock(),
-    }));
-
-    mock.module("@/providers/toast-context", () => ({
-      useToast: mock(() => ({
-        success: mock(),
-        error: mock(),
-        loading: mock(),
-        dismiss: mock(),
-        dismissAll: mock(),
-      })),
     }));
 
     const { result, rerender } = renderHook(() => useBackgroundJobs());
