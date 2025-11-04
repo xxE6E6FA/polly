@@ -1,6 +1,8 @@
+import tailwindcss from "@tailwindcss/postcss";
 import { existsSync } from "fs";
 import { cp } from "fs/promises";
 import { join } from "path";
+import postcss from "postcss";
 
 const cliFlags = new Set(Bun.argv.slice(2));
 const isProduction =
@@ -53,6 +55,17 @@ if (!buildResult.success) {
     console.error(log);
   }
   process.exit(1);
+}
+
+// Post-process bundled CSS with Tailwind (handles @tailwind/@apply directives)
+const distCssPath = join(process.cwd(), "dist", "entry.client.css");
+if (existsSync(distCssPath)) {
+  const cssContent = await Bun.file(distCssPath).text();
+  const processed = await postcss([tailwindcss()]).process(cssContent, {
+    from: distCssPath,
+    to: distCssPath,
+  });
+  await Bun.write(distCssPath, processed.css);
 }
 
 // Copy public assets
