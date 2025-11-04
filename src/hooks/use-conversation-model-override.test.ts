@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import { renderHook } from "../test/hook-utils";
+import { mockModuleWithRestore } from "../test/utils";
 
 let useMutationMock: ReturnType<typeof mock>;
 let useQueryMock: ReturnType<typeof mock>;
@@ -10,7 +11,9 @@ mock.module("convex/react", () => ({
   useMutation: (...args: unknown[]) => useMutationMock(...args),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
-mock.module("@/providers/user-data-context", () => ({
+
+await mockModuleWithRestore("@/providers/user-data-context", actual => ({
+  ...actual,
   useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
