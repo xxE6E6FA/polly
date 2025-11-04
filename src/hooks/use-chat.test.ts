@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc, Id } from "@convex/_generated/dataModel";
-import { act } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { renderHook } from "../test/hook-utils";
 import { mockModuleWithRestore } from "../test/utils";
 
@@ -234,6 +234,11 @@ describe("useChat", () => {
       useChat({ conversationId: "c1" as Id<"conversations"> })
     );
 
+    // Wait for the hook to be fully initialized with selectedModel
+    await waitFor(() => {
+      expect(result.current.selectedModel).toBeDefined();
+    });
+
     await act(async () => {
       await result.current.sendMessage({ content: "x" });
     });
@@ -258,6 +263,11 @@ describe("useChat", () => {
     isUserModelMock.mockReturnValue(true);
 
     const { result } = renderHook(() => useChat({}));
+
+    // Wait for the hook to be fully initialized with selectedModel
+    await waitFor(() => {
+      expect(result.current.selectedModel).toBeDefined();
+    });
 
     await act(async () => {
       await result.current.sendMessage({ content: "x" });
