@@ -1,13 +1,21 @@
+import { describe, expect, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { setupZustandTestStore } from "@/test/zustand";
 import {
+  createChatUIStore,
+  setChatUIStoreApi,
   useChatFullscreenUI,
   useChatHistory,
   useChatUIStore,
 } from "./chat-ui-store";
 
+setupZustandTestStore({
+  createStore: () => createChatUIStore(),
+  setStore: setChatUIStoreApi,
+});
+
 describe("chat-ui-store", () => {
-  it("pushes input history and navigates prev/next", () => {
+  test("pushes input history and navigates prev/next", () => {
     const id = "conv1";
     const s = useChatUIStore.getState();
     // Early returns
@@ -40,7 +48,7 @@ describe("chat-ui-store", () => {
     expect(useChatUIStore.getState().historyByConversation[id]).toBeUndefined();
   });
 
-  it("limits history to last 50 and resets index", () => {
+  test("limits history to last 50 and resets index", () => {
     const id = "conv2";
     const s = useChatUIStore.getState();
     for (let i = 0; i < 60; i++) {
@@ -52,7 +60,7 @@ describe("chat-ui-store", () => {
     expect(useChatUIStore.getState().historyIndexByConversation[id]).toBeNull();
   });
 
-  it("fullscreen/multiline/transitioning toggles and clearOnSend", () => {
+  test("fullscreen/multiline/transitioning toggles and clearOnSend", () => {
     const { result } = renderHook(() => useChatFullscreenUI());
     act(() => {
       result.current.setFullscreen(true);
@@ -67,7 +75,7 @@ describe("chat-ui-store", () => {
     expect(useChatUIStore.getState().isMultiline).toBe(false);
   });
 
-  it("useChatHistory wrappers delegate to store", () => {
+  test("useChatHistory wrappers delegate to store", () => {
     const id = "conv3";
     const { result } = renderHook(() => useChatHistory(id));
     act(() => {

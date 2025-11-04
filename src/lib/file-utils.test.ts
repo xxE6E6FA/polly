@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, test } from "bun:test";
 import {
   installCanvasMock,
   installFileReaderSequence,
@@ -8,6 +8,7 @@ import {
 import {
   convertImageToWebP,
   generateThumbnail,
+  getCanvas2DContext,
   getFileLanguage,
   readFileAsBase64,
   readFileAsText,
@@ -18,30 +19,29 @@ describe("file-utils", () => {
   const RealImage = global.Image;
 
   afterEach(() => {
-    vi.restoreAllMocks();
     global.FileReader = RealFileReader;
     global.Image = RealImage;
   });
 
-  it("readFileAsText reads text file", async () => {
+  test("readFileAsText reads text file", async () => {
     const file = new File(["hello"], "a.txt", { type: "text/plain" });
     await expect(readFileAsText(file)).resolves.toBe("hello");
   });
 
-  it("readFileAsBase64 reads file to base64 without prefix", async () => {
+  test("readFileAsBase64 reads file to base64 without prefix", async () => {
     const file = new File(["hello"], "a.txt", { type: "text/plain" });
     const base64 = await readFileAsBase64(file);
     expect(base64).toBe("aGVsbG8="); // "hello"
   });
 
-  it("getFileLanguage maps known extensions and defaults to text", () => {
+  test("getFileLanguage maps known extensions and defaults to text", () => {
     expect(getFileLanguage("script.tsx")).toBe("typescript");
     expect(getFileLanguage("index.HTML")).toBe("html");
     expect(getFileLanguage("unknown.ext")).toBe("text");
     expect(getFileLanguage("Makefile")).toBe("makefile");
   });
 
-  it("convertImageToWebP converts and returns base64+mime", async () => {
+  test("convertImageToWebP converts and returns base64+mime", async () => {
     installImageMock({ width: 2000, height: 1000 });
     installCanvasMock();
     installFileReaderSequence([
@@ -53,7 +53,7 @@ describe("file-utils", () => {
     expect(res).toEqual({ base64: "XYZ", mimeType: "image/webp" });
   });
 
-  it("convertImageToWebP rejects when canvas context missing", async () => {
+  test("convertImageToWebP rejects when canvas context missing", async () => {
     installImageMock();
     installCanvasMock({ hasContext: false });
     installFileReaderSequence(["data:image/png;base64,AAAA"]);
@@ -63,7 +63,7 @@ describe("file-utils", () => {
     );
   });
 
-  it("convertImageToWebP rejects when toBlob yields null", async () => {
+  test("convertImageToWebP rejects when toBlob yields null", async () => {
     installImageMock();
     installCanvasMock({ toBlobReturnsNull: true });
     installFileReaderSequence(["data:image/png;base64,AAAA"]);
@@ -73,7 +73,7 @@ describe("file-utils", () => {
     );
   });
 
-  it("convertImageToWebP rejects when blob FileReader errors", async () => {
+  test("convertImageToWebP rejects when blob FileReader errors", async () => {
     installImageMock();
     installCanvasMock();
     installFileReaderSequence([
@@ -86,7 +86,7 @@ describe("file-utils", () => {
     );
   });
 
-  it("convertImageToWebP rejects on image load error", async () => {
+  test("convertImageToWebP rejects on image load error", async () => {
     installFileReaderSequence(["data:image/png;base64,AAAA"]);
     installImageMock({ error: true });
 
@@ -96,7 +96,7 @@ describe("file-utils", () => {
     );
   });
 
-  it("generateThumbnail renders and returns data URL", async () => {
+  test("generateThumbnail renders and returns data URL", async () => {
     installImageMock({ width: 1000, height: 500 });
     installCanvasMock({ dataUrl: "data:image/jpeg;base64,THUMB" });
     withMockedURLObjectURL();
@@ -106,14 +106,15 @@ describe("file-utils", () => {
     expect(result).toBe("data:image/jpeg;base64,THUMB");
   });
 
-  it("generateThumbnail rejects when canvas context missing", async () => {
-    installImageMock({ width: 100, height: 50 });
-    installCanvasMock({ hasContext: false });
-    withMockedURLObjectURL();
+  test("getCanvas2DContext throws when 2d context missing", () => {
+    const revokeCalls: string[] = [];
+    const canvas = {
+      getContext: () => null,
+    } as unknown as HTMLCanvasElement;
 
-    const file = new File(["x"], "img.png", { type: "image/png" });
-    await expect(generateThumbnail(file)).rejects.toThrow(
-      /Failed to get canvas context/
-    );
+    expect(() =>
+      getCanvas2DContext(canvas, "blob:test", url => revokeCalls.push(url))
+    ).toThrow(/Failed to get canvas context/);
+    expect(revokeCalls).toEqual(["blob:test"]);
   });
 });

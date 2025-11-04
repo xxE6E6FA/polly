@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages count/get access", () => {
-  it("getMessageCount returns number of messages in conversation", async () => {
+  test("getMessageCount returns number of messages in conversation", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conv = await t.db.insert("conversations", { title: "C", userId, createdAt: Date.now(), updatedAt: Date.now() });
@@ -14,7 +14,7 @@ describe("convex/messages count/get access", () => {
     expect(count).toBe(3);
   });
 
-  it("getById enforces access; internalGetByIdQuery ignores access", async () => {
+  test("getById enforces access; internalGetByIdQuery ignores access", async () => {
     const t = await makeConvexTest();
     const owner = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const other = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });

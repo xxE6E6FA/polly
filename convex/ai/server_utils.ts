@@ -3,7 +3,6 @@
  * Enhanced text processing, OpenRouter features, and performance monitoring
  */
 import { humanizeString } from "humanize-ai-lib";
-import { log } from "../lib/logger";
 
 export const humanizeText = (text: string): string => {
   const result = humanizeString(text, {
@@ -144,7 +143,7 @@ export const addChunk = (
 
   // Skip if this is a duplicate of the last chunk
   if (state.lastChunkHash === chunkHash) {
-    log.warn(
+    console.warn(
       `[AdaptiveBatching] Duplicate chunk detected, skipping: "${chunk.substring(
         0,
         50
@@ -268,13 +267,13 @@ export const finalizeBatching = (state: AdaptiveBatchingState): void => {
 
   // Only log performance metrics if there are actual issues
   if (computed.efficiency < 10) {
-    log.warn(
+    console.warn(
       `[StreamPerf:${state.metrics.messageId}] Low efficiency detected: ${computed.efficiency} chars/update. Consider increasing batch size.`
     );
   }
 
   if (computed.updatesPerSecond > 20) {
-    log.warn(
+    console.warn(
       `[StreamPerf:${state.metrics.messageId}] High update frequency: ${computed.updatesPerSecond}/sec. Consider throttling.`
     );
   }

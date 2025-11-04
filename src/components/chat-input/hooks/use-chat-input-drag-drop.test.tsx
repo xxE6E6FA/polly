@@ -1,13 +1,13 @@
+import { describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 import { makeFileList } from "../../../test/utils";
 import { useChatInputDragDrop } from "./use-chat-input-drag-drop";
 
 function makeEvent(overrides: Partial<React.DragEvent>): React.DragEvent {
   const e = {
-    preventDefault: vi.fn(),
-    stopPropagation: vi.fn(),
+    preventDefault: mock(),
+    stopPropagation: mock(),
     currentTarget: {
       getBoundingClientRect: () => ({
         left: 0,
@@ -29,10 +29,8 @@ function makeEvent(overrides: Partial<React.DragEvent>): React.DragEvent {
 }
 
 describe("useChatInputDragDrop", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("toggles isDragOver on drag over/leave and only leaves when outside bounds", () => {
-    const onProcessFiles = vi.fn();
+  test("toggles isDragOver on drag over/leave and only leaves when outside bounds", () => {
+    const onProcessFiles = mock();
     const { result } = renderHook(() =>
       useChatInputDragDrop({
         canSend: true,
@@ -59,8 +57,8 @@ describe("useChatInputDragDrop", () => {
     expect(result.current.isDragOver).toBe(false);
   });
 
-  it("drops call onProcessFiles only when allowed and files present", async () => {
-    const onProcessFiles = vi.fn().mockResolvedValue(undefined);
+  test("drops call onProcessFiles only when allowed and files present", async () => {
+    const onProcessFiles = mock().mockResolvedValue(undefined);
     const file = new File(["x"], "a.txt", { type: "text/plain" });
     const files = makeFileList([file]);
     const { result, rerender } = renderHook(
@@ -87,8 +85,8 @@ describe("useChatInputDragDrop", () => {
       )
     );
     expect(onProcessFiles).toHaveBeenCalledWith(files);
+    onProcessFiles.mockClear();
 
-    vi.clearAllMocks();
     // Blocked by canSend = false
     rerender({ canSend: false, isLoading: false, isStreaming: false });
     await act(async () =>
@@ -103,6 +101,7 @@ describe("useChatInputDragDrop", () => {
       )
     );
     expect(onProcessFiles).not.toHaveBeenCalled();
+    onProcessFiles.mockClear();
 
     // Blocked by isLoading
     rerender({ canSend: true, isLoading: true, isStreaming: false });
@@ -118,6 +117,7 @@ describe("useChatInputDragDrop", () => {
       )
     );
     expect(onProcessFiles).not.toHaveBeenCalled();
+    onProcessFiles.mockClear();
 
     // Blocked by isStreaming
     rerender({ canSend: true, isLoading: false, isStreaming: true });
@@ -133,6 +133,7 @@ describe("useChatInputDragDrop", () => {
       )
     );
     expect(onProcessFiles).not.toHaveBeenCalled();
+    onProcessFiles.mockClear();
 
     // No files => no call
     rerender({ canSend: true, isLoading: false, isStreaming: false });

@@ -1,10 +1,20 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { useCallback, useEffect, useRef } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useTextSelection } from "./use-text-selection";
 
+const createMock = mock;
+
 // Make debounced callback immediate BUT stable across renders to avoid re-subscribing
-vi.mock("./use-debounce", () => ({
+mock.module("./use-debounce", () => ({
   useDebouncedCallback: (fn: () => void) => {
     const ref = useRef(fn);
     ref.current = fn;
@@ -38,7 +48,7 @@ describe("use-text-selection", () => {
   let fakeSelText = "";
   let fakeContainer: Element | null = null;
   beforeEach(() => {
-    vi.spyOn(window, "getSelection").mockImplementation((): Selection => {
+    spyOn(window, "getSelection").mockImplementation((): Selection => {
       const cac: Node = fakeContainer
         ? ({
             nodeType: Node.TEXT_NODE,
@@ -64,7 +74,6 @@ describe("use-text-selection", () => {
   afterEach(() => {
     const sel = window.getSelection();
     sel?.removeAllRanges?.();
-    vi.restoreAllMocks();
   });
 
   async function selectElementText(el: Element, text: string) {
@@ -80,7 +89,7 @@ describe("use-text-selection", () => {
     });
   }
 
-  it("sets selection only for multi-word assistant selections", async () => {
+  test("sets selection only for multi-word assistant selections", async () => {
     let snap: SelectionAPI | undefined;
     const { container } = render(
       <Harness
@@ -106,7 +115,7 @@ describe("use-text-selection", () => {
     });
   });
 
-  it("ignores selections outside assistant", async () => {
+  test("ignores selections outside assistant", async () => {
     let snap: SelectionAPI | undefined;
     const { container } = render(
       <Harness
@@ -126,7 +135,7 @@ describe("use-text-selection", () => {
     });
   });
 
-  it("addQuoteToInput formats quote and clears selection", async () => {
+  test("addQuoteToInput formats quote and clears selection", async () => {
     let snap: SelectionAPI | undefined;
     const { container } = render(
       <Harness
@@ -144,19 +153,17 @@ describe("use-text-selection", () => {
     await waitFor(() => {
       expect(snap?.selection?.text).toBe("hello world example");
     });
-    const onAdd = vi.fn();
+    const onAdd = createMock();
     act(() => {
       snap?.addQuoteToInput(onAdd);
     });
-    expect(onAdd).toHaveBeenCalled();
-    const quoted = onAdd.mock.calls[0][0] as string;
-    expect(quoted.split("\n")[0].startsWith("> ")).toBe(true);
+    expect(onAdd).toHaveBeenCalledWith(expect.stringMatching(/^> /));
     await waitFor(() => {
       expect(snap?.selection).toBeNull();
     });
   });
 
-  it("clearSelection respects lock", async () => {
+  test("clearSelection respects lock", async () => {
     let snap: SelectionAPI | undefined;
     const { container } = render(
       <Harness
@@ -190,7 +197,7 @@ describe("use-text-selection", () => {
     });
   });
 
-  it("click outside clears selection when unlocked", async () => {
+  test("click outside clears selection when unlocked", async () => {
     let snap: SelectionAPI | undefined;
     const { container } = render(
       <Harness

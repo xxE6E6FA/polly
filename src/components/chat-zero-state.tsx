@@ -10,7 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { useAction, useMutation } from "convex/react";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -205,8 +205,15 @@ const ChatSection = () => {
           setTimeout(() => {
             (async () => {
               try {
+                const convexUrl = import.meta.env.VITE_CONVEX_URL;
+                if (!convexUrl) {
+                  console.warn(
+                    "Missing VITE_CONVEX_URL; skipping zero-state stream"
+                  );
+                  return;
+                }
                 await startAuthorStream({
-                  convexUrl: import.meta.env.VITE_CONVEX_URL,
+                  convexUrl,
                   authToken: authToken,
                   conversationId: result.conversationId,
                   assistantMessageId: result.assistantMessageId,

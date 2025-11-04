@@ -3,7 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import type { Doc } from "convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import {
   convertServerMessage,
   extractMessagesArray,

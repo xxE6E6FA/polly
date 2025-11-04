@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages favorites", () => {
-  it("toggleFavorite and isFavorited work per user; listFavorites paginates", async () => {
+  test("toggleFavorite and isFavorited work per user; listFavorites paginates", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const otherId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });

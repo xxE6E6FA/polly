@@ -27,13 +27,13 @@ import {
   incrementUserMessageStats,
   processAttachmentsForStorage,
 } from "./lib/conversation_utils";
-import { log } from "./lib/logger";
 import { getUserEffectiveModelWithCapabilities } from "./lib/model_resolution";
 import {
   createEmptyPaginationResult,
   paginationOptsSchema,
   validatePaginationOpts,
 } from "./lib/pagination";
+import { scheduleRunAfter } from "./lib/scheduler";
 import {
   attachmentSchema,
   extendedMessageMetadataSchema,
@@ -81,6 +81,7 @@ export const createConversation = mutation({
       validateAuthenticatedUser(ctx),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
     ]);
+    const userId = user._id as Id<"users">;
 
     // Check if this is a built-in free model and enforce limits
     // If model has 'free' field, it's from builtInModels table and is a built-in model
@@ -96,7 +97,7 @@ export const createConversation = mutation({
     // Create conversation
     const conversationId = await ctx.db.insert(
       "conversations",
-      createDefaultConversationFields(user._id, {
+      createDefaultConversationFields(userId, {
         title: initialTitle,
         personaId: args.personaId,
         sourceConversationId: args.sourceConversationId,
@@ -115,11 +116,11 @@ export const createConversation = mutation({
     // Update user conversation count with retry to avoid conflicts
     await withRetry(
       async () => {
-        const freshUser = await ctx.db.get(user._id);
+        const freshUser = await ctx.db.get(userId);
         if (!freshUser) {
           throw new Error("User not found");
         }
-        await ctx.db.patch(user._id, {
+        await ctx.db.patch(userId, {
           conversationCount: Math.max(
             0,
             (freshUser.conversationCount || 0) + 1
@@ -199,17 +200,15 @@ export const createConversation = mutation({
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       // Always mark streaming
       await setConversationStreaming(ctx, conversationId, true);
-      // Avoid scheduling in tests because convex-test disallows system writes post-transaction
-      if (process.env.NODE_ENV !== "test") {
-        await ctx.scheduler.runAfter(
-          0,
-          api.titleGeneration.generateTitleBackground,
-          {
-            conversationId,
-            message: args.firstMessage,
-          }
-        );
-      }
+      await scheduleRunAfter(
+        ctx,
+        0,
+        api.titleGeneration.generateTitleBackground,
+        {
+          conversationId,
+          message: args.firstMessage,
+        }
+      );
     }
 
     return {
@@ -300,17 +299,16 @@ export const createUserMessage = action({
         hasGenericTitle &&
         args.content.trim().length > 0
       ) {
-        if (process.env.NODE_ENV !== "test") {
-          // Schedule title generation based on the user message
-          await ctx.scheduler.runAfter(
-            100,
-            api.titleGeneration.generateTitleBackground,
-            {
-              conversationId: args.conversationId,
-              message: args.content,
-            }
-          );
-        }
+        // Schedule title generation based on the user message
+        await scheduleRunAfter(
+          ctx,
+          100,
+          api.titleGeneration.generateTitleBackground,
+          {
+            conversationId: args.conversationId,
+            message: args.content,
+          }
+        );
       }
     }
 
@@ -463,7 +461,8 @@ export const sendMessage = action({
       const threshold = Math.min(modelWindow, cap);
 
       if ((totalTokens || 0) > threshold) {
-        await ctx.scheduler.runAfter(
+        await scheduleRunAfter(
+          ctx,
           5000,
           internal.conversationSummary.generateMissingSummaries,
           {
@@ -473,7 +472,7 @@ export const sendMessage = action({
         );
       }
     } catch (e) {
-      log.warn("Failed to schedule token-aware summaries:", e);
+      console.warn("Failed to schedule token-aware summaries:", e);
     }
 
     return { userMessageId, assistantMessageId };
@@ -534,7 +533,7 @@ export const savePrivateConversation = action({
       } catch (error) {
         // If the model doesn't exist in the user's database, skip stats increment
         // This can happen when importing private conversations with models the user no longer has
-        log.warn(
+        console.warn(
           `Skipping stats increment for model ${firstUserMessage.model}/${firstUserMessage.provider}: ${error}`
         );
       }
@@ -624,10 +623,13 @@ export const savePrivateConversation = action({
 
     // Schedule title generation if not provided
     if (!args.title) {
-      await ctx.scheduler.runAfter(100, api.titleGeneration.generateTitle, {
-        conversationId,
-        message: args.messages[0].content,
-      });
+      const firstMessage = args.messages?.[0];
+      if (firstMessage && typeof firstMessage.content === "string") {
+        await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
+          conversationId,
+          message: firstMessage.content,
+        });
+      }
     }
 
     return conversationId;
@@ -650,10 +652,12 @@ export const list = query({
       return args.paginationOpts ? createEmptyPaginationResult() : [];
     }
 
+    const userDocId = userId as Id<"users">;
+
     // Start with the base query for all conversations
     let query = ctx.db
       .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", q => q.eq("userId", userDocId))
       .order("desc");
 
     // Apply specific filters first
@@ -686,6 +690,8 @@ export const search = query({
       return [];
     }
 
+    const userDocId = userId as Id<"users">;
+
     const q = args.searchQuery.trim();
     if (!q) {
       return [];
@@ -697,7 +703,7 @@ export const search = query({
     // Load user's conversations first
     const allUserConversations = await ctx.db
       .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
+      .withIndex("by_user_recent", q => q.eq("userId", userDocId))
       .collect();
 
     // Apply archived filter if requested
@@ -981,7 +987,8 @@ export const createWithUserId = internalMutation({
 
     // Schedule title generation in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      await ctx.scheduler.runAfter(
+      await scheduleRunAfter(
+        ctx,
         0,
         api.titleGeneration.generateTitleBackground,
         {
@@ -1061,7 +1068,7 @@ export const remove = mutation({
     try {
       await setConversationStreaming(ctx, args.id, false);
     } catch (error) {
-      log.warn(
+      console.warn(
         `Failed to clear streaming state for conversation ${args.id}:`,
         error
       );
@@ -1145,7 +1152,7 @@ export const bulkRemove = mutation({
         try {
           await setConversationStreaming(ctx, id, false);
         } catch (error) {
-          log.warn(
+          console.warn(
             `Failed to clear streaming state for conversation ${id}:`,
             error
           );
@@ -1770,6 +1777,9 @@ export const editMessage = action({
     }
 
     const targetMessage = messages[messageIndex];
+    if (!targetMessage) {
+      throw new Error("Message not found");
+    }
     if (targetMessage.role !== "user") {
       throw new Error("Can only edit user messages");
     }
@@ -1861,7 +1871,7 @@ export const createBranchingConversation = action({
       const { userId } = await getAuthenticatedUserWithDataForAction(ctx);
       authenticatedUserId = userId;
     } catch (error) {
-      log.warn("Failed to get authenticated user:", error);
+      console.warn("Failed to get authenticated user:", error);
     }
 
     // Create user if needed or use provided user ID

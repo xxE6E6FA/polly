@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, mock, beforeEach, afterEach, spyOn } from "bun:test";
 import {
   withCache,
   cacheKeys,
@@ -9,17 +9,30 @@ import {
 } from "./cache_utils";
 
 describe("convex/lib/cache_utils", () => {
+  let dateNowSpy: ReturnType<typeof spyOn> | null = null;
+
   beforeEach(() => {
     // reset time and cache before each test
-    vi.useRealTimers();
     clearAllCache();
+    if (dateNowSpy) {
+      dateNowSpy.mockRestore?.();
+      dateNowSpy = null;
+    }
   });
 
-  it("caches values within TTL and refetches after expiry", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(0));
+  afterEach(() => {
+    if (dateNowSpy) {
+      dateNowSpy.mockRestore?.();
+      dateNowSpy = null;
+    }
+    mock.restore();
+  });
 
-    const fetcher = vi.fn().mockResolvedValue(42);
+  test("caches values within TTL and refetches after expiry", async () => {
+    let currentTime = 0;
+    dateNowSpy = spyOn(Date, "now").mockImplementation(() => currentTime);
+
+    const fetcher = mock(() => Promise.resolve(42));
 
     // first call - miss
     await expect(withCache("k1", fetcher, 1000)).resolves.toBe(42);
@@ -30,17 +43,17 @@ describe("convex/lib/cache_utils", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
 
     // advance beyond TTL
-    vi.setSystemTime(new Date(1500));
+    currentTime = 1500;
     await expect(withCache("k1", fetcher, 1000)).resolves.toBe(42);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it("clears cache entries by pattern", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(0));
+  test("clears cache entries by pattern", async () => {
+    let currentTime = 0;
+    dateNowSpy = spyOn(Date, "now").mockImplementation(() => currentTime);
 
-    const f1 = vi.fn().mockResolvedValue("A");
-    const f2 = vi.fn().mockResolvedValue("B");
+    const f1 = mock(() => Promise.resolve("A"));
+    const f2 = mock(() => Promise.resolve("B"));
 
     const kUser = cacheKeys.userModels("u1");
     const kRecent = cacheKeys.recentConversations("u1", 5);
@@ -60,11 +73,11 @@ describe("convex/lib/cache_utils", () => {
     expect(f2).toHaveBeenCalledTimes(1);
   });
 
-  it("clears all cache entries", async () => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(0));
+  test("clears all cache entries", async () => {
+    let currentTime = 0;
+    dateNowSpy = spyOn(Date, "now").mockImplementation(() => currentTime);
 
-    const f = vi.fn().mockResolvedValue(1);
+    const f = mock(() => Promise.resolve(1));
     await withCache("any", f);
     expect(f).toHaveBeenCalledTimes(1);
     clearAllCache();
@@ -72,7 +85,7 @@ describe("convex/lib/cache_utils", () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
-  it("exposes cache key helpers and TTL constants", () => {
+  test("exposes cache key helpers and TTL constants", () => {
     expect(cacheKeys.userModels("u")).toContain("user_models:u");
     expect(cacheKeys.conversation("c")).toBe("conversation:c");
     expect(cacheKeys.conversationMessages("c", 10)).toBe(

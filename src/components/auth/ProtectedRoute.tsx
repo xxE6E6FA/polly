@@ -1,5 +1,5 @@
 import { type ReactNode, Suspense, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { ROUTES } from "@/lib/routes";
 import { useUserDataContext } from "@/providers/user-data-context";

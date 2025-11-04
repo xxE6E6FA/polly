@@ -1,4 +1,6 @@
-import { create } from "zustand";
+import { shallow } from "zustand/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { createStore, type StoreApi } from "zustand/vanilla";
 
 type ConversationKey = string | null;
 
@@ -8,7 +10,7 @@ type OpenParams = {
   conversationTitle?: string | null;
 };
 
-type ZenModeState = {
+export type ZenModeState = {
   isOpen: boolean;
   conversationId: ConversationKey;
   activeMessageId: string | null;
@@ -18,7 +20,12 @@ type ZenModeState = {
   close: () => void;
 };
 
-export const useZenModeStore = create<ZenModeState>((set, get) => ({
+type ZenModeStoreApi = StoreApi<ZenModeState>;
+
+const createZenModeState = (
+  set: ZenModeStoreApi["setState"],
+  get: ZenModeStoreApi["getState"]
+): ZenModeState => ({
   isOpen: false,
   conversationId: null,
   activeMessageId: null,
@@ -46,4 +53,45 @@ export const useZenModeStore = create<ZenModeState>((set, get) => ({
       conversationTitle: null,
     });
   },
-}));
+});
+
+export const createZenModeStore = () =>
+  createStore<ZenModeState>()((set, get) => createZenModeState(set, get));
+
+let zenModeStoreApi: ZenModeStoreApi = createZenModeStore();
+
+type ZenModeSelector<T> = (state: ZenModeState) => T;
+
+type UseZenModeStore = {
+  <T>(selector: ZenModeSelector<T>, equalityFn?: (a: T, b: T) => boolean): T;
+  getState: ZenModeStoreApi["getState"];
+  setState: ZenModeStoreApi["setState"];
+  subscribe: ZenModeStoreApi["subscribe"];
+};
+
+function useZenModeStoreBase<T>(
+  selector: ZenModeSelector<T>,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  return useStoreWithEqualityFn(
+    zenModeStoreApi,
+    selector,
+    equalityFn ?? shallow
+  );
+}
+
+export const useZenModeStore = Object.assign(useZenModeStoreBase, {
+  getState: () => zenModeStoreApi.getState(),
+  setState: zenModeStoreApi.setState,
+  subscribe: zenModeStoreApi.subscribe.bind(zenModeStoreApi),
+}) as UseZenModeStore;
+
+export const getZenModeStore = () => zenModeStoreApi;
+
+export const setZenModeStoreApi = (store: ZenModeStoreApi) => {
+  zenModeStoreApi = store;
+};
+
+export const resetZenModeStoreApi = () => {
+  zenModeStoreApi = createZenModeStore();
+};

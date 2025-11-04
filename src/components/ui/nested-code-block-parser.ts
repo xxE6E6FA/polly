@@ -139,7 +139,8 @@ export function parseNestedCodeBlocks(
  */
 export function extractFirstCodeBlock(text: string): CodeBlockMatch | null {
   const blocks = parseNestedCodeBlocks(text, true); // firstOnly = true
-  return blocks.length > 0 ? blocks[0] : null;
+  const [firstBlock] = blocks;
+  return firstBlock ?? null;
 }
 
 /**
@@ -174,7 +175,10 @@ export function findCompleteNestedCodeBlock() {
       return undefined;
     }
 
-    const firstBlock = blocks[0];
+    const [firstBlock] = blocks;
+    if (!firstBlock) {
+      return undefined;
+    }
 
     // Only return complete blocks (must end with closing ```)
     if (!firstBlock.fullMatch.endsWith("```")) {
@@ -206,7 +210,10 @@ export function findPartialNestedCodeBlock() {
     // Check if we have a complete block first (optimized)
     const completeBlocks = parseNestedCodeBlocks(text, true); // firstOnly = true
     if (completeBlocks.length > 0) {
-      const firstBlock = completeBlocks[0];
+      const [firstBlock] = completeBlocks;
+      if (!firstBlock) {
+        return undefined;
+      }
 
       // Only return complete blocks (must end with closing ```)
       if (firstBlock.fullMatch.endsWith("```")) {
@@ -250,7 +257,13 @@ export function nestedCodeBlockLookBack() {
       };
     }
 
-    const block = blocks[0];
+    const [block] = blocks;
+    if (!block) {
+      return {
+        output: output.slice(0, visibleTextLengthTarget),
+        visibleText: output.slice(0, visibleTextLengthTarget),
+      };
+    }
     const visibleCode = block.code.slice(0, visibleTextLengthTarget);
     const language = block.language || "";
 

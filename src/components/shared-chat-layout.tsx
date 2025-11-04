@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/sidebar";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";

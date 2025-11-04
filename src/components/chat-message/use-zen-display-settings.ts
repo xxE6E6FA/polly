@@ -186,7 +186,8 @@ export const useZenDisplaySettings = (): ZenDisplaySettingsControls => {
       ? "tracking-[0.001em]"
       : "tracking-[0.015em]";
 
-  const widthClass = WIDTH_CLASSES[displaySettings.widthIndex];
+  const widthClass =
+    WIDTH_CLASSES[displaySettings.widthIndex] ?? WIDTH_CLASSES[0];
 
   const fontScale = FONT_SIZE_STEPS[displaySettings.fontSizeIndex];
   const lineScale = LINE_HEIGHT_STEPS[displaySettings.lineHeightIndex];

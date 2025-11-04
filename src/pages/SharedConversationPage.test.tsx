@@ -1,13 +1,22 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc } from "@convex/_generated/dataModel";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { PrivateModeProvider } from "@/providers/private-mode-context";
+import { ToastProvider } from "@/providers/toast-context";
 
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn(),
+const useQueryMock = mock();
+const useActionMock = mock();
+const useMutationMock = mock();
+
+mock.module("convex/react", () => ({
+  useQuery: useQueryMock,
+  useAction: useActionMock,
+  useMutation: useMutationMock,
 }));
 
-const virtualizedMessagesMock = vi.hoisted(() => ({
+const virtualizedMessagesFactory = () => ({
   /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
   VirtualizedChatMessages: ({
     messages,
@@ -20,34 +29,41 @@ const virtualizedMessagesMock = vi.hoisted(() => ({
       ))}
     </div>
   ),
-}));
+});
 
-vi.mock(
+const virtualizedMessagesMock = virtualizedMessagesFactory();
+
+mock.module(
   "@/components/virtualized-chat-messages",
   () => virtualizedMessagesMock
 );
-vi.mock("@/components/ui/animated-logo", () => ({
+mock.module("@/components/ui/animated-logo", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
   AnimatedLogo: () => <div data-testid="animated-logo" />,
 }));
-vi.mock("@/components/ui/theme-toggle", () => ({
+mock.module("@/components/ui/theme-toggle", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
   ThemeToggle: () => <button type="button">toggle theme</button>,
 }));
 
-import { useQuery } from "convex/react";
-
 import SharedConversationPage from "./SharedConversationPage";
-
-const useQueryMock = vi.mocked(useQuery);
 
 const renderSharedPage = () => {
   return render(
-    <MemoryRouter initialEntries={["/share/share-123"]}>
-      <Routes>
-        <Route path="/share/:shareId" element={<SharedConversationPage />} />
-      </Routes>
-    </MemoryRouter>
+    <TooltipProvider>
+      <ToastProvider>
+        <PrivateModeProvider>
+          <MemoryRouter initialEntries={["/share/share-123"]}>
+            <Routes>
+              <Route
+                path="/share/:shareId"
+                element={<SharedConversationPage />}
+              />
+            </Routes>
+          </MemoryRouter>
+        </PrivateModeProvider>
+      </ToastProvider>
+    </TooltipProvider>
   );
 };
 
@@ -65,9 +81,11 @@ describe("SharedConversationPage", () => {
 
   beforeEach(() => {
     useQueryMock.mockReset();
+    useActionMock.mockReset();
+    useMutationMock.mockReset();
   });
 
-  it("shows a loading state while the shared conversation query resolves", () => {
+  test("shows a loading state while the shared conversation query resolves", () => {
     useQueryMock.mockReturnValue(undefined);
 
     renderSharedPage();
@@ -77,7 +95,7 @@ describe("SharedConversationPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps the loading state until messages arrive", () => {
+  test("keeps the loading state until messages arrive", () => {
     useQueryMock.mockReturnValue({
       conversation: baseConversation,
       messages: undefined,
@@ -90,7 +108,7 @@ describe("SharedConversationPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders the shared conversation once data is available", () => {
+  test("renders the shared conversation once data is available", () => {
     useQueryMock.mockReturnValue({
       conversation: baseConversation,
       messages: [

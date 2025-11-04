@@ -1,6 +1,6 @@
 import { Analytics } from "@vercel/analytics/react";
 import { lazy, Suspense, useCallback, useState } from "react";
-import { Outlet, useLocation } from "react-router";
+import { Outlet, useLocation } from "react-router-dom";
 
 import { AppProvider } from "@/providers/app-provider";
 

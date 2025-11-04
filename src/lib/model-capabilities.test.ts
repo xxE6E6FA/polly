@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import {
   CAPABILITY_REGISTRY,
   generateCapabilityCounts,
@@ -10,14 +10,14 @@ import {
 describe("model-capabilities", () => {
   const base = { provider: "test", modelId: "m" };
 
-  it("exposes capability registry and all capabilities", () => {
+  test("exposes capability registry and all capabilities", () => {
     const all = getAllCapabilities();
     // Should include at least reasoning and images
     expect(all.find(c => c.key === "supportsReasoning")).toBeTruthy();
     expect(CAPABILITY_REGISTRY.supportsImages).toBeDefined();
   });
 
-  it("getModelCapabilities maps enabled flags to descriptors", () => {
+  test("getModelCapabilities maps enabled flags to descriptors", () => {
     const model = { ...base, supportsReasoning: true, supportsImages: true };
     const caps = getModelCapabilities(model);
     expect(caps.map(c => c.label)).toEqual(
@@ -25,14 +25,14 @@ describe("model-capabilities", () => {
     );
   });
 
-  it("matchesCapabilityFilters respects selected filters", () => {
+  test("matchesCapabilityFilters respects selected filters", () => {
     const model = { ...base, supportsTools: true };
     expect(matchesCapabilityFilters(model, [])).toBe(true);
     expect(matchesCapabilityFilters(model, ["supportsTools"])).toBe(true);
     expect(matchesCapabilityFilters(model, ["supportsFiles"])).toBe(false);
   });
 
-  it("generateCapabilityCounts tallies across models", () => {
+  test("generateCapabilityCounts tallies across models", () => {
     const models = [
       { ...base, modelId: "a", supportsImages: true },
       { ...base, modelId: "b", supportsImages: false, supportsFiles: true },

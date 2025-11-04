@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/userModels.getUserSelectedModel", () => {
-  it("anonymous returns first active built-in", async () => {
+  test("anonymous returns first active built-in", async () => {
     const t = await makeConvexTest();
     await t.db.insert("builtInModels", {
       modelId: "gemini-2.5-flash-lite",
@@ -22,7 +22,7 @@ describe("convex/userModels.getUserSelectedModel", () => {
     expect(res?.provider).toBe("google");
   });
 
-  it("authenticated returns selected user model when present", async () => {
+  test("authenticated returns selected user model when present", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     await t.db.insert("userModels", {

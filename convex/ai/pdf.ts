@@ -6,7 +6,6 @@ import { type ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { v } from "convex/values";
-import { log } from "../lib/logger";
 
 
 // ==================== Capability Detection ====================
@@ -77,7 +76,7 @@ export async function getStoredPdfText(
 
     return await textBlob.text();
   } catch (error) {
-    log.error("Failed to retrieve stored text:", error);
+    console.error("Failed to retrieve stored text:", error);
     return null;
   }
 }
@@ -109,7 +108,7 @@ export const extractPdfText = action({
     text: v.string(),
     textFileId: v.id("_storage"),
   }),
-  handler: async (ctx, { storageId, filename }): Promise<{ text: string; textFileId: Id<"_storage"> }> => {
+  handler: async (ctx, { storageId, filename }) => {
     // Get the PDF file from storage
     const pdfBlob = await ctx.storage.get(storageId);
     if (!pdfBlob) {
@@ -127,21 +126,26 @@ export const extractPdfText = action({
     
     // Process bytes in groups of 3
     for (i = 0; i < bytes.length - 2; i += 3) {
-      base64Result += base64chars[bytes[i] >> 2];
-      base64Result += base64chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
-      base64Result += base64chars[((bytes[i + 1] & 15) << 2) | (bytes[i + 2] >> 6)];
-      base64Result += base64chars[bytes[i + 2] & 63];
+      const byte0 = bytes[i]!;
+      const byte1 = bytes[i + 1]!;
+      const byte2 = bytes[i + 2]!;
+      base64Result += base64chars[byte0 >> 2];
+      base64Result += base64chars[((byte0 & 3) << 4) | (byte1 >> 4)];
+      base64Result += base64chars[((byte1 & 15) << 2) | (byte2 >> 6)];
+      base64Result += base64chars[byte2 & 63];
     }
     
     // Handle remaining bytes
     if (i < bytes.length) {
-      base64Result += base64chars[bytes[i] >> 2];
+      const lastByte = bytes[i]!;
+      base64Result += base64chars[lastByte >> 2];
       if (i === bytes.length - 1) {
-        base64Result += base64chars[(bytes[i] & 3) << 4];
+        base64Result += base64chars[(lastByte & 3) << 4];
         base64Result += '==';
       } else {
-        base64Result += base64chars[((bytes[i] & 3) << 4) | (bytes[i + 1] >> 4)];
-        base64Result += base64chars[(bytes[i + 1] & 15) << 2];
+        const nextByte = bytes[i + 1]!;
+        base64Result += base64chars[((lastByte & 3) << 4) | (nextByte >> 4)];
+        base64Result += base64chars[(nextByte & 15) << 2];
         base64Result += '=';
       }
     }
@@ -192,20 +196,23 @@ export const extractPdfText = action({
     }
 
     const geminiResponse = await response.json();
-    
-    if (!geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text) {
-      throw new Error("No text could be extracted from this PDF. The document may be image-only or corrupted.");
+
+    const firstCandidate = geminiResponse?.candidates?.[0];
+    const parts = firstCandidate?.content?.parts ?? [];
+    const textPart = parts.find(
+      (part: { text?: unknown }) => typeof part?.text === "string"
+    );
+    const extractedText = typeof textPart?.text === "string" ? textPart.text : "";
+
+    if (!extractedText) {
+      throw new Error(
+        "No text could be extracted from this PDF. The document may be image-only or corrupted."
+      );
     }
-    
-    const extractedText = geminiResponse.candidates[0].content.parts[0].text;
 
     // Store the extracted text
     const textBlob = new Blob([extractedText], { type: "text/plain" });
-    const textFileId = await ctx.storage.store(textBlob) as Id<"_storage">;
-
-    log.info(
-      `[PDF Extraction] Server-side: Successfully extracted ${extractedText.length} characters from ${filename}`
-    );
+    const textFileId = (await ctx.storage.store(textBlob)) as Id<"_storage">;
 
     return {
       text: extractedText,

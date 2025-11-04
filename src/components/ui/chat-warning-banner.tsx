@@ -1,5 +1,5 @@
 import { XIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 // Constants for shared styles

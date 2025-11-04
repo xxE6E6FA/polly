@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/conversations patch/internal/createWithUserId", () => {
-  it("patch sets fields and optionally bumps updatedAt", async () => {
+  test("patch sets fields and optionally bumps updatedAt", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const convId = await t.db.insert("conversations", {
@@ -28,7 +28,7 @@ describe("convex/conversations patch/internal/createWithUserId", () => {
     expect((conv2?.updatedAt || 0)).toBeGreaterThan((conv?.updatedAt || 0));
   });
 
-  it("createWithUserId creates conversation and user message and increments conversationCount", async () => {
+  test("createWithUserId creates conversation and user message and increments conversationCount", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now(), conversationCount: 0 });
     const { conversationId, userMessageId, assistantMessageId } = await t.runMutation(internal.conversations.createWithUserId, {

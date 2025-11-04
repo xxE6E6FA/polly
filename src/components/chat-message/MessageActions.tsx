@@ -20,7 +20,7 @@ import { PROVIDER_CONFIG } from "@shared/provider-constants";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
@@ -1360,22 +1360,27 @@ function BranchAction({
             await new Promise(r => setTimeout(r, 50));
             token = authRef.current;
           }
-          await startAuthorStream({
-            convexUrl: import.meta.env.VITE_CONVEX_URL,
-            authToken: token || undefined,
-            conversationId: res.conversationId,
-            assistantMessageId: res.assistantMessageId as Id<"messages">,
-            onFinish: async () => {
-              try {
-                await setStreaming({
-                  conversationId: res.conversationId,
-                  isStreaming: false,
-                });
-              } catch {
-                // best-effort only
-              }
-            },
-          });
+          const convexUrl = import.meta.env.VITE_CONVEX_URL;
+          if (convexUrl) {
+            await startAuthorStream({
+              convexUrl,
+              authToken: token || undefined,
+              conversationId: res.conversationId,
+              assistantMessageId: res.assistantMessageId as Id<"messages">,
+              onFinish: async () => {
+                try {
+                  await setStreaming({
+                    conversationId: res.conversationId,
+                    isStreaming: false,
+                  });
+                } catch {
+                  // best-effort only
+                }
+              },
+            });
+          } else {
+            console.warn("Missing VITE_CONVEX_URL; skipping stream start");
+          }
         } catch {
           // Ignore errors when starting stream
         }

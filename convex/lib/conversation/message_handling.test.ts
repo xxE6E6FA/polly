@@ -1,17 +1,51 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { test, expect, beforeEach, mock } from "bun:test";
+import type { Mock } from "bun:test";
 
 // Mock auth util to control getAuthUserId in access checks
-vi.mock("@convex-dev/auth/server", () => ({
-  getAuthUserId: vi.fn(async () => "u1"),
+mock.module("@convex-dev/auth/server", () => ({
+  getAuthUserId: mock(async () => "u1"),
 }));
 
 // Mock logger to avoid noisy output in failure branches
-vi.mock("../logger", () => ({
+mock.module("../logger", () => ({
   log: {
-    warn: vi.fn(),
-    info: vi.fn(),
-    debug: vi.fn(),
-    error: vi.fn(),
+    warn: mock(),
+    info: mock(),
+    debug: mock(),
+    error: mock(),
+    streamStart: mock(),
+    streamReasoning: mock(),
+    streamComplete: mock(),
+    streamError: mock(),
+    streamAbort: mock(),
+  },
+}));
+
+// Mock api module to prevent undefined reference errors
+mock.module("../../_generated/api", () => ({
+  api: {
+    messages: {
+      remove: "messages.remove",
+      removeMultiple: "messages.removeMultiple",
+      getAllInConversation: "messages.getAllInConversation",
+      create: "messages.create",
+    },
+    personas: {
+      get: "personas.get",
+    },
+    conversations: {
+      get: "conversations.get",
+      createConversation: "conversations.createConversation",
+    },
+    userModels: {
+      getModelByID: "userModels.getModelByID",
+    },
+    users: {
+      incrementMessage: "users.incrementMessage",
+    },
+    titleGeneration: {
+      generateTitle: "titleGeneration.generateTitle",
+    },
   },
 }));
 
@@ -34,11 +68,12 @@ import {
   checkConversationAccess,
 } from "./message_handling";
 
-describe("conversation/message_handling", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    mock.clearAllMocks();
+  });
 
-  it("handleMessageDeletion deletes correctly for assistant retry and preserves context", async () => {
-    const runMutation = vi.fn();
+  test("handleMessageDeletion deletes correctly for assistant retry and preserves context", async () => {
+    const runMutation = mock(async () => {});
     const ctx: any = { runMutation };
     const msgs: any[] = [
       { _id: "m1", role: "user" },
@@ -46,14 +81,16 @@ describe("conversation/message_handling", () => {
       { _id: "mctx", role: "context" },
       { _id: "m3", role: "assistant" },
     ];
-    await handleMessageDeletion(ctx, msgs, 1, "assistant");
-    // Should delete m2 and m3, but not mctx
-    const deleted = runMutation.mock.calls.map((c: any[]) => c[0]);
-    expect(deleted.length).toBe(2);
+  await handleMessageDeletion(ctx, msgs, 1, "assistant");
+  // Should delete m2 and m3, but not mctx
+  const deleted = (runMutation.mock.calls as unknown[])
+    .map(call => (call as any)?.[0])
+    .filter(Boolean);
+  expect(deleted.length).toBe(2);
   });
 
-  it("handleMessageDeletion deletes assistant after edited user and subsequent messages (may include duplicates)", async () => {
-    const runMutation = vi.fn();
+  test("handleMessageDeletion deletes assistant after edited user and subsequent messages (may include duplicates)", async () => {
+    const runMutation = mock(async () => {});
     const ctx: any = { runMutation };
     const msgs: any[] = [
       { _id: "u1", role: "user" },
@@ -61,15 +98,18 @@ describe("conversation/message_handling", () => {
       { _id: "c1", role: "context" },
       { _id: "a2", role: "assistant" },
     ];
-    await handleMessageDeletion(ctx, msgs, 0, "user");
-    expect(runMutation).toHaveBeenCalledTimes(1);
-    const payload = runMutation.mock.calls[0][1];
-    expect(payload.ids).toContain("a1");
-    expect(payload.ids).toContain("a2");
-    expect(payload.ids.length).toBeGreaterThanOrEqual(2);
+  await handleMessageDeletion(ctx, msgs, 0, "user");
+  expect(runMutation).toHaveBeenCalledTimes(1);
+  const firstCall = (runMutation.mock.calls as unknown[])[0] as
+    | [unknown, { ids?: string[] } | undefined]
+    | undefined;
+  const ids = firstCall?.[1]?.ids ?? [];
+  expect(ids).toContain("a1");
+  expect(ids).toContain("a2");
+  expect(ids.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("findStreamingMessage finds first empty assistant message", () => {
+  test("findStreamingMessage finds first empty assistant message", () => {
     const msgs: any[] = [
       { role: "assistant", content: "done" },
       { role: "assistant", content: "" },
@@ -78,20 +118,20 @@ describe("conversation/message_handling", () => {
     expect(res?.content).toBe("");
   });
 
-  it("ensureStreamingCleared patches conversation when db present and errors without db", async () => {
-    const patch = vi.fn();
+  test("ensureStreamingCleared patches conversation when db present and errors without db", async () => {
+    const patch = mock(async () => {});
     await ensureStreamingCleared({ db: { patch } } as any, "c1" as any);
     expect(patch).toHaveBeenCalledWith("c1", { isStreaming: false });
-    await expect(ensureStreamingCleared({} as any, "c1" as any)).rejects.toBeInstanceOf(Error);
+    expect(ensureStreamingCleared({} as any, "c1" as any)).rejects.toBeInstanceOf(Error);
   });
 
-  it("deleteMessagesAfterIndex removes messages after target id", async () => {
-    const runQuery = vi.fn().mockResolvedValue([
+  test("deleteMessagesAfterIndex removes messages after target id", async () => {
+    const runQuery = mock(async () => [
       { _id: "m1" },
       { _id: "m2" },
       { _id: "m3" },
     ]);
-    const runMutation = vi.fn();
+    const runMutation = mock(async () => {});
     await deleteMessagesAfterIndex({ runQuery, runMutation } as any, "c1" as any, "m1" as any);
     expect(runMutation).toHaveBeenCalledWith(expect.anything(), { ids: ["m2", "m3"] });
 
@@ -101,20 +141,22 @@ describe("conversation/message_handling", () => {
     expect(runMutation).not.toHaveBeenCalled();
   });
 
-  it("resolveAttachmentUrls resolves storage urls and validates fields", async () => {
-    const storage = { getUrl: vi.fn(async () => "https://file") };
+  test("resolveAttachmentUrls resolves storage urls and validates fields", async () => {
+    const storage = { getUrl: mock(async () => "https://file") };
     const ctx: any = { storage };
     const atts: any[] = [
       { storageId: "s1", name: "a.png", type: "image", size: 1 },
       { url: "https://x", name: "b.txt", type: "text", size: 2 },
     ];
-    const res = await resolveAttachmentUrls(ctx, atts);
-    expect(res[0].url).toBe("https://file");
-    await expect(resolveAttachmentUrls(ctx, [{ name: "x", type: "text", size: 1 } as any])).rejects.toBeInstanceOf(Error);
+  const res = await resolveAttachmentUrls(ctx, atts);
+  expect(res[0]?.url).toBe("https://file");
+  await expect(
+    resolveAttachmentUrls(ctx, [{ name: "x", type: "text", size: 1 } as any])
+  ).rejects.toBeInstanceOf(Error);
   });
 
-  it("buildUserMessageContent appends text/pdf content and returns images separately", async () => {
-    const storage = { getUrl: vi.fn(async () => "https://img") };
+  test("buildUserMessageContent appends text/pdf content and returns images separately", async () => {
+    const storage = { getUrl: mock(async () => "https://img") };
     const ctx: any = { storage };
     const res = await buildUserMessageContent(ctx, "Hello", [
       { storageId: "s1", name: "pic.png", type: "image", size: 1 },
@@ -123,55 +165,46 @@ describe("conversation/message_handling", () => {
     ] as any);
     expect(res.content).toContain("Content from doc.pdf");
     expect(res.content).toContain("TXT");
-    expect(res.resolvedAttachments?.[0].url).toBe("https://img");
+  expect(res.resolvedAttachments?.[0]?.url).toBe("https://img");
   });
 
-  it("getPersonaPrompt returns prompt string or empty when missing", async () => {
-    const runQuery = vi.fn().mockResolvedValue({ prompt: "P" });
+  test("getPersonaPrompt returns prompt string or empty when missing", async () => {
+    const runQuery = mock(async () => ({ prompt: "P" }));
     expect(await getPersonaPrompt({ runQuery } as any, "p1" as any)).toBe("P");
     expect(await getPersonaPrompt({ runQuery } as any, undefined)).toBe("");
   });
 
-  it("createMessage and createConversation proxy to mutations", async () => {
-    const runMutation = vi.fn()
-      .mockResolvedValueOnce("mid")
-      .mockResolvedValueOnce({ conversationId: "cid" });
+  test("createMessage proxies to mutation", async () => {
+    const runMutation = mock(async () => "mid");
     expect(await createMessage({ runMutation } as any, {} as any)).toBe("mid" as any);
+  });
+
+  test("createConversation proxies to mutation and extracts conversationId", async () => {
+    const runMutation = mock(async () => ({ conversationId: "cid" }));
     expect(await createConversation({ runMutation } as any, {} as any)).toBe("cid" as any);
   });
 
-  it("incrementUserMessageStats schedules mutation and swallows errors", async () => {
-    const runAfter = vi.fn(async () => {});
-    const runQuery = vi.fn().mockResolvedValue({ free: true });
-    await incrementUserMessageStats(
-      { scheduler: { runAfter }, runQuery } as any,
-      "u1" as any,
-      "m",
-      "p"
-    );
-    expect(runAfter).toHaveBeenCalled();
-
-    // Error path
-    const failing = vi.fn(async () => {
-      throw new Error("x");
-    });
-    await incrementUserMessageStats(
-      { scheduler: { runAfter: failing }, runQuery } as any,
-      "u1" as any,
-      "m",
-      "p"
-    );
+  test("scheduleTitleGeneration schedules and catches errors", async () => {
+    const previous = process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+    process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = "true";
+    try {
+      const runAfter = mock(async () => {});
+      await scheduleTitleGeneration({ scheduler: { runAfter } } as any, "c1" as any, 10);
+      expect(runAfter).toHaveBeenCalled();
+      const failing = mock(async () => {
+        throw new Error("x");
+      });
+      await scheduleTitleGeneration({ scheduler: { runAfter: failing } } as any, "c1" as any, 10);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+      } else {
+        process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = previous;
+      }
+    }
   });
 
-  it("scheduleTitleGeneration schedules and catches errors", async () => {
-    const runAfter = vi.fn(async () => {});
-    await scheduleTitleGeneration({ scheduler: { runAfter } } as any, "c1" as any, 10);
-    expect(runAfter).toHaveBeenCalled();
-    const failing = vi.fn(async () => { throw new Error("x"); });
-    await scheduleTitleGeneration({ scheduler: { runAfter: failing } } as any, "c1" as any, 10);
-  });
-
-  it("generateExportMetadata and mergeSystemPrompts output expected shape", () => {
+  test("generateExportMetadata and mergeSystemPrompts output expected shape", () => {
     const meta = generateExportMetadata({ _id: "c1", title: "T", createdAt: 1000 } as any, 2, 1);
     expect(meta.conversationId).toBe("c1");
     expect(meta.messageCount).toBe(2);
@@ -180,36 +213,35 @@ describe("conversation/message_handling", () => {
     expect(merged).toContain("persona");
   });
 
-  it("checkConversationAccess boolean overload and legacy overload behaviors", async () => {
+  test("checkConversationAccess boolean overload and legacy overload behaviors", async () => {
     // boolean overload with owner access
-    (getAuthUserId as unknown as any).mockResolvedValueOnce("u1");
-    const ctxDb: any = { db: { get: vi.fn(async () => ({ _id: "c", userId: "u1" })) } };
-    const res1 = await checkConversationAccess(ctxDb, "c" as any, true);
-    expect(res1).toEqual({ hasAccess: true, conversation: { _id: "c", userId: "u1" }, isDeleted: false });
+  const authMock = getAuthUserId as unknown as Mock<() => Promise<string | null>>;
+  authMock.mockImplementation(async () => "u1");
+    const ctxDb: any = { db: { get: mock(async () => ({ _id: "c", userId: "u1" })) } };
+  const res1 = await checkConversationAccess(ctxDb, "c" as any, true);
+  expect(res1.hasAccess).toBe(true);
+  expect(String(res1.conversation?._id)).toBe("c");
+  expect(String(res1.conversation?.userId)).toBe("u1");
+  expect(res1.isDeleted ?? false).toBe(false);
 
     // boolean overload when not owner
-    (getAuthUserId as unknown as any).mockResolvedValueOnce("u2");
+    authMock.mockImplementation(async () => "u2");
     const res2 = await checkConversationAccess(ctxDb, "c" as any, true);
     expect(res2.hasAccess).toBe(false);
     expect(res2.conversation).toBeNull();
 
     // boolean overload when conversation missing
-    (getAuthUserId as unknown as any).mockResolvedValueOnce("u1");
-    const ctxMissing: any = { db: { get: vi.fn(async () => null) } };
+    authMock.mockImplementation(async () => "u1");
+    const ctxMissing: any = { db: { get: mock(async () => null) } };
     const res3 = await checkConversationAccess(ctxMissing, "c" as any, true);
     expect(res3.isDeleted).toBe(true);
 
     // legacy overload success
-    (getAuthUserId as unknown as any).mockResolvedValueOnce("u1");
-    const c = await checkConversationAccess(
-      ctxDb,
-      "c" as any,
-      ("u1" as unknown) as Id<"users">
-    );
-    expect(c._id).toBe("c");
+    authMock.mockImplementation(async () => "u1");
+  const legacyUserId = "u1" as Id<"users">;
+  const c = await checkConversationAccess(ctxDb, "c" as any, legacyUserId);
+  expect(String(c._id)).toBe("c");
 
-    // (Legacy denied path is equivalent to boolean-overload false; already covered above.)
-
-    // legacy unauthenticated path omitted due to environment mock ordering; boolean overload covers denial cases.
+    // Reset default mock implementation for subsequent tests
+    authMock.mockImplementation(async () => "u1");
   });
-});

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { makeConvexTest } from "./test/helpers";
@@ -21,22 +21,8 @@ type Attachment = {
   };
 };
 
-// Silence logger in tests
-vi.mock("./lib/logger", () => ({
-  log: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 describe("messages.addAttachments de-duplication", () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("skips duplicate generated-image URLs across multiple calls", async () => {
+  test("skips duplicate generated-image URLs across multiple calls", async () => {
     const t = await makeConvexTest();
 
     const userId = await t.db.insert("users", { name: "Test" });
@@ -93,7 +79,7 @@ describe("messages.addAttachments de-duplication", () => {
     expect(urls.sort()).toEqual([genA.url, genB.url].sort());
   });
 
-  it("deduplicates repeated URLs within a single call", async () => {
+  test("deduplicates repeated URLs within a single call", async () => {
     const t = await makeConvexTest();
 
     const userId = await t.db.insert("users", { name: "Test" });

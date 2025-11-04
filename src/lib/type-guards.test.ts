@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import {
   hasPageArray,
   isApiKeysArray,
@@ -13,7 +13,7 @@ import {
 } from "./type-guards";
 
 describe("type-guards", () => {
-  it("basic doc guards", () => {
+  test("basic doc guards", () => {
     const user = { _id: "1;users", _creationTime: Date.now() };
     expect(isUser(user)).toBe(true);
     expect(isUser({})).toBe(false);
@@ -33,7 +33,7 @@ describe("type-guards", () => {
     expect(isUserModel(userModel)).toBe(true);
   });
 
-  it("array guards", () => {
+  test("array guards", () => {
     const personas = [{ _id: "1;personas", name: "a" }];
     expect(isPersonaArray(personas)).toBe(true);
     expect(isPersonaArray([{}])).toBe(false);
@@ -45,7 +45,7 @@ describe("type-guards", () => {
     expect(isUserModelsArray(userModels)).toBe(true);
   });
 
-  it("user settings and monthly usage", () => {
+  test("user settings and monthly usage", () => {
     const settings = {
       userId: "u",
       personasEnabled: true,
@@ -64,7 +64,7 @@ describe("type-guards", () => {
     expect(isMonthlyUsage(usage)).toBe(true);
   });
 
-  it("hasPageArray", () => {
+  test("hasPageArray", () => {
     expect(hasPageArray({ page: [] })).toBe(true);
     expect(hasPageArray({})).toBe(false);
   });

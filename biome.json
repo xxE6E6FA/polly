@@ -6,8 +6,7 @@
     "includes": [
       "src/**/*.{js,jsx,ts,tsx}",
       "shared/**/*.{js,jsx,ts,tsx}",
-      "convex/*.{js,jsx,ts,tsx}",
-      "convex/!(_generated)/**/*.{js,jsx,ts,tsx}",
+      "convex/*.{ts,tsx}",
       "scripts/**/*.{js,jsx,ts,tsx}",
       "*.{js,jsx,ts,tsx,json,jsonc}"
     ]
@@ -322,20 +321,8 @@
           },
           "suspicious": {
             "noConsole": {
-              "level": "error",
-              "options": { "allow": [] }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/lib/logger.ts"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noConsole": {
-              "level": "off"
+              "level": "warn",
+              "options": { "allow": ["warn", "error"] }
             }
           }
         }
@@ -583,11 +570,7 @@
       }
     },
     {
-      "includes": [
-        "src/vitest.d.ts",
-        "**/*.test.{ts,tsx}",
-        "convex/**/*.test.{ts,tsx}"
-      ],
+      "includes": ["**/*.test.{ts,tsx}", "convex/**/*.test.{ts,tsx}"],
       "linter": {
         "rules": {
           "style": {
@@ -630,6 +613,16 @@
             }
           }
         }
+      }
+    },
+    {
+      "includes": [
+        "convex/_generated/**/*",
+        "convex/schema.js",
+        "convex/schema.js.d.ts"
+      ],
+      "linter": {
+        "enabled": false
       }
     }
   ],

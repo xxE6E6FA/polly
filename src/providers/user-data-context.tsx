@@ -15,7 +15,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation } from "react-router";
+import { useLocation } from "react-router-dom";
 import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";

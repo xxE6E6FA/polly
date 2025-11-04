@@ -24,7 +24,6 @@ import { CONFIG } from "./ai/config";
 import { createLanguageModel } from "./ai/server_streaming";
 import { getBaselineInstructions } from "./constants";
 import { incrementUserMessageStats } from "./lib/conversation_utils";
-import { log } from "./lib/logger";
 
 type IncomingUIMessage = UIMessage<unknown, UIDataTypes, UITools> & {
   content?: unknown;
@@ -133,15 +132,6 @@ const coerceUiMessageContent = (
 
 export const chatStream = httpAction(
   async (ctx, request): Promise<Response> => {
-    // Log request details for debugging 404 errors
-    log.debug("[chatStream] Request received", {
-      method: request.method,
-      url: request.url,
-      pathname: new URL(request.url).pathname,
-      hasBody: !!request.body,
-    });
-
-    // Relaxed CORS: reflect Origin and allow credentials for cookie-based auth
     const origin = request.headers.get("origin") || "*";
     const reqAllowed =
       request.headers.get("access-control-request-headers") ||
@@ -175,13 +165,6 @@ export const chatStream = httpAction(
 
     try {
       const body = await request.json();
-      log.debug("[chatStream] Request body received", {
-        hasMessages: !!body.messages,
-        messageCount: Array.isArray(body.messages) ? body.messages.length : 0,
-        modelId: body.modelId,
-        provider: body.provider,
-        hasTemperature: body.temperature !== undefined,
-      });
       const {
         messages: rawMessages,
         modelId,
@@ -244,12 +227,6 @@ export const chatStream = httpAction(
         ? (rawMessages as IncomingUIMessage[])
         : [];
 
-      log.debug("[chatStream] Processing messages", {
-        uiMessageCount: uiMessages.length,
-        firstMessageRole: uiMessages[0]?.role,
-        lastMessageRole: uiMessages[uiMessages.length - 1]?.role,
-      });
-
       const messagesWithContent = uiMessages.map(coerceUiMessageContent);
 
       let coreMessages: CoreMessage[];
@@ -257,11 +234,8 @@ export const chatStream = httpAction(
         coreMessages = convertToCoreMessages(
           messagesWithContent as UIMessage<unknown, UIDataTypes, UITools>[]
         );
-        log.debug("[chatStream] Converted to core messages", {
-          coreMessageCount: coreMessages.length,
-        });
       } catch (conversionError) {
-        log.error(
+        console.error(
           "[chatStream] Failed to convert UI messages:",
           conversionError
         );
@@ -336,7 +310,10 @@ export const chatStream = httpAction(
             );
           } catch (error) {
             // Don't fail the entire request if stats tracking fails
-            log.warn("[chatStream] Failed to increment message stats:", error);
+            console.warn(
+              "[chatStream] Failed to increment message stats:",
+              error
+            );
           }
         }
 
@@ -346,13 +323,9 @@ export const chatStream = httpAction(
               provider,
               modelId,
             });
-            log.info(
-              "[chatStream] User API key lookup:",
-              userApiKey ? "found" : "not found"
-            );
           } catch (error) {
             // User API key lookup failed, will fallback to environment variables
-            log.warn("[chatStream] Failed to get user API key:", error);
+            console.warn("[chatStream] Failed to get user API key:", error);
           }
         } else {
           // User not authenticated, will use environment variables
@@ -386,24 +359,16 @@ export const chatStream = httpAction(
           }
 
           const envKey = process.env[envKeyName];
-          log.info(
-            `[chatStream] Checking environment variable ${envKeyName}:`,
-            envKey ? "found" : "not found"
-          );
 
           if (!envKey) {
             // List all available environment variables for debugging
-            const availableKeys = Object.keys(process.env).filter(
+            const _availableKeys = Object.keys(process.env).filter(
               key =>
                 key.includes("API_KEY") ||
                 key.includes("OPENROUTER") ||
                 key.includes("GEMINI") ||
                 key.includes("ANTHROPIC") ||
                 key.includes("OPENAI")
-            );
-            log.debug(
-              "[chatStream] Available API-related env vars:",
-              availableKeys
             );
 
             throw new Error(
@@ -414,7 +379,7 @@ export const chatStream = httpAction(
           apiKey = envKey;
         }
       } catch (apiKeyError) {
-        log.error("Failed to get API key:", apiKeyError);
+        console.error("Failed to get API key:", apiKeyError);
         return new Response(
           JSON.stringify({
             error:
@@ -443,7 +408,7 @@ export const chatStream = httpAction(
             personaPrompt = persona.prompt;
           }
         } catch (error) {
-          log.warn("[chatStream] Failed to load persona:", error);
+          console.warn("[chatStream] Failed to load persona:", error);
         }
       }
 
@@ -462,21 +427,20 @@ export const chatStream = httpAction(
       const resolvedReasoningConfig = reasoningConfig ?? _reasoningConfig;
 
       // Ensure messages have proper system prompt
-      const processedMessages = [...coreMessages];
-      if (
-        processedMessages.length > 0 &&
-        processedMessages[0].role === "system"
-      ) {
+      const processedMessages: CoreMessage[] = [...coreMessages];
+      const systemMessage: CoreMessage = {
+        role: "system",
+        content: mergedSystemPrompt,
+      };
+      const firstMessage = processedMessages[0];
+      if (firstMessage?.role === "system") {
         processedMessages[0] = {
-          ...processedMessages[0],
+          ...firstMessage,
           content: mergedSystemPrompt,
         };
       } else {
         // Prepend system message if not present
-        processedMessages.unshift({
-          role: "system",
-          content: mergedSystemPrompt,
-        });
+        processedMessages.unshift(systemMessage);
       }
 
       // Get reasoning configuration for this provider
@@ -527,8 +491,6 @@ export const chatStream = httpAction(
           }),
         });
 
-        log.debug("[chatStream] Stream started, creating response");
-
         // Return the proper text stream for AI SDK useChat with CORS headers
         // TextStreamChatTransport expects text stream format, so use toTextStreamResponse
         const response = result.toTextStreamResponse();
@@ -538,11 +500,9 @@ export const chatStream = httpAction(
           response.headers.set(key, value);
         });
 
-        log.debug("[chatStream] Response created, returning stream");
-
         return response;
       } catch (modelCreationError) {
-        log.error(
+        console.error(
           "[chatStream] Error creating language model or starting stream:",
           {
             error: modelCreationError,
@@ -557,8 +517,8 @@ export const chatStream = httpAction(
         throw modelCreationError;
       }
     } catch (error) {
-      log.error("Chat API error:", error);
-      log.error(
+      console.error("Chat API error:", error);
+      console.error(
         "Error stack:",
         error instanceof Error ? error.stack : "No stack trace"
       );
@@ -580,7 +540,7 @@ export const chatStream = httpAction(
         // If we can't parse the request body again, just use what we can
       }
 
-      log.error("[chatStream] Detailed error information:", {
+      console.error("[chatStream] Detailed error information:", {
         errorType: error?.constructor?.name,
         errorMessage: error instanceof Error ? error.message : String(error),
         requestInfo,
@@ -588,7 +548,7 @@ export const chatStream = httpAction(
 
       const errorMessage =
         error instanceof Error ? error.message : "Internal server error";
-      log.error("Sending error response:", errorMessage);
+      console.error("Sending error response:", errorMessage);
 
       return new Response(
         JSON.stringify({

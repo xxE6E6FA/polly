@@ -44,6 +44,9 @@ function checkIfLikelyImageConversation(messages: ChatMessage[]): boolean {
   }
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i];
+    if (!m) {
+      continue;
+    }
     if (m.role === "assistant") {
       if (m.imageGeneration) {
         return true;

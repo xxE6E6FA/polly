@@ -185,7 +185,10 @@ export const BatchSelectionProvider = ({
   const selectAllVisible = useCallback((conversationIds: ConversationId[]) => {
     setSelectedConversationIds(new Set(conversationIds));
     if (conversationIds.length > 0) {
-      setLastSelectedId(conversationIds[conversationIds.length - 1]);
+      const lastId = conversationIds[conversationIds.length - 1];
+      if (lastId) {
+        setLastSelectedId(lastId);
+      }
     }
   }, []);
 

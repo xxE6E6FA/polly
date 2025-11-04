@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import {
   getProviderReasoningConfig,
   normalizeReasoningEffort,
 } from "./reasoning-config";
 
 describe("reasoning-config helpers", () => {
-  it("getProviderReasoningConfig builds config for enabled models", () => {
+  test("getProviderReasoningConfig builds config for enabled models", () => {
     const cfg = getProviderReasoningConfig(
       {
         modelId: "gemini-2.5-flash-lite",
@@ -26,7 +26,7 @@ describe("reasoning-config helpers", () => {
     });
   });
 
-  it("getProviderReasoningOptions returns empty when disabled or unsupported", () => {
+  test("getProviderReasoningOptions returns empty when disabled or unsupported", () => {
     const cfg1 = getProviderReasoningConfig(
       { modelId: "foo", provider: "openai", supportsReasoning: false },
       { enabled: true, effort: "high" }
@@ -40,7 +40,7 @@ describe("reasoning-config helpers", () => {
     expect(cfg2).toEqual({});
   });
 
-  it("normalizeReasoningEffort maps effort strings to provider-specific values", () => {
+  test("normalizeReasoningEffort maps effort strings to provider-specific values", () => {
     expect(normalizeReasoningEffort("low")).toBeDefined();
     expect(normalizeReasoningEffort("medium")).toBeDefined();
     expect(normalizeReasoningEffort("high")).toBeDefined();

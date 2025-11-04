@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import { internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("messages.updateImageGeneration streaming flag", () => {
-  it("clears conversation isStreaming when image generation reaches a terminal status", async () => {
+  test("clears conversation isStreaming when image generation reaches a terminal status", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -40,7 +40,7 @@ describe("messages.updateImageGeneration streaming flag", () => {
     expect(conversation?.isStreaming).toBe(false);
   });
 
-  it("keeps conversation isStreaming true for in-progress statuses", async () => {
+  test("keeps conversation isStreaming true for in-progress statuses", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,

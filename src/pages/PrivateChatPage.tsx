@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router-dom";
 import { UnifiedChatView } from "@/components/unified-chat-view";
 import { usePrivateChat } from "@/hooks/use-private-chat";
 import { usePrivatePersona } from "@/lib/ai/private-personas";
@@ -324,7 +324,7 @@ export default function PrivateChatPage() {
 
       const targetMessage = privateChat.messages[messageIndex];
 
-      if (targetMessage.role === "user") {
+      if (targetMessage && targetMessage.role === "user") {
         const messagesToKeep = privateChat.messages.slice(0, messageIndex + 1);
         privateChat.setMessages(messagesToKeep);
 
@@ -438,9 +438,11 @@ export default function PrivateChatPage() {
           return;
         }
         let targetIndex = idx;
-        if (privateChat.messages[idx].role === "assistant") {
+        const messageAtIdx = privateChat.messages[idx];
+        if (messageAtIdx && messageAtIdx.role === "assistant") {
           for (let i = idx - 1; i >= 0; i--) {
-            if (privateChat.messages[i].role === "user") {
+            const messageAtI = privateChat.messages[i];
+            if (messageAtI && messageAtI.role === "user") {
               targetIndex = i;
               break;
             }

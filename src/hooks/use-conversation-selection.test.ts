@@ -1,17 +1,23 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mock shape matches implementation */
-  CACHE_KEYS: { conversations: "conversations" },
-  get: vi.fn(),
-  set: vi.fn(),
+let useQueryMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
 
 import { useQuery } from "convex/react";
-import { get, set } from "@/lib/local-storage";
+import * as LocalStorageModule from "@/lib/local-storage";
 import { useConversationSelection } from "./use-conversation-selection";
 
 const convs = Array.from({ length: 5 }).map((_, i) => ({
@@ -23,42 +29,54 @@ const convs = Array.from({ length: 5 }).map((_, i) => ({
 }));
 
 describe("useConversationSelection", () => {
+  let getSpy: ReturnType<typeof spyOn>;
+  let setSpy: ReturnType<typeof spyOn>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    useQueryMock = mock(() => convs);
+    getSpy = spyOn(LocalStorageModule, "get").mockReturnValue(undefined);
+    setSpy = spyOn(LocalStorageModule, "set").mockImplementation(() => {
+      // Intentional no-op for test mock
+    });
   });
 
-  it("maps conversations, caches them, and supports selection toggles", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(convs);
+  afterEach(() => {
+    getSpy.mockRestore();
+    setSpy.mockRestore();
+  });
+
+  test("maps conversations, caches them, and supports selection toggles", () => {
+    useQueryMock.mockImplementation(() => convs);
     const { result } = renderHook(() => useConversationSelection());
 
     // Cached via local storage
-    expect(set).toHaveBeenCalled();
+    expect(setSpy).toHaveBeenCalled();
     expect(result.current.conversations).toHaveLength(5);
 
     // Toggle single
     act(() => {
-      result.current.handleConversationSelect(convs[1]._id, 1, false);
+      result.current.handleConversationSelect(convs[1]?._id, 1, false);
     });
-    expect(result.current.selectedConversations.has(convs[1]._id)).toBe(true);
+    expect(result.current.selectedConversations.has(convs[1]?._id)).toBe(true);
     // Toggle off
     act(() => {
-      result.current.handleConversationSelect(convs[1]._id, 1, false);
+      result.current.handleConversationSelect(convs[1]?._id, 1, false);
     });
-    expect(result.current.selectedConversations.has(convs[1]._id)).toBe(false);
+    expect(result.current.selectedConversations.has(convs[1]?._id)).toBe(false);
   });
 
-  it("supports shift range selection and select all / clear", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(convs);
+  test("supports shift range selection and select all / clear", () => {
+    useQueryMock.mockImplementation(() => convs);
     const { result } = renderHook(() => useConversationSelection());
     act(() => {
-      result.current.handleConversationSelect(convs[1]._id, 1, false);
+      result.current.handleConversationSelect(convs[1]?._id, 1, false);
     });
     act(() => {
-      result.current.handleConversationSelect(convs[3]._id, 3, true);
+      result.current.handleConversationSelect(convs[3]?._id, 3, true);
     });
-    expect(result.current.selectedConversations.has(convs[1]._id)).toBe(true);
-    expect(result.current.selectedConversations.has(convs[2]._id)).toBe(true);
-    expect(result.current.selectedConversations.has(convs[3]._id)).toBe(true);
+    expect(result.current.selectedConversations.has(convs[1]?._id)).toBe(true);
+    expect(result.current.selectedConversations.has(convs[2]?._id)).toBe(true);
+    expect(result.current.selectedConversations.has(convs[3]?._id)).toBe(true);
 
     // Select all
     act(() => result.current.onSelectAll());
@@ -70,16 +88,16 @@ describe("useConversationSelection", () => {
     expect(result.current.someSelected).toBe(false);
   });
 
-  it("falls back to cached conversations when query not array", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
-    (get as unknown as vi.Mock).mockReturnValue(convs);
+  test("falls back to cached conversations when query not array", () => {
+    useQueryMock.mockImplementation(() => undefined);
+    getSpy.mockReturnValue(convs as never);
 
     const { result } = renderHook(() => useConversationSelection());
     expect(result.current.conversations).toHaveLength(5);
   });
 
-  it("exposes includeAttachments toggler", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(convs);
+  test("exposes includeAttachments toggler", () => {
+    useQueryMock.mockImplementation(() => convs);
     const { result } = renderHook(() => useConversationSelection());
     expect(result.current.includeAttachments).toBe(true);
     act(() => result.current.onIncludeAttachmentsChange(true));

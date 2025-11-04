@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, type RouteObject } from "react-router";
+import { Navigate, type RouteObject } from "react-router-dom";
 import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
 import ChatLayout from "./components/layouts/ChatLayout";
 import PersistentChatLayout from "./components/layouts/PersistentChatLayout";

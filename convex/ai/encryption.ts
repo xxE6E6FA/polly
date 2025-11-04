@@ -3,7 +3,6 @@ import type { Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { type ProviderType } from "../types";
 import { CONFIG } from "./config";
-import { log } from "../lib/logger";
 
 export const serverDecryptApiKey = async (
   encryptedKey: number[],
@@ -39,7 +38,6 @@ export const getApiKey = async (
   modelId?: string,
   conversationId?: Id<"conversations">
 ): Promise<string> => {
-  log.debug(`Starting API key lookup for provider: ${provider}`);
   
   // Add retry logic for transient failures
   const maxRetries = 2;
@@ -47,7 +45,6 @@ export const getApiKey = async (
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      log.debug(`API key lookup attempt ${attempt}: Looking up user API key`);
       const apiKey = await ctx.runAction(api.apiKeys.getDecryptedApiKey, {
         provider,
         modelId,
@@ -73,7 +70,7 @@ export const getApiKey = async (
       lastError = error instanceof Error ? error : new Error(String(error));
       
       // Log the attempt for debugging
-      log.warn(`API key lookup attempt ${attempt} failed for ${provider}`, {
+      console.warn(`API key lookup attempt ${attempt} failed for ${provider}`, {
         error: lastError.message,
         attempt,
         maxRetries,

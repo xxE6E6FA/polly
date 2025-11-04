@@ -1,17 +1,26 @@
+import { describe, expect, mock, test } from "bun:test";
 import { act, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 
 import type { ChatMessage } from "@/types";
 
-import { ChatOutline } from "./chat-outline";
-
-vi.mock("@/providers/ui-provider", () => ({
+mock.module("@/providers/ui-provider", () => ({
   useUI: () => ({ isSidebarVisible: false, isMobile: false }),
 }));
 
-vi.mock("@/providers/sidebar-width-context", () => ({
-  useSidebarWidth: () => ({ sidebarWidth: 0 }),
+mock.module("@/providers/sidebar-width-context", () => ({
+  useSidebarWidth: () => ({
+    sidebarWidth: 0,
+    setSidebarWidth: () => {
+      // Intentional no-op for test mock
+    },
+    isResizing: false,
+    setIsResizing: () => {
+      // Intentional no-op for test mock
+    },
+  }),
 }));
+
+const { ChatOutline } = await import("./chat-outline");
 
 describe("ChatOutline", () => {
   const messages: ChatMessage[] = [
@@ -45,7 +54,7 @@ describe("ChatOutline", () => {
     },
   ];
 
-  it("expands on focus and collapses after focus leaves the outline", () => {
+  test("expands on focus and collapses after focus leaves the outline", () => {
     render(
       <>
         <ChatOutline messages={messages} />

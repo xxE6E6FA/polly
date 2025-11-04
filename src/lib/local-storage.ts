@@ -41,12 +41,20 @@ export function get<T>(key: CacheKey, fallback: T): T {
     }
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === "object" && "version" in parsed) {
-      const dataVersion = parsed.version as number;
-      if (dataVersion < LOCAL_STORAGE_VERSION) {
+      const dataVersion = Number(parsed.version);
+      if (
+        !Number.isFinite(dataVersion) ||
+        dataVersion < LOCAL_STORAGE_VERSION
+      ) {
         localStorage.removeItem(namespaced);
         return fallback;
       }
-      return parsed.data as T;
+      const data = (parsed as { data?: T }).data;
+      if (data === undefined) {
+        localStorage.removeItem(namespaced);
+        return fallback;
+      }
+      return data;
     }
     localStorage.removeItem(namespaced);
     return fallback;

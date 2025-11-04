@@ -1,26 +1,44 @@
+import { describe, expect, test } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
-import { describe, expect, it } from "vitest";
+import { setupZustandTestStore } from "@/test/zustand";
 import type { AIModel } from "@/types";
 import {
+  createChatInputStore,
   GLOBAL_CHAT_INPUT_KEY,
   getChatKey,
   getSelectedPersonaIdFromStore,
   makeChatInputKey,
+  setChatInputStoreApi,
   useChatInputStore,
 } from "./chat-input-store";
 
+setupZustandTestStore({
+  createStore: () => createChatInputStore(),
+  setStore: setChatInputStoreApi,
+});
+
 describe("stores/chat-input-store", () => {
-  it("manages model, params, reasoning and persona/temperature slices", () => {
+  test("manages model, params, reasoning and persona/temperature slices", () => {
     const s = useChatInputStore.getState();
 
     // Model
     expect(s.selectedModel).toBeNull();
     s.setSelectedModel({
-      _id: "m1",
-      provider: "p",
+      _id: "m1" as any,
+      _creationTime: 123,
+      userId: "u1" as any,
+      modelId: "m1",
       name: "n",
-    } as unknown as AIModel);
-    expect(useChatInputStore.getState().selectedModel?._id).toBe("m1");
+      provider: "p",
+      contextLength: 1000,
+      supportsImages: false,
+      supportsTools: false,
+      supportsReasoning: false,
+      createdAt: 123,
+    });
+    expect(useChatInputStore.getState().selectedModel?._id as string).toBe(
+      "m1"
+    );
 
     // Generation mode & image params
     s.setGenerationMode("image");
@@ -50,7 +68,7 @@ describe("stores/chat-input-store", () => {
     // Persona slice
     const k = getChatKey("c1");
     s.setSelectedPersonaId(k, "p1" as Id<"personas">);
-    expect(getSelectedPersonaIdFromStore(k)).toBe("p1");
+    expect(getSelectedPersonaIdFromStore(k) as string).toBe("p1");
     // Setting same value is a no-op branch
     s.setSelectedPersonaId(k, "p1" as Id<"personas">);
     s.clearKey(k);
@@ -71,7 +89,7 @@ describe("stores/chat-input-store", () => {
     expect(useChatInputStore.getState().temperatureByKey[k]).toBeUndefined();
   });
 
-  it("manages attachments by key with functional updates and no-op equality", () => {
+  test("manages attachments by key with functional updates and no-op equality", () => {
     const key = getChatKey(null);
     const s = useChatInputStore.getState();
 
@@ -99,7 +117,7 @@ describe("stores/chat-input-store", () => {
     s.clearAttachmentsKey("missing");
   });
 
-  it("chat key helpers return stable keys", () => {
+  test("chat key helpers return stable keys", () => {
     expect(getChatKey(undefined)).toBe(GLOBAL_CHAT_INPUT_KEY);
     expect(getChatKey(null)).toBe(GLOBAL_CHAT_INPUT_KEY);
     expect(getChatKey("c")).toBe("c");

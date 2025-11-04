@@ -48,6 +48,9 @@ export const processBatch = internalMutation({
     // Process all conversations in the batch
     for (let i = 0; i < args.conversations.length; i++) {
       const convData = args.conversations[i];
+      if (!convData) {
+        continue;
+      }
       const convTimestamp = args.baseTime + i;
 
       // Insert conversation
@@ -63,8 +66,11 @@ export const processBatch = internalMutation({
       });
 
       // Insert messages for this conversation
-      const messagesToInsert = convData.messages
-        .filter(msg => msg.content && msg.content.trim() !== "")
+      const messagesArray = Array.isArray(convData.messages)
+        ? convData.messages
+        : [];
+      const messagesToInsert = messagesArray
+        .filter(msg => msg?.content && msg.content.trim() !== "")
         .map((msg, msgIndex) => ({
           conversationId,
           role: msg.role,

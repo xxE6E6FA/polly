@@ -1,40 +1,30 @@
-import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "../test/hook-utils";
-
-vi.mock("convex/react", async () => {
-  const actual =
-    await vi.importActual<typeof import("convex/react")>("convex/react");
-
-  return {
-    ...actual,
-    useAction: vi.fn(),
-    useMutation: vi.fn(),
-    useQuery: vi.fn(),
-  };
-});
-vi.mock("@/providers/toast-context", () => ({
-  useToast: vi.fn(),
-}));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mirror module shape */
-  CACHE_KEYS: { conversations: "conversations" },
-  del: vi.fn(),
-}));
-
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction, useMutation, useQuery } from "convex/react";
-import { del } from "@/lib/local-storage";
-import { useToast } from "@/providers/toast-context";
+import { act } from "@testing-library/react";
+import * as LocalStorageModule from "@/lib/local-storage";
+import { renderHook } from "../test/hook-utils";
 import { useBackgroundJobs } from "./use-background-jobs";
 
 describe("useBackgroundJobs", () => {
+  let delSpy: ReturnType<typeof spyOn<typeof LocalStorageModule, "del">>;
+
   beforeEach(() => {
-    vi.useFakeTimers();
-    vi.clearAllMocks();
+    delSpy = spyOn(LocalStorageModule, "del");
   });
 
-  it("maps job statuses and supports startExport/import/bulkDelete + toasts", async () => {
+  afterEach(() => {
+    delSpy.mockRestore();
+  });
+
+  test("maps job statuses and supports startExport/import/bulkDelete + toasts", async () => {
     let jobStatuses: Array<{
       _id: string;
       type: string;
@@ -44,30 +34,60 @@ describe("useBackgroundJobs", () => {
       _creationTime: number;
       fileStorageId?: string;
     }> = [];
-    (useQuery as unknown as vi.Mock).mockImplementation(() => jobStatuses);
 
-    const scheduleBackgroundExport = vi.fn().mockResolvedValue(undefined);
-    const scheduleBackgroundImport = vi.fn().mockResolvedValue(undefined);
-    const scheduleBackgroundBulkDelete = vi.fn().mockResolvedValue(undefined);
-    (useAction as unknown as vi.Mock)
-      .mockReturnValueOnce(scheduleBackgroundExport)
-      .mockReturnValueOnce(scheduleBackgroundImport)
-      .mockReturnValueOnce(scheduleBackgroundBulkDelete);
+    const scheduleBackgroundExport = mock(() => Promise.resolve(undefined));
+    const scheduleBackgroundImport = mock(() => Promise.resolve(undefined));
+    const scheduleBackgroundBulkDelete = mock(() => Promise.resolve(undefined));
+    let actionCallCount = 0;
+    const useActionMock = mock(() => {
+      if (actionCallCount === 0) {
+        actionCallCount++;
+        return scheduleBackgroundExport;
+      }
+      if (actionCallCount === 1) {
+        actionCallCount++;
+        return scheduleBackgroundImport;
+      }
+      return scheduleBackgroundBulkDelete;
+    });
 
-    const deleteJob = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock).mockReturnValue(deleteJob);
+    const deleteJob = mock(() => Promise.resolve(undefined));
+    const useMutationMock = mock(() => deleteJob);
 
-    const success = vi.fn();
-    const error = vi.fn();
-    const loading = vi.fn();
-    const dismiss = vi.fn();
-    (useToast as unknown as vi.Mock).mockReturnValue({
+    const success = mock();
+    const error = mock();
+    const loading = mock();
+    const dismiss = mock();
+    const useToastMock = mock(() => ({
       success,
       error,
       loading,
       dismiss,
-      dismissAll: vi.fn(),
+      dismissAll: mock(),
+    }));
+
+    const useQueryMock = mock(() => {
+      return [...jobStatuses];
     });
+    const useConvexMock = mock(() => ({
+      query: mock(() =>
+        Promise.resolve({
+          downloadUrl: "https://example.com/download",
+          manifest: { totalConversations: 1, includeAttachments: false },
+        })
+      ),
+    }));
+
+    mock.module("convex/react", () => ({
+      useAction: useActionMock,
+      useMutation: useMutationMock,
+      useQuery: useQueryMock,
+      useConvex: useConvexMock,
+    }));
+
+    mock.module("@/providers/toast-context", () => ({
+      useToast: useToastMock,
+    }));
 
     const { result, rerender } = renderHook(() => useBackgroundJobs());
 
@@ -95,9 +115,7 @@ describe("useBackgroundJobs", () => {
         _creationTime: 1,
       },
     ];
-    act(() => {
-      rerender();
-    });
+    rerender();
     // Transition to completed should trigger success toast
     jobStatuses = [
       {
@@ -110,9 +128,7 @@ describe("useBackgroundJobs", () => {
         _creationTime: 1,
       },
     ];
-    act(() => {
-      rerender();
-    });
+    rerender();
     expect(success).toHaveBeenCalledWith(
       "Export completed successfully!",
       expect.objectContaining({
@@ -131,9 +147,7 @@ describe("useBackgroundJobs", () => {
         _creationTime: 2,
       },
     ];
-    act(() => {
-      rerender();
-    });
+    rerender();
     jobStatuses = [
       {
         _id: "j2",
@@ -144,27 +158,35 @@ describe("useBackgroundJobs", () => {
         _creationTime: 2,
       },
     ];
-    act(() => {
-      rerender();
-    });
+    rerender();
     expect(success).toHaveBeenCalledWith("Import completed successfully!", {
       id: expect.stringMatching(/^job-/),
     });
-    expect(del).toHaveBeenCalled();
+    expect(delSpy).toHaveBeenCalled();
   });
 
-  it("removeJob calls mutation and shows toast", async () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue([]);
-    const deleteJob = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock).mockReturnValue(deleteJob);
-    const success = vi.fn();
-    (useToast as unknown as vi.Mock).mockReturnValue({
+  test("removeJob calls mutation and shows toast", async () => {
+    const deleteJob = mock(() => Promise.resolve(undefined));
+    const useMutationMock = mock(() => deleteJob);
+    const success = mock();
+    const useToastMock = mock(() => ({
       success,
-      error: vi.fn(),
-      loading: vi.fn(),
-      dismiss: vi.fn(),
-      dismissAll: vi.fn(),
-    });
+      error: mock(),
+      loading: mock(),
+      dismiss: mock(),
+      dismissAll: mock(),
+    }));
+
+    mock.module("convex/react", () => ({
+      useAction: mock(),
+      useMutation: useMutationMock,
+      useQuery: mock(() => []),
+      useConvex: mock(),
+    }));
+
+    mock.module("@/providers/toast-context", () => ({
+      useToast: useToastMock,
+    }));
 
     const { result } = renderHook(() => useBackgroundJobs());
     await act(async () => {
@@ -174,7 +196,7 @@ describe("useBackgroundJobs", () => {
     expect(success).toHaveBeenCalledWith("Job removed successfully");
   });
 
-  it("getActiveJobs/getCompletedJobs/getJob expose mapped lists", () => {
+  test("getActiveJobs/getCompletedJobs/getJob expose mapped lists", () => {
     let jobStatuses: Array<{
       _id: string;
       jobId: string;
@@ -203,16 +225,27 @@ describe("useBackgroundJobs", () => {
         _creationTime: 2,
       },
     ];
-    (useQuery as unknown as vi.Mock).mockImplementation(() => jobStatuses);
-    (useAction as unknown as vi.Mock).mockReturnValue(vi.fn());
-    (useMutation as unknown as vi.Mock).mockReturnValue(vi.fn());
-    (useToast as unknown as vi.Mock).mockReturnValue({
-      success: vi.fn(),
-      error: vi.fn(),
-      loading: vi.fn(),
-      dismiss: vi.fn(),
-      dismissAll: vi.fn(),
+
+    const useQueryMock = mock(() => {
+      return [...jobStatuses];
     });
+
+    mock.module("convex/react", () => ({
+      useAction: mock(),
+      useMutation: mock(),
+      useQuery: useQueryMock,
+      useConvex: mock(),
+    }));
+
+    mock.module("@/providers/toast-context", () => ({
+      useToast: mock(() => ({
+        success: mock(),
+        error: mock(),
+        loading: mock(),
+        dismiss: mock(),
+        dismissAll: mock(),
+      })),
+    }));
 
     const { result, rerender } = renderHook(() => useBackgroundJobs());
     expect(result.current.getActiveJobs().length).toBe(1);
@@ -231,7 +264,7 @@ describe("useBackgroundJobs", () => {
         _creationTime: 3,
       },
     ];
-    act(() => rerender());
+    rerender();
     expect(result.current.getActiveJobs().length).toBe(0);
     expect(result.current.getCompletedJobs().length).toBe(1);
   });

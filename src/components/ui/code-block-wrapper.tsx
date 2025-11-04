@@ -64,7 +64,7 @@ export const CodeBlockWrapperLLM: LLMOutputComponent = ({ blockMatch }) => {
 
   // Fallback to old logic if custom parser fails
   const lines = blockMatch.output.split("\n");
-  const firstLine = lines[0];
+  const firstLine = lines[0] ?? "";
   const language = firstLine.startsWith("```")
     ? firstLine.slice(3).trim()
     : "text";

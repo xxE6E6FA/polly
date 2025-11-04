@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages attachments", () => {
-  it("list resolves attachments with fallback to original url when storage url missing", async () => {
+  test("list resolves attachments with fallback to original url when storage url missing", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {

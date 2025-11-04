@@ -1,5 +1,5 @@
 import { ArrowLeftIcon, SignOutIcon } from "@phosphor-icons/react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";

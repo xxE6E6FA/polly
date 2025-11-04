@@ -1,34 +1,46 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import {
-  buildKey,
-  CACHE_KEYS,
-  clearAllPollyKeys,
-  clearUserData,
-  del,
-  get,
-  LOCAL_STORAGE_VERSION,
-  set,
-} from "./local-storage";
+import { beforeEach, describe, expect, test } from "bun:test";
+
+let localStorageModule: typeof import("./local-storage");
+
+function unwrapMockedFunction<T extends (...args: any[]) => unknown>(fn: T): T {
+  const maybeMock = fn as unknown as {
+    mock?: { original?: unknown };
+  };
+  if (maybeMock.mock?.original) {
+    return maybeMock.mock.original as T;
+  }
+  return fn;
+}
 
 describe("local-storage", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    const modulePath = "./local-storage?isolated-tests";
+    localStorageModule = (await import(
+      modulePath
+    )) as typeof import("./local-storage");
     localStorage.clear();
   });
 
-  it("buildKey namespaces with prefix and version", () => {
+  test("buildKey namespaces with prefix and version", () => {
+    const { buildKey, CACHE_KEYS, LOCAL_STORAGE_VERSION } = localStorageModule;
     const key = buildKey(CACHE_KEYS.userSettings);
     expect(key).toBe(
       `polly:${CACHE_KEYS.userSettings}/v${LOCAL_STORAGE_VERSION}`
     );
   });
 
-  it("get returns fallback when key missing", () => {
+  test("get returns fallback when key missing", () => {
+    const { CACHE_KEYS } = localStorageModule;
+    const get = unwrapMockedFunction(localStorageModule.get);
     const fallback = { theme: "dark" };
     const value = get(CACHE_KEYS.userSettings, fallback);
     expect(value).toEqual(fallback);
   });
 
-  it("set and get roundtrip value with version envelope", () => {
+  test("set and get roundtrip value with version envelope", () => {
+    const { buildKey, CACHE_KEYS, LOCAL_STORAGE_VERSION } = localStorageModule;
+    const get = unwrapMockedFunction(localStorageModule.get);
+    const set = unwrapMockedFunction(localStorageModule.set);
     const data = { theme: "light", compact: true };
     set(CACHE_KEYS.userSettings, data);
 
@@ -42,7 +54,9 @@ describe("local-storage", () => {
     expect(read).toEqual(data);
   });
 
-  it("get returns fallback and removes stale versions", () => {
+  test("get returns fallback and removes stale versions", () => {
+    const { buildKey, CACHE_KEYS, LOCAL_STORAGE_VERSION } = localStorageModule;
+    const get = unwrapMockedFunction(localStorageModule.get);
     const namespaced = buildKey(CACHE_KEYS.userSettings);
     const stale = JSON.stringify({
       version: LOCAL_STORAGE_VERSION - 1,
@@ -56,7 +70,24 @@ describe("local-storage", () => {
     expect(localStorage.getItem(namespaced)).toBeNull();
   });
 
-  it("get returns fallback on corrupt JSON without throwing", () => {
+  test("get returns fallback when versioned entry is missing data payload", () => {
+    const { buildKey, CACHE_KEYS, LOCAL_STORAGE_VERSION } = localStorageModule;
+    const get = unwrapMockedFunction(localStorageModule.get);
+    const namespaced = buildKey(CACHE_KEYS.userSettings);
+    const malformed = JSON.stringify({
+      version: LOCAL_STORAGE_VERSION,
+    });
+    localStorage.setItem(namespaced, malformed);
+
+    const fallback = { theme: "dark" };
+    const value = get(CACHE_KEYS.userSettings, fallback);
+    expect(value).toEqual(fallback);
+    expect(localStorage.getItem(namespaced)).toBeNull();
+  });
+
+  test("get returns fallback on corrupt JSON without throwing", () => {
+    const { buildKey, CACHE_KEYS } = localStorageModule;
+    const get = unwrapMockedFunction(localStorageModule.get);
     const namespaced = buildKey(CACHE_KEYS.userSettings);
     localStorage.setItem(namespaced, "not-json");
 
@@ -67,7 +98,10 @@ describe("local-storage", () => {
     expect(localStorage.getItem(namespaced)).toBe("not-json");
   });
 
-  it("del removes a single namespaced key", () => {
+  test("del removes a single namespaced key", () => {
+    const { buildKey, CACHE_KEYS } = localStorageModule;
+    const set = unwrapMockedFunction(localStorageModule.set);
+    const del = unwrapMockedFunction(localStorageModule.del);
     set(CACHE_KEYS.selectedModel, "gpt-4o");
     const namespaced = buildKey(CACHE_KEYS.selectedModel);
     expect(localStorage.getItem(namespaced)).not.toBeNull();
@@ -76,7 +110,12 @@ describe("local-storage", () => {
     expect(localStorage.getItem(namespaced)).toBeNull();
   });
 
-  it("clearAllPollyKeys preserves persistent keys only", () => {
+  test("clearAllPollyKeys preserves persistent keys only", () => {
+    const { buildKey, CACHE_KEYS } = localStorageModule;
+    const set = unwrapMockedFunction(localStorageModule.set);
+    const clearAllPollyKeys = unwrapMockedFunction(
+      localStorageModule.clearAllPollyKeys
+    );
     // Persistent keys
     set(CACHE_KEYS.sidebar, { open: true });
     set(CACHE_KEYS.theme, "dark");
@@ -104,7 +143,12 @@ describe("local-storage", () => {
     expect(localStorage.getItem(buildKey(CACHE_KEYS.userSettings))).toBeNull();
   });
 
-  it("clearUserData clears only user-specific keys", () => {
+  test("clearUserData clears only user-specific keys", () => {
+    const { buildKey, CACHE_KEYS } = localStorageModule;
+    const set = unwrapMockedFunction(localStorageModule.set);
+    const clearUserData = unwrapMockedFunction(
+      localStorageModule.clearUserData
+    );
     // Populate a variety of keys
     set(CACHE_KEYS.apiKeys, { openai: "sk-test" });
     set(CACHE_KEYS.userModels, []);

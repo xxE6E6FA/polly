@@ -1,8 +1,8 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env bun
 
 /**
  * Script to run the built-in models migration
- * Run with: npx tsx scripts/run-migration.ts
+ * Run with: bun scripts/run-migration.ts
  */
 
 import { ConvexHttpClient } from "convex/browser";

@@ -4,7 +4,6 @@ export {
 } from "../../shared/reasoning-model-detection";
 
 import { checkOpenRouterReasoningSupport } from "./openrouter_capabilities";
-import { log } from "../lib/logger";
 
 /**
  * Enhanced reasoning detection that includes OpenRouter API checking
@@ -21,7 +20,7 @@ export async function isReasoningModelWithApiCheck(
     try {
       return await checkOpenRouterReasoningSupport(model);
     } catch (error) {
-      log.warn(
+      console.warn(
         "Failed to check OpenRouter reasoning support, falling back to pattern matching:",
         error
       );

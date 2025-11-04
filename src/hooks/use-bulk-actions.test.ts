@@ -1,42 +1,54 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { generateBackgroundExportFilename as realGenerateBackgroundExportFilename } from "@/lib/export";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
-}));
-vi.mock("@/hooks/use-background-jobs", () => ({
-  useBackgroundJobs: vi.fn(),
-}));
-vi.mock("@/hooks/use-dialog-management", () => ({
-  useConfirmationDialog: vi.fn(),
-}));
-vi.mock("@/providers/batch-selection-context", () => ({
-  useBatchSelection: vi.fn(),
-}));
-vi.mock("@/providers/toast-context", () => ({
-  useToast: vi.fn(),
-}));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mirror module shape */
-  CACHE_KEYS: { conversations: "conversations" },
-  del: vi.fn(),
-}));
-vi.mock("@/lib/export", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/export")>("@/lib/export");
+let useMutationMock: ReturnType<typeof mock>;
+let useQueryMock: ReturnType<typeof mock>;
+let useBackgroundJobsMock: ReturnType<typeof mock>;
+let useConfirmationDialogMock: ReturnType<typeof mock>;
+let useBatchSelectionMock: ReturnType<typeof mock>;
+let useToastMock: ReturnType<typeof mock>;
+let downloadFromUrlMock: ReturnType<typeof mock>;
 
-  return {
-    ...actual,
-    downloadFromUrl: vi.fn(),
-  };
-});
+mock.module("convex/react", () => ({
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+mock.module("@/hooks/use-background-jobs", () => ({
+  useBackgroundJobs: (...args: unknown[]) => useBackgroundJobsMock(...args),
+}));
+mock.module("@/hooks/use-dialog-management", () => ({
+  useConfirmationDialog: (...args: unknown[]) =>
+    useConfirmationDialogMock(...args),
+}));
+mock.module("@/providers/batch-selection-context", () => ({
+  useBatchSelection: (...args: unknown[]) => useBatchSelectionMock(...args),
+}));
+mock.module("@/providers/toast-context", () => ({
+  useToast: (...args: unknown[]) => useToastMock(...args),
+}));
+mock.module("@/lib/export", () => ({
+  exportAsJSON: mock(),
+  exportAsMarkdown: mock(),
+  downloadFile: mock(),
+  downloadFromUrl: (...args: unknown[]) => downloadFromUrlMock(...args),
+  generateFilename: mock(),
+  generateBackgroundExportFilename: realGenerateBackgroundExportFilename,
+}));
 
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { downloadFromUrl } from "@/lib/export";
-import { del } from "@/lib/local-storage";
+import * as LocalStorageModule from "@/lib/local-storage";
 import { useBatchSelection } from "@/providers/batch-selection-context";
 import { useToast } from "@/providers/toast-context";
 import { useBackgroundJobs } from "./use-background-jobs";
@@ -44,53 +56,89 @@ import { useBulkActions } from "./use-bulk-actions";
 import { useConfirmationDialog } from "./use-dialog-management";
 
 describe("useBulkActions", () => {
+  let delSpy: ReturnType<typeof spyOn>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    useMutationMock = mock();
+    useQueryMock = mock(() => undefined);
+    useBackgroundJobsMock = mock(() => ({
+      startExport: mock(() => Promise.resolve("job1")),
+      startBulkDelete: mock(() => Promise.resolve("job2")),
+      activeJobs: [],
+    }));
+    useConfirmationDialogMock = mock(() => ({
+      confirm: (_config: unknown, onConfirm: () => Promise<void>) => {
+        return onConfirm();
+      },
+    }));
+    useBatchSelectionMock = mock(() => ({
+      getSelectedIds: () => [],
+      clearSelection: mock(),
+      selectAllVisible: mock(),
+    }));
+    useToastMock = mock(() => ({
+      success: mock(),
+      error: mock(),
+      loading: mock(),
+      dismiss: mock(),
+      dismissAll: mock(),
+    }));
+    downloadFromUrlMock = mock();
+
+    delSpy = spyOn(LocalStorageModule, "del").mockImplementation(() => {
+      // Intentional no-op for test mock
+    });
+  });
+
+  afterEach(() => {
+    delSpy.mockRestore();
   });
 
   function setupCommonMocks(selected: string[] = ["c1", "c2"]) {
-    (useBatchSelection as unknown as vi.Mock).mockReturnValue({
+    useBatchSelectionMock.mockImplementation(() => ({
       getSelectedIds: () => selected,
-      clearSelection: vi.fn(),
-      selectAllVisible: vi.fn(),
-    });
+      clearSelection: mock(),
+      selectAllVisible: mock(),
+    }));
 
-    (useConfirmationDialog as unknown as vi.Mock).mockReturnValue({
+    useConfirmationDialogMock.mockImplementation(() => ({
       confirm: (_config: unknown, onConfirm: () => Promise<void>) => {
         // Immediately execute confirm callback
         return onConfirm();
       },
-    });
+    }));
 
     const toast = {
-      success: vi.fn(),
-      error: vi.fn(),
-      loading: vi.fn(),
-      dismiss: vi.fn(),
-      dismissAll: vi.fn(),
+      success: mock(),
+      error: mock(),
+      loading: mock(),
+      dismiss: mock(),
+      dismissAll: mock(),
     };
-    (useToast as unknown as vi.Mock).mockReturnValue(toast);
+    useToastMock.mockImplementation(() => toast);
 
-    (useBackgroundJobs as unknown as vi.Mock).mockReturnValue({
-      startExport: vi.fn().mockResolvedValue("job1"),
-      startBulkDelete: vi.fn().mockResolvedValue("job2"),
+    const startExportFn = mock(() => Promise.resolve("job1"));
+    const startBulkDeleteFn = mock(() => Promise.resolve("job2"));
+    useBackgroundJobsMock.mockImplementation(() => ({
+      startExport: startExportFn,
+      startBulkDelete: startBulkDeleteFn,
       activeJobs: [],
-    });
+    }));
 
     // Mutations: [bulkRemove, patch]
-    const bulkRemove = vi.fn().mockResolvedValue(undefined);
-    const patch = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock)
-      .mockReturnValueOnce(bulkRemove)
-      .mockReturnValueOnce(patch);
+    const bulkRemove = mock(() => Promise.resolve(undefined));
+    const patch = mock(() => Promise.resolve(undefined));
+    useMutationMock
+      .mockImplementationOnce(() => bulkRemove)
+      .mockImplementationOnce(() => patch);
 
     // download url query not used unless exporting completed; return undefined
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+    useQueryMock.mockImplementation(() => undefined);
 
     return { toast, bulkRemove, patch };
   }
 
-  it("archives by patching and toasts success", async () => {
+  test("archives by patching and toasts success", async () => {
     const { toast, patch } = setupCommonMocks([
       "a" as Id<"conversations">,
       "b" as Id<"conversations">,
@@ -104,7 +152,7 @@ describe("useBulkActions", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it("deletes small selection directly and clears conversations cache", async () => {
+  test("deletes small selection directly and clears conversations cache", async () => {
     const { toast, bulkRemove } = setupCommonMocks([
       "a" as Id<"conversations">,
     ]);
@@ -114,37 +162,49 @@ describe("useBulkActions", () => {
       await Promise.resolve();
     });
     expect(bulkRemove).toHaveBeenCalled();
-    expect(del).toHaveBeenCalled();
+    expect(delSpy).toHaveBeenCalled();
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it("exports via background job", async () => {
+  test("exports via background job", async () => {
+    setupCommonMocks();
     const { result } = renderHook(() => useBulkActions());
     await act(async () => {
       await result.current.performBulkAction("export-json");
       await Promise.resolve();
     });
-    expect(useBackgroundJobs).toHaveBeenCalled();
+    expect(useBackgroundJobsMock).toHaveBeenCalled();
   });
 
-  it("auto-downloads when export job completes", async () => {
+  test("auto-downloads when export job completes", async () => {
     // First render: start export and register pending auto-download
     const toast = {
-      success: vi.fn(),
-      error: vi.fn(),
-      loading: vi.fn(() => "toast-id"),
-      dismiss: vi.fn(),
-      dismissAll: vi.fn(),
+      success: mock(),
+      error: mock(),
+      loading: mock(() => "toast-id"),
+      dismiss: mock(),
+      dismissAll: mock(),
     };
-    (useToast as unknown as vi.Mock).mockReturnValue(toast);
-    const startExport = vi.fn().mockResolvedValue("job-1");
-    (useBackgroundJobs as unknown as vi.Mock).mockReturnValue({
+    useToastMock.mockImplementation(() => toast);
+    useBatchSelectionMock.mockImplementation(() => ({
+      getSelectedIds: () => ["c1", "c2"],
+      clearSelection: mock(),
+      selectAllVisible: mock(),
+    }));
+    useConfirmationDialogMock.mockImplementation(() => ({
+      confirm: (_config: unknown, onConfirm: () => Promise<void>) => {
+        return onConfirm();
+      },
+    }));
+    const startExport = mock(() => Promise.resolve("job-1"));
+    useBackgroundJobsMock.mockImplementation(() => ({
       startExport,
-      startBulkDelete: vi.fn(),
+      startBulkDelete: mock(),
       activeJobs: [],
-    });
+    }));
+    useMutationMock.mockImplementation(() => mock());
     // download url is not available during first render
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+    useQueryMock.mockImplementation(() => undefined);
 
     const { result, rerender } = renderHook(() => useBulkActions());
     await act(async () => {
@@ -152,9 +212,9 @@ describe("useBulkActions", () => {
     });
 
     // Second render: backgroundJobs now includes completed export with same job id
-    (useBackgroundJobs as unknown as vi.Mock).mockReturnValue({
+    useBackgroundJobsMock.mockImplementation(() => ({
       startExport,
-      startBulkDelete: vi.fn(),
+      startBulkDelete: mock(),
       activeJobs: [
         {
           id: "job-1",
@@ -164,12 +224,12 @@ describe("useBulkActions", () => {
           fileStorageId: "s1",
         },
       ],
-    });
+    }));
     // Provide download data for the job
-    (useQuery as unknown as vi.Mock).mockReturnValue({
+    useQueryMock.mockImplementation(() => ({
       downloadUrl: "https://file/url",
       manifest: { totalConversations: 2 },
-    });
+    }));
 
     await act(async () => {
       rerender();
@@ -177,7 +237,7 @@ describe("useBulkActions", () => {
       await Promise.resolve();
     });
 
-    expect(downloadFromUrl).toHaveBeenCalledWith(
+    expect(downloadFromUrlMock).toHaveBeenCalledWith(
       "https://file/url",
       expect.stringMatching(/^polly-export-2-conversations-/)
     );
@@ -185,13 +245,13 @@ describe("useBulkActions", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
-  it("selects all visible when requested", async () => {
-    const selectAllVisible = vi.fn();
-    (useBatchSelection as unknown as vi.Mock).mockReturnValue({
+  test("selects all visible when requested", async () => {
+    const selectAllVisible = mock();
+    useBatchSelectionMock.mockImplementation(() => ({
       getSelectedIds: () => [],
       selectAllVisible,
-      clearSelection: vi.fn(),
-    });
+      clearSelection: mock(),
+    }));
     const { result } = renderHook(() => useBulkActions());
     await act(async () => {
       await result.current.performBulkAction("select-all-visible", {

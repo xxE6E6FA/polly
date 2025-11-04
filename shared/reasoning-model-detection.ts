@@ -334,6 +334,12 @@ export function needsSpecialReasoningHandling(
     return true;
   }
 
+  // Anthropic models with optional reasoning need special handling
+  // to enable default reasoning config when no explicit config is provided
+  if (provider === "anthropic" && hasOptionalReasoning(provider, modelId)) {
+    return true;
+  }
+
   return false;
 }
 

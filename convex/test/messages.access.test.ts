@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages access control", () => {
-  it("removeMultiple throws when no access to messages", async () => {
+  test("removeMultiple throws when no access to messages", async () => {
     const t = await makeConvexTest();
     const owner = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const other = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });

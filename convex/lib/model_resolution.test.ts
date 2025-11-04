@@ -1,27 +1,36 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, mock } from "bun:test";
 
-vi.mock("@convex-dev/auth/server", () => ({
-  getAuthUserId: vi.fn(async () => "u1"),
+mock.module("@convex-dev/auth/server", () => ({
+  getAuthUserId: mock(async () => "u1"),
 }));
-vi.mock("./logger", () => ({
-  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+mock.module("./logger", () => ({
+  log: {
+    debug: mock(),
+    info: mock(),
+    warn: mock(),
+    error: mock(),
+    streamStart: mock(),
+    streamReasoning: mock(),
+    streamComplete: mock(),
+    streamError: mock(),
+    streamAbort: mock(),
+  },
 }));
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { getUserEffectiveModel, getUserEffectiveModelWithCapabilities } from "./model_resolution";
 
 describe("lib/model_resolution", () => {
-  beforeEach(() => vi.clearAllMocks());
 
-  it("returns provided model/provider when both present", async () => {
+  test("returns provided model/provider when both present", async () => {
     const res = await getUserEffectiveModel({} as any, "m", "p");
     expect(res).toEqual({ modelId: "m", provider: "p" });
   });
 
-  it("resolves from user selected model via db path", async () => {
+  test("resolves from user selected model via db path", async () => {
     const selected = { modelId: "gpt", provider: "openai" };
     const ctx: any = {
+      auth: { getUserIdentity: mock(async () => ({ subject: "u1|session" })) },
       db: {
         query: (table: string) => ({
           withIndex: () => ({
@@ -34,8 +43,9 @@ describe("lib/model_resolution", () => {
     expect(res).toEqual(selected);
   });
 
-  it("falls back to built-in default when nothing found", async () => {
+  test("falls back to built-in default when nothing found", async () => {
     const ctx: any = {
+      auth: { getUserIdentity: mock(async () => ({ subject: "u1|session" })) },
       db: {
         query: () => ({ withIndex: () => ({ filter: () => ({ unique: async () => null }) }) }),
       },
@@ -45,10 +55,10 @@ describe("lib/model_resolution", () => {
     expect(res.provider).toBe("google");
   });
 
-  it("uses action ctx runQuery for selected model and model by id", async () => {
+  test("uses action ctx runQuery for selected model and model by id", async () => {
     const selected = { modelId: "m1", provider: "prov" };
     const modelObj = { ...selected, name: "Name", supportsReasoning: true, supportsImages: true } as any;
-    const runQuery = vi.fn()
+    const runQuery = mock()
       .mockResolvedValueOnce(selected) // getUserSelectedModel
       .mockResolvedValueOnce(modelObj); // getModelByID
 
@@ -63,9 +73,10 @@ describe("lib/model_resolution", () => {
     expect(res2.supportsImages).toBe(true);
   });
 
-  it("db path with built-in model when user model missing", async () => {
+  test("db path with built-in model when user model missing", async () => {
     const builtIn = { modelId: "b1", provider: "google", name: "Builtin", supportsReasoning: false, isActive: true } as any;
     const ctx: any = {
+      auth: { getUserIdentity: mock(async () => ({ subject: "u1|session" })) },
       db: {
         query: (table: string) => ({
           withIndex: () => ({
@@ -81,4 +92,3 @@ describe("lib/model_resolution", () => {
     expect(res.name).toBe("Builtin");
   });
 });
-

@@ -4,7 +4,6 @@ import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { action, internalMutation, query } from "./_generated/server";
 import { executeStreamingActionForRetry } from "./lib/conversation_utils";
-import { log } from "./lib/logger";
 import {
   attachmentSchema,
   extendedMessageMetadataSchema,
@@ -165,13 +164,16 @@ export const createBranch = action({
           setUpdatedAt: false,
         });
       } catch (e) {
-        log.warn("Failed to backfill root conversation branching fields", e);
+        console.warn(
+          "Failed to backfill root conversation branching fields",
+          e
+        );
       }
     }
 
     // Sanitize messages to match validator: drop extra fields like _creationTime, conversationId, isMainBranch
     const sanitized = upToBranch.map((d: Doc<"messages">) => ({
-      _id: d._id,
+      _id: d._id as Id<"messages">,
       role: d.role,
       content: d.content,
       status: d.status,
@@ -180,9 +182,11 @@ export const createBranch = action({
       model: d.model,
       provider: d.provider,
       reasoningConfig: d.reasoningConfig,
-      parentId: d.parentId,
+      parentId: d.parentId ? (d.parentId as Id<"messages">) : undefined,
       branchId: d.branchId,
-      sourceConversationId: d.sourceConversationId,
+      sourceConversationId: d.sourceConversationId
+        ? (d.sourceConversationId as Id<"conversations">)
+        : undefined,
       useWebSearch: d.useWebSearch,
       attachments: d.attachments,
       citations: d.citations,

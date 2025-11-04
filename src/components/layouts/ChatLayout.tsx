@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useParams } from "react-router";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 
 import { SharedChatLayout } from "@/components/shared-chat-layout";
 

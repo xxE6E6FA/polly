@@ -1,49 +1,53 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc } from "@convex/_generated/dataModel";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
 
-vi.mock("convex/react", () => ({
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
+let useMutationMock: ReturnType<typeof mock>;
+let useQueryMock: ReturnType<typeof mock>;
+let useUserSettingsMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+let useToastMock: ReturnType<typeof mock>;
+
+const personasApi = {
+  list: mock(),
+  listAllBuiltIn: mock(),
+  remove: mock(),
+  toggleBuiltInPersona: mock(),
+};
+
+const userSettingsApi = {
+  getUserSettings: mock(),
+  togglePersonasEnabled: mock(),
+};
+
+mock.module("convex/react", () => ({
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
 
-vi.mock("@convex/_generated/api", () => ({
+mock.module("@convex/_generated/api", () => ({
   api: {
-    personas: {
-      list: vi.fn(),
-      listAllBuiltIn: vi.fn(),
-      remove: vi.fn(),
-      toggleBuiltInPersona: vi.fn(),
-    },
-    userSettings: {
-      getUserSettings: vi.fn(),
-      togglePersonasEnabled: vi.fn(),
-    },
+    personas: personasApi,
+    userSettings: userSettingsApi,
   },
 }));
 
-vi.mock("@/hooks/use-user-settings", () => ({
-  useUserSettings: vi.fn(),
+mock.module("@/hooks/use-user-settings", () => ({
+  useUserSettings: (...args: unknown[]) => useUserSettingsMock(...args),
 }));
 
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(),
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
-vi.mock("@/providers/toast-context", () => ({
-  useToast: vi.fn(),
+mock.module("@/providers/toast-context", () => ({
+  useToast: (...args: unknown[]) => useToastMock(...args),
 }));
 
-vi.mock("react-router", () => ({
+mock.module("react-router-dom", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock must mirror export name */
-  Link: ({
-    children,
-    to,
-    ...props
-  }: {
-    children: React.ReactNode;
-    to: string;
-  }) => (
+  Link: ({ children, to, ...props }: { children: ReactNode; to: string }) => (
     <a href={to} {...props}>
       {children}
     </a>
@@ -51,18 +55,18 @@ vi.mock("react-router", () => ({
 }));
 
 import { api } from "@convex/_generated/api";
-import { useMutation, useQuery } from "convex/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useUserSettings } from "@/hooks/use-user-settings";
-import { useToast } from "@/providers/toast-context";
-import { useUserDataContext } from "@/providers/user-data-context";
 import { PersonasTab } from "./personas-tab";
 
-const useMutationMock = vi.mocked(useMutation);
-const useQueryMock = vi.mocked(useQuery);
-const useUserSettingsMock = vi.mocked(useUserSettings);
-const useUserDataContextMock = vi.mocked(useUserDataContext);
-const useToastMock = vi.mocked(useToast);
+type UseUserSettingsReturn = ReturnType<
+  typeof import("@/hooks/use-user-settings").useUserSettings
+>;
+type UseUserDataContextReturn = ReturnType<
+  typeof import("@/providers/user-data-context").useUserDataContext
+>;
+type UseToastReturn = ReturnType<
+  typeof import("@/providers/toast-context").useToast
+>;
 
 describe("PersonasTab - Delete Confirmation", () => {
   const mockUser = {
@@ -82,62 +86,70 @@ describe("PersonasTab - Delete Confirmation", () => {
     _creationTime: Date.now(),
   } as unknown as Doc<"personas">;
 
-  const mockRemovePersonaMutation = vi.fn();
+  let mockRemovePersonaMutation: ReturnType<typeof mock>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    useMutationMock = mock();
+    useQueryMock = mock();
+    useUserSettingsMock = mock();
+    useUserDataContextMock = mock();
+    useToastMock = mock();
+    mockRemovePersonaMutation = mock();
+
+    personasApi.list.mockReset();
+    personasApi.listAllBuiltIn.mockReset();
+    personasApi.remove.mockReset();
+    personasApi.toggleBuiltInPersona.mockReset();
+    userSettingsApi.getUserSettings.mockReset();
+    userSettingsApi.togglePersonasEnabled.mockReset();
 
     Object.defineProperty(window, "matchMedia", {
       writable: true,
-      value: vi.fn().mockImplementation(query => ({
+      value: mock((query: string) => ({
         matches: false,
         media: query,
         onchange: null,
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn(),
+        addListener: mock(),
+        removeListener: mock(),
+        addEventListener: mock(),
+        removeEventListener: mock(),
+        dispatchEvent: mock(),
       })),
     });
 
     useUserDataContextMock.mockReturnValue({
       user: mockUser,
-    } as unknown as ReturnType<typeof useUserDataContext>);
+    } as unknown as UseUserDataContextReturn);
 
     useUserSettingsMock.mockReturnValue({
       personasEnabled: true,
-    } as unknown as ReturnType<typeof useUserSettings>);
+    } as unknown as UseUserSettingsReturn);
 
-    (useQueryMock as unknown as vi.Mock).mockImplementation(
-      (query: unknown) => {
-        if (query === api.personas.list) {
-          return [mockPersona];
-        }
-        if (query === api.personas.listAllBuiltIn) {
-          return [];
-        }
-        if (query === api.userSettings.getUserSettings) {
-          return [];
-        }
-        return undefined;
+    useQueryMock.mockImplementation((query: unknown) => {
+      if (query === api.personas.list) {
+        return [mockPersona];
       }
-    );
+      if (query === api.personas.listAllBuiltIn) {
+        return [];
+      }
+      if (query === api.userSettings.getUserSettings) {
+        return [];
+      }
+      return undefined;
+    });
 
-    (useMutationMock as unknown as vi.Mock).mockImplementation(
-      (mutation: unknown) => {
-        if (mutation === api.personas.remove) {
-          return mockRemovePersonaMutation;
-        }
-        return vi.fn();
+    useMutationMock.mockImplementation((mutation: unknown) => {
+      if (mutation === api.personas.remove) {
+        return mockRemovePersonaMutation;
       }
-    );
+      return mock();
+    });
 
     useToastMock.mockReturnValue({
-      error: vi.fn(),
-      success: vi.fn(),
-      info: vi.fn(),
-    } as unknown as ReturnType<typeof useToast>);
+      error: mock(),
+      success: mock(),
+      info: mock(),
+    } as unknown as UseToastReturn);
   });
 
   const findDeleteButton = (container: HTMLElement) => {
@@ -150,7 +162,7 @@ describe("PersonasTab - Delete Confirmation", () => {
     );
   };
 
-  it("opens confirmation dialog when delete button is clicked", async () => {
+  test("opens confirmation dialog when delete button is clicked", async () => {
     const { container } = render(
       <TooltipProvider>
         <PersonasTab />
@@ -174,7 +186,7 @@ describe("PersonasTab - Delete Confirmation", () => {
     ).toBeInTheDocument();
   });
 
-  it("does not delete persona when cancel is clicked", async () => {
+  test("does not delete persona when cancel is clicked", async () => {
     const { container } = render(
       <TooltipProvider>
         <PersonasTab />
@@ -205,7 +217,7 @@ describe("PersonasTab - Delete Confirmation", () => {
     expect(mockRemovePersonaMutation).not.toHaveBeenCalled();
   });
 
-  it("deletes persona when confirm is clicked", async () => {
+  test("deletes persona when confirm is clicked", async () => {
     mockRemovePersonaMutation.mockResolvedValue(undefined);
 
     const { container } = render(

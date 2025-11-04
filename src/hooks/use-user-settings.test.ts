@@ -1,40 +1,74 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
-  CACHE_KEYS: { userSettings: "user-settings" },
-  get: vi.fn(),
-  set: vi.fn(),
-}));
+const useQueryMock = mock();
 
-import { useQuery } from "convex/react";
-import { get, set } from "@/lib/local-storage";
+mock.module("convex/react", () => ({ useQuery: useQueryMock }));
+
+import * as LocalStorageModule from "@/lib/local-storage";
 import { getInitialUserSettings, useUserSettings } from "./use-user-settings";
 
 describe("useUserSettings", () => {
-  beforeEach(() => vi.clearAllMocks());
+  let getSpy: ReturnType<typeof spyOn>;
+  let setSpy: ReturnType<typeof spyOn>;
 
-  it("returns cached settings when query undefined", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
-    (get as unknown as vi.Mock).mockReturnValue({ theme: "dark" });
-    const { result } = renderHook(() => useUserSettings());
-    expect(result.current).toEqual({ theme: "dark" });
-    expect(get).toHaveBeenCalled();
+  beforeEach(() => {
+    getSpy = spyOn(LocalStorageModule, "get").mockReturnValue(undefined);
+    setSpy = spyOn(LocalStorageModule, "set").mockImplementation(() => {
+      // Intentional no-op for test mock
+    });
   });
 
-  it("stores settings to cache when query returns a value", () => {
-    const settings = { theme: "light" };
-    (useQuery as unknown as vi.Mock).mockReturnValue(settings);
+  afterEach(() => {
+    getSpy.mockRestore();
+    setSpy.mockRestore();
+  });
+
+  test("returns cached settings when query undefined", () => {
+    useQueryMock.mockReturnValue(undefined);
+    const cachedSettings = {
+      _id: "s1" as any,
+      _creationTime: 123,
+      userId: "u1" as any,
+      personasEnabled: true,
+      createdAt: 123,
+      updatedAt: 123,
+    };
+    getSpy.mockReturnValue(cachedSettings);
+    const { result } = renderHook(() => useUserSettings());
+    expect(result.current).toEqual(cachedSettings);
+    expect(getSpy).toHaveBeenCalled();
+  });
+
+  test("stores settings to cache when query returns a value", () => {
+    const settings = {
+      _id: "s1" as any,
+      _creationTime: 123,
+      userId: "u1" as any,
+      personasEnabled: false,
+      createdAt: 123,
+      updatedAt: 123,
+    };
+    useQueryMock.mockReturnValue(settings);
     const { result } = renderHook(() => useUserSettings());
     expect(result.current).toEqual(settings);
-    expect(set).toHaveBeenCalledWith("user-settings", settings);
+    expect(setSpy).toHaveBeenCalledWith(
+      LocalStorageModule.CACHE_KEYS.userSettings,
+      settings
+    );
   });
 
-  it("getInitialUserSettings reads from cache with fallback", () => {
-    (get as unknown as vi.Mock).mockReturnValue(null);
+  test("getInitialUserSettings reads from cache with fallback", () => {
+    getSpy.mockReturnValue(null as never);
     expect(getInitialUserSettings()).toBeNull();
-    expect(get).toHaveBeenCalled();
+    expect(getSpy).toHaveBeenCalled();
   });
 });

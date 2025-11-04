@@ -1,12 +1,18 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@/types";
 import { renderHook } from "../../test/hook-utils";
 
-vi.mock("./message-utils", () => ({
-  convertServerMessages: vi.fn((s: unknown) => s as unknown[]),
-  findStreamingMessage: vi.fn(() => undefined),
-  isMessageStreaming: vi.fn(() => false),
+let convertServerMessagesMock: ReturnType<typeof mock>;
+let findStreamingMessageMock: ReturnType<typeof mock>;
+let isMessageStreamingMock: ReturnType<typeof mock>;
+
+mock.module("./message-utils", () => ({
+  convertServerMessages: (...args: unknown[]) =>
+    convertServerMessagesMock(...args),
+  findStreamingMessage: (...args: unknown[]) =>
+    findStreamingMessageMock(...args),
+  isMessageStreaming: (...args: unknown[]) => isMessageStreamingMock(...args),
 }));
 
 import {
@@ -17,13 +23,17 @@ import {
 import { useMessageState } from "./use-message-state";
 
 describe("use-message-state", () => {
-  it("private mode: manages local state and streaming from messages", async () => {
+  beforeEach(() => {
+    convertServerMessagesMock = mock((s: unknown) => s as unknown[]);
+    findStreamingMessageMock = mock(() => undefined);
+    isMessageStreamingMock = mock(() => false);
+  });
+
+  test("private mode: manages local state and streaming from messages", async () => {
     const { result } = renderHook(() => useMessageState());
-    (isMessageStreaming as unknown as vi.Mock).mockImplementation(
-      (m: { content?: string }) => {
-        return m?.content === "hello";
-      }
-    );
+    isMessageStreamingMock.mockImplementation((m: { content?: string }) => {
+      return m?.content === "hello";
+    });
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.messages).toEqual([]);
@@ -63,19 +73,17 @@ describe("use-message-state", () => {
     });
   });
 
-  it("server mode: converts messages, toggles loading, and detects streaming via findStreamingMessage", async () => {
-    (convertServerMessages as unknown as vi.Mock).mockImplementation(
-      (_s: unknown) => [
-        {
-          id: "s1",
-          role: "user",
-          content: "x",
-          isMainBranch: true,
-          createdAt: 0,
-        },
-      ]
-    );
-    (findStreamingMessage as unknown as vi.Mock)
+  test("server mode: converts messages, toggles loading, and detects streaming via findStreamingMessage", async () => {
+    convertServerMessagesMock.mockImplementation((_s: unknown) => [
+      {
+        id: "s1",
+        role: "user",
+        content: "x",
+        isMainBranch: true,
+        createdAt: 0,
+      },
+    ]);
+    findStreamingMessageMock
       .mockReturnValueOnce(undefined)
       .mockReturnValueOnce({});
 

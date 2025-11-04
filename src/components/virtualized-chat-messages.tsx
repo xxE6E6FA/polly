@@ -505,6 +505,9 @@ export const VirtualizedChatMessages = memo(
       useEffect(() => {
         if (processedMessages.length > 0) {
           const lastMessage = processedMessages[processedMessages.length - 1];
+          if (!lastMessage) {
+            return;
+          }
 
           // Check if this is a new assistant message
           if (
@@ -530,6 +533,9 @@ export const VirtualizedChatMessages = memo(
         }
 
         const lastMessage = processedMessages[processedMessages.length - 1];
+        if (!lastMessage) {
+          return;
+        }
         const container = getScrollContainer();
 
         if (!container) {
@@ -775,6 +781,10 @@ const ZenModeOverlay = ({
       return;
     }
     const firstEligible = eligibleMessages[0];
+    if (!firstEligible) {
+      closeZenMode();
+      return;
+    }
     if (!zenActiveMessageId || activeIndex === -1) {
       setZenActiveMessage(firstEligible.id);
     }
@@ -799,6 +809,9 @@ const ZenModeOverlay = ({
   }
 
   const activeMessage = eligibleMessages[activeIndex];
+  if (!activeMessage) {
+    return null;
+  }
   const content = activeMessage.content ?? "";
   const citations = activeMessage.citations;
   const isStreaming = activeMessage.status === "streaming";

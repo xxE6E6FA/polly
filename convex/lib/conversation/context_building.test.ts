@@ -1,26 +1,50 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, mock, afterAll, beforeAll } from "bun:test";
 
 // Mock logger to keep output clean
-vi.mock("../logger", () => ({
-  log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+mock.module("../logger", () => ({
+  log: {
+    debug: mock(),
+    info: mock(),
+    warn: mock(),
+    error: mock(),
+    streamStart: mock(),
+    streamReasoning: mock(),
+    streamComplete: mock(),
+    streamError: mock(),
+    streamAbort: mock(),
+  },
 }));
 
-// Mock summarization helpers used by the module
-vi.mock("./summarization", () => ({
-  CONTEXT_CONFIG: { SUMMARY_THRESHOLD: 5 },
-  processChunksWithStoredSummaries: vi.fn(),
-  createRecursiveMetaSummary: vi.fn(),
-  summarizeChunk: vi.fn(),
-  storeChunkSummary: vi.fn(),
-}));
+const summarizationModule = await import("./summarization");
+const processChunksWithStoredSummariesMock = mock();
+const createRecursiveMetaSummaryMock = mock();
+const summarizeChunkMock = mock();
+const storeChunkSummaryMock = mock();
+
+beforeAll(() => {
+  mock.module("./summarization", () => ({
+    ...summarizationModule,
+    CONTEXT_CONFIG: {
+      ...summarizationModule.CONTEXT_CONFIG,
+      SUMMARY_THRESHOLD: 5,
+    },
+    processChunksWithStoredSummaries: processChunksWithStoredSummariesMock,
+    createRecursiveMetaSummary: createRecursiveMetaSummaryMock,
+    summarizeChunk: summarizeChunkMock,
+    storeChunkSummary: storeChunkSummaryMock,
+  }));
+});
+afterAll(() => {
+  mock.restore();
+});
 
 // Mock auth and persona/merge helpers used by buildContextMessages
-vi.mock("@convex-dev/auth/server", () => ({ getAuthUserId: vi.fn() }));
-vi.mock("../conversation/message_handling", () => ({
-  getPersonaPrompt: vi.fn(async () => "persona"),
-  mergeSystemPrompts: vi.fn((a: string, b: string) => `${a}\n${b}`),
+mock.module("@convex-dev/auth/server", () => ({ getAuthUserId: mock() }));
+mock.module("../conversation/message_handling", () => ({
+  getPersonaPrompt: mock(async () => "persona"),
+  mergeSystemPrompts: mock((a: string, b: string) => `${a}\n${b}`),
 }));
-vi.mock("../../constants", () => ({ getBaselineInstructions: vi.fn(() => "base") }));
+mock.module("../../constants", () => ({ getBaselineInstructions: mock(() => "base") }));
 
 import {
   buildHierarchicalContextMessages,
@@ -39,43 +63,42 @@ import {
 } from "./summarization";
 
 describe("conversation/context_building", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
-  it("returns empty when no messages or under threshold", async () => {
-    const ctx: any = { runQuery: vi.fn().mockResolvedValueOnce([]) };
+  test("returns empty when no messages or under threshold", async () => {
+    const ctx: any = { runQuery: mock(async () => []) };
     const res1 = await buildHierarchicalContextMessages(ctx, "c1" as any);
     expect(res1).toEqual([]);
 
     // Under threshold
     const msgs = Array.from({ length: 5 }, (_, i) => ({ _id: `m${i}`, _creationTime: i, role: "user", content: "x" }));
-    const ctx2: any = { runQuery: vi.fn().mockResolvedValueOnce(msgs) };
+    const ctx2: any = { runQuery: mock(async () => msgs) };
     const res2 = await buildHierarchicalContextMessages(ctx2, "c2" as any);
     expect(res2).toEqual([]);
   });
 
-  it("summarizes older messages and returns a system context when content generated", async () => {
+  test("summarizes older messages and returns a system context when content generated", async () => {
     const total = 8; // exceed threshold (mocked as 5)
     const messages = Array.from({ length: total }, (_, i) => ({ _id: `m${i}`, _creationTime: i, role: i % 2 ? "assistant" : "user", content: `msg${i}` }));
-    const ctx: any = { runQuery: vi.fn().mockResolvedValueOnce(messages) };
+    const ctx: any = { runQuery: mock(async () => messages) };
 
-    // First pass returns one chunk needing summarization
-    (processChunksWithStoredSummaries as any).mockResolvedValueOnce([
+    // Configure mocks: processChunksWithStoredSummaries returns one chunk needing summarization
+    (processChunksWithStoredSummaries as any).mockImplementation(async () => [
       { messages: messages.slice(0, 3), chunkIndex: 0, originalMessageCount: 3 },
     ]);
-    (summarizeChunk as any).mockResolvedValueOnce("SUM-0");
-    (storeChunkSummary as any).mockResolvedValue(undefined);
-    (createRecursiveMetaSummary as any).mockResolvedValueOnce(undefined);
+    (summarizeChunk as any).mockImplementation(async () => "SUM-0");
+    (storeChunkSummary as any).mockImplementation(async () => {});
+    (createRecursiveMetaSummary as any).mockImplementation(async () => []);
 
     const res = await buildHierarchicalContextMessages(ctx, "conv" as any, undefined as any, undefined as any, 2);
     // Should produce a single system message with content containing our summary
     expect(res).toHaveLength(1);
-    expect(res[0].role).toBe("system");
-    expect(res[0].content).toContain("SUM-0");
+    const first = res[0];
+    expect(first).toBeDefined();
+    expect(first?.role).toBe("system");
+    expect(first?.content).toContain("SUM-0");
   });
 
-  it("buildFinalContext varies header/instructions/guidance by layers", async () => {
+  test("buildFinalContext varies header/instructions/guidance by layers", async () => {
     const chunks = [
       { summary: "S1", originalMessageCount: 10 },
       { summary: "S2", originalMessageCount: 20, isMetaSummary: true },
@@ -100,7 +123,7 @@ describe("conversation/context_building", () => {
     expect(out4.toLowerCase()).toContain("important");
   });
 
-  it("buildContextContent includes chunk type and counts", () => {
+  test("buildContextContent includes chunk type and counts", () => {
     const txt = buildContextContent([
       { summary: "A", originalMessageCount: 5 },
       { summary: "B", originalMessageCount: 7, isMetaSummary: true },
@@ -114,7 +137,7 @@ describe("conversation/context_building", () => {
     expect(txt.toLowerCase()).toContain("meta");
   });
 
-  it("buildAIInstructions changes text by layers", () => {
+  test("buildAIInstructions changes text by layers", () => {
     const layer0 = buildAIInstructions(0);
     const layer2 = buildAIInstructions(2);
     const layer3 = buildAIInstructions(3);
@@ -129,7 +152,7 @@ describe("conversation/context_building", () => {
     expect(layer3.toLowerCase()).toContain("summar");
   });
 
-  it("buildSummaryGuidance contains bullet points", () => {
+  test("buildSummaryGuidance contains bullet points", () => {
     const g = buildSummaryGuidance();
     expect(g.length).toBeGreaterThan(0);
     expect(g).toContain("•");
@@ -137,9 +160,9 @@ describe("conversation/context_building", () => {
     expect(g.toLowerCase()).toContain("use");
   });
 
-  it("buildContextMessages composes baseline system and conversation messages", async () => {
+  test("buildContextMessages composes baseline system and conversation messages", async () => {
     // Auth user
-    (getAuthUserId as any).mockResolvedValue("u1");
+    (getAuthUserId as any).mockImplementation(async () => "u1");
 
     // Conversation messages including system/context to be filtered
     const all = [
@@ -149,7 +172,7 @@ describe("conversation/context_building", () => {
       { role: "context", content: "ignore", _id: "c1", _creationTime: 4 },
       { role: "user", content: "u2", _id: "m3", _creationTime: 5 },
     ];
-    const ctx: any = { runQuery: vi.fn().mockResolvedValue(all) };
+    const ctx: any = { runQuery: mock(async () => all) };
 
     const res = await buildContextMessages(ctx, {
       conversationId: "c1" as any,
@@ -157,8 +180,10 @@ describe("conversation/context_building", () => {
     });
     const msgs = res.contextMessages;
     // First baseline+persona system, then any context returned by builder (may be empty), then conversation messages (filtered)
-    expect(msgs[0].role).toBe("system");
-    expect(msgs[0].content).toContain("base\npersona");
+    const first = msgs[0];
+    expect(first).toBeDefined();
+    expect(first?.role).toBe("system");
+    expect(first?.content).toContain("base\npersona");
     // Conversation messages present after any optional context
     const trailing = msgs.slice(1);
     expect(trailing).toEqual([

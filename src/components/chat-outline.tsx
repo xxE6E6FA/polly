@@ -91,6 +91,9 @@ const ChatOutlineComponent = ({
 
     for (let i = 0; i < messages.length; i++) {
       const message = messages[i];
+      if (!message) {
+        continue;
+      }
 
       if (message.role === "user") {
         items.push({
@@ -126,8 +129,12 @@ const ChatOutlineComponent = ({
 
               const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
               if (headingMatch) {
-                const level = headingMatch[1].length;
-                const rawText = headingMatch[2].trim();
+                const [, headingHashes, headingContent] = headingMatch;
+                if (!(headingHashes && headingContent)) {
+                  continue;
+                }
+                const level = headingHashes.length;
+                const rawText = headingContent.trim();
                 const cleanText = removeMarkdown(rawText);
                 const headingId = generateHeadingId(rawText, nextMessage.id);
 

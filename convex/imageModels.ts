@@ -3,7 +3,6 @@ import { v } from "convex/values";
 import Replicate from "replicate";
 import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
-import { log } from "./lib/logger";
 import { imageModelDefinitionSchema } from "./lib/schemas";
 
 // Helper function to determine if a model supports aspect_ratio parameter
@@ -536,7 +535,7 @@ export const fetchReplicateImageModels = action({
         hasMore: false,
       };
     } catch (error) {
-      log.error("Error fetching Replicate image models:", error);
+      console.error("Error fetching Replicate image models:", error);
       return { models: [], nextCursor: null, hasMore: false };
     }
   },
@@ -696,7 +695,7 @@ export const searchReplicateModels = action({
         hasMore: !!searchResults.next,
       };
     } catch (error) {
-      log.error("Error searching Replicate models:", error);
+      console.error("Error searching Replicate models:", error);
       return { models: [], nextCursor: null, hasMore: false };
     }
   },
@@ -778,30 +777,37 @@ export const refreshModelCapabilities = action({
           continue;
         }
 
+        const owner =
+          userModel.owner ??
+          userModel.modelId.split("/")[0] ??
+          userModel.modelId;
+        const name = userModel.name ?? userModel.modelId;
+        const description = userModel.description ?? "";
+
         // Re-analyze capabilities using the latest schema
         const supportedAspectRatios = determineAspectRatioSupport(
           {
-            owner: userModel.owner || userModel.modelId.split("/")[0],
-            name: userModel.name,
-            description: userModel.description,
+            owner,
+            name,
+            description,
           },
           latestVersion
         );
 
         const supportsMultipleImages = determineMultipleImageSupport(
           {
-            owner: userModel.owner || userModel.modelId.split("/")[0],
-            name: userModel.name,
-            description: userModel.description,
+            owner,
+            name,
+            description,
           },
           latestVersion
         );
 
         const supportsNegativePrompt = determineNegativePromptSupport(
           {
-            owner: userModel.owner || userModel.modelId.split("/")[0],
-            name: userModel.name,
-            description: userModel.description,
+            owner,
+            name,
+            description,
           },
           latestVersion
         );
@@ -834,7 +840,10 @@ export const refreshModelCapabilities = action({
             provider: userModel.provider,
             description: userModel.description || "",
             modelVersion: latestVersion.id,
-            owner: userModel.owner || userModel.modelId.split("/")[0],
+            owner:
+              userModel.owner ??
+              userModel.modelId.split("/")[0] ??
+              userModel.modelId,
             tags: userModel.tags || [],
             supportedAspectRatios,
             supportsUpscaling: existingDefinition.supportsUpscaling,
@@ -852,7 +861,7 @@ export const refreshModelCapabilities = action({
 
         updatedCount++;
       } catch (error) {
-        log.error(`Error refreshing ${userModel.modelId}:`, error);
+        console.error(`Error refreshing ${userModel.modelId}:`, error);
         errors.push(
           `${userModel.modelId}: ${error instanceof Error ? error.message : "Unknown error"}`
         );
@@ -1066,7 +1075,7 @@ export const addCustomImageModel = action({
         model: imageModel,
       };
     } catch (error) {
-      log.error("Error adding custom image model:", error);
+      console.error("Error adding custom image model:", error);
 
       // Parse the error to provide user-friendly messages
       if (error instanceof Error) {

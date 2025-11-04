@@ -1,6 +1,5 @@
 import { ConvexError } from "convex/values";
 import type { ActionCtx } from "../../_generated/server";
-import { log } from "../logger";
 import type { ApiMessageDoc, ProcessedChunk } from "./types";
 import { api } from "../../_generated/api";
 
@@ -61,7 +60,6 @@ async function processChunksWithStoredSummaries(
     }
   );
 
-  log.info(`Found ${existingSummaries.length} existing summaries for conversation ${conversationId}`);
 
   // Create a map of chunk indices to their summaries
   const summaryMap = new Map<number, string>();
@@ -87,7 +85,6 @@ async function processChunksWithStoredSummaries(
         chunkIndex,
         originalMessageCount: chunk.length,
       });
-      log.info(`Using stored summary for chunk ${chunkIndex} (${chunk.length} messages)`);
     } else {
       // No stored summary - use raw messages (will be summarized later if needed)
       chunks.push({
@@ -95,7 +92,6 @@ async function processChunksWithStoredSummaries(
         chunkIndex,
         originalMessageCount: chunk.length,
       });
-      log.info(`Using raw messages for chunk ${chunkIndex} (${chunk.length} messages)`);
     }
   }
 
@@ -124,9 +120,9 @@ async function storeChunkSummary(
       firstMessageId,
       lastMessageId,
     });
-    log.info(`Stored summary for conversation ${conversationId}, chunk ${chunkIndex}`);
   } catch (error) {
-    log.warn(`Failed to store chunk summary: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Failed to store chunk summary: ${message}`);
     // Don't throw - continue with the process even if storage fails
   }
 }
@@ -142,7 +138,6 @@ async function createRecursiveMetaSummary(
     return summaries.map(summary => ({ summary }));
   }
 
-  log.info(`Creating meta-summary at depth ${depth} from ${summaries.length} summaries`);
   
   const metaSummaryChunks: ProcessedChunk[] = [];
   
@@ -181,10 +176,10 @@ async function summarizeChunk(chunk: ApiMessageDoc[]): Promise<string> {
     const summaryPrompt = buildSummaryPrompt(conversationText, maxLength);
     const summary = await generateLLMSummary(summaryPrompt, maxLength);
     
-    log.info(`Generated LLM summary: ${summary.length} chars from ${conversationText.length} chars`);
     return summary;
   } catch (error) {
-    log.warn(`LLM summarization failed: ${error}. Using fallback.`);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`LLM summarization failed: ${message}. Using fallback.`);
     const conversationText = buildConversationText(chunk);
     return createFallbackSummary(conversationText, CONTEXT_CONFIG.FALLBACK_SUMMARY_LENGTH);
   }
@@ -260,7 +255,8 @@ async function generateLLMSummary(prompt: string, maxLength: number): Promise<st
     
     return summary;
   } catch (error) {
-    log.error(`LLM summarization failed: ${error}`);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`LLM summarization failed: ${message}`);
     throw error;
   }
 }
@@ -317,8 +313,14 @@ function intelligentTruncateSummary(summary: string, maxLength: number): string 
   let truncated = "";
   
   for (let i = 0; i < sentences.length; i++) {
-    const sentence = sentences[i].trim();
-    if (!sentence) continue;
+    const rawSentence = sentences[i];
+    if (!rawSentence) {
+      continue;
+    }
+    const sentence = rawSentence.trim();
+    if (!sentence) {
+      continue;
+    }
     
     const nextLength = truncated.length + (truncated ? ". " : "").length + sentence.length;
     if (nextLength > maxLength - CONTEXT_CONFIG.TRUNCATE_BUFFER) {
