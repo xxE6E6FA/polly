@@ -1,5 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
+import { mockModuleWithRestore } from "../test/utils";
 
 let useQueryMock: ReturnType<typeof mock>;
 let useUserDataContextMock: ReturnType<typeof mock>;
@@ -7,7 +8,9 @@ let useUserDataContextMock: ReturnType<typeof mock>;
 mock.module("convex/react", () => ({
   useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
-mock.module("@/providers/user-data-context", () => ({
+
+await mockModuleWithRestore("@/providers/user-data-context", actual => ({
+  ...actual,
   useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 

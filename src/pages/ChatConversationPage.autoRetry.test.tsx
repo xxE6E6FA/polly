@@ -16,7 +16,11 @@ import {
   RouterProvider,
   type useLoaderData,
 } from "react-router-dom";
-import { mockModuleWithRestore } from "../test/utils";
+import {
+  createToastMock,
+  mockModuleWithRestore,
+  mockToastContext,
+} from "../test/utils";
 
 const createMock = mock;
 
@@ -26,6 +30,7 @@ const mockUseChat = createMock();
 const mockUseQuery = createMock();
 const mockUseAction = createMock();
 const mockUseMutation = createMock();
+const toastMock = createToastMock();
 
 let ChatConversationPage: typeof import("./ChatConversationPage").default;
 
@@ -41,6 +46,8 @@ await mockModuleWithRestore("@/providers/private-mode-context", actual => ({
     setPrivateMode: mockSetPrivateMode,
   }),
 }));
+
+await mockToastContext(toastMock);
 
 const registerMocks = () => {
   mock.module("convex/react", () => ({
@@ -64,16 +71,6 @@ const registerMocks = () => {
   }));
 
   mock.module("@/hooks/use-online", () => ({ useOnline: () => true }));
-
-  mock.module("@/providers/toast-context", () => ({
-    useToast: () => ({
-      error: mock(),
-      success: mock(),
-      loading: mock(),
-      dismiss: mock(),
-      dismissAll: mock(),
-    }),
-  }));
 
   mock.module("@/stores/stream-overlays", () => ({
     useStreamOverlays: {
@@ -141,6 +138,9 @@ describe("ChatConversationPage auto-retry", () => {
   >;
 
   beforeEach(() => {
+    for (const fn of Object.values(toastMock)) {
+      fn.mockClear();
+    }
     useLoaderDataSpy = spyOn(ReactRouterDom, "useLoaderData").mockReturnValue({
       conversationAccessInfo: {
         hasAccess: true,
