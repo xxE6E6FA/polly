@@ -2,6 +2,7 @@ import { action } from "../../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api } from "../../_generated/api";
 import { v } from "convex/values";
+import { scheduleRunAfter } from "../scheduler";
 
 /**
  * Schedule a background import of conversations
@@ -29,7 +30,7 @@ export const scheduleBackgroundImport = action({
     });
 
     // Schedule the import processing
-    await ctx.scheduler.runAfter(100, api.conversationImport.processImport, {
+    await scheduleRunAfter(ctx, 100, api.conversationImport.processImport, {
       conversations: args.conversations,
       importId: args.importId,
       skipDuplicates: true,
@@ -90,7 +91,7 @@ export const scheduleBackgroundBulkDelete = action({
     });
 
     // Schedule the bulk delete processing
-    await ctx.scheduler.runAfter(100, api.conversations.processBulkDelete, {
+    await scheduleRunAfter(ctx, 100, api.conversations.processBulkDelete, {
       conversationIds: args.conversationIds,
       jobId: args.jobId,
       userId,

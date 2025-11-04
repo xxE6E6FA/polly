@@ -1,44 +1,85 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { getChatKey, useChatInputStore } from "@/stores/chat-input-store";
+import {
+  type ChatInputStoreApi,
+  getChatInputStore,
+  getChatKey,
+} from "@/stores/chat-input-store";
 import type { Attachment } from "@/types";
 
 export function appendAttachments(
   conversationId: string | null | undefined,
-  attachments: Attachment[]
+  attachments: Attachment[],
+  store?: ChatInputStoreApi
 ) {
+  if (attachments.length === 0) {
+    return;
+  }
+
   const key = getChatKey(conversationId ?? undefined);
-  const setAttachments = useChatInputStore.getState().setAttachments;
-  setAttachments(key, prev => [...prev, ...attachments]);
+  const targetStore = store ?? getChatInputStore();
+  targetStore.setState(current => {
+    const prev = current.attachmentsByKey[key] ?? [];
+    const next = [...prev, ...attachments];
+
+    if (
+      next.length === prev.length &&
+      next.every((item, index) => item === prev[index])
+    ) {
+      return current;
+    }
+
+    return {
+      ...current,
+      attachmentsByKey: {
+        ...current.attachmentsByKey,
+        [key]: next,
+      },
+    };
+  }, true);
 }
 
 export function removeAttachmentAt(
   conversationId: string | null | undefined,
-  index: number
+  index: number,
+  store?: ChatInputStoreApi
 ) {
   const key = getChatKey(conversationId ?? undefined);
-  const setAttachments = useChatInputStore.getState().setAttachments;
-  const current = useChatInputStore.getState().attachmentsByKey[key] ?? [];
-  if (index < 0 || index >= current.length) {
-    return;
-  }
-  setAttachments(
-    key,
-    current.filter((_, i) => i !== index)
-  );
+  const targetStore = store ?? getChatInputStore();
+  targetStore.setState(current => {
+    const prev = current.attachmentsByKey[key];
+    if (!Array.isArray(prev) || index < 0 || index >= prev.length) {
+      return current;
+    }
+
+    const next = prev.filter((_, i) => i !== index);
+    if (next.length === prev.length) {
+      return current;
+    }
+
+    return {
+      ...current,
+      attachmentsByKey: {
+        ...current.attachmentsByKey,
+        [key]: next,
+      },
+    };
+  }, true);
 }
 
 export function setPersona(
   conversationId: string | null | undefined,
-  id: Id<"personas"> | null
+  id: Id<"personas"> | null,
+  store?: ChatInputStoreApi
 ) {
   const key = getChatKey(conversationId ?? undefined);
-  useChatInputStore.getState().setSelectedPersonaId(key, id);
+  (store ?? getChatInputStore()).getState().setSelectedPersonaId(key, id);
 }
 
 export function setTemperature(
   conversationId: string | null | undefined,
-  value: number | undefined
+  value: number | undefined,
+  store?: ChatInputStoreApi
 ) {
   const key = getChatKey(conversationId ?? undefined);
-  useChatInputStore.getState().setTemperature(key, value);
+  (store ?? getChatInputStore()).getState().setTemperature(key, value);
 }

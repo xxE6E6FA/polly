@@ -1,36 +1,53 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, mock, test } from "bun:test";
+import { act } from "@testing-library/react";
+import {
+  createChatInputStore,
+  setChatInputStoreApi,
+} from "@/stores/chat-input-store";
+import { setupZustandTestStore } from "@/test/zustand";
 import { renderHook } from "../test/hook-utils";
+import { useChatAttachments } from "./use-chat-attachments";
 
-vi.mock("@/stores/chat-input-store", () => ({
-  getChatKey: vi.fn(() => "global"),
-  useChatInputStore: (sel: (state: unknown) => unknown) =>
-    sel({
+const useClearOnConversationChangeMock = mock();
+
+mock.module("./use-clear-on-conversation-change", () => ({
+  useClearOnConversationChange: (...args: unknown[]) =>
+    useClearOnConversationChangeMock(...args),
+}));
+
+afterAll(() => {
+  mock.restore();
+});
+
+const getStore = setupZustandTestStore({
+  createStore: () => createChatInputStore(),
+  setStore: setChatInputStoreApi,
+});
+
+describe("useChatAttachments", () => {
+  test("reads attachments for key and exposes set/clear", () => {
+    const store = getStore();
+    store.setState({
       attachmentsByKey: {
         global: [{ type: "text", url: "u", name: "n", size: 1, content: "c" }],
       },
-      setAttachments: vi.fn(),
-      clearAttachmentsKey: vi.fn(),
-    }),
-}));
+    });
 
-vi.mock("./use-clear-on-conversation-change", () => ({
-  useClearOnConversationChange: vi.fn(),
-}));
-
-import { useChatInputStore } from "@/stores/chat-input-store";
-import { useChatAttachments } from "./use-chat-attachments";
-
-describe("useChatAttachments", () => {
-  it("reads attachments for key and exposes set/clear", () => {
     const { result } = renderHook(() => useChatAttachments());
     expect(result.current.attachments).toHaveLength(1);
 
-    useChatInputStore as { getState?: () => unknown };
-    expect(typeof result.current.setAttachments).toBe("function");
-    expect(typeof result.current.clearAttachments).toBe("function");
+    act(() => {
+      result.current.setAttachments(prev => [
+        ...prev,
+        { type: "image", url: "u2", name: "n2", size: 2 },
+      ]);
+    });
+    expect(store.getState().attachmentsByKey.global).toHaveLength(2);
 
-    // call to ensure passthrough works; underlying spies live in closure
-    result.current.setAttachments(prev => prev);
-    result.current.clearAttachments();
+    act(() => {
+      result.current.clearAttachments();
+    });
+    expect(store.getState().attachmentsByKey.global).toBeUndefined();
+    expect(useClearOnConversationChangeMock).toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 {
-  "framework": "vite",
-  "buildCommand": "bun run build",
+  "framework": null,
+  "buildCommand": "bun run build:frontend",
   "outputDirectory": "dist",
   "devCommand": "bun run dev",
   "installCommand": "bun install",

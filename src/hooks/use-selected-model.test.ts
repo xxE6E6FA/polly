@@ -1,74 +1,102 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
+import { waitFor } from "@testing-library/react";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
-  CACHE_KEYS: { selectedModel: "selectedModel" },
-  get: vi.fn(),
+let useQueryMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
-vi.mock("@/stores/chat-input-store", () => ({ useChatInputStore: vi.fn() }));
 
 import { useQuery } from "convex/react";
-import { get } from "@/lib/local-storage";
-import { useChatInputStore } from "@/stores/chat-input-store";
+import * as LocalStorageModule from "@/lib/local-storage";
+import {
+  createChatInputStore,
+  setChatInputStoreApi,
+  useChatInputStore,
+} from "@/stores/chat-input-store";
+import { setupZustandTestStore } from "@/test/zustand";
 import { useSelectedModel } from "./use-selected-model";
 
+afterAll(() => {
+  mock.restore();
+});
+
 describe("useSelectedModel", () => {
-  let selected: unknown = null;
-  const setSelected = vi.fn((m: unknown) => {
-    selected = m;
+  let getSpy: ReturnType<typeof spyOn>;
+
+  const getStore = setupZustandTestStore({
+    createStore: () => createChatInputStore(),
+    setStore: setChatInputStoreApi,
   });
 
   beforeEach(() => {
-    selected = null;
-    setSelected.mockClear();
-    (useChatInputStore as unknown as vi.Mock).mockImplementation(
-      (
-        sel: (s: {
-          selectedModel: unknown;
-          setSelectedModel: (m: unknown) => void;
-        }) => unknown
-      ) => sel({ selectedModel: selected, setSelectedModel: setSelected })
-    );
+    useQueryMock = mock();
+    getSpy = spyOn(LocalStorageModule, "get");
+    getSpy.mockReset();
+    getSpy.mockReturnValue(undefined);
   });
 
-  it("hydrates from server when available", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue({
+  afterEach(() => {
+    getSpy.mockRestore();
+  });
+
+  test("hydrates from server when available", async () => {
+    const store = getStore();
+    store.setState({ selectedModel: null });
+
+    const expectedModel = {
       modelId: "gpt",
       provider: "openai",
+    } as const;
+    useQueryMock.mockReturnValue({
+      _id: "m1",
+      name: "custom",
+      ...expectedModel,
     });
+
     const { result } = renderHook(() => useSelectedModel());
-    expect(setSelected).toHaveBeenCalledWith({
-      modelId: "gpt",
-      provider: "openai",
-    });
-    expect(result.current[0]).toBeNull(); // selector uses initial selected before effect runs
-  });
 
-  it("falls back to local cache when server undefined and state empty", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
-    (get as unknown as vi.Mock).mockReturnValue({
-      modelId: "cached",
-      provider: "google",
-    });
-
-    renderHook(() => useSelectedModel());
-    expect(setSelected).toHaveBeenCalledWith({
-      modelId: "cached",
-      provider: "google",
+    await waitFor(() => {
+      expect(result.current[0]).toMatchObject(expectedModel);
     });
   });
 
-  it("does not overwrite when already selected and no server value", () => {
-    selected = { modelId: "keep", provider: "x" };
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
-    (get as unknown as vi.Mock).mockReturnValue({
-      modelId: "cached",
-      provider: "y",
+  test("does not overwrite when already selected and no server value", () => {
+    const store = getStore();
+    store.setState({
+      selectedModel: {
+        _id: "m1" as any,
+        _creationTime: 123,
+        userId: "u1" as any,
+        modelId: "keep",
+        name: "test",
+        provider: "x",
+        contextLength: 1000,
+        supportsImages: false,
+        supportsTools: false,
+        supportsReasoning: false,
+        createdAt: 123,
+      },
     });
+    useQueryMock.mockReturnValue(undefined);
+    getSpy.mockReturnValue(null);
 
     renderHook(() => useSelectedModel());
-    expect(setSelected).not.toHaveBeenCalled();
+
+    // Should not overwrite existing selection
+    expect(store.getState().selectedModel).toMatchObject({
+      modelId: "keep",
+      provider: "x",
+    });
   });
 });

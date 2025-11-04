@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/conversations.search", () => {
-  it("combines title and message matches and filters by user", async () => {
+  test("combines title and message matches and filters by user", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const otherUser = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });

@@ -1,20 +1,17 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { api, internal } from "./_generated/api";
 import { makeConvexTest } from "./test/helpers";
 
-// Quiet logger noise in tests
-vi.mock("./lib/logger", () => ({
-  log: {
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}));
-
 describe("titleGeneration actions", () => {
   beforeEach(() => {
-    vi.restoreAllMocks();
     // Ensure process.env exists in edge-runtime
     if (
       !(globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -24,9 +21,16 @@ describe("titleGeneration actions", () => {
         globalThis as { process?: { env: Record<string, string | undefined> } }
       ).process = { env: {} };
     }
+    // Clear all mocks before each test to ensure clean state
+    mock.restore();
   });
 
-  it("generateTitle patches conversation with model title (Gemini branch)", async () => {
+  afterEach(() => {
+    // Clean up all mocks after each test
+    mock.restore();
+  });
+
+  test("generateTitle patches conversation with model title (Gemini branch)", async () => {
     const t = await makeConvexTest();
 
     // Create a test user first
@@ -48,7 +52,7 @@ describe("titleGeneration actions", () => {
 
     (process.env as Record<string, string | undefined>).GEMINI_API_KEY =
       "test-key";
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         candidates: [{ content: { parts: [{ text: "My AI Title" }] } }],
@@ -70,7 +74,7 @@ describe("titleGeneration actions", () => {
     expect(updatedConversation?.title).toBe(title);
   });
 
-  it("generateTitle falls back and patches when no API key", async () => {
+  test("generateTitle falls back and patches when no API key", async () => {
     const t = await makeConvexTest();
 
     // Create a test user first
@@ -106,7 +110,7 @@ describe("titleGeneration actions", () => {
     expect(updatedConversation?.title).toBe(title);
   });
 
-  it("generateTitleBackground generates title and updates conversation", async () => {
+  test("generateTitleBackground generates title and updates conversation", async () => {
     const t = await makeConvexTest();
 
     // Create a test user first
@@ -128,7 +132,7 @@ describe("titleGeneration actions", () => {
 
     (process.env as Record<string, string | undefined>).GEMINI_API_KEY =
       "test-key";
-    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({
         candidates: [{ content: { parts: [{ text: "Test Title" }] } }],

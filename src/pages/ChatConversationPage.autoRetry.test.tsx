@@ -1,117 +1,110 @@
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { act, render, waitFor } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as ReactRouterDom from "react-router-dom";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  type useLoaderData,
+} from "react-router-dom";
 
-const mockRetryFromMessage = vi.fn();
-const mockSetPrivateMode = vi.fn();
-const mockUseChat = vi.fn();
-const mockUseQuery = vi.fn();
-const mockUseAction = vi.fn();
-const mockUseMutation = vi.fn();
+const createMock = mock;
 
-vi.mock("@convex/_generated/api", () => ({
-  api: {
-    conversations: {
-      getWithAccessInfo: "conversations.getWithAccessInfo",
-      createBranchingConversation: "conversations.createBranchingConversation",
-      setStreaming: "conversations.setStreaming",
-    },
-    apiKeys: {
-      hasAnyApiKey: "apiKeys.hasAnyApiKey",
-    },
-    messages: {
-      list: "messages.list",
-      refineAssistantMessage: "messages.refineAssistantMessage",
-    },
-  },
-}));
+const mockRetryFromMessage = createMock();
+const mockSetPrivateMode = createMock();
+const mockUseChat = createMock();
+const mockUseQuery = createMock();
+const mockUseAction = createMock();
+const mockUseMutation = createMock();
 
-vi.mock("@convex-dev/auth/react", () => ({ useAuthToken: () => "token" }));
+let ChatConversationPage: typeof import("./ChatConversationPage").default;
 
-vi.mock("convex/react", () => ({
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
-  useAction: (...args: unknown[]) => mockUseAction(...args),
-  useMutation: (...args: unknown[]) => mockUseMutation(...args),
-  useConvex: () => ({ action: vi.fn(), mutation: vi.fn(), query: vi.fn() }),
-}));
-
-vi.mock("@/hooks/use-chat", () => ({
-  useChat: (...args: unknown[]) => mockUseChat(...args),
-}));
-
-vi.mock("@/hooks/use-conversation-model-override", () => ({
-  useConversationModelOverride: () => ({}),
-}));
-
-vi.mock("react-router", async () => {
-  const actual = await vi.importActual("react-router");
-  return {
-    ...actual,
-    useLoaderData: () => ({
-      conversationAccessInfo: {
-        hasAccess: true,
-        isDeleted: false,
-        conversation: {
-          isArchived: false,
-          title: "Conversation",
-        },
-      },
-      messages: [],
-      lastUsedModel: null,
-      streamingStatus: false,
+const registerMocks = () => {
+  mock.module("@convex-dev/auth/react", () => ({
+    useAuthToken: () => "token",
+  }));
+  mock.module("convex/react", () => ({
+    useQuery: (...args: unknown[]) => mockUseQuery(...args),
+    useAction: (...args: unknown[]) => mockUseAction(...args),
+    useMutation: (...args: unknown[]) => mockUseMutation(...args),
+    useConvex: () => ({
+      action: createMock(),
+      mutation: createMock(),
+      query: createMock(),
     }),
-  };
-});
+  }));
 
-vi.mock("@/hooks/use-online", () => ({ useOnline: () => true }));
+  mock.module("@/hooks/use-chat", () => ({
+    useChat: (...args: unknown[]) => mockUseChat(...args),
+    mapServerMessageToChatMessage: (msg: unknown) => msg,
+  }));
 
-vi.mock("@/providers/private-mode-context", () => ({
-  usePrivateMode: () => ({
-    isPrivateMode: false,
-    setPrivateMode: mockSetPrivateMode,
-  }),
-}));
+  mock.module("@/hooks/use-conversation-model-override", () => ({
+    useConversationModelOverride: () => ({}),
+  }));
 
-vi.mock("@/providers/toast-context", () => ({
-  useToast: () => ({
-    error: vi.fn(),
-    success: vi.fn(),
-    loading: vi.fn(),
-    dismiss: vi.fn(),
-    dismissAll: vi.fn(),
-  }),
-}));
+  mock.module("@/hooks/use-online", () => ({ useOnline: () => true }));
 
-vi.mock("@/stores/stream-overlays", () => ({
-  useStreamOverlays: {
-    getState: () => ({
-      set: vi.fn(),
-      setReasoning: vi.fn(),
-      setStatus: vi.fn(),
-      clearCitations: vi.fn(),
-      clearTools: vi.fn(),
+  mock.module("@/providers/private-mode-context", () => ({
+    usePrivateMode: () => ({
+      isPrivateMode: false,
+      setPrivateMode: mockSetPrivateMode,
     }),
-  },
-}));
+  }));
 
-vi.mock("@/lib/ai/http-stream", () => ({ startAuthorStream: vi.fn() }));
-vi.mock("@/lib/ai/image-generation-handlers", () => ({
-  retryImageGeneration: vi.fn(),
-}));
+  mock.module("@/providers/toast-context", () => ({
+    useToast: () => ({
+      error: mock(),
+      success: mock(),
+      loading: mock(),
+      dismiss: mock(),
+      dismissAll: mock(),
+    }),
+  }));
 
-vi.mock("@/components/unified-chat-view", () => ({
-  ["UnifiedChatView"]: () => <div data-testid="unified-chat-view" />,
-}));
+  mock.module("@/stores/stream-overlays", () => ({
+    useStreamOverlays: {
+      getState: () => ({
+        set: mock(),
+        setReasoning: mock(),
+        setStatus: mock(),
+        clearCitations: mock(),
+        clearTools: mock(),
+      }),
+    },
+  }));
 
-vi.mock("@/components/ui/offline-placeholder", () => ({
-  ["OfflinePlaceholder"]: () => <div data-testid="offline" />,
-}));
+  mock.module("@/lib/ai/http-stream", () => ({ startAuthorStream: mock() }));
+  mock.module("@/lib/ai/image-generation-handlers", () => ({
+    handleImageGeneration: mock(),
+    retryImageGeneration: mock(),
+  }));
 
-vi.mock("@/components/ui/not-found-page", () => ({
-  ["NotFoundPage"]: () => <div data-testid="not-found" />,
-}));
+  mock.module("@/components/unified-chat-view", () => ({
+    ["UnifiedChatView"]: () => <div data-testid="unified-chat-view" />,
+  }));
 
-import ChatConversationPage from "./ChatConversationPage";
+  mock.module("@/components/ui/offline-placeholder", () => ({
+    ["OfflinePlaceholder"]: () => <div data-testid="offline" />,
+  }));
+
+  mock.module("@/components/ui/not-found-page", () => ({
+    ["NotFoundPage"]: () => <div data-testid="not-found" />,
+  }));
+};
+
+const restoreMocks = () => {
+  mock.restore();
+};
 
 const conversations = {
   "conv-1": [
@@ -132,13 +125,36 @@ const conversations = {
   ],
 };
 
+beforeAll(async () => {
+  registerMocks();
+  const mod = await import("./ChatConversationPage");
+  ChatConversationPage = mod.default;
+});
+
 describe("ChatConversationPage auto-retry", () => {
+  let useLoaderDataSpy: ReturnType<
+    typeof spyOn<typeof ReactRouterDom, typeof useLoaderData>
+  >;
+
   beforeEach(() => {
+    useLoaderDataSpy = spyOn(ReactRouterDom, "useLoaderData").mockReturnValue({
+      conversationAccessInfo: {
+        hasAccess: true,
+        isDeleted: false,
+        conversation: {
+          isArchived: false,
+          title: "Conversation",
+        },
+      },
+      messages: [],
+      lastUsedModel: null,
+      streamingStatus: false,
+    });
     mockRetryFromMessage.mockClear();
     mockRetryFromMessage.mockResolvedValue(undefined);
     mockSetPrivateMode.mockClear();
-    mockUseAction.mockImplementation(() => vi.fn());
-    mockUseMutation.mockImplementation(() => vi.fn());
+    mockUseAction.mockImplementation(() => mock());
+    mockUseMutation.mockImplementation(() => mock());
     mockUseQuery.mockImplementation((queryKey: unknown) => {
       const key = queryKey as string;
       if (key === "conversations.getWithAccessInfo") {
@@ -162,16 +178,24 @@ describe("ChatConversationPage auto-retry", () => {
           conversations[conversationId as keyof typeof conversations] ?? [],
         isLoading: false,
         isStreaming: false,
-        sendMessage: vi.fn(),
-        editMessage: vi.fn(),
+        sendMessage: mock(),
+        editMessage: mock(),
         retryFromMessage: mockRetryFromMessage,
-        deleteMessage: vi.fn(),
-        stopGeneration: vi.fn(),
+        deleteMessage: mock(),
+        stopGeneration: mock(),
       })
     );
   });
 
-  it("retries trailing user message when navigating between conversations", async () => {
+  afterEach(() => {
+    useLoaderDataSpy.mockRestore();
+  });
+
+  afterAll(() => {
+    restoreMocks();
+  });
+
+  test("retries trailing user message when navigating between conversations", async () => {
     const router = createMemoryRouter(
       [
         {

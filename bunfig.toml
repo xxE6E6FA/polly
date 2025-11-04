@@ -1,0 +1,10 @@
+# Bun configuration for test runner
+[test]
+# Preload setup file for test environment
+preload = ["./src/test/happydom.ts", "./src/test/testing-library.ts"]
+
+# Coverage configuration
+coverage = true
+
+# Timeout for tests (in milliseconds)
+timeout = 10000

@@ -37,11 +37,11 @@ export class ErrorBoundary extends React.Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Error caught by boundary:", error, errorInfo);
   }
 
-  componentDidMount() {
+  override componentDidMount() {
     // Ensure theme is applied from localStorage
     this.applyThemeFromLocalStorage();
   }
@@ -85,7 +85,7 @@ export class ErrorBoundary extends React.Component<
     });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError && this.state.error) {
       const isOffline =
         typeof navigator !== "undefined" && navigator.onLine === false;

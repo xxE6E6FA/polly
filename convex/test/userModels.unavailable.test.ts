@@ -1,15 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/userModels.getUnavailableModelIds", () => {
-  it("returns empty array for anonymous users", async () => {
+  test("returns empty array for anonymous users", async () => {
     const t = await makeConvexTest();
     const res = await t.runQuery(api.userModels.getUnavailableModelIds, {});
     expect(res).toEqual([]);
   });
 
-  it("returns empty array for authenticated users without models", async () => {
+  test("returns empty array for authenticated users without models", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -21,7 +21,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res).toEqual([]);
   });
 
-  it("returns empty array for authenticated users with user models that haven't been checked", async () => {
+  test("returns empty array for authenticated users with user models that haven't been checked", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -59,7 +59,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res).toEqual([]);
   });
 
-  it("returns unavailable models when explicitly marked as unavailable", async () => {
+  test("returns unavailable models when explicitly marked as unavailable", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -119,7 +119,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "gpt-4" && m.provider === "openai")).toBe(false);
   });
 
-  it("returns empty array when models are explicitly marked as available", async () => {
+  test("returns empty array when models are explicitly marked as available", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -160,7 +160,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res).toEqual([]);
   });
 
-  it("scenario: provider API returns models but user's model is not in the list (deprecated)", async () => {
+  test("scenario: provider API returns models but user's model is not in the list (deprecated)", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -198,7 +198,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res[0]).toEqual({ modelId: "gpt-3.5-turbo", provider: "openai" });
   });
 
-  it("scenario: provider API call fails but previously checked models remain unavailable", async () => {
+  test("scenario: provider API call fails but previously checked models remain unavailable", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -227,7 +227,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res[0]).toEqual({ modelId: "deprecated-model", provider: "openai" });
   });
 
-  it("scenario: provider API succeeds and model is available again", async () => {
+  test("scenario: provider API succeeds and model is available again", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -261,7 +261,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res).toEqual([]);
   });
 
-  it("scenario: multiple providers with mixed availability", async () => {
+  test("scenario: multiple providers with mixed availability", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,
@@ -333,7 +333,7 @@ describe("convex/userModels.getUnavailableModelIds", () => {
     expect(res.some((m: { modelId: string; provider: string }) => m.modelId === "claude-2" && m.provider === "anthropic")).toBe(true);
   });
 
-  it("scenario: free models are never marked as unavailable", async () => {
+  test("scenario: free models are never marked as unavailable", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", {
       isAnonymous: false,

@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import {
   Popover,
@@ -122,8 +122,15 @@ export const ConversationStarterPopover = ({
             (async () => {
               try {
                 const token = await waitForToken(2000);
+                const convexUrl = import.meta.env.VITE_CONVEX_URL;
+                if (!convexUrl) {
+                  console.warn(
+                    "Missing VITE_CONVEX_URL; skipping conversation starter stream"
+                  );
+                  return;
+                }
                 await startAuthorStream({
-                  convexUrl: import.meta.env.VITE_CONVEX_URL,
+                  convexUrl,
                   authToken: token || undefined,
                   conversationId: result.conversationId,
                   assistantMessageId: result.assistantMessageId,

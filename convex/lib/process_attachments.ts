@@ -1,7 +1,6 @@
 
 import { type ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { log } from "./logger";
 
 // Define Attachment type based on attachmentSchema
 type Attachment = {
@@ -50,9 +49,6 @@ export const processAttachmentsForLLM = async (
     if (attachment.type === "pdf") {
       // Check if this model needs text extraction
       const needsTextExtraction = shouldExtractPdfText(provider, modelId, modelSupportsFiles);
-      log.debug(
-        `[PDF Processing] Model ${provider}/${modelId} (supportsFiles=${modelSupportsFiles}) needsTextExtraction=${needsTextExtraction} for ${attachment.name}`
-      );
       
       if (needsTextExtraction) {
         // Show status update for PDF processing
@@ -72,22 +68,15 @@ export const processAttachmentsForLLM = async (
             const textBlob = await ctx.storage.get(attachment.textFileId);
             if (textBlob) {
               textContent = await textBlob.text();
-              log.debug(
-                `[PDF Processing] Retrieved cached text for ${attachment.name}: ${textContent.length} chars`
-              );
             }
           } catch (error) {
-            log.warn("Failed to retrieve stored PDF text:", error);
+            console.warn("Failed to retrieve stored PDF text:", error);
           }
         }
 
         // Priority 2: Fallback to extractedText (in-memory)
         if (!textContent && attachment.extractedText) {
           textContent = attachment.extractedText;
-          log.debug(
-            `[PDF Processing] Using in-memory text for ${attachment.name}: ${textContent.length} chars`
-          );
-          
           // Store the extracted text for future use
           try {
             const textBlob = new Blob([attachment.extractedText], { type: "text/plain" });
@@ -105,7 +94,8 @@ export const processAttachmentsForLLM = async (
             }
             continue;
           } catch (error) {
-            log.warn("Failed to store PDF text:", error);
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(`Failed to store PDF text: ${message}`);
             // Continue with in-memory text
           }
         }
@@ -117,10 +107,6 @@ export const processAttachmentsForLLM = async (
             if (messageId) {
               await updatePdfReadingStatus(ctx, messageId, attachment.name, 10);
             }
-
-            log.debug(
-              `[PDF Processing] Extracting text server-side for ${attachment.name}`
-            );
             
             // Extract PDF text using server-side action
             const extractionResult = await ctx.runAction(api.ai.pdf.extractPdfText, {
@@ -136,19 +122,15 @@ export const processAttachmentsForLLM = async (
               textFileId: extractionResult.textFileId,
               content: textContent,
             });
-
-            log.info(
-              `[PDF Processing] Server extraction complete for ${attachment.name}: ${textContent.length} chars`
-            );
             // Clear the PDF reading status
             if (messageId && touchedPdfStatus) {
               await clearPdfReadingStatus(ctx, messageId);
             }
             continue;
           } catch (error) {
-            log.error(
-              `[PDF Processing] Server extraction failed for ${attachment.name}:`,
-              error
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(
+              `[PDF Processing] Server extraction failed for ${attachment.name}: ${message}`
             );
             
             // Clear the PDF reading status on error
@@ -179,9 +161,6 @@ export const processAttachmentsForLLM = async (
         }
       } else {
         // Model supports native PDF - use original attachment
-        log.debug(
-          `[PDF Processing] Model ${provider}/${modelId} supports PDFs natively - passing through ${attachment.name} without extraction`
-        );
         processedAttachments.push(attachment);
       }
     } else {

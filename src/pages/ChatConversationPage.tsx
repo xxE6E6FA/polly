@@ -3,7 +3,7 @@ import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useLoaderData, useNavigate, useParams } from "react-router";
+import { useLoaderData, useNavigate, useParams } from "react-router-dom";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { UnifiedChatView } from "@/components/unified-chat-view";
@@ -202,9 +202,16 @@ function ConversationRouteContent({
                     await new Promise(r => setTimeout(r, 50));
                     token = authRef.current;
                   }
+                  const convexUrl = import.meta.env.VITE_CONVEX_URL;
+                  if (!convexUrl) {
+                    console.warn(
+                      "Missing VITE_CONVEX_URL; skipping conversation stream start"
+                    );
+                    return;
+                  }
                   await startAuthorStream({
-                    convexUrl: import.meta.env.VITE_CONVEX_URL,
-                    authToken: token || undefined,
+                    convexUrl,
+                    authToken: token,
                     conversationId: result.conversationId,
                     assistantMessageId:
                       result.assistantMessageId as Id<"messages">,
@@ -359,8 +366,9 @@ function ConversationRouteContent({
         let userMessage = null;
 
         for (let i = messageIndex - 1; i >= 0; i--) {
-          if (messages[i].role === "user") {
-            userMessage = messages[i];
+          const candidate = messages[i];
+          if (candidate?.role === "user") {
+            userMessage = candidate;
             break;
           }
         }
@@ -419,10 +427,46 @@ function ConversationRouteContent({
       return;
     }
 
-    const store = useChatInputStore.getState();
-    const { setGenerationMode, setImageParams, setNegativePromptEnabled } =
-      store;
-    const { generationMode, imageParams, negativePromptEnabled } = store;
+    const getStore = (
+      useChatInputStore as unknown as {
+        getState?: () => {
+          setGenerationMode?: (mode: "text" | "image") => void;
+          setImageParams?: (
+            value:
+              | import("@/types").ImageGenerationParams
+              | ((
+                  prev: import("@/types").ImageGenerationParams
+                ) => import("@/types").ImageGenerationParams)
+          ) => void;
+          setNegativePromptEnabled?: (enabled: boolean) => void;
+          generationMode?: "text" | "image";
+          imageParams?: import("@/types").ImageGenerationParams;
+          negativePromptEnabled?: boolean;
+        };
+      }
+    ).getState;
+    if (typeof getStore !== "function") {
+      return;
+    }
+
+    const store = getStore();
+    const {
+      setGenerationMode,
+      setImageParams,
+      setNegativePromptEnabled,
+      generationMode,
+      imageParams,
+      negativePromptEnabled,
+    } = store ?? {};
+
+    if (
+      !store ||
+      typeof setGenerationMode !== "function" ||
+      typeof setImageParams !== "function" ||
+      typeof setNegativePromptEnabled !== "function"
+    ) {
+      return;
+    }
 
     const latestWithContext = (() => {
       if (!messages || messages.length === 0) {
@@ -430,6 +474,9 @@ function ConversationRouteContent({
       }
       for (let i = messages.length - 1; i >= 0; i--) {
         const message = messages[i];
+        if (!message) {
+          continue;
+        }
         const hasGeneratedAttachment = (message.attachments ?? []).some(
           att => att.type === "image" && att.generatedImage?.isGenerated
         );
@@ -468,7 +515,10 @@ function ConversationRouteContent({
       const metadata = latestWithContext?.imageGeneration?.metadata;
       const modelFromMessage = metadata?.model || latestWithContext?.model;
 
-      const nextParams = { ...imageParams };
+      const baseImageParams =
+        imageParams ??
+        ({ prompt: "", model: "" } as import("@/types").ImageGenerationParams);
+      const nextParams = { ...baseImageParams };
       let paramsChanged = false;
 
       if (modelFromMessage && nextParams.model !== modelFromMessage) {
@@ -632,6 +682,9 @@ function ConversationRouteContent({
               if (index !== -1) {
                 for (let i = index + 1; i < messages.length; i++) {
                   const m = messages[i];
+                  if (!m) {
+                    continue;
+                  }
                   if (m.role === "assistant") {
                     const id = String(m.id);
                     overlays.set(id, "");

@@ -3,7 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { ArrowSquareOutIcon, CopyIcon, HeartIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";

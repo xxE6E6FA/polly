@@ -2,8 +2,9 @@ import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
-import { create } from "zustand";
-import { useShallow } from "zustand/shallow";
+import { shallow, useShallow } from "zustand/shallow";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { createStore, type StoreApi } from "zustand/vanilla";
 
 type UserModel = Doc<"userModels">;
 type BuiltInModel = Doc<"builtInModels">;
@@ -16,7 +17,7 @@ type ModelGroups = {
   providerModels: Record<Provider, AvailableModel[]>;
 };
 
-type CatalogState = {
+export type CatalogState = {
   initialized: boolean;
   userModels: AvailableModel[];
   modelGroups: ModelGroups;
@@ -33,17 +34,22 @@ const groupModels = (models: AvailableModel[]): ModelGroups => {
     if (isFree) {
       freeModels.push(m);
     } else {
-      const key = m.provider as string;
+      const key = m.provider;
       if (!providerModels[key]) {
         providerModels[key] = [];
       }
-      providerModels[key].push(m);
+      providerModels[key]?.push(m);
     }
   }
   return { freeModels, providerModels };
 };
 
-export const useModelCatalogStore = create<CatalogState>()(set => ({
+type CatalogStoreApi = StoreApi<CatalogState>;
+
+const createCatalogState = (
+  set: CatalogStoreApi["setState"],
+  _get: CatalogStoreApi["getState"]
+): CatalogState => ({
   initialized: false,
   userModels: [],
   modelGroups: { freeModels: [], providerModels: {} },
@@ -59,7 +65,48 @@ export const useModelCatalogStore = create<CatalogState>()(set => ({
       userModels: [],
       modelGroups: { freeModels: [], providerModels: {} },
     }),
-}));
+});
+
+export const createModelCatalogStore = () =>
+  createStore<CatalogState>()((set, get) => createCatalogState(set, get));
+
+let modelCatalogStoreApi: CatalogStoreApi = createModelCatalogStore();
+
+type CatalogSelector<T> = (state: CatalogState) => T;
+
+type UseModelCatalogStore = {
+  <T>(selector: CatalogSelector<T>, equalityFn?: (a: T, b: T) => boolean): T;
+  getState: CatalogStoreApi["getState"];
+  setState: CatalogStoreApi["setState"];
+  subscribe: CatalogStoreApi["subscribe"];
+};
+
+function useModelCatalogStoreBase<T>(
+  selector: CatalogSelector<T>,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  return useStoreWithEqualityFn(
+    modelCatalogStoreApi,
+    selector,
+    equalityFn ?? shallow
+  );
+}
+
+export const useModelCatalogStore = Object.assign(useModelCatalogStoreBase, {
+  getState: () => modelCatalogStoreApi.getState(),
+  setState: modelCatalogStoreApi.setState,
+  subscribe: modelCatalogStoreApi.subscribe.bind(modelCatalogStoreApi),
+}) as UseModelCatalogStore;
+
+export const getModelCatalogStore = () => modelCatalogStoreApi;
+
+export const setModelCatalogStoreApi = (store: CatalogStoreApi) => {
+  modelCatalogStoreApi = store;
+};
+
+export const resetModelCatalogStoreApi = () => {
+  modelCatalogStoreApi = createModelCatalogStore();
+};
 
 export function useModelCatalog() {
   // Fetch enabled models (both user + built-in) reactively

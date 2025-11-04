@@ -45,7 +45,12 @@ export function convertImageToWebP(
             if (blob) {
               const reader = new FileReader();
               reader.onload = () => {
-                const base64 = (reader.result as string).split(",")[1];
+                const result = reader.result as string;
+                const base64 = result.split(",")[1];
+                if (!base64) {
+                  reject(new Error("Failed to parse converted image"));
+                  return;
+                }
                 resolve({ base64, mimeType: "image/webp" });
               };
               reader.onerror = () =>
@@ -67,55 +72,91 @@ export function convertImageToWebP(
   });
 }
 
+type ThumbnailDeps = {
+  createCanvas?: () => HTMLCanvasElement;
+  createImage?: () => HTMLImageElement;
+  createObjectURL?: (file: File) => string;
+  revokeObjectURL?: (url: string) => void;
+};
+
+export function getCanvas2DContext(
+  canvas: HTMLCanvasElement,
+  objectUrl: string,
+  revokeObjectURL: (url: string) => void
+): CanvasRenderingContext2D {
+  const ctx = canvas.getContext("2d");
+  if (!ctx || typeof ctx.drawImage !== "function") {
+    revokeObjectURL(objectUrl);
+    throw new Error("Failed to get canvas context");
+  }
+  return ctx;
+}
+
 export function generateThumbnail(
   file: File,
-  maxSize = FILE_LIMITS.THUMBNAIL_SIZE
+  maxSize = FILE_LIMITS.THUMBNAIL_SIZE,
+  deps: ThumbnailDeps = {}
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
+    const createCanvas =
+      deps.createCanvas ?? (() => document.createElement("canvas"));
+    const createImage = deps.createImage ?? (() => new Image());
+    const toObjectURL =
+      deps.createObjectURL ??
+      ((fileToUrl: File) => URL.createObjectURL(fileToUrl));
+    const revokeObjectURL =
+      deps.revokeObjectURL ??
+      ((url: string) => {
+        if (typeof URL.revokeObjectURL === "function") {
+          URL.revokeObjectURL(url);
+        }
+      });
+
+    const canvas = createCanvas();
+    const img = createImage();
 
     img.onload = () => {
       // Calculate thumbnail dimensions while maintaining aspect ratio
       let { width, height } = img;
-
-      if (width > height) {
-        if (width > maxSize) {
-          height = (height * maxSize) / width;
-          width = maxSize;
-        }
-      } else if (height > maxSize) {
-        width = (width * maxSize) / height;
+      if (width > height && width > maxSize) {
+        height = Math.round((height * maxSize) / width);
+        width = maxSize;
+      } else if (height > width && height > maxSize) {
+        width = Math.round((width * maxSize) / height);
+        height = maxSize;
+      } else if (width > maxSize) {
+        width = maxSize;
         height = maxSize;
       }
 
       canvas.width = width;
       canvas.height = height;
 
-      if (!ctx) {
-        reject(new Error("Failed to get canvas context"));
-        return;
-      }
-
-      // Use better image smoothing for thumbnails
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
+      const ctx = getCanvas2DContext(canvas, objectUrl, revokeObjectURL);
 
       // Draw the image on canvas with new dimensions
       ctx.drawImage(img, 0, 0, width, height);
 
       // Convert to base64 with better quality
       const thumbnail = canvas.toDataURL("image/jpeg", 0.9);
+      revokeObjectURL(objectUrl);
       resolve(thumbnail);
     };
 
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    img.onerror = error => {
+      revokeObjectURL(objectUrl);
+      reject(error);
+    };
+    const objectUrl = toObjectURL(file);
+    img.src = objectUrl;
   });
 }
 
 export function readFileAsText(file: File): Promise<string> {
+  if (typeof file.text === "function") {
+    return file.text();
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -131,6 +172,10 @@ export function readFileAsBase64(file: File): Promise<string> {
       const result = reader.result as string;
       // Remove the data URL prefix (e.g., "data:image/png;base64,")
       const base64 = result.split(",")[1];
+      if (!base64) {
+        reject(new Error("Failed to parse file contents"));
+        return;
+      }
       resolve(base64);
     };
     reader.onerror = reject;

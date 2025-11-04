@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { Infer } from "convex/values";
+import type { Infer } from "convex/values";
 
 export const userModelSchema = v.object({
     userId: v.id("users"),

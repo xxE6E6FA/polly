@@ -1,12 +1,16 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalAction } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { getApiKey } from "./encryption";
-import { log } from "../lib/logger";
 import Replicate from "replicate";
 import type { Prediction } from "replicate";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
+import { scheduleRunAfter } from "../lib/scheduler";
+
+function toMessageDoc(message: unknown): Doc<"messages"> | null {
+  return message ? (message as Doc<"messages">) : null;
+}
 
 // Helper function to detect image editing models
 function isImageEditingModel(modelName: string): boolean {
@@ -76,7 +80,9 @@ function detectImageInputFromSchema(modelData: any): { paramName: string; isArra
 
     if (candidates.length === 0) return null;
     candidates.sort((a, b) => a.score - b.score);
-    return { paramName: candidates[0].key, isArray: candidates[0].isArray };
+    const bestCandidate = candidates[0];
+    if (!bestCandidate) return null;
+    return { paramName: bestCandidate.key, isArray: bestCandidate.isArray };
   } catch {
     return null;
   }
@@ -183,28 +189,22 @@ export const generateImage = action({
   },
   
   handler: async (ctx, args) => {
-          log.debug("Starting Replicate image generation", {
-        messageId: args.messageId,
-        model: args.model,
-      });
-
     try {
       // Check if this is a retry by looking for existing image generation data
       const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
         id: args.messageId,
       });
-      
-      const isRetry = existingMessage?.imageGeneration?.replicateId || 
-                     existingMessage?.imageGeneration?.status === "failed" ||
-                     existingMessage?.imageGeneration?.status === "canceled";
+      const existingMessageDoc = toMessageDoc(existingMessage);
+
+      const isRetry = Boolean(
+        existingMessageDoc?.imageGeneration?.replicateId ||
+          existingMessageDoc?.imageGeneration?.status === "failed" ||
+          existingMessageDoc?.imageGeneration?.status === "canceled"
+      );
       
 
       
       if (isRetry) {
-        log.debug("Detected image generation retry, clearing previous attachments", {
-          messageId: args.messageId,
-        });
-        
         // Clear previous image generation attachments
         await ctx.runMutation(internal.messages.clearImageGenerationAttachments, {
           messageId: args.messageId,
@@ -249,6 +249,9 @@ export const generateImage = action({
       // Resolve model version and introspect schema to detect image input param
       try {
         const [owner, name] = args.model.split("/");
+        if (!owner || !name) {
+          throw new Error("Model must be specified as 'owner/name'");
+        }
         const modelData = await replicate.models.get(owner, name);
         const schemaConfig = detectImageInputFromSchema(modelData);
         if (schemaConfig) {
@@ -264,14 +267,6 @@ export const generateImage = action({
       }
 
       const acceptsImageInput = !!imageInputConfig;
-
-      log.info("Model image-input detection", {
-        messageId: args.messageId,
-        model: args.model,
-        acceptsImageInput,
-        imageParam: imageInputConfig?.paramName,
-        isArray: imageInputConfig?.isArray,
-      });
 
       const redactUrlForLog = (url: string) =>
         url.startsWith("data:") ? "<data-url>" : url;
@@ -330,13 +325,6 @@ export const generateImage = action({
             const urls = await resolveImageUrlsFromAttachments(candidate.attachments);
             if (urls.length > 0) {
               inputImageUrls = urls;
-              log.info("Using user-uploaded reference image(s) for editing", {
-                messageId: args.messageId,
-                sourceMessageId: candidate._id,
-                model: args.model,
-                referenceCount: urls.length,
-                referencesPreview: previewUrlsForLog(urls),
-              });
               break;
             }
 
@@ -378,28 +366,12 @@ export const generateImage = action({
             const urls = await resolveImageUrlsFromAttachments(prioritized);
             if (urls.length > 0) {
               inputImageUrls = urls;
-              log.info(
-                "Found previous assistant image(s) for image-input (fallback)",
-                {
-                  messageId: args.messageId,
-                  sourceMessageId: message._id,
-                  model: args.model,
-                  referenceCount: urls.length,
-                  referencesPreview: previewUrlsForLog(urls),
-                  generatedCount: generatedFirst.length,
-                }
-              );
               break;
             }
           }
         }
 
         if (inputImageUrls.length === 0) {
-          log.info("No input image found; proceeding without reference (pure generation)", {
-            messageId: args.messageId,
-            model: args.model,
-            messagesChecked: messages.length,
-          });
           // Note: When no input image is found, editing models typically fall back to generation mode
         }
       }
@@ -414,14 +386,6 @@ export const generateImage = action({
         input[imageInputConfig.paramName] = imageInputConfig.isArray
           ? inputImageUrls
           : inputImageUrls[0];
-        log.info("Added input image(s) to model", {
-          messageId: args.messageId,
-          model: args.model,
-          paramName: imageInputConfig.paramName,
-          referenceCount: inputImageUrls.length,
-          isArray: imageInputConfig.isArray,
-          referencesPreview: previewUrlsForLog(inputImageUrls),
-        });
       }
 
       // Add optional parameters if provided
@@ -506,7 +470,7 @@ export const generateImage = action({
           predictionBody.version = latestVersion;
 
         } catch (error) {
-          log.error("Failed to resolve model version", {
+          console.error("Failed to resolve model version", {
             model: args.model,
             error: error instanceof Error ? error.message : String(error),
           });
@@ -528,11 +492,6 @@ export const generateImage = action({
         webhook_events_filter: predictionBody.webhook_events_filter,
       });
       
-      log.debug("Replicate prediction created", {
-        predictionId: prediction.id,
-        status: prediction.status,
-      });
-      
       // Store prediction ID for tracking
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
@@ -542,7 +501,7 @@ export const generateImage = action({
       
       // Start polling for completion (webhooks are preferred but polling is fallback)
       // Polling will automatically stop if webhook completes the prediction first
-      await ctx.scheduler.runAfter(2000, internal.ai.replicate.pollPrediction, {
+      await scheduleRunAfter(ctx, 2000, internal.ai.replicate.pollPrediction, {
         predictionId: prediction.id,
         messageId: args.messageId,
         maxAttempts: 60, // 5 minutes max (5s * 60 = 300s)
@@ -554,7 +513,7 @@ export const generateImage = action({
         status: prediction.status,
       };
     } catch (error) {
-      log.error("Image generation failed", { error });
+      console.error("Image generation failed", { error });
       
       const friendlyError = getUserFriendlyErrorMessage(error);
       await ctx.runMutation(internal.messages.updateImageGeneration, {
@@ -577,13 +536,8 @@ export const pollPrediction = internalAction({
   },
   
   handler: async (ctx, args) => {
-    log.debug("Polling prediction status", {
-      predictionId: args.predictionId,
-      attempt: args.attempt,
-    });
-
     if (args.attempt > args.maxAttempts) {
-      log.warn("Polling timeout reached", {
+      console.warn("Polling timeout reached", {
         predictionId: args.predictionId,
         maxAttempts: args.maxAttempts,
       });
@@ -598,19 +552,15 @@ export const pollPrediction = internalAction({
     
     try {
       // Get the message to access conversationId and check if already completed
-      const message = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
+      const messageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
         id: args.messageId,
       });
+      const messageDoc = toMessageDoc(messageResult);
       
       // Check if webhook has already completed this prediction
-      if (message?.imageGeneration?.status === "succeeded" || 
-          message?.imageGeneration?.status === "failed" || 
-          message?.imageGeneration?.status === "canceled") {
-        log.info("Message already completed via webhook, stopping polling", {
-          predictionId: args.predictionId,
-          currentStatus: message.imageGeneration.status,
-          attempt: args.attempt,
-        });
+      if (messageDoc?.imageGeneration?.status === "succeeded" ||
+          messageDoc?.imageGeneration?.status === "failed" ||
+          messageDoc?.imageGeneration?.status === "canceled") {
         return;
       }
       
@@ -618,7 +568,7 @@ export const pollPrediction = internalAction({
         ctx, 
         "replicate",
         undefined, // modelId is not available here
-        message?.conversationId
+        messageDoc?.conversationId
       );
       
       if (!apiKey) {
@@ -632,30 +582,20 @@ export const pollPrediction = internalAction({
       
       const prediction = await replicate.predictions.get(args.predictionId);
       
-      log.debug("Retrieved prediction status", {
-        predictionId: args.predictionId,
-        status: prediction.status,
-        hasOutput: !!prediction.output,
-        outputLength: prediction.output ? (Array.isArray(prediction.output) ? prediction.output.length : 1) : 0,
-      });
-      
       // Handle terminal states
       if (prediction.status === "succeeded") {
-        log.debug("Image generation completed successfully", {
-          predictionId: args.predictionId,
-        });
-        
         // Get the existing message to preserve original metadata
-        const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
+        const existingMessageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
           id: args.messageId,
         });
+        const existingMessageDoc = toMessageDoc(existingMessageResult);
 
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "succeeded",
           output: Array.isArray(prediction.output) ? prediction.output : [prediction.output],
           metadata: {
-            ...existingMessage?.imageGeneration?.metadata,
+            ...existingMessageDoc?.imageGeneration?.metadata,
             duration: prediction.metrics?.predict_time,
           },
         });
@@ -665,10 +605,10 @@ export const pollPrediction = internalAction({
           const imageUrls = Array.isArray(prediction.output) ? prediction.output : [prediction.output];
           if (imageUrls.length > 0) {
             // Store images in background - don't block the polling response
-            await ctx.scheduler.runAfter(0, internal.ai.replicate.storeGeneratedImages, {
+            await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
               messageId: args.messageId,
               imageUrls,
-              metadata: existingMessage?.imageGeneration?.metadata,
+              metadata: existingMessageDoc?.imageGeneration?.metadata,
             });
           }
         }
@@ -677,7 +617,7 @@ export const pollPrediction = internalAction({
       }
       
       if (prediction.status === "failed") {
-        log.warn("Image generation failed", {
+        console.warn("Image generation failed", {
           predictionId: args.predictionId,
           error: prediction.error,
         });
@@ -695,10 +635,6 @@ export const pollPrediction = internalAction({
       }
       
       if (prediction.status === "canceled") {
-        log.info("Image generation was canceled", {
-          predictionId: args.predictionId,
-        });
-        
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "canceled",
@@ -708,13 +644,13 @@ export const pollPrediction = internalAction({
       
       // Continue polling for non-terminal states (starting, processing)
       const nextPollDelay = args.attempt <= 3 ? 2000 : 5000; // Faster polling initially
-      await ctx.scheduler.runAfter(nextPollDelay, internal.ai.replicate.pollPrediction, {
+      await scheduleRunAfter(ctx, nextPollDelay, internal.ai.replicate.pollPrediction, {
         ...args,
         attempt: args.attempt + 1,
       });
       
     } catch (error) {
-      log.error("Error during prediction polling", { 
+      console.error("Error during prediction polling", { 
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
         attempt: args.attempt,
@@ -723,7 +659,7 @@ export const pollPrediction = internalAction({
       // Retry with exponential backoff
       if (args.attempt < args.maxAttempts) {
         const retryDelay = Math.min(10000, 2000 * Math.pow(2, args.attempt - 1));
-        await ctx.scheduler.runAfter(retryDelay, internal.ai.replicate.pollPrediction, {
+        await scheduleRunAfter(ctx, retryDelay, internal.ai.replicate.pollPrediction, {
           ...args,
           attempt: args.attempt + 1,
         });
@@ -760,19 +696,13 @@ export const storeGeneratedImages = internalAction({
   handler: async (ctx, args) => {
     
     // Check if images are already stored to prevent duplicates from webhook/polling race conditions
-    const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
+    const existingMessageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
       id: args.messageId,
     });
-    
-    log.info("Checking for existing generated images", {
-      messageId: args.messageId,
-      hasAttachments: !!existingMessage?.attachments,
-      attachmentCount: existingMessage?.attachments?.length || 0,
-      imageUrls: args.imageUrls,
-    });
-    
-    if (existingMessage?.attachments) {
-      const existingGeneratedImages = existingMessage.attachments.filter(
+    const existingMessageDoc = toMessageDoc(existingMessageResult);
+
+    if (existingMessageDoc?.attachments && existingMessageDoc.attachments.length > 0) {
+      const existingGeneratedImages = existingMessageDoc.attachments.filter(
         (att: any) => att.type === "image" && att.generatedImage?.isGenerated
       );
 
@@ -782,30 +712,20 @@ export const storeGeneratedImages = internalAction({
       const hasMatchingUrls = existingUrls.some((url: any) => urlsToStore.has(url));
       
       if (existingGeneratedImages.length > 0 || hasMatchingUrls) {
-        log.debug("Skipping image storage - images already exist", {
-          messageId: args.messageId,
-        });
         return { storedCount: 0, skipped: true };
       }
     }
-    
-    log.debug("Storing generated images in Convex storage", {
-      messageId: args.messageId,
-      imageCount: args.imageUrls.length,
-    });
     
     try {
       const attachments = [];
       
       for (let i = 0; i < args.imageUrls.length; i++) {
         const imageUrl = args.imageUrls[i];
+        if (!imageUrl) {
+          continue;
+        }
         
         try {
-          log.debug("Downloading image from Replicate", {
-            imageUrl,
-            index: i,
-          });
-          
           // Download the image from Replicate
           const response = await fetch(imageUrl);
           
@@ -852,14 +772,8 @@ export const storeGeneratedImages = internalAction({
           
           attachments.push(attachment);
           
-          log.debug("Successfully stored generated image", {
-            fileName,
-            storageId,
-            size: imageBuffer.byteLength,
-          });
-          
         } catch (imageError) {
-          log.error("Failed to store individual image", {
+          console.error("Failed to store individual image", {
             imageUrl,
             index: i,
             error: imageError instanceof Error ? imageError.message : String(imageError),
@@ -875,12 +789,8 @@ export const storeGeneratedImages = internalAction({
           attachments,
         });
         
-        log.debug("Successfully stored generated images", {
-          messageId: args.messageId,
-          storedCount: attachments.length,
-        });
       } else {
-        log.warn("No images were successfully stored", {
+        console.warn("No images were successfully stored", {
           messageId: args.messageId,
           totalCount: args.imageUrls.length,
         });
@@ -889,7 +799,7 @@ export const storeGeneratedImages = internalAction({
       return { storedCount: attachments.length };
       
     } catch (error) {
-      log.error("Error storing generated images", {
+      console.error("Error storing generated images", {
         messageId: args.messageId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -908,16 +818,11 @@ export const handleWebhook = internalAction({
   },
   
   handler: async (ctx, args) => {
-    log.info("Processing Replicate webhook", {
-      predictionId: args.predictionId,
-      status: args.status,
-    });
-    
     try {
       // Validate status is one of the expected values from API spec
       const validStatuses: Prediction["status"][] = ["starting", "processing", "succeeded", "failed", "canceled"];
       if (!validStatuses.includes(args.status as Prediction["status"])) {
-        log.warn("Received webhook with invalid status", {
+        console.warn("Received webhook with invalid status", {
           predictionId: args.predictionId,
           status: args.status,
         });
@@ -928,9 +833,10 @@ export const handleWebhook = internalAction({
       const message = await ctx.runQuery(internal.messages.getByReplicateId, {
         replicateId: args.predictionId,
       });
-      
-      if (!message) {
-        log.warn("No message found for prediction ID", {
+      const messageDoc = toMessageDoc(message);
+
+      if (!messageDoc) {
+        console.warn("No message found for prediction ID", {
           predictionId: args.predictionId,
         });
         return;
@@ -938,17 +844,18 @@ export const handleWebhook = internalAction({
       
       // Update message with webhook data - preserve existing metadata and only update duration
       const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: message._id,
+        id: messageDoc._id as Id<"messages">,
       });
-      
+      const existingMessageDoc = toMessageDoc(existingMessage);
+
       const transformedMetadata = args.metadata ? {
-        ...existingMessage?.imageGeneration?.metadata,
+        ...existingMessageDoc?.imageGeneration?.metadata,
         duration: args.metadata.predict_time || args.metadata.duration,
         // Only include fields that match our validator schema
       } : undefined;
 
       await ctx.runMutation(internal.messages.updateImageGeneration, {
-        messageId: message._id,
+        messageId: messageDoc._id as Id<"messages">,
         status: args.status,
         output: args.output ? (Array.isArray(args.output) ? args.output : [args.output]) : undefined,
         error: args.error,
@@ -960,20 +867,16 @@ export const handleWebhook = internalAction({
         const imageUrls = Array.isArray(args.output) ? args.output : [args.output];
         if (imageUrls.length > 0) {
           // Store images in background - don't block webhook response
-          await ctx.scheduler.runAfter(0, internal.ai.replicate.storeGeneratedImages, {
-            messageId: message._id,
+          await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
+            messageId: messageDoc._id as Id<"messages">,
             imageUrls,
-            metadata: existingMessage?.imageGeneration?.metadata,
+            metadata: existingMessageDoc?.imageGeneration?.metadata,
           });
         }
       }
       
-      log.debug("Successfully updated message from webhook", {
-        messageId: message._id,
-        predictionId: args.predictionId,
-      });
     } catch (error) {
-      log.error("Error handling webhook", { 
+      console.error("Error handling webhook", { 
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
       });
@@ -988,17 +891,14 @@ export const cancelPrediction = internalAction({
   },
   
   handler: async (ctx, args) => {
-    log.info("Canceling prediction", {
-      predictionId: args.predictionId,
-    });
-    
     try {
       // Get the message to access conversationId
-      const message = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
+      const messageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
         id: args.messageId,
       });
-      
-      const apiKey = await getApiKey(ctx, "replicate", undefined, message?.conversationId);
+      const messageDoc = toMessageDoc(messageResult);
+
+      const apiKey = await getApiKey(ctx, "replicate", undefined, messageDoc?.conversationId);
       
       if (!apiKey) {
         throw new Error("No Replicate API key found");
@@ -1017,11 +917,8 @@ export const cancelPrediction = internalAction({
           status: "canceled",
         });
         
-        log.debug("Successfully canceled prediction", {
-          predictionId: args.predictionId,
-        });
       } catch (cancelError) {
-        log.warn("Failed to cancel prediction", {
+        console.warn("Failed to cancel prediction", {
           predictionId: args.predictionId,
           error: cancelError instanceof Error ? cancelError.message : String(cancelError),
         });
@@ -1029,7 +926,7 @@ export const cancelPrediction = internalAction({
         // Don't throw error - cancellation failures shouldn't break the UI
       }
     } catch (error) {
-      log.error("Error during cancellation", { 
+      console.error("Error during cancellation", { 
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
       });

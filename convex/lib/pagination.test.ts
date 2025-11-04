@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -28,11 +28,11 @@ describe("convex/lib/pagination", () => {
     });
   });
 
-  it("returns undefined when opts is not provided", () => {
+  test("returns undefined when opts is not provided", () => {
     expect(validatePaginationOpts(undefined as any)).toBeUndefined();
   });
 
-  it("validates and normalizes pagination options", () => {
+  test("validates and normalizes pagination options", () => {
     // valid numItems with implicit cursor null
     expect(
       validatePaginationOpts({ numItems: 5 })
@@ -57,7 +57,7 @@ describe("convex/lib/pagination", () => {
     ).toEqual({ numItems: 3, cursor: null, id: 123 });
   });
 
-  it("supports per-call config override", () => {
+  test("supports per-call config override", () => {
     const res = validatePaginationOptsWithConfig(
       { numItems: 999 },
       7,
@@ -66,7 +66,7 @@ describe("convex/lib/pagination", () => {
     expect(res).toEqual({ numItems: 42, cursor: null });
   });
 
-  it("allows reconfiguring global defaults", () => {
+  test("allows reconfiguring global defaults", () => {
     configurePagination({ defaultPageSize: 10, maxPageSize: 15 });
     expect(getPaginationConfig()).toEqual({ defaultPageSize: 10, maxPageSize: 15 });
 
@@ -76,7 +76,7 @@ describe("convex/lib/pagination", () => {
     ).toEqual({ numItems: 10, cursor: null });
   });
 
-  it("creates an empty pagination result", () => {
+  test("creates an empty pagination result", () => {
     const res = createEmptyPaginationResult<string>();
     expect(res.page).toEqual([]);
     expect(res.isDone).toBe(true);

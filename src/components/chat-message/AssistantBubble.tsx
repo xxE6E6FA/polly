@@ -432,6 +432,9 @@ export const AssistantBubble = ({
       }>
     ): ReactNode => {
       const last = overlayTools[overlayTools.length - 1];
+      if (!last) {
+        return null;
+      }
       if (last.t === "tool_call") {
         if (last.name === "exa.search") {
           const args = last.args as

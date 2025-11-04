@@ -1,60 +1,69 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useAction: vi.fn() }));
-vi.mock("@/hooks/use-convex-file-upload", () => ({
-  useConvexFileUpload: vi.fn(),
+let useActionMock: ReturnType<typeof mock>;
+let useConvexFileUploadMock: ReturnType<typeof mock>;
+let useNotificationDialogMock: ReturnType<typeof mock>;
+let useReasoningConfigMock: ReturnType<typeof mock>;
+let usePrivateModeMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useAction: (...args: unknown[]) => useActionMock(...args),
 }));
-vi.mock("@/hooks/use-dialog-management", () => ({
-  useNotificationDialog: vi.fn(),
+mock.module("@convex/_generated/api", () => ({
+  api: {
+    conversationSummary: {
+      generateConversationSummary:
+        "conversationSummary:generateConversationSummary",
+    },
+  },
 }));
-vi.mock("@/hooks/use-reasoning", () => ({ useReasoningConfig: vi.fn() }));
-vi.mock("@/providers/private-mode-context", () => ({
-  usePrivateMode: vi.fn(),
+mock.module("@/hooks/use-convex-file-upload", () => ({
+  useConvexFileUpload: (...args: unknown[]) => useConvexFileUploadMock(...args),
+}));
+mock.module("@/hooks/use-dialog-management", () => ({
+  useNotificationDialog: (...args: unknown[]) =>
+    useNotificationDialogMock(...args),
+}));
+mock.module("@/hooks/use-reasoning", () => ({
+  useReasoningConfig: (...args: unknown[]) => useReasoningConfigMock(...args),
+}));
+mock.module("@/providers/private-mode-context", () => ({
+  usePrivateMode: (...args: unknown[]) => usePrivateModeMock(...args),
 }));
 
 import type { Id } from "@convex/_generated/dataModel";
-import { useAction } from "convex/react";
-import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
-import { useNotificationDialog } from "@/hooks/use-dialog-management";
-import { useReasoningConfig } from "@/hooks/use-reasoning";
-import { usePrivateMode } from "@/providers/private-mode-context";
 import type { Attachment } from "@/types";
 import { useChatInputSubmission } from "./use-chat-input-submission";
 
 describe("useChatInputSubmission", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Basic mocks
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
-    (useConvexFileUpload as ReturnType<typeof vi.fn>).mockReturnValue({
-      uploadFile: vi.fn(),
-    });
-    (useNotificationDialog as ReturnType<typeof vi.fn>).mockReturnValue({
-      notify: vi.fn(),
-    });
-    (useReasoningConfig as ReturnType<typeof vi.fn>).mockReturnValue([
-      { enabled: false },
-      vi.fn(),
-    ]);
-    (usePrivateMode as ReturnType<typeof vi.fn>).mockReturnValue({
-      isPrivateMode: false,
-    });
+    useActionMock = mock();
+    useConvexFileUploadMock = mock();
+    useNotificationDialogMock = mock();
+    useReasoningConfigMock = mock();
+    usePrivateModeMock = mock();
+
+    useActionMock.mockReturnValue(mock());
+    useConvexFileUploadMock.mockReturnValue({ uploadFile: mock() });
+    useNotificationDialogMock.mockReturnValue({ notify: mock() });
+    useReasoningConfigMock.mockReturnValue([{ enabled: false }, mock()]);
+    usePrivateModeMock.mockReturnValue({ isPrivateMode: false });
   });
 
-  it("early returns when input and attachments are empty", async () => {
-    const onSendMessage = vi.fn();
+  test("early returns when input and attachments are empty", async () => {
+    const onSendMessage = mock();
     const { result } = renderHook(() =>
       useChatInputSubmission({
         conversationId: "c1" as Id<"conversations">,
         selectedPersonaId: null,
         temperature: 0.5,
         onSendMessage,
-        onSendAsNewConversation: vi.fn(),
-        handleImageGenerationSubmit: vi.fn(),
-        handleImageGenerationSendAsNew: vi.fn(),
-        onResetInputState: vi.fn(),
+        onSendAsNewConversation: mock(),
+        handleImageGenerationSubmit: mock(),
+        handleImageGenerationSendAsNew: mock(),
+        onResetInputState: mock(),
       })
     );
     await act(async () => {
@@ -64,19 +73,19 @@ describe("useChatInputSubmission", () => {
     expect(result.current.isProcessing).toBe(false);
   });
 
-  it("handles image mode submit and resets state; errors show notification", async () => {
-    const ok = vi.fn().mockResolvedValue(undefined);
-    const onReset = vi.fn();
-    const notify = vi.fn();
-    (useNotificationDialog as unknown as vi.Mock).mockReturnValue({ notify });
+  test("handles image mode submit and resets state; errors show notification", async () => {
+    const ok = mock().mockResolvedValue(undefined);
+    const onReset = mock();
+    const notify = mock();
+    useNotificationDialogMock.mockReturnValue({ notify });
     const { result, rerender } = renderHook(
       ({ handler }) =>
         useChatInputSubmission({
           conversationId: "c1" as Id<"conversations">,
           selectedPersonaId: null,
-          onSendMessage: vi.fn(),
+          onSendMessage: mock(),
           handleImageGenerationSubmit: handler,
-          handleImageGenerationSendAsNew: vi.fn(),
+          handleImageGenerationSendAsNew: mock(),
           onResetInputState: onReset,
         }),
       { initialProps: { handler: ok } }
@@ -88,7 +97,7 @@ describe("useChatInputSubmission", () => {
     expect(ok).toHaveBeenCalled();
     expect(onReset).toHaveBeenCalled();
 
-    const bad = vi.fn().mockRejectedValue(new Error("boom"));
+    const bad = mock().mockRejectedValue(new Error("boom"));
     await act(async () => rerender({ handler: bad }));
     await act(async () => {
       await result.current.submit("hello", [], "image");
@@ -98,17 +107,17 @@ describe("useChatInputSubmission", () => {
     );
   });
 
-  it("text mode: private mode converts attachments to data URLs and sends with reasoning", async () => {
-    (usePrivateMode as unknown as vi.Mock).mockReturnValue({
+  test("text mode: private mode converts attachments to data URLs and sends with reasoning", async () => {
+    usePrivateModeMock.mockReturnValue({
       isPrivateMode: true,
     });
-    (useReasoningConfig as unknown as vi.Mock).mockReturnValue([
+    useReasoningConfigMock.mockReturnValue([
       { enabled: true, effort: "medium" },
-      vi.fn(),
+      mock(),
     ]);
 
-    const onSendMessage = vi.fn();
-    const onReset = vi.fn();
+    const onSendMessage = mock();
+    const onReset = mock();
     const attText = {
       type: "text" as const,
       content: "SGVsbG8=",
@@ -132,8 +141,8 @@ describe("useChatInputSubmission", () => {
         selectedPersonaId: "p1" as Id<"personas">,
         temperature: 0.7,
         onSendMessage,
-        handleImageGenerationSubmit: vi.fn(),
-        handleImageGenerationSendAsNew: vi.fn(),
+        handleImageGenerationSubmit: mock(),
+        handleImageGenerationSendAsNew: mock(),
         onResetInputState: onReset,
       })
     );
@@ -157,13 +166,12 @@ describe("useChatInputSubmission", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
-  it("text mode: non-private uploads new attachments and preserves pdf extractedText", async () => {
+  test("text mode: non-private uploads new attachments and preserves pdf extractedText", async () => {
     // atob polyfill for Node
     (globalThis as unknown as { atob: (b64: string) => string }).atob = (
       b64: string
     ) => Buffer.from(b64, "base64").toString("binary");
-    const uploadFile = vi
-      .fn()
+    const uploadFile = mock()
       .mockResolvedValueOnce({
         type: "image",
         storageId: "s1",
@@ -180,10 +188,10 @@ describe("useChatInputSubmission", () => {
         mimeType: "application/pdf",
         size: 3,
       });
-    (useConvexFileUpload as unknown as vi.Mock).mockReturnValue({ uploadFile });
+    useConvexFileUploadMock.mockReturnValue({ uploadFile });
 
-    const onSendMessage = vi.fn();
-    const onReset = vi.fn();
+    const onSendMessage = mock();
+    const onReset = mock();
     const attImage: Attachment = {
       type: "image",
       content: "AQID",
@@ -216,8 +224,8 @@ describe("useChatInputSubmission", () => {
         selectedPersonaId: null,
         temperature: undefined,
         onSendMessage,
-        handleImageGenerationSubmit: vi.fn(),
-        handleImageGenerationSendAsNew: vi.fn(),
+        handleImageGenerationSubmit: mock(),
+        handleImageGenerationSendAsNew: mock(),
         onResetInputState: onReset,
       })
     );
@@ -226,7 +234,11 @@ describe("useChatInputSubmission", () => {
       await result.current.submit(" hey ", [attImage, attPdf, attText], "text");
     });
     expect(uploadFile).toHaveBeenCalledTimes(2);
-    const sentAttachments = onSendMessage.mock.calls[0][1];
+    const sendCall = (onSendMessage.mock.calls[0] ?? []) as [
+      unknown,
+      Record<string, unknown>[] | undefined,
+    ];
+    const sentAttachments = sendCall[1] ?? [];
     expect(sentAttachments[0]).toMatchObject({
       storageId: "s1",
       type: "image",
@@ -240,25 +252,26 @@ describe("useChatInputSubmission", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
-  it("handleSendAsNewConversation generates summary, uploads, forwards, and resets on success", async () => {
-    const genSummary = vi.fn().mockResolvedValue("ctx");
-    (useAction as unknown as vi.Mock).mockReturnValue(genSummary);
-    const uploadFile = vi
-      .fn()
-      .mockResolvedValue({ type: "image", storageId: "s1" });
-    (useConvexFileUpload as unknown as vi.Mock).mockReturnValue({ uploadFile });
+  test("handleSendAsNewConversation generates summary, uploads, forwards, and resets on success", async () => {
+    const genSummary = mock().mockResolvedValue("ctx");
+    useActionMock.mockReturnValue(genSummary);
+    const uploadFile = mock().mockResolvedValue({
+      type: "image",
+      storageId: "s1",
+    });
+    useConvexFileUploadMock.mockReturnValue({ uploadFile });
 
-    const onSendAsNewConversation = vi.fn().mockResolvedValue("newC");
-    const onReset = vi.fn();
+    const onSendAsNewConversation = mock().mockResolvedValue("newC");
+    const onReset = mock();
     const { result } = renderHook(() =>
       useChatInputSubmission({
         conversationId: "c1" as Id<"conversations">,
         selectedPersonaId: "p1" as Id<"personas">,
-        onSendMessage: vi.fn(),
+        onSendMessage: mock(),
         onSendAsNewConversation,
-        handleImageGenerationSubmit: vi.fn(),
+        handleImageGenerationSubmit: mock(),
         onResetInputState: onReset,
-        handleImageGenerationSendAsNew: vi.fn(),
+        handleImageGenerationSendAsNew: mock(),
       })
     );
 
@@ -310,21 +323,21 @@ describe("useChatInputSubmission", () => {
     expect(onReset).not.toHaveBeenCalled();
   });
 
-  it("routes image forks through the image generation handler", async () => {
-    const genSummary = vi.fn();
-    (useAction as unknown as vi.Mock).mockReturnValue(genSummary);
+  test("routes image forks through the image generation handler", async () => {
+    const genSummary = mock();
+    useActionMock.mockReturnValue(genSummary);
 
-    const imageHandler = vi.fn().mockResolvedValue("new-img");
-    const onSendAsNewConversation = vi.fn();
-    const onReset = vi.fn();
+    const imageHandler = mock().mockResolvedValue("new-img");
+    const onSendAsNewConversation = mock();
+    const onReset = mock();
 
     const { result } = renderHook(() =>
       useChatInputSubmission({
         conversationId: "c1" as Id<"conversations">,
         selectedPersonaId: "p1" as Id<"personas">,
-        onSendMessage: vi.fn(),
+        onSendMessage: mock(),
         onSendAsNewConversation,
-        handleImageGenerationSubmit: vi.fn(),
+        handleImageGenerationSubmit: mock(),
         handleImageGenerationSendAsNew: imageHandler,
         onResetInputState: onReset,
       })

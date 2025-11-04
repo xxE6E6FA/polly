@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "../../../test/hook-utils";
 import { useEvent } from "./use-event";
 
 describe("use-event", () => {
-  it("returns a stable callback that doesn't change between renders", () => {
-    const handler = vi.fn();
+  test("returns a stable callback that doesn't change between renders", () => {
+    const handler = mock();
     const { result, rerender } = renderHook(() => useEvent(handler));
 
     const firstCallback = result.current;
@@ -14,9 +14,9 @@ describe("use-event", () => {
     expect(firstCallback).toBe(secondCallback);
   });
 
-  it("calls the latest version of the handler", () => {
-    const handler1 = vi.fn();
-    const handler2 = vi.fn();
+  test("calls the latest version of the handler", () => {
+    const handler1 = mock();
+    const handler2 = mock();
 
     const { result, rerender } = renderHook(
       ({ handler }) => useEvent(handler),
@@ -28,7 +28,8 @@ describe("use-event", () => {
     expect(handler1).toHaveBeenCalledWith("test1");
     expect(handler2).not.toHaveBeenCalled();
 
-    vi.clearAllMocks();
+    handler1.mockClear();
+    handler2.mockClear();
 
     // Update to second handler
     rerender({ handler: handler2 });
@@ -39,8 +40,8 @@ describe("use-event", () => {
     expect(handler2).toHaveBeenCalledWith("test2");
   });
 
-  it("preserves argument types and return values", () => {
-    const handler = vi.fn((a: string, b: number) => `${a}-${b}`);
+  test("preserves argument types and return values", () => {
+    const handler = mock((a: string, b: number) => `${a}-${b}`);
     const { result } = renderHook(() => useEvent(handler));
 
     const returnValue = result.current("hello", 42);
@@ -49,8 +50,8 @@ describe("use-event", () => {
     expect(returnValue).toBe("hello-42");
   });
 
-  it("handles handlers with no parameters", () => {
-    const handler = vi.fn(() => "no-params");
+  test("handles handlers with no parameters", () => {
+    const handler = mock(() => "no-params");
     const { result } = renderHook(() => useEvent(handler));
 
     const returnValue = result.current();
@@ -59,8 +60,8 @@ describe("use-event", () => {
     expect(returnValue).toBe("no-params");
   });
 
-  it("handles handlers with multiple parameters", () => {
-    const handler = vi.fn((a: string, b: number, c: boolean) => ({ a, b, c }));
+  test("handles handlers with multiple parameters", () => {
+    const handler = mock((a: string, b: number, c: boolean) => ({ a, b, c }));
     const { result } = renderHook(() => useEvent(handler));
 
     const returnValue = result.current("test", 123, true);
@@ -69,8 +70,8 @@ describe("use-event", () => {
     expect(returnValue).toEqual({ a: "test", b: 123, c: true });
   });
 
-  it("handles async handlers", async () => {
-    const handler = vi.fn(async (value: string) => {
+  test("handles async handlers", async () => {
+    const handler = mock(async (value: string) => {
       await new Promise(resolve => setTimeout(resolve, 10));
       return `async-${value}`;
     });
@@ -85,11 +86,11 @@ describe("use-event", () => {
     expect(handler).toHaveBeenCalledWith("test");
   });
 
-  it("throws error if callback is called before ref is set", () => {
+  test("throws error if callback is called before ref is set", () => {
     // This test is conceptually flawed - useLayoutEffect runs synchronously
     // in test environment, so handlerRef.current will never be null in practice.
     // We'll test that the hook works normally instead.
-    const testHandler = vi.fn();
+    const testHandler = mock();
     const { result } = renderHook(() => useEvent(testHandler));
 
     // In normal usage, the handler should work fine
@@ -97,7 +98,7 @@ describe("use-event", () => {
     expect(testHandler).toHaveBeenCalledTimes(1);
   });
 
-  it("captures closure variables from latest render", () => {
+  test("captures closure variables from latest render", () => {
     let capturedValue = "initial";
 
     const { result, rerender } = renderHook(
@@ -120,7 +121,7 @@ describe("use-event", () => {
     expect(result.current()).toBe("third");
   });
 
-  it("works with event handlers that have side effects", () => {
+  test("works with event handlers that have side effects", () => {
     let sideEffectValue = 0;
 
     const { result, rerender } = renderHook(
@@ -142,7 +143,7 @@ describe("use-event", () => {
     expect(sideEffectValue).toBe(6);
   });
 
-  it("maintains handler identity across prop changes", () => {
+  test("maintains handler identity across prop changes", () => {
     const handler1 = () => "handler1";
     const handler2 = () => "handler2";
 
@@ -163,13 +164,13 @@ describe("use-event", () => {
     expect(result.current()).toBe("handler2");
   });
 
-  it("handles complex return types", () => {
+  test("handles complex return types", () => {
     type ComplexReturn = {
       data: string[];
       meta: { count: number; success: boolean };
     };
 
-    const handler = vi.fn(
+    const handler = mock(
       (input: string): ComplexReturn => ({
         data: input.split(""),
         meta: { count: input.length, success: true },

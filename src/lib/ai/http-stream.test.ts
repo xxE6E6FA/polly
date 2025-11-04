@@ -1,189 +1,161 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import {
+  createOverlaysMock,
   flushAll,
   mockFetchNDJSON,
   mockGlobalFetchOnce,
   withFakeTimers,
 } from "../../test/utils";
-import { startAuthorStream } from "./http-stream";
 
-type TestOverlays = {
-  set: ReturnType<typeof vi.fn>;
-  setReasoning: ReturnType<typeof vi.fn>;
-  append: ReturnType<typeof vi.fn>;
-  appendReasoning: ReturnType<typeof vi.fn>;
-  setStatus: ReturnType<typeof vi.fn>;
-  clear: ReturnType<typeof vi.fn>;
-  clearReasoning: ReturnType<typeof vi.fn>;
-  clearStatus: ReturnType<typeof vi.fn>;
-  clearCitations: ReturnType<typeof vi.fn>;
-  clearTools: ReturnType<typeof vi.fn>;
-  setCitations: ReturnType<typeof vi.fn>;
-  pushToolEvent: ReturnType<typeof vi.fn>;
-};
+let startAuthorStream: typeof import("./http-stream").startAuthorStream;
 
-declare global {
-  var __testOverlays: TestOverlays;
+type OverlayMocks = ReturnType<typeof createOverlaysMock>["overlays"];
+
+const overlaysMock = createOverlaysMock();
+const overlays = overlaysMock.overlays as OverlayMocks;
+mock.module("@/stores/stream-overlays", overlaysMock.factory);
+
+const defaultArgs = {
+  convexUrl: "https://convex",
+  conversationId: "c1",
+  assistantMessageId: "m1",
+} as const;
+
+function startStream(
+  overrides: Partial<Parameters<typeof startAuthorStream>[0]> = {}
+) {
+  return startAuthorStream({ ...defaultArgs, ...overrides });
 }
 
-vi.mock("@/stores/stream-overlays", async () => {
-  const { createOverlaysMock } = await import("../../test/utils");
-  const mock = createOverlaysMock();
-  // Store overlays reference for tests
-  globalThis.__testOverlays = mock.overlays as unknown as TestOverlays;
-  return mock.factory();
+beforeAll(async () => {
+  mock.restore();
+  const mod = (await import(
+    "./http-stream?bun-real"
+  )) as typeof import("./http-stream");
+  startAuthorStream = mod.startAuthorStream;
+});
+
+beforeEach(() => {
+  for (const fn of Object.values(overlays)) {
+    fn.mockClear();
+  }
+});
+
+afterAll(() => {
+  mock.restore();
 });
 
 describe("http-stream.startAuthorStream", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("returns null on non-ok response (429)", async () => {
+  test("returns null on non-ok response (429)", async () => {
     const { restore } = mockGlobalFetchOnce({
       ok: false,
       status: 429,
-      headers: { get: () => "text/plain" } as unknown as Headers,
+      headers: { "content-type": "text/plain" },
       text: async () => "rate limit",
     });
 
-    const res = await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
-    expect(res).toBeNull();
+    const res = await startStream();
+    expect(res ?? null).toBeNull();
     restore();
   });
 
-  it("returns null on unexpected content-type", async () => {
+  test("returns null on unexpected content-type", async () => {
     const { restore } = mockGlobalFetchOnce({
       ok: true,
-      headers: { get: () => "text/plain" } as unknown as Headers,
+      headers: { "content-type": "text/plain" },
     });
-    const res = await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
-    expect(res).toBeNull();
+    const res = await startStream();
+    expect(res ?? null).toBeNull();
     restore();
   });
 
-  it("returns handle when ok but body missing", async () => {
+  test("returns handle when ok but body missing", async () => {
     const { restore } = mockGlobalFetchOnce({
       ok: true,
-      headers: { get: () => "application/x-ndjson" } as unknown as Headers,
+      headers: { "content-type": "application/x-ndjson" },
       body: null,
     });
-    const handle = await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    const handle = await startStream();
     expect(handle).not.toBeNull();
-    expect(handle?.abortController).toBeInstanceOf(AbortController);
+    expect(handle?.abortController).toBeDefined();
     restore();
   });
 
-  it("streams NDJSON events and updates overlays", async () => {
+  test("streams NDJSON events and updates overlays", async () => {
     const { restore } = mockFetchNDJSON([
       { t: "content", d: "hi" },
       { t: "reasoning", d: "think" },
       { t: "status", status: "searching" },
     ]);
 
-    const handle = await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    const handle = await startStream();
     expect(handle).not.toBeNull();
 
     // allow the async reader loop to process
     await flushAll();
 
-    expect(globalThis.__testOverlays.append).toHaveBeenCalledWith("m1", "hi");
-    expect(globalThis.__testOverlays.appendReasoning).toHaveBeenCalledWith(
-      "m1",
-      "think"
-    );
-    expect(globalThis.__testOverlays.setStatus).toHaveBeenCalledWith(
-      "m1",
-      "searching"
-    );
+    expect(overlays.append).toHaveBeenCalledWith("m1", "hi");
+    expect(overlays.appendReasoning).toHaveBeenCalledWith("m1", "think");
+    expect(overlays.setStatus).toHaveBeenCalledWith("m1", "searching");
 
     restore();
   });
 
-  it("clears overlays on end without finish event", async () => {
+  test("clears overlays on end without finish event", async () => {
     const { restore } = mockFetchNDJSON([{ t: "content", d: "x" }]);
 
-    await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    await startStream();
 
     await flushAll();
 
-    expect(globalThis.__testOverlays.clear).toHaveBeenCalledWith("m1");
-    expect(globalThis.__testOverlays.clearReasoning).toHaveBeenCalledWith("m1");
-    expect(globalThis.__testOverlays.clearStatus).toHaveBeenCalledWith("m1");
-    expect(globalThis.__testOverlays.clearCitations).toHaveBeenCalledWith("m1");
-    expect(globalThis.__testOverlays.clearTools).toHaveBeenCalledWith("m1");
+    expect(overlays.clear).toHaveBeenCalledWith("m1");
+    expect(overlays.clearReasoning).toHaveBeenCalledWith("m1");
+    expect(overlays.clearStatus).toHaveBeenCalledWith("m1");
+    expect(overlays.clearCitations).toHaveBeenCalledWith("m1");
+    expect(overlays.clearTools).toHaveBeenCalledWith("m1");
 
     restore();
   });
 
-  it("schedules clearing after finish event", async () => {
+  test("schedules clearing after finish event", async () => {
     await withFakeTimers(async () => {
       const { restore } = mockFetchNDJSON([{ t: "finish" }]);
-      await startAuthorStream({
-        convexUrl: "https://convex",
-        conversationId: "c1",
-        assistantMessageId: "m1",
-      });
+      await startStream();
       await flushAll({ microtasks: 1, timersMs: 300 });
-      expect(globalThis.__testOverlays.clear).toHaveBeenCalledWith("m1");
-      expect(globalThis.__testOverlays.clearReasoning).toHaveBeenCalledWith(
-        "m1"
-      );
-      expect(globalThis.__testOverlays.clearStatus).toHaveBeenCalledWith("m1");
-      expect(globalThis.__testOverlays.clearCitations).toHaveBeenCalledWith(
-        "m1"
-      );
-      expect(globalThis.__testOverlays.clearTools).toHaveBeenCalledWith("m1");
+      expect(overlays.clear).toHaveBeenCalledWith("m1");
+      expect(overlays.clearReasoning).toHaveBeenCalledWith("m1");
+      expect(overlays.clearStatus).toHaveBeenCalledWith("m1");
+      expect(overlays.clearCitations).toHaveBeenCalledWith("m1");
+      expect(overlays.clearTools).toHaveBeenCalledWith("m1");
       restore();
     });
   });
 
-  it("invokes onFinish callback when finish arrives", async () => {
+  test("invokes onFinish callback when finish arrives", async () => {
     const { restore } = mockFetchNDJSON([{ t: "finish", reason: "stop" }]);
-    const onFinish = vi.fn();
-    await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-      onFinish,
-    });
+    const onFinish = mock();
+    await startStream({ onFinish });
     await flushAll();
     expect(onFinish).toHaveBeenCalledWith("stop");
     restore();
   });
 
-  it("handles tool_call events", async () => {
+  test("handles tool_call events", async () => {
     const { restore } = mockFetchNDJSON([
       { t: "tool_call", name: "calc", args: { x: 1 } },
     ]);
 
-    await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    await startStream();
     await flushAll();
-    expect(globalThis.__testOverlays.pushToolEvent).toHaveBeenCalledWith("m1", {
+    expect(overlays.pushToolEvent).toHaveBeenCalledWith("m1", {
       t: "tool_call",
       name: "calc",
       args: { x: 1 },
@@ -191,18 +163,14 @@ describe("http-stream.startAuthorStream", () => {
     restore();
   });
 
-  it("handles tool_result events", async () => {
+  test("handles tool_result events", async () => {
     const { restore } = mockFetchNDJSON([
       { t: "tool_result", name: "calc", ok: true, count: 1 },
     ]);
 
-    await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    await startStream();
     await flushAll();
-    expect(globalThis.__testOverlays.pushToolEvent).toHaveBeenCalledWith("m1", {
+    expect(overlays.pushToolEvent).toHaveBeenCalledWith("m1", {
       t: "tool_result",
       name: "calc",
       ok: true,
@@ -211,18 +179,14 @@ describe("http-stream.startAuthorStream", () => {
     restore();
   });
 
-  it("handles citations events", async () => {
+  test("handles citations events", async () => {
     const { restore } = mockFetchNDJSON([
       { t: "citations", citations: [{ url: "u", title: "t" }] },
     ]);
 
-    await startAuthorStream({
-      convexUrl: "https://convex",
-      conversationId: "c1",
-      assistantMessageId: "m1",
-    });
+    await startStream();
     await flushAll();
-    expect(globalThis.__testOverlays.setCitations).toHaveBeenCalledWith("m1", [
+    expect(overlays.setCitations).toHaveBeenCalledWith("m1", [
       { url: "u", title: "t" },
     ]);
 

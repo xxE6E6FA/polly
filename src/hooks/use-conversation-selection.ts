@@ -73,7 +73,10 @@ export function useConversationSelection() {
 
           for (let i = start; i <= end; i++) {
             if (i < conversations.length) {
-              newSelected.add(conversations[i]._id);
+              const id = conversations[i]?._id;
+              if (id) {
+                newSelected.add(id);
+              }
             }
           }
         } else if (newSelected.has(conversationId)) {

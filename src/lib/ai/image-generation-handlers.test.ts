@@ -1,16 +1,37 @@
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import type { ConvexReactClient } from "convex/react";
 import { ConvexError } from "convex/values";
-import { describe, expect, it, vi } from "vitest";
-import {
-  handleImageGeneration,
-  retryImageGeneration,
-} from "./image-generation-handlers";
+
+const apiMock = {
+  messages: { create: "messages:create" },
+  conversations: { setStreaming: "conversations:setStreaming" },
+  ai: {
+    replicate: { generateImage: "ai:replicate:generateImage" },
+  },
+} as const;
+
+mock.module("@convex/_generated/api", () => ({ api: apiMock }));
+
+let handleImageGeneration: typeof import("./image-generation-handlers").handleImageGeneration;
+let retryImageGeneration: typeof import("./image-generation-handlers").retryImageGeneration;
+
+beforeAll(async () => {
+  const mod = (await import(
+    "./image-generation-handlers?bun-real"
+  )) as typeof import("./image-generation-handlers");
+  handleImageGeneration = mod.handleImageGeneration;
+  retryImageGeneration = mod.retryImageGeneration;
+});
+
+afterAll(() => {
+  mock.restore();
+});
 
 describe("image-generation-handlers", () => {
-  it("handleImageGeneration creates assistant message and triggers action", async () => {
-    const mutation = vi.fn().mockResolvedValue("msg-1");
-    const action = vi.fn().mockResolvedValue(undefined);
+  test("handleImageGeneration creates assistant message and triggers action", async () => {
+    const mutation = mock().mockResolvedValue("msg-1");
+    const action = mock().mockResolvedValue(undefined);
     const convexClient = {
       mutation,
       action,
@@ -88,11 +109,11 @@ describe("image-generation-handlers", () => {
     });
   });
 
-  it("handleImageGeneration surfaces friendly error for missing Replicate API key", async () => {
-    const mutation = vi.fn().mockResolvedValue("msg-1");
-    const action = vi
-      .fn()
-      .mockRejectedValue(new ConvexError("No Replicate API key configured"));
+  test("handleImageGeneration surfaces friendly error for missing Replicate API key", async () => {
+    const mutation = mock().mockResolvedValue("msg-1");
+    const action = mock().mockRejectedValue(
+      new ConvexError("No Replicate API key configured")
+    );
     const convexClient = {
       mutation,
       action,
@@ -118,9 +139,9 @@ describe("image-generation-handlers", () => {
     );
   });
 
-  it("handleImageGeneration rethrows other errors with message", async () => {
-    const mutation = vi.fn().mockResolvedValue("msg-1");
-    const action = vi.fn().mockRejectedValue(new Error("boom"));
+  test("handleImageGeneration rethrows other errors with message", async () => {
+    const mutation = mock().mockResolvedValue("msg-1");
+    const action = mock().mockRejectedValue(new Error("boom"));
     const convexClient = {
       mutation,
       action,
@@ -144,9 +165,9 @@ describe("image-generation-handlers", () => {
     ).rejects.toThrow(/boom/);
   });
 
-  it("retryImageGeneration calls action with original params", async () => {
-    const mutation = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue(undefined);
+  test("retryImageGeneration calls action with original params", async () => {
+    const mutation = mock().mockResolvedValue(undefined);
+    const action = mock().mockResolvedValue(undefined);
     const convexClient = {
       action,
       mutation,

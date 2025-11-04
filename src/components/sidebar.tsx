@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import { HeartIcon, SidebarSimple } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams } from "react-router-dom";
 import { BatchActions } from "@/components/sidebar/batch-actions";
 import { ConversationList } from "@/components/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/sidebar/search";

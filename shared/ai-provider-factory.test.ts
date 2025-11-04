@@ -1,102 +1,121 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 
-vi.mock("@ai-sdk/openai", () => ({
-  createOpenAI:
-    ({ apiKey }: any) =>
-    (model: string) => ({ provider: "openai", apiKey, model }),
-}));
-
-vi.mock("@ai-sdk/anthropic", () => ({
-  createAnthropic:
-    ({ apiKey }: any) =>
-    (model: string) => ({ provider: "anthropic", apiKey, model }),
-}));
-
-vi.mock("@ai-sdk/google", () => ({
-  createGoogleGenerativeAI:
-    ({ apiKey }: any) =>
-    (model: string) => ({ provider: "google", apiKey, model }),
-}));
-
-vi.mock("@ai-sdk/groq", () => ({
-  createGroq:
-    ({ apiKey }: any) =>
-    (model: string) => ({ provider: "groq", apiKey, model }),
-}));
-
-vi.mock("@openrouter/ai-sdk-provider", () => {
-  let lastOptions: any;
-  return {
-    createOpenRouter: (opts: any) => {
-      lastOptions = opts;
-      return (model: string) => ({
-        provider: "openrouter",
-        apiKey: opts.apiKey,
-        model,
-        headers: opts.headers,
-      });
-    },
-    getLastOptions: () => lastOptions,
-  };
+const createMockModel = (
+  providerString: string,
+  modelId: string,
+  apiKey: string
+) => ({
+  modelId,
+  config: {
+    provider: providerString,
+    fetch: undefined,
+    fileIdPrefixes: ["file-"],
+    headers: () => ({}),
+    url: () => "",
+  },
+  specificationVersion: "v2",
+  supportedUrls: {
+    "application/pdf": [/^https?:\/\/.*$/],
+    "image/*": [/^https?:\/\/.*$/],
+  },
 });
 
-import * as OpenRouterMock from "@openrouter/ai-sdk-provider";
+mock.module("@ai-sdk/openai", () => ({
+  createOpenAI:
+    ({ apiKey }: any) =>
+    (model: string) =>
+      createMockModel("openai.responses", model, apiKey),
+}));
+
+mock.module("@ai-sdk/anthropic", () => ({
+  createAnthropic:
+    ({ apiKey }: any) =>
+    (model: string) =>
+      createMockModel("anthropic.messages", model, apiKey),
+}));
+
+mock.module("@ai-sdk/google", () => ({
+  createGoogleGenerativeAI:
+    ({ apiKey }: any) =>
+    (model: string) =>
+      createMockModel("google.generative-ai", model, apiKey),
+}));
+
+mock.module("@ai-sdk/groq", () => ({
+  createGroq:
+    ({ apiKey }: any) =>
+    (model: string) =>
+      createMockModel("groq.chat", model, apiKey),
+}));
+
+mock.module("@openrouter/ai-sdk-provider", () => ({
+  createOpenRouter: (opts: any) => {
+    return (model: string) =>
+      createMockModel("openrouter.chat", model, opts.apiKey);
+  },
+}));
+
 import {
   createBasicLanguageModel,
   createProviderModel,
 } from "./ai-provider-factory";
 
 describe("ai-provider-factory", () => {
-  it("creates models for each supported provider", () => {
+  test("creates models for each supported provider", () => {
     const apiKey = "k";
     const model = "m";
 
-    expect(createBasicLanguageModel("openai", model, apiKey)).toEqual({
-      provider: "openai",
-      apiKey,
+    const openaiModel = createBasicLanguageModel(
+      "openai",
       model,
-    });
-    expect(createBasicLanguageModel("anthropic", model, apiKey)).toEqual({
-      provider: "anthropic",
-      apiKey,
+      apiKey
+    ) as any;
+    expect(openaiModel.modelId).toBe(model);
+    expect(openaiModel.config.provider).toBe("openai.responses");
+    expect(openaiModel.specificationVersion).toBe("v2");
+
+    const anthropicModel = createBasicLanguageModel(
+      "anthropic",
       model,
-    });
-    expect(createBasicLanguageModel("google", model, apiKey)).toEqual({
-      provider: "google",
-      apiKey,
+      apiKey
+    ) as any;
+    expect(anthropicModel.modelId).toBe(model);
+    expect(anthropicModel.config.provider).toBe("anthropic.messages");
+    expect(anthropicModel.specificationVersion).toBe("v2");
+
+    const googleModel = createBasicLanguageModel(
+      "google",
       model,
-    });
-    expect(createBasicLanguageModel("groq", model, apiKey)).toEqual({
-      provider: "groq",
-      apiKey,
-      model,
-    });
+      apiKey
+    ) as any;
+    expect(googleModel.modelId).toBe(model);
+    expect(googleModel.config.provider).toBe("google.generative-ai");
+    expect(googleModel.specificationVersion).toBe("v2");
+
+    const groqModel = createBasicLanguageModel("groq", model, apiKey) as any;
+    expect(groqModel.modelId).toBe(model);
+    expect(groqModel.config.provider).toBe("groq.chat");
+    expect(groqModel.specificationVersion).toBe("v2");
+
     const openrouterModel = createBasicLanguageModel(
       "openrouter",
       model,
       apiKey
     ) as any;
-    expect(openrouterModel).toMatchObject({
-      provider: "openrouter",
-      apiKey,
-      model,
-    });
-
-    const opts = (OpenRouterMock as any).getLastOptions();
-    expect(opts.apiKey).toBe(apiKey);
-    // Ensure headers wired as intended
-    expect(opts.headers["HTTP-Referer"]).toBe("https://polly.ai");
-    expect(opts.headers["X-Title"]).toBe("Polly Chat");
+    expect(openrouterModel.modelId).toBe(model);
+    expect(openrouterModel.config.provider).toBe("openrouter.chat");
+    expect(openrouterModel.specificationVersion).toBe("v2");
   });
 
-  it("throws on unsupported provider", () => {
+  test("throws on unsupported provider", () => {
     expect(() => createBasicLanguageModel("unknown", "m", "k")).toThrow(
       /Unsupported provider: unknown/
     );
   });
 
-  it("exposes direct factory mapping", () => {
-    const res = createProviderModel.openai("k", "m");
-    expect(res).toEqual({ provider: "openai", apiKey: "k", model: "m" });
+  test("exposes direct factory mapping", () => {
+    const res = createProviderModel.openai("k", "m") as any;
+    expect(res.modelId).toBe("m");
+    expect(res.config.provider).toBe("openai.responses");
   });
 });

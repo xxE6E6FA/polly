@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
@@ -68,7 +68,7 @@ async function seedConversation(t: any, userId: string) {
 }
 
 describe("convex/branches", () => {
-  it("createBranch clones history up to message and sets metadata", async () => {
+  test("createBranch clones history up to message and sets metadata", async () => {
     const t = await makeConvexTest();
     const { userId } = await seedAuthedUser(t);
     await seedBuiltInModel(t);
@@ -102,7 +102,7 @@ describe("convex/branches", () => {
     expect(branched?.rootConversationId).toBeTruthy();
   });
 
-  it("getBranches returns root + branches with ordering and preview fields", async () => {
+  test("getBranches returns root + branches with ordering and preview fields", async () => {
     const t = await makeConvexTest();
     const { userId } = await seedAuthedUser(t);
     await seedBuiltInModel(t);

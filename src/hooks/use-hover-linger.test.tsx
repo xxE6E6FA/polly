@@ -1,17 +1,17 @@
+import { describe, expect, spyOn, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { withFakeTimers } from "../test/utils";
+import { advanceTimersByTime, withFakeTimers } from "../test/utils";
 import { useHoverLinger } from "./use-hover-linger";
 
 describe("useHoverLinger", () => {
-  it("starts with isVisible false", async () => {
+  test("starts with isVisible false", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger());
       expect(result.current.isVisible).toBe(false);
     });
   });
 
-  it("shows immediately on mouse enter", async () => {
+  test("shows immediately on mouse enter", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger());
       act(() => {
@@ -21,7 +21,7 @@ describe("useHoverLinger", () => {
     });
   });
 
-  it("hides after delay on mouse leave", async () => {
+  test("hides after delay on mouse leave", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger({ delay: 500 }));
       act(() => {
@@ -33,13 +33,13 @@ describe("useHoverLinger", () => {
       });
       expect(result.current.isVisible).toBe(true);
       act(() => {
-        vi.advanceTimersByTime(500);
+        advanceTimersByTime(500);
       });
       expect(result.current.isVisible).toBe(false);
     });
   });
 
-  it("uses default delay of 700ms", async () => {
+  test("uses default delay of 700ms", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger());
       act(() => {
@@ -47,17 +47,17 @@ describe("useHoverLinger", () => {
         result.current.onMouseLeave();
       });
       act(() => {
-        vi.advanceTimersByTime(699);
+        advanceTimersByTime(699);
       });
       expect(result.current.isVisible).toBe(true);
       act(() => {
-        vi.advanceTimersByTime(1);
+        advanceTimersByTime(1);
       });
       expect(result.current.isVisible).toBe(false);
     });
   });
 
-  it("cancels hide timer when mouse re-enters", async () => {
+  test("cancels hide timer when mouse re-enters", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger({ delay: 500 }));
       act(() => {
@@ -65,17 +65,17 @@ describe("useHoverLinger", () => {
         result.current.onMouseLeave();
       });
       act(() => {
-        vi.advanceTimersByTime(250);
+        advanceTimersByTime(250);
         result.current.onMouseEnter();
       });
       act(() => {
-        vi.advanceTimersByTime(300);
+        advanceTimersByTime(300);
       });
       expect(result.current.isVisible).toBe(true);
     });
   });
 
-  it("allows manual control with setIsVisible", async () => {
+  test("allows manual control with setIsVisible", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger());
       act(() => {
@@ -89,7 +89,7 @@ describe("useHoverLinger", () => {
     });
   });
 
-  it("provides clear function to cancel timers", async () => {
+  test("provides clear function to cancel timers", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger({ delay: 500 }));
       act(() => {
@@ -97,19 +97,19 @@ describe("useHoverLinger", () => {
         result.current.onMouseLeave();
       });
       act(() => {
-        vi.advanceTimersByTime(250);
+        advanceTimersByTime(250);
         result.current.clear();
       });
       act(() => {
-        vi.advanceTimersByTime(300);
+        advanceTimersByTime(300);
       });
       expect(result.current.isVisible).toBe(true);
     });
   });
 
-  it("cleans up timers on unmount", async () => {
+  test("cleans up timers on unmount", async () => {
     await withFakeTimers(() => {
-      const clearTimeoutSpy = vi.spyOn(global, "clearTimeout");
+      const clearTimeoutSpy = spyOn(global, "clearTimeout");
       const { result, unmount } = renderHook(() => useHoverLinger());
       act(() => {
         result.current.onMouseEnter();
@@ -120,7 +120,7 @@ describe("useHoverLinger", () => {
     });
   });
 
-  it("handles multiple rapid mouse events", async () => {
+  test("handles multiple rapid mouse events", async () => {
     await withFakeTimers(() => {
       const { result } = renderHook(() => useHoverLinger({ delay: 100 }));
       act(() => {
@@ -133,7 +133,7 @@ describe("useHoverLinger", () => {
       expect(result.current.isVisible).toBe(true);
       act(() => {
         result.current.onMouseLeave();
-        vi.advanceTimersByTime(100);
+        advanceTimersByTime(100);
       });
       expect(result.current.isVisible).toBe(false);
     });

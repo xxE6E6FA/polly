@@ -8,7 +8,7 @@ import {
   ShareNetworkIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import {
   Select,

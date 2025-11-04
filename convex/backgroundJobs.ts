@@ -8,7 +8,6 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import { log } from "./lib/logger";
 
 // Export conversation type definition
 export type ExportAttachment = {
@@ -538,7 +537,7 @@ export const deleteJob = mutation({
       try {
         await ctx.storage.delete(job.fileStorageId);
       } catch (error) {
-        log.warn("Failed to delete associated file:", error);
+        console.warn("Failed to delete associated file:", error);
       }
     }
 
@@ -577,7 +576,7 @@ export const cleanupOldJobsForAllUsers = internalMutation({
         try {
           await ctx.storage.delete(job.fileStorageId);
         } catch (error) {
-          log.warn("Failed to delete associated file:", error);
+          console.warn("Failed to delete associated file:", error);
         }
       }
 
@@ -628,21 +627,22 @@ export const getExportData = internalQuery({
             model: message.model,
             provider: message.provider,
             reasoning: message.reasoning,
-            attachments: args.includeAttachments
-              ? message.attachments?.map(attachment => ({
-                  type: attachment.type,
-                  url: attachment.url,
-                  name: attachment.name,
-                  size: attachment.size,
-                  content: attachment.content,
-                  thumbnail: attachment.thumbnail,
-                  mimeType: attachment.mimeType,
-                  storageId: attachment.storageId,
-                  textFileId: attachment.textFileId,
-                  extractedText: attachment.extractedText,
-                  generatedImage: attachment.generatedImage,
-                }))
-              : undefined,
+            attachments:
+              args.includeAttachments && Array.isArray(message.attachments)
+                ? message.attachments.map(attachment => ({
+                    type: attachment.type,
+                    url: attachment.url,
+                    name: attachment.name,
+                    size: attachment.size,
+                    content: attachment.content,
+                    thumbnail: attachment.thumbnail,
+                    mimeType: attachment.mimeType,
+                    storageId: attachment.storageId,
+                    textFileId: attachment.textFileId,
+                    extractedText: attachment.extractedText,
+                    generatedImage: attachment.generatedImage,
+                  }))
+                : undefined,
             citations: message.citations,
           })),
         } as ExportConversation;

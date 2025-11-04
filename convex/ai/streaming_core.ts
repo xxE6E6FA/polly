@@ -2,7 +2,6 @@ import { smoothStream, streamText, type ModelMessage } from "ai";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
-import { log } from "../lib/logger";
 import {
   DEFAULT_STREAM_CONFIG,
   humanizeReasoningText,
@@ -69,7 +68,7 @@ export async function streamLLMToMessage({
         appendContent: toSend,
       });
     } catch (e) {
-      log.streamError("content flush failed", e);
+      console.error("Stream error: content flush failed", e);
     }
   };
 
@@ -83,7 +82,7 @@ export async function streamLLMToMessage({
         appendReasoning: toSend,
       });
     } catch (e) {
-      log.streamError("reasoning flush failed", e);
+      console.error("Stream error: reasoning flush failed", e);
     }
   };
 
@@ -195,7 +194,7 @@ export async function streamLLMToMessage({
       if (stopped) break;
     }
   } catch (error) {
-    log.streamError("stream failed", error);
+    console.error("Stream error: stream failed", error);
     const errorMessage = getUserFriendlyErrorMessage(error);
     await ctx.runMutation(internal.messages.updateMessageError, {
       messageId,

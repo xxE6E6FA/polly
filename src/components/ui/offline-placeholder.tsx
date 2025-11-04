@@ -1,5 +1,5 @@
 import { CloudSlashIcon } from "@phosphor-icons/react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 

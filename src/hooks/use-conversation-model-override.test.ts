@@ -1,15 +1,17 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
+let useMutationMock: ReturnType<typeof mock>;
+let useQueryMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(() => ({
-    user: { _id: "u1", isAnonymous: false },
-  })),
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
 import { useMutation, useQuery } from "convex/react";
@@ -17,67 +19,75 @@ import { useUserDataContext } from "@/providers/user-data-context";
 import { useConversationModelOverride } from "./use-conversation-model-override";
 
 describe("useConversationModelOverride", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    useUserDataContextMock = mock(() => ({
+      user: { _id: "u1", isAnonymous: false },
+    }));
+  });
 
-  it("calls selectModel when last used differs from current selection", () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useQuery as unknown as vi.Mock)
+  test("calls selectModel when last used differs from current selection", () => {
+    const mutate = mock(() => Promise.resolve(undefined));
+    useMutationMock = mock(() => mutate);
+    useQueryMock = mock();
+    useQueryMock
       // lastUsedModel
-      .mockReturnValueOnce({ modelId: "gpt", provider: "openai" })
+      .mockImplementationOnce(() => ({ modelId: "gpt", provider: "openai" }))
       // currentSelectedModel
-      .mockReturnValueOnce({ modelId: "other", provider: "x" })
+      .mockImplementationOnce(() => ({ modelId: "other", provider: "x" }))
       // resolvedModel
-      .mockReturnValueOnce({ modelId: "gpt", provider: "openai" });
+      .mockImplementationOnce(() => ({ modelId: "gpt", provider: "openai" }));
 
     renderHook(() => useConversationModelOverride("c1" as Id<"conversations">));
 
     expect(mutate).toHaveBeenCalledWith({ modelId: "gpt", provider: "openai" });
   });
 
-  it("does not call when models match", () => {
-    const mutate = vi.fn(async () => {
+  test("does not call when models match", () => {
+    const mutate = mock(async () => {
       /* noop */
     });
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce({ modelId: "m", provider: "p" })
-      .mockReturnValueOnce({ modelId: "m", provider: "p" })
-      .mockReturnValueOnce({ modelId: "m", provider: "p" });
+    useMutationMock = mock(() => mutate);
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => ({ modelId: "m", provider: "p" }))
+      .mockImplementationOnce(() => ({ modelId: "m", provider: "p" }))
+      .mockImplementationOnce(() => ({ modelId: "m", provider: "p" }));
     renderHook(() => useConversationModelOverride("c2" as Id<"conversations">));
     expect(mutate).not.toHaveBeenCalled();
   });
 
-  it("does not call when user is anonymous", () => {
+  test("does not call when user is anonymous", () => {
     // Force anonymous user for this test
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+    useUserDataContextMock = mock(() => ({
       user: { _id: "u1", isAnonymous: true },
-    });
-    const mutate = vi.fn(async () => {
+    }));
+    const mutate = mock(async () => {
       /* noop */
     });
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce({ modelId: "x", provider: "y" })
-      .mockReturnValueOnce({ modelId: "a", provider: "b" })
-      .mockReturnValueOnce({ modelId: "x", provider: "y" });
+    useMutationMock = mock(() => mutate);
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => ({ modelId: "x", provider: "y" }))
+      .mockImplementationOnce(() => ({ modelId: "a", provider: "b" }))
+      .mockImplementationOnce(() => ({ modelId: "x", provider: "y" }));
     renderHook(() => useConversationModelOverride("c3" as Id<"conversations">));
     expect(mutate).not.toHaveBeenCalled();
     // Reset mock return for other tests
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+    useUserDataContextMock = mock(() => ({
       user: { _id: "u1", isAnonymous: false },
-    });
+    }));
   });
 
-  it("only processes a conversation id once until it changes or resets", () => {
-    const mutate = vi.fn(async () => {
+  test("only processes a conversation id once until it changes or resets", () => {
+    const mutate = mock(async () => {
       /* noop */
     });
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce({ modelId: "g1", provider: "p1" })
-      .mockReturnValueOnce({ modelId: "g2", provider: "p2" })
-      .mockReturnValueOnce({ modelId: "g1", provider: "p1" });
+    useMutationMock = mock(() => mutate);
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => ({ modelId: "g1", provider: "p1" }))
+      .mockImplementationOnce(() => ({ modelId: "g2", provider: "p2" }))
+      .mockImplementationOnce(() => ({ modelId: "g1", provider: "p1" }));
     const { rerender } = renderHook(() =>
       useConversationModelOverride("c5" as Id<"conversations">)
     );

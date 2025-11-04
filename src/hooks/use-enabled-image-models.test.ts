@@ -1,42 +1,83 @@
+import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(),
+let useQueryMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
+import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useEnabledImageModels } from "./use-enabled-image-models";
 
 describe("useEnabledImageModels", () => {
-  it("returns array when user is present and query yields list", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+  test("returns array when user is present and query yields list", () => {
+    useUserDataContextMock = mock(() => ({
       user: { _id: "u1" },
-    });
-    (useQuery as unknown as vi.Mock).mockReturnValue([
-      { id: "m1" },
-      { id: "m2" },
+    }));
+    useQueryMock = mock(() => [
+      {
+        _id: "m1" as Id<"userImageModels">,
+        _creationTime: 1,
+        userId: "u1" as Id<"users">,
+        modelId: "model1",
+        name: "Model 1",
+        provider: "replicate",
+        createdAt: 1,
+      },
+      {
+        _id: "m2" as Id<"userImageModels">,
+        _creationTime: 2,
+        userId: "u1" as Id<"users">,
+        modelId: "model2",
+        name: "Model 2",
+        provider: "replicate",
+        createdAt: 2,
+      },
     ]);
 
     const { result } = renderHook(() => useEnabledImageModels());
-    expect(result.current).toEqual([{ id: "m1" }, { id: "m2" }]);
+    expect(result.current).toEqual([
+      {
+        _id: "m1" as Id<"userImageModels">,
+        _creationTime: 1,
+        userId: "u1" as Id<"users">,
+        modelId: "model1",
+        name: "Model 1",
+        provider: "replicate",
+        createdAt: 1,
+      },
+      {
+        _id: "m2" as Id<"userImageModels">,
+        _creationTime: 2,
+        userId: "u1" as Id<"users">,
+        modelId: "model2",
+        name: "Model 2",
+        provider: "replicate",
+        createdAt: 2,
+      },
+    ]);
   });
 
-  it("returns undefined when user missing and query skipped", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({ user: null });
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+  test("returns undefined when user missing and query skipped", () => {
+    useUserDataContextMock = mock(() => ({ user: null }));
+    useQueryMock = mock(() => undefined);
 
     const { result } = renderHook(() => useEnabledImageModels());
     expect(result.current).toBeUndefined();
   });
 
-  it("returns undefined when query yields non-array", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+  test("returns undefined when query yields non-array", () => {
+    useUserDataContextMock = mock(() => ({
       user: { _id: "u1" },
-    });
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+    }));
+    useQueryMock = mock(() => undefined);
 
     const { result } = renderHook(() => useEnabledImageModels());
     expect(result.current).toBeUndefined();

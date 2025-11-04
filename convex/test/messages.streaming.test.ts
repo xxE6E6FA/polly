@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages.hasStreamingMessage", () => {
-  it("returns assistant without finishReason as streaming", async () => {
+  test("returns assistant without finishReason as streaming", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {
@@ -24,7 +24,7 @@ describe("convex/messages.hasStreamingMessage", () => {
     expect(res).toBeTruthy();
   });
 
-  it("returns null when assistant has finishReason", async () => {
+  test("returns null when assistant has finishReason", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {

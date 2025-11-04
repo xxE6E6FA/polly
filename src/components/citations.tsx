@@ -72,9 +72,12 @@ export const Citations = ({
         const regex = /\[(\d+)\]/g;
         let match: RegExpExecArray | null = regex.exec(content);
         while (match !== null) {
-          const num = parseInt(match[1]);
-          if (!Number.isNaN(num) && num >= 1 && num <= citations.length) {
-            usedIndices.add(num - 1);
+          const capture = match[1];
+          if (capture) {
+            const num = parseInt(capture, 10);
+            if (!Number.isNaN(num) && num >= 1 && num <= citations.length) {
+              usedIndices.add(num - 1);
+            }
           }
           match = regex.exec(content);
         }

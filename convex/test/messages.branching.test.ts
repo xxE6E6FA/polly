@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages branching", () => {
-  it("setBranch marks siblings non-main and target as main; getAlternatives returns siblings", async () => {
+  test("setBranch marks siblings non-main and target as main; getAlternatives returns siblings", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {

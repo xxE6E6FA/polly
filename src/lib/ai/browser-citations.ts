@@ -72,8 +72,10 @@ export function extractMarkdownCitations(text: string): WebSearchCitation[] {
   const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
 
   for (const match of text.matchAll(linkRegex)) {
-    const linkText = match[1];
-    const url = match[2];
+    const [, linkText, url] = match;
+    if (!(linkText && url)) {
+      continue;
+    }
 
     if (seenUrls.has(url)) {
       continue;

@@ -229,9 +229,11 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       const userMessages: string[] = [];
       for (let i = sourceMessages.length - 1; i >= 0; i--) {
         const msg = sourceMessages[i];
-        if (msg.role === "user") {
-          userMessages.push(msg.content);
+        if (!msg || msg.role !== "user") {
+          continue;
         }
+        const content = typeof msg.content === "string" ? msg.content : "";
+        userMessages.push(content);
       }
 
       return userMessages;

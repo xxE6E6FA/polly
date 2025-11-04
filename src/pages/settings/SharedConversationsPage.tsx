@@ -10,7 +10,7 @@ import {
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";

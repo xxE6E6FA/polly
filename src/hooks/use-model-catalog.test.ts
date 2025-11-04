@@ -1,21 +1,37 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
+let useQueryMock: ReturnType<typeof mock>;
 
-import type { Doc } from "@convex/_generated/dataModel";
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
-import { useModelCatalog, useModelCatalogStore } from "./use-model-catalog";
+import { setupZustandTestStore } from "@/test/zustand";
+import {
+  createModelCatalogStore,
+  setModelCatalogStoreApi,
+  useModelCatalog,
+  useModelCatalogStore,
+} from "./use-model-catalog";
+
+setupZustandTestStore({
+  createStore: () => createModelCatalogStore(),
+  setStore: setModelCatalogStoreApi,
+});
 
 describe("useModelCatalog", () => {
-  it("combines user and built-in models and groups by provider/free flag", () => {
+  test("combines user and built-in models and groups by provider/free flag", () => {
     // First hook call: provide arrays for both queries
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce([
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => [
         { _id: "u1", provider: "openai", modelId: "gpt" },
         { _id: "u2", provider: "anthropic", modelId: "claude", free: true },
       ])
-      .mockReturnValueOnce([
+      .mockImplementationOnce(() => [
         { _id: "b1", provider: "google", modelId: "gemini" },
       ]);
 
@@ -23,30 +39,36 @@ describe("useModelCatalog", () => {
     const { initialized, userModels, modelGroups } = result.current;
     expect(initialized).toBe(true);
     expect(userModels).toHaveLength(3);
-    expect(modelGroups.freeModels.map(m => m._id)).toContain("u2");
+    expect(modelGroups.freeModels.map(m => m._id)).toContain(
+      "u2" as Id<"userModels">
+    );
     expect(modelGroups.providerModels.openai).toBeDefined();
     expect(modelGroups.providerModels.google).toBeDefined();
   });
 
-  it("sets initialized when either query resolves from undefined", () => {
+  test("sets initialized when either query resolves from undefined", () => {
     // Clear the store first
     useModelCatalogStore.getState().clear();
 
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce(undefined)
-      .mockReturnValueOnce(undefined);
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => undefined)
+      .mockImplementationOnce(() => undefined);
     const r1 = renderHook(() => useModelCatalog());
     expect(r1.result.current.initialized).toBe(false);
 
     // Next render provide data to one query
-    (useQuery as unknown as vi.Mock)
-      .mockReturnValueOnce([{ _id: "u1", provider: "x", modelId: "m" }])
-      .mockReturnValueOnce(undefined);
+    useQueryMock = mock();
+    useQueryMock
+      .mockImplementationOnce(() => [
+        { _id: "u1", provider: "x", modelId: "m" },
+      ])
+      .mockImplementationOnce(() => undefined);
     const r2 = renderHook(() => useModelCatalog());
     expect(r2.result.current.initialized).toBe(true);
   });
 
-  it("store can be cleared", () => {
+  test("store can be cleared", () => {
     useModelCatalogStore.getState().setCatalog([
       {
         _id: "x",

@@ -58,7 +58,6 @@ function hasPollyStructure(data: unknown): boolean {
 
 // Note: This function is available for future format validation if needed
 // Currently not used, but kept for potential format checking enhancements
-// @ts-expect-error - Reserved for future use
 function _isPollyFormat(data: unknown): boolean {
   return (
     hasPollyStructure(data) &&

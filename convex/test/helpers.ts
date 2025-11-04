@@ -64,7 +64,7 @@ const modules = {
 };
 
 export async function makeConvexTest() {
-  const base = convexTest(schema, modules);
+  const base = convexTest(schema as any, modules);
 
   // Helper to augment an auth-enabled handle with runQuery/runMutation
   const augment = (h: any) =>

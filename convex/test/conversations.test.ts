@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
@@ -37,7 +37,7 @@ async function seedConversationWithMessages(t: any) {
 }
 
 describe("convex/conversations", () => {
-  it("remove deletes messages and conversation and decrements user count", async () => {
+  test("remove deletes messages and conversation and decrements user count", async () => {
     const t = await makeConvexTest();
     const { userId, conversationId } = await seedConversationWithMessages(t);
 
@@ -64,7 +64,7 @@ describe("convex/conversations", () => {
     );
   });
 
-  it("removeMultiple deletes a batch of messages with access", async () => {
+  test("removeMultiple deletes a batch of messages with access", async () => {
     const t = await makeConvexTest();
     const { userId, conversationId, messageIds } = await seedConversationWithMessages(t);
 
@@ -79,7 +79,7 @@ describe("convex/conversations", () => {
     expect(left.every((m: any) => !messageIds.includes(m._id))).toBe(true);
   });
 
-  it("bulkRemove deletes multiple conversations synchronously", async () => {
+  test("bulkRemove deletes multiple conversations synchronously", async () => {
     const t = await makeConvexTest();
     const { userId } = await seedAuthedUser(t);
     const authed = t.withIdentity({ subject: userId, issuer: "test" });
@@ -100,7 +100,7 @@ describe("convex/conversations", () => {
     }
   });
 
-  it("createConversation uses selected user model when available, otherwise built-in fallback", async () => {
+  test("createConversation uses selected user model when available, otherwise built-in fallback", async () => {
     const t = await makeConvexTest();
     const { userId } = await seedAuthedUser(t);
     const authed = t.withIdentity({ subject: userId, issuer: "test" });

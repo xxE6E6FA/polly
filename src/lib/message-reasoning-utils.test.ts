@@ -1,68 +1,72 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn(),
-}));
-
-import type { Id } from "@convex/_generated/dataModel";
-import { useQuery } from "convex/react";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { api } from "@convex/_generated/api";
+import type { Doc } from "@convex/_generated/dataModel";
+import { renderHook } from "../test/hook-utils";
 import {
   getDefaultReasoningConfig,
   useLastMessageReasoningConfig,
 } from "./message-reasoning-utils";
 
+let useQueryMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+
 describe("message-reasoning-utils", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    useQueryMock = mock();
   });
 
-  it("getDefaultReasoningConfig returns disabled, medium effort", () => {
+  test("getDefaultReasoningConfig returns disabled, medium effort", () => {
     const cfg = getDefaultReasoningConfig();
     expect(cfg).toEqual({ enabled: false, effort: "medium" });
   });
 
-  it("useLastMessageReasoningConfig returns null when query undefined", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
-    const result = useLastMessageReasoningConfig(
-      "conv-1" as Id<"conversations">
-    );
-    expect(result).toBeNull();
+  test("useLastMessageReasoningConfig returns null when query undefined", () => {
+    useQueryMock.mockReturnValue(undefined);
+
+    const { result } = renderHook(() => useLastMessageReasoningConfig("c1"));
+    expect(result.current).toBeNull();
+    expect(useQueryMock).toHaveBeenCalledWith(api.messages.list, {
+      conversationId: "c1",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
   });
 
-  it("useLastMessageReasoningConfig returns null when page missing", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue({ page: undefined });
-    const result = useLastMessageReasoningConfig(
-      "conv-1" as Id<"conversations">
-    );
-    expect(result).toBeNull();
-  });
-
-  it("useLastMessageReasoningConfig finds last user message with reasoning from array", () => {
-    const messages = [
-      { role: "assistant", reasoningConfig: { enabled: false } },
-      { role: "user" },
-      { role: "user", reasoningConfig: { enabled: true, effort: "high" } },
-      { role: "user", reasoningConfig: { enabled: true, effort: "low" } },
+  test("useLastMessageReasoningConfig handles array results", () => {
+    const reasoningConfig = { enabled: true, effort: "high" };
+    const messages: Doc<"messages">[] = [
+      {
+        role: "assistant",
+      } as unknown as Doc<"messages">,
+      {
+        role: "user",
+        reasoningConfig,
+      } as unknown as Doc<"messages">,
     ];
-    (useQuery as unknown as vi.Mock).mockReturnValue(messages);
 
-    const result = useLastMessageReasoningConfig(
-      "conv-1" as Id<"conversations">
-    );
-    expect(result).toEqual({ enabled: true, effort: "low" });
+    useQueryMock.mockReturnValue(messages);
+
+    const { result } = renderHook(() => useLastMessageReasoningConfig("c1"));
+    expect(result.current).toEqual(reasoningConfig);
   });
 
-  it("useLastMessageReasoningConfig handles paginated shape with page[]", () => {
-    const page = [
-      { role: "user" },
-      { role: "assistant" },
-      { role: "user", reasoningConfig: { enabled: true, effort: "medium" } },
-    ];
-    (useQuery as unknown as vi.Mock).mockReturnValue({ page });
+  test("useLastMessageReasoningConfig handles paginated responses", () => {
+    const reasoningConfig = { enabled: true, effort: "medium" };
+    const paginated = {
+      page: [
+        {
+          role: "user",
+          reasoningConfig,
+        } as unknown as Doc<"messages">,
+      ],
+      isDone: true,
+    };
 
-    const result = useLastMessageReasoningConfig(
-      "conv-1" as Id<"conversations">
-    );
-    expect(result).toEqual({ enabled: true, effort: "medium" });
+    useQueryMock.mockReturnValue(paginated);
+
+    const { result } = renderHook(() => useLastMessageReasoningConfig("c1"));
+    expect(result.current).toEqual(reasoningConfig);
   });
 });

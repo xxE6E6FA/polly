@@ -1,7 +1,6 @@
 import { type Infer, v } from "convex/values";
 import Exa from "exa-js";
 import { type WebSource } from "../types";
-import { log } from "../lib/logger";
 
 // URL detection patterns - comprehensive coverage
 const URL_PATTERNS = {
@@ -70,7 +69,11 @@ function normalizeUrl(url: string): string | null {
   // Handle markdown links - extract the URL part
   const markdownMatch = url.match(/\[([^\]]+)\]\(([^)]+)\)/);
   if (markdownMatch) {
-    url = markdownMatch[2];
+    const linkTarget = markdownMatch[2];
+    if (!linkTarget) {
+      return null;
+    }
+    url = linkTarget;
   }
   
   // Add protocol if missing
@@ -94,7 +97,6 @@ export async function fetchUrlContents(
   apiKey: string,
   args: UrlProcessingArgs
 ): Promise<UrlProcessingResult> {
-  log.debug("🔗 fetchUrlContents called with URLs:", args.urls);
   
   try {
     const exa = new Exa(apiKey);
@@ -151,7 +153,6 @@ export async function fetchUrlContents(
             snippet: urlContent.summary,
           });
           
-          log.debug(`✅ Successfully processed URL: ${url}`);
         } else {
           // Fallback: try to search for the URL content
           const searchOptions: Record<string, unknown> = {
@@ -206,19 +207,16 @@ export async function fetchUrlContents(
               });
             }
             
-            log.debug(`✅ Successfully processed URL via search: ${url}`);
           } else {
             failedUrls.push(url);
-            log.debug(`❌ Failed to process URL: ${url}`);
           }
         }
       } catch (error) {
-        log.error(`❌ Error processing URL ${url}:`, error);
+        console.error(`❌ Error processing URL ${url}:`, error);
         failedUrls.push(url);
       }
     }
     
-    log.debug(`✅ Successfully processed ${contents.length} URLs, ${failedUrls.length} failed`);
     
     return {
       contents,
@@ -228,7 +226,7 @@ export async function fetchUrlContents(
     };
     
   } catch (error) {
-    log.error("❌ Failed to fetch URL contents:", error);
+    console.error("❌ Failed to fetch URL contents:", error);
     throw new Error(
       `Failed to fetch URL contents: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -299,7 +297,6 @@ export async function processUrlsInMessage(
     return null;
   }
   
-  log.debug("🔗 Processing URLs in message:", urls);
   
   // Fetch content for URLs
   return await fetchUrlContents(apiKey, {

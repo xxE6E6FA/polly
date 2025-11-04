@@ -1,5 +1,4 @@
 import { internalMutation } from "../_generated/server";
-import { log } from "../lib/logger";
 import { supportsReasoning } from "../../shared/reasoning-model-detection";
 
 export const seedBuiltInModels = internalMutation({
@@ -11,12 +10,10 @@ export const seedBuiltInModels = internalMutation({
       .first();
 
     if (existingBuiltInModels) {
-      log.info("Built-in models already exist, skipping seeding");
       return { success: true, message: "Built-in models already exist" };
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      log.info("No GEMINI_API_KEY found, skipping built-in model seeding");
       return { success: true, message: "No GEMINI_API_KEY available" };
     }
 
@@ -99,7 +96,6 @@ export const seedBuiltInModels = internalMutation({
       }
     }
 
-    log.info(`Seeded ${insertedCount} global built-in models`);
     return { 
       success: true, 
       message: `Seeded ${insertedCount} global built-in models` 

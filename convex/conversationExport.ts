@@ -7,7 +7,7 @@ import type { ActionCtx } from "./_generated/server";
 import { action } from "./_generated/server";
 import type { ExportAttachment, ExportConversation } from "./backgroundJobs";
 import { createConvexExportData } from "./backgroundJobs";
-import { log } from "./lib/logger";
+import { scheduleRunAfter } from "./lib/scheduler";
 
 // Schedule a background export job
 export const scheduleBackgroundExport = action({
@@ -41,7 +41,8 @@ export const scheduleBackgroundExport = action({
     });
 
     // Schedule the export processing
-    await ctx.scheduler.runAfter(
+    await scheduleRunAfter(
+      ctx,
       100,
       api.conversationExport.processBackgroundExport,
       {
@@ -162,7 +163,7 @@ export const processBackgroundExport = action({
                         c => c.charCodeAt(0)
                       );
                     } catch (error) {
-                      log.warn(
+                      console.warn(
                         "Failed to decode base64 content for attachment",
                         {
                           name: attachment.name,
@@ -181,7 +182,7 @@ export const processBackgroundExport = action({
                       binaryData = new Uint8Array(arrayBuffer);
                     }
                   } catch (error) {
-                    log.warn(
+                    console.warn(
                       "Failed to fetch attachment from storage during ZIP creation",
                       {
                         name: attachment.name,
@@ -333,7 +334,7 @@ async function hydrateAttachmentForExport(
           try {
             content = await blob.text();
           } catch (error) {
-            log.warn("Failed to read text content from storage", {
+            console.warn("Failed to read text content from storage", {
               name: attachment.name,
               storageId,
               error,
@@ -341,13 +342,13 @@ async function hydrateAttachmentForExport(
           }
         }
       } else {
-        log.warn("Attachment blob missing during export", {
+        console.warn("Attachment blob missing during export", {
           name: attachment.name,
           storageId,
         });
       }
     } catch (error) {
-      log.warn("Failed to read attachment blob during export", {
+      console.warn("Failed to read attachment blob during export", {
         name: attachment.name,
         storageId,
         error,
@@ -368,7 +369,7 @@ async function hydrateAttachmentForExport(
         extractedText = await textBlob.text();
       }
     } catch (error) {
-      log.warn("Failed to read attachment text blob during export", {
+      console.warn("Failed to read attachment text blob during export", {
         name: attachment.name,
         textFileId,
         error,
@@ -505,11 +506,18 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
   let base64 = "";
   let i = 0;
   const len = bytes.length;
+  const getByte = (index: number) => {
+    const value = bytes[index];
+    if (value === undefined) {
+      throw new Error(`Unexpected missing byte at index ${index}`);
+    }
+    return value;
+  };
 
   for (; i + 2 < len; i += 3) {
-    const byte1 = bytes[i];
-    const byte2 = bytes[i + 1];
-    const byte3 = bytes[i + 2];
+    const byte1 = getByte(i);
+    const byte2 = getByte(i + 1);
+    const byte3 = getByte(i + 2);
     base64 += BASE64_CHARS[byte1 >> 2];
     base64 += BASE64_CHARS[((byte1 & 0x03) << 4) | (byte2 >> 4)];
     base64 += BASE64_CHARS[((byte2 & 0x0f) << 2) | (byte3 >> 6)];
@@ -519,13 +527,13 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
   const remaining = len - i;
 
   if (remaining === 1) {
-    const byte = bytes[i];
+    const byte = getByte(i);
     base64 += BASE64_CHARS[byte >> 2];
     base64 += BASE64_CHARS[(byte & 0x03) << 4];
     base64 += "==";
   } else if (remaining === 2) {
-    const byte1 = bytes[i];
-    const byte2 = bytes[i + 1];
+    const byte1 = getByte(i);
+    const byte2 = getByte(i + 1);
     base64 += BASE64_CHARS[byte1 >> 2];
     base64 += BASE64_CHARS[((byte1 & 0x03) << 4) | (byte2 >> 4)];
     base64 += BASE64_CHARS[(byte2 & 0x0f) << 2];

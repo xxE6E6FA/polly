@@ -1,6 +1,6 @@
 {
   "include": ["./**/*", "../shared/**/*"],
-  "exclude": ["./_generated"],
+  "exclude": ["./_generated", "**/*.test.ts", "../shared/**/*.test.ts", "./schema.js", "./schema.js.d.ts"],
   "compilerOptions": {
     "target": "esnext",
     "lib": ["esnext"],

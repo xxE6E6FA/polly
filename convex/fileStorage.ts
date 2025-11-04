@@ -3,7 +3,6 @@ import type { PaginationResult } from "convex/server";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
-import { log } from "./lib/logger";
 
 type FileTypeFilter = "image" | "pdf" | "text" | "all";
 
@@ -392,7 +391,11 @@ export const getUserFiles = query({
         }
 
         for (let idx = 0; idx < attachments.length; idx++) {
-          processAttachment(message, conversation, attachments[idx], idx);
+          const attachment = attachments[idx];
+          if (!attachment) {
+            continue;
+          }
+          processAttachment(message, conversation, attachment, idx);
         }
       }
 
@@ -431,7 +434,7 @@ export const getUserFiles = query({
             metadata: fileMetadata,
           };
         } catch (error) {
-          log.error(
+          console.error(
             `Failed to get metadata for file ${candidate.storageId ?? candidate.messageId}:`,
             error
           );

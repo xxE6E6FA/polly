@@ -1,11 +1,11 @@
+import { describe, expect, test } from "bun:test";
 import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
 import { act } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 import { useChatInputImageGenerationParams } from "./use-chat-input-image-generation-params";
 
 describe("useChatInputImageGenerationParams", () => {
-  it("initializes with defaults and tracks negative prompt state", () => {
+  test("initializes with defaults and tracks negative prompt state", () => {
     const { result } = renderHook(() => useChatInputImageGenerationParams());
 
     expect(result.current.generationMode).toBe("text");

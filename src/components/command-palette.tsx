@@ -33,7 +33,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
 import {
@@ -858,10 +858,14 @@ export function CommandPalette({
 
     const grouped: Record<string, ModelType[]> = {};
     modelsToShow.forEach(model => {
-      if (!grouped[model.provider]) {
-        grouped[model.provider] = [];
+      const provider = model?.provider;
+      if (!provider) {
+        return;
       }
-      grouped[model.provider].push(model as ModelType);
+      if (!grouped[provider]) {
+        grouped[provider] = [];
+      }
+      grouped[provider]?.push(model as ModelType);
     });
 
     // Sort providers alphabetically and sort models within each provider
@@ -869,7 +873,8 @@ export function CommandPalette({
     Object.keys(grouped)
       .sort()
       .forEach(provider => {
-        sortedGroups[provider] = grouped[provider].sort((a, b) =>
+        const modelsForProvider = grouped[provider] ?? [];
+        sortedGroups[provider] = [...modelsForProvider].sort((a, b) =>
           a.name.localeCompare(b.name)
         );
       });

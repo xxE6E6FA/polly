@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { isConversationStreaming, findStreamingMessage } from "./streaming_utils";
 import { makeConvexTest } from "../test/helpers";
 
 describe("convex/lib/streaming_utils", () => {
-  it("returns false/null when no assistant messages exist", async () => {
+  test("returns false/null when no assistant messages exist", async () => {
     const t = await makeConvexTest();
     const convId = await t.run(async (ctx: any) => {
       return await ctx.db.insert("conversations", {
@@ -23,7 +23,7 @@ describe("convex/lib/streaming_utils", () => {
     expect(current).toBeNull();
   });
 
-  it("detects streaming based on metadata and status, and ignores done/error", async () => {
+  test("detects streaming based on metadata and status, and ignores done/error", async () => {
     const t = await makeConvexTest();
     const { convId } = await t.run(async (ctx: any) => {
       const uid = await ctx.db.insert("users", { isAnonymous: true, createdAt: Date.now() });

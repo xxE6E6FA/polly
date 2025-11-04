@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import {
   extractFirstCodeBlock,
   findCompleteNestedCodeBlock,
@@ -10,7 +10,7 @@ import {
 
 describe("nested-code-block-parser", () => {
   describe("parseNestedCodeBlocks", () => {
-    it("parses simple code block", () => {
+    test("parses simple code block", () => {
       const text = "```javascript\nconsole.log('hello');\n```";
       const blocks = parseNestedCodeBlocks(text);
 
@@ -24,80 +24,80 @@ describe("nested-code-block-parser", () => {
       });
     });
 
-    it("parses multiple code blocks", () => {
+    test("parses multiple code blocks", () => {
       const text = "```js\ncode1\n```\nsome text\n```python\ncode2\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(2);
-      expect(blocks[0].language).toBe("js");
-      expect(blocks[0].code).toBe("code1");
-      expect(blocks[1].language).toBe("python");
-      expect(blocks[1].code).toBe("code2");
+      expect(blocks[0]?.language).toBe("js");
+      expect(blocks[0]?.code).toBe("code1");
+      expect(blocks[1]?.language).toBe("python");
+      expect(blocks[1]?.code).toBe("code2");
     });
 
-    it("parses nested code blocks correctly", () => {
+    test("parses nested code blocks correctly", () => {
       const text =
         "```markdown\nHere's code:\n```js\ninner code\n```\nEnd\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("markdown");
-      expect(blocks[0].code).toBe("Here's code:\n```js\ninner code\n```\nEnd");
+      expect(blocks[0]?.language).toBe("markdown");
+      expect(blocks[0]?.code).toBe("Here's code:\n```js\ninner code\n```\nEnd");
     });
 
-    it("handles deeply nested blocks", () => {
+    test("handles deeply nested blocks", () => {
       const text = "```md\n```html\n```js\ndeep\n```\n```\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("md");
-      expect(blocks[0].code).toBe("```html\n```js\ndeep\n```\n```");
+      expect(blocks[0]?.language).toBe("md");
+      expect(blocks[0]?.code).toBe("```html\n```js\ndeep\n```\n```");
     });
 
-    it("handles unclosed blocks", () => {
+    test("handles unclosed blocks", () => {
       const text = "```javascript\nconsole.log('hello');";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("javascript");
-      expect(blocks[0].code).toBe("console.log('hello');");
-      expect(blocks[0].end).toBe(text.length);
+      expect(blocks[0]?.language).toBe("javascript");
+      expect(blocks[0]?.code).toBe("console.log('hello');");
+      expect(blocks[0]?.end).toBe(text.length);
     });
 
-    it("handles empty language", () => {
+    test("handles empty language", () => {
       const text = "```\nplain code\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("");
-      expect(blocks[0].code).toBe("plain code");
+      expect(blocks[0]?.language).toBe("");
+      expect(blocks[0]?.code).toBe("plain code");
     });
 
-    it("ignores ``` not at line start", () => {
+    test("ignores ``` not at line start", () => {
       const text = "```js\nlet x = `backticks ```inside string```;\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe("let x = `backticks ```inside string```;");
+      expect(blocks[0]?.code).toBe("let x = `backticks ```inside string```;");
     });
 
-    it("handles whitespace before ``` correctly", () => {
+    test("handles whitespace before ``` correctly", () => {
       const text = "```js\ncode\n  ```\nmore text";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe("code\n  ```\nmore text");
+      expect(blocks[0]?.code).toBe("code\n  ```\nmore text");
     });
 
-    it("returns only first block when firstOnly is true", () => {
+    test("returns only first block when firstOnly is true", () => {
       const text = "```js\ncode1\n```\n```python\ncode2\n```";
       const blocks = parseNestedCodeBlocks(text, true);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("js");
+      expect(blocks[0]?.language).toBe("js");
     });
 
-    it("handles complex mixed content", () => {
+    test("handles complex mixed content", () => {
       const text = `
 Text before
 \`\`\`markdown
@@ -112,22 +112,22 @@ Text after
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].language).toBe("markdown");
-      expect(blocks[0].code).toContain("```js\nconst x = 1;\n```");
+      expect(blocks[0]?.language).toBe("markdown");
+      expect(blocks[0]?.code).toContain("```js\nconst x = 1;\n```");
     });
 
-    it("handles trailing content after code blocks", () => {
+    test("handles trailing content after code blocks", () => {
       const text =
         "```js\nconsole.log('test');\n```\n\nHere's some explanation.";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe("console.log('test');");
+      expect(blocks[0]?.code).toBe("console.log('test');");
     });
   });
 
   describe("extractFirstCodeBlock", () => {
-    it("extracts the first code block", () => {
+    test("extracts the first code block", () => {
       const text = "```js\nfirst\n```\n```py\nsecond\n```";
       const block = extractFirstCodeBlock(text);
 
@@ -140,14 +140,14 @@ Text after
       });
     });
 
-    it("returns null when no code blocks found", () => {
+    test("returns null when no code blocks found", () => {
       const text = "Just some regular text without code blocks";
       const block = extractFirstCodeBlock(text);
 
       expect(block).toBeNull();
     });
 
-    it("extracts nested block correctly", () => {
+    test("extracts nested block correctly", () => {
       const text = "```md\nInner: ```js\ncode\n```\n```";
       const block = extractFirstCodeBlock(text);
 
@@ -158,22 +158,22 @@ Text after
   });
 
   describe("hasNestedCodeBlocks", () => {
-    it("detects nested code blocks", () => {
+    test("detects nested code blocks", () => {
       const text = "```md\nHere: ```js\ncode\n```\n```";
       expect(hasNestedCodeBlocks(text)).toBe(true);
     });
 
-    it("returns false for simple blocks", () => {
+    test("returns false for simple blocks", () => {
       const text = "```js\nconsole.log('hello');\n```";
       expect(hasNestedCodeBlocks(text)).toBe(false);
     });
 
-    it("returns false when no code blocks", () => {
+    test("returns false when no code blocks", () => {
       const text = "Just regular text";
       expect(hasNestedCodeBlocks(text)).toBe(false);
     });
 
-    it("detects nested blocks in multiple outer blocks", () => {
+    test("detects nested blocks in multiple outer blocks", () => {
       const text = "```md\nRegular\n```\n```html\n```js\ninner\n```\n```";
       expect(hasNestedCodeBlocks(text)).toBe(true);
     });
@@ -182,7 +182,7 @@ Text after
   describe("findCompleteNestedCodeBlock", () => {
     const matcher = findCompleteNestedCodeBlock();
 
-    it("finds complete code block", () => {
+    test("finds complete code block", () => {
       const text = "Some text\n```js\nconsole.log('hi');\n```\nMore text";
       const result = matcher(text);
 
@@ -193,21 +193,21 @@ Text after
       });
     });
 
-    it("returns undefined for incomplete block", () => {
+    test("returns undefined for incomplete block", () => {
       const text = "Some text\n```js\nconsole.log('hi');";
       const result = matcher(text);
 
       expect(result).toBeUndefined();
     });
 
-    it("returns undefined when no code blocks", () => {
+    test("returns undefined when no code blocks", () => {
       const text = "Just regular text";
       const result = matcher(text);
 
       expect(result).toBeUndefined();
     });
 
-    it("finds first complete block only", () => {
+    test("finds first complete block only", () => {
       const text = "```js\nfirst\n```\n```py\nsecond\n```";
       const result = matcher(text);
 
@@ -218,7 +218,7 @@ Text after
   describe("findPartialNestedCodeBlock", () => {
     const matcher = findPartialNestedCodeBlock();
 
-    it("returns complete block when available", () => {
+    test("returns complete block when available", () => {
       const text = "```js\nconsole.log('test');\n```";
       const result = matcher(text);
 
@@ -229,7 +229,7 @@ Text after
       });
     });
 
-    it("returns partial block for incomplete code", () => {
+    test("returns partial block for incomplete code", () => {
       const text = "Some text\n```js\nconsole.log('incomplete";
       const result = matcher(text);
 
@@ -240,14 +240,14 @@ Text after
       });
     });
 
-    it("returns undefined when no opening ```", () => {
+    test("returns undefined when no opening ```", () => {
       const text = "Just regular text without code";
       const result = matcher(text);
 
       expect(result).toBeUndefined();
     });
 
-    it("prioritizes complete blocks over partial ones", () => {
+    test("prioritizes complete blocks over partial ones", () => {
       const text = "```js\ncomplete\n```\n```py\nincomplete";
       const result = matcher(text);
 
@@ -258,7 +258,7 @@ Text after
   describe("nestedCodeBlockLookBack", () => {
     const lookBack = nestedCodeBlockLookBack();
 
-    it("processes complete code block", () => {
+    test("processes complete code block", () => {
       const result = lookBack({
         output: "```javascript\nconsole.log('hello');\nreturn true;\n```",
         isComplete: true,
@@ -270,7 +270,7 @@ Text after
       expect(result.visibleText).toBe("console.lo");
     });
 
-    it("handles text without code blocks", () => {
+    test("handles text without code blocks", () => {
       const text = "Just regular text here";
       const result = lookBack({
         output: text,
@@ -283,7 +283,7 @@ Text after
       expect(result.visibleText).toBe("Just regul");
     });
 
-    it("handles empty language", () => {
+    test("handles empty language", () => {
       const result = lookBack({
         output: "```\nplain code\nmore lines\n```",
         isComplete: true,
@@ -295,7 +295,7 @@ Text after
       expect(result.visibleText).toBe("plain co");
     });
 
-    it("handles visibleTextLengthTarget longer than content", () => {
+    test("handles visibleTextLengthTarget longer than content", () => {
       const result = lookBack({
         output: "```js\nshort\n```",
         isComplete: true,
@@ -307,7 +307,7 @@ Text after
       expect(result.visibleText).toBe("short");
     });
 
-    it("preserves language in output format", () => {
+    test("preserves language in output format", () => {
       const result = lookBack({
         output: "```typescript\nconst x: number = 42;\n```",
         isComplete: true,
@@ -321,41 +321,41 @@ Text after
   });
 
   describe("edge cases", () => {
-    it("handles empty string input", () => {
+    test("handles empty string input", () => {
       expect(parseNestedCodeBlocks("")).toEqual([]);
       expect(extractFirstCodeBlock("")).toBeNull();
       expect(hasNestedCodeBlocks("")).toBe(false);
     });
 
-    it("handles string with only backticks", () => {
+    test("handles string with only backticks", () => {
       expect(parseNestedCodeBlocks("```")).toEqual([]);
       expect(parseNestedCodeBlocks("``````")).toEqual([]);
     });
 
-    it("handles malformed blocks gracefully", () => {
+    test("handles malformed blocks gracefully", () => {
       const text = "```js\ncode\n``"; // Missing final backtick
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe("code\n``");
-      expect(blocks[0].end).toBe(text.length);
+      expect(blocks[0]?.code).toBe("code\n``");
+      expect(blocks[0]?.end).toBe(text.length);
     });
 
-    it("handles blocks with only newlines", () => {
+    test("handles blocks with only newlines", () => {
       const text = "```\n\n\n```";
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe("\n");
+      expect(blocks[0]?.code).toBe("\n");
     });
 
-    it("handles very long code blocks efficiently", () => {
+    test("handles very long code blocks efficiently", () => {
       const longCode = "x".repeat(10000);
       const text = `\`\`\`js\n${longCode}\n\`\`\``;
       const blocks = parseNestedCodeBlocks(text);
 
       expect(blocks).toHaveLength(1);
-      expect(blocks[0].code).toBe(longCode);
+      expect(blocks[0]?.code).toBe(longCode);
     });
   });
 });

@@ -3,7 +3,7 @@ import {
   ImageIcon,
   SpeakerHighIcon,
 } from "@phosphor-icons/react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation } from "react-router-dom";
 import { SettingsPageLayout } from "../ui/SettingsPageLayout";
 import { ImageModelsTab } from "./ImageModelsTab";
 import { TextModelsTab } from "./TextModelsTab";

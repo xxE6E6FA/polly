@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages (internal)", () => {
-  it("internalUpdate appends content and reasoning when provided", async () => {
+  test("internalUpdate appends content and reasoning when provided", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {
@@ -30,7 +30,7 @@ describe("convex/messages (internal)", () => {
     expect(msg.reasoning).toBe("r2");
   });
 
-  it("updateContent sets content, reasoning, and finish metadata", async () => {
+  test("updateContent sets content, reasoning, and finish metadata", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {

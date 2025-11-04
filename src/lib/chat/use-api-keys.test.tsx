@@ -1,17 +1,27 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "../../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useAction: vi.fn(),
+let useActionMock: ReturnType<typeof mock>;
+const createApiModule = () => ({
+  api: {
+    apiKeys: {
+      getDecryptedApiKey: "apiKeys:getDecryptedApiKey" as never,
+    },
+  } as never,
+});
+
+mock.module("convex/react", () => ({
+  useAction: (...args: unknown[]) => useActionMock(...args),
 }));
+mock.module("@convex/_generated/api", () => createApiModule());
 
 import { useAction } from "convex/react";
 import { useApiKeys } from "./use-api-keys";
 
 describe("use-api-keys", () => {
-  it("wraps useAction(getDecryptedApiKey) and forwards args", async () => {
-    const actionMock = vi.fn().mockResolvedValue("sk-123");
-    (useAction as unknown as vi.Mock).mockReturnValue(actionMock);
+  test("wraps useAction(getDecryptedApiKey) and forwards args", async () => {
+    const actionMock = mock(() => Promise.resolve("sk-123"));
+    useActionMock = mock(() => actionMock);
 
     const { result } = renderHook(() => useApiKeys());
     const { getDecryptedApiKey } = result.current;

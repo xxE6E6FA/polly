@@ -53,7 +53,10 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
     }
 
     // Leading edge execution
-    if (options.leading && timeSinceLastCall >= delay) {
+    if (
+      options.leading &&
+      (lastCallTimeRef.current === 0 || timeSinceLastCall >= delay)
+    ) {
       executeCallback();
       return;
     }

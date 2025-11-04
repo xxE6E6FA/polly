@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/users", () => {
-  it("incrementMessage increases counters", async () => {
+  test("incrementMessage increases counters", async () => {
     const t = await makeConvexTest();
     const userId = await t.run(async (ctx: any) => {
       return await ctx.db.insert("users", {
@@ -29,7 +29,7 @@ describe("convex/users", () => {
     expect(u?.totalMessageCount).toBe(1);
   });
 
-  it("incrementMessage skips monthly count when flagged", async () => {
+  test("incrementMessage skips monthly count when flagged", async () => {
     const t = await makeConvexTest();
     const userId = await t.run(async (ctx: any) => {
       return await ctx.db.insert("users", {
@@ -55,7 +55,7 @@ describe("convex/users", () => {
     expect(updated?.totalMessageCount).toBe(1);
   });
 
-  it("graduateAnonymousUser transfers conversation ownership and aggregates counts", async () => {
+  test("graduateAnonymousUser transfers conversation ownership and aggregates counts", async () => {
     const t = await makeConvexTest();
     const { anonId, newUserId, convId } = await t.run(async (ctx: any) => {
       const anonId = await ctx.db.insert("users", {

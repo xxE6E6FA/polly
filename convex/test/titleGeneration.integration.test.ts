@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("integration: title generation updates conversation", () => {
-  it("generateTitleBackground replaces placeholder title and bumps updatedAt", async () => {
+  test("generateTitleBackground replaces placeholder title and bumps updatedAt", async () => {
     const t = await makeConvexTest();
 
     // Seed an authenticated user

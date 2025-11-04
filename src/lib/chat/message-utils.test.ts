@@ -1,5 +1,5 @@
+import { describe, expect, test } from "bun:test";
 import type { Doc } from "convex/_generated/dataModel";
-import { describe, expect, it } from "vitest";
 import {
   convertServerMessage,
   convertServerMessages,
@@ -7,16 +7,16 @@ import {
   findStreamingMessage,
   isMessageMetadata,
   isMessageStreaming,
-} from "./message-utils";
+} from "./message-utils?actual";
 
 describe("chat/message-utils", () => {
   describe("isMessageMetadata", () => {
-    it("accepts null and undefined", () => {
+    test("accepts null and undefined", () => {
       expect(isMessageMetadata(null)).toBe(true);
       expect(isMessageMetadata(undefined)).toBe(true);
     });
 
-    it("accepts objects with valid metadata properties", () => {
+    test("accepts objects with valid metadata properties", () => {
       expect(isMessageMetadata({ finishReason: "stop" })).toBe(true);
       expect(isMessageMetadata({ stopped: true })).toBe(true);
       expect(isMessageMetadata({ tokenCount: 100 })).toBe(true);
@@ -26,11 +26,11 @@ describe("chat/message-utils", () => {
       expect(isMessageMetadata({ status: "pending" })).toBe(true);
     });
 
-    it("accepts empty objects", () => {
+    test("accepts empty objects", () => {
       expect(isMessageMetadata({})).toBe(true);
     });
 
-    it("rejects non-object types", () => {
+    test("rejects non-object types", () => {
       expect(isMessageMetadata("string")).toBe(false);
       expect(isMessageMetadata(123)).toBe(false);
       expect(isMessageMetadata(true)).toBe(false);
@@ -39,7 +39,7 @@ describe("chat/message-utils", () => {
   });
 
   describe("convertServerMessage", () => {
-    it("converts server message to ChatMessage format", () => {
+    test("converts server message to ChatMessage format", () => {
       const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
@@ -83,7 +83,7 @@ describe("chat/message-utils", () => {
       });
     });
 
-    it("falls back to _creationTime when createdAt is missing", () => {
+    test("falls back to _creationTime when createdAt is missing", () => {
       const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
@@ -97,7 +97,7 @@ describe("chat/message-utils", () => {
       expect(result.createdAt).toBe(1234567890);
     });
 
-    it("handles undefined metadata gracefully", () => {
+    test("handles undefined metadata gracefully", () => {
       const serverMessage = {
         _id: "msg_123",
         _creationTime: 1234567890,
@@ -114,12 +114,12 @@ describe("chat/message-utils", () => {
   });
 
   describe("extractMessagesArray", () => {
-    it("returns empty array for null/undefined input", () => {
+    test("returns empty array for null/undefined input", () => {
       expect(extractMessagesArray(null)).toEqual([]);
       expect(extractMessagesArray(undefined)).toEqual([]);
     });
 
-    it("returns direct array when input is array", () => {
+    test("returns direct array when input is array", () => {
       const messages = [
         { _id: "msg_1" },
         { _id: "msg_2" },
@@ -127,7 +127,7 @@ describe("chat/message-utils", () => {
       expect(extractMessagesArray(messages)).toEqual(messages);
     });
 
-    it("extracts page from paginated result", () => {
+    test("extracts page from paginated result", () => {
       const messages = [
         { _id: "msg_1" },
         { _id: "msg_2" },
@@ -137,7 +137,7 @@ describe("chat/message-utils", () => {
       expect(extractMessagesArray(paginatedResult)).toEqual(messages);
     });
 
-    it("returns empty array for invalid input", () => {
+    test("returns empty array for invalid input", () => {
       expect(extractMessagesArray("string")).toEqual([]);
       expect(extractMessagesArray(123)).toEqual([]);
       expect(extractMessagesArray({ data: [] })).toEqual([]);
@@ -145,7 +145,7 @@ describe("chat/message-utils", () => {
   });
 
   describe("convertServerMessages", () => {
-    it("converts array of server messages", () => {
+    test("converts array of server messages", () => {
       const serverMessages: Doc<"messages">[] = [
         {
           _id: "msg_1",
@@ -174,7 +174,7 @@ describe("chat/message-utils", () => {
       expect(result[1].role).toBe("assistant");
     });
 
-    it("converts paginated server messages", () => {
+    test("converts paginated server messages", () => {
       const serverMessages: Doc<"messages">[] = [
         {
           _id: "msg_1",
@@ -193,7 +193,7 @@ describe("chat/message-utils", () => {
       expect(result[0].id).toBe("msg_1");
     });
 
-    it("handles empty input", () => {
+    test("handles empty input", () => {
       expect(convertServerMessages(null)).toEqual([]);
       expect(convertServerMessages([])).toEqual([]);
     });
@@ -201,7 +201,7 @@ describe("chat/message-utils", () => {
 
   describe("isMessageStreaming", () => {
     describe("with server messages", () => {
-      it("identifies streaming assistant messages", () => {
+      test("identifies streaming assistant messages", () => {
         const message: Doc<"messages"> = {
           _id: "msg_1",
           _creationTime: 1234567890,
@@ -215,7 +215,7 @@ describe("chat/message-utils", () => {
         expect(isMessageStreaming(message)).toBe(true);
       });
 
-      it("identifies non-streaming finished messages", () => {
+      test("identifies non-streaming finished messages", () => {
         const message: Doc<"messages"> = {
           _id: "msg_1",
           _creationTime: 1234567890,
@@ -229,7 +229,7 @@ describe("chat/message-utils", () => {
         expect(isMessageStreaming(message)).toBe(false);
       });
 
-      it("identifies stopped messages", () => {
+      test("identifies stopped messages", () => {
         const message: Doc<"messages"> = {
           _id: "msg_1",
           _creationTime: 1234567890,
@@ -243,7 +243,7 @@ describe("chat/message-utils", () => {
         expect(isMessageStreaming(message)).toBe(false);
       });
 
-      it("does not identify user messages as streaming", () => {
+      test("does not identify user messages as streaming", () => {
         const message: Doc<"messages"> = {
           _id: "msg_1",
           _creationTime: 1234567890,
@@ -258,7 +258,7 @@ describe("chat/message-utils", () => {
     });
 
     describe("with chat messages", () => {
-      it("identifies streaming chat messages when generating", () => {
+      test("identifies streaming chat messages when generating", () => {
         const message = {
           id: "msg_1",
           role: "assistant" as const,
@@ -271,7 +271,7 @@ describe("chat/message-utils", () => {
         expect(isMessageStreaming(message, true)).toBe(true);
       });
 
-      it("does not identify streaming when not generating", () => {
+      test("does not identify streaming when not generating", () => {
         const message = {
           id: "msg_1",
           role: "assistant" as const,
@@ -284,7 +284,7 @@ describe("chat/message-utils", () => {
         expect(isMessageStreaming(message, false)).toBe(false);
       });
 
-      it("identifies finished chat messages", () => {
+      test("identifies finished chat messages", () => {
         const message = {
           id: "msg_1",
           role: "assistant" as const,
@@ -300,7 +300,7 @@ describe("chat/message-utils", () => {
   });
 
   describe("findStreamingMessage", () => {
-    it("finds streaming message in array", () => {
+    test("finds streaming message in array", () => {
       const messages: Doc<"messages">[] = [
         {
           _id: "msg_1",
@@ -325,7 +325,7 @@ describe("chat/message-utils", () => {
       expect(result).toEqual({ id: "msg_2", isStreaming: true });
     });
 
-    it("finds streaming message in paginated result", () => {
+    test("finds streaming message in paginated result", () => {
       const messages: Doc<"messages">[] = [
         {
           _id: "msg_streaming",
@@ -343,7 +343,7 @@ describe("chat/message-utils", () => {
       expect(result).toEqual({ id: "msg_streaming", isStreaming: true });
     });
 
-    it("returns null when no streaming message found", () => {
+    test("returns null when no streaming message found", () => {
       const messages: Doc<"messages">[] = [
         {
           _id: "msg_1",
@@ -359,7 +359,7 @@ describe("chat/message-utils", () => {
       expect(findStreamingMessage(messages)).toBeNull();
     });
 
-    it("returns null for empty input", () => {
+    test("returns null for empty input", () => {
       expect(findStreamingMessage(null)).toBeNull();
       expect(findStreamingMessage([])).toBeNull();
     });

@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { extractCitations, extractMarkdownCitations } from "./citations";
 
 describe("shared/citations", () => {
-  it("extracts Google grounding citations", () => {
+  test("extracts Google grounding citations", () => {
     const meta = {
       groundingMetadata: {
         groundingChunks: [
@@ -37,7 +37,7 @@ describe("shared/citations", () => {
     );
   });
 
-  it("extracts OpenRouter sources citations", () => {
+  test("extracts OpenRouter sources citations", () => {
     const meta = {
       sources: [
         { url: "https://x.com", title: "X", snippet: "s1" },
@@ -51,7 +51,7 @@ describe("shared/citations", () => {
     ]);
   });
 
-  it("extracts markdown-style citations and dedupes URLs", () => {
+  test("extracts markdown-style citations and dedupes URLs", () => {
     const text =
       "See [1](https://a.com) and [Article](https://a.com) and [Other](https://b.com)";
     expect(extractMarkdownCitations(text)).toEqual([

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import type { WebSearchCitation } from "@/types";
 import {
   extractCitations,
@@ -6,11 +6,11 @@ import {
 } from "./browser-citations";
 
 describe("browser-citations.extractCitations", () => {
-  it("handles undefined metadata", () => {
+  test("handles undefined metadata", () => {
     expect(extractCitations(undefined)).toBeUndefined();
   });
 
-  it("extracts Google grounding citations", () => {
+  test("extracts Google grounding citations", () => {
     const meta: Record<string, unknown> = {
       groundingMetadata: {
         groundingChunks: [
@@ -32,7 +32,7 @@ describe("browser-citations.extractCitations", () => {
     expect(r[0]).toHaveProperty("citedText", "Snippet A");
   });
 
-  it("extracts OpenRouter sources", () => {
+  test("extracts OpenRouter sources", () => {
     const meta: Record<string, unknown> = {
       sources: [
         { url: "https://x.com", title: "X", snippet: "sx" },
@@ -48,7 +48,7 @@ describe("browser-citations.extractCitations", () => {
 });
 
 describe("browser-citations.extractMarkdownCitations", () => {
-  it("extracts markdown links and deduplicates", () => {
+  test("extracts markdown links and deduplicates", () => {
     const text =
       "See [Intro](https://a.com) and [1](https://b.com). Again [Intro](https://a.com).";
     const res = extractMarkdownCitations(text);

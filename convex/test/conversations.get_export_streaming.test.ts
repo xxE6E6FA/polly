@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/conversations get/export/streaming", () => {
-  it("get and getWithAccessInfo enforce access; getForExport limits and strips heavy fields", async () => {
+  test("get and getWithAccessInfo enforce access; getForExport limits and strips heavy fields", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const otherUserId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
@@ -45,7 +45,7 @@ describe("convex/conversations get/export/streaming", () => {
     expect(sample).not.toHaveProperty("metadata");
   });
 
-  it("setStreaming toggles flag and isStreaming reflects unfinished assistant message presence", async () => {
+  test("setStreaming toggles flag and isStreaming reflects unfinished assistant message presence", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const authed = t.withIdentity({ subject: userId, issuer: "test" });

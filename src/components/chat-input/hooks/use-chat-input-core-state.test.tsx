@@ -1,35 +1,38 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
-vi.mock("@/hooks/use-chat-attachments", () => ({
-  useChatAttachments: vi.fn(),
+let useChatAttachmentsMock: ReturnType<typeof mock>;
+let useChatInputPreservationMock: ReturnType<typeof mock>;
+
+mock.module("@/hooks/use-chat-attachments", () => ({
+  useChatAttachments: (...args: unknown[]) => useChatAttachmentsMock(...args),
 }));
-vi.mock("@/hooks/use-chat-input-preservation", () => ({
-  useChatInputPreservation: vi.fn(),
+mock.module("@/hooks/use-chat-input-preservation", () => ({
+  useChatInputPreservation: (...args: unknown[]) =>
+    useChatInputPreservationMock(...args),
 }));
 
-import { useChatAttachments } from "@/hooks/use-chat-attachments";
-import { useChatInputPreservation } from "@/hooks/use-chat-input-preservation";
 import type { ConversationId } from "@/types";
 import { useChatInputCoreState } from "./use-chat-input-core-state";
 
 describe("useChatInputCoreState", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    useChatAttachmentsMock = mock();
+    useChatInputPreservationMock = mock();
   });
 
-  it("initializes from preserved state when eligible and syncs changes", () => {
-    const setChatInputState = vi.fn();
-    const clearChatInputState = vi.fn();
-    (useChatInputPreservation as ReturnType<typeof vi.fn>).mockReturnValue({
+  test("initializes from preserved state when eligible and syncs changes", () => {
+    const setChatInputState = mock();
+    const clearChatInputState = mock();
+    useChatInputPreservationMock.mockReturnValue({
       setChatInputState,
-      getChatInputState: vi.fn().mockReturnValue({ input: "preserved" }),
+      getChatInputState: mock().mockReturnValue({ input: "preserved" }),
       clearChatInputState,
     });
 
-    const setAttachments = vi.fn();
-    (useChatAttachments as ReturnType<typeof vi.fn>).mockReturnValue({
+    const setAttachments = mock();
+    useChatAttachmentsMock.mockReturnValue({
       attachments: [{ type: "text", name: "a.txt" }],
       setAttachments,
     });
@@ -74,17 +77,17 @@ describe("useChatInputCoreState", () => {
     expect(clearChatInputState).toHaveBeenCalled();
   });
 
-  it("does not use preservation when hasExistingMessages and skips persistence", () => {
-    const setChatInputState = vi.fn();
-    const clearChatInputState = vi.fn();
-    (useChatInputPreservation as ReturnType<typeof vi.fn>).mockReturnValue({
+  test("does not use preservation when hasExistingMessages and skips persistence", () => {
+    const setChatInputState = mock();
+    const clearChatInputState = mock();
+    useChatInputPreservationMock.mockReturnValue({
       setChatInputState,
-      getChatInputState: vi.fn().mockReturnValue({ input: "ignored" }),
+      getChatInputState: mock().mockReturnValue({ input: "ignored" }),
       clearChatInputState,
     });
-    (useChatAttachments as ReturnType<typeof vi.fn>).mockReturnValue({
+    useChatAttachmentsMock.mockReturnValue({
       attachments: [],
-      setAttachments: vi.fn(),
+      setAttachments: mock(),
     });
 
     const { result } = renderHook(() =>
