@@ -2,10 +2,10 @@ import type { ActionCtx, MutationCtx, QueryCtx } from "../../_generated/server";
 import type { Doc, Id } from "../../_generated/dataModel";
 import { ConvexError } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { CreateMessageArgs, CreateConversationArgs } from "../schemas";
+import type { CreateMessageArgs, CreateConversationArgs } from "../schemas";
 import { api } from "../../_generated/api";
-import { log } from "../logger";
 import { mergeSystemPrompts } from "@shared/system-prompts";
+import { scheduleRunAfter } from "../scheduler";
 
 // Helper function to handle message deletion logic for retry and edit operations
 export const handleMessageDeletion = async (
@@ -38,7 +38,7 @@ export const handleMessageDeletion = async (
       // Find the assistant response immediately following the user message
       if (messageIndex + 1 < messages.length) {
         const nextMessage = messages[messageIndex + 1];
-        if (nextMessage.role === "assistant") {
+        if (nextMessage?.role === "assistant") {
           messageIdsToDelete.push(nextMessage._id);
         }
       }
@@ -104,7 +104,10 @@ export const deleteMessagesAfterIndex = async (
   const messageIds = messagesToDelete.map((msg: any) => msg._id);
   
   if (messageIds.length > 0) {
-    await ctx.runMutation(api.messages.removeMultiple, {
+    const removeMultipleMutation =
+      (api.messages && (api.messages as Record<string, unknown>).removeMultiple) ??
+      "messages.removeMultiple";
+    await ctx.runMutation(removeMultipleMutation as any, {
       ids: messageIds,
     });
   }
@@ -224,7 +227,10 @@ export async function getPersonaPrompt(
     return "";
   }
 
-  const persona = await ctx.runQuery(api.personas.get, { id: personaId });
+  const personaQuery =
+    (api.personas && (api.personas as Record<string, unknown>).get) ??
+    "personas.get";
+  const persona = await ctx.runQuery(personaQuery as any, { id: personaId });
   return persona?.prompt || "";
 }
 
@@ -233,7 +239,10 @@ export async function createMessage(
   ctx: ActionCtx | MutationCtx,
   args: CreateMessageArgs
 ): Promise<Id<"messages">> {
-  return await ctx.runMutation(api.messages.create, args);
+  const mutation =
+    (api.messages && (api.messages as Record<string, unknown>).create) ??
+    "messages.create";
+  return (await ctx.runMutation(mutation as any, args)) as Id<"messages">;
 }
 
 // DRY Helper: Create a conversation (works for both ActionCtx and MutationCtx)
@@ -241,11 +250,15 @@ export async function createConversation(
   ctx: ActionCtx | MutationCtx,
   args: CreateConversationArgs
 ): Promise<Id<"conversations">> {
-  const result = await ctx.runMutation(api.conversations.createConversation, {
-    ...args,
-    firstMessage: "Initial message", // Add required field temporarily
-  });
-  return result.conversationId;
+  const mutation =
+    (api.conversations &&
+      (api.conversations as Record<string, unknown>).createConversation) ??
+    "conversations.createConversation";
+  const result = await ctx.runMutation(mutation as any, args);
+  if (result && typeof result === "object" && "conversationId" in result) {
+    return (result as { conversationId: Id<"conversations"> }).conversationId;
+  }
+  return result as Id<"conversations">;
 }
 
 export async function incrementUserMessageStats(
@@ -263,8 +276,12 @@ export async function incrementUserMessageStats(
       const canRunQuery = typeof (ctx as { runQuery?: unknown }).runQuery === "function";
       if (canRunQuery) {
         try {
+          const modelLookup =
+            (api.userModels &&
+              (api.userModels as Record<string, unknown>).getModelByID) ??
+            "userModels.getModelByID";
           const modelDoc = await (ctx as ActionCtx | MutationCtx).runQuery(
-            api.userModels.getModelByID,
+            modelLookup as any,
             {
               modelId: model,
               provider,
@@ -272,7 +289,7 @@ export async function incrementUserMessageStats(
           );
           countTowardsMonthly = Boolean(modelDoc?.free);
         } catch (lookupError) {
-          log.warn(
+          console.warn(
             "[incrementUserMessageStats] Failed to determine model free status:",
             lookupError
           );
@@ -284,7 +301,10 @@ export async function incrementUserMessageStats(
     }
 
     // Schedule increment off the critical path to reduce contention
-    await ctx.scheduler.runAfter(50, api.users.incrementMessage, {
+    const incrementMutation =
+      (api.users && (api.users as Record<string, unknown>).incrementMessage) ??
+      "users.incrementMessage";
+    await scheduleRunAfter(ctx, 50, incrementMutation as any, {
       userId,
       model,
       provider,
@@ -293,7 +313,7 @@ export async function incrementUserMessageStats(
     });
   } catch (error) {
     // Log error but don't fail the operation
-    log.warn("Failed to increment user message stats:", error);
+    console.warn("Failed to increment user message stats:", error);
   }
 }
 
@@ -303,16 +323,12 @@ export async function scheduleTitleGeneration(
   delayMs: number = 3000
 ): Promise<void> {
   try {
-    await ctx.scheduler.runAfter(
-      delayMs,
-      api.titleGeneration.generateTitle,
-      {
-        conversationId,
-        message: "Generated title", // Add required message field
-      }
-    );
+    await scheduleRunAfter(ctx, delayMs, api.titleGeneration.generateTitle, {
+      conversationId,
+      message: "Generated title", // Add required message field
+    });
   } catch (error) {
-    log.warn("Failed to schedule title generation:", error);
+    console.warn("Failed to schedule title generation:", error);
     // Don't throw - this is not critical for the conversation flow
   }
 }

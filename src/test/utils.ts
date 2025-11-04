@@ -1,4 +1,4 @@
-import { vi } from "vitest";
+import { mock, spyOn } from "bun:test";
 
 /**
  * Create a ReadableStream of NDJSON-encoded chunks for streaming tests.
@@ -35,71 +35,116 @@ export async function flushAll({
   timersMs?: number;
 } = {}) {
   await flushPromises(microtasks);
-  // Try to advance timers if running under fake timers
-  const maybeAdvance = (
-    vi as unknown as { advanceTimersByTime?: (ms: number) => void }
-  ).advanceTimersByTime;
-  if (timersMs > 0 && typeof maybeAdvance === "function") {
-    maybeAdvance(timersMs);
-    // Allow any follow-up microtasks to settle
+  if (timersMs > 0) {
+    // Use our manual advanceTimersByTime if available
+    if (typeof advanceTimersByTime === "function") {
+      advanceTimersByTime(timersMs);
+    }
     await flushPromises(1);
   }
+}
+
+type MockFetchHeaders = HeadersInit | Record<string, string> | Headers;
+
+type MockFetchResponse = {
+  status?: number;
+  statusText?: string;
+  headers?: MockFetchHeaders;
+  body?: BodyInit | null;
+  ok?: boolean;
+  text?: () => Promise<string>;
+  json?: () => Promise<unknown>;
+  blob?: () => Promise<Blob>;
+};
+
+function normalizeHeaders(headers?: MockFetchHeaders): {
+  init?: HeadersInit;
+  override?: Headers;
+} {
+  if (!headers) {
+    return {};
+  }
+  if (headers instanceof Headers || Array.isArray(headers)) {
+    return { init: headers };
+  }
+  if (headers instanceof Map) {
+    return { init: Array.from(headers.entries()) };
+  }
+  if (typeof headers === "object" && "get" in headers) {
+    return { override: headers as unknown as Headers };
+  }
+  return { init: Object.entries(headers as Record<string, string>) };
+}
+
+function createMockResponse(options: MockFetchResponse = {}): Response {
+  const { init, override } = normalizeHeaders(options.headers);
+  const statusBase = options.status ?? (options.ok === false ? 500 : 200);
+  const res = new Response(options.body ?? null, {
+    status: statusBase,
+    statusText: options.statusText,
+    headers: init,
+  });
+
+  if (options.ok !== undefined && res.ok !== options.ok) {
+    Object.defineProperty(res, "ok", {
+      configurable: true,
+      value: options.ok,
+    });
+  }
+
+  if (override) {
+    Object.defineProperty(res, "headers", {
+      configurable: true,
+      value: override,
+    });
+  }
+
+  if (options.text) {
+    Object.defineProperty(res, "text", {
+      configurable: true,
+      value: options.text,
+    });
+  }
+
+  if (options.json) {
+    Object.defineProperty(res, "json", {
+      configurable: true,
+      value: options.json,
+    });
+  }
+
+  if (options.blob) {
+    Object.defineProperty(res, "blob", {
+      configurable: true,
+      value: options.blob,
+    });
+  }
+
+  return res;
 }
 
 /**
  * Mock global fetch once. Returns the spy for further assertions and a restore helper.
  */
-export function mockGlobalFetchOnce(response: Partial<Response>): {
+export function mockGlobalFetchOnce(response: MockFetchResponse): {
   spy: unknown;
   restore: () => void;
 } {
-  // Minimal headers shim
-  const headers = {
-    get: (k: string) =>
-      (response.headers as unknown as Headers)?.get?.(k) ??
-      (response as unknown as { headers?: Record<string, string> })?.headers?.[
-        k
-      ] ??
-      "",
-  };
-  const res = {
-    ok: true,
-    status: 200,
-    text: async () => "",
-    blob: async () => new Blob([]),
-    body: undefined,
-    ...response,
-    headers,
-  } as Response;
-  const spy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(res);
+  const res = createMockResponse(response);
+  const spy = spyOn(globalThis, "fetch").mockResolvedValueOnce(res);
   return { spy, restore: () => spy.mockRestore() };
 }
 
 /**
  * Mock global fetch with a sequence of responses. Each call to fetch resolves the next response.
  */
-export function mockGlobalFetchSequence(responses: Partial<Response>[]): {
+export function mockGlobalFetchSequence(responses: MockFetchResponse[]): {
   spy: unknown;
   restore: () => void;
 } {
-  const spy = vi.spyOn(globalThis, "fetch");
-  for (const r of responses) {
-    const headers = {
-      get: (k: string) =>
-        (r.headers as unknown as Headers)?.get?.(k) ??
-        (r as unknown as { headers?: Record<string, string> })?.headers?.[k] ??
-        "",
-    };
-    const res = {
-      ok: true,
-      status: 200,
-      text: async () => "",
-      blob: async () => new Blob([]),
-      body: undefined,
-      ...r,
-      headers,
-    } as Response;
-    spy.mockResolvedValueOnce(res);
+  const spy = spyOn(globalThis, "fetch");
+  for (const response of responses) {
+    spy.mockResolvedValueOnce(createMockResponse(response));
   }
   return { spy, restore: () => spy.mockRestore() };
 }
@@ -110,7 +155,7 @@ export function mockGlobalFetchSequence(responses: Partial<Response>[]): {
  */
 export function mockFetchNDJSON(
   chunks: Array<string | object>,
-  init: Partial<Response> = {}
+  init: MockFetchResponse = {}
 ) {
   const lines = chunks.map(
     c =>
@@ -120,7 +165,7 @@ export function mockFetchNDJSON(
   const stream = makeNdjsonStream(lines);
   return mockGlobalFetchOnce({
     ok: true,
-    headers: { get: () => "application/x-ndjson" } as unknown as Headers,
+    headers: { "content-type": "application/x-ndjson" },
     body: stream,
     ...init,
   });
@@ -133,17 +178,15 @@ export function withMockedURLObjectURL() {
   if (!URL.createObjectURL) {
     (
       URL as unknown as { createObjectURL: typeof URL.createObjectURL }
-    ).createObjectURL = vi.fn();
+    ).createObjectURL = mock();
   }
   if (!URL.revokeObjectURL) {
     (
       URL as unknown as { revokeObjectURL: typeof URL.revokeObjectURL }
-    ).revokeObjectURL = vi.fn();
+    ).revokeObjectURL = mock();
   }
-  const createSpy = vi
-    .spyOn(URL, "createObjectURL")
-    .mockReturnValue("blob:mock");
-  const revokeSpy = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {
+  const createSpy = spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+  const revokeSpy = spyOn(URL, "revokeObjectURL").mockImplementation(() => {
     // Mock implementation for revokeObjectURL
   });
   return {
@@ -161,18 +204,17 @@ export function withMockedURLObjectURL() {
  */
 export function stubAnchorClicks() {
   const a = document.createElement("a");
-  const clickSpy = vi.spyOn(a, "click").mockImplementation(() => {
+  const clickSpy = spyOn(a, "click").mockImplementation(() => {
     // Mock implementation for anchor click
   });
-  const createSpy = vi
-    .spyOn(document, "createElement")
-    .mockImplementation(tag =>
+  const createSpy = spyOn(document, "createElement").mockImplementation(
+    (tag: string) =>
       tag === "a"
         ? (a as HTMLAnchorElement)
         : document.createElement(tag as keyof HTMLElementTagNameMap)
-    );
-  const appendSpy = vi.spyOn(document.body, "appendChild");
-  const removeSpy = vi.spyOn(document.body, "removeChild");
+  );
+  const appendSpy = spyOn(document.body, "appendChild");
+  const removeSpy = spyOn(document.body, "removeChild");
   return {
     anchor: a,
     clickSpy,
@@ -232,7 +274,7 @@ export function installFileReaderSequence(sequence: Array<string | Error>) {
         setTimeout(() => this.onerror?.(item), 0);
         return;
       }
-      this.result = item;
+      this.result = item as string;
       setTimeout(() => this.onload?.({ target: this }), 0);
     }
     readAsText(_input: Blob) {
@@ -291,7 +333,7 @@ export function installCanvasMock({
     ? {
         imageSmoothingEnabled: true,
         imageSmoothingQuality: "high" as const,
-        drawImage: vi.fn(),
+        drawImage: mock(),
       }
     : null;
   const canvas = {
@@ -300,14 +342,15 @@ export function installCanvasMock({
     getContext: () => ctx,
     toBlob: (cb: (b: Blob | null) => void) =>
       cb(toBlobReturnsNull ? null : new Blob(["x"], { type: "image/webp" })),
-    toDataURL: vi.fn().mockReturnValue(dataUrl),
+    toDataURL: mock().mockReturnValue(dataUrl),
   } as unknown as HTMLCanvasElement;
 
-  const createSpy = vi
-    .spyOn(document, "createElement")
-    .mockImplementation(tag =>
-      tag === "canvas" ? canvas : document.createElement(tag)
-    );
+  const createSpy = spyOn(document, "createElement").mockImplementation(
+    (tag: string) =>
+      tag === "canvas"
+        ? canvas
+        : document.createElement(tag as keyof HTMLElementTagNameMap)
+  );
 
   return {
     canvas,
@@ -331,39 +374,161 @@ export function makeFileList(files: File[]): FileList {
 }
 
 /**
- * Create an overlays store mock and a `vi.mock` factory for `@/stores/stream-overlays`.
+ * Create an overlays store mock and a `mock.module` factory for `@/stores/stream-overlays`.
  * Usage:
  *   const { overlays, factory } = createOverlaysMock();
- *   vi.mock("@/stores/stream-overlays", factory);
+ *   mock.module("@/stores/stream-overlays", factory);
  *   // then `overlays` can be asserted in tests
  */
 export function createOverlaysMock() {
   const overlays = {
-    set: vi.fn(),
-    setReasoning: vi.fn(),
-    setStatus: vi.fn(),
-    setCitations: vi.fn(),
-    append: vi.fn(),
-    appendReasoning: vi.fn(),
-    pushToolEvent: vi.fn(),
-    clear: vi.fn(),
-    clearReasoning: vi.fn(),
-    clearStatus: vi.fn(),
-    clearCitations: vi.fn(),
-    clearTools: vi.fn(),
+    set: mock(),
+    setReasoning: mock(),
+    setStatus: mock(),
+    setCitations: mock(),
+    append: mock(),
+    appendReasoning: mock(),
+    pushToolEvent: mock(),
+    clear: mock(),
+    clearReasoning: mock(),
+    clearStatus: mock(),
+    clearCitations: mock(),
+    clearTools: mock(),
   };
   const factory = () => ({ useStreamOverlays: { getState: () => overlays } });
   return { overlays, factory };
+}
+
+// Manual timer mocking for Bun (since Bun doesn't support vi.useFakeTimers for setTimeout)
+let fakeTimerTime = 0;
+let timerIdCounter = 0;
+const pendingTimers = new Map<
+  number,
+  { callback: () => void; scheduledAt: number; delay: number }
+>();
+let originalSetTimeout: typeof setTimeout;
+let originalClearTimeout: typeof clearTimeout;
+let originalDateNow: typeof Date.now;
+let originalWindowSetTimeout: typeof setTimeout | undefined;
+let originalWindowClearTimeout: typeof clearTimeout | undefined;
+let isFakeTimersActive = false;
+
+function fakeSetTimeout(callback: () => void, delay = 0): number {
+  if (!(isFakeTimersActive && originalSetTimeout)) {
+    // If fake timers aren't active, use the real setTimeout
+    return (originalSetTimeout || globalThis.setTimeout)(
+      callback,
+      delay
+    ) as unknown as number;
+  }
+  const id = ++timerIdCounter;
+  // If delay is 0 or negative, still schedule it (don't execute immediately)
+  // This matches real setTimeout behavior where 0 delay still defers execution
+  pendingTimers.set(id, {
+    callback,
+    scheduledAt: fakeTimerTime,
+    delay: Math.max(0, delay),
+  });
+  return id;
+}
+
+function fakeClearTimeout(id: number | NodeJS.Timeout | undefined): void {
+  if (!(isFakeTimersActive && originalClearTimeout)) {
+    // If fake timers aren't active, use the real clearTimeout
+    return (originalClearTimeout || globalThis.clearTimeout)(id);
+  }
+  if (id !== undefined && id !== null) {
+    pendingTimers.delete(id as number);
+  }
+}
+
+export function advanceTimersByTime(ms: number): void {
+  if (!isFakeTimersActive) {
+    return;
+  }
+  fakeTimerTime += ms;
+  const timersToRun: Array<{ callback: () => void }> = [];
+  for (const [id, timer] of pendingTimers.entries()) {
+    if (timer.scheduledAt + timer.delay <= fakeTimerTime) {
+      timersToRun.push(timer);
+      pendingTimers.delete(id);
+    }
+  }
+  for (const timer of timersToRun) {
+    timer.callback();
+  }
 }
 
 /**
  * Run a block with fake timers enabled, then restore real timers.
  */
 export async function withFakeTimers<T>(fn: () => Promise<T> | T): Promise<T> {
-  vi.useFakeTimers();
+  // Store originals only if not already stored
+  if (!originalSetTimeout) {
+    originalSetTimeout = globalThis.setTimeout;
+    originalClearTimeout = globalThis.clearTimeout;
+    originalDateNow = Date.now;
+  }
+
+  // Clear any pending timers from previous tests
+  pendingTimers.clear();
+
+  // Reset state FIRST, before replacing setTimeout
+  fakeTimerTime = 0;
+  timerIdCounter = 0;
+
+  // Set active flag BEFORE replacing setTimeout so our fake functions know they're active
+  isFakeTimersActive = true;
+
+  // Replace with fake timers - mock globalThis, window, and self if they exist
+  const fakeSetTimeoutTyped = fakeSetTimeout as typeof setTimeout;
+  const fakeClearTimeoutTyped = fakeClearTimeout as typeof clearTimeout;
+  globalThis.setTimeout = fakeSetTimeoutTyped;
+  globalThis.clearTimeout = fakeClearTimeoutTyped;
+  if (typeof window !== "undefined") {
+    if (!originalWindowSetTimeout) {
+      originalWindowSetTimeout = (
+        window as unknown as { setTimeout: typeof setTimeout }
+      ).setTimeout;
+      originalWindowClearTimeout = (
+        window as unknown as { clearTimeout: typeof clearTimeout }
+      ).clearTimeout;
+    }
+    (window as unknown as { setTimeout: typeof setTimeout }).setTimeout =
+      fakeSetTimeoutTyped;
+    (window as unknown as { clearTimeout: typeof clearTimeout }).clearTimeout =
+      fakeClearTimeoutTyped;
+  }
+  if (typeof self !== "undefined" && self !== globalThis && self !== window) {
+    (self as unknown as { setTimeout: typeof setTimeout }).setTimeout =
+      fakeSetTimeoutTyped;
+    (self as unknown as { clearTimeout: typeof clearTimeout }).clearTimeout =
+      fakeClearTimeoutTyped;
+  }
+  Date.now = () => fakeTimerTime;
+
   try {
-    return await fn();
+    const result = await fn();
+    // Clear any remaining timers before restoring
+    pendingTimers.clear();
+    return result;
   } finally {
-    vi.useRealTimers();
+    // Restore real timers
+    isFakeTimersActive = false;
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+    if (
+      typeof window !== "undefined" &&
+      originalWindowSetTimeout &&
+      originalWindowClearTimeout
+    ) {
+      (window as unknown as { setTimeout: typeof setTimeout }).setTimeout =
+        originalWindowSetTimeout;
+      (
+        window as unknown as { clearTimeout: typeof clearTimeout }
+      ).clearTimeout = originalWindowClearTimeout;
+    }
+    Date.now = originalDateNow;
+    pendingTimers.clear();
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
@@ -17,7 +17,7 @@ async function seedUserAndConversation(t: any) {
 }
 
 describe("convex/messages", () => {
-  it("creates and lists messages (main branch)", async () => {
+  test("creates and lists messages (main branch)", async () => {
     const t = await makeConvexTest();
     const { conversationId } = await seedUserAndConversation(t);
 
@@ -37,7 +37,7 @@ describe("convex/messages", () => {
     expect(arr.some((m: any) => m._id === mId)).toBe(true);
   });
 
-  it("update patches fields without writing undefineds", async () => {
+  test("update patches fields without writing undefineds", async () => {
     const t = await makeConvexTest();
     const { conversationId } = await seedUserAndConversation(t);
     const mId = await t.runMutation(api.messages.create, {

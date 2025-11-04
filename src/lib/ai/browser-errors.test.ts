@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import { getUserFriendlyErrorMessage } from "./browser-errors";
 
 describe("browser-errors", () => {
-  it("maps API key errors to user-friendly messages", () => {
+  test("maps API key errors to user-friendly messages", () => {
     const apiKeyError1 = getUserFriendlyErrorMessage(
       new Error("API key missing")
     );
@@ -18,7 +18,7 @@ describe("browser-errors", () => {
     expect(apiKeyError1.toLowerCase()).not.toContain("401");
   });
 
-  it("maps rate limit errors to user-friendly messages", () => {
+  test("maps rate limit errors to user-friendly messages", () => {
     const rateLimitError1 = getUserFriendlyErrorMessage(
       new Error("rate limit exceeded")
     );
@@ -31,7 +31,7 @@ describe("browser-errors", () => {
     expect(rateLimitError1.toLowerCase()).not.toContain("429");
   });
 
-  it("maps network errors to user-friendly messages", () => {
+  test("maps network errors to user-friendly messages", () => {
     const networkError1 = getUserFriendlyErrorMessage(
       new Error("fetch failed")
     );
@@ -45,7 +45,7 @@ describe("browser-errors", () => {
     expect(networkError1.length).toBeLessThan(100);
   });
 
-  it("maps model errors to user-friendly messages", () => {
+  test("maps model errors to user-friendly messages", () => {
     const modelError = getUserFriendlyErrorMessage(
       new Error("model not found")
     );
@@ -55,7 +55,7 @@ describe("browser-errors", () => {
     expect(modelError.toLowerCase()).toContain("model");
   });
 
-  it("maps AbortError to cancellation message", () => {
+  test("maps AbortError to cancellation message", () => {
     const err = new Error("any");
     err.name = "AbortError";
     const result = getUserFriendlyErrorMessage(err);
@@ -65,14 +65,14 @@ describe("browser-errors", () => {
     expect(result.toLowerCase()).toContain("cancel");
   });
 
-  it("passes through short user-friendly messages", () => {
+  test("passes through short user-friendly messages", () => {
     const shortMessage = "Simple message";
     const result = getUserFriendlyErrorMessage(new Error(shortMessage));
 
     expect(result).toBe(shortMessage);
   });
 
-  it("returns generic message for unknown inputs", () => {
+  test("returns generic message for unknown inputs", () => {
     const result = getUserFriendlyErrorMessage("oops");
 
     expect(result).toBeTruthy();

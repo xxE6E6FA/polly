@@ -28,7 +28,7 @@ function getInitials(name?: string | null) {
     .slice(0, 2);
 }
 
-const STAT_ICON_COLORS = [
+const STAT_ICON_COLORS: string[] = [
   "hsl(var(--primary))",
   "hsl(260 85% 60%)",
   "hsl(280 75% 65%)",
@@ -105,24 +105,47 @@ export const UserIdCard = () => {
     ? Math.min(100, (monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100)
     : 0;
 
-  const stats = [
+  const [
+    conversationColor = "hsl(var(--primary))",
+    totalMessagesColor = "hsl(260 85% 60%)",
+    monthlyMessagesColor = "hsl(280 75% 65%)",
+  ] = STAT_ICON_COLORS;
+
+  const stats: StatCardProps[] = [
     {
-      icon: ChatCircleTextIcon,
+      icon: ChatCircleIcon,
       label: "Conversations",
       value: user.conversationCount ?? 0,
-      color: STAT_ICON_COLORS[0],
+      color: conversationColor,
+      showDivider: true,
     },
     {
       icon: ChatCircleIcon,
       label: "Total Messages",
       value: user.totalMessageCount ?? 0,
-      color: STAT_ICON_COLORS[1],
+      color: totalMessagesColor,
+      showDivider: true,
     },
     {
       icon: TrendUpIcon,
       label: "This Month",
       value: monthlyMessagesSent || 0,
-      color: STAT_ICON_COLORS[2],
+      color: monthlyMessagesColor,
+      showDivider: false,
+    },
+    {
+      icon: ChatCircleIcon,
+      label: "Total Messages",
+      value: user.totalMessageCount ?? 0,
+      color: totalMessagesColor,
+      showDivider: true,
+    },
+    {
+      icon: TrendUpIcon,
+      label: "This Month",
+      value: monthlyMessagesSent || 0,
+      color: monthlyMessagesColor,
+      showDivider: false,
     },
   ];
 

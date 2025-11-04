@@ -13,7 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router-dom";
 import { useOnline } from "@/hooks/use-online";
 import {
   downloadFile,

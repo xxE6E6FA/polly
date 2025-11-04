@@ -1,5 +1,4 @@
 import type { ActionCtx } from "../../_generated/server";
-import { log } from "../logger";
 import { getUserEffectiveModelWithCapabilities } from "../model_resolution";
 import type { Id } from "../../_generated/dataModel";
 import type { ApiMessageDoc, ProcessedChunk } from "./types";
@@ -28,18 +27,15 @@ export const buildHierarchicalContextMessages = async (
       ? await getUserEffectiveModelWithCapabilities(ctx, userId, modelId)
       : undefined;
     
-    log.info(`Building hierarchical context for conversation ${conversationId}, model: ${modelId}, context window: ${modelInfo?.contextLength}`);
 
     const allMessages = await ctx.runQuery(api.messages.getAllInConversation, {
       conversationId,
     });
 
     if (!allMessages || allMessages.length === 0) {
-      log.info("No messages found for context building");
       return [];
     }
 
-    log.info(`Total messages in conversation: ${allMessages.length}`);
 
     // Decide whether we need summarization based on token budget if we
     // know the model's context window; otherwise fall back to message count.
@@ -53,14 +49,12 @@ export const buildHierarchicalContextMessages = async (
       const minCap = CONTEXT_CONFIG.MIN_TOKEN_THRESHOLD ?? 100_000;
       const threshold = Math.min(modelInfo.contextLength, minCap);
       const tokenTotal = estimateTokens(allMessages as any);
-      log.info(`Token estimate: ${tokenTotal}, threshold: ${threshold}`);
       needsSummarization = tokenTotal > threshold;
     } else {
       needsSummarization = allMessages.length > CONTEXT_CONFIG.SUMMARY_THRESHOLD;
     }
 
     if (!needsSummarization) {
-      log.info("Below summarization threshold, no hierarchical context needed");
       return [];
     }
 
@@ -73,10 +67,8 @@ export const buildHierarchicalContextMessages = async (
     const recentMessages =
       recentMessageCount > 0 ? allMessages.slice(-recentMessageCount) : [];
 
-    log.info(`Messages to summarize: ${messagesToSummarize.length}, Recent messages: ${recentMessages.length}`);
 
     if (messagesToSummarize.length === 0) {
-      log.info("No messages to summarize");
       return [];
     }
 
@@ -91,7 +83,6 @@ export const buildHierarchicalContextMessages = async (
     );
 
     if (!contextContent || contextContent.trim().length === 0) {
-      log.info("No context content generated");
       return [];
     }
 
@@ -103,7 +94,7 @@ export const buildHierarchicalContextMessages = async (
     ];
 
   } catch (error) {
-    log.error(`Error building hierarchical context: ${error}`);
+    console.error(`Error building hierarchical context: ${error}`);
     return [];
   }
 };
@@ -114,56 +105,66 @@ async function buildHierarchicalContext(
   messages: ApiMessageDoc[]
 ): Promise<string> {
   try {
-    log.info(`Building hierarchical context from ${messages.length} messages`);
-
     // Step 1: Process messages into chunks, using stored summaries where available
-    let processedChunks = await processChunksWithStoredSummaries(ctx, conversationId, messages);
-    
-    log.info(`Initial processed chunks: ${processedChunks.length}`);
+    let processedChunks = await processChunksWithStoredSummaries(
+      ctx,
+      conversationId,
+      messages
+    );
 
     // Step 2: Summarize any chunks that still contain raw messages
     for (let i = 0; i < processedChunks.length; i++) {
       const chunk = processedChunks[i];
-      
-      if (chunk.messages && !chunk.summary) {
-        log.info(`Summarizing chunk ${i} with ${chunk.messages.length} messages`);
-        
-        const summary = await summarizeChunk(chunk.messages);
-        
-        // Store the summary for future use
-        if (chunk.chunkIndex !== undefined) {
-          await storeChunkSummary(
-            ctx,
-            conversationId,
-            chunk.chunkIndex,
-            summary,
-            chunk.originalMessageCount || chunk.messages.length,
-            chunk
-          );
-        }
-        
-        // Update the chunk to use the summary instead of raw messages
-        processedChunks[i] = {
-          summary,
-          chunkIndex: chunk.chunkIndex,
-          originalMessageCount: chunk.originalMessageCount,
-        };
+      if (!chunk?.messages || chunk.summary) {
+        continue;
       }
+
+      const summary = await summarizeChunk(chunk.messages);
+
+      // Store the summary for future use
+      if (chunk.chunkIndex !== undefined) {
+        await storeChunkSummary(
+          ctx,
+          conversationId,
+          chunk.chunkIndex,
+          summary,
+          chunk.originalMessageCount ?? chunk.messages.length,
+          chunk
+        );
+      }
+
+      // Update the chunk to use the summary instead of raw messages
+      processedChunks[i] = {
+        summary,
+        chunkIndex: chunk.chunkIndex,
+        originalMessageCount: chunk.originalMessageCount,
+      };
     }
 
     // Step 3: If we have too many chunk summaries, create meta-summaries recursively
-    const summaries = processedChunks.map(chunk => chunk.summary!).filter(Boolean);
-    
+    const summaries = processedChunks
+      .map(chunk => chunk?.summary)
+      .filter((value): value is string => typeof value === "string");
+
     if (summaries.length > CONTEXT_CONFIG.MAX_SUMMARY_CHUNKS) {
-      log.info(`Creating meta-summaries from ${summaries.length} chunk summaries`);
-      processedChunks = await createRecursiveMetaSummary(ctx, conversationId, summaries);
+      processedChunks = await createRecursiveMetaSummary(
+        ctx,
+        conversationId,
+        summaries
+      );
     }
 
     // Step 4: Build the final context content
-    return await buildFinalContext(processedChunks, summaries.length);
-
+    const summaryLayers =
+      summaries.length === 0
+        ? 0
+        : Math.max(
+            1,
+            Math.ceil(summaries.length / CONTEXT_CONFIG.MAX_SUMMARY_CHUNKS)
+          );
+    return await buildFinalContext(processedChunks, summaryLayers);
   } catch (error) {
-    log.error(`Error in buildHierarchicalContext: ${error}`);
+    console.error(`Error in buildHierarchicalContext: ${error}`);
     throw error;
   }
 }
@@ -173,7 +174,6 @@ async function buildFinalContext(processedChunks: ProcessedChunk[], summaryLayer
     return "";
   }
 
-  log.info(`Building final context from ${processedChunks.length} processed chunks with ${summaryLayers} summary layers`);
 
   // Build the context content with clear structure
   let contextContent = buildContextContent(processedChunks, summaryLayers);
@@ -271,7 +271,6 @@ export const buildContextMessages = async (
       ? allMessages.slice(0, args.includeUpToIndex + 1)
       : allMessages;
 
-    log.info(`Building context with ${messagesToInclude.length} messages up to index ${args.includeUpToIndex}`);
 
     // Build hierarchical context if needed
     const contextSystemMessages = await buildHierarchicalContextMessages(
@@ -311,11 +310,10 @@ export const buildContextMessages = async (
       ...conversationMessages,
     ];
 
-    log.info(`Built retry context with ${contextMessages.length} total messages`);
     return { contextMessages };
 
   } catch (error) {
-    log.error(`Error building context messages for retry: ${error}`);
+    console.error(`Error building context messages for retry: ${error}`);
     throw error;
   }
 };

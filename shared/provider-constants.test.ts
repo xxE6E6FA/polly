@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import { PROVIDER_CONFIG, PROVIDER_NAMES } from "./provider-constants";
 
 describe("provider-constants", () => {
-  it("has consistent provider keys and titles", () => {
+  test("has consistent provider keys and titles", () => {
     const keys = Object.keys(PROVIDER_NAMES);
     // Ensure config has same keys
     expect(Object.keys(PROVIDER_CONFIG)).toEqual(keys);

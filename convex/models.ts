@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { supportsReasoning } from "../shared/reasoning-model-detection";
 import { api } from "./_generated/api";
 import { action } from "./_generated/server";
-import { log } from "./lib/logger";
 
 type OpenAIModel = {
   id: string;
@@ -116,7 +115,7 @@ async function fetchOpenAIModels(apiKey: string) {
         };
       });
   } catch (error) {
-    log.error("Failed to fetch OpenAI models", error);
+    console.error("Failed to fetch OpenAI models", error);
     return [];
   }
 }
@@ -205,7 +204,7 @@ async function fetchAnthropicModels(apiKey: string) {
       }
     );
   } catch (error) {
-    log.error("Failed to fetch Anthropic models", error);
+    console.error("Failed to fetch Anthropic models", error);
     return [];
   }
 }
@@ -240,7 +239,7 @@ async function fetchGoogleModels(apiKey: string) {
     );
 
     if (!response.ok) {
-      log.error(`Google API error: ${response.status}`);
+      console.error(`Google API error: ${response.status}`);
       throw new Error(`Google API error: ${response.status}`);
     }
 
@@ -304,7 +303,7 @@ async function fetchGoogleModels(apiKey: string) {
 
     return filteredModels;
   } catch (error) {
-    log.error("Failed to fetch Google models", error);
+    console.error("Failed to fetch Google models", error);
     return [];
   }
 }
@@ -558,7 +557,8 @@ async function fetchGroqModels(apiKey: string) {
 
       // Try to infer context window from ID (e.g., -32768 or -8192), fallback to 131072
       const ctxMatch = modelId.match(/-(\d{4,6})(?:$|[^\d])/);
-      const inferredCtx = ctxMatch ? parseInt(ctxMatch[1], 10) : 131072;
+      const ctxGroup = ctxMatch?.[1];
+      const inferredCtx = ctxGroup ? parseInt(ctxGroup, 10) : 131072;
 
       return {
         modelId,
@@ -572,7 +572,7 @@ async function fetchGroqModels(apiKey: string) {
       } as ModelResponse;
     });
   } catch (error) {
-    log.error("Failed to fetch Groq models", error);
+    console.error("Failed to fetch Groq models", error);
 
     // Fallback to our known models if API call fails
     return Object.entries(GROQ_MODEL_CAPABILITIES).map(
@@ -602,7 +602,7 @@ async function fetchOpenRouterModels(apiKey: string) {
     });
 
     if (!response.ok) {
-      log.error(`OpenRouter API error: ${response.status}`);
+      console.error(`OpenRouter API error: ${response.status}`);
       throw new Error(`OpenRouter API error: ${response.status}`);
     }
 
@@ -661,7 +661,7 @@ async function fetchOpenRouterModels(apiKey: string) {
 
     return mappedModels;
   } catch (error) {
-    log.error("Failed to fetch OpenRouter models", error);
+    console.error("Failed to fetch OpenRouter models", error);
     return [];
   }
 }
@@ -767,7 +767,7 @@ async function fetchReplicateModels(apiKey: string): Promise<ModelResponse[]> {
     // This validates the API key is working
     return [];
   } catch (error) {
-    log.error("Error validating Replicate API key:", error);
+    console.error("Error validating Replicate API key:", error);
     return [];
   }
 }
@@ -825,14 +825,14 @@ export const fetchAllModels = action({
             models = await fetchReplicateModels(decryptedKey);
             break;
           default:
-            log.warn(`Unknown provider: ${keyInfo.provider}`);
+            console.warn(`Unknown provider: ${keyInfo.provider}`);
             models = [];
             break;
         }
 
         allModels.push(...models);
       } catch (error) {
-        log.error(`Failed to fetch models for ${keyInfo.provider}`, error);
+        console.error(`Failed to fetch models for ${keyInfo.provider}`, error);
       }
     }
 
@@ -878,7 +878,7 @@ export const fetchProviderModels = action({
           return [];
       }
     } catch (error) {
-      log.error(`Failed to fetch models for ${provider}`, error);
+      console.error(`Failed to fetch models for ${provider}`, error);
       return [];
     }
   },

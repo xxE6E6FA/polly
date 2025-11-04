@@ -4,7 +4,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { DownloadSimple, GithubLogoIcon, Trash } from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsSection } from "@/components/settings/ui/SettingsSection";
 import { UserIdCard } from "@/components/settings/user-id-card";

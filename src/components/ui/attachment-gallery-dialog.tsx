@@ -68,23 +68,44 @@ export const AttachmentGalleryDialog = ({
 
   // Navigation functions
   const goToPrevious = useCallback(() => {
+    if (attachments.length === 0) {
+      return;
+    }
     const newIndex =
       currentIndex > 0 ? currentIndex - 1 : attachments.length - 1;
+    const target = attachments[newIndex];
+    if (!target) {
+      return;
+    }
     setCurrentIndex(newIndex);
-    onAttachmentChange?.(attachments[newIndex]);
+    onAttachmentChange?.(target);
   }, [currentIndex, attachments, onAttachmentChange]);
 
   const goToNext = useCallback(() => {
+    if (attachments.length === 0) {
+      return;
+    }
     const newIndex =
       currentIndex < attachments.length - 1 ? currentIndex + 1 : 0;
+    const target = attachments[newIndex];
+    if (!target) {
+      return;
+    }
     setCurrentIndex(newIndex);
-    onAttachmentChange?.(attachments[newIndex]);
+    onAttachmentChange?.(target);
   }, [currentIndex, attachments, onAttachmentChange]);
 
   const goToAttachment = useCallback(
     (index: number) => {
+      if (attachments.length === 0) {
+        return;
+      }
+      const target = attachments[index];
+      if (!target) {
+        return;
+      }
       setCurrentIndex(index);
-      onAttachmentChange?.(attachments[index]);
+      onAttachmentChange?.(target);
     },
     [attachments, onAttachmentChange]
   );

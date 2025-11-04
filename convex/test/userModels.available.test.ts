@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/userModels.getAvailableModels", () => {
-  it("returns built-ins for anonymous and merges with user models without conflicts for authed", async () => {
+  test("returns built-ins for anonymous and merges with user models without conflicts for authed", async () => {
     const t = await makeConvexTest();
     // Built-ins
     await t.db.insert("builtInModels", {

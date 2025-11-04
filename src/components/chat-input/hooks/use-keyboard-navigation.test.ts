@@ -1,7 +1,9 @@
+import { describe, expect, mock, test } from "bun:test";
 import type React from "react";
-import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 import { useKeyboardNavigation } from "./use-keyboard-navigation";
+
+const createMock = mock;
 
 function makeTextarea(value: string, selStart: number, selEnd: number) {
   const el = document.createElement("textarea");
@@ -18,23 +20,23 @@ function makeTextarea(value: string, selStart: number, selEnd: number) {
 }
 
 describe("useKeyboardNavigation", () => {
-  it("submits on Enter without shift", () => {
-    const onSubmit = vi.fn();
+  test("submits on Enter without shift", () => {
+    const onSubmit = createMock();
     const { result } = renderHook(() => useKeyboardNavigation({ onSubmit }));
     const e = {
       key: "Enter",
       shiftKey: false,
-      preventDefault: vi.fn(),
+      preventDefault: createMock(),
     } as unknown as React.KeyboardEvent;
     result.current.handleKeyDown(e);
     expect(onSubmit).toHaveBeenCalled();
     expect(e.preventDefault).toHaveBeenCalled();
   });
 
-  it("navigates history on ArrowUp/Down when at edges", () => {
-    const onHistoryNavigation = vi.fn().mockReturnValue(true);
-    const onHistoryNavigationDown = vi.fn().mockReturnValue(true);
-    const onSubmit = vi.fn();
+  test("navigates history on ArrowUp/Down when at edges", () => {
+    const onHistoryNavigation = createMock().mockReturnValue(true);
+    const onHistoryNavigationDown = createMock().mockReturnValue(true);
+    const onSubmit = createMock();
     const { result } = renderHook(() =>
       useKeyboardNavigation({
         onSubmit,
@@ -47,7 +49,7 @@ describe("useKeyboardNavigation", () => {
       key: "ArrowUp",
       shiftKey: false,
       currentTarget: makeTextarea("abc", 0, 0),
-      preventDefault: vi.fn(),
+      preventDefault: createMock(),
     } as unknown as React.KeyboardEvent;
     result.current.handleKeyDown(up);
     expect(onHistoryNavigation).toHaveBeenCalled();
@@ -57,34 +59,34 @@ describe("useKeyboardNavigation", () => {
       key: "ArrowDown",
       shiftKey: false,
       currentTarget: makeTextarea("abc", 3, 3),
-      preventDefault: vi.fn(),
+      preventDefault: createMock(),
     } as unknown as React.KeyboardEvent;
     result.current.handleKeyDown(down);
     expect(onHistoryNavigationDown).toHaveBeenCalled();
     expect(down.preventDefault).toHaveBeenCalled();
   });
 
-  it("clears persona on backspace when empty", () => {
-    const onPersonaClear = vi.fn();
+  test("clears persona on backspace when empty", () => {
+    const onPersonaClear = createMock();
     const { result } = renderHook(() =>
-      useKeyboardNavigation({ onSubmit: vi.fn(), onPersonaClear })
+      useKeyboardNavigation({ onSubmit: createMock(), onPersonaClear })
     );
     const e = {
       key: "Backspace",
       target: makeTextarea("", 0, 0),
-      preventDefault: vi.fn(),
+      preventDefault: createMock(),
     } as unknown as React.KeyboardEvent;
     result.current.handleKeyDown(e);
     expect(onPersonaClear).toHaveBeenCalled();
     expect(e.preventDefault).toHaveBeenCalled();
   });
 
-  it("does not navigate when caret not at edges", () => {
-    const onHistoryNavigation = vi.fn().mockReturnValue(true);
-    const onHistoryNavigationDown = vi.fn().mockReturnValue(true);
+  test("does not navigate when caret not at edges", () => {
+    const onHistoryNavigation = createMock().mockReturnValue(true);
+    const onHistoryNavigationDown = createMock().mockReturnValue(true);
     const { result } = renderHook(() =>
       useKeyboardNavigation({
-        onSubmit: vi.fn(),
+        onSubmit: createMock(),
         onHistoryNavigation,
         onHistoryNavigationDown,
       })

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import { ROUTES } from "./routes";
 
 describe("routes", () => {
   describe("ROUTES constants", () => {
-    it("has correct static route paths", () => {
+    test("has correct static route paths", () => {
       expect(ROUTES.HOME).toBe("/");
       expect(ROUTES.AUTH).toBe("/auth");
       expect(ROUTES.CHAT).toBe("/chat");
@@ -12,7 +12,7 @@ describe("routes", () => {
       expect(ROUTES.NOT_FOUND).toBe("/404");
     });
 
-    it("has correct settings routes", () => {
+    test("has correct settings routes", () => {
       expect(ROUTES.SETTINGS.ROOT).toBe("/settings");
       expect(ROUTES.SETTINGS.API_KEYS).toBe("/settings/api-keys");
       expect(ROUTES.SETTINGS.MODELS).toBe("/settings/models");
@@ -33,7 +33,7 @@ describe("routes", () => {
   });
 
   describe("dynamic route functions", () => {
-    it("generates correct chat conversation routes", () => {
+    test("generates correct chat conversation routes", () => {
       expect(ROUTES.CHAT_CONVERSATION("abc123")).toBe("/chat/abc123");
       expect(ROUTES.CHAT_CONVERSATION("conversation_456")).toBe(
         "/chat/conversation_456"
@@ -41,13 +41,13 @@ describe("routes", () => {
       expect(ROUTES.CHAT_CONVERSATION("")).toBe("/chat/");
     });
 
-    it("generates correct share routes", () => {
+    test("generates correct share routes", () => {
       expect(ROUTES.SHARE("share123")).toBe("/share/share123");
       expect(ROUTES.SHARE("public_abc")).toBe("/share/public_abc");
       expect(ROUTES.SHARE("")).toBe("/share/");
     });
 
-    it("generates correct persona edit routes", () => {
+    test("generates correct persona edit routes", () => {
       expect(ROUTES.SETTINGS.PERSONAS_EDIT("persona123")).toBe(
         "/settings/personas/persona123/edit"
       );
@@ -61,7 +61,7 @@ describe("routes", () => {
   });
 
   describe("route parameter handling", () => {
-    it("handles special characters in IDs", () => {
+    test("handles special characters in IDs", () => {
       expect(ROUTES.CHAT_CONVERSATION("test-123_abc")).toBe(
         "/chat/test-123_abc"
       );
@@ -71,7 +71,7 @@ describe("routes", () => {
       );
     });
 
-    it("preserves URL encoding in parameters", () => {
+    test("preserves URL encoding in parameters", () => {
       const encodedId = "test%20with%20spaces";
       expect(ROUTES.CHAT_CONVERSATION(encodedId)).toBe(`/chat/${encodedId}`);
       expect(ROUTES.SHARE(encodedId)).toBe(`/share/${encodedId}`);

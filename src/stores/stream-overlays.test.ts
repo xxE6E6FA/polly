@@ -1,8 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { useStreamOverlays } from "./stream-overlays";
+import { describe, expect, test } from "bun:test";
+import { setupZustandTestStore } from "@/test/zustand";
+import {
+  createStreamOverlaysStore,
+  setStreamOverlaysStoreApi,
+  useStreamOverlays,
+} from "./stream-overlays";
+
+setupZustandTestStore({
+  createStore: () => createStreamOverlaysStore(),
+  setStore: setStreamOverlaysStoreApi,
+});
 
 describe("stores/stream-overlays", () => {
-  it("manages overlays and reasoning overlays", () => {
+  test("manages overlays and reasoning overlays", () => {
     const s = useStreamOverlays.getState();
     s.set("m1", "Hello");
     s.append("m1", " World");
@@ -17,7 +27,7 @@ describe("stores/stream-overlays", () => {
     expect(useStreamOverlays.getState().reasoning["m2"]).toBeUndefined();
   });
 
-  it("manages status, tools, and citations", () => {
+  test("manages status, tools, and citations", () => {
     const s = useStreamOverlays.getState();
     // Clear no-op on missing keys
     s.clearStatus("missing");

@@ -1,17 +1,17 @@
+import { describe, expect, test } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
-import { describe, expect, it } from "vitest";
 import { renderHook } from "../test/hook-utils";
 import { useChatInputPreservation } from "./use-chat-input-preservation";
 
 describe("useChatInputPreservation", () => {
-  it("sets and gets global state without causing re-renders", () => {
+  test("sets and gets global state without causing re-renders", () => {
     const { result } = renderHook(() => useChatInputPreservation());
     expect(result.current.getChatInputState()).toMatchObject({ input: "" });
     result.current.setChatInputState({ input: "hello" });
     expect(result.current.getChatInputState().input).toBe("hello");
   });
 
-  it("stores per-conversation state and clears individually or all", () => {
+  test("stores per-conversation state and clears individually or all", () => {
     const { result } = renderHook(() => useChatInputPreservation());
     result.current.setChatInputState(
       { input: "a" },

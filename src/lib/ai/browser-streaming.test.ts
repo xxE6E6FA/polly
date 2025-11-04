@@ -1,58 +1,88 @@
-import { streamText } from "ai";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
 import type { ChatStreamRequest } from "@/types";
-import { streamChat } from "./browser-streaming";
 
-vi.mock("@shared/ai-provider-factory", () => ({
-  createBasicLanguageModel: vi.fn(() => ({ kind: "mock-lm" })),
+const createBasicLanguageModelMock = mock(() => ({ kind: "mock-lm" }));
+const getProviderReasoningConfigMock = mock(() => ({
+  providerOptions: { x: 1 },
+}));
+const streamTextMock = mock();
+const smoothStreamMock = mock();
+
+mock.module("@shared/ai-provider-factory", () => ({
+  createBasicLanguageModel: createBasicLanguageModelMock,
 }));
 
-vi.mock("@shared/reasoning-config", () => ({
-  getProviderReasoningConfig: vi.fn(() => ({ providerOptions: { x: 1 } })),
+mock.module("@shared/reasoning-config", () => ({
+  getProviderReasoningConfig: getProviderReasoningConfigMock,
 }));
 
-vi.mock("ai", () => ({
-  streamText: vi.fn(),
-  smoothStream: vi.fn(),
+mock.module("ai", () => ({
+  streamText: streamTextMock,
+  smoothStream: smoothStreamMock,
 }));
+
+let streamChat: typeof import("./browser-streaming").streamChat;
+
+beforeAll(async () => {
+  mock.restore();
+  const mod = (await import("./browser-streaming?bun-real")) as any;
+  streamChat = mod.streamChat;
+});
+
+beforeEach(() => {
+  createBasicLanguageModelMock.mockReset();
+  createBasicLanguageModelMock.mockImplementation(() => ({ kind: "mock-lm" }));
+  getProviderReasoningConfigMock.mockReset();
+  getProviderReasoningConfigMock.mockImplementation(() => ({
+    providerOptions: { x: 1 },
+  }));
+  smoothStreamMock.mockReset();
+  streamTextMock.mockReset();
+  streamTextMock.mockImplementation((options: any): any => {
+    options.onChunk?.({
+      chunk: { type: "reasoning-delta", text: "think" },
+    });
+
+    async function* gen() {
+      yield await Promise.resolve("chunk1");
+      if (options.abortSignal?.aborted) {
+        return;
+      }
+      yield await Promise.resolve("chunk2");
+    }
+
+    return {
+      textStream: gen(),
+      warnings: [],
+      usage: {},
+      sources: [],
+      files: [],
+      finishReason: "stop",
+      // biome-ignore lint/style/useNamingConvention: external API field uses snake case
+      experimental_providerMetadata: {},
+    };
+  });
+});
+
+afterAll(() => {
+  mock.restore();
+});
 
 describe("browser-streaming.streamChat", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    // Set up default mock behavior for streamText
-    vi.mocked(streamText).mockImplementation((options: any): any => {
-      // Trigger reasoning chunk if handler provided
-      options.onChunk?.({ chunk: { type: "reasoning-delta", text: "think" } });
-
-      async function* gen() {
-        // ensure at least one await for async generator lint rule
-        yield await Promise.resolve("chunk1");
-        // cooperatively break if aborted
-        if (options.abortSignal?.aborted) {
-          return;
-        }
-        yield await Promise.resolve("chunk2");
-      }
-      return {
-        textStream: gen(),
-        warnings: [],
-        usage: {},
-        sources: [],
-        files: [],
-        finishReason: "stop",
-        // biome-ignore lint/style/useNamingConvention: matches external shape
-        experimental_providerMetadata: {},
-      };
-    });
-  });
-
-  it("converts attachments, streams content, and surfaces reasoning deltas", async () => {
+  test("converts attachments, streams content, and surfaces reasoning deltas", async () => {
     const callbacks = {
-      onContent: vi.fn(),
-      onFinish: vi.fn(),
-      onError: vi.fn(),
-      onReasoning: vi.fn(),
+      onContent: mock(),
+      onFinish: mock(),
+      onError: mock(),
+      onReasoning: mock(),
     };
 
     const req: ChatStreamRequest = {
@@ -101,7 +131,7 @@ describe("browser-streaming.streamChat", () => {
     expect(callbacks.onFinish).toHaveBeenCalledWith("stop");
 
     // Ensure conversion passed to streamText
-    const call = vi.mocked(streamText).mock.calls.at(-1)?.[0];
+    const call = streamTextMock.mock.calls.at(-1)?.[0];
     expect(call).toBeDefined();
     expect(call?.messages).toHaveLength(1);
     const m = call?.messages?.[0];
@@ -117,31 +147,31 @@ describe("browser-streaming.streamChat", () => {
     expect(m?.content[3]).toEqual({ type: "text", text: "pdf text" });
   });
 
-  it("throws if API key missing for provider", async () => {
+  test("throws if API key missing for provider", async () => {
     const req: ChatStreamRequest = {
       model: { modelId: "gpt", provider: "openai" },
       apiKeys: {},
       messages: [{ role: "user", content: "hi" }],
       callbacks: {
-        onContent: vi.fn(),
-        onFinish: vi.fn(),
-        onError: vi.fn(),
+        onContent: mock(),
+        onFinish: mock(),
+        onError: mock(),
       },
     };
 
     await expect(streamChat(req)).rejects.toThrow(/No API key/);
   });
 
-  it("respects abort signal and stops early", async () => {
+  test("respects abort signal and stops early", async () => {
     const callbacks = {
-      onContent: vi.fn(),
-      onFinish: vi.fn(),
-      onError: vi.fn(),
+      onContent: mock(),
+      onFinish: mock(),
+      onError: mock(),
     };
     const controller = new AbortController();
 
     // Override streamText for this test to abort after first yield
-    vi.mocked(streamText).mockImplementationOnce((options: any): any => {
+    streamTextMock.mockImplementationOnce((options: any): any => {
       options.onChunk?.({ chunk: { type: "text", textDelta: "x" } });
       const ctrl = controller;
       async function* gen() {

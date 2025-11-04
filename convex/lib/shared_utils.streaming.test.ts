@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, spyOn, afterEach, mock } from "bun:test";
 
 import { api } from "../_generated/api";
 import {
@@ -7,13 +7,15 @@ import {
 } from "./shared_utils";
 
 describe("shared_utils streaming helpers", () => {
-  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => {
+    mock.restore();
+  });
 
-  it("setConversationStreaming(true) bumps updatedAt and sets flag", async () => {
-    const patch = vi.fn(async () => {});
+  test("setConversationStreaming(true) bumps updatedAt and sets flag", async () => {
+    const patch = mock(async () => {});
     const ctx: any = { db: { patch } };
     const now = Date.now();
-    vi.spyOn(Date, "now").mockReturnValue(now);
+    const dateSpy = spyOn(Date, "now").mockReturnValue(now);
 
     await setConversationStreaming(ctx, "c1" as any, true);
 
@@ -21,10 +23,11 @@ describe("shared_utils streaming helpers", () => {
       isStreaming: true,
       updatedAt: now,
     });
+    dateSpy.mockRestore?.();
   });
 
-  it("setConversationStreaming(false) clears flag without touching updatedAt", async () => {
-    const patch = vi.fn(async () => {});
+  test("setConversationStreaming(false) clears flag without touching updatedAt", async () => {
+    const patch = mock(async () => {});
     const ctx: any = { db: { patch } };
 
     await setConversationStreaming(ctx, "c1" as any, false);
@@ -34,8 +37,8 @@ describe("shared_utils streaming helpers", () => {
     });
   });
 
-  it("setConversationStreamingForAction proxies to public mutation", async () => {
-    const runMutation = vi.fn(async () => {});
+  test("setConversationStreamingForAction proxies to public mutation", async () => {
+    const runMutation = mock(async () => {});
     const ctx: any = { runMutation };
     await setConversationStreamingForAction(ctx, "c1" as any, true);
     expect(runMutation).toHaveBeenCalledWith(api.conversations.setStreaming, {

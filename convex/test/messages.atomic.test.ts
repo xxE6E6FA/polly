@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/messages.internalAtomicUpdate", () => {
-  it("patches fields directly when no append provided", async () => {
+  test("patches fields directly when no append provided", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: true, createdAt: Date.now() });
     const conversationId = await t.db.insert("conversations", {

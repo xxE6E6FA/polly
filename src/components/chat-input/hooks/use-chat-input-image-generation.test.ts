@@ -1,26 +1,51 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useConvex: vi.fn(),
-  useAction: vi.fn(),
+let useConvexMock: ReturnType<typeof mock>;
+let useActionMock: ReturnType<typeof mock>;
+let useConvexFileUploadMock: ReturnType<typeof mock>;
+let usePrivateModeMock: ReturnType<typeof mock>;
+let useNavigateMock: ReturnType<typeof mock>;
+let handleImageGenerationMock: ReturnType<typeof mock>;
+let useEnabledImageModelsMock: ReturnType<typeof mock>;
+let useImageParamsMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useConvex: (...args: unknown[]) => useConvexMock(...args),
+  useAction: (...args: unknown[]) => useActionMock(...args),
 }));
-vi.mock("@/hooks/use-convex-file-upload", () => ({
-  useConvexFileUpload: vi.fn(),
+mock.module("@convex/_generated/api", () => ({
+  api: {
+    conversationSummary: {
+      generateConversationSummary:
+        "conversationSummary:generateConversationSummary",
+    },
+    conversations: {
+      createUserMessage: "conversations:createUserMessage",
+      createConversationAction: "conversations:createConversationAction",
+    },
+  },
 }));
-vi.mock("@/providers/private-mode-context", () => ({
-  usePrivateMode: vi.fn(),
+mock.module("@/hooks/use-convex-file-upload", () => ({
+  useConvexFileUpload: (...args: unknown[]) => useConvexFileUploadMock(...args),
 }));
-vi.mock("react-router-dom", () => ({ useNavigate: vi.fn() }));
-vi.mock("@/lib/ai/image-generation-handlers", () => ({
-  handleImageGeneration: vi.fn(),
+mock.module("@/providers/private-mode-context", () => ({
+  usePrivateMode: (...args: unknown[]) => usePrivateModeMock(...args),
 }));
-vi.mock("@/hooks/use-enabled-image-models", () => ({
-  useEnabledImageModels: vi.fn(),
+mock.module("react-router-dom", () => ({
+  useNavigate: (...args: unknown[]) => useNavigateMock(...args),
 }));
-vi.mock("@/hooks/use-generation", () => ({
-  useImageParams: vi.fn(),
+mock.module("@/lib/ai/image-generation-handlers", () => ({
+  handleImageGeneration: (...args: unknown[]) =>
+    handleImageGenerationMock(...args),
+}));
+mock.module("@/hooks/use-enabled-image-models", () => ({
+  useEnabledImageModels: (...args: unknown[]) =>
+    useEnabledImageModelsMock(...args),
+}));
+mock.module("@/hooks/use-generation", () => ({
+  useImageParams: (...args: unknown[]) => useImageParamsMock(...args),
 }));
 
 import type { Id } from "@convex/_generated/dataModel";
@@ -29,31 +54,38 @@ import { useNavigate } from "react-router-dom";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useImageParams } from "@/hooks/use-generation";
-import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useChatInputImageGeneration } from "./use-chat-input-image-generation";
 
 describe("useChatInputImageGeneration", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    (useConvexFileUpload as ReturnType<typeof vi.fn>).mockReturnValue({
-      uploadFile: vi.fn(),
+    useConvexFileUploadMock = mock();
+    usePrivateModeMock = mock();
+    useEnabledImageModelsMock = mock();
+    useImageParamsMock = mock();
+    useConvexMock = mock();
+    useActionMock = mock();
+    useNavigateMock = mock();
+    handleImageGenerationMock = mock();
+
+    useConvexFileUploadMock.mockReturnValue({
+      uploadFile: mock(),
     });
-    (usePrivateMode as ReturnType<typeof vi.fn>).mockReturnValue({
+    usePrivateModeMock.mockReturnValue({
       isPrivateMode: false,
     });
-    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([]);
-    (useImageParams as ReturnType<typeof vi.fn>).mockReturnValue({
-      setParams: vi.fn(),
-      setNegativePromptEnabled: vi.fn(),
+    useEnabledImageModelsMock.mockReturnValue([]);
+    useImageParamsMock.mockReturnValue({
+      setParams: mock(),
+      setNegativePromptEnabled: mock(),
     });
   });
 
-  it("throws when model missing", async () => {
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({
-      action: vi.fn(),
+  test("throws when model missing", async () => {
+    useConvexMock.mockReturnValue({
+      action: mock(),
     });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+    useActionMock.mockReturnValue(mock());
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
         conversationId: "c1" as Id<"conversations">,
@@ -61,7 +93,7 @@ describe("useChatInputImageGeneration", () => {
         input: "hello",
         imageParams: { model: "", prompt: "test prompt" },
         generationMode: "image",
-        onResetInputState: vi.fn(),
+        onResetInputState: mock(),
       })
     );
     await expect(result.current.handleImageGenerationSubmit()).rejects.toThrow(
@@ -69,19 +101,14 @@ describe("useChatInputImageGeneration", () => {
     );
   });
 
-  it("handles submission for existing conversation and resets state", async () => {
-    const action = vi
-      .fn()
-      // createUserMessage
+  test("handles submission for existing conversation and resets state", async () => {
+    const action = mock()
       .mockResolvedValueOnce({ userMessageId: "m1" })
-      // handleImageGeneration calls are separate
       .mockResolvedValue({});
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
-    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
-      undefined
-    );
-    const onReset = vi.fn();
+    useConvexMock.mockReturnValue({ action });
+    useActionMock.mockReturnValue(mock());
+    handleImageGenerationMock.mockResolvedValue(undefined);
+    const onReset = mock();
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -98,12 +125,15 @@ describe("useChatInputImageGeneration", () => {
       await result.current.handleImageGenerationSubmit();
     });
     expect(action).toHaveBeenCalled();
-    const [, firstPayload] = action.mock.calls[0];
+    const firstCall = (action.mock.calls as unknown[])[0] as
+      | [unknown, Record<string, unknown>]
+      | undefined;
+    const firstPayload = firstCall?.[1];
     expect(firstPayload).toMatchObject({
       model: "replicate/xx",
       provider: "replicate",
     });
-    expect(handleImageGeneration).toHaveBeenCalledWith(
+    expect(handleImageGenerationMock).toHaveBeenCalledWith(
       expect.anything(),
       "c1",
       "m1",
@@ -113,21 +143,16 @@ describe("useChatInputImageGeneration", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
-  it("creates new conversation when none exists and navigates", async () => {
-    const navigate = vi.fn();
-    (useNavigate as ReturnType<typeof vi.fn>).mockReturnValue(navigate);
-    const action = vi
-      .fn()
-      // createConversationAction
+  test("creates new conversation when none exists and navigates", async () => {
+    const navigate = mock();
+    useNavigateMock.mockReturnValue(navigate);
+    const action = mock()
       .mockResolvedValueOnce({ conversationId: "newC" })
-      // createUserMessage
       .mockResolvedValueOnce({ userMessageId: "m2" });
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
-    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
-      undefined
-    );
-    const onReset = vi.fn();
+    useConvexMock.mockReturnValue({ action });
+    useActionMock.mockReturnValue(mock());
+    handleImageGenerationMock.mockResolvedValue(undefined);
+    const onReset = mock();
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -146,7 +171,10 @@ describe("useChatInputImageGeneration", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.stringContaining("/chat/newC")
     );
-    const [, secondPayload] = action.mock.calls[1];
+    const secondCall = (action.mock.calls as unknown[])[1] as
+      | [unknown, Record<string, unknown>]
+      | undefined;
+    const secondPayload = secondCall?.[1];
     expect(secondPayload).toMatchObject({
       model: "replicate/xx",
       provider: "replicate",
@@ -154,13 +182,13 @@ describe("useChatInputImageGeneration", () => {
     expect(onReset).toHaveBeenCalled();
   });
 
-  it("uploads attachments in non-private mode and sends storage-backed refs", async () => {
+  test("uploads attachments in non-private mode and sends storage-backed refs", async () => {
     // polyfill atob for Node
     (globalThis as unknown as { atob: (b64: string) => string }).atob = (
       b64: string
     ) => Buffer.from(b64, "base64").toString("binary");
 
-    const uploadFile = vi.fn().mockResolvedValue({
+    const uploadFile = mock().mockResolvedValue({
       type: "image",
       storageId: "s1",
       name: "ref.png",
@@ -168,14 +196,12 @@ describe("useChatInputImageGeneration", () => {
       mimeType: "image/png",
       size: 4,
     });
-    (useConvexFileUpload as unknown as vi.Mock).mockReturnValue({ uploadFile });
+    useConvexFileUploadMock.mockReturnValue({ uploadFile });
 
-    const action = vi.fn().mockResolvedValue({ userMessageId: "m1" });
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
-    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
-      undefined
-    );
+    const action = mock().mockResolvedValue({ userMessageId: "m1" });
+    useConvexMock.mockReturnValue({ action });
+    useActionMock.mockReturnValue(mock());
+    handleImageGenerationMock.mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -184,7 +210,7 @@ describe("useChatInputImageGeneration", () => {
         input: "hi",
         imageParams: { model: "seedream/4", prompt: "" },
         generationMode: "image",
-        onResetInputState: vi.fn(),
+        onResetInputState: mock(),
         attachments: [
           {
             type: "image",
@@ -204,25 +230,29 @@ describe("useChatInputImageGeneration", () => {
 
     expect(uploadFile).toHaveBeenCalled();
     // attachments passed to createUserMessage should include storage-backed item
-    const call = (useConvex as unknown as vi.Mock).mock.results[0].value.action
-      .mock.calls[0][1];
-    expect(call.attachments[0]).toMatchObject({
+    const uploadCall = (action.mock.calls[0] ?? []) as [
+      unknown,
+      { attachments?: Record<string, unknown>[] },
+    ];
+    const callPayload = uploadCall[1] ?? {};
+    expect(callPayload.attachments?.[0]).toMatchObject({
       storageId: "s1",
       type: "image",
     });
-    expect(call).toMatchObject({ model: "seedream/4", provider: "replicate" });
+    expect(callPayload).toMatchObject({
+      model: "seedream/4",
+      provider: "replicate",
+    });
   });
 
-  it("uses data URLs for attachments in private mode", async () => {
-    (usePrivateMode as unknown as vi.Mock).mockReturnValue({
+  test("uses data URLs for attachments in private mode", async () => {
+    usePrivateModeMock.mockReturnValue({
       isPrivateMode: true,
     });
-    const action = vi.fn().mockResolvedValue({ userMessageId: "m1" });
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
-    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
-      undefined
-    );
+    const action = mock().mockResolvedValue({ userMessageId: "m1" });
+    useConvexMock.mockReturnValue({ action });
+    useActionMock.mockReturnValue(mock());
+    handleImageGenerationMock.mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -231,7 +261,7 @@ describe("useChatInputImageGeneration", () => {
         input: "hi",
         imageParams: { model: "seedream/4", prompt: "" },
         generationMode: "image",
-        onResetInputState: vi.fn(),
+        onResetInputState: mock(),
         attachments: [
           {
             type: "image",
@@ -248,29 +278,32 @@ describe("useChatInputImageGeneration", () => {
     await act(async () => {
       await result.current.handleImageGenerationSubmit();
     });
-    const call = (useConvex as unknown as vi.Mock).mock.results[0].value.action
-      .mock.calls[0][1];
-    expect(call.attachments[0].url).toMatch(/^data:image\/png;base64,AQID/);
-    expect(call).toMatchObject({ model: "seedream/4", provider: "replicate" });
+    const uploadCall = (action.mock.calls[0] ?? []) as [
+      unknown,
+      { attachments?: Record<string, unknown>[] },
+    ];
+    const callPayload = uploadCall[1] ?? {};
+    expect(callPayload.attachments?.[0]?.url).toMatch(
+      /^data:image\/png;base64,AQID/
+    );
+    expect(callPayload).toMatchObject({
+      model: "seedream/4",
+      provider: "replicate",
+    });
   });
 
-  it("handleSendAsNewConversation optionally navigates and returns id", async () => {
-    const navigate = vi.fn();
-    (useNavigate as ReturnType<typeof vi.fn>).mockReturnValue(navigate);
-    const generateSummary = vi.fn().mockResolvedValue("summary");
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(generateSummary);
-    const action = vi
-      .fn()
-      // createConversationAction
+  test("handleSendAsNewConversation optionally navigates and returns id", async () => {
+    const navigate = mock();
+    useNavigateMock.mockReturnValue(navigate);
+    const generateSummary = mock().mockResolvedValue("summary");
+    useActionMock.mockReturnValue(generateSummary);
+    const action = mock()
       .mockResolvedValueOnce({ conversationId: "nc" })
-      // createUserMessage
       .mockResolvedValueOnce({ userMessageId: "m3" });
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({ action });
-    (handleImageGeneration as ReturnType<typeof vi.fn>).mockResolvedValue(
-      undefined
-    );
+    useConvexMock.mockReturnValue({ action });
+    handleImageGenerationMock.mockResolvedValue(undefined);
 
-    const onReset = vi.fn();
+    const onReset = mock();
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
         conversationId: "c1" as Id<"conversations">,
@@ -287,14 +320,18 @@ describe("useChatInputImageGeneration", () => {
     expect(navigate).toHaveBeenCalled();
     expect(onReset).toHaveBeenCalled();
 
-    const [, secondPayload] = action.mock.calls[1];
+    const secondCall = (action.mock.calls[1] ?? []) as [
+      unknown,
+      Record<string, unknown> | undefined,
+    ];
+    const secondPayload = secondCall[1];
     expect(secondPayload).toMatchObject({
       model: "replicate/xx",
       provider: "replicate",
     });
 
-    vi.clearAllMocks();
     // Should not navigate when shouldNavigate=false and accept override persona
+    navigate.mockClear();
     await result.current.handleSendAsNewConversation(
       false,
       "p2" as Id<"personas">
@@ -302,8 +339,8 @@ describe("useChatInputImageGeneration", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("returns capability flags when enabled model matches selection", () => {
-    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([
+  test("returns capability flags when enabled model matches selection", () => {
+    useEnabledImageModelsMock.mockReturnValue([
       {
         modelId: "seedream/4",
         name: "Seedream",
@@ -311,10 +348,10 @@ describe("useChatInputImageGeneration", () => {
         supportsNegativePrompt: true,
       },
     ]);
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({
-      action: vi.fn(),
+    useConvexMock.mockReturnValue({
+      action: mock(),
     });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+    useActionMock.mockReturnValue(mock());
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -323,7 +360,7 @@ describe("useChatInputImageGeneration", () => {
         input: "prompt",
         imageParams: { model: "seedream/4", prompt: "" },
         generationMode: "image",
-        onResetInputState: vi.fn(),
+        onResetInputState: mock(),
       })
     );
 
@@ -334,8 +371,8 @@ describe("useChatInputImageGeneration", () => {
     });
   });
 
-  it("falls back to defaults when model capabilities unavailable", () => {
-    (useEnabledImageModels as ReturnType<typeof vi.fn>).mockReturnValue([
+  test("falls back to defaults when model capabilities unavailable", () => {
+    useEnabledImageModelsMock.mockReturnValue([
       {
         modelId: "other/model",
         name: "Other",
@@ -343,10 +380,10 @@ describe("useChatInputImageGeneration", () => {
         supportsNegativePrompt: true,
       },
     ]);
-    (useConvex as ReturnType<typeof vi.fn>).mockReturnValue({
-      action: vi.fn(),
+    useConvexMock.mockReturnValue({
+      action: mock(),
     });
-    (useAction as ReturnType<typeof vi.fn>).mockReturnValue(vi.fn());
+    useActionMock.mockReturnValue(mock());
 
     const { result } = renderHook(() =>
       useChatInputImageGeneration({
@@ -355,7 +392,7 @@ describe("useChatInputImageGeneration", () => {
         input: "prompt",
         imageParams: { model: "seedream/4", prompt: "" },
         generationMode: "image",
-        onResetInputState: vi.fn(),
+        onResetInputState: mock(),
       })
     );
 

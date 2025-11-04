@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/users.current", () => {
-  it("returns null when not authenticated and user when authed", async () => {
+  test("returns null when not authenticated and user when authed", async () => {
     const t = await makeConvexTest();
     const res1 = await t.runQuery(api.users.current, {});
     expect(res1).toBeNull();

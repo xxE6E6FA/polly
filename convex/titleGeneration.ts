@@ -3,7 +3,7 @@ import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
 import { action, internalMutation } from "./_generated/server";
-import { log } from "./lib/logger";
+import { scheduleRunAfter } from "./lib/scheduler";
 
 // Helper function to generate title without updating conversation
 async function generateTitleHelper(message: string): Promise<string> {
@@ -50,7 +50,7 @@ async function generateTitleHelper(message: string): Promise<string> {
 
       generatedTitle = title;
     } catch (error) {
-      log.error("Error generating title with Gemini:", error);
+      console.error("Error generating title with Gemini:", error);
       // Fallback to simple title generation
       const clean = message.replace(/[#*`]/g, "").trim();
       generatedTitle =
@@ -112,12 +112,16 @@ export const generateTitleBackground = action({
         setUpdatedAt: true,
       });
     } catch (error) {
-      log.error(`Title generation failed (attempt ${retryCount + 1}):`, error);
+      console.error(
+        `Title generation failed (attempt ${retryCount + 1}):`,
+        error
+      );
 
       // Retry with exponential backoff
       if (retryCount < maxRetries) {
         const delayMs = 2 ** retryCount * 1000; // 1s, 2s, 4s
-        await ctx.scheduler.runAfter(
+        await scheduleRunAfter(
+          ctx,
           delayMs,
           api.titleGeneration.generateTitleBackground,
           {
@@ -165,14 +169,21 @@ export const batchUpdateTitles = internalMutation({
       .filter(({ result }) => result.status === "rejected");
 
     if (failures.length > 0) {
-      log.error(
+      console.error(
         `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
       );
       failures.forEach(({ result, index }) => {
         const update = args.updates[index];
+        if (!update) {
+          console.error(
+            "Failed to determine update payload for failure",
+            result
+          );
+          return;
+        }
         const reason =
           result.status === "rejected" ? result.reason : "Unknown error";
-        log.error(
+        console.error(
           `Failed to update conversation ${update.conversationId}:`,
           reason
         );

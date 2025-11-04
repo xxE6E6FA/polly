@@ -1,9 +1,9 @@
+import { describe, expect, test } from "bun:test";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { createHashMemoComparison, usePropsHash } from "./use-props-hash";
 
 describe("usePropsHash", () => {
-  it("produces stable hash for same props and changes when values change", () => {
+  test("produces stable hash for same props and changes when values change", () => {
     const props = { a: 1, b: "x", c: true } as const;
     const { result, rerender } = renderHook(({ p }) => usePropsHash(p), {
       initialProps: { p: props as Record<string, unknown> },
@@ -20,7 +20,7 @@ describe("usePropsHash", () => {
     expect(third).not.toBe(first);
   });
 
-  it("function references are hashed by name, not identity", () => {
+  test("function references are hashed by name, not identity", () => {
     const fn1 = function cb() {
       /* no-op */
     };
@@ -37,7 +37,7 @@ describe("usePropsHash", () => {
     expect(second).toBe(first);
   });
 
-  it("object/array props use shape/length in hash", () => {
+  test("object/array props use shape/length in hash", () => {
     const { result, rerender } = renderHook(({ p }) => usePropsHash(p), {
       initialProps: { p: { items: [1, 2], cfg: { x: 1, y: 2 } } },
     });
@@ -52,20 +52,20 @@ describe("usePropsHash", () => {
 });
 
 describe("createHashMemoComparison", () => {
-  it("returns true for same reference", () => {
+  test("returns true for same reference", () => {
     const cmp = createHashMemoComparison<Record<string, unknown>>();
     const obj = { a: 1 };
     expect(cmp(obj, obj)).toBe(true);
   });
 
-  it("detects differences in primitives and objects", () => {
+  test("detects differences in primitives and objects", () => {
     const cmp = createHashMemoComparison<Record<string, unknown>>();
     expect(cmp({ a: 1 }, { a: 2 })).toBe(false);
     expect(cmp({ a: { x: 1 } }, { a: { y: 1 } })).toBe(false);
     expect(cmp({ a: [1] }, { a: [1, 2] })).toBe(false);
   });
 
-  it("treats functions by name and ignores excluded keys", () => {
+  test("treats functions by name and ignores excluded keys", () => {
     const cmp = createHashMemoComparison<{
       onClick: () => void;
       transient: number;
@@ -82,7 +82,7 @@ describe("createHashMemoComparison", () => {
     ).toBe(true);
   });
 
-  it("treats arrays with same length as equal even if values differ", () => {
+  test("treats arrays with same length as equal even if values differ", () => {
     const cmp = createHashMemoComparison<{ items: number[] }>();
     expect(cmp({ items: [1, 2, 3] }, { items: [9, 9, 9] })).toBe(true);
   });

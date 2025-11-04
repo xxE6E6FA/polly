@@ -1,5 +1,5 @@
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { Doc } from "@convex/_generated/dataModel";
-import { beforeEach, describe, expect, it } from "vitest";
 import { buildKey, CACHE_KEYS } from "@/lib/local-storage";
 import {
   clearCachedConversations,
@@ -21,7 +21,7 @@ describe("conversations cache", () => {
       updatedAt: Date.now(),
     }) as unknown as Doc<"conversations">;
 
-  it("stores conversations per user", () => {
+  test("stores conversations per user", () => {
     const userA = "userA";
     const userB = "userB";
     const convA = makeConversation("convA", userA);
@@ -34,7 +34,7 @@ describe("conversations cache", () => {
     expect(getCachedConversations(userB)).toEqual([convB]);
   });
 
-  it("ignores legacy array caches", () => {
+  test("ignores legacy array caches", () => {
     const key = buildKey(CACHE_KEYS.conversations);
     const legacyPayload = {
       version: 1,
@@ -45,7 +45,7 @@ describe("conversations cache", () => {
     expect(getCachedConversations("someone")).toEqual([]);
   });
 
-  it("clears cached conversations for a user", () => {
+  test("clears cached conversations for a user", () => {
     const userId = "userC";
     const conversation = makeConversation("convC", userId);
 

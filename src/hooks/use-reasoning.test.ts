@@ -1,25 +1,30 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, test } from "bun:test";
+import { act } from "@testing-library/react";
+import {
+  createChatInputStore,
+  setChatInputStoreApi,
+} from "@/stores/chat-input-store";
+import { setupZustandTestStore } from "@/test/zustand";
 import { renderHook } from "../test/hook-utils";
-
-vi.mock("@/stores/chat-input-store", () => ({
-  useChatInputStore: (
-    sel: (s: {
-      reasoningConfig: { enabled: boolean; effort: string };
-      setReasoningConfig: (cfg: unknown) => void;
-    }) => unknown
-  ) =>
-    sel({
-      reasoningConfig: { enabled: true, effort: "high" },
-      setReasoningConfig: vi.fn(),
-    }),
-}));
-
 import { useReasoningConfig } from "./use-reasoning";
 
+const getStore = setupZustandTestStore({
+  createStore: () => createChatInputStore(),
+  setStore: setChatInputStoreApi,
+});
+
 describe("useReasoningConfig", () => {
-  it("returns tuple [config, setter] from store selector", () => {
+  test("returns tuple [config, setter] from store selector", () => {
+    const store = getStore();
+    store.setState({ reasoningConfig: { enabled: true, effort: "high" } });
     const { result } = renderHook(() => useReasoningConfig());
     expect(result.current[0]).toEqual({ enabled: true, effort: "high" });
-    expect(typeof result.current[1]).toBe("function");
+    act(() => {
+      result.current[1]({ enabled: false, effort: "low" });
+    });
+    expect(store.getState().reasoningConfig).toEqual({
+      enabled: false,
+      effort: "low",
+    });
   });
 });

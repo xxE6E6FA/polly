@@ -4,8 +4,8 @@ import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
+import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { log } from "./lib/logger";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
@@ -54,7 +54,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 
   callbacks: {
     // Custom user creation/update logic
-    async createOrUpdateUser(ctx: MutationCtx, args) {
+    async createOrUpdateUser(ctx, args) {
+      const typedCtx = ctx as unknown as MutationCtx;
       const { existingUserId, profile, provider } = args;
 
       // Extract profile fields with proper types
@@ -74,16 +75,17 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 
       // Update existing user
       if (existingUserId) {
-        const existingUser = await ctx.db.get(existingUserId);
+        const existingUserDocId = existingUserId as Id<"users">;
+        const existingUser = await typedCtx.db.get(existingUserDocId);
         if (!existingUser) {
-          log.error(
+          console.error(
             `User document ${existingUserId} doesn't exist (orphaned account)`
           );
           throw new ConvexError("User account is in an invalid state");
         }
 
         // Update user with latest auth data
-        await ctx.db.patch(existingUserId, {
+        await typedCtx.db.patch(existingUserDocId, {
           name: profileName || existingUser.name,
           email: profileEmail || existingUser.email,
           emailVerified: profileEmailVerified || existingUser.emailVerified,
@@ -91,19 +93,20 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           isAnonymous: false,
         });
 
-        return existingUserId;
+        return existingUserDocId;
       }
 
       // Check if there's an existing user with the same email (for email-based providers)
       if (profileEmail && provider.id !== "anonymous") {
-        const existingEmailUser = await ctx.db
+        const existingEmailUser = await typedCtx.db
           .query("users")
           .withIndex("email", q => q.eq("email", profileEmail))
           .first();
 
         if (existingEmailUser) {
+          const existingEmailUserId = existingEmailUser._id as Id<"users">;
           // Update existing user with latest auth data
-          await ctx.db.patch(existingEmailUser._id, {
+          await typedCtx.db.patch(existingEmailUserId, {
             name: profileName || existingEmailUser.name,
             email: profileEmail || existingEmailUser.email,
             emailVerified:
@@ -112,7 +115,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
             isAnonymous: false,
           });
 
-          return existingEmailUser._id;
+          return existingEmailUserId;
         }
       }
 
@@ -120,7 +123,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       const now = Date.now();
 
       // Create new user document
-      const userId = await ctx.db.insert("users", {
+      const userId = await typedCtx.db.insert("users", {
         name: profileName,
         email: profileEmail,
         emailVerified: profileEmailVerified,
@@ -135,22 +138,24 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         totalMessageCount: 0,
       });
 
-      return userId;
+      return userId as Id<"users">;
     },
 
     // Additional callback after user is created/updated
-    async afterUserCreatedOrUpdated(ctx: MutationCtx, args) {
+    async afterUserCreatedOrUpdated(ctx, args) {
+      const typedCtx = ctx as unknown as MutationCtx;
       const { userId, existingUserId, type } = args;
+      const userDocId = userId as Id<"users">;
 
       if (!existingUserId && type !== "verification") {
-        const existingSettings = await ctx.db
+        const existingSettings = await typedCtx.db
           .query("userSettings")
-          .withIndex("by_user", q => q.eq("userId", userId))
+          .withIndex("by_user", q => q.eq("userId", userDocId))
           .first();
 
         if (!existingSettings) {
-          await ctx.db.insert("userSettings", {
-            userId,
+          await typedCtx.db.insert("userSettings", {
+            userId: userDocId,
             personasEnabled: true,
             openRouterSorting: "default",
             autoArchiveEnabled: false,

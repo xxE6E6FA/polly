@@ -1,29 +1,49 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useMutation: vi.fn() }));
-vi.mock("@/providers/toast-context", () => ({ useToast: vi.fn() }));
-vi.mock("@/lib/local-storage", () => ({
-  /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
-  CACHE_KEYS: { selectedModel: "selectedModel" },
-  set: vi.fn(),
+let useMutationMock: ReturnType<typeof mock>;
+let useToastMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
+}));
+mock.module("@/providers/toast-context", () => ({
+  useToast: (...args: unknown[]) => useToastMock(...args),
 }));
 
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
-import { set } from "@/lib/local-storage";
+import * as LocalStorageModule from "@/lib/local-storage";
 import { useToast } from "@/providers/toast-context";
 import { useSelectModel } from "./use-select-model";
 
 describe("useSelectModel", () => {
+  let setSpy: ReturnType<typeof spyOn>;
+
   beforeEach(() => {
-    vi.clearAllMocks();
+    useMutationMock = mock();
+    useToastMock = mock(() => ({ error: mock() }));
+    setSpy = spyOn(LocalStorageModule, "set").mockImplementation(() => {
+      // Intentional no-op for test mock
+    });
   });
 
-  it("sets localStorage cache when catalog contains model and calls mutation", async () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useToast as unknown as vi.Mock).mockReturnValue({ error: vi.fn() });
+  afterEach(() => {
+    setSpy.mockRestore();
+  });
+
+  test("sets localStorage cache when catalog contains model and calls mutation", async () => {
+    const mutate = mock(() => Promise.resolve(undefined));
+    useMutationMock.mockImplementation(() => mutate);
+    useToastMock.mockImplementation(() => ({ error: mock() }));
 
     const catalog = [
       { modelId: "gpt", provider: "openai", _id: "a" as Id<"userModels"> },
@@ -32,26 +52,26 @@ describe("useSelectModel", () => {
 
     const { result } = renderHook(() => useSelectModel());
     await result.current.selectModel("gpt", "openai", catalog);
-    expect(set).toHaveBeenCalled();
+    expect(setSpy).toHaveBeenCalled();
     expect(mutate).toHaveBeenCalledWith({ modelId: "gpt", provider: "openai" });
   });
 
-  it("does not cache when catalog is missing but still calls mutation", async () => {
-    const mutate = vi.fn().mockResolvedValue(undefined);
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useToast as unknown as vi.Mock).mockReturnValue({ error: vi.fn() });
+  test("does not cache when catalog is missing but still calls mutation", async () => {
+    const mutate = mock(() => Promise.resolve(undefined));
+    useMutationMock.mockImplementation(() => mutate);
+    useToastMock.mockImplementation(() => ({ error: mock() }));
 
     const { result } = renderHook(() => useSelectModel());
     await result.current.selectModel("m", "p");
-    expect(set).not.toHaveBeenCalled();
+    expect(setSpy).not.toHaveBeenCalled();
     expect(mutate).toHaveBeenCalledWith({ modelId: "m", provider: "p" });
   });
 
-  it("shows toast on mutation error", async () => {
-    const mutate = vi.fn().mockRejectedValue(new Error("fail"));
-    const error = vi.fn();
-    (useMutation as unknown as vi.Mock).mockReturnValue(mutate);
-    (useToast as unknown as vi.Mock).mockReturnValue({ error });
+  test("shows toast on mutation error", async () => {
+    const mutate = mock(() => Promise.reject(new Error("fail")));
+    const error = mock();
+    useMutationMock.mockImplementation(() => mutate);
+    useToastMock.mockImplementation(() => ({ error }));
 
     const { result } = renderHook(() => useSelectModel());
     await result.current.selectModel("m", "p", []);

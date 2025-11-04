@@ -1,10 +1,10 @@
+import { describe, expect, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
 import { renderHook } from "../test/hook-utils";
 import { useChatStateMachine } from "./use-chat-state-machine";
 
 describe("useChatStateMachine", () => {
-  it("transitions through sending → streaming → end", () => {
+  test("transitions through sending → streaming → end", () => {
     const { result } = renderHook(() => useChatStateMachine());
     expect(result.current.chatStatus).toBe("idle");
     expect(result.current.isIdle).toBe(true);
@@ -28,7 +28,7 @@ describe("useChatStateMachine", () => {
     expect(result.current.isIdle).toBe(true);
   });
 
-  it("handles error and stop/reset transitions", () => {
+  test("handles error and stop/reset transitions", () => {
     const { result } = renderHook(() => useChatStateMachine());
 
     act(() => result.current.actions.startStreaming("m2"));

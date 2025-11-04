@@ -1,37 +1,47 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, test } from "bun:test";
+import { act } from "@testing-library/react";
+import {
+  createChatUIStore,
+  setChatUIStoreApi,
+  useChatFullscreenUI,
+} from "@/stores/chat-ui-store";
+import { setupZustandTestStore } from "@/test/zustand";
 import { renderHook } from "../test/hook-utils";
-
-vi.mock("@/stores/chat-ui-store", () => ({
-  useChatFullscreenUI: vi.fn(() => ({
-    isFullscreen: false,
-    isMultiline: false,
-    isTransitioning: false,
-    setFullscreen: vi.fn(),
-    setMultiline: vi.fn(),
-    setTransitioning: vi.fn(),
-    clearOnSend: vi.fn(),
-  })),
-}));
-
-import { useChatFullscreenUI } from "@/stores/chat-ui-store";
 import { useChatFullscreen } from "./use-chat-fullscreen";
 
+const getStore = setupZustandTestStore({
+  createStore: () => createChatUIStore(),
+  setStore: setChatUIStoreApi,
+});
+
 describe("useChatFullscreen", () => {
-  it("exposes UI flags and callbacks that call underlying store", () => {
+  test("exposes UI flags and callbacks that drive the store", () => {
+    const store = getStore();
     const { result } = renderHook(() => useChatFullscreen());
-    const ui = (useChatFullscreenUI as unknown as vi.Mock).mock.results[0]
-      .value;
+
     expect(result.current.isFullscreen).toBe(false);
     expect(result.current.isMultiline).toBe(false);
     expect(result.current.isTransitioning).toBe(false);
 
-    result.current.toggleFullscreen();
-    expect(ui.setFullscreen).toHaveBeenCalledWith(true);
+    act(() => {
+      result.current.toggleFullscreen();
+    });
+    expect(store.getState().isFullscreen).toBe(true);
 
-    result.current.closeFullscreen();
-    expect(ui.setFullscreen).toHaveBeenCalledWith(false);
+    act(() => {
+      result.current.closeFullscreen();
+    });
+    expect(store.getState().isFullscreen).toBe(false);
 
-    result.current.onHeightChange(true);
-    expect(ui.setMultiline).toHaveBeenCalledWith(true);
+    act(() => {
+      result.current.onHeightChange(true);
+    });
+    expect(store.getState().isMultiline).toBe(true);
+
+    act(() => {
+      result.current.setTransitioning(true);
+    });
+    expect(store.getState().isTransitioning).toBe(true);
+    expect(result.current.isTransitioning).toBe(true);
   });
 });

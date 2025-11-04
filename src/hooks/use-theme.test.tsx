@@ -1,21 +1,18 @@
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useTheme } from "./use-theme";
 
-// Mock dependencies
-vi.mock("../lib/local-storage", () => ({
+let getLSMock: ReturnType<typeof mock>;
+let setLSMock: ReturnType<typeof mock>;
+
+mock.module("../lib/local-storage", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
   CACHE_KEYS: { theme: "theme" },
-  get: vi.fn(),
-  set: vi.fn(),
+  get: (...args: unknown[]) => getLSMock(...args),
+  set: (...args: unknown[]) => setLSMock(...args),
 }));
 
-// Helper to mock localStorage get - return raw data since the mock replaces the real get function
-const mockGetLS = (value: unknown) => {
-  vi.mocked(getLS).mockReturnValue(value);
-};
-
-vi.mock("react-dom", () => ({
+mock.module("react-dom", () => ({
   flushSync: (fn: () => void) => fn(),
 }));
 
@@ -24,66 +21,100 @@ import { get as getLS, set as setLS } from "../lib/local-storage";
 describe("useTheme", () => {
   let documentElementMock: {
     classList: {
-      add: ReturnType<typeof vi.fn>;
-      remove: ReturnType<typeof vi.fn>;
-      contains: ReturnType<typeof vi.fn>;
+      add: ReturnType<typeof mock>;
+      remove: ReturnType<typeof mock>;
+      contains: ReturnType<typeof mock>;
     };
   };
 
-  let matchMediaMock: ReturnType<typeof vi.fn>;
+  let matchMediaMock: ReturnType<typeof mock>;
+  let originalClassList: typeof document.documentElement.classList;
+  let originalMatchMedia: typeof window.matchMedia;
+  let originalRequestAnimationFrame: typeof window.requestAnimationFrame;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    getLSMock = mock();
+    setLSMock = mock();
 
-    // Mock document.documentElement
+    // Store originals for restoration
+    originalClassList = document.documentElement.classList;
+    originalMatchMedia = window.matchMedia;
+    originalRequestAnimationFrame = window.requestAnimationFrame;
+
+    // Mock document.documentElement.classList instead of replacing documentElement
+    // This prevents breaking Happy DOM's internal cache
     documentElementMock = {
       classList: {
-        add: vi.fn(),
-        remove: vi.fn(),
-        contains: vi.fn().mockReturnValue(false),
+        add: mock(),
+        remove: mock(),
+        contains: mock().mockReturnValue(false),
       },
     };
-    Object.defineProperty(document, "documentElement", {
-      value: documentElementMock,
+    Object.defineProperty(document.documentElement, "classList", {
+      value: documentElementMock.classList,
       writable: true,
+      configurable: true,
     });
 
     // Mock window.matchMedia
-    matchMediaMock = vi.fn().mockReturnValue({
+    matchMediaMock = mock().mockReturnValue({
       matches: false,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: mock(),
+      removeEventListener: mock(),
     });
     Object.defineProperty(window, "matchMedia", {
       value: matchMediaMock,
       writable: true,
+      configurable: true,
     });
 
     // Mock requestAnimationFrame
     Object.defineProperty(window, "requestAnimationFrame", {
       value: (fn: () => void) => setTimeout(fn, 0),
       writable: true,
+      configurable: true,
     });
 
-    mockGetLS("system");
+    getLSMock.mockReturnValue("system");
   });
 
-  it("initializes with stored theme", () => {
-    mockGetLS("dark");
+  afterEach(() => {
+    // Restore original values to prevent state pollution
+    Object.defineProperty(document.documentElement, "classList", {
+      value: originalClassList,
+      writable: true,
+      configurable: true,
+    });
+
+    Object.defineProperty(window, "matchMedia", {
+      value: originalMatchMedia,
+      writable: true,
+      configurable: true,
+    });
+
+    Object.defineProperty(window, "requestAnimationFrame", {
+      value: originalRequestAnimationFrame,
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  test("initializes with stored theme", () => {
+    getLSMock.mockReturnValue("dark");
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe("dark");
     expect(result.current.mounted).toBe(true);
   });
 
-  it("defaults to system theme when no stored theme", () => {
-    mockGetLS("system");
+  test("defaults to system theme when no stored theme", () => {
+    getLSMock.mockReturnValue("system");
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe("system");
   });
 
-  it("sets mounted to true after first render", async () => {
+  test("sets mounted to true after first render", async () => {
     const { result } = renderHook(() => useTheme());
 
     // In the test environment, mounted is set synchronously
@@ -96,8 +127,8 @@ describe("useTheme", () => {
     expect(result.current.mounted).toBe(true);
   });
 
-  it("applies light theme to document", async () => {
-    mockGetLS("light");
+  test("applies light theme to document", async () => {
+    getLSMock.mockReturnValue("light");
     documentElementMock.classList.contains.mockReturnValue(false);
 
     renderHook(() => useTheme());
@@ -113,11 +144,11 @@ describe("useTheme", () => {
     expect(documentElementMock.classList.add).toHaveBeenCalledWith("light");
   });
 
-  it("applies dark theme to document", async () => {
-    mockGetLS("dark");
+  test("applies dark theme to document", async () => {
+    getLSMock.mockReturnValue("dark");
     // Mock that current class is "light" so that theme change is detected
     documentElementMock.classList.contains.mockImplementation(
-      cls => cls === "light"
+      (cls: string) => cls === "light"
     );
 
     renderHook(() => useTheme());
@@ -133,10 +164,10 @@ describe("useTheme", () => {
     expect(documentElementMock.classList.add).toHaveBeenCalledWith("dark");
   });
 
-  it("resolves system theme to dark when prefers dark", async () => {
-    mockGetLS("system");
-    const addEventListenerMock = vi.fn();
-    const removeEventListenerMock = vi.fn();
+  test("resolves system theme to dark when prefers dark", async () => {
+    getLSMock.mockReturnValue("system");
+    const addEventListenerMock = mock();
+    const removeEventListenerMock = mock();
     matchMediaMock.mockReturnValue({
       matches: true,
       addEventListener: addEventListenerMock,
@@ -144,7 +175,7 @@ describe("useTheme", () => {
     });
     // Mock that current class is "light" so that theme change is detected
     documentElementMock.classList.contains.mockImplementation(
-      cls => cls === "light"
+      (cls: string) => cls === "light"
     );
 
     const { unmount } = renderHook(() => useTheme());
@@ -161,10 +192,10 @@ describe("useTheme", () => {
     expect(removeEventListenerMock).toHaveBeenCalled();
   });
 
-  it("resolves system theme to light when prefers light", async () => {
-    mockGetLS("system");
-    const addEventListenerMock = vi.fn();
-    const removeEventListenerMock = vi.fn();
+  test("resolves system theme to light when prefers light", async () => {
+    getLSMock.mockReturnValue("system");
+    const addEventListenerMock = mock();
+    const removeEventListenerMock = mock();
     matchMediaMock.mockReturnValue({
       matches: false,
       addEventListener: addEventListenerMock,
@@ -185,8 +216,8 @@ describe("useTheme", () => {
     expect(removeEventListenerMock).toHaveBeenCalled();
   });
 
-  it("does not update DOM if theme hasn't changed", async () => {
-    mockGetLS("light");
+  test("does not update DOM if theme hasn't changed", async () => {
+    getLSMock.mockReturnValue("light");
     documentElementMock.classList.contains.mockReturnValue(true); // Already light
 
     renderHook(() => useTheme());
@@ -199,7 +230,7 @@ describe("useTheme", () => {
     expect(documentElementMock.classList.add).not.toHaveBeenCalled();
   });
 
-  it("setTheme updates theme and saves to localStorage", () => {
+  test("setTheme updates theme and saves to localStorage", () => {
     const { result } = renderHook(() => useTheme());
 
     act(() => {
@@ -207,10 +238,10 @@ describe("useTheme", () => {
     });
 
     expect(result.current.theme).toBe("dark");
-    expect(setLS).toHaveBeenCalledWith("theme", "dark");
+    expect(setLSMock).toHaveBeenCalledWith("theme", "dark");
   });
 
-  it("setTheme disables animations during transition", async () => {
+  test("setTheme disables animations during transition", async () => {
     const { result } = renderHook(() => useTheme());
 
     act(() => {
@@ -231,8 +262,8 @@ describe("useTheme", () => {
     );
   });
 
-  it("toggleTheme switches between light and dark", () => {
-    mockGetLS("light");
+  test("toggleTheme switches between light and dark", () => {
+    getLSMock.mockReturnValue("light");
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe("light");
@@ -242,11 +273,11 @@ describe("useTheme", () => {
     });
 
     expect(result.current.theme).toBe("dark");
-    expect(setLS).toHaveBeenCalledWith("theme", "dark");
+    expect(setLSMock).toHaveBeenCalledWith("theme", "dark");
   });
 
-  it("toggleTheme switches from dark to light", () => {
-    mockGetLS("dark");
+  test("toggleTheme switches from dark to light", () => {
+    getLSMock.mockReturnValue("dark");
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe("dark");
@@ -256,11 +287,11 @@ describe("useTheme", () => {
     });
 
     expect(result.current.theme).toBe("light");
-    expect(setLS).toHaveBeenCalledWith("theme", "light");
+    expect(setLSMock).toHaveBeenCalledWith("theme", "light");
   });
 
-  it("toggleTheme from system switches to light", () => {
-    mockGetLS("system");
+  test("toggleTheme from system switches to light", () => {
+    getLSMock.mockReturnValue("system");
     const { result } = renderHook(() => useTheme());
 
     expect(result.current.theme).toBe("system");
@@ -272,8 +303,8 @@ describe("useTheme", () => {
     expect(result.current.theme).toBe("light");
   });
 
-  it("does not apply theme changes before mounting", () => {
-    mockGetLS("dark");
+  test("does not apply theme changes before mounting", () => {
+    getLSMock.mockReturnValue("dark");
     renderHook(() => useTheme());
 
     // Should not apply theme changes before mounted = true
@@ -281,7 +312,7 @@ describe("useTheme", () => {
     expect(documentElementMock.classList.remove).not.toHaveBeenCalled();
   });
 
-  it("maintains stable callback references", () => {
+  test("maintains stable callback references", () => {
     const { result, rerender } = renderHook(() => useTheme());
 
     const firstSetTheme = result.current.setTheme;
@@ -293,7 +324,7 @@ describe("useTheme", () => {
     expect(result.current.toggleTheme).toBe(firstToggleTheme);
   });
 
-  it("updates toggleTheme when current theme changes", () => {
+  test("updates toggleTheme when current theme changes", () => {
     const { result } = renderHook(() => useTheme());
 
     // Start with system (will toggle to light)

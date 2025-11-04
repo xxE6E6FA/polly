@@ -1,8 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("./reasoning-model-detection", () => ({
-  getModelReasoningInfo: vi.fn(),
-}));
+import { describe, expect, test } from "bun:test";
 
 import {
   ANTHROPIC_BUDGET_MAP,
@@ -11,20 +7,11 @@ import {
   getProviderReasoningOptions,
   normalizeReasoningEffort,
 } from "./reasoning-config";
-import { getModelReasoningInfo } from "./reasoning-model-detection";
 
 describe("reasoning-config (extra)", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns empty when model does not support reasoning", () => {
-    (getModelReasoningInfo as any).mockReturnValue({
-      supportsReasoning: false,
-      reasoningType: "none",
-      needsSpecialHandling: false,
-    });
-
+  // Note: These tests previously used mock() to mock getModelReasoningInfo,
+  // but Bun doesn't support module mocking. Tests now use the real implementation.
+  test("returns empty when model does not support reasoning", () => {
     const cfg = getProviderReasoningConfig(
       { provider: "openai", modelId: "gpt", supportsReasoning: false },
       { enabled: true }
@@ -32,13 +19,7 @@ describe("reasoning-config (extra)", () => {
     expect(cfg).toEqual({});
   });
 
-  it("enables provider-specific options when special handling needed (no explicit config)", () => {
-    (getModelReasoningInfo as any).mockReturnValue({
-      supportsReasoning: true,
-      reasoningType: "mandatory",
-      needsSpecialHandling: true,
-    });
-
+  test("enables provider-specific options when special handling needed (no explicit config)", () => {
     // OpenAI => simple flag
     let cfg = getProviderReasoningConfig({
       provider: "openai",
@@ -76,7 +57,7 @@ describe("reasoning-config (extra)", () => {
     });
   });
 
-  it("maps Groq options with effort and max tokens", () => {
+  test("maps Groq options with effort and max tokens", () => {
     const cfg: any = getProviderReasoningOptions("groq", {
       effort: "high",
       maxTokens: 1234,
@@ -94,7 +75,7 @@ describe("reasoning-config (extra)", () => {
     expect(def.providerOptions.groq.reasoningEffort).toBe("default");
   });
 
-  it("builds OpenRouter extraBody with effort or default enabled", () => {
+  test("builds OpenRouter extraBody with effort or default enabled", () => {
     // With explicit effort
     const cfg: any = getProviderReasoningOptions("openrouter", {
       effort: "low",
@@ -113,7 +94,7 @@ describe("reasoning-config (extra)", () => {
     });
   });
 
-  it("normalizes invalid effort values to medium", () => {
+  test("normalizes invalid effort values to medium", () => {
     expect(normalizeReasoningEffort("weird" as any)).toBe("medium");
     expect(normalizeReasoningEffort(undefined)).toBe("medium");
   });

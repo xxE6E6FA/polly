@@ -7,7 +7,6 @@ import { api } from "../_generated/api";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
-import { log } from "./logger";
 
 export interface EffectiveModel {
   modelId: string;
@@ -28,11 +27,9 @@ export async function getUserEffectiveModel(
   requestedModel?: string,
   requestedProvider?: string
 ): Promise<EffectiveModel> {
-  log.debug("Model resolution called with:", { requestedModel, requestedProvider });
   
   // If both are provided, use them directly
   if (requestedModel && requestedProvider) {
-    log.debug("Using provided values directly");
     return {
       modelId: requestedModel,
       provider: requestedProvider,
@@ -67,7 +64,7 @@ export async function getUserEffectiveModel(
         }
       }
     } catch (error) {
-      log.warn("Failed to get user's selected model:", error);
+      console.warn("Failed to get user's selected model:", error);
       // Continue to fallback logic below
     }
   }
@@ -81,7 +78,6 @@ export async function getUserEffectiveModel(
     provider,
   };
   
-  log.debug("Model resolution final result:", result);
   return result;
 }
 
@@ -135,7 +131,7 @@ export async function getUserEffectiveModelWithCapabilities(
         }
       }
     } catch (error) {
-      log.warn("Failed to get user's selected model:", error);
+      console.warn("Failed to get user's selected model:", error);
     }
   }
 
@@ -185,7 +181,7 @@ export async function getUserEffectiveModelWithCapabilities(
         }
       }
     } catch (error) {
-      log.warn("Failed to get model by ID:", error);
+      console.warn("Failed to get model by ID:", error);
     }
   }
 

@@ -1,4 +1,5 @@
 {
+  "schema": "./convex/schema.ts",
   "node": {
     "version": "20",
     "externalPackages": [

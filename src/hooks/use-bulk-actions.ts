@@ -83,6 +83,9 @@ export function useBulkActions() {
     if (completedExports.length > 0) {
       // Auto-download the first completed export
       const jobToDownload = completedExports[0];
+      if (!jobToDownload) {
+        return;
+      }
       setDownloadingJobId(jobToDownload.id);
 
       // Remove from pending list

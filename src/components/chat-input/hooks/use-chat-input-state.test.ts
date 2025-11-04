@@ -1,49 +1,84 @@
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  spyOn,
+  test,
+} from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("@/stores/chat-ui-store", () => ({
-  useChatHistory: vi.fn(),
-}));
-vi.mock("@/hooks/use-chat-attachments", () => ({
-  useChatAttachments: vi
-    .fn()
-    .mockReturnValue({ attachments: [], setAttachments: vi.fn() }),
-}));
-vi.mock("@/hooks/use-chat-input-preservation", () => ({
-  useChatInputPreservation: vi.fn().mockReturnValue({
-    setChatInputState: vi.fn(),
-    getChatInputState: vi.fn().mockReturnValue({ input: "" }),
-    clearChatInputState: vi.fn(),
-  }),
-}));
-
-import { useChatHistory } from "@/stores/chat-ui-store";
+import * as chatAttachmentsModule from "@/hooks/use-chat-attachments";
+import * as chatInputPreservationModule from "@/hooks/use-chat-input-preservation";
+import * as chatUIStoreModule from "@/stores/chat-ui-store";
 import { useChatInputState } from "./use-chat-input-state";
+
+const useChatHistoryMock = mock();
+const useChatAttachmentsMock = mock();
+const useChatInputPreservationMock = mock();
+
+let useChatHistorySpy: ReturnType<typeof spyOn>;
+let useChatAttachmentsSpy: ReturnType<typeof spyOn>;
+let useChatInputPreservationSpy: ReturnType<typeof spyOn>;
+let consoleErrorSpy: ReturnType<typeof spyOn>;
 
 describe("useChatInputState", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    useChatHistoryMock.mockReset();
+    useChatAttachmentsMock.mockReset();
+    useChatAttachmentsMock.mockReturnValue({
+      attachments: [],
+      setAttachments: mock(),
+    });
+    useChatInputPreservationMock.mockReset();
+    useChatInputPreservationMock.mockReturnValue({
+      setChatInputState: mock(),
+      getChatInputState: mock().mockReturnValue({ input: "" }),
+      clearChatInputState: mock(),
+    });
+
+    useChatHistorySpy = spyOn(
+      chatUIStoreModule,
+      "useChatHistory"
+    ).mockImplementation(useChatHistoryMock);
+    useChatAttachmentsSpy = spyOn(
+      chatAttachmentsModule,
+      "useChatAttachments"
+    ).mockImplementation(useChatAttachmentsMock);
+    useChatInputPreservationSpy = spyOn(
+      chatInputPreservationModule,
+      "useChatInputPreservation"
+    ).mockImplementation(useChatInputPreservationMock);
+
     // Suppress React act() warnings for this test suite
     const originalError = console.error;
-    vi.spyOn(console, "error").mockImplementation((message, ...args) => {
-      if (typeof message === "string" && message.includes("act(")) {
-        return;
+    consoleErrorSpy = spyOn(console, "error").mockImplementation(
+      (message, ...args) => {
+        if (typeof message === "string" && message.includes("act(")) {
+          return;
+        }
+        originalError(message, ...args);
       }
-      originalError(message, ...args);
-    });
+    );
   });
 
-  it("integrates history handlers and reset helpers", async () => {
-    const prev = vi.fn().mockReturnValue("prev text");
-    const next = vi.fn().mockReturnValue(null);
-    const resetIndex = vi.fn();
-    (useChatHistory as ReturnType<typeof vi.fn>).mockReturnValue({
+  afterEach(() => {
+    useChatHistorySpy.mockRestore();
+    useChatAttachmentsSpy.mockRestore();
+    useChatInputPreservationSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+  test("integrates history handlers and reset helpers", async () => {
+    const prev = mock().mockReturnValue("prev text");
+    const next = mock().mockReturnValue(null);
+    const resetIndex = mock();
+    useChatHistoryMock.mockReturnValue({
       prev,
       next,
       resetIndex,
-      push: vi.fn(),
-      clear: vi.fn(),
+      push: mock(),
+      clear: mock(),
     });
 
     let result: any;

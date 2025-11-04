@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import { detectAndParseImportData } from "./import-parsers";
 
 describe("import-parsers", () => {
   describe("detectAndParseImportData", () => {
-    it("parses valid Polly format", () => {
+    test("parses valid Polly format", () => {
       const pollyData = {
         conversations: [
           {
@@ -39,6 +39,9 @@ describe("import-parsers", () => {
       expect(result.conversations).toHaveLength(1);
 
       const conversation = result.conversations[0];
+      if (!conversation) {
+        throw new Error("Expected parsed conversation");
+      }
       expect(conversation.title).toBe("Test Conversation");
       expect(conversation.messages).toHaveLength(2);
       expect(conversation.createdAt).toBe(1234567890);
@@ -47,6 +50,9 @@ describe("import-parsers", () => {
       expect(conversation.isPinned).toBe(true);
 
       const userMessage = conversation.messages[0];
+      if (!userMessage) {
+        throw new Error("Expected user message");
+      }
       expect(userMessage.role).toBe("user");
       expect(userMessage.content).toBe("Hello");
       expect(userMessage.createdAt).toBe(1234567890);
@@ -59,7 +65,7 @@ describe("import-parsers", () => {
       expect(assistantMessage.reasoning).toBe("Friendly greeting");
     });
 
-    it("handles minimal Polly format", () => {
+    test("handles minimal Polly format", () => {
       const minimalData = {
         conversations: [
           {
@@ -94,7 +100,7 @@ describe("import-parsers", () => {
       expect(message.model).toBeUndefined();
     });
 
-    it("handles empty conversations array", () => {
+    test("handles empty conversations array", () => {
       const emptyData = { conversations: [] };
       const result = detectAndParseImportData(JSON.stringify(emptyData));
 
@@ -104,7 +110,7 @@ describe("import-parsers", () => {
       expect(result.conversations).toEqual([]);
     });
 
-    it("handles missing conversation properties gracefully", () => {
+    test("handles missing conversation properties gracefully", () => {
       const incompleteData = {
         conversations: [
           {
@@ -143,7 +149,7 @@ describe("import-parsers", () => {
       expect(secondConv.messages[0].createdAt).toBeUndefined();
     });
 
-    it("handles attachments in messages", () => {
+    test("handles attachments in messages", () => {
       const dataWithAttachments = {
         conversations: [
           {
@@ -178,7 +184,7 @@ describe("import-parsers", () => {
       ]);
     });
 
-    it("rejects non-Polly formats", () => {
+    test("rejects non-Polly formats", () => {
       const chatGptData = {
         title: "ChatGPT Export",
         mapping: {
@@ -195,7 +201,7 @@ describe("import-parsers", () => {
       expect(result.conversations).toEqual([]);
     });
 
-    it("handles invalid JSON", () => {
+    test("handles invalid JSON", () => {
       const invalidJson = '{"invalid": json}';
       const result = detectAndParseImportData(invalidJson);
 
@@ -206,7 +212,7 @@ describe("import-parsers", () => {
       expect(result.conversations).toEqual([]);
     });
 
-    it("handles corrupted Polly data", () => {
+    test("handles corrupted Polly data", () => {
       // Valid JSON but parsing will fail
       const corruptedData = {
         conversations: "not_an_array",
@@ -221,7 +227,7 @@ describe("import-parsers", () => {
       expect(result.conversations).toEqual([]);
     });
 
-    it("validates conversation structure correctly", () => {
+    test("validates conversation structure correctly", () => {
       const invalidStructure = {
         conversations: [
           {
@@ -244,7 +250,7 @@ describe("import-parsers", () => {
       expect(result.conversations[0].messages[0].content).toBe(""); // Default
     });
 
-    it("handles multiple conversations correctly", () => {
+    test("handles multiple conversations correctly", () => {
       const multipleConvs = {
         conversations: [
           {

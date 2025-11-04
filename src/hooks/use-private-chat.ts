@@ -284,7 +284,7 @@ export function usePrivateChat(options?: {
 
       let lastUserMessageIndex = -1;
       for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === "user") {
+        if (messages[i]?.role === "user") {
           lastUserMessageIndex = i;
           break;
         }
@@ -298,6 +298,9 @@ export function usePrivateChat(options?: {
       setMessages(messagesToKeep);
 
       const lastUserMessage = messagesToKeep[lastUserMessageIndex];
+      if (!lastUserMessage) {
+        return;
+      }
       await sendMessage(
         lastUserMessage.content,
         lastUserMessage.attachments,

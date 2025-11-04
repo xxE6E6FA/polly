@@ -1,5 +1,5 @@
 import { WarningIcon } from "@phosphor-icons/react";
-import { isRouteErrorResponse, Link, useRouteError } from "react-router";
+import { isRouteErrorResponse, Link, useRouteError } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";

@@ -2,7 +2,6 @@ import { v } from "convex/values";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { action } from "./_generated/server";
-import { log } from "./lib/logger";
 
 export const generateConversationStarters = action({
   args: {
@@ -83,7 +82,10 @@ Return exactly 5 prompts, one per line, with no numbers, bullets, or formatting.
 
       return prompts;
     } catch (error) {
-      log.error("Error generating conversation starters with Gemini:", error);
+      console.error(
+        "Error generating conversation starters with Gemini:",
+        error
+      );
       // Fallback to simple conversation starters
       return [
         "Can you explain this in more detail?",

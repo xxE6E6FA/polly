@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api, internal } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 import { MAX_USER_MESSAGE_CHARS } from "../constants";
 
 describe("message limits and rolling token estimates", () => {
-  it("rejects oversize user messages across entry points", async () => {
+  test("rejects oversize user messages across entry points", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now(), conversationCount: 0, totalMessageCount: 0 });
     const authed = t.withIdentity({ subject: userId, issuer: "test" });
@@ -30,7 +30,7 @@ describe("message limits and rolling token estimates", () => {
     ).rejects.toBeTruthy();
   });
 
-  it("maintains a rolling token estimate for conversations", async () => {
+  test("maintains a rolling token estimate for conversations", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now(), conversationCount: 0, totalMessageCount: 0 });
     const authed = t.withIdentity({ subject: userId, issuer: "test" });

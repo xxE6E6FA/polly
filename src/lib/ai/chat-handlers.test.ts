@@ -1,85 +1,95 @@
-import type { Id } from "@convex/_generated/dataModel";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatMessage } from "@/types";
-
-// Hoist environment variable setup to run before all imports
-vi.hoisted(() => {
-  Object.defineProperty(import.meta, "env", {
-    // biome-ignore lint/style/useNamingConvention: Environment variable name must match Vite's convention
-    value: { VITE_CONVEX_URL: "https://convex" },
-    configurable: true,
-  });
-});
-
-import { streamChat } from "./browser-streaming";
-import type { PrivateChatConfig } from "./chat-handlers";
 import {
-  createPrivateChatHandlers,
-  createServerChatHandlers,
-  type ModelOptions,
-} from "./chat-handlers";
-import { startAuthorStream } from "./http-stream";
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  mock,
+  test,
+} from "bun:test";
+import type { Id } from "@convex/_generated/dataModel";
+import type { ChatMessage } from "@/types";
+import { createOverlaysMock } from "../../test/utils";
+import type { ModelOptions, PrivateChatConfig } from "./chat-handlers";
 
-type TestOverlays = {
-  set: ReturnType<typeof vi.fn>;
-  setReasoning: ReturnType<typeof vi.fn>;
-  setStatus: ReturnType<typeof vi.fn>;
-  setCitations: ReturnType<typeof vi.fn>;
-  append: ReturnType<typeof vi.fn>;
-  appendReasoning: ReturnType<typeof vi.fn>;
-  pushToolEvent: ReturnType<typeof vi.fn>;
-  clear: ReturnType<typeof vi.fn>;
-  clearReasoning: ReturnType<typeof vi.fn>;
-  clearStatus: ReturnType<typeof vi.fn>;
-  clearCitations: ReturnType<typeof vi.fn>;
-  clearTools: ReturnType<typeof vi.fn>;
-};
+const createMock = mock;
 
-declare global {
-  var __testOverlays: TestOverlays;
-}
+mock.restore();
 
-vi.mock("@/lib/utils", () => ({
+const overlaysModule = createOverlaysMock();
+const overlays = overlaysModule.overlays;
+
+const startAuthorStreamMock = mock(async () => ({
+  abortController: new AbortController(),
+}));
+const streamChatMock = mock(() => Promise.resolve());
+const getChatKeyMock = mock(() => "ckey");
+const getSelectedPersonaIdFromStoreMock = mock(() => "persona-1");
+
+const actualChatInputStore = await import("@/stores/chat-input-store?bun-real");
+
+mock.module("@/lib/utils", () => ({
   cleanAttachmentsForConvex: <T>(a: T) => a,
 }));
 
-vi.mock("@/stores/stream-overlays", async () => {
-  const { createOverlaysMock } = await import("../../test/utils");
-  const mock = createOverlaysMock();
-  // Store overlays reference for tests
-  globalThis.__testOverlays = mock.overlays as unknown as TestOverlays;
-  return mock.factory();
-});
+mock.module("@/stores/stream-overlays", overlaysModule.factory);
 
-vi.mock("@/stores/chat-input-store", () => ({
-  getChatKey: vi.fn(() => "ckey"),
-  getSelectedPersonaIdFromStore: vi.fn(() => "persona-1"),
+mock.module("@/stores/chat-input-store", () => ({
+  ...actualChatInputStore,
+  getChatKey: getChatKeyMock,
+  getSelectedPersonaIdFromStore: getSelectedPersonaIdFromStoreMock,
 }));
 
-vi.mock("./http-stream", () => ({
-  startAuthorStream: vi.fn(async () => ({
-    abortController: new AbortController(),
-  })),
+mock.module("./http-stream", () => ({
+  startAuthorStream: startAuthorStreamMock,
 }));
 
-vi.mock("./browser-streaming", () => ({
-  streamChat: vi.fn(() => Promise.resolve()),
+mock.module("./browser-streaming", () => ({
+  streamChat: streamChatMock,
 }));
 
-describe("chat-handlers (server)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+let createServerChatHandlers: typeof import("./chat-handlers").createServerChatHandlers;
+let createPrivateChatHandlers: typeof import("./chat-handlers").createPrivateChatHandlers;
+let originalEnv: unknown;
+
+beforeAll(async () => {
+  originalEnv = (import.meta as { env?: unknown }).env;
+  const baseEnv: Record<string, unknown> =
+    typeof originalEnv === "object" && originalEnv !== null
+      ? { ...(originalEnv as Record<string, unknown>) }
+      : {};
+  baseEnv.VITE_CONVEX_URL = "https://convex";
+  Object.defineProperty(import.meta, "env", {
+    value: baseEnv,
+    configurable: true,
   });
 
-  it("sendMessage builds payload and starts HTTP stream", async () => {
+  const mod = await import("./chat-handlers");
+  createServerChatHandlers = mod.createServerChatHandlers;
+  createPrivateChatHandlers = mod.createPrivateChatHandlers;
+});
+
+beforeEach(() => {
+  startAuthorStreamMock.mockClear();
+  streamChatMock.mockClear();
+  getChatKeyMock.mockClear();
+  getSelectedPersonaIdFromStoreMock.mockClear();
+  for (const fn of Object.values(overlays)) {
+    fn.mockClear();
+  }
+});
+
+describe("chat-handlers (server)", () => {
+  test("sendMessage builds payload and starts HTTP stream", async () => {
     const actions = {
-      sendMessage: vi
-        .fn()
-        .mockResolvedValue({ userMessageId: "u1", assistantMessageId: "a1" }),
-      editAndResend: vi.fn(),
-      retryFromMessage: vi.fn(),
-      deleteMessage: vi.fn(),
-      stopGeneration: vi.fn(),
+      sendMessage: mock().mockResolvedValue({
+        userMessageId: "u1",
+        assistantMessageId: "a1",
+      }),
+      editAndResend: createMock(),
+      retryFromMessage: createMock(),
+      deleteMessage: createMock(),
+      stopGeneration: createMock(),
     };
     const modelOptions: ModelOptions = {
       model: "gpt",
@@ -87,7 +97,7 @@ describe("chat-handlers (server)", () => {
       temperature: 0.3,
     };
 
-    const getAuthToken = vi.fn(() => "token");
+    const getAuthToken = createMock(() => "token");
     const handlers = createServerChatHandlers(
       "conv-1" as Id<"conversations">,
       actions,
@@ -113,8 +123,8 @@ describe("chat-handlers (server)", () => {
       personaId: "p1",
     });
 
-    expect(vi.mocked(startAuthorStream)).toHaveBeenCalled();
-    const args = vi.mocked(startAuthorStream).mock.calls[0][0];
+    expect(startAuthorStreamMock).toHaveBeenCalled();
+    const args = startAuthorStreamMock.mock.calls[0][0];
     expect(args).toMatchObject({
       conversationId: "conv-1",
       assistantMessageId: "a1",
@@ -124,16 +134,18 @@ describe("chat-handlers (server)", () => {
     });
   });
 
-  it("retryFromMessage aborts prior stream, clears overlays, and restarts HTTP stream", async () => {
+  test("retryFromMessage aborts prior stream, clears overlays, and restarts HTTP stream", async () => {
     const actions = {
-      sendMessage: vi.fn(),
-      editAndResend: vi.fn(),
-      retryFromMessage: vi.fn().mockResolvedValue({ assistantMessageId: "a2" }),
-      deleteMessage: vi.fn(),
-      stopGeneration: vi.fn(),
+      sendMessage: createMock(),
+      editAndResend: createMock(),
+      retryFromMessage: createMock().mockResolvedValue({
+        assistantMessageId: "a2",
+      }),
+      deleteMessage: createMock(),
+      stopGeneration: createMock(),
     };
     const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
-    const getAuthToken = vi.fn(() => "t");
+    const getAuthToken = createMock(() => "t");
     const handlers = createServerChatHandlers(
       "conv-2" as Id<"conversations">,
       actions,
@@ -150,22 +162,14 @@ describe("chat-handlers (server)", () => {
 
     await handlers.retryFromMessage("msg-1");
 
-    expect(globalThis.__testOverlays.set).toHaveBeenCalledWith("msg-1", "");
-    expect(globalThis.__testOverlays.setReasoning).toHaveBeenCalledWith(
-      "msg-1",
-      ""
-    );
-    expect(globalThis.__testOverlays.setStatus).toHaveBeenCalledWith(
-      "msg-1",
-      "thinking"
-    );
-    expect(globalThis.__testOverlays.clearCitations).toHaveBeenCalledWith(
-      "msg-1"
-    );
-    expect(globalThis.__testOverlays.clearTools).toHaveBeenCalledWith("msg-1");
+    expect(overlays.set).toHaveBeenCalledWith("msg-1", "");
+    expect(overlays.setReasoning).toHaveBeenCalledWith("msg-1", "");
+    expect(overlays.setStatus).toHaveBeenCalledWith("msg-1", "thinking");
+    expect(overlays.clearCitations).toHaveBeenCalledWith("msg-1");
+    expect(overlays.clearTools).toHaveBeenCalledWith("msg-1");
 
-    expect(vi.mocked(startAuthorStream)).toHaveBeenCalled();
-    const args = vi.mocked(startAuthorStream).mock.calls.at(-1)?.[0];
+    expect(startAuthorStreamMock).toHaveBeenCalled();
+    const args = startAuthorStreamMock.mock.calls.at(-1)?.[0];
     expect(args).toMatchObject({
       conversationId: "conv-2",
       assistantMessageId: "a2",
@@ -173,22 +177,22 @@ describe("chat-handlers (server)", () => {
     });
   });
 
-  it("retryFromMessage does not start HTTP stream for replicate provider", async () => {
+  test("retryFromMessage does not start HTTP stream for replicate provider", async () => {
     const actions = {
-      sendMessage: vi.fn(),
-      editAndResend: vi.fn(),
-      retryFromMessage: vi
-        .fn()
-        .mockResolvedValue({ assistantMessageId: "img-assistant" }),
-      deleteMessage: vi.fn(),
-      stopGeneration: vi.fn(),
+      sendMessage: createMock(),
+      editAndResend: mock(),
+      retryFromMessage: mock().mockResolvedValue({
+        assistantMessageId: "img-assistant",
+      }),
+      deleteMessage: mock(),
+      stopGeneration: mock(),
     };
     const modelOptions: ModelOptions = { model: "gpt", provider: "openai" };
     const handlers = createServerChatHandlers(
       "conv-img" as Id<"conversations">,
       actions,
       modelOptions,
-      vi.fn(() => "token")
+      createMock(() => "token")
     );
 
     await handlers.retryFromMessage("img-user", {
@@ -204,27 +208,27 @@ describe("chat-handlers (server)", () => {
         provider: "replicate",
       })
     );
-    expect(vi.mocked(startAuthorStream)).not.toHaveBeenCalled();
+    expect(startAuthorStreamMock).not.toHaveBeenCalled();
   });
 
-  it("editMessage does not start HTTP stream for replicate provider", async () => {
+  test("editMessage does not start HTTP stream for replicate provider", async () => {
     const actions = {
-      sendMessage: vi.fn(),
-      editAndResend: vi
-        .fn()
-        .mockResolvedValue({ assistantMessageId: "img-edit" }),
-      retryFromMessage: vi.fn(),
-      deleteMessage: vi.fn(),
-      stopGeneration: vi.fn(),
+      sendMessage: createMock(),
+      editAndResend: mock().mockResolvedValue({
+        assistantMessageId: "img-edit",
+      }),
+      retryFromMessage: mock(),
+      deleteMessage: mock(),
+      stopGeneration: mock(),
     };
     const handlers = createServerChatHandlers(
       "conv-edit" as Id<"conversations">,
       actions,
       { model: "gpt", provider: "openai" },
-      vi.fn(() => "token")
+      createMock(() => "token")
     );
 
-    vi.mocked(startAuthorStream).mockClear();
+    startAuthorStreamMock.mockClear();
 
     await handlers.editMessage("img-user", "updated prompt", {
       model: "artist/model",
@@ -239,18 +243,19 @@ describe("chat-handlers (server)", () => {
         provider: "replicate",
       })
     );
-    expect(vi.mocked(startAuthorStream)).not.toHaveBeenCalled();
+    expect(startAuthorStreamMock).not.toHaveBeenCalled();
   });
 
-  it("stopGeneration aborts HTTP stream and notifies server", async () => {
+  test("stopGeneration aborts HTTP stream and notifies server", async () => {
     const actions = {
-      sendMessage: vi
-        .fn()
-        .mockResolvedValue({ userMessageId: "u1", assistantMessageId: "a1" }),
-      editAndResend: vi.fn(),
-      retryFromMessage: vi.fn(),
-      deleteMessage: vi.fn(),
-      stopGeneration: vi.fn(),
+      sendMessage: mock().mockResolvedValue({
+        userMessageId: "u1",
+        assistantMessageId: "a1",
+      }),
+      editAndResend: createMock(),
+      retryFromMessage: createMock(),
+      deleteMessage: createMock(),
+      stopGeneration: createMock(),
     };
     const handlers = createServerChatHandlers(
       "conv-3" as Id<"conversations">,
@@ -269,11 +274,7 @@ describe("chat-handlers (server)", () => {
 });
 
 describe("chat-handlers (private)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("sendMessage appends user and assistant, then streams", async () => {
+  test("sendMessage appends user and assistant, then streams", async () => {
     let msgs: ChatMessage[] = [];
     const setMessages = (
       updater: ChatMessage[] | ((p: ChatMessage[]) => ChatMessage[])
@@ -286,8 +287,8 @@ describe("chat-handlers (private)", () => {
     const config: PrivateChatConfig = {
       messages: msgs,
       setMessages,
-      saveConversationAction: vi.fn(),
-      getDecryptedApiKey: vi.fn().mockResolvedValue("sk-xxx"),
+      saveConversationAction: createMock(),
+      getDecryptedApiKey: createMock().mockResolvedValue("sk-xxx"),
       modelCapabilities: { modelId: "gpt", provider: "openai" },
     };
     const handlers = createPrivateChatHandlers(config, {
@@ -302,13 +303,13 @@ describe("chat-handlers (private)", () => {
     expect(msgs).toHaveLength(2);
     expect(msgs[0]).toMatchObject({ role: "user", content: "hello" });
     expect(msgs[1]).toMatchObject({ role: "assistant", content: "" });
-    expect(vi.mocked(streamChat)).toHaveBeenCalled();
-    const args = vi.mocked(streamChat).mock.calls[0][0];
+    expect(streamChatMock).toHaveBeenCalled();
+    const args = streamChatMock.mock.calls[0][0];
     expect(args.model).toEqual({ modelId: "gpt", provider: "openai" });
     expect(args.messages[0]).toMatchObject({ role: "user", content: "hello" });
   });
 
-  it("retryFromMessage (assistant) clears content and restreams into same id", async () => {
+  test("retryFromMessage (assistant) clears content and restreams into same id", async () => {
     let msgs: ChatMessage[] = [
       {
         id: "u1",
@@ -336,8 +337,8 @@ describe("chat-handlers (private)", () => {
     const config: PrivateChatConfig = {
       messages: msgs,
       setMessages,
-      saveConversationAction: vi.fn(),
-      getDecryptedApiKey: vi.fn().mockResolvedValue("sk-xxx"),
+      saveConversationAction: createMock(),
+      getDecryptedApiKey: createMock().mockResolvedValue("sk-xxx"),
       modelCapabilities: { modelId: "gpt", provider: "openai" },
     };
     const handlers = createPrivateChatHandlers(config, {
@@ -351,9 +352,21 @@ describe("chat-handlers (private)", () => {
     expect(msgs).toHaveLength(2);
     expect(msgs[1]).toMatchObject({ id: "a1", content: "" });
     // Stream called with context up to user message only
-    const call = vi.mocked(streamChat).mock.calls.at(-1)?.[0];
+    const call = streamChatMock.mock.calls.at(-1)?.[0];
     expect(call).toBeDefined();
     expect(call?.messages).toHaveLength(1);
     expect(call?.messages[0]).toMatchObject({ role: "user", content: "q" });
   });
+});
+
+afterAll(() => {
+  if (originalEnv === undefined) {
+    (import.meta as { env?: unknown }).env = undefined;
+  } else {
+    Object.defineProperty(import.meta, "env", {
+      value: originalEnv,
+      configurable: true,
+    });
+  }
+  mock.restore();
 });

@@ -1,6 +1,7 @@
 import { devtools } from "zustand/middleware";
 import { shallow, useShallow } from "zustand/shallow";
-import { createWithEqualityFn } from "zustand/traditional";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { createStore, type StoreApi } from "zustand/vanilla";
 
 type ConversationId = string | null | undefined;
 
@@ -10,7 +11,7 @@ type HistoryEntry = {
   createdAt: number;
 };
 
-type ChatUIState = {
+export type ChatUIState = {
   // View-only UI flags
   isFullscreen: boolean;
   isMultiline: boolean;
@@ -35,8 +36,13 @@ type ChatUIState = {
   clearHistory: (conversationId: ConversationId) => void;
 };
 
-export const useChatUIStore = createWithEqualityFn<ChatUIState>()(
-  devtools((set, get) => ({
+type ChatUIStoreApi = StoreApi<ChatUIState>;
+
+function createChatUIState(
+  set: ChatUIStoreApi["setState"],
+  get: ChatUIStoreApi["getState"]
+): ChatUIState {
+  return {
     isFullscreen: false,
     isMultiline: false,
     isTransitioning: false,
@@ -110,12 +116,56 @@ export const useChatUIStore = createWithEqualityFn<ChatUIState>()(
       delete idxMap[conversationId];
       set({ historyByConversation: map, historyIndexByConversation: idxMap });
     },
-  })),
-  shallow
-);
+  };
+}
+
+export const createChatUIStore = () =>
+  createStore<ChatUIState>()(
+    devtools((set, get) => createChatUIState(set, get), {
+      name: "ChatUIStore",
+    })
+  );
+
+let chatUIStoreApi: ChatUIStoreApi = createChatUIStore();
+
+type ChatUISelector<T> = (state: ChatUIState) => T;
+
+type UseChatUIStore = {
+  <T>(selector: ChatUISelector<T>, equalityFn?: (a: T, b: T) => boolean): T;
+  getState: ChatUIStoreApi["getState"];
+  setState: ChatUIStoreApi["setState"];
+  subscribe: ChatUIStoreApi["subscribe"];
+};
+
+function useChatUIStoreBase<T>(
+  selector: ChatUISelector<T>,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  return useStoreWithEqualityFn(
+    chatUIStoreApi,
+    selector,
+    equalityFn ?? shallow
+  );
+}
+
+export const useChatUIStore = Object.assign(useChatUIStoreBase, {
+  getState: () => chatUIStoreApi.getState(),
+  setState: chatUIStoreApi.setState,
+  subscribe: chatUIStoreApi.subscribe.bind(chatUIStoreApi),
+}) as UseChatUIStore;
+
+export const getChatUIStore = () => chatUIStoreApi;
+
+export const setChatUIStoreApi = (store: ChatUIStoreApi) => {
+  chatUIStoreApi = store;
+};
+
+export const resetChatUIStoreApi = () => {
+  chatUIStoreApi = createChatUIStore();
+};
 
 export const useChatUIState = <T>(
-  selector: (state: ChatUIState) => T,
+  selector: ChatUISelector<T>,
   equalityFn = shallow
 ) => useChatUIStore(selector, equalityFn);
 

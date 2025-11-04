@@ -30,8 +30,8 @@ import {
   getPersonaPrompt,
   mergeSystemPrompts,
 } from "./lib/conversation/message_handling.js";
-import { log } from "./lib/logger.js";
 import { processAttachmentsForLLM } from "./lib/process_attachments.js";
+import { scheduleRunAfter } from "./lib/scheduler.js";
 import { humanizeReasoningText } from "./lib/shared/stream_utils.js";
 
 // (api, internal) already imported above
@@ -94,7 +94,7 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
 
     // Validate request has a body
     if (!rawBody) {
-      log.warn("Received empty webhook body");
+      console.warn("Received empty webhook body");
       return new Response("Bad Request", { status: 400 });
     }
 
@@ -105,28 +105,24 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
     try {
       body = JSON.parse(rawBody);
     } catch (parseError) {
-      log.warn("Invalid JSON in webhook body", { parseError });
+      console.warn("Invalid JSON in webhook body", { parseError });
       return new Response("Bad Request", { status: 400 });
     }
 
     // Validate required fields per API spec
     if (!body.id) {
-      log.warn("Webhook missing prediction ID");
+      console.warn("Webhook missing prediction ID");
       return new Response("Bad Request", { status: 400 });
     }
 
     if (!body.status) {
-      log.warn("Webhook missing status", { predictionId: body.id });
+      console.warn("Webhook missing status", { predictionId: body.id });
       return new Response("Bad Request", { status: 400 });
     }
 
     // Verify webhook signature for security (recommended in production)
     const signature = request.headers.get("replicate-signature");
     if (signature) {
-      log.debug("Received signed webhook", {
-        predictionId: body.id,
-        hasSecret: !!process.env.REPLICATE_WEBHOOK_SECRET,
-      });
       // Note: Full signature verification would require crypto module
       // This is a security enhancement for production environments
     }
@@ -140,7 +136,7 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       "canceled",
     ];
     if (!validStatuses.includes(body.status as Prediction["status"])) {
-      log.warn("Unknown webhook status", {
+      console.warn("Unknown webhook status", {
         predictionId: body.id,
         status: body.status,
       });
@@ -156,14 +152,9 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       metadata: body.metrics,
     });
 
-    log.info("Successfully processed webhook", {
-      predictionId: body.id,
-      status: body.status,
-    });
-
     return new Response("OK", { status: 200 });
   } catch (error) {
-    log.error("Webhook processing error", {
+    console.error("Webhook processing error", {
       error: error instanceof Error ? error.message : String(error),
     });
     return new Response("Internal Server Error", { status: 500 });
@@ -437,7 +428,10 @@ http.route({
         // Copy messages and handle attachments on the last user item
         let lastUserIdx = -1;
         for (let i = 0; i < all.length; i++) {
-          const m: Doc<"messages"> = all[i];
+          const m = all[i];
+          if (!m) {
+            continue;
+          }
           if (m.role === "user") {
             lastUserIdx = i;
           }
@@ -445,7 +439,10 @@ http.route({
 
         let lastUserAttachments: Doc<"messages">["attachments"];
         for (let i = 0; i < all.length; i++) {
-          const m: Doc<"messages"> = all[i];
+          const m = all[i];
+          if (!m) {
+            continue;
+          }
           if (m.role !== "user" && m.role !== "assistant") {
             continue;
           }
@@ -956,22 +953,19 @@ http.route({
             }
             // Defer DB finalization to a scheduled mutation to avoid dangling ops
             try {
-              await ctx.scheduler.runAfter(0, internal.messages.updateContent, {
+              await scheduleRunAfter(ctx, 0, internal.messages.updateContent, {
                 messageId,
                 content: fullContent,
                 reasoning: reasoningFull || undefined,
                 finishReason: "stop",
                 usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               });
-              await ctx.scheduler.runAfter(
-                0,
-                internal.messages.internalUpdate,
-                {
-                  id: messageId,
-                  metadata,
-                }
-              );
-              await ctx.scheduler.runAfter(
+              await scheduleRunAfter(ctx, 0, internal.messages.internalUpdate, {
+                id: messageId,
+                metadata,
+              });
+              await scheduleRunAfter(
+                ctx,
                 0,
                 internal.messages.updateMessageStatus,
                 {
@@ -979,7 +973,8 @@ http.route({
                   status: "done",
                 }
               );
-              await ctx.scheduler.runAfter(
+              await scheduleRunAfter(
+                ctx,
                 0,
                 internal.conversations.internalPatch,
                 {
@@ -995,11 +990,12 @@ http.route({
             await writeFrame({ t: "finish", reason: "stop" });
             await writer.close();
           } catch (error: unknown) {
-            log.error("Stream error:", error);
+            console.error("Stream error:", error);
             // Schedule error finalization updates
             try {
               const friendlyError = getUserFriendlyErrorMessage(error);
-              await ctx.scheduler.runAfter(
+              await scheduleRunAfter(
+                ctx,
                 0,
                 internal.messages.updateMessageError,
                 {
@@ -1007,7 +1003,8 @@ http.route({
                   error: friendlyError,
                 }
               );
-              await ctx.scheduler.runAfter(
+              await scheduleRunAfter(
+                ctx,
                 0,
                 internal.conversations.internalPatch,
                 {

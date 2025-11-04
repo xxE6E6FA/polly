@@ -1,6 +1,5 @@
 import type { DataModel } from "./_generated/dataModel";
 import { mutation } from "./_generated/server";
-import { log } from "./lib/logger";
 
 /**
  * Generic function to clear all documents from a table
@@ -114,7 +113,7 @@ export const cleanupOrphanedAccounts = mutation({
         // User doesn't exist, delete the orphaned account
         await ctx.db.delete(account._id);
         deletedCount++;
-        log.warn(
+        console.warn(
           `Deleted orphaned account ${account._id} for non-existent user ${account.userId}`
         );
       }

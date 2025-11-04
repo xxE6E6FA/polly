@@ -1,8 +1,11 @@
+import { afterAll, describe, expect, mock, spyOn, test } from "bun:test";
+import type { Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AIModel, Attachment } from "@/types";
 import { renderHook } from "../test/hook-utils";
+import { makeFileList } from "../test/utils";
 
-vi.mock("@shared/file-constants", () => ({
+mock.module("@shared/file-constants", () => ({
   /* biome-ignore lint/style/useNamingConvention: mock shape mirrors real module */
   FILE_LIMITS: {
     /* biome-ignore lint/style/useNamingConvention: constant name from module */
@@ -17,12 +20,12 @@ vi.mock("@shared/file-constants", () => ({
     THUMBNAIL_SIZE: 256,
   },
 }));
-vi.mock("@shared/model-capabilities-config", () => ({
-  isFileTypeSupported: vi.fn(),
+mock.module("@shared/model-capabilities-config", () => ({
+  isFileTypeSupported: mock(),
 }));
-vi.mock("@/hooks/use-convex-file-upload", () => ({
+mock.module("@/hooks/use-convex-file-upload", () => ({
   useConvexFileUpload: () => ({
-    uploadFile: vi.fn(async (file: File) => ({
+    uploadFile: mock(async (file: File) => ({
       type: "image",
       url: "https://storage/c1",
       name: file.name,
@@ -31,48 +34,50 @@ vi.mock("@/hooks/use-convex-file-upload", () => ({
     })),
   }),
 }));
-vi.mock("@/hooks/use-dialog-management", () => ({
-  useNotificationDialog: () => ({ notify: vi.fn() }),
+mock.module("@/hooks/use-dialog-management", () => ({
+  useNotificationDialog: () => ({ notify: mock() }),
 }));
-vi.mock("@/providers/toast-context", () => ({
+mock.module("@/providers/toast-context", () => ({
   useToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-    loading: vi.fn(),
-    dismiss: vi.fn(),
-    dismissAll: vi.fn(),
+    success: mock(),
+    error: mock(),
+    loading: mock(),
+    dismiss: mock(),
+    dismissAll: mock(),
   }),
 }));
-vi.mock("@/lib/file-utils", () => ({
-  readFileAsText: vi.fn(async () => "hello world"),
-  readFileAsBase64: vi.fn(async () => "YmFzZTY0"),
-  convertImageToWebP: vi.fn(async () => ({
-    base64: "d2VicA==",
-    mimeType: "image/webp",
-  })),
-}));
-vi.mock("@/stores/actions/chat-input-actions", () => ({
-  appendAttachments: vi.fn(),
-  removeAttachmentAt: vi.fn(),
+mock.module("@/stores/actions/chat-input-actions", () => ({
+  appendAttachments: mock(),
+  removeAttachmentAt: mock(),
+  setPersona: mock(),
+  setTemperature: mock(),
 }));
 
-import type { Id } from "@convex/_generated/dataModel";
-import { isFileTypeSupported } from "@shared/model-capabilities-config";
-import { convertImageToWebP, readFileAsText } from "@/lib/file-utils";
-import {
-  appendAttachments,
-  removeAttachmentAt,
-} from "@/stores/actions/chat-input-actions";
-import type { AIModel, Attachment } from "@/types";
-import { makeFileList } from "../test/utils";
-import { useFileUpload } from "./use-file-upload";
+const { isFileTypeSupported } = await import(
+  "@shared/model-capabilities-config"
+);
+const fileUtils = await import("@/lib/file-utils");
+const { appendAttachments, removeAttachmentAt } = await import(
+  "@/stores/actions/chat-input-actions"
+);
+const { useFileUpload } = await import("./use-file-upload");
+
+const readFileAsTextSpy = spyOn(fileUtils, "readFileAsText").mockResolvedValue(
+  "hello world"
+);
+const convertImageToWebPSpy = spyOn(
+  fileUtils,
+  "convertImageToWebP"
+).mockResolvedValue({ base64: "d2VicA==", mimeType: "image/webp" });
+
+afterAll(() => {
+  mock.restore();
+  readFileAsTextSpy.mockRestore();
+  convertImageToWebPSpy.mockRestore();
+});
 
 describe("useFileUpload", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("adds text and image attachments and supports removal/clear", async () => {
+  test("adds text and image attachments and supports removal/clear", async () => {
     const { result } = renderHook(() =>
       useFileUpload({
         currentModel: {
@@ -90,7 +95,7 @@ describe("useFileUpload", () => {
     });
     const files = makeFileList([text, img]);
 
-    vi.mocked(isFileTypeSupported)
+    (isFileTypeSupported as ReturnType<typeof mock>)
       .mockReturnValueOnce({ supported: true, category: "text" })
       .mockReturnValueOnce({ supported: true, category: "image" });
 
@@ -98,8 +103,8 @@ describe("useFileUpload", () => {
       await result.current.handleFileUpload(files);
     });
 
-    expect(readFileAsText).toHaveBeenCalled();
-    expect(convertImageToWebP).toHaveBeenCalled();
+    expect(readFileAsTextSpy).toHaveBeenCalled();
+    expect(convertImageToWebPSpy).toHaveBeenCalled();
     expect(result.current.attachments.length).toBe(2);
 
     // remove first attachment
@@ -114,7 +119,7 @@ describe("useFileUpload", () => {
     expect(result.current.attachments.length).toBe(0);
   });
 
-  it("uploadAttachmentsToConvex returns data URLs in private mode", async () => {
+  test("uploadAttachmentsToConvex returns data URLs in private mode", async () => {
     const { result } = renderHook(() => useFileUpload({ privateMode: true }));
     // prime attachments with one image-like base64 entry
     const att: Attachment = {
@@ -126,10 +131,10 @@ describe("useFileUpload", () => {
       url: "",
     };
     const uploaded = await result.current.uploadAttachmentsToConvex([att]);
-    expect(uploaded[0].url.startsWith("data:image/png;base64,")).toBe(true);
+    expect(uploaded[0]?.url.startsWith("data:image/png;base64,")).toBe(true);
   });
 
-  it("uploadAttachmentsToConvex keeps text attachments as-is in non-private mode", async () => {
+  test("uploadAttachmentsToConvex keeps text attachments as-is in non-private mode", async () => {
     const { result } = renderHook(() => useFileUpload({ privateMode: false }));
     const att: Attachment = {
       type: "text",
@@ -142,7 +147,7 @@ describe("useFileUpload", () => {
     expect(uploaded[0]).toEqual(att);
   });
 
-  it("conversation-scoped: appends and removes attachments via actions", async () => {
+  test("conversation-scoped: appends and removes attachments via actions", async () => {
     const { result } = renderHook(() =>
       useFileUpload({
         currentModel: {
@@ -155,7 +160,7 @@ describe("useFileUpload", () => {
       })
     );
     const file = new File(["Hello"], "a.txt", { type: "text/plain" });
-    vi.mocked(isFileTypeSupported).mockReturnValue({
+    (isFileTypeSupported as ReturnType<typeof mock>).mockReturnValue({
       supported: true,
       category: "text",
     });
@@ -164,7 +169,9 @@ describe("useFileUpload", () => {
       await result.current.handleFileUpload(makeFileList([file]));
     });
     expect(appendAttachments).toHaveBeenCalled();
-    expect(vi.mocked(appendAttachments).mock.calls[0][0]).toBe("c1");
+    const calls = (appendAttachments as ReturnType<typeof mock>).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0]?.[0]).toBe("c1");
 
     await act(async () => {
       await result.current.removeAttachment(0);

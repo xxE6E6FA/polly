@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { ROUTES } from "@/lib/routes";

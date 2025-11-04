@@ -10,7 +10,6 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { log } from "./lib/logger";
 
 // Provider type definition
 type ProviderType =
@@ -370,7 +369,7 @@ export const getDecryptedApiKey = action({
         );
         userId = conversation?.userId || null;
       } catch (error) {
-        log.warn("Failed to get user from conversation", error);
+        console.warn("Failed to get user from conversation", error);
       }
     }
 
@@ -399,7 +398,7 @@ export const getDecryptedApiKey = action({
       );
       return decryptedKey;
     } catch (error) {
-      log.warn("Failed to decrypt API key", error);
+      console.warn("Failed to decrypt API key", error);
       return null;
     }
   },

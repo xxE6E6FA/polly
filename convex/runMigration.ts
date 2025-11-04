@@ -1,7 +1,6 @@
 import { internal } from "./_generated/api";
 import type { ActionCtx } from "./_generated/server";
 import { action } from "./_generated/server";
-import { log } from "./lib/logger";
 
 type MigrationResult = {
   success: boolean;
@@ -11,16 +10,13 @@ type MigrationResult = {
 export const runBuiltInModelsMigration = action({
   args: {},
   handler: async (ctx: ActionCtx): Promise<MigrationResult> => {
-    log.info("Starting built-in models migration...");
-
     try {
       const result: MigrationResult = await ctx.runMutation(
         internal.migrations.seedBuiltInModels.seedBuiltInModels
       );
-      log.info("Migration completed successfully:", result);
       return result;
     } catch (error) {
-      log.error("Migration failed:", error);
+      console.error("Migration failed:", error);
       throw error;
     }
   },

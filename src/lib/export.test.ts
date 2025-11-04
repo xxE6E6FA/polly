@@ -1,25 +1,45 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, test } from "bun:test";
 import type { ExportData } from "@/types";
 import {
   mockGlobalFetchOnce,
   stubAnchorClicks,
   withMockedURLObjectURL,
 } from "../test/utils";
-import {
-  downloadFile,
-  downloadFromUrl,
-  exportAsJSON,
-  exportAsMarkdown,
-  generateFilename,
-} from "./export";
+
+type ExportModule = typeof import("./export");
+let exportModule: ExportModule;
+let exportAsJSONFn: ExportModule["exportAsJSON"];
+let exportAsMarkdownFn: ExportModule["exportAsMarkdown"];
+let generateFilenameFn: ExportModule["generateFilename"];
+let downloadFileFn: ExportModule["downloadFile"];
+let downloadFromUrlFn: ExportModule["downloadFromUrl"];
+
+function unwrapMockedFunction<T extends (...args: any[]) => unknown>(fn: T): T {
+  const maybeMock = fn as unknown as { mock?: { original?: unknown } };
+  if (maybeMock.mock?.original) {
+    return maybeMock.mock.original as T;
+  }
+  return fn;
+}
+
+beforeEach(async () => {
+  // Ensure we get an unmocked copy even if another spec has mocked the module
+  const modulePath = "./export?isolated-tests";
+  exportModule = (await import(modulePath)) as ExportModule;
+  exportAsJSONFn = unwrapMockedFunction(exportModule.exportAsJSON);
+  exportAsMarkdownFn = unwrapMockedFunction(exportModule.exportAsMarkdown);
+  generateFilenameFn = unwrapMockedFunction(exportModule.generateFilename);
+  downloadFileFn = unwrapMockedFunction(exportModule.downloadFile);
+  downloadFromUrlFn = unwrapMockedFunction(exportModule.downloadFromUrl);
+});
 
 describe("export", () => {
-  it("exportAsJSON throws without conversation", () => {
+  test("exportAsJSON throws without conversation", () => {
     // @ts-expect-error intentionally invalid to assert runtime error
-    expect(() => exportAsJSON({})).toThrow(/Conversation data is required/);
+    expect(() => exportAsJSONFn({})).toThrow(/Conversation data is required/);
   });
 
-  it("exportAsJSON strips citations and formats dates", () => {
+  test("exportAsJSON strips citations and formats dates", () => {
     const data = {
       conversation: {
         title: "Test Conversation",
@@ -47,7 +67,7 @@ describe("export", () => {
       ],
     } as ExportData;
 
-    const json = exportAsJSON(data);
+    const json = exportAsJSONFn(data);
     const parsed = JSON.parse(json);
 
     expect(parsed.conversation.title).toBe("Test Conversation");
@@ -59,7 +79,7 @@ describe("export", () => {
     expect(parsed.messages[1].provider).toBe("openai");
   });
 
-  it("exportAsMarkdown includes roles, metadata, attachments and sources, skipping system/context", () => {
+  test("exportAsMarkdown includes roles, metadata, attachments and sources, skipping system/context", () => {
     const data = {
       conversation: {
         title: "Markdown Export ✨",
@@ -90,7 +110,7 @@ describe("export", () => {
       ],
     } as ExportData;
 
-    const md = exportAsMarkdown(data);
+    const md = exportAsMarkdownFn(data);
     // Title and separators
     expect(md).toMatch(/^# Markdown Export/);
     expect(md).toContain("---");
@@ -119,18 +139,18 @@ describe("export", () => {
     expect(md).not.toContain("ignored");
   });
 
-  it("generateFilename sanitizes and appends date + extension", () => {
-    const name = generateFilename("Hello, World! — Test", "md");
+  test("generateFilename sanitizes and appends date + extension", () => {
+    const name = generateFilenameFn("Hello, World! — Test", "md");
     expect(name).toMatch(/^hello-world-test-\d{4}-\d{2}-\d{2}\.md$/);
 
-    const nameJson = generateFilename("Another_Title(1)", "json");
+    const nameJson = generateFilenameFn("Another_Title(1)", "json");
     expect(nameJson).toMatch(/^anothertitle1-\d{4}-\d{2}-\d{2}\.json$/);
   });
 
-  it("downloadFile creates link, clicks it, and revokes URL", () => {
+  test("downloadFile creates link, clicks it, and revokes URL", () => {
     const url = withMockedURLObjectURL();
     const a = stubAnchorClicks();
-    downloadFile("content", "file.txt", "text/plain");
+    downloadFileFn("content", "file.txt", "text/plain");
     expect(url.createSpy).toHaveBeenCalled();
     expect(a.createSpy).toHaveBeenCalledWith("a");
     expect(a.appendSpy).toHaveBeenCalledWith(a.anchor);
@@ -141,7 +161,7 @@ describe("export", () => {
     url.restore();
   });
 
-  it("downloadFromUrl fetches, creates link, clicks, and revokes URL", async () => {
+  test("downloadFromUrl fetches, creates link, clicks, and revokes URL", async () => {
     const fakeBlob = new Blob(["x"], { type: "text/plain" });
     const { restore } = mockGlobalFetchOnce({
       ok: true,
@@ -149,7 +169,7 @@ describe("export", () => {
     });
     const url = withMockedURLObjectURL();
     const a = stubAnchorClicks();
-    await downloadFromUrl("https://example.com/file.txt", "file.txt");
+    await downloadFromUrlFn("https://example.com/file.txt", "file.txt");
     expect(url.createSpy).toHaveBeenCalled();
     expect(a.clickSpy).toHaveBeenCalled();
     expect(url.revokeSpy).toHaveBeenCalledWith("blob:mock");

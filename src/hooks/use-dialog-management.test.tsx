@@ -1,5 +1,5 @@
+import { mock as createMock, describe, expect, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
 import { renderHook, waitForResult } from "../test/hook-utils";
 import {
   useConfirmationDialog,
@@ -7,10 +7,10 @@ import {
 } from "./use-dialog-management";
 
 describe("use-dialog-management", () => {
-  it("confirmation dialog flows: confirm, cancel, open change", async () => {
+  test("confirmation dialog flows: confirm, cancel, open change", async () => {
     const { result } = renderHook(() => useConfirmationDialog());
-    const onConfirm = vi.fn();
-    const onCancel = vi.fn();
+    const onConfirm = createMock();
+    const onCancel = createMock();
 
     // open via confirm()
     act(() => {
@@ -59,9 +59,9 @@ describe("use-dialog-management", () => {
     expect(onCancel).toHaveBeenCalledTimes(2);
   });
 
-  it("notification dialog flows: notify, action, open change", async () => {
+  test("notification dialog flows: notify, action, open change", async () => {
     const { result } = renderHook(() => useNotificationDialog());
-    const onAction = vi.fn();
+    const onAction = createMock();
 
     act(() => {
       result.current.notify(

@@ -1,19 +1,36 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("@/lib/ai/chat-handlers", () => ({ createChatHandlers: vi.fn() }));
-vi.mock("@/hooks/use-selected-model", () => ({ useSelectedModel: vi.fn() }));
-vi.mock("@/lib/type-guards", () => ({ isUserModel: vi.fn() }));
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn(() => undefined),
-  useAction: vi.fn(() => vi.fn()),
-  useMutation: vi.fn(() => vi.fn()),
+let useSelectedModelMock: ReturnType<typeof mock>;
+let createChatHandlersMock: ReturnType<typeof mock>;
+let isUserModelMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+let useQueryMock: ReturnType<typeof mock>;
+let useActionMock: ReturnType<typeof mock>;
+let useMutationMock: ReturnType<typeof mock>;
+let useAuthTokenMock: ReturnType<typeof mock>;
+
+mock.module("@/lib/ai/chat-handlers", () => ({
+  createChatHandlers: (...args: unknown[]) => createChatHandlersMock(...args),
 }));
-vi.mock("@convex-dev/auth/react", () => ({ useAuthToken: vi.fn(() => null) }));
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(() => ({ user: { isAnonymous: false } })),
+mock.module("@/hooks/use-selected-model", () => ({
+  useSelectedModel: (...args: unknown[]) => useSelectedModelMock(...args),
+}));
+mock.module("@/lib/type-guards", () => ({
+  isUserModel: (...args: unknown[]) => isUserModelMock(...args),
+}));
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
+}));
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useAction: (...args: unknown[]) => useActionMock(...args),
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
+}));
+mock.module("@convex-dev/auth/react", () => ({
+  useAuthToken: (...args: unknown[]) => useAuthTokenMock(...args),
 }));
 
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -22,7 +39,7 @@ import { isUserModel } from "@/lib/type-guards";
 import { mapServerMessageToChatMessage, useChat } from "./use-chat";
 
 describe("mapServerMessageToChatMessage", () => {
-  it("preserves error fields from the server", () => {
+  test("preserves error fields from the server", () => {
     const serverMessage = {
       _id: "m1",
       role: "assistant",
@@ -49,18 +66,25 @@ describe("mapServerMessageToChatMessage", () => {
 
 describe("useChat", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    useSelectedModelMock = mock();
+    createChatHandlersMock = mock();
+    isUserModelMock = mock();
+    useUserDataContextMock = mock(() => ({ user: { isAnonymous: false } }));
+    useQueryMock = mock(() => undefined);
+    useActionMock = mock(() => mock());
+    useMutationMock = mock(() => mock());
+    useAuthTokenMock = mock(() => null);
   });
 
-  it("uses server mode when conversationId provided and wires handlers", async () => {
-    (useSelectedModel as unknown as vi.Mock).mockReturnValue([
+  test("uses server mode when conversationId provided and wires handlers", async () => {
+    useSelectedModelMock.mockReturnValue([
       { _id: "m1", modelId: "gpt", provider: "openai", name: "test" },
     ]);
-    (isUserModel as unknown as vi.Mock).mockReturnValue(false);
-    const sendSpy = vi.fn();
-    (createChatHandlers as unknown as vi.Mock).mockReturnValue({
+    isUserModelMock.mockReturnValue(false);
+    const sendSpy = mock();
+    createChatHandlersMock.mockReturnValue({
       sendMessage: sendSpy,
-      stopGeneration: vi.fn(),
+      stopGeneration: mock(),
     });
 
     const { result } = renderHook(() =>
@@ -72,47 +96,47 @@ describe("useChat", () => {
     });
     expect(sendSpy).toHaveBeenCalled();
     // Verify mode selection
-    const call = (createChatHandlers as unknown as vi.Mock).mock.calls[0][0];
+    expect(createChatHandlersMock.mock.calls.length).toBeGreaterThan(0);
+    const call = createChatHandlersMock.mock.calls[0]?.[0];
+    expect(call).toBeDefined();
     expect(call.type).toBe("server");
     expect(call.conversationId).toBe("c1");
     expect(call.actions).toBeDefined();
   });
 
-  it("uses private mode when user model selected and updates messages via handler", async () => {
+  test("uses private mode when user model selected and updates messages via handler", async () => {
     // Provide a user model
-    (useSelectedModel as unknown as vi.Mock).mockReturnValue([
+    useSelectedModelMock.mockReturnValue([
       { _id: "m1", modelId: "gpt", provider: "openai", name: "x" },
     ]);
-    (isUserModel as unknown as vi.Mock).mockReturnValue(true);
+    isUserModelMock.mockReturnValue(true);
 
     // Mock chat handlers to append an assistant message via provided config
-    (createChatHandlers as unknown as vi.Mock).mockImplementation(
-      (mode: unknown) => {
-        const m = mode as {
-          type: string;
-          config?: {
-            setMessages: (
-              msgs: Array<{ id: string; role: string; content: string }>
-            ) => void;
-          };
+    createChatHandlersMock.mockImplementation((mode: unknown) => {
+      const m = mode as {
+        type: string;
+        config?: {
+          setMessages: (
+            msgs: Array<{ id: string; role: string; content: string }>
+          ) => void;
         };
-        if (m.type === "private") {
-          return {
-            sendMessage: () => {
-              m.config?.setMessages([
-                { id: "a1", role: "assistant", content: "hi" },
-              ]);
-            },
-            stopGeneration: vi.fn(),
-            saveConversation: vi.fn(),
-            editMessage: vi.fn(),
-            retryFromMessage: vi.fn(),
-            deleteMessage: vi.fn(),
-          };
-        }
-        return { sendMessage: vi.fn(), stopGeneration: vi.fn() };
+      };
+      if (m.type === "private") {
+        return {
+          sendMessage: () => {
+            m.config?.setMessages([
+              { id: "a1", role: "assistant", content: "hi" },
+            ]);
+          },
+          stopGeneration: mock(),
+          saveConversation: mock(),
+          editMessage: mock(),
+          retryFromMessage: mock(),
+          deleteMessage: mock(),
+        };
       }
-    );
+      return { sendMessage: mock(), stopGeneration: mock() };
+    });
 
     const { result } = renderHook(() => useChat({}));
     await act(async () => {
@@ -120,15 +144,16 @@ describe("useChat", () => {
     });
     expect(result.current.messages).toHaveLength(1);
     // Mode captured
-    const call = (createChatHandlers as unknown as vi.Mock).mock.calls[0][0];
+    expect(createChatHandlersMock.mock.calls.length).toBeGreaterThan(0);
+    const call = createChatHandlersMock.mock.calls[0]?.[0];
     expect(call.type).toBe("private");
     expect(call.config).toBeDefined();
   });
 
-  it("throws when model not loaded in private mode context", async () => {
-    (useSelectedModel as unknown as vi.Mock).mockReturnValue([null]);
-    (isUserModel as unknown as vi.Mock).mockReturnValue(false);
-    (createChatHandlers as unknown as vi.Mock).mockReturnValue({});
+  test("throws when model not loaded in private mode context", async () => {
+    useSelectedModelMock.mockReturnValue([null]);
+    isUserModelMock.mockReturnValue(false);
+    createChatHandlersMock.mockReturnValue({});
 
     const { result } = renderHook(() => useChat({}));
     await expect(result.current.sendMessage({ content: "x" })).rejects.toThrow(
@@ -136,18 +161,18 @@ describe("useChat", () => {
     );
   });
 
-  it("marks loading false when no conversation is selected", () => {
-    (useSelectedModel as unknown as vi.Mock).mockReturnValue([
+  test("marks loading false when no conversation is selected", () => {
+    useSelectedModelMock.mockReturnValue([
       { _id: "m1", modelId: "gpt", provider: "openai", name: "custom" },
     ]);
-    (isUserModel as unknown as vi.Mock).mockReturnValue(true);
-    (createChatHandlers as unknown as vi.Mock).mockReturnValue({
-      sendMessage: vi.fn(),
-      stopGeneration: vi.fn(),
-      retryFromMessage: vi.fn(),
-      editMessage: vi.fn(),
-      deleteMessage: vi.fn(),
-      saveConversation: vi.fn(),
+    isUserModelMock.mockReturnValue(true);
+    createChatHandlersMock.mockReturnValue({
+      sendMessage: mock(),
+      stopGeneration: mock(),
+      retryFromMessage: mock(),
+      editMessage: mock(),
+      deleteMessage: mock(),
+      saveConversation: mock(),
     });
 
     const { result } = renderHook(() => useChat({}));

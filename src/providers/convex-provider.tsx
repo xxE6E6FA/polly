@@ -1,5 +1,8 @@
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient } from "convex/react";
+import {
+  ConvexProvider as ConvexClientProvider,
+  ConvexReactClient,
+} from "convex/react";
 import type React from "react";
 
 type ConvexProviderProps = {
@@ -26,7 +29,11 @@ function getOrCreateClient(): ConvexReactClient {
 export const ConvexProvider = ({ children }: ConvexProviderProps) => {
   const client = getOrCreateClient();
 
-  return <ConvexAuthProvider client={client}>{children}</ConvexAuthProvider>;
+  return (
+    <ConvexClientProvider client={client}>
+      <ConvexAuthProvider client={client}>{children}</ConvexAuthProvider>
+    </ConvexClientProvider>
+  );
 };
 
 export function getConvexClient() {

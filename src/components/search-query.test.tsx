@@ -1,32 +1,36 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
+import { getByText, render, screen } from "@testing-library/react";
 import { SearchQuery } from "./search-query";
 
 describe("SearchQuery", () => {
-  it("renders nothing when not loading", () => {
+  test("renders nothing when not loading", () => {
     const { container } = render(<SearchQuery isLoading={false} />);
     expect(container.firstChild).toBeNull();
   });
 
-  it("shows spinner and search message when loading", () => {
-    render(<SearchQuery isLoading feature="similar" />);
+  test("shows spinner and search message when loading", () => {
+    const { container } = render(<SearchQuery isLoading feature="similar" />);
     expect(screen.getByText(/similar/i)).toBeInTheDocument();
-    expect(document.querySelector(".animate-spin")).toBeInTheDocument();
+    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
-  it("shows different messages for different features", () => {
-    const { rerender } = render(<SearchQuery isLoading feature="answer" />);
+  test("shows different messages for different features", () => {
+    const { rerender, container } = render(
+      <SearchQuery isLoading feature="answer" />
+    );
     expect(screen.getByText(/answer/i)).toBeInTheDocument();
 
     rerender(<SearchQuery isLoading feature="similar" />);
-    expect(screen.getByText(/similar/i)).toBeInTheDocument();
+    expect(getByText(container, /similar/i)).toBeInTheDocument();
 
     rerender(<SearchQuery isLoading />);
-    expect(screen.getByText(/searching|web|information/i)).toBeInTheDocument();
+    expect(
+      getByText(container, /searching|web|information/i)
+    ).toBeInTheDocument();
   });
 
-  it("shows done state with checkmark and citation count", () => {
-    render(
+  test("shows done state with checkmark and citation count", () => {
+    const { container } = render(
       <SearchQuery
         isLoading
         category="news"
@@ -42,13 +46,13 @@ describe("SearchQuery", () => {
     expect(screen.getByText(/Found/i)).toBeInTheDocument();
     expect(screen.getByText(/news articles/i)).toBeInTheDocument();
     expect(
-      document.querySelector("svg path[d*='M5 13l4 4L19 7']")
+      container.querySelector("svg path[d*='M5 13l4 4L19 7']")
     ).toBeInTheDocument();
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
-    expect(document.querySelector(".animate-spin")).not.toBeInTheDocument();
+    expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
 
-  it("shows correct citation count in badge", () => {
+  test("shows correct citation count in badge", () => {
     const citations = [
       {
         type: "url_citation" as const,

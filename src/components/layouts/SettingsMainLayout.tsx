@@ -1,4 +1,4 @@
-import { Outlet } from "react-router";
+import { Outlet } from "react-router-dom";
 
 import { SettingsContainer } from "@/components/settings/settings-container";
 import { SettingsHeader } from "@/components/settings/settings-header";

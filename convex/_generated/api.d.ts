@@ -8,11 +8,6 @@
  * @module
  */
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 import type * as ai_config from "../ai/config.js";
 import type * as ai_elevenlabs from "../ai/elevenlabs.js";
 import type * as ai_encryption from "../ai/encryption.js";
@@ -56,10 +51,10 @@ import type * as lib_conversation_streaming from "../lib/conversation/streaming.
 import type * as lib_conversation_summarization from "../lib/conversation/summarization.js";
 import type * as lib_conversation_types from "../lib/conversation/types.js";
 import type * as lib_conversation_utils from "../lib/conversation_utils.js";
-import type * as lib_logger from "../lib/logger.js";
 import type * as lib_model_resolution from "../lib/model_resolution.js";
 import type * as lib_pagination from "../lib/pagination.js";
 import type * as lib_process_attachments from "../lib/process_attachments.js";
+import type * as lib_scheduler from "../lib/scheduler.js";
 import type * as lib_schemas from "../lib/schemas.js";
 import type * as lib_shared_citations from "../lib/shared/citations.js";
 import type * as lib_shared_stream_utils from "../lib/shared/stream_utils.js";
@@ -77,6 +72,12 @@ import type * as types from "../types.js";
 import type * as userModels from "../userModels.js";
 import type * as userSettings from "../userSettings.js";
 import type * as users from "../users.js";
+
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -130,10 +131,10 @@ declare const fullApi: ApiFromModules<{
   "lib/conversation/summarization": typeof lib_conversation_summarization;
   "lib/conversation/types": typeof lib_conversation_types;
   "lib/conversation_utils": typeof lib_conversation_utils;
-  "lib/logger": typeof lib_logger;
   "lib/model_resolution": typeof lib_model_resolution;
   "lib/pagination": typeof lib_pagination;
   "lib/process_attachments": typeof lib_process_attachments;
+  "lib/scheduler": typeof lib_scheduler;
   "lib/schemas": typeof lib_schemas;
   "lib/shared/citations": typeof lib_shared_citations;
   "lib/shared/stream_utils": typeof lib_shared_stream_utils;
@@ -152,11 +153,15 @@ declare const fullApi: ApiFromModules<{
   userSettings: typeof userSettings;
   users: typeof users;
 }>;
+declare const fullApiWithMounts: typeof fullApi;
+
 export declare const api: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "public">
 >;
 export declare const internal: FilterApi<
-  typeof fullApi,
+  typeof fullApiWithMounts,
   FunctionReference<any, "internal">
 >;
+
+export declare const components: {};

@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 
 import { getUserFriendlyErrorMessage } from "./error_handlers";
 
 describe("getUserFriendlyErrorMessage", () => {
-  it("returns provider unavailability message for missing endpoints", () => {
+  test("returns provider unavailability message for missing endpoints", () => {
     const message = getUserFriendlyErrorMessage(
       {
         message: "AI_APICallError: No endpoints found for x-ai/grok-4-fast:free.",
@@ -15,21 +15,21 @@ describe("getUserFriendlyErrorMessage", () => {
     expect(message).toMatch(/grok-4-fast:free/i);
   });
 
-  it("returns connectivity guidance for network errors", () => {
+  test("returns connectivity guidance for network errors", () => {
     const message = getUserFriendlyErrorMessage(
       new Error("TypeError: fetch failed (ECONNREFUSED)")
     );
     expect(message).toMatch(/trouble connecting/i);
   });
 
-  it("passes through authentication errors", () => {
+  test("passes through authentication errors", () => {
     const original = "Authentication failed: invalid credentials";
     const message = getUserFriendlyErrorMessage(new Error(original));
     expect(message).toMatch(/invalid credentials/);
     expect(message).toMatch(/Authentication/);
   });
 
-  it("returns authentication guidance when status code is 401", () => {
+  test("returns authentication guidance when status code is 401", () => {
     const message = getUserFriendlyErrorMessage({
       message: "Unauthorized",
       statusCode: 401,

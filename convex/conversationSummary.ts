@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   action,
   internalAction,
@@ -13,7 +13,6 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
-import { log } from "./lib/logger";
 
 // Shared handler function for getting conversation summaries
 async function handleGetConversationSummaries(
@@ -199,7 +198,7 @@ Summary:`;
 
       return summary;
     } catch (error) {
-      log.error("Error generating conversation summary:", error);
+      console.error("Error generating conversation summary:", error);
       return "Previous conversation (summary not available)";
     }
   },
@@ -285,7 +284,6 @@ export const generateMissingSummaries = internalAction({
       });
 
       if (!messages || messages.length === 0) {
-        log.debug(`No messages found for conversation ${conversationId}`);
         return;
       }
 
@@ -309,6 +307,9 @@ export const generateMissingSummaries = internalAction({
       for (let i = 0; i < chunks.length - 1; i++) {
         // Skip last chunk (recent messages)
         const chunk = chunks[i];
+        if (!chunk || chunk.length === 0) {
+          continue;
+        }
         const chunkIndex = i;
 
         // Check if we need to generate/regenerate this summary
@@ -321,10 +322,11 @@ export const generateMissingSummaries = internalAction({
           forceRegenerate;
 
         if (needsSummary) {
-          log.debug(
-            `Generating summary for chunk ${chunkIndex} (${chunk.length} messages)`
-          );
-
+          const firstMessage = chunk[0];
+          const lastMessage = chunk[chunk.length - 1];
+          if (!(firstMessage && lastMessage)) {
+            continue;
+          }
           // Generate summary using LLM
           const summary = await generateChunkSummary(chunk);
 
@@ -336,20 +338,14 @@ export const generateMissingSummaries = internalAction({
               chunkIndex,
               summary,
               messageCount: chunk.length,
-              firstMessageId: chunk[0]._id,
-              lastMessageId: chunk[chunk.length - 1]._id,
+              firstMessageId: firstMessage._id as Id<"messages">,
+              lastMessageId: lastMessage._id as Id<"messages">,
             }
           );
-
-          log.debug(`Generated and stored summary for chunk ${chunkIndex}`);
         }
       }
-
-      log.debug(
-        `Summary generation complete for conversation ${conversationId}`
-      );
     } catch (error) {
-      log.error("Error generating missing summaries:", error);
+      console.error("Error generating missing summaries:", error);
     }
   },
 });
@@ -444,7 +440,7 @@ Rich Summary:`;
 
     return summary;
   } catch (error) {
-    log.error("Error generating chunk summary:", error);
+    console.error("Error generating chunk summary:", error);
     // Fallback to simple summary
     return `${chunk
       .filter(msg => msg.role !== "system")

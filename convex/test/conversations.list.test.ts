@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/conversations.list", () => {
-  it("respects includeArchived and archivedOnly filters and pagination", async () => {
+  test("respects includeArchived and archivedOnly filters and pagination", async () => {
     const t = await makeConvexTest();
     const userId = await t.db.insert("users", { isAnonymous: false, createdAt: Date.now() });
     const authed = t.withIdentity({ subject: userId, issuer: "test" });

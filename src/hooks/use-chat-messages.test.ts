@@ -1,19 +1,28 @@
+import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import { useMutation } from "convex/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@/types";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({
-  useQuery: vi.fn(() => undefined),
-  useMutation: vi.fn(() => vi.fn()),
+let useQueryMock: ReturnType<typeof mock>;
+let useMutationMock: ReturnType<typeof mock>;
+let useNavigateMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+let findStreamingMessageMock: ReturnType<typeof mock>;
+let isMessageStreamingMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useMutation: (...args: unknown[]) => useMutationMock(...args),
 }));
-vi.mock("react-router", () => ({ useNavigate: () => vi.fn() }));
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(() => ({ user: { _id: "u1" } })),
+mock.module("react-router-dom", () => ({
+  useNavigate: () => useNavigateMock,
 }));
-vi.mock("@/lib/chat/message-utils", () => ({
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
+}));
+mock.module("@/lib/chat/message-utils", () => ({
   convertServerMessage: (m: Doc<"messages">) => ({
     id: m._id,
     role: m.role,
@@ -22,8 +31,9 @@ vi.mock("@/lib/chat/message-utils", () => ({
   }),
   extractMessagesArray: (x: unknown) =>
     Array.isArray(x) ? x : (x as { page?: unknown[] })?.page || [],
-  findStreamingMessage: vi.fn(() => null),
-  isMessageStreaming: vi.fn(() => false),
+  findStreamingMessage: (...args: unknown[]) =>
+    findStreamingMessageMock(...args),
+  isMessageStreaming: (...args: unknown[]) => isMessageStreamingMock(...args),
 }));
 
 import { useQuery } from "convex/react";
@@ -31,12 +41,23 @@ import * as msgUtils from "@/lib/chat/message-utils";
 import { useChatMessages } from "./use-chat-messages";
 
 describe("useChatMessages", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    useQueryMock = mock(() => undefined);
+    useMutationMock = mock(() =>
+      mock(async () => {
+        /* noop */
+      })
+    );
+    useNavigateMock = mock();
+    useUserDataContextMock = mock(() => ({ user: { _id: "u1" } }));
+    findStreamingMessageMock = mock(() => null);
+    isMessageStreamingMock = mock(() => false);
+  });
 
   function setupMutationSpies() {
-    const calls: vi.Mock[] = [];
-    (useMutation as unknown as vi.Mock).mockImplementation(() => {
-      const fn = vi.fn(async () => {
+    const calls: ReturnType<typeof mock>[] = [];
+    useMutationMock.mockImplementation(() => {
+      const fn = mock(async () => {
         /* noop */
       });
       calls.push(fn);
@@ -45,8 +66,12 @@ describe("useChatMessages", () => {
     return calls;
   }
 
-  it("combines server and optimistic messages without duplicates", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+  afterAll(() => {
+    mock.restore();
+  });
+
+  test("combines server and optimistic messages without duplicates", () => {
+    useQueryMock.mockImplementation(() => [
       { _id: "1", role: "user", content: "a", _creationTime: 1 },
     ]);
     const { result } = renderHook(() =>
@@ -64,8 +89,8 @@ describe("useChatMessages", () => {
     expect(result.current.messages.map(m => m.content)).toEqual(["a", "b"]);
   });
 
-  it("filters optimistic duplicates that match server messages by role/content", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+  test("filters optimistic duplicates that match server messages by role/content", () => {
+    useQueryMock.mockImplementation(() => [
       { _id: "1", role: "user", content: "dup", _creationTime: 1 },
     ]);
     const { result } = renderHook(() =>
@@ -83,9 +108,9 @@ describe("useChatMessages", () => {
     expect(result.current.messages.map(m => m.content)).toEqual(["dup"]);
   });
 
-  it("deleteMessagesAfter deletes via mutation for messages after index", async () => {
+  test("deleteMessagesAfter deletes via mutation for messages after index", async () => {
     const mutationCalls = setupMutationSpies();
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+    useQueryMock.mockImplementation(() => [
       { _id: "m1", role: "user", content: "a", _creationTime: 1 },
       { _id: "m2", role: "assistant", content: "b", _creationTime: 2 },
     ]);
@@ -105,9 +130,9 @@ describe("useChatMessages", () => {
     expect(called).toBe(true);
   });
 
-  it("editMessage calls update mutation when allowed", async () => {
+  test("editMessage calls update mutation when allowed", async () => {
     const mutationCalls = setupMutationSpies();
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+    useQueryMock.mockImplementation(() => [
       { _id: "m1", role: "user", content: "a", _creationTime: 1 },
     ]);
     const { result } = renderHook(() =>
@@ -126,19 +151,16 @@ describe("useChatMessages", () => {
     expect(called).toBe(true);
   });
 
-  it("deleteMessage deletes conversation when last visible message", async () => {
-    vi.useFakeTimers();
+  test("deleteMessage deletes conversation when last visible message", async () => {
     const mutationCalls = setupMutationSpies();
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+    useQueryMock.mockImplementation(() => [
       { _id: "m1", role: "user", content: "a", _creationTime: 1 },
     ]);
     const { result } = renderHook(() =>
       useChatMessages({ conversationId: "c1" as Id<"conversations"> })
     );
     await act(async () => {
-      const p = result.current.deleteMessage("m1");
-      vi.advanceTimersByTime(110);
-      await p;
+      await result.current.deleteMessage("m1");
     });
     const called = mutationCalls.some(m =>
       m.mock.calls.some(
@@ -147,12 +169,11 @@ describe("useChatMessages", () => {
       )
     );
     expect(called).toBe(true);
-    vi.useRealTimers();
   });
 
-  it("deleteMessage removes message via mutation when others remain", async () => {
+  test("deleteMessage removes message via mutation when others remain", async () => {
     const mutationCalls = setupMutationSpies();
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+    useQueryMock.mockImplementation(() => [
       { _id: "m1", role: "user", content: "a", _creationTime: 1 },
       { _id: "m2", role: "assistant", content: "b", _creationTime: 2 },
     ]);
@@ -171,27 +192,27 @@ describe("useChatMessages", () => {
     expect(called).toBe(true);
   });
 
-  it("isMessageStreaming() returns true for current streaming message id", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue({ page: [] });
-    vi.mocked(msgUtils.findStreamingMessage).mockReturnValue({
+  test("isMessageStreaming() returns true for current streaming message id", () => {
+    useQueryMock.mockImplementation(() => ({ page: [] }));
+    findStreamingMessageMock.mockImplementation(() => ({
       id: "s1",
       isStreaming: true,
-    });
+    }));
     const { result } = renderHook(() =>
       useChatMessages({ conversationId: "c1" as Id<"conversations"> })
     );
     expect(result.current.isMessageStreaming("s1", true)).toBe(true);
   });
 
-  it("isMessageStreaming() falls back to util when id differs", () => {
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+  test("isMessageStreaming() falls back to util when id differs", () => {
+    useQueryMock.mockImplementation(() => [
       { _id: "x", role: "assistant", content: "b", _creationTime: 2 },
     ]);
-    vi.mocked(msgUtils.findStreamingMessage).mockReturnValue({
+    findStreamingMessageMock.mockImplementation(() => ({
       id: "other",
       isStreaming: true,
-    });
-    vi.mocked(msgUtils.isMessageStreaming).mockReturnValue(true);
+    }));
+    isMessageStreamingMock.mockImplementation(() => true);
     const { result } = renderHook(() =>
       useChatMessages({ conversationId: "c1" as Id<"conversations"> })
     );

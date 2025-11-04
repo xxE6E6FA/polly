@@ -53,6 +53,10 @@ function prepareMessagesForRetry(
 ): ChatMessage[] | null {
   const targetMessage = messages[messageIndex];
 
+  if (!targetMessage) {
+    return null;
+  }
+
   if (targetMessage.role === "user") {
     // Retry from user message - keep the user message and regenerate assistant response
     return messages.slice(0, messageIndex + 1);
@@ -534,6 +538,10 @@ export const createPrivateChatHandlers = (
 
       const targetMessage = messages[messageIndex];
 
+      if (!targetMessage) {
+        return;
+      }
+
       if (targetMessage.role === "assistant") {
         // For assistant retry: clear the assistant message and stream into the same message
         // First stop any ongoing streaming
@@ -557,8 +565,11 @@ export const createPrivateChatHandlers = (
 
         // Clear the assistant message content and reset streaming state
         const clearedAssistantMessage: ChatMessage = {
-          ...targetMessage,
+          id: targetMessage.id,
+          role: targetMessage.role,
           content: "",
+          isMainBranch: targetMessage.isMainBranch,
+          createdAt: targetMessage.createdAt,
           reasoning: undefined,
           citations: undefined,
           // Update model/provider optimistically if changed
@@ -606,7 +617,7 @@ export const createPrivateChatHandlers = (
       updatedMessages[messageIndex] = {
         ...updatedMessages[messageIndex],
         content: newContent,
-      };
+      } as ChatMessage;
 
       // Delete all messages after the edited user message
       const newMessages = updatedMessages.slice(0, messageIndex + 1);

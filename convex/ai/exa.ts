@@ -2,7 +2,6 @@ import { type Infer, v } from "convex/values";
 import Exa from "exa-js";
 import { WEB_SEARCH_MAX_RESULTS } from "../../shared/constants";
 import { type Citation, type WebSource } from "../types";
-import { log } from "../lib/logger";
 
 export const exaSearchArgs = v.object({
   query: v.string(),
@@ -91,7 +90,6 @@ export async function searchWithExa(
   context: string;
   rawResults: unknown;
 }> {
-      log.debug("🌐 searchWithExa called with query:", args.query);
   
   try {
     const exa = new Exa(apiKey);
@@ -163,7 +161,7 @@ export async function searchWithExa(
       rawResults: searchResults,
     };
   } catch (error) {
-    log.error("Exa search error:", error);
+    console.error("Exa search error:", error);
     throw new Error(
       `Failed to search with Exa: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -200,7 +198,7 @@ export async function getExaAnswer(
       context: results.answer as string,
     };
   } catch (error) {
-    log.error("Exa answer error:", error);
+    console.error("Exa answer error:", error);
     throw new Error(
       `Failed to get answer from Exa: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -266,7 +264,7 @@ export async function findSimilarWithExa(
       rawResults: similarResults,
     };
   } catch (error) {
-    log.error("Exa find similar error:", error);
+    console.error("Exa find similar error:", error);
     throw new Error(
       `Failed to find similar with Exa: ${error instanceof Error ? error.message : String(error)}`
     );
@@ -298,13 +296,6 @@ export async function performWebSearch(
   apiKey: string,
   args: WebSearchArgs
 ): Promise<WebSearchResult> {
-  log.debug("🔍 performWebSearch called with:", {
-    query: args.query,
-    searchType: args.searchType,
-    maxResults: args.maxResults,
-    hasApiKey: !!apiKey
-  });
-  
   const searchType = args.searchType || "search";
   const maxResults = args.maxResults || WEB_SEARCH_MAX_RESULTS; // Default to 12 results
 
@@ -322,7 +313,6 @@ export async function performWebSearch(
           context: answerResult.context || answerResult.answer,
           rawResults: { answer: answerResult.answer },
         };
-        logSearchSuccess("answer", result);
         return result;
       }
 
@@ -334,7 +324,6 @@ export async function performWebSearch(
             numResults: maxResults,
             includeText: true,
           });
-          logSearchSuccess("similar", result);
           return result;
         }
 
@@ -358,7 +347,6 @@ export async function performWebSearch(
           includeText: true,
           includeHighlights: true,
         });
-        logSearchSuccess("similar-fallback", result);
         return result;
       }
 
@@ -383,29 +371,18 @@ export async function performWebSearch(
           excludeDomains: args.excludeDomains,
           includeText: true,
           includeHighlights: true,
-        });
-        logSearchSuccess("search", result);
+        });   
         return result;
       }
     }
   } catch (error) {
-          log.error(`❌ Exa ${searchType} error:`, error);
+          console.error(`❌ Exa ${searchType} error:`, error);
     throw new Error(
       `Failed to perform ${searchType} with Exa: ${
         error instanceof Error ? error.message : String(error)
       }`
     );
   }
-}
-
-// Add success logging after the switch statement
-function logSearchSuccess(searchType: string, result: WebSearchResult) {
-      log.debug(`✅ EXA ${searchType} completed successfully:`, {
-    citationsCount: result.citations.length,
-    sourcesCount: result.sources.length,
-    contextLength: result.context.length,
-    hasRawResults: !!result.rawResults
-  });
 }
 
 /**

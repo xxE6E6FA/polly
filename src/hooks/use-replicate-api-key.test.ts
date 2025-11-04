@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 import { renderHook } from "../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useQuery: vi.fn() }));
-vi.mock("@/providers/user-data-context", () => ({
-  useUserDataContext: vi.fn(),
+let useQueryMock: ReturnType<typeof mock>;
+let useUserDataContextMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+mock.module("@/providers/user-data-context", () => ({
+  useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
 
 import { useQuery } from "convex/react";
@@ -11,32 +16,30 @@ import { useUserDataContext } from "@/providers/user-data-context";
 import { useReplicateApiKey } from "./use-replicate-api-key";
 
 describe("useReplicateApiKey", () => {
-  it("returns loading true when query undefined", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+  test("returns loading true when query undefined", () => {
+    useUserDataContextMock = mock(() => ({
       user: { isAnonymous: false },
-    });
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+    }));
+    useQueryMock = mock(() => undefined);
     const { result } = renderHook(() => useReplicateApiKey());
     expect(result.current.isLoading).toBe(true);
     expect(result.current.hasReplicateApiKey).toBe(false);
   });
 
-  it("returns false when no replicate key present", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+  test("returns false when no replicate key present", () => {
+    useUserDataContextMock = mock(() => ({
       user: { isAnonymous: false },
-    });
-    (useQuery as unknown as vi.Mock).mockReturnValue([
-      { provider: "openai", hasKey: true },
-    ]);
+    }));
+    useQueryMock = mock(() => [{ provider: "openai", hasKey: true }]);
     const { result } = renderHook(() => useReplicateApiKey());
     expect(result.current.hasReplicateApiKey).toBe(false);
   });
 
-  it("returns true when replicate key exists in array", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({
+  test("returns true when replicate key exists in array", () => {
+    useUserDataContextMock = mock(() => ({
       user: { isAnonymous: false },
-    });
-    (useQuery as unknown as vi.Mock).mockReturnValue([
+    }));
+    useQueryMock = mock(() => [
       { provider: "replicate", hasKey: true },
       { provider: "openai", hasKey: true },
     ]);
@@ -44,9 +47,9 @@ describe("useReplicateApiKey", () => {
     expect(result.current.hasReplicateApiKey).toBe(true);
   });
 
-  it("returns false when user missing and query skipped", () => {
-    (useUserDataContext as unknown as vi.Mock).mockReturnValue({ user: null });
-    (useQuery as unknown as vi.Mock).mockReturnValue(undefined);
+  test("returns false when user missing and query skipped", () => {
+    useUserDataContextMock = mock(() => ({ user: null }));
+    useQueryMock = mock(() => undefined);
     const { result } = renderHook(() => useReplicateApiKey());
     expect(result.current.hasReplicateApiKey).toBe(false);
   });

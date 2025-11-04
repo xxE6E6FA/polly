@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, test } from "bun:test";
 import {
   filterSamplingParameters,
   getSupportedSamplingParameters,
 } from "./model-capabilities";
 
 describe("model-capabilities sampling helpers", () => {
-  it("getSupportedSamplingParameters returns expected flags per provider", () => {
+  test("getSupportedSamplingParameters returns expected flags per provider", () => {
     expect(getSupportedSamplingParameters("openai")).toMatchObject({
       temperature: true,
       topP: true,
@@ -33,7 +33,7 @@ describe("model-capabilities sampling helpers", () => {
     });
   });
 
-  it("filterSamplingParameters removes unsupported keys", () => {
+  test("filterSamplingParameters removes unsupported keys", () => {
     const params = {
       temperature: 0.5,
       topP: 0.9,

@@ -9,7 +9,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {

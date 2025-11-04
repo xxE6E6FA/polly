@@ -1,9 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, test, expect } from "bun:test";
 import { api } from "../_generated/api";
 import { makeConvexTest } from "./helpers";
 
 describe("convex/userModels conflict and built-ins", () => {
-  it("checkModelConflict detects conflict with active built-in", async () => {
+  test("checkModelConflict detects conflict with active built-in", async () => {
     const t = await makeConvexTest();
     await t.db.insert("builtInModels", {
       modelId: "gpt",
@@ -21,7 +21,7 @@ describe("convex/userModels conflict and built-ins", () => {
     expect(res.hasConflict).toBe(true);
   });
 
-  it("getBuiltInModels returns [] when API key missing", async () => {
+  test("getBuiltInModels returns [] when API key missing", async () => {
     const t = await makeConvexTest();
     const res = await t.runQuery(api.userModels.getBuiltInModels, {});
     expect(Array.isArray(res)).toBe(true);

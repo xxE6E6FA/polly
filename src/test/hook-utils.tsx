@@ -1,61 +1,23 @@
-import { act, render as rtlRender, waitFor } from "@testing-library/react";
-import type React from "react";
-import { type PropsWithChildren, useLayoutEffect } from "react";
+import {
+  act,
+  type RenderHookOptions as RTLRenderHookOptions,
+  type RenderHookResult as RTLRenderHookResult,
+  renderHook as rtlRenderHook,
+  waitFor,
+} from "@testing-library/react";
 
-export type RenderHookOptions<P> = {
-  initialProps?: P;
-  wrapper?: React.ComponentType<PropsWithChildren<unknown>>;
-};
+export type RenderHookOptions<P> = RTLRenderHookOptions<P>;
 
-export type RenderHookResult<T, P> = {
-  result: { current: T };
-  rerender: (newProps?: P) => void;
-  unmount: () => void;
-};
+export type RenderHookResult<T, P> = RTLRenderHookResult<T, P>;
 
-/**
- * Minimal, RTL-based renderHook utility for testing custom hooks.
- * Inspired by @testing-library/react-hooks, without extra deps.
- */
 export function renderHook<T, P = void>(
   callback: (props: P) => T,
   options: RenderHookOptions<P> = {}
 ): RenderHookResult<T, P> {
-  const { initialProps, wrapper: Wrapper } = options;
-  const result: { current: T } = { current: undefined as unknown as T };
-
-  function HookContainer({ hookProps }: { hookProps: P }) {
-    const value = callback(hookProps);
-    useLayoutEffect(() => {
-      result.current = value;
-    }, [value]);
-    return null;
-  }
-
-  const ui = Wrapper ? (
-    <Wrapper>
-      <HookContainer hookProps={initialProps as P} />
-    </Wrapper>
-  ) : (
-    <HookContainer hookProps={initialProps as P} />
-  );
-
-  const { rerender: rtlRerender, unmount } = rtlRender(
-    ui as React.ReactElement
-  );
-
-  function rerender(newProps?: P) {
-    const next = Wrapper ? (
-      <Wrapper>
-        <HookContainer hookProps={(newProps as P) ?? (initialProps as P)} />
-      </Wrapper>
-    ) : (
-      <HookContainer hookProps={(newProps as P) ?? (initialProps as P)} />
-    );
-    rtlRerender(next as React.ReactElement);
-  }
-
-  return { result, rerender, unmount };
+  return rtlRenderHook(
+    callback as (props: P) => T,
+    options
+  ) as RenderHookResult<T, P>;
 }
 
 /** Wait until a predicate over result.current passes */

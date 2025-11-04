@@ -484,7 +484,7 @@ export function EmojiPickerDrawer({
             </div>
           ))}
 
-          {displayData.length === 1 && displayData[0].emojis.length === 0 && (
+          {displayData.length === 1 && displayData[0]?.emojis.length === 0 && (
             <div className="text-center py-8">
               <p className="text-muted-foreground">No emojis found</p>
             </div>

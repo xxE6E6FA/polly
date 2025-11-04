@@ -11,7 +11,6 @@ import {
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
-import { log } from "./lib/logger";
 
 // Shared handler for creating anonymous users
 async function handleCreateAnonymousUser(ctx: MutationCtx) {
@@ -160,7 +159,7 @@ export const graduateAnonymousUser = mutation({
         messagesTransferred: anonymousUser.totalMessageCount || 0,
       };
     } catch (error) {
-      log.error("Failed to graduate anonymous user:", error);
+      console.error("Failed to graduate anonymous user:", error);
       throw new Error("Failed to graduate anonymous user");
     }
   },
@@ -313,7 +312,7 @@ export const deleteAccount = mutation({
             jobId: job.jobId,
           });
         } catch (error) {
-          log.warn(
+          console.warn(
             `Failed to delete background job ${job.jobId} during account deletion:`,
             error
           );
@@ -430,7 +429,7 @@ export const deleteAccount = mutation({
         deletedConversations: conversations.length,
       };
     } catch (error) {
-      log.error("Failed to delete account:", error);
+      console.error("Failed to delete account:", error);
       throw new Error("Failed to delete account");
     }
   },

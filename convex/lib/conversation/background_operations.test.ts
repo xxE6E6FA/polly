@@ -1,13 +1,31 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, test, expect, mock } from "bun:test";
 
-// Make Convex `action` return the raw definition so we can call `handler`
-vi.mock("../../_generated/server", () => ({
-  action: (def: any) => def,
+// Note: The Convex action functions expose their handlers via `_handler` property
+// We don't need to mock the action function since we can access the handler directly
+
+// Mock api module to prevent undefined reference errors
+mock.module("../../_generated/api", () => ({
+  api: {
+    backgroundJobs: {
+      create: "backgroundJobs.create",
+      updateStatus: "backgroundJobs.updateStatus",
+      updateProgress: "backgroundJobs.updateProgress",
+      saveImportResult: "backgroundJobs.saveImportResult",
+    },
+    conversationImport: {
+      processImport: "conversationImport.processImport",
+    },
+    conversations: {
+      get: "conversations.get",
+      bulkRemove: "conversations.bulkRemove",
+      processBulkDelete: "conversations.processBulkDelete",
+    },
+  },
 }));
 
 // Mock auth util so we can control user presence
-vi.mock("@convex-dev/auth/server", () => ({
-  getAuthUserId: vi.fn(),
+mock.module("@convex-dev/auth/server", () => ({
+  getAuthUserId: mock(),
 }));
 
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -18,15 +36,12 @@ import {
 } from "./background_operations";
 
 describe("conversation/background_operations", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
-  it("scheduleBackgroundImport requires auth and schedules processing", async () => {
+  test("scheduleBackgroundImport requires auth and schedules processing", async () => {
     // Unauthed
-    (getAuthUserId as any).mockResolvedValueOnce(null);
+    (getAuthUserId as any).mockImplementation(async () => null);
     await expect(
-      (scheduleBackgroundImport as any).handler({} as any, {
+      (scheduleBackgroundImport as any)._handler({} as any, {
         conversations: [{ id: 1 }],
         importId: "imp-1",
         title: "T",
@@ -35,17 +50,28 @@ describe("conversation/background_operations", () => {
     ).rejects.toThrow(/User not authenticated/);
 
     // Authed
-    (getAuthUserId as any).mockResolvedValueOnce("u1");
-    const runMutation = vi.fn().mockResolvedValue(undefined);
-    const runAfter = vi.fn().mockResolvedValue(undefined);
+    (getAuthUserId as any).mockImplementation(async () => "u1");
+    const runMutation = mock(async () => undefined);
+    const runAfter = mock(async () => undefined);
 
-    const ctx: any = { runMutation, scheduler: { runAfter } };
-    const res = await (scheduleBackgroundImport as any).handler(ctx, {
-      conversations: [{ id: 1 }, { id: 2 }],
-      importId: "imp-2",
-      title: "Import Title",
-      description: "Import Desc",
-    });
+    const previous = process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+    process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = "true";
+    let res;
+    try {
+      const ctx: any = { runMutation, scheduler: { runAfter } };
+      res = await (scheduleBackgroundImport as any)._handler(ctx, {
+        conversations: [{ id: 1 }, { id: 2 }],
+        importId: "imp-2",
+        title: "Import Title",
+        description: "Import Desc",
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+      } else {
+        process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = previous;
+      }
+    }
 
     expect(res).toEqual({ importId: "imp-2", status: "scheduled" });
     // Created job with totals and metadata
@@ -64,35 +90,42 @@ describe("conversation/background_operations", () => {
     );
   });
 
-  it("scheduleBackgroundBulkDelete validates ownership and enqueues job", async () => {
-    (getAuthUserId as any).mockResolvedValue("u1");
+  test("scheduleBackgroundBulkDelete validates ownership and enqueues job", async () => {
+    (getAuthUserId as any).mockImplementation(async () => "u1");
 
     // First, simulate one invalid conversation (wrong user) → error
-    const runQueryInvalid = vi
-      .fn()
-      .mockImplementation((_fn, { id }: any) =>
-        Promise.resolve({ _id: id, userId: id === "c1" ? "u1" : "u2" })
-      );
+    const runQueryInvalid = mock(async (_fn: any, { id }: any) =>
+      ({ _id: id, userId: id === "c1" ? "u1" : "u2" })
+    );
 
     await expect(
-      (scheduleBackgroundBulkDelete as any).handler(
+      (scheduleBackgroundBulkDelete as any)._handler(
         { runQuery: runQueryInvalid } as any,
         { conversationIds: ["c1" as any, "c2" as any], jobId: "job-1" }
       )
     ).rejects.toThrow(/Some conversations not found or access denied/);
 
     // Now all valid → job created and scheduled
-    const runQuery = vi
-      .fn()
-      .mockImplementation((_fn, { id }: any) => Promise.resolve({ _id: id, userId: "u1" }));
-    const runMutation = vi.fn().mockResolvedValue(undefined);
-    const runAfter = vi.fn().mockResolvedValue(undefined);
+    const runQuery = mock(async (_fn: any, { id }: any) => ({ _id: id, userId: "u1" }));
+    const runMutation = mock(async () => undefined);
+    const runAfter = mock(async () => undefined);
 
-    const ctx: any = { runQuery, runMutation, scheduler: { runAfter } };
-    const res = await (scheduleBackgroundBulkDelete as any).handler(ctx, {
-      conversationIds: ["a" as any, "b" as any],
-      jobId: "job-2",
-    });
+    const previous = process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+    process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = "true";
+    let res;
+    try {
+      const ctx: any = { runQuery, runMutation, scheduler: { runAfter } };
+      res = await (scheduleBackgroundBulkDelete as any)._handler(ctx, {
+        conversationIds: ["a" as any, "b" as any],
+        jobId: "job-2",
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST;
+      } else {
+        process.env.CONVEX_ENABLE_SCHEDULER_IN_TEST = previous;
+      }
+    }
 
     expect(res).toEqual({ jobId: "job-2", status: "scheduled" });
     // Created job with conversation IDs and metadata
@@ -115,14 +148,14 @@ describe("conversation/background_operations", () => {
     );
   });
 
-  it("scheduleBackgroundBulkDelete formats title/description for single conversation", async () => {
-    (getAuthUserId as any).mockResolvedValue("u1");
-    const runQuery = vi.fn().mockResolvedValue({ _id: "c1", userId: "u1" });
-    const runMutation = vi.fn().mockResolvedValue(undefined);
-    const runAfter = vi.fn().mockResolvedValue(undefined);
+  test("scheduleBackgroundBulkDelete formats title/description for single conversation", async () => {
+    (getAuthUserId as any).mockImplementation(async () => "u1");
+    const runQuery = mock(async () => ({ _id: "c1", userId: "u1" }));
+    const runMutation = mock(async () => undefined);
+    const runAfter = mock(async () => undefined);
     const ctx: any = { runQuery, runMutation, scheduler: { runAfter } };
 
-    await (scheduleBackgroundBulkDelete as any).handler(ctx, { conversationIds: ["c1" as any], jobId: "job-3" });
+    await (scheduleBackgroundBulkDelete as any)._handler(ctx, { conversationIds: ["c1" as any], jobId: "job-3" });
     expect(runMutation).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -132,24 +165,22 @@ describe("conversation/background_operations", () => {
     );
   });
 
-  it("processBulkDelete processes in batches, tracks progress, and saves result", async () => {
-    const runMutation = vi.fn().mockImplementation((_fn, arg: any) => {
+  test("processBulkDelete processes in batches, tracks progress, and saves result", async () => {
+    const runMutation = mock(async (_fn: any, arg: any) => {
       if (arg && "ids" in arg) {
         // Simulate batch delete: first batch (10) → 8 deleted, 2 failed; second batch (2) → both deleted
         const ids: string[] = arg.ids as any;
         if (ids.length === 10) {
-          return Promise.resolve(
-            ids.map((id, i) => ({ id, status: i < 8 ? "deleted" : "kept" }))
-          );
+          return ids.map((id, i) => ({ id, status: i < 8 ? "deleted" : "kept" }));
         }
-        return Promise.resolve(ids.map(id => ({ id, status: "deleted" })));
+        return ids.map(id => ({ id, status: "deleted" }));
       }
-      return Promise.resolve(undefined);
+      return undefined;
     });
 
     const ctx: any = { runMutation };
     const ids = Array.from({ length: 12 }, (_, i) => `c${i + 1}` as any);
-    const res = await (processBulkDelete as any).handler(ctx, {
+    const res = await (processBulkDelete as any)._handler(ctx, {
       conversationIds: ids as any,
       jobId: "job-3",
       userId: "u1" as any,
@@ -181,19 +212,19 @@ describe("conversation/background_operations", () => {
     expect(progressArgs.some((a: any) => a.processedItems === 20)).toBe(true);
   });
 
-  it("processBulkDelete marks failed on outer exception and rethrows", async () => {
-    const runMutation = vi.fn().mockImplementation((_fn, arg: any) => {
+  test("processBulkDelete marks failed on outer exception and rethrows", async () => {
+    const runMutation = mock(async (_fn: any, arg: any) => {
       // Force an error before entering batch loop (updateStatus 'processing')
       if (arg && arg.status === "processing") {
         throw new Error("prep-failure");
       }
       // Allow catch block's updateStatus('failed') to succeed
-      return Promise.resolve(undefined);
+      return undefined;
     });
 
     const ctx: any = { runMutation };
     await expect(
-      (processBulkDelete as any).handler(ctx, {
+      (processBulkDelete as any)._handler(ctx, {
         conversationIds: ["x" as any],
         jobId: "job-err",
         userId: "u1" as any,

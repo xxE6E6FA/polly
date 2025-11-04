@@ -55,7 +55,7 @@ export const cleanupOrphanedMessages = internalMutation({
       .withIndex("by_created_at", q => q.lt("createdAt", cutoffDate))
       .take(batchSize);
 
-    const orphanedIds = [];
+    const orphanedIds: Id<"messages">[] = [];
 
     const conversationIdGroups = new Map<string, typeof messages>();
     for (const message of messages) {
@@ -71,7 +71,9 @@ export const cleanupOrphanedMessages = internalMutation({
         conversationId as Id<"conversations">
       );
       if (!conversation) {
-        orphanedIds.push(...messagesGroup.map(msg => msg._id));
+        for (const msg of messagesGroup) {
+          orphanedIds.push(msg._id as Id<"messages">);
+        }
       }
     }
 

@@ -70,7 +70,12 @@ export function extractMarkdownCitations(text: string): Citation[] {
   let match;
 
   while ((match = linkRegex.exec(text)) !== null) {
-    const [_, linkText, url] = match;
+    const [, rawLinkText, rawUrl] = match;
+    if (!rawLinkText || !rawUrl) {
+      continue;
+    }
+    const linkText = rawLinkText;
+    const url = rawUrl;
 
     // Skip if we've already seen this URL
     if (seenUrls.has(url)) continue;

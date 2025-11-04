@@ -310,8 +310,12 @@ export function useChat({ conversationId, initialMessages }: UseChatParams) {
     // Check the most recent assistant message
     let lastAssistant: ChatMessage | null = null;
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant") {
-        lastAssistant = messages[i];
+      const message = messages[i];
+      if (!message) {
+        continue;
+      }
+      if (message.role === "assistant") {
+        lastAssistant = message;
         break;
       }
     }

@@ -2,7 +2,7 @@ import type { ExportData } from "@/types";
 import { stripCitations } from "./utils";
 
 export function exportAsJSON(data: ExportData): string {
-  if (!data.conversation) {
+  if (!data?.conversation) {
     throw new Error("Conversation data is required for export");
   }
 
@@ -34,7 +34,7 @@ export function exportAsJSON(data: ExportData): string {
 }
 
 export function exportAsMarkdown(data: ExportData): string {
-  if (!data.conversation) {
+  if (!data?.conversation) {
     throw new Error("Conversation data is required for export");
   }
 
@@ -84,6 +84,9 @@ export function exportAsMarkdown(data: ExportData): string {
       markdown += "**Sources:**\n";
       for (let i = 0; i < message.citations.length; i++) {
         const citation = message.citations[i];
+        if (!citation) {
+          continue;
+        }
         markdown += `${i + 1}. [${citation.title}](${citation.url})\n`;
         if (citation.snippet) {
           markdown += `   > ${citation.snippet}\n`;

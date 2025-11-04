@@ -1,9 +1,8 @@
 import { v } from "convex/values";
 import { api, internal } from "../_generated/api";
 import { action, httpAction, internalAction } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { getApiKey } from "./encryption";
-import { log } from "../lib/logger";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../../shared/constants";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import dedent from "dedent";
@@ -49,10 +48,14 @@ export function chunkTextForStreaming(
       chunks.push(section.trim());
       continue;
     }
-    const sentences = section.match(/[^.!?]+[.!?]+(?:\s|$)/g) || [section];
+    const sentences = section.match(/[^.!?]+[.!?]+(?:\s|$)/g) ?? [section];
     let currentChunk = "";
     for (let i = 0; i < sentences.length; i++) {
-      const sentence = sentences[i].trim();
+      const rawSentence = sentences[i];
+      if (!rawSentence) {
+        continue;
+      }
+      const sentence = rawSentence.trim();
       const next = currentChunk ? `${currentChunk} ${sentence}` : sentence;
       const wouldExceedMax = next.length > maxChunkSize;
       const wouldExceedPreferred = next.length > preferredChunkSize;
@@ -359,7 +362,7 @@ export const prepareTTSScript = internalAction({
       }
       return { text: base } as const;
     } catch (error) {
-      log.warn("TTS preprocessing failed, using sanitized text", {
+      console.warn("TTS preprocessing failed, using sanitized text", {
         error: error instanceof Error ? error.message : String(error),
       });
       return { text: base } as const;
@@ -384,12 +387,13 @@ export const generateTTS = action({
     if (!message) {
       throw new Error("Message not found or access denied");
     }
-    if (message.role !== "assistant") {
+    const messageDoc = message as Doc<"messages">;
+    if (messageDoc.role !== "assistant") {
       throw new Error("TTS is only available for assistant messages");
     }
 
-    const conversationId = message.conversationId as Id<"conversations">;
-    const base = stripCodeAndAssets(message.content || "");
+    const conversationId = messageDoc.conversationId;
+    const base = stripCodeAndAssets(messageDoc.content || "");
 
     const userSettings = await ctx.runQuery(api.userSettings.getUserSettings, {});
     const resolvedUseTags =
@@ -419,21 +423,19 @@ export const generateTTS = action({
     let personaVoiceId: string | undefined;
     try {
       const convo = await ctx.runQuery(internal.conversations.internalGet, { id: conversationId });
-      let pid: Id<"personas"> | undefined;
-      if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
-        pid = (convo as { personaId: Id<"personas"> }).personaId;
-      }
+      const pid = convo?.personaId ?? undefined;
       if (pid) {
         const persona = await ctx.runQuery(api.personas.get, { id: pid });
-        if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
-          personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+        const maybeVoiceId = persona?.ttsVoiceId;
+        if (typeof maybeVoiceId === "string" && maybeVoiceId.length > 0) {
+          personaVoiceId = maybeVoiceId;
         }
       }
     } catch {
       // ignore
     }
 
-    const result: { storageId: Id<"_storage">; mimeType: string } = await ctx.runAction(internal.ai.elevenlabs.generateTTSInternal, {
+    const result = (await ctx.runAction(internal.ai.elevenlabs.generateTTSInternal, {
       conversationId,
       text: processedText,
       voiceId: args.voiceId ?? personaVoiceId ?? userSettings?.ttsVoiceId ?? undefined,
@@ -444,17 +446,17 @@ export const generateTTS = action({
         "eleven_v3",
       outputFormat: args.outputFormat,
       stabilityMode: stability,
-    });
+    })) as { storageId: Id<"_storage">; mimeType: string };
 
     const url: string | null = result.storageId
       ? await ctx.runQuery(api.fileStorage.getFileUrl, { storageId: result.storageId })
       : null;
 
     return {
-      storageId: result.storageId,
+      storageId: result.storageId as Id<"_storage">,
       url: url ?? undefined,
       mimeType: result.mimeType,
-    } as const;
+    };
   },
 });
 
@@ -481,13 +483,6 @@ export const generateTTSInternal = internalAction({
         args.outputFormat,
         "mp3_44100_128"
       );
-
-      log.debug("Requesting ElevenLabs TTS", {
-        modelId,
-        voiceId,
-        outputFormat: normalizedOutputFormat,
-        textLength: args.text.length,
-      });
 
       const endpoint = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
 
@@ -523,12 +518,11 @@ export const generateTTSInternal = internalAction({
       const blob = new globalThis.Blob([arrayBuffer], { type: mimeType });
 
       const storageId = (await ctx.storage.store(blob)) as Id<"_storage">;
-
-      log.debug("Stored ElevenLabs TTS audio", { storageId });
+      return { storageId, mimeType };
 
       return { storageId, mimeType };
     } catch (error) {
-      log.error("ElevenLabs TTS error", {
+      console.error("ElevenLabs TTS error", {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -657,7 +651,7 @@ export const fetchAllTTSData = action({
 
       return { voices, models };
     } catch (error) {
-      log.error("Failed to fetch TTS data", error);
+      console.error("Failed to fetch TTS data", error);
       return {
         voices: [],
         models: [
@@ -685,7 +679,7 @@ export const fetchAllTTSData = action({
 // Real-time LLM→TTS streaming pipeline
 // Removed LLM→TTS legacy endpoint
 
-export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
+export const streamTTS = httpAction(async (ctx, request) => {
   const origin = request.headers.get("Origin") || "*";
   const corsHeadersBase: Record<string, string> = {
     "Access-Control-Allow-Origin": origin,
@@ -817,7 +811,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
         });
       }
     } catch (error) {
-      log.error("Error loading message for TTS:", error);
+      console.error("Error loading message for TTS:", error);
       return new Response(JSON.stringify({ error: "Message not found" }), {
         status: 404,
         headers: {
@@ -827,7 +821,8 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       });
     }
 
-    if (message.role !== "assistant") {
+    const messageDoc = message as Doc<"messages">;
+    if (messageDoc.role !== "assistant") {
       const origin = request.headers.get("Origin") || "*";
       return new Response(JSON.stringify({ error: "TTS only for assistant messages" }), {
         status: 400,
@@ -839,13 +834,13 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       });
     }
 
-    const messageDocId = message._id as Id<"messages">;
-    let cacheEntries = Array.isArray(message.ttsAudioCache)
-      ? [...message.ttsAudioCache]
+    const messageDocId = messageDoc._id as Id<"messages">;
+    let cacheEntries = Array.isArray(messageDoc.ttsAudioCache)
+      ? [...messageDoc.ttsAudioCache]
       : [];
 
-    const conversationId = message.conversationId as Id<"conversations">;
-    const apiKey = await getApiKey(ctx as any, "elevenlabs", undefined, conversationId);
+    const conversationId = messageDoc.conversationId as Id<"conversations">;
+    const apiKey = await getApiKey(ctx, "elevenlabs", undefined, conversationId);
     if (!apiKey) {
       const origin = request.headers.get("Origin") || "*";
       return new Response(JSON.stringify({ error: "No ElevenLabs API key configured" }), {
@@ -861,7 +856,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     // Prepare text (sanitize + optional enhancement if user settings request audio tags)
     const userSettings = await ctx.runQuery(api.userSettings.getUserSettings, {});
     const useAudioTags = userSettings?.ttsUseAudioTags ?? true;
-    const baseText = stripCodeAndAssets(message.content || "");
+    const baseText = stripCodeAndAssets(messageDoc.content || "");
     const prepared = useAudioTags
       ? await ctx.runAction(internal.ai.elevenlabs.prepareTTSScript, { text: baseText })
       : { text: baseText };
@@ -873,14 +868,12 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
       const convo = await ctx.runQuery(internal.conversations.internalGet, {
         id: conversationId,
       });
-      let pid: Id<"personas"> | undefined;
-      if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
-        pid = (convo as { personaId: Id<"personas"> }).personaId;
-      }
+      const pid = convo?.personaId ?? undefined;
       if (pid) {
         const persona = await ctx.runQuery(api.personas.get, { id: pid });
-        if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
-          personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+        const maybeVoiceId = persona?.ttsVoiceId;
+        if (typeof maybeVoiceId === "string" && maybeVoiceId.length > 0) {
+          personaVoiceId = maybeVoiceId;
         }
       }
     } catch {
@@ -973,7 +966,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
         });
         cacheEntries = filtered;
       } catch (error) {
-        log.warn("Failed to serve cached TTS audio", {
+        console.warn("Failed to serve cached TTS audio", {
           messageId,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -1018,7 +1011,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     } catch (error) {
       upstreamAbortController.abort();
       const err = error instanceof Error ? error.message : String(error);
-      log.error("Failed to contact ElevenLabs streaming endpoint", { error: err });
+      console.error("Failed to contact ElevenLabs streaming endpoint", { error: err });
       return new Response(JSON.stringify({ error: "Upstream TTS request failed" }), {
         status: 502,
         headers: {
@@ -1059,7 +1052,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     } catch (error) {
       upstreamAbortController.abort();
       const err = error instanceof Error ? error.message : String(error);
-      log.error("Failed to read ElevenLabs audio stream", { error: err });
+      console.error("Failed to read ElevenLabs audio stream", { error: err });
       return new Response(JSON.stringify({ error: "Upstream TTS read failed" }), {
         status: 502,
         headers: {
@@ -1118,7 +1111,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
         );
       }
     } catch (error) {
-      log.warn("Failed to cache generated TTS audio", {
+      console.warn("Failed to cache generated TTS audio", {
         messageId,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -1135,7 +1128,7 @@ export const streamTTS = httpAction(async (ctx, request): Promise<Response> => {
     });
   } catch (error) {
     const origin = request.headers.get("Origin") || "*";
-    log.error("streamTTS error", {
+    console.error("streamTTS error", {
       error: error instanceof Error ? error.message : String(error),
     });
     return new Response(JSON.stringify({ error: "Internal Server Error" }), {
@@ -1207,21 +1200,16 @@ export const createTTSStreamUrl = action({
         // Persona override for signed URL as well
         let personaVoiceId: string | undefined;
         try {
-          const messageRec = await ctx.runQuery(api.messages.getById, { id: args.messageId });
-          let convId: Id<"conversations"> | undefined;
-          if (messageRec && typeof (messageRec as Record<string, unknown>).conversationId === "string") {
-            convId = (messageRec as { conversationId: Id<"conversations"> }).conversationId;
-          }
+      const messageRec = await ctx.runQuery(api.messages.getById, { id: args.messageId });
+      const convId = (messageRec as Doc<"messages"> | null)?.conversationId;
           if (convId) {
             const convo = await ctx.runQuery(internal.conversations.internalGet, { id: convId });
-            let pid: Id<"personas"> | undefined;
-            if (convo && typeof (convo as Record<string, unknown>).personaId === "string") {
-              pid = (convo as { personaId: Id<"personas"> }).personaId;
-            }
+            const pid = convo?.personaId;
             if (pid) {
               const persona = await ctx.runQuery(api.personas.get, { id: pid });
-              if (persona && typeof (persona as Record<string, unknown>).ttsVoiceId === "string") {
-                personaVoiceId = (persona as { ttsVoiceId: string }).ttsVoiceId;
+              const maybeVoiceId = persona?.ttsVoiceId;
+              if (typeof maybeVoiceId === "string" && maybeVoiceId.length > 0) {
+                personaVoiceId = maybeVoiceId;
               }
             }
           }

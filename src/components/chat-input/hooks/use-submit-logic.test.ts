@@ -1,37 +1,54 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "../../../test/hook-utils";
 
-vi.mock("convex/react", () => ({ useConvex: vi.fn() }));
-vi.mock("react-router-dom", () => ({ useNavigate: vi.fn() }));
-vi.mock("@/lib/ai/image-generation-handlers", () => ({
-  handleImageGeneration: vi.fn(),
+let useConvexMock: ReturnType<typeof mock>;
+let useNavigateMock: ReturnType<typeof mock>;
+let handleImageGenerationMock: ReturnType<typeof mock>;
+
+mock.module("convex/react", () => ({
+  useConvex: (...args: unknown[]) => useConvexMock(...args),
+}));
+mock.module("@convex/_generated/api", () => ({
+  api: {
+    conversations: {
+      createUserMessage: "conversations:createUserMessage",
+      createConversationAction: "conversations:createConversationAction",
+    },
+  },
+}));
+mock.module("react-router-dom", () => ({
+  useNavigate: (...args: unknown[]) => useNavigateMock(...args),
+}));
+mock.module("@/lib/ai/image-generation-handlers", () => ({
+  handleImageGeneration: (...args: unknown[]) =>
+    handleImageGenerationMock(...args),
 }));
 
 import type { Id } from "@convex/_generated/dataModel";
-import { useConvex } from "convex/react";
 import type React from "react";
 import { useNavigate } from "react-router-dom";
-import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { useSubmitLogic } from "./use-submit-logic";
 
 describe("useSubmitLogic", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    useConvexMock = mock();
+    useNavigateMock = mock();
+    handleImageGenerationMock = mock();
   });
 
-  it("throws when image mode without model", async () => {
-    (useConvex as unknown as vi.Mock).mockReturnValue({ action: vi.fn() });
+  test("throws when image mode without model", async () => {
+    useConvexMock.mockReturnValue({ action: mock() });
     const { result } = renderHook(() =>
       useSubmitLogic({
         conversationId: "c1" as Id<"conversations">,
         selectedPersonaId: null,
         generationMode: "image",
         imageParams: { model: "" },
-        setInput: vi.fn(),
-        setAttachments: vi.fn(),
-        resetImageParams: vi.fn(),
-        clearChatInputState: vi.fn(),
+        setInput: mock(),
+        setAttachments: mock(),
+        resetImageParams: mock(),
+        clearChatInputState: mock(),
         shouldUsePreservedState: false,
         textareaRef: { current: null },
       })
@@ -39,17 +56,17 @@ describe("useSubmitLogic", () => {
     await expect(result.current.submit()).rejects.toThrow(/Replicate model ID/);
   });
 
-  it("submits image mode in existing conversation and resets form state", async () => {
-    const action = vi.fn().mockResolvedValueOnce({ userMessageId: "m1" });
-    (useConvex as unknown as vi.Mock).mockReturnValue({ action });
-    (handleImageGeneration as unknown as vi.Mock).mockResolvedValue(undefined);
-    const navigate = vi.fn();
-    (useNavigate as unknown as vi.Mock).mockReturnValue(navigate);
+  test("submits image mode in existing conversation and resets form state", async () => {
+    const action = mock().mockResolvedValueOnce({ userMessageId: "m1" });
+    useConvexMock.mockReturnValue({ action });
+    handleImageGenerationMock.mockResolvedValue(undefined);
+    const navigate = mock();
+    useNavigateMock.mockReturnValue(navigate);
 
-    const setInput = vi.fn();
-    const setAttachments = vi.fn();
-    const reset = vi.fn();
-    const clearPreserved = vi.fn();
+    const setInput = mock();
+    const setAttachments = mock();
+    const reset = mock();
+    const clearPreserved = mock();
     const textarea = document.createElement("textarea");
     document.body.appendChild(textarea);
     const textareaRef = {
@@ -76,12 +93,13 @@ describe("useSubmitLogic", () => {
     });
 
     expect(action).toHaveBeenCalled();
+    expect(action.mock.calls.length).toBeGreaterThan(0);
     const [, firstPayload] = action.mock.calls[0];
     expect(firstPayload).toMatchObject({
       model: "replicate/xx",
       provider: "replicate",
     });
-    expect(handleImageGeneration).toHaveBeenCalledWith(
+    expect(handleImageGenerationMock).toHaveBeenCalledWith(
       expect.anything(),
       "c1",
       "m1",
@@ -94,19 +112,18 @@ describe("useSubmitLogic", () => {
     expect(clearPreserved).toHaveBeenCalled();
   });
 
-  it("creates new conversation in image mode and navigates", async () => {
-    const action = vi
-      .fn()
+  test("creates new conversation in image mode and navigates", async () => {
+    const action = mock()
       .mockResolvedValueOnce({ conversationId: "newC" })
       .mockResolvedValueOnce({ userMessageId: "m2" });
-    (useConvex as unknown as vi.Mock).mockReturnValue({ action });
-    (handleImageGeneration as unknown as vi.Mock).mockResolvedValue(undefined);
-    const navigate = vi.fn();
-    (useNavigate as unknown as vi.Mock).mockReturnValue(navigate);
+    useConvexMock.mockReturnValue({ action });
+    handleImageGenerationMock.mockResolvedValue(undefined);
+    const navigate = mock();
+    useNavigateMock.mockReturnValue(navigate);
 
-    const setInput = vi.fn();
-    const setAttachments = vi.fn();
-    const reset = vi.fn();
+    const setInput = mock();
+    const setAttachments = mock();
+    const reset = mock();
     const { result } = renderHook(() =>
       useSubmitLogic({
         conversationId: undefined,
@@ -116,7 +133,7 @@ describe("useSubmitLogic", () => {
         setInput,
         setAttachments,
         resetImageParams: reset,
-        clearChatInputState: vi.fn(),
+        clearChatInputState: mock(),
         shouldUsePreservedState: false,
         textareaRef: { current: null },
       })
@@ -128,6 +145,7 @@ describe("useSubmitLogic", () => {
     expect(navigate).toHaveBeenCalledWith(
       expect.stringContaining("/chat/newC")
     );
+    expect(action.mock.calls.length).toBeGreaterThan(1);
     const [, secondPayload] = action.mock.calls[1];
     expect(secondPayload).toMatchObject({
       model: "replicate/xx",
@@ -135,12 +153,12 @@ describe("useSubmitLogic", () => {
     });
   });
 
-  it("text mode still resets state without calling image handlers", async () => {
-    (useConvex as unknown as vi.Mock).mockReturnValue({ action: vi.fn() });
-    const setInput = vi.fn();
-    const setAttachments = vi.fn();
-    const reset = vi.fn();
-    const clear = vi.fn();
+  test("text mode still resets state without calling image handlers", async () => {
+    useConvexMock.mockReturnValue({ action: mock() });
+    const setInput = mock();
+    const setAttachments = mock();
+    const reset = mock();
+    const clear = mock();
 
     const { result } = renderHook(() =>
       useSubmitLogic({

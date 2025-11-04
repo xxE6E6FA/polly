@@ -1,6 +1,14 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { shallow } from "zustand/shallow";
-import { createWithEqualityFn } from "zustand/traditional";
+import { useStoreWithEqualityFn } from "zustand/traditional";
+import { createStore, type StoreApi } from "zustand/vanilla";
+import type {
+  AIModel,
+  Attachment,
+  GenerationMode,
+  ImageGenerationParams,
+  ReasoningConfig,
+} from "@/types";
 
 type ConversationKey = string; // conversationId string or "global"
 
@@ -23,51 +31,41 @@ export type ChatInputTemperatureState = {
   clearAllTemperature: () => void;
 };
 
-export const GLOBAL_CHAT_INPUT_KEY = "global" as const;
-
-// Centralized key helper used across the app
-export function getChatKey(conversationId?: string | null): ConversationKey {
-  return conversationId ?? GLOBAL_CHAT_INPUT_KEY;
-}
-
-type ChatInputStore = ChatInputPersonaState &
+export type ChatInputStoreState = ChatInputPersonaState &
   ChatInputTemperatureState & {
     // Models slice
-    selectedModel: import("@/types").AIModel | null;
-    setSelectedModel: (model: import("@/types").AIModel | null) => void;
+    selectedModel: AIModel | null;
+    setSelectedModel: (model: AIModel | null) => void;
     // Generation & image params
-    generationMode: import("@/types").GenerationMode;
-    imageParams: import("@/types").ImageGenerationParams;
+    generationMode: GenerationMode;
+    imageParams: ImageGenerationParams;
     negativePromptEnabled: boolean;
-    setGenerationMode: (mode: import("@/types").GenerationMode) => void;
+    setGenerationMode: (mode: GenerationMode) => void;
     setImageParams: (
       value:
-        | import("@/types").ImageGenerationParams
-        | ((
-            prev: import("@/types").ImageGenerationParams
-          ) => import("@/types").ImageGenerationParams)
+        | ImageGenerationParams
+        | ((prev: ImageGenerationParams) => ImageGenerationParams)
     ) => void;
     setNegativePromptEnabled: (enabled: boolean) => void;
     // Reasoning config
-    reasoningConfig: import("@/types").ReasoningConfig;
-    setReasoningConfig: (cfg: import("@/types").ReasoningConfig) => void;
-  };
-
-export const useChatInputStore = createWithEqualityFn<
-  ChatInputStore & {
-    attachmentsByKey: Record<ConversationKey, import("@/types").Attachment[]>;
+    reasoningConfig: ReasoningConfig;
+    setReasoningConfig: (cfg: ReasoningConfig) => void;
+    // Attachments slice
+    attachmentsByKey: Record<ConversationKey, Attachment[]>;
     setAttachments: (
       key: ConversationKey,
-      value:
-        | import("@/types").Attachment[]
-        | ((
-            prev: import("@/types").Attachment[]
-          ) => import("@/types").Attachment[])
+      value: Attachment[] | ((prev: Attachment[]) => Attachment[])
     ) => void;
     clearAttachmentsKey: (key: ConversationKey) => void;
-  }
->()(
-  (set, get) => ({
+  };
+
+export type ChatInputStoreApi = StoreApi<ChatInputStoreState>;
+
+function createChatInputState(
+  set: ChatInputStoreApi["setState"],
+  get: ChatInputStoreApi["getState"]
+): ChatInputStoreState {
+  return {
     // Models slice
     selectedModel: null,
     setSelectedModel: model => set({ selectedModel: model }),
@@ -81,11 +79,9 @@ export const useChatInputStore = createWithEqualityFn<
       set(state => ({
         imageParams:
           typeof value === "function"
-            ? (
-                value as (
-                  prev: import("@/types").ImageGenerationParams
-                ) => import("@/types").ImageGenerationParams
-              )(state.imageParams)
+            ? (value as (prev: ImageGenerationParams) => ImageGenerationParams)(
+                state.imageParams
+              )
             : value,
       })),
     setNegativePromptEnabled: enabled =>
@@ -132,26 +128,12 @@ export const useChatInputStore = createWithEqualityFn<
     clearAllTemperature: () => set({ temperatureByKey: {} }),
 
     // Attachments slice
-    attachmentsByKey: {} as Record<
-      ConversationKey,
-      import("@/types").Attachment[]
-    >,
-    setAttachments: (
-      key: ConversationKey,
-      value:
-        | import("@/types").Attachment[]
-        | ((
-            prev: import("@/types").Attachment[]
-          ) => import("@/types").Attachment[])
-    ) => {
+    attachmentsByKey: {},
+    setAttachments: (key, value) => {
       const prev = get().attachmentsByKey[key] ?? [];
       const next =
         typeof value === "function"
-          ? (
-              value as (
-                prev: import("@/types").Attachment[]
-              ) => import("@/types").Attachment[]
-            )(prev)
+          ? (value as (prev: Attachment[]) => Attachment[])(prev)
           : value;
       if (prev === next) {
         return;
@@ -168,15 +150,67 @@ export const useChatInputStore = createWithEqualityFn<
         attachmentsByKey: { ...state.attachmentsByKey, [key]: next },
       }));
     },
-    clearAttachmentsKey: (key: ConversationKey) =>
+    clearAttachmentsKey: key =>
       set(state => {
         const next = { ...state.attachmentsByKey };
         delete next[key];
         return { attachmentsByKey: next };
       }),
-  }),
-  shallow
-);
+  };
+}
+
+export const createChatInputStore = (
+  init?: Partial<ChatInputStoreState>
+): ChatInputStoreApi =>
+  createStore<ChatInputStoreState>()((set, get) => ({
+    ...createChatInputState(set, get),
+    ...init,
+  }));
+
+let chatInputStoreApi: ChatInputStoreApi = createChatInputStore();
+
+type ChatInputSelector<T> = (state: ChatInputStoreState) => T;
+
+type UseChatInputStore = {
+  <T>(selector: ChatInputSelector<T>, equalityFn?: (a: T, b: T) => boolean): T;
+  getState: ChatInputStoreApi["getState"];
+  setState: ChatInputStoreApi["setState"];
+  subscribe: ChatInputStoreApi["subscribe"];
+};
+
+function useChatInputStoreBase<T>(
+  selector: ChatInputSelector<T>,
+  equalityFn?: (a: T, b: T) => boolean
+): T {
+  return useStoreWithEqualityFn(
+    chatInputStoreApi,
+    selector,
+    equalityFn ?? shallow
+  );
+}
+
+export const useChatInputStore = Object.assign(useChatInputStoreBase, {
+  getState: () => chatInputStoreApi.getState(),
+  setState: chatInputStoreApi.setState,
+  subscribe: chatInputStoreApi.subscribe.bind(chatInputStoreApi),
+}) as UseChatInputStore;
+
+export const getChatInputStore = () => chatInputStoreApi;
+
+export const setChatInputStoreApi = (store: ChatInputStoreApi) => {
+  chatInputStoreApi = store;
+};
+
+export const resetChatInputStoreApi = () => {
+  chatInputStoreApi = createChatInputStore();
+};
+
+export const GLOBAL_CHAT_INPUT_KEY = "global" as const;
+
+// Centralized key helper used across the app
+export function getChatKey(conversationId?: string | null): ConversationKey {
+  return conversationId ?? GLOBAL_CHAT_INPUT_KEY;
+}
 
 export function makeChatInputKey(
   conversationId?: string,
@@ -192,5 +226,5 @@ export function makeChatInputKey(
 }
 
 export function getSelectedPersonaIdFromStore(key: ConversationKey) {
-  return useChatInputStore.getState().selectedByKey[key] ?? null;
+  return chatInputStoreApi.getState().selectedByKey[key] ?? null;
 }

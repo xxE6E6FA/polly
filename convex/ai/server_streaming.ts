@@ -14,7 +14,6 @@ import { api } from "../_generated/api";
 import { type Id } from "../_generated/dataModel";
 import { type ActionCtx } from "../_generated/server";
 import { getProviderReasoningConfig } from "../../shared/reasoning-config";
-import { log } from "../lib/logger";
 import { type ProviderStreamOptions, type ProviderType } from "../types";
 import { isReasoningModel } from "./reasoning_detection";
 import { applyOpenRouterSorting } from "./server_utils";
@@ -59,16 +58,8 @@ const createProviderModel = {
     ctx: ActionCtx,
     userId?: Id<"users">
   ) => {
-    log.info("[server_streaming] Creating OpenRouter provider:", {
-      model,
-      apiKeyLength: apiKey.length,
-      apiKeyPrefix: apiKey.substring(0, 10) + "...",
-      userId: userId ? "present" : "none",
-    });
-
     try {
       const openrouter = createOpenRouter({ apiKey });
-      log.info("[server_streaming] OpenRouter provider created successfully");
 
       // Get user's OpenRouter sorting preference
       let sorting: "default" | "price" | "throughput" | "latency" = "default";
@@ -78,9 +69,8 @@ const createProviderModel = {
             api.userSettings.getUserSettings
           );
           sorting = userSettings?.openRouterSorting ?? "default";
-          log.info("[server_streaming] Retrieved user OpenRouter sorting:", sorting);
         } catch (error) {
-          log.warn(
+          console.warn(
             "Failed to get user settings for OpenRouter sorting:",
             error
           );
@@ -89,19 +79,13 @@ const createProviderModel = {
 
       // Apply OpenRouter sorting shortcuts
       const modifiedModel = applyOpenRouterSorting(model, sorting);
-      log.info("[server_streaming] Applied OpenRouter sorting:", {
-        originalModel: model,
-        modifiedModel,
-        sorting,
-      });
 
       const chatModel = openrouter.chat(modifiedModel);
-      log.info("[server_streaming] OpenRouter chat model created successfully");
       // Cast to LanguageModel to handle OpenRouter type compatibility
       // Use double cast through unknown to avoid type overlap error
       return chatModel as unknown as LanguageModel;
     } catch (error) {
-      log.error("[server_streaming] Error creating OpenRouter model:", {
+      console.error("[server_streaming] Error creating OpenRouter model:", {
         error,
         model,
         apiKeyLength: apiKey.length,
@@ -195,7 +179,7 @@ export const getProviderStreamOptions = async (
         // No user model found - using default
       }
     } catch (error) {
-      log.warn("Failed to get user models for reasoning detection:", error);
+      console.warn("Failed to get user models for reasoning detection:", error);
     }
   }
 
