@@ -21,7 +21,7 @@
     "clear-db": "bun scripts/clear-database.ts",
     "clear-auth": "bun scripts/clear-auth-tables.ts",
     "test": "bun test",
-    "test:ci": "bun test --bail",
+    "test:ci": "bun test --bail --max-concurrency=1",
     "test:coverage": "bun test --coverage",
     "coverage": "bun test --coverage",
     "coverage:ci": "bun test --coverage",
