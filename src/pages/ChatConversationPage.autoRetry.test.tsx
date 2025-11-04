@@ -16,6 +16,7 @@ import {
   RouterProvider,
   type useLoaderData,
 } from "react-router-dom";
+import { mockModuleWithRestore } from "../test/utils";
 
 const createMock = mock;
 
@@ -28,10 +29,12 @@ const mockUseMutation = createMock();
 
 let ChatConversationPage: typeof import("./ChatConversationPage").default;
 
+await mockModuleWithRestore("@convex-dev/auth/react", actual => ({
+  ...actual,
+  useAuthToken: () => "token",
+}));
+
 const registerMocks = () => {
-  mock.module("@convex-dev/auth/react", () => ({
-    useAuthToken: () => "token",
-  }));
   mock.module("convex/react", () => ({
     useQuery: (...args: unknown[]) => mockUseQuery(...args),
     useAction: (...args: unknown[]) => mockUseAction(...args),

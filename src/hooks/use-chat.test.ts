@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, mock, test } from "bun:test";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { act } from "@testing-library/react";
 import { renderHook } from "../test/hook-utils";
+import { mockModuleWithRestore } from "../test/utils";
 
 let useSelectedModelMock: ReturnType<typeof mock>;
 let createChatHandlersMock: ReturnType<typeof mock>;
@@ -12,31 +13,39 @@ let useActionMock: ReturnType<typeof mock>;
 let useMutationMock: ReturnType<typeof mock>;
 let useAuthTokenMock: ReturnType<typeof mock>;
 
-mock.module("@/lib/ai/chat-handlers", () => ({
+await mockModuleWithRestore("@convex-dev/auth/react", actual => ({
+  ...actual,
+  useAuthToken: (...args: unknown[]) => useAuthTokenMock(...args),
+}));
+
+await mockModuleWithRestore("@/lib/ai/chat-handlers", actual => ({
+  ...actual,
   createChatHandlers: (...args: unknown[]) => createChatHandlersMock(...args),
 }));
-mock.module("@/hooks/use-selected-model", () => ({
+
+await mockModuleWithRestore("@/hooks/use-selected-model", actual => ({
+  ...actual,
   useSelectedModel: (...args: unknown[]) => useSelectedModelMock(...args),
 }));
-mock.module("@/lib/type-guards", () => ({
+
+await mockModuleWithRestore("@/lib/type-guards", actual => ({
+  ...actual,
   isUserModel: (...args: unknown[]) => isUserModelMock(...args),
 }));
-mock.module("@/providers/user-data-context", () => ({
+
+await mockModuleWithRestore("@/providers/user-data-context", actual => ({
+  ...actual,
   useUserDataContext: (...args: unknown[]) => useUserDataContextMock(...args),
 }));
-mock.module("convex/react", () => ({
+
+await mockModuleWithRestore("convex/react", actual => ({
+  ...actual,
   useQuery: (...args: unknown[]) => useQueryMock(...args),
   useAction: (...args: unknown[]) => useActionMock(...args),
   useMutation: (...args: unknown[]) => useMutationMock(...args),
 }));
-mock.module("@convex-dev/auth/react", () => ({
-  useAuthToken: (...args: unknown[]) => useAuthTokenMock(...args),
-}));
 
-import { useSelectedModel } from "@/hooks/use-selected-model";
-import { createChatHandlers } from "@/lib/ai/chat-handlers";
-import { isUserModel } from "@/lib/type-guards";
-import { mapServerMessageToChatMessage, useChat } from "./use-chat";
+const { mapServerMessageToChatMessage, useChat } = await import("./use-chat");
 
 describe("mapServerMessageToChatMessage", () => {
   test("preserves error fields from the server", () => {

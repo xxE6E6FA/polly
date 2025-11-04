@@ -9,62 +9,83 @@ import {
 } from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import type { ChatMessage } from "@/types";
-import { createOverlaysMock } from "../../test/utils";
+import { createOverlaysMock, mockModuleWithRestore } from "../../test/utils";
 import type { ModelOptions, PrivateChatConfig } from "./chat-handlers";
 
 const createMock = mock;
 
-mock.restore();
+let createServerChatHandlers: typeof import("./chat-handlers").createServerChatHandlers;
+let createPrivateChatHandlers: typeof import("./chat-handlers").createPrivateChatHandlers;
 
 const overlaysModule = createOverlaysMock();
 const overlays = overlaysModule.overlays;
+let startAuthorStreamMock: ReturnType<typeof mock>;
+let streamChatMock: ReturnType<typeof mock>;
+let getChatKeyMock: ReturnType<typeof mock>;
+let getSelectedPersonaIdFromStoreMock: ReturnType<typeof mock>;
 
-const startAuthorStreamMock = mock(async () => ({
-  abortController: new AbortController(),
-}));
-const streamChatMock = mock(() => Promise.resolve());
-const getChatKeyMock = mock(() => "ckey");
-const getSelectedPersonaIdFromStoreMock = mock(() => "persona-1");
-
-const actualChatInputStore = await import("@/stores/chat-input-store?bun-real");
-
-mock.module("@/lib/utils", () => ({
+await mockModuleWithRestore("@/lib/utils", actual => ({
+  ...actual,
   cleanAttachmentsForConvex: <T>(a: T) => a,
 }));
 
-mock.module("@/stores/stream-overlays", overlaysModule.factory);
+await mockModuleWithRestore("@/stores/stream-overlays", () =>
+  overlaysModule.factory()
+);
 
-mock.module("@/stores/chat-input-store", () => ({
-  ...actualChatInputStore,
-  getChatKey: getChatKeyMock,
-  getSelectedPersonaIdFromStore: getSelectedPersonaIdFromStoreMock,
+await mockModuleWithRestore("@/stores/chat-input-store", actual => ({
+  ...actual,
+  getChatKey: (...args: unknown[]) => getChatKeyMock(...args),
+  getSelectedPersonaIdFromStore: (...args: unknown[]) =>
+    getSelectedPersonaIdFromStoreMock(...args),
 }));
 
-mock.module("./http-stream", () => ({
-  startAuthorStream: startAuthorStreamMock,
-}));
+await mockModuleWithRestore(
+  "./http-stream",
+  actual => ({
+    ...actual,
+    startAuthorStream: (...args: unknown[]) => startAuthorStreamMock(...args),
+  }),
+  { from: import.meta.url }
+);
 
-mock.module("./browser-streaming", () => ({
-  streamChat: streamChatMock,
-}));
+await mockModuleWithRestore(
+  "./browser-streaming",
+  actual => ({
+    ...actual,
+    streamChat: (...args: unknown[]) => streamChatMock(...args),
+  }),
+  { from: import.meta.url }
+);
 
-let createServerChatHandlers: typeof import("./chat-handlers").createServerChatHandlers;
-let createPrivateChatHandlers: typeof import("./chat-handlers").createPrivateChatHandlers;
-let originalEnv: unknown;
+const originalEnv = (import.meta as { env?: unknown }).env;
+const baseEnv: Record<string, unknown> =
+  typeof originalEnv === "object" && originalEnv !== null
+    ? { ...(originalEnv as Record<string, unknown>) }
+    : {};
+baseEnv.VITE_CONVEX_URL = "https://convex";
 
 beforeAll(async () => {
-  originalEnv = (import.meta as { env?: unknown }).env;
-  const baseEnv: Record<string, unknown> =
-    typeof originalEnv === "object" && originalEnv !== null
-      ? { ...(originalEnv as Record<string, unknown>) }
-      : {};
-  baseEnv.VITE_CONVEX_URL = "https://convex";
+  startAuthorStreamMock = mock(async () => ({
+    abortController: new AbortController(),
+  }));
+  streamChatMock = mock(() => Promise.resolve());
+  getChatKeyMock = mock(() => "ckey");
+  getSelectedPersonaIdFromStoreMock = mock(() => "persona-1");
+
   Object.defineProperty(import.meta, "env", {
     value: baseEnv,
     configurable: true,
   });
 
-  const mod = await import("./chat-handlers");
+  await Promise.resolve();
+  await Promise.resolve();
+  const mod = await import("./chat-handlers?bun-real");
+  if (!(mod.createServerChatHandlers && mod.createPrivateChatHandlers)) {
+    throw new Error(
+      `Failed to import chat-handlers: createServerChatHandlers=${typeof mod.createServerChatHandlers}, createPrivateChatHandlers=${typeof mod.createPrivateChatHandlers}, module keys=${Object.keys(mod).join(", ")}`
+    );
+  }
   createServerChatHandlers = mod.createServerChatHandlers;
   createPrivateChatHandlers = mod.createPrivateChatHandlers;
 });
