@@ -34,6 +34,14 @@ await mockModuleWithRestore("@convex-dev/auth/react", actual => ({
   useAuthToken: () => "token",
 }));
 
+await mockModuleWithRestore("@/providers/private-mode-context", actual => ({
+  ...actual,
+  usePrivateMode: () => ({
+    isPrivateMode: false,
+    setPrivateMode: mockSetPrivateMode,
+  }),
+}));
+
 const registerMocks = () => {
   mock.module("convex/react", () => ({
     useQuery: (...args: unknown[]) => mockUseQuery(...args),
@@ -56,13 +64,6 @@ const registerMocks = () => {
   }));
 
   mock.module("@/hooks/use-online", () => ({ useOnline: () => true }));
-
-  mock.module("@/providers/private-mode-context", () => ({
-    usePrivateMode: () => ({
-      isPrivateMode: false,
-      setPrivateMode: mockSetPrivateMode,
-    }),
-  }));
 
   mock.module("@/providers/toast-context", () => ({
     useToast: () => ({

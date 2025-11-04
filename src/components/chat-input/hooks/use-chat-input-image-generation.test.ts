@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
 import { act } from "@testing-library/react";
 import { renderHook } from "../../../test/hook-utils";
+import { mockModuleWithRestore } from "../../../test/utils";
 
 let useConvexMock: ReturnType<typeof mock>;
 let useActionMock: ReturnType<typeof mock>;
@@ -30,7 +31,9 @@ mock.module("@convex/_generated/api", () => ({
 mock.module("@/hooks/use-convex-file-upload", () => ({
   useConvexFileUpload: (...args: unknown[]) => useConvexFileUploadMock(...args),
 }));
-mock.module("@/providers/private-mode-context", () => ({
+
+await mockModuleWithRestore("@/providers/private-mode-context", actual => ({
+  ...actual,
   usePrivateMode: (...args: unknown[]) => usePrivateModeMock(...args),
 }));
 mock.module("react-router-dom", () => ({
