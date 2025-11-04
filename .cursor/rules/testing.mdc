@@ -121,7 +121,7 @@ test("handles user update", async () => {
 
 ### Hook Testing
 ```typescript
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { useUserData } from "./useUserData";
 
 test("fetches user data on mount", async () => {
@@ -140,6 +140,57 @@ test("fetches user data on mount", async () => {
   expect(mockFetch).toHaveBeenCalledWith("/api/users/1");
 });
 ```
+
+#### CRITICAL: Wait for Hook Initialization Before Calling Methods
+
+**Always use `waitFor` to ensure hooks are fully initialized before calling their methods.**
+
+This prevents timing issues, especially in CI environments where tests may run slower:
+
+```typescript
+import { renderHook, act, waitFor } from "@testing-library/react";
+
+// ❌ BAD - Can fail in CI due to timing
+test("calls action immediately", async () => {
+  const mockAction = vi.fn();
+  const { result } = renderHook(() => useChat({ conversationId: "c1" }));
+  
+  await act(async () => {
+    await result.current.sendMessage({ content: "test" });
+  });
+  
+  expect(mockAction).toHaveBeenCalled(); // May fail in CI!
+});
+
+// ✅ GOOD - Wait for hook to be ready first
+test("calls action after initialization", async () => {
+  const mockAction = vi.fn();
+  const { result } = renderHook(() => useChat({ conversationId: "c1" }));
+  
+  // Wait for critical dependencies to be initialized
+  await waitFor(() => {
+    expect(result.current.selectedModel).toBeDefined();
+  });
+  
+  await act(async () => {
+    await result.current.sendMessage({ content: "test" });
+  });
+  
+  expect(mockAction).toHaveBeenCalled(); // Reliable!
+});
+```
+
+**When to use `waitFor`:**
+- Before calling hook methods that depend on async initialization
+- When testing hooks that use `useSelectedModel`, `useQuery`, or other async sources
+- When mocks need to be processed before the hook can function
+- In any test that fails only in CI but passes locally (timing issue indicator)
+
+**What to wait for:**
+- Model selection: `result.current.selectedModel`
+- Data loading: `!result.current.isLoading`
+- Required state: specific state values being truthy
+- Query results: data being defined from `useQuery`
 
 ### Convex Function Testing
 ```typescript
