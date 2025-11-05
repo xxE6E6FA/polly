@@ -570,19 +570,6 @@
       }
     },
     {
-      "includes": ["**/*.test.{ts,tsx}", "convex/**/*.test.{ts,tsx}"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noNamespace": "off"
-          },
-          "suspicious": {
-            "noExplicitAny": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["shared/**/*.{ts,tsx}"],
       "linter": {
         "rules": {

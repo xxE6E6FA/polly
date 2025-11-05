@@ -1,12 +1,11 @@
 # Agent Guidelines for Polly
 
-## Build/Lint/Test Commands
+## Build/Lint Commands
 - **Build**: `bun run build` (includes Convex deploy)
-- **Lint**: `bun run lint` or `bun run lint:fix` (auto-fix)
+- **Lint**: `bun run lint`
 - **Format**: `bun run format` or `bun run format:check`
 - **Check all**: `bun run check` (lint + build) or `bun run check:write` (auto-fix)
 - **Dev**: `bun run dev`
-- **Test**: `bun test` (Bun test runner), `bun test --bail` (exit on first failure)
 - **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
 
 ## Code Style (Biome enforced)
@@ -27,34 +26,6 @@
 - **AI**: Multiple providers (Anthropic, OpenAI, Google, OpenRouter) via AI SDK
 - **Key Data**: Users, conversations, messages, personas, API keys, background jobs
 - **Streaming**: Real-time chat streamed over Convex HTTP actions
-
-## Testing
-- Framework: Bun test runner with `jsdom` environment; setup at `src/test/setup.ts`.
-- Locations: Place tests under `src/**` or `shared/**` using `*.test.ts(x)`.
-- Aliases: Import app code via `@/` and shared via `@shared/`; mock with `mock.module("@/path", ...)`.
-- Helpers (prefer these):
-  - `src/test/utils.ts`:
-    - `makeNdjsonStream(lines)` — create NDJSON `ReadableStream`.
-    - `flushPromises(times)` — flush microtasks; for timers prefer `flushAll`.
-    - `mockGlobalFetchOnce(response)` — one-shot `fetch` mock.
-    - `withMockedURLObjectURL()`, `stubAnchorClicks()` — URL/anchor shims.
-    - `installFileReader*`, `installImageMock`, `installCanvasMock` — DOM/file mocks.
-    - New utilities:
-      - `makeFileList(files)` — build a `FileList` from `File[]`.
-      - `mockFetchNDJSON(chunks)` — mock `fetch` to stream NDJSON from strings/objects.
-      - `mockGlobalFetchSequence(responses[])` — queue multiple `fetch` results.
-      - `flushAll({ microtasks, timersMs })` — flush microtasks and advance timers.
-      - `withFakeTimers(fn)` — RAII helper to run a block with fake timers.
-      - `advanceTimersByTime(ms)` — advance fake timers by milliseconds (use with `withFakeTimers`).
-      - `createOverlaysMock()` — returns `{ overlays, factory }` for `@/stores/stream-overlays` mocks.
-- Patterns:
-  - Streaming tests: use `mockFetchNDJSON` or `makeNdjsonStream` + `flushAll`.
-  - Hooks with timers: wrap in `withFakeTimers()` and advance with `act(() => advanceTimersByTime(...))`.
-  - File uploads: construct `FileList` via `makeFileList` (avoid manual `Object.assign`).
-  - Convex/overlays: mock modules at top-level; reuse `createOverlaysMock().factory`.
-  - Keep `mock.module(...)` at module scope before importing the system under test.
-  - If a `mock.module` factory needs helpers from `src/test/utils.ts`, prefer dynamic import inside the factory:
-    `mock.module("@/stores/stream-overlays", async () => { const { createOverlaysMock } = await import("../../test/utils"); ... })` to avoid hoisting issues.
 
 ## UI Styling Guidelines (Tailwind + shadcn)
 - Spacing: Use stack utilities instead of `space-y-*`.
