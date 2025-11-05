@@ -74,11 +74,7 @@ The app supports multiple AI providers through a unified interface:
 - File uploads handled through Convex file storage
 - All styling follows TailwindCSS + shadcn/ui patterns
 - Code formatting enforced by Biome with pre-commit hooks
-- Unit testing configured with Vitest + React Testing Library
-- Use `bun run test` for local runs or `bun run test:ci` (threads pool) in constrained environments
-
-## CI Notes
-- GitHub Actions workflow `.github/workflows/ci.yml` runs Biome checks and unit tests on pushes and PRs.
+- GitHub Actions workflow `.github/workflows/ci.yml` runs Biome checks and build validations on pushes and PRs.
 
 ## UI Styling Guidelines (Polly Design System)
 - Prefer stack spacing utilities over `space-y-*`:

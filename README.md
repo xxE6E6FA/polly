@@ -62,44 +62,30 @@ Then run `mise install` in the project directory to install Bun and Node automat
 - Model switching and settings management
 - Installable PWA with offline fallback (app shell cached for navigation)
 
-## Testing & CI
+## Checks & CI
 
-- Unit tests use Vitest + React Testing Library.
-- Local runs:
-  - `bun run test` – run tests locally in watch mode.
-  - `bun run test:ci` – CI-friendly test run (all tests once).
-  - `bun run test:changed` – run tests only for changed files.
 - Type checking:
   - `bun run typecheck` – TypeScript type validation (`tsc --noEmit`).
 - Lint/format:
   - `bun run lint` – Biome lint report.
-  - `bun run lint:fix` – Biome lint with auto-fix.
   - `bun run format` / `bun run format:check` – format write/check.
   - `bun run check` / `bun run check:write` – lint+format check or write (also organizes imports).
   - `bun run imports:organize` – organize imports only.
-- Complete validation:
-  - `bun run validate` – run all checks (typecheck + lint + all tests).
 - CI:
-  - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome, tests, and a frontend build on pushes and PRs.
-
-### Coverage
-
-- Coverage uses V8 provider with strict thresholds defined in `vitest.config.ts`.
-- Run `bun run coverage` locally; CI uses `bun run coverage:ci`.
+  - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome and a frontend build on pushes and PRs.
 
 ## Pre-commit Hooks
 
 This repo uses Husky + lint-staged to ensure code quality:
 
 **Automated checks on every commit:**
-- **Formatting & Linting**: Biome formats and applies lint fixes to staged files
-- **Type Checking**: TypeScript validates types across the entire codebase (`tsc --noEmit`)
-- **Testing**: Vitest runs tests for changed files (`vitest run --changed`)
+- **Formatting & Linting**: Biome formats and applies lint fixes to staged files.
+- **Type Checking**: TypeScript validates types across the entire codebase (`tsc --noEmit`).
 
 **Manual validation commands:**
-- `bun run typecheck` - Run TypeScript type checking
-- `bun run pre-commit` - Run all pre-commit checks manually (typecheck + lint + changed tests)
-- `bun run validate` - Full validation (typecheck + lint + all tests)
+- `bun run typecheck` - Run TypeScript type checking.
+- `bun run lint` - Run Biome linting.
+- `bun run pre-commit` - Run all pre-commit checks manually (typecheck + lint).
 
 If absolutely necessary, bypass hooks with `git commit --no-verify` (not recommended).
 

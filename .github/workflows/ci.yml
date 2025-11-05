@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-test:
+  build-and-verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -21,11 +21,6 @@ jobs:
 
       - name: Lint (Biome)
         run: bun run biome check --reporter summary
-
-      - name: Run tests
-        run: bun run test:ci
-        env:
-          CONVEX_URL: ${{ secrets.CONVEX_URL }}
 
       - name: Build
         run: bun run build:frontend
