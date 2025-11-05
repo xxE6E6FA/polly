@@ -35,8 +35,6 @@
   "include": ["src", "shared", "convex"],
   "exclude": [
     "node_modules",
-    "**/*.test.*",
-    "**/*.spec.*",
     "convex/_generated/**/*",
     "convex/schema.js",
     "convex/schema.js.d.ts"
