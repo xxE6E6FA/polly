@@ -120,7 +120,6 @@ export async function startAuthorStream(
     const decoder = new TextDecoder();
     let buffer = "";
     let didFinish = false;
-    let hadError = false;
     (async () => {
       try {
         while (true) {
@@ -174,31 +173,18 @@ export async function startAuthorStream(
                 });
               } else if (evt.t === "error" && evt.error) {
                 // Set error status immediately so UI can display it
-                hadError = true;
                 overlays.setStatus(id, "error");
               } else if (evt.t === "finish") {
                 didFinish = true;
-                const isError = evt.reason === "error";
-                if (isError) {
-                  hadError = true;
-                }
                 // Inform caller that the stream is finished
                 try {
                   args.onFinish?.(evt.reason || "stop");
                 } catch {
                   // ignore callback errors
                 }
-                // Delay overlay clearing slightly to allow DB updates to propagate
-                // Don't clear status overlay if there was an error - let DB be source of truth
-                setTimeout(() => {
-                  overlays.clear(id);
-                  overlays.clearReasoning(id);
-                  if (!hadError) {
-                    overlays.clearStatus(id);
-                  }
-                  overlays.clearCitations(id);
-                  overlays.clearTools(id);
-                }, 250);
+                // Don't clear overlays immediately - keep them until DB updates arrive
+                // This prevents a visual flicker where the message briefly shows incomplete DB content
+                // Overlays will be cleared when the message transitions to "done" status via the effect below
               }
             } catch {
               // ignore malformed line

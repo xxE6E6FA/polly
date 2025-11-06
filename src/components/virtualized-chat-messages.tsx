@@ -227,6 +227,44 @@ export const VirtualizedChatMessages = memo(
       const statusOverlays = useStreamOverlays(s => s.status);
       const citationOverlays = useStreamOverlays(s => s.citations);
 
+      // Clear overlays when message status becomes "done" to prevent flicker
+      useEffect(() => {
+        for (const message of messages) {
+          if (!message || message.role !== "assistant") {
+            continue;
+          }
+          const messageId = message.id;
+          const overlay = overlays[messageId];
+          const reasoningOverlay = reasoningOverlays[messageId];
+          const hasOverlay = overlay || reasoningOverlay;
+
+          if (!hasOverlay) {
+            continue;
+          }
+
+          const isDone = message.status === "done";
+          const isError = message.status === "error";
+          const dbContent = message.content || "";
+          const dbReasoning = message.reasoning || "";
+
+          // Only clear overlays if DB content EXACTLY matches the overlay
+          // This prevents flicker from content differences causing re-renders
+          // Never clear overlays for error messages - let them persist
+          const contentMatches = !overlay || dbContent === overlay;
+          const reasoningMatches =
+            !reasoningOverlay || dbReasoning === reasoningOverlay;
+
+          if (isDone && !isError && contentMatches && reasoningMatches) {
+            const store = useStreamOverlays.getState();
+            store.clear(messageId);
+            store.clearReasoning(messageId);
+            store.clearStatus(messageId);
+            store.clearCitations(messageId);
+            store.clearTools(messageId);
+          }
+        }
+      }, [messages, overlays, reasoningOverlays]);
+
       const messageSelector = useCallback(
         (messageId: string) => {
           const base = messagesMap.get(messageId);
@@ -237,13 +275,17 @@ export const VirtualizedChatMessages = memo(
           const overlayReasoning = reasoningOverlays[messageId];
           const overlayStatus = statusOverlays[messageId];
           const overlayCitations = citationOverlays[messageId];
-          if (
-            (overlay ||
-              overlayReasoning ||
-              overlayStatus ||
-              overlayCitations) &&
-            base.role === "assistant"
-          ) {
+
+          // Stop using overlays once message is done to prevent flicker
+          // This ensures stable object reference when overlays are cleared
+          // Keep using overlays for error messages to display error status
+          const isDone = base.status === "done";
+          const isError = base.status === "error";
+          const hasOverlay =
+            (!isDone || isError) &&
+            (overlay || overlayReasoning || overlayStatus || overlayCitations);
+
+          if (hasOverlay && base.role === "assistant") {
             // Overlay rendered content for author while streaming via HTTP
             return {
               ...base,
@@ -251,10 +293,7 @@ export const VirtualizedChatMessages = memo(
               reasoning: overlayReasoning ?? base.reasoning,
               citations: overlayCitations ?? base.citations,
               // Ensure the message shows live status during overlay
-              status:
-                base.status === "done"
-                  ? base.status
-                  : overlayStatus || base.status || "streaming",
+              status: overlayStatus || base.status || "streaming",
             } as ChatMessageType;
           }
           return base;
