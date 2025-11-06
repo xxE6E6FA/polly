@@ -1,6 +1,0 @@
-[bun]
-version = "latest"
-
-[node]
-version = "20"
-
