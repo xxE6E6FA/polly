@@ -1,0 +1,40 @@
+language:
+  typescript:
+    review_general_suggestions: false
+    review_optional_chains: false
+    review_naming_conventions: false
+  javascript:
+    review_general_suggestions: false
+    review_optional_chains: false
+    review_naming_conventions: false
+
+reviews:
+  high_level_summary: false
+  estimate_effort: false
+  estimate_benefit: false
+  review_comment_language: concise
+
+ignore:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "convex/_generated/**"
+  - "build/**"
+  - "dist/**"
+  - "node_modules/**"
+
+path_filters:
+  - "!**/*.test.*"
+  - "!**/*.spec.*"
+  - "!convex/_generated/**"
+  - "!build/**"
+  - "!dist/**"
+
+min_severity: medium
+
+disable:
+  - format
+  - documentation
+  - test_coverage
+
