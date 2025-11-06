@@ -1,18 +1,14 @@
-language:
-  typescript:
-    review_general_suggestions: false
-    review_optional_chains: false
-    review_naming_conventions: false
-  javascript:
-    review_general_suggestions: false
-    review_optional_chains: false
-    review_naming_conventions: false
+language: en-US
 
 reviews:
   high_level_summary: false
   estimate_effort: false
   estimate_benefit: false
   review_comment_language: concise
+  profile: chill
+  path_instructions:
+    - path: "**/*.{ts,tsx,js,jsx}"
+      instructions: "Focus on security vulnerabilities, bugs, and architectural concerns. Skip style suggestions, formatting, naming conventions, and optional chaining suggestions as Biome handles these. Do not suggest code style improvements."
 
 ignore:
   - "**/*.test.ts"
