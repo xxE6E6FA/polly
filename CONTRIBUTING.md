@@ -86,7 +86,24 @@ We use Husky + lint-staged to keep quality high:
 
 ## Commit Style
 
-- Keep commits focused and descriptive
-- Reference issues where applicable
+We follow [Conventional Commits](https://www.conventionalcommits.org/) for consistency:
+
+- **Format**: `<type>: <description>`
+- **Types**: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
+- **Title only** - no body/description section
+- Split commits when changes affect different areas or have different purposes
+- Examples: `feat: add image generation support`, `fix: prevent message flicker during streaming`
+
+**Branch Names:**
+- Format: `<type>/<description>` (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
+- Use kebab-case, keep concise (30-50 characters)
+- No timestamps or random suffixes
+
+**Pull Requests:**
+- PR title should be concise and descriptive (no Conventional Commits format required)
+- Provide context in PR description (what, why, testing notes)
+- Keep PRs focused on a single concern
+
+See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines.
 
 Thanks again for contributing!

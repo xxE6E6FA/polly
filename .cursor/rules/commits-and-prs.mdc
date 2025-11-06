@@ -1,0 +1,175 @@
+---
+description: Commit message and pull request standards
+alwaysApply: true
+---
+
+# Commits & Pull Requests
+
+## Commit Message Format
+
+### Conventional Commits
+All commit messages MUST follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+- **Format**: `<type>: <description>`
+- **Types**: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
+- **Title Only**: Commit messages MUST contain only a title (no body/description)
+- **Length**: Keep titles concise but descriptive (typically 50-72 characters)
+- **Case**: Use lowercase for the type, sentence case for the description
+- **Punctuation**: No period at the end of the title
+
+### Commit Types
+
+- **`feat`**: New feature or functionality
+- **`fix`**: Bug fix
+- **`refactor`**: Code refactoring without changing functionality
+- **`chore`**: Maintenance tasks, dependency updates, tooling changes
+- **`test`**: Adding or updating tests
+- **`docs`**: Documentation changes
+- **`style`**: Code style changes (formatting, whitespace)
+- **`perf`**: Performance improvements
+- **`ci`**: CI/CD pipeline changes
+- **`build`**: Build system or build-related changes
+- **`revert`**: Reverting a previous commit
+
+### Examples
+
+```bash
+# ✅ Good
+feat: add image generation support
+fix: prevent message flicker during streaming
+refactor: enhance testing framework with Bun setup
+chore: update CI test command to limit concurrency
+test: add unit tests for message conversion
+
+# ❌ Bad - Has description/body
+feat: add image generation support
+
+This commit adds support for image generation using DALL-E API.
+
+# ❌ Bad - Missing type
+Add image generation support
+
+# ❌ Bad - Wrong format
+FEAT: Add image generation support
+feat:Add image generation support
+feat: add image generation support.
+```
+
+## Commit Splitting
+
+### When to Split Commits
+
+Split changes into separate commits when:
+- Changes affect different areas of the codebase (e.g., frontend vs backend)
+- Changes have different purposes (e.g., feature implementation vs test updates)
+- Changes can be reviewed independently
+- One change depends on another (commit dependencies first)
+
+### When to Combine Commits
+
+Combine changes into a single commit when:
+- Changes are tightly coupled and cannot be meaningfully separated
+- All changes are part of the same logical unit of work
+- Splitting would create incomplete or broken intermediate states
+
+### Examples
+
+```bash
+# ✅ Good - Split by concern
+fix: prevent message flicker during streaming
+test: add tests for message streaming completion
+
+# ✅ Good - Split by area
+refactor: enhance testing framework with Bun setup
+chore: migrate project from pnpm to Bun
+
+# ✅ Good - Combined when tightly coupled
+refactor: replace pnpm/vite/vitest with Bun
+
+# ❌ Bad - Mixed concerns in one commit
+fix: prevent message flicker and add streaming tests
+```
+
+## Branch Naming
+
+### Format
+- **Pattern**: `<type>/<description>`
+- **Types**: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`
+- **Description**: Use kebab-case, keep concise and descriptive
+- **Length**: Aim for 30-50 characters total
+- **No Timestamps**: Do not include timestamps or random suffixes
+
+### Examples
+
+```bash
+# ✅ Good
+feat/add-commit-and-pr-rules
+fix/message-stream-reload-flicker
+refactor/optimistic-updates-and-pagination
+chore/update-dependencies
+test/add-message-conversion-tests
+
+# ❌ Bad - Too long
+feature/native-fullscreen-chat-input-mobile-drawer-toggle-with-submit-outside-dismiss-handoff-20250818-175122
+
+# ❌ Bad - Has timestamp
+feat/add-rules-20250101-120000
+
+# ❌ Bad - Missing type prefix
+add-commit-rules
+message-stream-fix
+
+# ❌ Bad - Wrong separator
+feat_add_commit_rules
+feat.add.commit.rules
+```
+
+## Pull Request Guidelines
+
+### PR Title
+- **Concise and descriptive** - summarize the entirety of changes in the PR
+- **No Conventional Commits format required** - PR titles don't need to follow `<type>: <description>` format
+- Should clearly describe what the PR accomplishes
+- No need to repeat "PR" or "Pull Request" in the title
+
+### PR Description
+- Provide context about what changes were made and why
+- Reference related issues or discussions
+- Include testing notes if applicable
+- Note any breaking changes
+
+### PR Best Practices
+- Keep PRs focused on a single concern or feature
+- Ensure all commits in the PR follow commit message standards
+- Squash commits when merging if the PR contains multiple related commits
+- Use "Squash and merge" for feature branches with multiple commits
+- Use "Merge commit" only when preserving commit history is important
+
+### Examples
+
+```markdown
+# ✅ Good PR Titles (concise, descriptive, no Conventional Commits format required)
+Add commit and PR rules to documentation
+Prevent message flicker during streaming completion
+Migrate testing framework from pnpm/vitest to Bun
+Enhance image handling and loading performance
+
+# ✅ Good PR Description
+This PR adds comprehensive guidelines for commit messages and pull requests to ensure consistency across the project.
+
+- Adds `.cursor/rules/commits-and-prs.mdc` with detailed standards
+- Updates `AGENT.md` with commit/PR guidelines
+- Documents conventional commits format, branch naming, and commit splitting practices
+
+Closes #123
+```
+
+## Workflow
+
+1. **Create branch**: `git checkout -b <type>/<description>`
+2. **Make changes**: Write code following project standards
+3. **Commit**: Use conventional commit format with title only
+4. **Push**: `git push -u origin <branch-name>`
+5. **Create PR**: Use concise, descriptive title (no Conventional Commits format required)
+6. **Review**: Address feedback and update commits as needed
+7. **Merge**: Use appropriate merge strategy (squash for feature branches)
