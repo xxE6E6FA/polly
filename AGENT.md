@@ -14,6 +14,7 @@
   - Use `bun test --seed=<number>` for deterministic results
   - If a seeded run (e.g., `bun test --seed=1198959309`) fails, look for cross-file pollution from shared module mocks or singleton stores. Prefer rendering against real providers/stores with helpers instead of `mock.module()` overrides in test files.
   - Zustand stores auto-reset after each test via `resetVanillaStores()` and `resetReactStores()` in `test/setup-bun.ts`; leave those helpers in place and avoid custom store resets unless a test needs a bespoke store instance.
+  - **Store method binding**: When implementing store hooks with `Object.assign`, methods MUST use dynamic access (arrow functions that call `storeApi.method()`), not static binding (`.bind()` or direct assignment), to support test isolation via `setStoreApi()`.
 - **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
 
 ## Code Style (Biome enforced)

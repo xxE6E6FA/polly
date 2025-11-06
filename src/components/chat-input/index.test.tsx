@@ -67,10 +67,8 @@ type TextInputSectionProps = {
 import { setConvexMock, setUserDataMock } from "../../../test/global-mocks";
 import { mockNavigatorOnline } from "../../../test/test-utils";
 
-// biome-ignore lint/suspicious/noExplicitAny: Test utility requires any for flexibility
 type Stub<T extends (...args: any[]) => any> = T & { calls: Parameters<T>[] };
 
-// biome-ignore lint/suspicious/noExplicitAny: Test utility requires any for flexibility
 function createStub<T extends (...args: any[]) => any>(impl: T): Stub<T> {
   const stub = ((...args: Parameters<T>) => {
     (stub as Stub<T>).calls.push(args);
@@ -81,7 +79,6 @@ function createStub<T extends (...args: any[]) => any>(impl: T): Stub<T> {
 }
 
 setUserDataMock({
-  // biome-ignore lint/style/useNamingConvention: Convex system field
   user: { _id: "user-1", isAnonymous: false },
   canSendMessage: true,
 });
@@ -314,9 +311,7 @@ beforeEach(() => {
   replicateState.value = true;
   getChatInputStore().setState({
     selectedModel: {
-      // biome-ignore lint/style/useNamingConvention: Convex system field
       _id: "model-1" as Id<"userModels">,
-      // biome-ignore lint/style/useNamingConvention: Convex system field
       _creationTime: Date.now(),
       userId: "user-1",
       modelId: "gpt-4o",

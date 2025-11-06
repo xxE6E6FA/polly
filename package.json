@@ -21,6 +21,7 @@
     "clear-db": "bun scripts/clear-database.ts",
     "clear-auth": "bun scripts/clear-auth-tables.ts",
     "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit --project tsconfig.test.json",
     "pre-commit": "bun run typecheck && bun run lint && bun run compiler:check && bun run test:random",
     "test": "bun test",
     "test:watch": "bun test --watch",

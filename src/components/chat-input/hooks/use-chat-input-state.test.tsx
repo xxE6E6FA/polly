@@ -5,6 +5,7 @@ import {
   describe,
   expect,
   mock,
+  spyOn,
   test,
 } from "bun:test";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -16,10 +17,8 @@ import type {
 } from "@/types";
 import { TestProviders } from "../../../../test/TestProviders";
 
-// biome-ignore lint/suspicious/noExplicitAny: Test utility requires any for flexibility
 type Stub<T extends (...args: any[]) => any> = T & { calls: Parameters<T>[] };
 
-// biome-ignore lint/suspicious/noExplicitAny: Test utility requires any for flexibility
 function createStub<T extends (...args: any[]) => any>(impl: T): Stub<T> {
   const stub = ((...args: Parameters<T>) => {
     (stub as Stub<T>).calls.push(args);
@@ -92,16 +91,16 @@ const createCoreStateStub = (): CoreStateStub => {
 let coreStateStub: CoreStateStub = createCoreStateStub();
 
 type ImageGenStateStub = {
-  generationMode: string;
+  generationMode: "text" | "image";
   imageParams: ImageGenerationParams;
   negativePromptEnabled: boolean;
-  setGenerationMode: Stub<(mode: string) => void>;
-  setImageParams: Stub<(updater: unknown) => void>;
+  setGenerationMode: Stub<(mode: any) => void>;
+  setImageParams: Stub<(updater: any) => void>;
   setNegativePromptEnabled: Stub<(enabled: boolean) => void>;
   handleNegativePromptEnabledChange: Stub<(enabled: boolean) => void>;
   handleNegativePromptValueChange: Stub<(value: string) => void>;
   resetImageParams: Stub<() => void>;
-};
+} & any;
 
 const createImageGenStateStub = (): ImageGenStateStub => ({
   generationMode: "text",
@@ -115,7 +114,7 @@ const createImageGenStateStub = (): ImageGenStateStub => ({
     negativePrompt: "",
   },
   negativePromptEnabled: false,
-  setGenerationMode: createStub((_mode: string) => {
+  setGenerationMode: createStub((_mode: any) => {
     // Mock set generation mode
   }),
   setImageParams: createStub((_updater: unknown) => {
@@ -137,25 +136,12 @@ const createImageGenStateStub = (): ImageGenStateStub => ({
 
 let imageGenStateStub: ImageGenStateStub = createImageGenStateStub();
 
-const actualChatUIStore = await import("@/stores/chat-ui-store");
-mock.module("@/stores/chat-ui-store", () => ({
-  ...actualChatUIStore,
-  useChatHistory: () => historyStub,
-}));
-
-const actualCoreModule = await import("./use-chat-input-core-state");
-mock.module("./use-chat-input-core-state", () => ({
-  ...actualCoreModule,
-  useChatInputCoreState: () => coreStateStub,
-}));
-
-const actualImageParamsModule = await import(
+// Import modules we'll spy on
+const chatUIStoreModule = await import("@/stores/chat-ui-store");
+const coreStateModule = await import("./use-chat-input-core-state");
+const imageParamsModule = await import(
   "./use-chat-input-image-generation-params"
 );
-mock.module("./use-chat-input-image-generation-params", () => ({
-  ...actualImageParamsModule,
-  useChatInputImageGenerationParams: () => imageGenStateStub,
-}));
 
 const { useChatInputState } = await import("./use-chat-input-state");
 
@@ -168,7 +154,6 @@ beforeEach(() => {
     if (typeof message === "string" && message.includes("act")) {
       throw new Error(message);
     }
-    // biome-ignore lint/suspicious/noExplicitAny: Console error mocking requires any
     originalConsoleError(message as any, ...rest);
   }) as typeof console.error;
 
@@ -177,6 +162,16 @@ beforeEach(() => {
   historyStub = createHistoryStub();
   coreStateStub = createCoreStateStub();
   imageGenStateStub = createImageGenStateStub();
+
+  // Use spyOn instead of mock.module to avoid cross-file pollution
+  spyOn(chatUIStoreModule, "useChatHistory").mockReturnValue(historyStub);
+  spyOn(coreStateModule, "useChatInputCoreState").mockReturnValue(
+    coreStateStub as any
+  );
+  spyOn(imageParamsModule, "useChatInputImageGenerationParams").mockReturnValue(
+    imageGenStateStub as any
+  );
+
   localStorage.clear();
 });
 

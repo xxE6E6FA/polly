@@ -6,7 +6,7 @@ preload = ["test/global-mocks.ts", "test/setup-bun.ts"]
 randomize = true
 
 # Collect coverage in CI; locally it can be toggled with CLI flags.
-coverage = true
+coverage = false
 
 # Reasonable default; individual tests can override with `test.setTimeout`.
 timeout = 30000
