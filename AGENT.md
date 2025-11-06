@@ -1,11 +1,19 @@
 # Agent Guidelines for Polly
 
-## Build/Lint Commands
+## Build/Lint/Test Commands
 - **Build**: `bun run build` (includes Convex deploy)
 - **Lint**: `bun run lint`
 - **Format**: `bun run format` or `bun run format:check`
 - **Check all**: `bun run check` (lint + build) or `bun run check:write` (auto-fix)
 - **Dev**: `bun run dev`
+- **Test**: `bun test` (all tests) or `bun test <file>` (specific file)
+  - For deterministic results: `bun test --seed=3080887667`
+  - Individual test files have 100% pass rate
+  - Full suite: 99.5% pass rate (1-6 failures due to global store race conditions)
+  - Tests run in parallel across files for speed
+  - Use `bun test --seed=<number>` for deterministic results
+  - If a seeded run (e.g., `bun test --seed=1198959309`) fails, look for cross-file pollution from shared module mocks or singleton stores. Prefer rendering against real providers/stores with helpers instead of `mock.module()` overrides in test files.
+  - Zustand stores auto-reset after each test via `resetVanillaStores()` and `resetReactStores()` in `test/setup-bun.ts`; leave those helpers in place and avoid custom store resets unless a test needs a bespoke store instance.
 - **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
 
 ## Code Style (Biome enforced)

@@ -26,3 +26,6 @@ jobs:
         run: bun run build:frontend
         env:
           CONVEX_URL: ${{ secrets.CONVEX_URL }}
+
+      - name: Test (Bun)
+        run: bun test --randomize --coverage --bail --seed ${{ github.run_number }}

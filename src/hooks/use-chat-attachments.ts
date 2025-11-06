@@ -1,18 +1,15 @@
+import { useMemo } from "react";
 import { getChatKey, useChatInputStore } from "@/stores/chat-input-store";
 import type { Attachment, ConversationId } from "@/types";
 import { useClearOnConversationChange } from "./use-clear-on-conversation-change";
 
 export function useChatAttachments(conversationId?: ConversationId) {
   const key = getChatKey(conversationId as unknown as string);
-  const hookCache = useChatAttachments as unknown as {
-    emptyAttachments?: readonly Attachment[];
-  };
-  if (!hookCache.emptyAttachments) {
-    hookCache.emptyAttachments = Object.freeze([]) as readonly Attachment[];
-  }
-  const Empty: readonly Attachment[] = hookCache.emptyAttachments;
+  const emptyAttachments = useMemo(() => [] as const, []);
   const attachments = useChatInputStore(
-    s => (s.attachmentsByKey[key] as readonly Attachment[] | undefined) ?? Empty
+    s =>
+      (s.attachmentsByKey[key] as readonly Attachment[] | undefined) ??
+      emptyAttachments
   );
   const set = useChatInputStore(s => s.setAttachments);
   const clearKey = useChatInputStore(s => s.clearAttachmentsKey);

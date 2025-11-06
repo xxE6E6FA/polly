@@ -9,6 +9,52 @@ Thanks for your interest in contributing! This doc outlines how to set up and su
 - Start backend (terminal A): `npx convex dev`
 - Start frontend (terminal B): `bun run dev`
 
+## Testing
+
+We use Bun's built-in runner and React Testing Library for DOM tests.
+
+- Install test deps once:
+  - `bun add -d @testing-library/react @testing-library/jest-dom @happy-dom/global-registrator convex-test`
+- Run all tests: `bun test`
+- Watch mode: `bun test --watch`
+- Single file: `bun test path/to/file.test.tsx`
+- Randomized order (reproducible): `bun test --randomize --seed 1234`
+- CI uses: `bun test --randomize --coverage --bail`
+
+### Test Isolation & Flakiness Prevention
+
+To prevent flaky tests caused by shared state and global mocks:
+
+- **Store Isolation**: For tests using Zustand stores (e.g., `chat-input-store`):
+  ```typescript
+  beforeEach(() => {
+    mock.restore(); // Clear global mocks first
+    setChatInputStoreApi(createChatInputStore()); // Fresh store instance
+    // ... other setup
+  });
+
+  afterAll(() => {
+    setChatInputStoreApi(originalStore); // Restore original store
+  });
+  ```
+
+- **Mock Cleanup**: Always call `mock.restore()` in `beforeEach` to clear global mocks between tests.
+
+- **Avoid Global Hook Mocking**: Instead of mocking hooks globally (e.g., `mock.module("@/hooks/useSelectedModel", ...)`), prefer setting up store state directly:
+  ```typescript
+  beforeEach(() => {
+    resetChatInputStoreApi();
+    getChatInputStore().setState({ selectedModel: testModel });
+  });
+  ```
+
+- **Test Seeds**: When tests fail, note the failing seed and use it to reproduce: `bun test --seed 12345`
+
+Notes:
+- DOM environment is provided by happy‑dom via `test/setup-bun.ts` (loaded automatically).
+- For components/hooks that import `convex/react`, prefer module‑level mocks in the test file.
+- For server functions under `convex/`, use the official `convex-test` utilities.
+
 ## Pre-commit Hooks
 
 We use Husky + lint-staged to keep quality high:

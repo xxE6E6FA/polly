@@ -1,0 +1,16 @@
+[test]
+# Preload runs before any test files; keep it lightweight and self-healing.
+preload = ["test/global-mocks.ts", "test/setup-bun.ts"]
+
+# Randomize spec execution order to ensure tests are independent.
+randomize = true
+
+# Collect coverage in CI; locally it can be toggled with CLI flags.
+coverage = true
+
+# Reasonable default; individual tests can override with `test.setTimeout`.
+timeout = 30000
+
+# Look for tests in typical places
+root = ["src", "test", "tests"]
+

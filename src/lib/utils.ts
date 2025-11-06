@@ -69,13 +69,15 @@ export function stripCitations(text: string): string {
   // Remove citation groups like [1][2][3] or [1], [2], [3]
   const groupPattern = /(\[\d+\](?:\s*,?\s*\[\d+\])+)/g;
 
-  // Remove single citations like [1]
-  const singlePattern = /\[\d+\]/g;
+  // Remove single citations like [1], including optional preceding and following spaces
+  // But preserve spacing around punctuation
+  const singlePattern = /\s*\[\d+\]\s*/g;
 
   return text
-    .replace(groupPattern, "")
-    .replace(singlePattern, "")
+    .replace(groupPattern, " ")
+    .replace(singlePattern, " ")
     .replace(/\s+/g, " ") // Clean up extra spaces
+    .replace(/\s+([.,!?;:])/g, "$1") // Remove spaces before punctuation
     .trim();
 }
 
