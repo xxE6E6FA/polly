@@ -2,23 +2,12 @@ language: en-US
 
 reviews:
   high_level_summary: false
-  estimate_effort: false
-  estimate_benefit: false
-  review_comment_language: concise
+  estimate_code_review_effort: false
+  assess_linked_issues: false
   profile: chill
   path_instructions:
     - path: "**/*.{ts,tsx,js,jsx}"
       instructions: "Focus on security vulnerabilities, bugs, and architectural concerns. Skip style suggestions, formatting, naming conventions, and optional chaining suggestions as Biome handles these. Do not suggest code style improvements."
-
-ignore:
-  - "**/*.test.ts"
-  - "**/*.test.tsx"
-  - "**/*.spec.ts"
-  - "**/*.spec.tsx"
-  - "convex/_generated/**"
-  - "build/**"
-  - "dist/**"
-  - "node_modules/**"
 
 path_filters:
   - "!**/*.test.*"
@@ -26,8 +15,7 @@ path_filters:
   - "!convex/_generated/**"
   - "!build/**"
   - "!dist/**"
-
-min_severity: medium
+  - "!node_modules/**"
 
 disable:
   - format
