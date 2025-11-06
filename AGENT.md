@@ -36,6 +36,15 @@
 - **Key Data**: Users, conversations, messages, personas, API keys, background jobs
 - **Streaming**: Real-time chat streamed over Convex HTTP actions
 
+## Commits & Pull Requests
+- **Format**: Use [Conventional Commits](https://www.conventionalcommits.org/) format: `<type>: <description>`
+- **Types**: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
+- **Title Only**: Commit messages MUST contain only a title (no body/description)
+- **Splitting**: Split commits when changes affect different areas or have different purposes
+- **Branch Names**: Use `<type>/<description>` format (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
+- **PR Titles**: Concise and descriptive (no Conventional Commits format required); provide context in PR description
+- See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines
+
 ## UI Styling Guidelines (Tailwind + shadcn)
 - Spacing: Use stack utilities instead of `space-y-*`.
   - Prefer semantic stacks: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`.

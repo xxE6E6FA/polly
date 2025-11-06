@@ -76,6 +76,27 @@ The app supports multiple AI providers through a unified interface:
 - Code formatting enforced by Biome with pre-commit hooks
 - GitHub Actions workflow `.github/workflows/ci.yml` runs Biome checks and build validations on pushes and PRs.
 
+## Commits & Pull Requests
+
+**Commit Messages:**
+- Use [Conventional Commits](https://www.conventionalcommits.org/) format: `<type>: <description>`
+- Types: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
+- **Title only** - no body/description section
+- Split commits when changes affect different areas or have different purposes
+- Examples: `feat: add image generation support`, `fix: prevent message flicker during streaming`
+
+**Branch Names:**
+- Format: `<type>/<description>` (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
+- Use kebab-case, keep concise (30-50 characters)
+- No timestamps or random suffixes
+
+**Pull Requests:**
+- PR title should be concise and descriptive (no Conventional Commits format required)
+- Provide context in PR description (what, why, testing notes)
+- Keep PRs focused on a single concern
+
+See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines.
+
 ## UI Styling Guidelines (Polly Design System)
 - Prefer stack spacing utilities over `space-y-*`:
   - Semantic: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`
