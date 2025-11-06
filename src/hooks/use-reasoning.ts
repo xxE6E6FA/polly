@@ -1,8 +1,12 @@
 import { useShallow } from "zustand/shallow";
-import { useChatInputStore } from "@/stores/chat-input-store";
+import {
+  type ChatInputStoreState,
+  useChatInputStore,
+} from "@/stores/chat-input-store";
+
+export const selectReasoningConfig = (state: ChatInputStoreState) =>
+  [state.reasoningConfig, state.setReasoningConfig] as const;
 
 export function useReasoningConfig() {
-  return useChatInputStore(
-    useShallow(s => [s.reasoningConfig, s.setReasoningConfig] as const)
-  );
+  return useChatInputStore(useShallow(selectReasoningConfig));
 }
