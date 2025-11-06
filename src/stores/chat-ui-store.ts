@@ -150,8 +150,10 @@ function useChatUIStoreBase<T>(
 
 export const useChatUIStore = Object.assign(useChatUIStoreBase, {
   getState: () => chatUIStoreApi.getState(),
-  setState: chatUIStoreApi.setState,
-  subscribe: chatUIStoreApi.subscribe.bind(chatUIStoreApi),
+  setState: (...args: Parameters<ChatUIStoreApi["setState"]>) =>
+    chatUIStoreApi.setState(...args),
+  subscribe: (...args: Parameters<ChatUIStoreApi["subscribe"]>) =>
+    chatUIStoreApi.subscribe(...args),
 }) as UseChatUIStore;
 
 export const getChatUIStore = () => chatUIStoreApi;

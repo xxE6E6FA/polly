@@ -156,8 +156,10 @@ function useStreamOverlaysBase<T>(
 
 export const useStreamOverlays = Object.assign(useStreamOverlaysBase, {
   getState: () => streamOverlaysStoreApi.getState(),
-  setState: streamOverlaysStoreApi.setState,
-  subscribe: streamOverlaysStoreApi.subscribe.bind(streamOverlaysStoreApi),
+  setState: (...args: Parameters<StreamOverlayStoreApi["setState"]>) =>
+    streamOverlaysStoreApi.setState(...args),
+  subscribe: (...args: Parameters<StreamOverlayStoreApi["subscribe"]>) =>
+    streamOverlaysStoreApi.subscribe(...args),
 }) as UseStreamOverlays;
 
 export const getStreamOverlaysStore = () => streamOverlaysStoreApi;

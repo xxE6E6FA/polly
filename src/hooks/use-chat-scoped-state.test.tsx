@@ -1,8 +1,19 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "bun:test";
 import type { Id } from "@convex/_generated/dataModel";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import React, { type PropsWithChildren } from "react";
-import { getChatInputStore } from "@/stores/chat-input-store";
+import {
+  createChatInputStore,
+  getChatInputStore,
+  setChatInputStoreApi,
+} from "@/stores/chat-input-store";
 import type { Attachment } from "@/types";
 import { TestProviders } from "../../test/TestProviders";
 import { useChatScopedState } from "./use-chat-scoped-state";
@@ -12,6 +23,7 @@ function wrapper({ children }: PropsWithChildren) {
 }
 
 const originalConsoleError = console.error;
+let originalStore: ReturnType<typeof getChatInputStore>;
 
 beforeEach(() => {
   console.error = ((message?: unknown, ...rest: unknown[]) => {
@@ -22,10 +34,18 @@ beforeEach(() => {
   }) as typeof console.error;
 
   localStorage.clear();
+  // Create isolated store instance for each test
+  originalStore = getChatInputStore();
+  setChatInputStoreApi(createChatInputStore());
 });
 
 afterAll(() => {
   console.error = originalConsoleError;
+});
+
+afterEach(() => {
+  // Restore original store instance
+  setChatInputStoreApi(originalStore);
 });
 
 describe("useChatScopedState", () => {

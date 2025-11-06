@@ -58,6 +58,41 @@ export const GetUserById = query({
 });
 ```
 
+## Handler Function Extraction (REQUIRED for Testability)
+
+**ALWAYS extract handler functions** from Convex wrappers to enable testing:
+
+```typescript
+// ✅ GOOD - Extract handler function
+export async function getUserByIdHandler(ctx: QueryCtx, id: Id<"users">) {
+  return await ctx.db.get(id);
+}
+
+export const getUserById = query({
+  args: { id: v.id("users") },
+  handler: getUserByIdHandler,
+});
+
+// ❌ BAD - Inline handler (not testable)
+export const getUserById = query({
+  args: { id: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id);
+  },
+});
+```
+
+**Naming Convention**: Append `Handler` to the wrapper name:
+- `getUserSettings` → `getUserSettingsHandler`
+- `updateUserSettings` → `updateUserSettingsHandler`
+- `generateTitle` → `generateTitleHandler`
+
+**Benefits**:
+- Enables unit testing without Convex runtime
+- Makes business logic reusable
+- Separates framework concerns from business logic
+- See `.cursor/rules/testing.mdc` for testing patterns
+
 ## Error Handling
 - **Structured Errors**: Include context in error logs
 - **User-Friendly Messages**: Return meaningful error messages to frontend

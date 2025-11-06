@@ -93,6 +93,30 @@ afterAll(() => {
 });
 ```
 
+**CRITICAL: Store method binding pattern**
+
+When implementing store hooks with `Object.assign`, methods must use **dynamic access** to support test isolation:
+
+```typescript
+// ✅ CORRECT - Dynamic access allows setChatInputStoreApi() to work in tests
+export const useChatInputStore = Object.assign(useChatInputStoreBase, {
+  getState: () => chatInputStoreApi.getState(),
+  setState: (...args: Parameters<ChatInputStoreApi["setState"]>) =>
+    chatInputStoreApi.setState(...args),
+  subscribe: (...args: Parameters<ChatInputStoreApi["subscribe"]>) =>
+    chatInputStoreApi.subscribe(...args),
+});
+
+// ❌ WRONG - Static binding prevents test isolation
+export const useChatInputStore = Object.assign(useChatInputStoreBase, {
+  getState: () => chatInputStoreApi.getState(),
+  setState: chatInputStoreApi.setState, // Bound at module init!
+  subscribe: chatInputStoreApi.subscribe.bind(chatInputStoreApi), // Bound at module init!
+});
+```
+
+Static binding causes test failures because methods remain bound to the original store instance even after `setChatInputStoreApi()` creates a new one.
+
 ### Test Debugging
 When tests fail flakily:
 1. Note the failing seed from `--seed XXXX`
@@ -221,8 +245,110 @@ beforeEach(() => {
 **Option 2: Use TestProviders** which wraps components in a MemoryRouter for proper context.
 
 ## Convex Function Tests (Backend)
-- Use the official Convex test utilities (e.g. `convex-test`) to call queries/mutations.
-- Keep tests pure (no network); seed any required data within the test.
+
+### CRITICAL: Handler Function Pattern
+
+**NEVER call `.handler` on Convex query/mutation/action objects in tests** - this doesn't work because Convex wrappers don't expose `.handler` in test environments.
+
+**REQUIRED PATTERN**: Extract handler functions and test them directly:
+
+```typescript
+// ✅ GOOD - Extract handler function
+export async function getUserSettingsHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    return null;
+  }
+  // ... business logic
+}
+
+export const getUserSettings = query({
+  args: {},
+  handler: getUserSettingsHandler,
+});
+
+// ✅ GOOD - Test the handler function directly
+import { getUserSettingsHandler } from "./userSettings";
+import { makeConvexCtx } from "../test/convex-ctx";
+
+test("returns user settings", async () => {
+  const ctx = makeConvexCtx({
+    auth: {
+      getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+    },
+    db: {
+      query: mock(() => mockQuery),
+    },
+  });
+
+  const result = await getUserSettingsHandler(ctx as QueryCtx);
+  expect(result).toEqual(expectedSettings);
+});
+
+// ❌ BAD - Don't try to call .handler on the wrapper
+const result = await getUserSettings.handler(ctx as QueryCtx, {}); // TypeError!
+```
+
+### Handler Function Extraction Rules
+
+**For ALL Convex functions (queries, mutations, actions, internal functions):**
+
+1. **Extract the handler logic** into a separate exported function:
+   ```typescript
+   export async function myQueryHandler(ctx: QueryCtx, args: MyArgs) {
+     // Business logic here
+   }
+   
+   export const myQuery = query({
+     args: { ... },
+     handler: myQueryHandler,
+   });
+   ```
+
+2. **Name the handler function** by appending `Handler` to the wrapper name:
+   - `getUserSettings` → `getUserSettingsHandler`
+   - `updateUserSettings` → `updateUserSettingsHandler`
+   - `generateTitle` → `generateTitleHandler`
+   - `batchUpdateTitles` → `batchUpdateTitlesHandler`
+
+3. **Export the handler function** so tests can import it directly
+
+4. **Test the handler function**, not the wrapper:
+   ```typescript
+   import { myQueryHandler } from "./my-module";
+   
+   test("does something", async () => {
+     const ctx = makeConvexCtx({ ... });
+     const result = await myQueryHandler(ctx as QueryCtx, { ... });
+     expect(result).toEqual(expected);
+   });
+   ```
+
+### Benefits of This Pattern
+
+- **Testable**: Handler functions can be tested directly without Convex framework overhead
+- **Reusable**: Handler functions can be reused by other Convex functions
+- **Maintainable**: Separates business logic from framework concerns
+- **Type-safe**: Full TypeScript support in tests
+
+### Alternative: Convex Test Utilities
+
+For integration tests that need the full Convex runtime, use `convex-test` utilities:
+
+```typescript
+import { createConvexTestInstance } from "../test/convex-test-utils";
+
+test("integration test", async () => {
+  const t = await createConvexTestInstance();
+  if (!t) return; // Skip if not available
+  
+  const { api } = await import("@convex/_generated/api");
+  const result = await t.query(api.users.getById, { id });
+  expect(result).toBeTruthy();
+});
+```
+
+**Prefer handler function pattern** for unit tests (faster, more isolated). Use `convex-test` only for integration tests that need the full Convex runtime.
 
 ## Mocking Patterns
 ```ts
@@ -244,8 +370,28 @@ mock.module("@/providers/convex-provider", () => ({
 - Prefer rendering via RTL and asserting on user‑visible output.
 - Keep tests fast and focused; one behavior per test.
 
+## TypeScript Configuration
+
+**Test files are excluded from strict type checking:**
+
+- **Main `tsconfig.json`** excludes all test files (`**/*.test.*`, `**/*.spec.*`)
+- **Bun runtime** reads `tsconfig.json` and won't type-check test files when running `bun test`
+- **Relaxed `tsconfig.test.json`** exists for optional manual type checking with `bun run typecheck:tests`
+
+This setup allows:
+- Type assertions (`as QueryCtx`, `as Id<"conversations">`) without strict type errors
+- Mock objects that don't perfectly match real types
+- Faster test execution without TypeScript type checking overhead
+
+**Biome linting** is also relaxed for test files:
+- `noExplicitAny`: off (allows `any` types)
+- `noNonNullAssertion`: off (allows `!` assertions)
+- `noUnusedVariables`: warn (not error)
+- Naming conventions: off
+
 ## Running
 - All tests: `bun test`
 - Watch: `bun test --watch`
 - Randomized (seeded): `bun test --randomize --seed 1234`
 - Single file: `bun test path/to/file.test.tsx`
+- Type check tests (optional): `bun run typecheck:tests`

@@ -37,6 +37,11 @@
     "node_modules",
     "convex/_generated/**/*",
     "convex/schema.js",
-    "convex/schema.js.d.ts"
+    "convex/schema.js.d.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "test/**/*"
   ]
 }

@@ -3,58 +3,66 @@ import { v } from "convex/values";
 import JSZip from "jszip";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import type { ActionCtx } from "./_generated/server";
-import { action } from "./_generated/server";
+import { type ActionCtx, action } from "./_generated/server";
 import type { ExportAttachment, ExportConversation } from "./backgroundJobs";
 import { createConvexExportData } from "./backgroundJobs";
 import { scheduleRunAfter } from "./lib/scheduler";
 
 // Schedule a background export job
+export async function scheduleBackgroundExportHandler(
+  ctx: ActionCtx,
+  args: {
+    conversationIds: Id<"conversations">[];
+    includeAttachmentContent?: boolean;
+    jobId: string;
+  }
+) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("User not authenticated");
+  }
+
+  // Generate export metadata
+  const metadata = generateExportMetadata(
+    args.conversationIds,
+    args.includeAttachmentContent ?? false
+  );
+
+  // Create export job record with enhanced metadata
+  await ctx.runMutation(internal.backgroundJobs.internalCreate, {
+    jobId: args.jobId,
+    userId,
+    type: "export",
+    totalItems: args.conversationIds.length,
+    title: metadata.title,
+    description: metadata.description,
+    conversationIds: args.conversationIds,
+    includeAttachments: args.includeAttachmentContent,
+  });
+
+  // Schedule the export processing
+  await scheduleRunAfter(
+    ctx,
+    100,
+    api.conversationExport.processBackgroundExport,
+    {
+      conversationIds: args.conversationIds,
+      jobId: args.jobId,
+      includeAttachments: args.includeAttachmentContent ?? false,
+      userId,
+    }
+  );
+
+  return { jobId: args.jobId, status: "scheduled" };
+}
+
 export const scheduleBackgroundExport = action({
   args: {
     conversationIds: v.array(v.id("conversations")),
     includeAttachmentContent: v.optional(v.boolean()),
     jobId: v.string(),
   },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("User not authenticated");
-    }
-
-    // Generate export metadata
-    const metadata = generateExportMetadata(
-      args.conversationIds,
-      args.includeAttachmentContent ?? false
-    );
-
-    // Create export job record with enhanced metadata
-    await ctx.runMutation(internal.backgroundJobs.internalCreate, {
-      jobId: args.jobId,
-      userId,
-      type: "export",
-      totalItems: args.conversationIds.length,
-      title: metadata.title,
-      description: metadata.description,
-      conversationIds: args.conversationIds,
-      includeAttachments: args.includeAttachmentContent,
-    });
-
-    // Schedule the export processing
-    await scheduleRunAfter(
-      ctx,
-      100,
-      api.conversationExport.processBackgroundExport,
-      {
-        conversationIds: args.conversationIds,
-        jobId: args.jobId,
-        includeAttachments: args.includeAttachmentContent ?? false,
-        userId,
-      }
-    );
-
-    return { jobId: args.jobId, status: "scheduled" };
-  },
+  handler: scheduleBackgroundExportHandler,
 });
 
 // Process a scheduled export job

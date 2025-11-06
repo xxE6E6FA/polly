@@ -15,13 +15,14 @@ export function useChatInputCoreState({
   const { setChatInputState, getChatInputState, clearChatInputState } =
     useChatInputPreservation();
 
-  const shouldUsePreservedState = conversationId && !hasExistingMessages;
+  const shouldUsePreservedState = !!conversationId && !hasExistingMessages;
 
-  const [input, setInputState] = useState(() =>
-    conversationId && shouldUsePreservedState
-      ? getChatInputState(conversationId).input
-      : ""
-  );
+  const [input, setInputState] = useState(() => {
+    if (conversationId && shouldUsePreservedState) {
+      return getChatInputState(conversationId).input;
+    }
+    return "";
+  });
 
   // Attachments from Zustand store
   const { attachments, setAttachments: setAttachmentsState } =

@@ -13,7 +13,7 @@ import {
 import { withRetry } from "./ai/error_handlers";
 
 // Shared handler for creating anonymous users
-async function handleCreateAnonymousUser(ctx: MutationCtx) {
+export async function handleCreateAnonymousUser(ctx: MutationCtx) {
   const now = Date.now();
 
   return await ctx.db.insert("users", {
@@ -27,24 +27,26 @@ async function handleCreateAnonymousUser(ctx: MutationCtx) {
 }
 
 // Shared handler for getting user by ID
-async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
+export async function handleGetUserById(ctx: QueryCtx, id: Id<"users">) {
   return await ctx.db.get(id);
+}
+
+export async function currentHandler(ctx: QueryCtx) {
+  // First try to get the authenticated user ID (works for both anonymous and regular users)
+  const userId = await getAuthUserId(ctx);
+
+  if (userId) {
+    return await ctx.db.get(userId);
+  }
+
+  // If no authenticated user, return null
+  // Don't try to find anonymous users without auth - this creates inconsistent state
+  return null;
 }
 
 export const current = query({
   args: {},
-  handler: async ctx => {
-    // First try to get the authenticated user ID (works for both anonymous and regular users)
-    const userId = await getAuthUserId(ctx);
-
-    if (userId) {
-      return await ctx.db.get(userId);
-    }
-
-    // If no authenticated user, return null
-    // Don't try to find anonymous users without auth - this creates inconsistent state
-    return null;
-  },
+  handler: currentHandler,
 });
 
 // Internal version for system operations
@@ -186,22 +188,24 @@ export const internalGetById = internalQuery({
   handler: (ctx, args) => handleGetUserById(ctx, args.id),
 });
 
+export async function getMessageSentCountHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    return null;
+  }
+  const user = await ctx.db.get(userId);
+  if (!user) {
+    return null;
+  }
+  return {
+    messagesSent: user.messagesSent,
+    monthlyMessagesSent: user.monthlyMessagesSent,
+  };
+}
+
 export const getMessageSentCount = query({
   args: {},
-  handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return null;
-    }
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      return null;
-    }
-    return {
-      messagesSent: user.messagesSent,
-      monthlyMessagesSent: user.monthlyMessagesSent,
-    };
-  },
+  handler: getMessageSentCountHandler,
 });
 
 const MESSAGE_DELETE_BATCH_SIZE = 50;
