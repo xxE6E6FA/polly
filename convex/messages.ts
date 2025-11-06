@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { smoothStream, streamText } from "ai";
-import { ConvexError, v } from "convex/values";
+import { ConvexError, type Infer, v } from "convex/values";
 import dedent from "dedent";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -115,6 +115,70 @@ async function handleMessageDeletion(
   }
 }
 
+export async function createHandler(
+  ctx: MutationCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    role: string;
+    content: string;
+    status?: Infer<typeof messageStatusSchema>;
+    model?: string;
+    provider?: string;
+    reasoningConfig?: Infer<typeof reasoningConfigSchema>;
+    parentId?: Id<"messages">;
+    isMainBranch?: boolean;
+    reasoning?: string;
+    sourceConversationId?: Id<"conversations">;
+    useWebSearch?: boolean;
+    attachments?: Infer<typeof attachmentSchema>[];
+    metadata?: Infer<typeof extendedMessageMetadataSchema>;
+    imageGeneration?: Infer<typeof imageGenerationSchema>;
+  }
+) {
+  // Rolling token estimate helper
+  const estimateTokens = (text: string) =>
+    Math.max(1, Math.ceil((text || "").length / 4));
+
+  const messageId = await ctx.db.insert("messages", {
+    ...args,
+    isMainBranch: args.isMainBranch ?? true,
+    createdAt: Date.now(),
+  });
+
+  if (args.role === "user") {
+    const conversation = await ctx.db.get(args.conversationId);
+    if (conversation) {
+      // Only increment stats if model and provider are provided
+      if (args.model && args.provider) {
+        await incrementUserMessageStats(
+          ctx,
+          conversation.userId,
+          args.model,
+          args.provider
+        );
+      }
+
+      // Update rolling token estimate with user message content
+      const delta = estimateTokens(args.content || "");
+      await withRetry(
+        async () => {
+          const fresh = await ctx.db.get(args.conversationId);
+          if (!fresh) {
+            return;
+          }
+          await ctx.db.patch(args.conversationId, {
+            tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+          });
+        },
+        5,
+        25
+      );
+    }
+  }
+
+  return messageId;
+}
+
 export const create = mutation({
   args: {
     conversationId: v.id("conversations"),
@@ -133,50 +197,7 @@ export const create = mutation({
     metadata: v.optional(extendedMessageMetadataSchema),
     imageGeneration: v.optional(imageGenerationSchema),
   },
-  handler: async (ctx, args) => {
-    // Rolling token estimate helper
-    const estimateTokens = (text: string) =>
-      Math.max(1, Math.ceil((text || "").length / 4));
-
-    const messageId = await ctx.db.insert("messages", {
-      ...args,
-      isMainBranch: args.isMainBranch ?? true,
-      createdAt: Date.now(),
-    });
-
-    if (args.role === "user") {
-      const conversation = await ctx.db.get(args.conversationId);
-      if (conversation) {
-        // Only increment stats if model and provider are provided
-        if (args.model && args.provider) {
-          await incrementUserMessageStats(
-            ctx,
-            conversation.userId,
-            args.model,
-            args.provider
-          );
-        }
-
-        // Update rolling token estimate with user message content
-        const delta = estimateTokens(args.content || "");
-        await withRetry(
-          async () => {
-            const fresh = await ctx.db.get(args.conversationId);
-            if (!fresh) {
-              return;
-            }
-            await ctx.db.patch(args.conversationId, {
-              tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
-            });
-          },
-          5,
-          25
-        );
-      }
-    }
-
-    return messageId;
-  },
+  handler: createHandler,
 });
 
 export const createUserMessageBatched = mutation({
@@ -219,6 +240,72 @@ export const createUserMessageBatched = mutation({
   },
 });
 
+export async function listHandler(
+  ctx: QueryCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    includeAlternatives?: boolean;
+    paginationOpts?: {
+      numItems: number;
+      cursor?: string | null;
+      id?: number;
+    };
+    resolveAttachments?: boolean;
+  }
+) {
+  let query = ctx.db
+    .query("messages")
+    .withIndex("by_conversation", q =>
+      q.eq("conversationId", args.conversationId)
+    )
+    .order("asc");
+
+  if (!args.includeAlternatives) {
+    // Use optimized compound index for main branch messages
+    query = ctx.db
+      .query("messages")
+      .withIndex("by_conversation_main_branch", q =>
+        q.eq("conversationId", args.conversationId).eq("isMainBranch", true)
+      )
+      .order("asc");
+  }
+
+  const validatedOpts = validatePaginationOpts(args.paginationOpts);
+  const messages = validatedOpts
+    ? await query.paginate(validatedOpts)
+    : await query.take(500); // Limit unbounded queries to 500 messages
+
+  if (args.resolveAttachments !== false && !args.paginationOpts) {
+    return await Promise.all(
+      (Array.isArray(messages) ? messages : messages.page).map(
+        async message => {
+          if (message.attachments) {
+            const resolvedAttachments = await Promise.all(
+              message.attachments.map(async attachment => {
+                if (attachment.storageId) {
+                  const url = await ctx.storage.getUrl(attachment.storageId);
+                  return {
+                    ...attachment,
+                    url: url || attachment.url,
+                  };
+                }
+                return attachment;
+              })
+            );
+            return {
+              ...message,
+              attachments: resolvedAttachments,
+            };
+          }
+          return message;
+        }
+      )
+    );
+  }
+
+  return Array.isArray(messages) ? messages : messages;
+}
+
 export const list = query({
   args: {
     conversationId: v.id("conversations"),
@@ -226,70 +313,62 @@ export const list = query({
     paginationOpts: paginationOptsSchema,
     resolveAttachments: v.optional(v.boolean()), // Only resolve when needed
   },
-  handler: async (ctx, args) => {
-    let query = ctx.db
-      .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .order("asc");
-
-    if (!args.includeAlternatives) {
-      // Use optimized compound index for main branch messages
-      query = ctx.db
-        .query("messages")
-        .withIndex("by_conversation_main_branch", q =>
-          q.eq("conversationId", args.conversationId).eq("isMainBranch", true)
-        )
-        .order("asc");
-    }
-
-    const validatedOpts = validatePaginationOpts(args.paginationOpts);
-    const messages = validatedOpts
-      ? await query.paginate(validatedOpts)
-      : await query.take(500); // Limit unbounded queries to 500 messages
-
-    if (args.resolveAttachments !== false && !args.paginationOpts) {
-      return await Promise.all(
-        (Array.isArray(messages) ? messages : messages.page).map(
-          async message => {
-            if (message.attachments) {
-              const resolvedAttachments = await Promise.all(
-                message.attachments.map(async attachment => {
-                  if (attachment.storageId) {
-                    const url = await ctx.storage.getUrl(attachment.storageId);
-                    return {
-                      ...attachment,
-                      url: url || attachment.url,
-                    };
-                  }
-                  return attachment;
-                })
-              );
-              return {
-                ...message,
-                attachments: resolvedAttachments,
-              };
-            }
-            return message;
-          }
-        )
-      );
-    }
-
-    return Array.isArray(messages) ? messages : messages;
-  },
+  handler: listHandler,
 });
+
+export async function getAlternativesHandler(
+  ctx: QueryCtx,
+  args: { parentId: Id<"messages"> }
+) {
+  return await ctx.db
+    .query("messages")
+    .withIndex("by_parent", q => q.eq("parentId", args.parentId))
+    .collect();
+}
 
 export const getAlternatives = query({
   args: { parentId: v.id("messages") },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("messages")
-      .withIndex("by_parent", q => q.eq("parentId", args.parentId))
-      .collect();
-  },
+  handler: getAlternativesHandler,
 });
+
+export async function updateHandler(
+  ctx: MutationCtx,
+  args: {
+    id: Id<"messages">;
+    content?: string;
+    reasoning?: string;
+    patch?: unknown;
+  }
+) {
+  const message = await ctx.db.get(args.id);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  // Check access to the conversation this message belongs to (no shared access for mutations)
+  if (process.env.NODE_ENV !== "test") {
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      message.conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied");
+    }
+  }
+
+  const { id, patch, ...directUpdates } = args;
+
+  const updates = patch || directUpdates;
+
+  const cleanUpdates = Object.fromEntries(
+    Object.entries(updates).filter(([_, value]) => value !== undefined)
+  );
+
+  if (Object.keys(cleanUpdates).length > 0) {
+    await ctx.db.patch(id, cleanUpdates);
+  }
+}
 
 export const update = mutation({
   args: {
@@ -298,36 +377,7 @@ export const update = mutation({
     reasoning: v.optional(v.string()),
     patch: v.optional(v.any()),
   },
-  handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.id);
-    if (!message) {
-      throw new Error("Message not found");
-    }
-
-    // Check access to the conversation this message belongs to (no shared access for mutations)
-    if (process.env.NODE_ENV !== "test") {
-      const { hasAccess } = await checkConversationAccess(
-        ctx,
-        message.conversationId,
-        false
-      );
-      if (!hasAccess) {
-        throw new Error("Access denied");
-      }
-    }
-
-    const { id, patch, ...directUpdates } = args;
-
-    const updates = patch || directUpdates;
-
-    const cleanUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
-    );
-
-    if (Object.keys(cleanUpdates).length > 0) {
-      await ctx.db.patch(id, cleanUpdates);
-    }
-  },
+  handler: updateHandler,
 });
 
 export const internalUpdate = internalMutation({
@@ -472,56 +522,20 @@ export const updateContent = internalMutation({
   },
 });
 
-export const setBranch = mutation({
+export async function setBranchHandler(
+  ctx: MutationCtx,
   args: {
-    messageId: v.id("messages"),
-    parentId: v.optional(v.id("messages")),
-  },
-  handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.messageId);
-    if (!message) {
-      throw new Error("Message not found");
-    }
+    messageId: Id<"messages">;
+    parentId?: Id<"messages">;
+  }
+) {
+  const message = await ctx.db.get(args.messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
 
-    // Check access to the conversation this message belongs to (no shared access for mutations)
-    if (process.env.NODE_ENV !== "test") {
-      const { hasAccess } = await checkConversationAccess(
-        ctx,
-        message.conversationId,
-        false
-      );
-      if (!hasAccess) {
-        throw new Error("Access denied");
-      }
-    }
-
-    if (args.parentId) {
-      const siblings = await ctx.db
-        .query("messages")
-        .withIndex("by_parent", q => q.eq("parentId", args.parentId))
-        .collect();
-
-      await Promise.all(
-        siblings.map(sibling =>
-          ctx.db.patch(sibling._id, { isMainBranch: false })
-        )
-      );
-    }
-
-    return await ctx.db.patch(args.messageId, { isMainBranch: true });
-  },
-});
-
-export const remove = mutation({
-  args: { id: v.id("messages") },
-  handler: async (ctx, args) => {
-    const message = await ctx.db.get(args.id);
-
-    if (!message) {
-      return;
-    }
-
-    // Check access to the conversation this message belongs to (no shared access for mutations)
+  // Check access to the conversation this message belongs to (no shared access for mutations)
+  if (process.env.NODE_ENV !== "test") {
     const { hasAccess } = await checkConversationAccess(
       ctx,
       message.conversationId,
@@ -530,16 +544,65 @@ export const remove = mutation({
     if (!hasAccess) {
       throw new Error("Access denied");
     }
+  }
 
-    const operations: Promise<void>[] = [];
+  if (args.parentId) {
+    const siblings = await ctx.db
+      .query("messages")
+      .withIndex("by_parent", q => q.eq("parentId", args.parentId))
+      .collect();
 
-    // Use shared handler for deletion logic
-    await handleMessageDeletion(ctx, message, operations);
+    await Promise.all(
+      siblings.map(sibling =>
+        ctx.db.patch(sibling._id, { isMainBranch: false })
+      )
+    );
+  }
 
-    operations.push(ctx.db.delete(args.id));
+  return await ctx.db.patch(args.messageId, { isMainBranch: true });
+}
 
-    await Promise.all(operations);
+export const setBranch = mutation({
+  args: {
+    messageId: v.id("messages"),
+    parentId: v.optional(v.id("messages")),
   },
+  handler: setBranchHandler,
+});
+
+export async function removeHandler(
+  ctx: MutationCtx,
+  args: { id: Id<"messages"> }
+) {
+  const message = await ctx.db.get(args.id);
+
+  if (!message) {
+    return;
+  }
+
+  // Check access to the conversation this message belongs to (no shared access for mutations)
+  const { hasAccess } = await checkConversationAccess(
+    ctx,
+    message.conversationId,
+    false
+  );
+  if (!hasAccess) {
+    throw new Error("Access denied");
+  }
+
+  const operations: Promise<void>[] = [];
+
+  // Use shared handler for deletion logic
+  await handleMessageDeletion(ctx, message, operations);
+
+  operations.push(ctx.db.delete(args.id));
+
+  await Promise.all(operations);
+}
+
+export const remove = mutation({
+  args: { id: v.id("messages") },
+  handler: removeHandler,
 });
 
 export const removeMultiple = mutation({

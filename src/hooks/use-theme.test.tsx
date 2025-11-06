@@ -9,12 +9,10 @@ const originalMatchMedia = window.matchMedia;
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.className = "light";
-  // biome-ignore lint/suspicious/noExplicitAny: Test global mock
   (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => {
     cb(performance.now());
     return 0;
   };
-  // biome-ignore lint/suspicious/noExplicitAny: Test global mock
   (window as any).matchMedia = (query: string) => {
     const matches = false;
     return {
@@ -63,7 +61,6 @@ describe("useTheme", () => {
   test("system theme tracks matchMedia changes", async () => {
     const listeners: Array<(ev: MediaQueryListEvent) => void> = [];
     let systemMatches = false;
-    // biome-ignore lint/suspicious/noExplicitAny: Test global mock
     (window as any).matchMedia = () => ({
       matches: systemMatches,
       media: "",

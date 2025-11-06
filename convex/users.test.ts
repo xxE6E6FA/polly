@@ -1,5 +1,14 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
+import { makeConvexCtx } from "../test/convex-ctx";
 import { createConvexTestInstance } from "../test/convex-test-utils";
+import type { Id } from "./_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  currentHandler,
+  getMessageSentCountHandler,
+  handleCreateAnonymousUser,
+  handleGetUserById,
+} from "./users";
 
 // Demonstration of testing Convex functions using convex-test.
 // This test auto-skips if convex-test isn't installed yet.
@@ -101,5 +110,148 @@ describe("convex: users", () => {
       }
       throw error;
     }
+  });
+});
+
+describe("users.current", () => {
+  test("returns user data for authenticated user", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockUser = {
+      _id: userId,
+      _creationTime: Date.now(),
+      name: "Test User",
+      isAnonymous: false,
+      messagesSent: 42,
+      monthlyMessagesSent: 10,
+      totalMessageCount: 42,
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockUser)),
+      },
+    });
+
+    const result = await currentHandler(ctx as QueryCtx);
+
+    expect(result).toEqual(mockUser);
+  });
+
+  test("returns null for unauthenticated user", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    const result = await currentHandler(ctx as QueryCtx);
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("users.getById", () => {
+  test("returns user data when found", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockUser = {
+      _id: userId,
+      _creationTime: Date.now(),
+      name: "Test User",
+      isAnonymous: false,
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        get: mock(() => Promise.resolve(mockUser)),
+      },
+    });
+
+    const result = await handleGetUserById(ctx as QueryCtx, userId);
+
+    expect(result).toEqual(mockUser);
+  });
+
+  test("returns null when user not found", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const ctx = makeConvexCtx({
+      db: {
+        get: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    const result = await handleGetUserById(ctx as QueryCtx, userId);
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("users.getMessageSentCount", () => {
+  test("returns message counts for authenticated user", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockUser = {
+      _id: userId,
+      messagesSent: 150,
+      monthlyMessagesSent: 25,
+      totalMessageCount: 200,
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockUser)),
+      },
+    });
+
+    const result = await getMessageSentCountHandler(ctx as QueryCtx);
+
+    expect(result).toEqual({
+      messagesSent: 150,
+      monthlyMessagesSent: 25,
+    });
+  });
+
+  test("returns null for unauthenticated user", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    const result = await getMessageSentCountHandler(ctx as QueryCtx);
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("users.createAnonymous", () => {
+  test("creates anonymous user and returns ID", async () => {
+    const newUserId = "user-456" as Id<"users">;
+
+    const ctx = makeConvexCtx({
+      db: {
+        insert: mock(() => Promise.resolve(newUserId)),
+      },
+    });
+
+    const result = await handleCreateAnonymousUser(ctx as MutationCtx);
+
+    expect(result).toBe(newUserId);
+    expect(ctx.db.insert).toHaveBeenCalledWith("users", {
+      isAnonymous: true,
+      createdAt: expect.any(Number),
+      messagesSent: 0,
+      monthlyMessagesSent: 0,
+      conversationCount: 0,
+      totalMessageCount: 0,
+    });
   });
 });

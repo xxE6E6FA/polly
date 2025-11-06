@@ -82,8 +82,10 @@ function useZenModeStoreBase<T>(
 
 export const useZenModeStore = Object.assign(useZenModeStoreBase, {
   getState: () => zenModeStoreApi.getState(),
-  setState: zenModeStoreApi.setState,
-  subscribe: zenModeStoreApi.subscribe.bind(zenModeStoreApi),
+  setState: (...args: Parameters<ZenModeStoreApi["setState"]>) =>
+    zenModeStoreApi.setState(...args),
+  subscribe: (...args: Parameters<ZenModeStoreApi["subscribe"]>) =>
+    zenModeStoreApi.subscribe(...args),
 }) as UseZenModeStore;
 
 export const getZenModeStore = () => zenModeStoreApi;

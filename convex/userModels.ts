@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
-import { mutation, query } from "./_generated/server";
+import { mutation, type QueryCtx, query } from "./_generated/server";
 import { userModelSchema } from "./lib/schemas";
 
 export const getBuiltInModels = query({
@@ -18,54 +18,61 @@ export const getBuiltInModels = query({
   },
 });
 
+export async function checkModelConflictHandler(
+  ctx: QueryCtx,
+  args: { modelId: string; provider: string }
+) {
+  // Check if this model exists as a built-in model
+  const builtInModel = await ctx.db
+    .query("builtInModels")
+    .filter(q =>
+      q.and(
+        q.eq(q.field("modelId"), args.modelId),
+        q.eq(q.field("provider"), args.provider),
+        q.eq(q.field("isActive"), true)
+      )
+    )
+    .unique();
+
+  return {
+    hasConflict: Boolean(builtInModel),
+    builtInModel: builtInModel || null,
+  };
+}
+
 export const checkModelConflict = query({
   args: {
     modelId: v.string(),
     provider: v.string(),
   },
-  handler: async (ctx, args) => {
-    // Check if this model exists as a built-in model
-    const builtInModel = await ctx.db
-      .query("builtInModels")
-      .filter(q =>
-        q.and(
-          q.eq(q.field("modelId"), args.modelId),
-          q.eq(q.field("provider"), args.provider),
-          q.eq(q.field("isActive"), true)
-        )
-      )
-      .unique();
-
-    return {
-      hasConflict: Boolean(builtInModel),
-      builtInModel: builtInModel || null,
-    };
-  },
+  handler: checkModelConflictHandler,
 });
+
+export async function getUserModelsHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+
+  if (!userId) {
+    return [];
+  }
+
+  const userModels = await ctx.db
+    .query("userModels")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+
+  // For now, mark all user models as available since we can't fetch from API in queries
+  // The frontend will handle the actual availability checking after fetching from API
+  const userModelsWithAvailability = userModels.map(model => ({
+    ...model,
+    isAvailable: true, // Default to available, let frontend override
+  }));
+
+  return userModelsWithAvailability;
+}
 
 export const getUserModels = query({
   args: {},
-  handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-
-    if (!userId) {
-      return [];
-    }
-
-    const userModels = await ctx.db
-      .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
-
-    // For now, mark all user models as available since we can't fetch from API in queries
-    // The frontend will handle the actual availability checking after fetching from API
-    const userModelsWithAvailability = userModels.map(model => ({
-      ...model,
-      isAvailable: true, // Default to available, let frontend override
-    }));
-
-    return userModelsWithAvailability;
-  },
+  handler: getUserModelsHandler,
 });
 
 export const getModelByID = query({
@@ -110,70 +117,74 @@ export const getModelByID = query({
   },
 });
 
+export async function getUnavailableModelIdsHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    return [];
+  }
+
+  // Get user models that have been checked and marked as unavailable
+  // Models without isAvailable set (null/undefined) are considered available
+  // by default - we only mark models as unavailable when we've explicitly
+  // checked and found them to be unavailable
+  const userModels = await ctx.db
+    .query("userModels")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+
+  const unavailableModels = userModels.filter(
+    model => model.isAvailable === false
+  );
+
+  return unavailableModels.map(model => ({
+    modelId: model.modelId,
+    provider: model.provider,
+  }));
+}
+
 export const getUnavailableModelIds = query({
   args: {},
-  handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return [];
-    }
-
-    // Get user models that have been checked and marked as unavailable
-    // Models without isAvailable set (null/undefined) are considered available
-    // by default - we only mark models as unavailable when we've explicitly
-    // checked and found them to be unavailable
-    const userModels = await ctx.db
-      .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
-
-    const unavailableModels = userModels.filter(
-      model => model.isAvailable === false
-    );
-
-    return unavailableModels.map(model => ({
-      modelId: model.modelId,
-      provider: model.provider,
-    }));
-  },
+  handler: getUnavailableModelIdsHandler,
 });
+
+export async function getAvailableModelsHandler(ctx: QueryCtx) {
+  const userId = await getAuthUserId(ctx);
+
+  // Get built-in models (always available to everyone)
+  const builtInModels = await ctx.db
+    .query("builtInModels")
+    .filter(q => q.eq(q.field("isActive"), true))
+    .collect();
+
+  if (!userId) {
+    // For anonymous users, return only built-in models
+    return builtInModels;
+  }
+
+  // For authenticated users, get their user models
+  const userModels = await ctx.db
+    .query("userModels")
+    .withIndex("by_user", q => q.eq("userId", userId))
+    .collect();
+
+  // Create a set of user model modelId/provider combinations to filter out conflicts
+  const userModelKeys = new Set(
+    userModels.map(model => `${model.modelId}:${model.provider}`)
+  );
+
+  // Filter out built-in models that have been overridden by user models
+  const availableBuiltInModels = builtInModels.filter(
+    builtInModel =>
+      !userModelKeys.has(`${builtInModel.modelId}:${builtInModel.provider}`)
+  );
+
+  // Return user models + non-conflicting built-in models
+  return [...userModels, ...availableBuiltInModels];
+}
 
 export const getAvailableModels = query({
   args: {},
-  handler: async ctx => {
-    const userId = await getAuthUserId(ctx);
-
-    // Get built-in models (always available to everyone)
-    const builtInModels = await ctx.db
-      .query("builtInModels")
-      .filter(q => q.eq(q.field("isActive"), true))
-      .collect();
-
-    if (!userId) {
-      // For anonymous users, return only built-in models
-      return builtInModels;
-    }
-
-    // For authenticated users, get their user models
-    const userModels = await ctx.db
-      .query("userModels")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .collect();
-
-    // Create a set of user model modelId/provider combinations to filter out conflicts
-    const userModelKeys = new Set(
-      userModels.map(model => `${model.modelId}:${model.provider}`)
-    );
-
-    // Filter out built-in models that have been overridden by user models
-    const availableBuiltInModels = builtInModels.filter(
-      builtInModel =>
-        !userModelKeys.has(`${builtInModel.modelId}:${builtInModel.provider}`)
-    );
-
-    // Return user models + non-conflicting built-in models
-    return [...userModels, ...availableBuiltInModels];
-  },
+  handler: getAvailableModelsHandler,
 });
 
 export const getUserSelectedModel = query({

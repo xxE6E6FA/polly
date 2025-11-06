@@ -1,5 +1,5 @@
 import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { GenerationMode, ImageGenerationParams } from "@/types";
 
 export function useChatInputImageGenerationParams() {
@@ -15,18 +15,12 @@ export function useChatInputImageGenerationParams() {
     negativePrompt: IMAGE_GENERATION_DEFAULTS.NEGATIVE_PROMPT,
   });
 
-  const [negativePromptEnabled, setNegativePromptEnabled] = useState(false);
-
-  // Sync negative prompt toggle state with imageParams.negativePrompt
-  useEffect(() => {
-    const hasNegativePrompt =
-      imageParams.negativePrompt &&
-      imageParams.negativePrompt.trim().length > 0;
-    setNegativePromptEnabled(!!hasNegativePrompt);
-  }, [imageParams.negativePrompt]);
+  // Derive negativePromptEnabled from imageParams instead of using state
+  const negativePromptEnabled = !!(
+    imageParams.negativePrompt && imageParams.negativePrompt.trim().length > 0
+  );
 
   const handleNegativePromptEnabledChange = useCallback((enabled: boolean) => {
-    setNegativePromptEnabled(enabled);
     if (!enabled) {
       setImageParams(prev => ({ ...prev, negativePrompt: "" }));
     }
@@ -38,7 +32,6 @@ export function useChatInputImageGenerationParams() {
 
   const resetImageParams = useCallback(() => {
     setImageParams(prev => ({ ...prev, negativePrompt: "" }));
-    setNegativePromptEnabled(false);
   }, []);
 
   return {
@@ -47,7 +40,6 @@ export function useChatInputImageGenerationParams() {
     negativePromptEnabled,
     setGenerationMode,
     setImageParams,
-    setNegativePromptEnabled,
     handleNegativePromptEnabledChange,
     handleNegativePromptValueChange,
     resetImageParams,

@@ -7,10 +7,13 @@ import {
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  type ActionCtx,
   action,
   internalMutation,
   internalQuery,
+  type MutationCtx,
   mutation,
+  type QueryCtx,
   query,
 } from "./_generated/server";
 import { withRetry } from "./ai/error_handlers";
@@ -60,6 +63,172 @@ import {
 import { isConversationStreaming } from "./lib/streaming_utils";
 import type { Citation } from "./types";
 
+export async function createConversationHandler(
+  ctx: MutationCtx,
+  args: {
+    title?: string;
+    personaId?: Id<"personas">;
+    sourceConversationId?: Id<"conversations">;
+    firstMessage: string;
+    attachments?: Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      mimeType?: string;
+    }>;
+    model?: string;
+    provider?: string;
+    reasoningConfig?: {
+      enabled: boolean;
+      budgetTokens?: number;
+    };
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+    frequencyPenalty?: number;
+    presencePenalty?: number;
+  }
+) {
+  const [user, fullModel] = await Promise.all([
+    validateAuthenticatedUser(ctx),
+    getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
+  ]);
+  const userId = user._id as Id<"users">;
+
+  // Check if this is a built-in free model and enforce limits
+  // If model has 'free' field, it's from builtInModels table and is a built-in model
+  const isBuiltInModelResult = fullModel.free === true;
+
+  if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
+    await validateMonthlyMessageLimit(ctx, user);
+  }
+
+  // Always start with a neutral placeholder so title generation logic can update it
+  const initialTitle = args.title ?? "New conversation";
+
+  // Create conversation
+  const conversationId = await ctx.db.insert(
+    "conversations",
+    createDefaultConversationFields(userId, {
+      title: initialTitle,
+      personaId: args.personaId,
+      sourceConversationId: args.sourceConversationId,
+    })
+  );
+
+  // Backfill rootConversationId on creation for new conversations
+  try {
+    await ctx.db.patch(conversationId, {
+      rootConversationId: conversationId,
+    });
+  } catch {
+    // Ignore errors if already set
+  }
+
+  // Update user conversation count with retry to avoid conflicts
+  await withRetry(
+    async () => {
+      const freshUser = await ctx.db.get(userId);
+      if (!freshUser) {
+        throw new Error("User not found");
+      }
+      await ctx.db.patch(userId, {
+        conversationCount: Math.max(0, (freshUser.conversationCount || 0) + 1),
+      });
+    },
+    5,
+    25
+  );
+
+  // Create user message
+  // Enforce max user message size
+  validateUserMessageLength(args.firstMessage);
+  const userMessageId = await ctx.db.insert(
+    "messages",
+    createDefaultMessageFields(conversationId, {
+      role: "user",
+      content: args.firstMessage,
+      attachments: args.attachments,
+      reasoningConfig: args.reasoningConfig,
+      temperature: args.temperature,
+    })
+  );
+
+  // Increment rolling token estimate for the first user message
+  try {
+    const delta = Math.max(1, Math.ceil((args.firstMessage || "").length / 4));
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(conversationId);
+        if (!fresh) {
+          return;
+        }
+        await ctx.db.patch(conversationId, {
+          tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+        });
+      },
+      5,
+      25
+    );
+  } catch {
+    // best-effort; ignore failures
+  }
+
+  // Create assistant message directly (avoid extra mutation call)
+  // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
+  const assistantMessageId = await ctx.db.insert(
+    "messages",
+    createDefaultMessageFields(conversationId, {
+      role: "assistant",
+      content: "",
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      status: "thinking",
+    })
+  );
+
+  // Increment stats if needed (serialize to avoid user doc conflicts)
+  if (args.firstMessage && args.firstMessage.trim().length > 0) {
+    const effectiveModelId = args.model || fullModel.modelId;
+    const effectiveProvider = args.provider || fullModel.provider;
+    await incrementUserMessageStats(
+      ctx,
+      user._id,
+      effectiveModelId,
+      effectiveProvider,
+      undefined,
+      {
+        countTowardsMonthly: Boolean((fullModel as { free?: boolean })?.free),
+      }
+    );
+  }
+
+  if (args.firstMessage && args.firstMessage.trim().length > 0) {
+    // Always mark streaming
+    await setConversationStreaming(ctx, conversationId, true);
+    await scheduleRunAfter(
+      ctx,
+      0,
+      api.titleGeneration.generateTitleBackground,
+      {
+        conversationId,
+        message: args.firstMessage,
+      }
+    );
+  }
+
+  return {
+    conversationId,
+    userMessageId,
+    assistantMessageId,
+    user,
+  };
+}
+
 export const createConversation = mutation({
   args: {
     title: v.optional(v.string()),
@@ -76,148 +245,7 @@ export const createConversation = mutation({
     frequencyPenalty: v.optional(v.number()),
     presencePenalty: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const [user, fullModel] = await Promise.all([
-      validateAuthenticatedUser(ctx),
-      getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
-    ]);
-    const userId = user._id as Id<"users">;
-
-    // Check if this is a built-in free model and enforce limits
-    // If model has 'free' field, it's from builtInModels table and is a built-in model
-    const isBuiltInModelResult = fullModel.free === true;
-
-    if (isBuiltInModelResult && !user.hasUnlimitedCalls) {
-      await validateMonthlyMessageLimit(ctx, user);
-    }
-
-    // Always start with a neutral placeholder so title generation logic can update it
-    const initialTitle = args.title ?? "New conversation";
-
-    // Create conversation
-    const conversationId = await ctx.db.insert(
-      "conversations",
-      createDefaultConversationFields(userId, {
-        title: initialTitle,
-        personaId: args.personaId,
-        sourceConversationId: args.sourceConversationId,
-      })
-    );
-
-    // Backfill rootConversationId on creation for new conversations
-    try {
-      await ctx.db.patch(conversationId, {
-        rootConversationId: conversationId,
-      });
-    } catch {
-      // Ignore errors if already set
-    }
-
-    // Update user conversation count with retry to avoid conflicts
-    await withRetry(
-      async () => {
-        const freshUser = await ctx.db.get(userId);
-        if (!freshUser) {
-          throw new Error("User not found");
-        }
-        await ctx.db.patch(userId, {
-          conversationCount: Math.max(
-            0,
-            (freshUser.conversationCount || 0) + 1
-          ),
-        });
-      },
-      5,
-      25
-    );
-
-    // Create user message
-    // Enforce max user message size
-    validateUserMessageLength(args.firstMessage);
-    const userMessageId = await ctx.db.insert(
-      "messages",
-      createDefaultMessageFields(conversationId, {
-        role: "user",
-        content: args.firstMessage,
-        attachments: args.attachments,
-        reasoningConfig: args.reasoningConfig,
-        temperature: args.temperature,
-      })
-    );
-
-    // Increment rolling token estimate for the first user message
-    try {
-      const delta = Math.max(
-        1,
-        Math.ceil((args.firstMessage || "").length / 4)
-      );
-      await withRetry(
-        async () => {
-          const fresh = await ctx.db.get(conversationId);
-          if (!fresh) {
-            return;
-          }
-          await ctx.db.patch(conversationId, {
-            tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
-          });
-        },
-        5,
-        25
-      );
-    } catch {
-      // best-effort; ignore failures
-    }
-
-    // Create assistant message directly (avoid extra mutation call)
-    // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
-    const assistantMessageId = await ctx.db.insert(
-      "messages",
-      createDefaultMessageFields(conversationId, {
-        role: "assistant",
-        content: "",
-        model: fullModel.modelId,
-        provider: fullModel.provider,
-        status: "thinking",
-      })
-    );
-
-    // Increment stats if needed (serialize to avoid user doc conflicts)
-    if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      const effectiveModelId = args.model || fullModel.modelId;
-      const effectiveProvider = args.provider || fullModel.provider;
-      await incrementUserMessageStats(
-        ctx,
-        user._id,
-        effectiveModelId,
-        effectiveProvider,
-        undefined,
-        {
-          countTowardsMonthly: Boolean((fullModel as { free?: boolean })?.free),
-        }
-      );
-    }
-
-    if (args.firstMessage && args.firstMessage.trim().length > 0) {
-      // Always mark streaming
-      await setConversationStreaming(ctx, conversationId, true);
-      await scheduleRunAfter(
-        ctx,
-        0,
-        api.titleGeneration.generateTitleBackground,
-        {
-          conversationId,
-          message: args.firstMessage,
-        }
-      );
-    }
-
-    return {
-      conversationId,
-      userMessageId,
-      assistantMessageId,
-      user,
-    };
-  },
+  handler: createConversationHandler,
 });
 
 /**
@@ -479,68 +507,10 @@ export const sendMessage = action({
   },
 });
 
-export const savePrivateConversation = action({
+export async function savePrivateConversationHandler(
+  ctx: ActionCtx,
   args: {
-    messages: v.array(
-      v.object({
-        role: messageRoleSchema,
-        content: v.string(),
-        createdAt: v.number(),
-        model: v.optional(v.string()),
-        provider: v.optional(providerSchema),
-        reasoning: v.optional(v.string()),
-        attachments: v.optional(v.array(attachmentSchema)),
-        citations: v.optional(v.array(webCitationSchema)),
-        metadata: v.optional(extendedMessageMetadataSchema),
-      })
-    ),
-    title: v.optional(v.string()),
-    personaId: v.optional(v.id("personas")),
-  },
-  handler: async (ctx, args): Promise<Id<"conversations">> => {
-    // Get authenticated user - this is the correct pattern for actions
-    const { user } = await getAuthenticatedUserWithDataForAction(ctx);
-
-    // Block anonymous users from saving private conversations
-    if (user.isAnonymous) {
-      throw new Error("Anonymous users cannot save private conversations.");
-    }
-    // Generate a title from the first user message or use provided title
-    const conversationTitle = args.title || "New conversation";
-
-    // Create the conversation (without any initial messages since we'll add them manually)
-    const conversationId = await ctx.runMutation(
-      internal.conversations.createEmptyInternal,
-      {
-        title: conversationTitle,
-        userId: user._id,
-        personaId: args.personaId,
-      }
-    );
-
-    // Extract model/provider from the first user message for stats tracking
-    // Only increment stats once for the entire conversation, not per message
-    const firstUserMessage = args.messages.find(msg => msg.role === "user");
-    if (firstUserMessage?.model && firstUserMessage?.provider) {
-      try {
-        // Increment user message stats
-        await incrementUserMessageStats(
-          ctx,
-          user._id,
-          firstUserMessage.model,
-          firstUserMessage.provider
-        );
-      } catch (error) {
-        // If the model doesn't exist in the user's database, skip stats increment
-        // This can happen when importing private conversations with models the user no longer has
-        console.warn(
-          `Skipping stats increment for model ${firstUserMessage.model}/${firstUserMessage.provider}: ${error}`
-        );
-      }
-    }
-
-    // Process and save all messages to the conversation
-    for (const message of args.messages as Array<{
+    messages: Array<{
       role: string;
       content: string;
       createdAt: number;
@@ -565,76 +535,215 @@ export const savePrivateConversation = action({
         duration?: number;
         stopped?: boolean;
       };
-    }>) {
-      // Skip empty messages and system messages (these are not user-facing)
-      if (
-        !message.content ||
-        message.content.trim() === "" ||
-        message.role === "system" ||
-        message.role === "context"
-      ) {
-        continue;
-      }
+    }>;
+    title?: string;
+    personaId?: Id<"personas">;
+  }
+): Promise<Id<"conversations">> {
+  // Get authenticated user - this is the correct pattern for actions
+  const { user } = await getAuthenticatedUserWithDataForAction(ctx);
 
-      // Process attachments - upload base64 content to Convex storage
-      let processedAttachments = message.attachments;
-      if (message.attachments && message.attachments.length > 0) {
-        processedAttachments = await processAttachmentsForStorage(
-          ctx,
-          message.attachments
-        );
-      }
+  // Block anonymous users from saving private conversations
+  if (user.isAnonymous) {
+    throw new Error("Anonymous users cannot save private conversations.");
+  }
+  // Generate a title from the first user message or use provided title
+  const conversationTitle = args.title || "New conversation";
 
-      await ctx.runMutation(api.messages.create, {
-        conversationId,
-        role: message.role,
-        content: message.content,
-        model: message.model,
-        provider: message.provider,
-        reasoning: message.reasoning,
-        attachments: processedAttachments,
-        metadata: message.metadata,
-        isMainBranch: true,
-      });
+  // Create the conversation (without any initial messages since we'll add them manually)
+  const conversationId = await ctx.runMutation(
+    internal.conversations.createEmptyInternal,
+    {
+      title: conversationTitle,
+      userId: user._id,
+      personaId: args.personaId,
+    }
+  );
 
-      // If the message has citations, we need to update it after creation
-      // since citations aren't in the create args
-      if (message.citations && message.citations.length > 0) {
-        const createdMessages = await ctx.runQuery(
-          api.messages.getAllInConversation,
-          { conversationId }
-        );
-        const lastMessage = createdMessages[createdMessages.length - 1];
-        if (lastMessage) {
-          await ctx.runMutation(internal.messages.internalUpdate, {
-            id: lastMessage._id,
-            citations: message.citations,
-          });
-        }
-      }
+  // Extract model/provider from the first user message for stats tracking
+  // Only increment stats once for the entire conversation, not per message
+  const firstUserMessage = args.messages.find(msg => msg.role === "user");
+  if (firstUserMessage?.model && firstUserMessage?.provider) {
+    try {
+      // Increment user message stats
+      await incrementUserMessageStats(
+        ctx,
+        user._id,
+        firstUserMessage.model,
+        firstUserMessage.provider
+      );
+    } catch (error) {
+      // If the model doesn't exist in the user's database, skip stats increment
+      // This can happen when importing private conversations with models the user no longer has
+      console.warn(
+        `Skipping stats increment for model ${firstUserMessage.model}/${firstUserMessage.provider}: ${error}`
+      );
+    }
+  }
+
+  // Process and save all messages to the conversation
+  for (const message of args.messages as Array<{
+    role: string;
+    content: string;
+    createdAt: number;
+    model?: string;
+    provider?: string;
+    reasoning?: string;
+    attachments?: Array<{
+      type: "image" | "pdf" | "text";
+      url: string;
+      name: string;
+      size: number;
+      content?: string;
+      thumbnail?: string;
+      storageId?: Id<"_storage">;
+      mimeType?: string;
+    }>;
+    citations?: Citation[];
+    metadata?: {
+      tokenCount?: number;
+      reasoningTokenCount?: number;
+      finishReason?: string;
+      duration?: number;
+      stopped?: boolean;
+    };
+  }>) {
+    // Skip empty messages and system messages (these are not user-facing)
+    if (
+      !message.content ||
+      message.content.trim() === "" ||
+      message.role === "system" ||
+      message.role === "context"
+    ) {
+      continue;
     }
 
-    // Mark conversation as not streaming since all messages are already complete
-    await ctx.runMutation(internal.conversations.internalPatch, {
-      id: conversationId,
-      updates: { isStreaming: false },
-      setUpdatedAt: true,
+    // Process attachments - upload base64 content to Convex storage
+    let processedAttachments = message.attachments;
+    if (message.attachments && message.attachments.length > 0) {
+      processedAttachments = await processAttachmentsForStorage(
+        ctx,
+        message.attachments
+      );
+    }
+
+    await ctx.runMutation(api.messages.create, {
+      conversationId,
+      role: message.role,
+      content: message.content,
+      model: message.model,
+      provider: message.provider,
+      reasoning: message.reasoning,
+      attachments: processedAttachments,
+      metadata: message.metadata,
+      isMainBranch: true,
     });
 
-    // Schedule title generation if not provided
-    if (!args.title) {
-      const firstMessage = args.messages?.[0];
-      if (firstMessage && typeof firstMessage.content === "string") {
-        await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
-          conversationId,
-          message: firstMessage.content,
+    // If the message has citations, we need to update it after creation
+    // since citations aren't in the create args
+    if (message.citations && message.citations.length > 0) {
+      const createdMessages = await ctx.runQuery(
+        api.messages.getAllInConversation,
+        { conversationId }
+      );
+      const lastMessage = createdMessages[createdMessages.length - 1];
+      if (lastMessage) {
+        await ctx.runMutation(internal.messages.internalUpdate, {
+          id: lastMessage._id,
+          citations: message.citations,
         });
       }
     }
+  }
 
-    return conversationId;
+  // Mark conversation as not streaming since all messages are already complete
+  await ctx.runMutation(internal.conversations.internalPatch, {
+    id: conversationId,
+    updates: { isStreaming: false },
+    setUpdatedAt: true,
+  });
+
+  // Schedule title generation if not provided
+  if (!args.title) {
+    const firstMessage = args.messages?.[0];
+    if (firstMessage && typeof firstMessage.content === "string") {
+      await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
+        conversationId,
+        message: firstMessage.content,
+      });
+    }
+  }
+
+  return conversationId;
+}
+
+export const savePrivateConversation = action({
+  args: {
+    messages: v.array(
+      v.object({
+        role: messageRoleSchema,
+        content: v.string(),
+        createdAt: v.number(),
+        model: v.optional(v.string()),
+        provider: v.optional(providerSchema),
+        reasoning: v.optional(v.string()),
+        attachments: v.optional(v.array(attachmentSchema)),
+        citations: v.optional(v.array(webCitationSchema)),
+        metadata: v.optional(extendedMessageMetadataSchema),
+      })
+    ),
+    title: v.optional(v.string()),
+    personaId: v.optional(v.id("personas")),
   },
+  handler: savePrivateConversationHandler,
 });
+
+export async function listHandler(
+  ctx: QueryCtx,
+  args: {
+    paginationOpts?:
+      | {
+          numItems: number;
+          cursor?: string | null;
+          id?: number;
+        }
+      | undefined;
+    includeArchived?: boolean;
+    archivedOnly?: boolean;
+  }
+) {
+  // Use getAuthUserId to properly handle both anonymous and authenticated users
+  const userId = await getAuthUserId(ctx);
+
+  if (!userId) {
+    return args.paginationOpts ? createEmptyPaginationResult() : [];
+  }
+
+  const userDocId = userId as Id<"users">;
+
+  // Start with the base query for all conversations
+  let query = ctx.db
+    .query("conversations")
+    .withIndex("by_user_recent", q => q.eq("userId", userDocId))
+    .order("desc");
+
+  // Apply specific filters first
+  if (args.archivedOnly === true) {
+    query = query.filter(q => q.eq(q.field("isArchived"), true));
+  }
+
+  // Apply include/exclude filters
+  if (args.includeArchived === false) {
+    query = query.filter(q => q.eq(q.field("isArchived"), false));
+  }
+
+  const validatedOpts = validatePaginationOpts(
+    args.paginationOpts ?? undefined
+  );
+  return validatedOpts
+    ? await query.paginate(validatedOpts)
+    : await query.take(100);
+}
 
 export const list = query({
   args: {
@@ -644,38 +753,86 @@ export const list = query({
     // Specific filter options
     archivedOnly: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
-    // Use getAuthUserId to properly handle both anonymous and authenticated users
-    const userId = await getAuthUserId(ctx);
-
-    if (!userId) {
-      return args.paginationOpts ? createEmptyPaginationResult() : [];
-    }
-
-    const userDocId = userId as Id<"users">;
-
-    // Start with the base query for all conversations
-    let query = ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userDocId))
-      .order("desc");
-
-    // Apply specific filters first
-    if (args.archivedOnly === true) {
-      query = query.filter(q => q.eq(q.field("isArchived"), true));
-    }
-
-    // Apply include/exclude filters
-    if (args.includeArchived === false) {
-      query = query.filter(q => q.eq(q.field("isArchived"), false));
-    }
-
-    const validatedOpts = validatePaginationOpts(args.paginationOpts);
-    return validatedOpts
-      ? await query.paginate(validatedOpts)
-      : await query.take(100);
-  },
+  handler: listHandler,
 });
+
+export async function searchHandler(
+  ctx: QueryCtx,
+  args: {
+    searchQuery: string;
+    includeArchived?: boolean;
+    limit?: number;
+  }
+) {
+  const userId = await getAuthUserId(ctx);
+
+  if (!userId) {
+    return [];
+  }
+
+  const userDocId = userId as Id<"users">;
+
+  const q = args.searchQuery.trim();
+  if (!q) {
+    return [];
+  }
+
+  const limit = args.limit || 50;
+  const needle = q.toLowerCase();
+
+  // Load user's conversations first
+  const allUserConversations = await ctx.db
+    .query("conversations")
+    .withIndex("by_user_recent", q => q.eq("userId", userDocId))
+    .collect();
+
+  // Apply archived filter if requested
+  const filteredConversations =
+    args.includeArchived === false
+      ? allUserConversations.filter(c => !c.isArchived)
+      : allUserConversations;
+
+  // Title matches (case-insensitive contains)
+  const titleMatches = filteredConversations.filter(c =>
+    (c.title || "").toLowerCase().includes(needle)
+  );
+
+  // Message content matches: scan messages within the user's conversations
+  const conversationsFromMessages: typeof filteredConversations = [];
+  for (const conv of filteredConversations) {
+    const msgs = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q => q.eq("conversationId", conv._id))
+      .collect();
+    if (msgs.some(m => (m.content || "").toLowerCase().includes(needle))) {
+      conversationsFromMessages.push(conv);
+    }
+    if (conversationsFromMessages.length + titleMatches.length >= limit * 2) {
+      // Avoid scanning too many in tests; small optimization
+      break;
+    }
+  }
+
+  // Combine and dedupe with title matches first
+  const conversationMap = new Map<
+    string,
+    (typeof filteredConversations)[number]
+  >();
+  for (const conv of titleMatches) {
+    conversationMap.set(conv._id, conv);
+  }
+  for (const conv of conversationsFromMessages) {
+    if (!conversationMap.has(conv._id)) {
+      conversationMap.set(conv._id, conv);
+    }
+  }
+
+  // Sort by updatedAt desc and limit
+  const finalResults = Array.from(conversationMap.values()).sort(
+    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+  );
+  return finalResults.slice(0, limit);
+}
 
 export const search = query({
   args: {
@@ -683,161 +840,129 @@ export const search = query({
     includeArchived: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-
-    if (!userId) {
-      return [];
-    }
-
-    const userDocId = userId as Id<"users">;
-
-    const q = args.searchQuery.trim();
-    if (!q) {
-      return [];
-    }
-
-    const limit = args.limit || 50;
-    const needle = q.toLowerCase();
-
-    // Load user's conversations first
-    const allUserConversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userDocId))
-      .collect();
-
-    // Apply archived filter if requested
-    const filteredConversations =
-      args.includeArchived === false
-        ? allUserConversations.filter(c => !c.isArchived)
-        : allUserConversations;
-
-    // Title matches (case-insensitive contains)
-    const titleMatches = filteredConversations.filter(c =>
-      (c.title || "").toLowerCase().includes(needle)
-    );
-
-    // Message content matches: scan messages within the user's conversations
-    const conversationsFromMessages: typeof filteredConversations = [];
-    for (const conv of filteredConversations) {
-      const msgs = await ctx.db
-        .query("messages")
-        .withIndex("by_conversation", q => q.eq("conversationId", conv._id))
-        .collect();
-      if (msgs.some(m => (m.content || "").toLowerCase().includes(needle))) {
-        conversationsFromMessages.push(conv);
-      }
-      if (conversationsFromMessages.length + titleMatches.length >= limit * 2) {
-        // Avoid scanning too many in tests; small optimization
-        break;
-      }
-    }
-
-    // Combine and dedupe with title matches first
-    const conversationMap = new Map<
-      string,
-      (typeof filteredConversations)[number]
-    >();
-    for (const conv of titleMatches) {
-      conversationMap.set(conv._id, conv);
-    }
-    for (const conv of conversationsFromMessages) {
-      if (!conversationMap.has(conv._id)) {
-        conversationMap.set(conv._id, conv);
-      }
-    }
-
-    // Sort by updatedAt desc and limit
-    const finalResults = Array.from(conversationMap.values()).sort(
-      (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
-    );
-    return finalResults.slice(0, limit);
-  },
+  handler: searchHandler,
 });
+
+export async function getHandler(
+  ctx: QueryCtx,
+  args: { id: Id<"conversations"> }
+) {
+  const { hasAccess, conversation } = await hasConversationAccess(
+    ctx,
+    args.id,
+    true
+  );
+  if (!hasAccess) {
+    return null;
+  }
+  return conversation;
+}
 
 export const get = query({
   args: { id: v.id("conversations") },
-  handler: async (ctx, args) => {
-    const { hasAccess, conversation } = await hasConversationAccess(
-      ctx,
-      args.id,
-      true
-    );
-    if (!hasAccess) {
-      return null;
-    }
-    return conversation;
-  },
+  handler: getHandler,
 });
+
+export async function getWithAccessInfoHandler(
+  ctx: QueryCtx,
+  args: { id: Id<"conversations"> }
+) {
+  const { hasAccess, conversation } = await hasConversationAccess(
+    ctx,
+    args.id,
+    true
+  );
+  return { hasAccess, conversation, isDeleted: false };
+}
 
 export const getWithAccessInfo = query({
   args: { id: v.id("conversations") },
-  handler: async (ctx, args) => {
-    const { hasAccess, conversation } = await hasConversationAccess(
+  handler: getWithAccessInfoHandler,
+});
+
+export async function getForExportHandler(
+  ctx: QueryCtx,
+  args: {
+    id: string;
+    limit?: number;
+  }
+) {
+  try {
+    const conversationId = args.id as Id<"conversations">;
+    const { hasAccess, conversation } = await checkConversationAccess(
       ctx,
-      args.id,
+      conversationId,
       true
     );
-    return { hasAccess, conversation, isDeleted: false };
-  },
-});
+
+    if (!(hasAccess && conversation)) {
+      return null;
+    }
+
+    // Use take() to limit results and avoid loading massive conversations
+    const messagesQuery = ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
+      .filter(q => q.eq(q.field("isMainBranch"), true))
+      .order("asc");
+
+    const messages = args.limit
+      ? await messagesQuery.take(args.limit)
+      : await messagesQuery.collect();
+
+    // Strip heavy fields for export to reduce bandwidth
+    const optimizedMessages = messages.map(message => ({
+      _id: message._id,
+      _creationTime: message._creationTime,
+      conversationId: message.conversationId,
+      role: message.role,
+      content: message.content,
+      model: message.model,
+      provider: message.provider,
+      parentId: message.parentId,
+      isMainBranch: message.isMainBranch,
+      createdAt: message.createdAt,
+      // Only include citations, skip heavy attachments and metadata for export
+      ...(message.citations && { citations: message.citations }),
+    }));
+
+    return {
+      conversation,
+      messages: optimizedMessages,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export const getForExport = query({
   args: {
     id: v.string(),
     limit: v.optional(v.number()), // Limit number of messages to reduce bandwidth
   },
-  handler: async (ctx, args) => {
-    try {
-      const conversationId = args.id as Id<"conversations">;
-      const { hasAccess, conversation } = await checkConversationAccess(
-        ctx,
-        conversationId,
-        true
-      );
-
-      if (!(hasAccess && conversation)) {
-        return null;
-      }
-
-      // Use take() to limit results and avoid loading massive conversations
-      const messagesQuery = ctx.db
-        .query("messages")
-        .withIndex("by_conversation", q =>
-          q.eq("conversationId", conversationId)
-        )
-        .filter(q => q.eq(q.field("isMainBranch"), true))
-        .order("asc");
-
-      const messages = args.limit
-        ? await messagesQuery.take(args.limit)
-        : await messagesQuery.collect();
-
-      // Strip heavy fields for export to reduce bandwidth
-      const optimizedMessages = messages.map(message => ({
-        _id: message._id,
-        _creationTime: message._creationTime,
-        conversationId: message.conversationId,
-        role: message.role,
-        content: message.content,
-        model: message.model,
-        provider: message.provider,
-        parentId: message.parentId,
-        isMainBranch: message.isMainBranch,
-        createdAt: message.createdAt,
-        // Only include citations, skip heavy attachments and metadata for export
-        ...(message.citations && { citations: message.citations }),
-      }));
-
-      return {
-        conversation,
-        messages: optimizedMessages,
-      };
-    } catch {
-      return null;
-    }
-  },
+  handler: getForExportHandler,
 });
+
+export async function patchHandler(
+  ctx: MutationCtx,
+  args: {
+    id: Id<"conversations">;
+    updates: Record<string, unknown>;
+    setUpdatedAt?: boolean;
+  }
+) {
+  // Check access to the conversation (no shared access for mutations)
+  await validateConversationAccess(ctx, args.id, false);
+
+  const patch: Record<string, unknown> = { ...args.updates };
+  if (args.setUpdatedAt) {
+    // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
+    const existing = await ctx.db.get(args.id);
+    const now = Date.now();
+    patch.updatedAt = Math.max(now, (existing?.updatedAt || 0) + 1);
+  }
+  return ctx.db.patch(args.id, patch);
+}
 
 export const patch = mutation({
   args: {
@@ -845,19 +970,7 @@ export const patch = mutation({
     updates: v.any(),
     setUpdatedAt: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
-    // Check access to the conversation (no shared access for mutations)
-    await validateConversationAccess(ctx, args.id, false);
-
-    const patch: Record<string, unknown> = { ...args.updates };
-    if (args.setUpdatedAt) {
-      // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
-      const existing = await ctx.db.get(args.id);
-      const now = Date.now();
-      patch.updatedAt = Math.max(now, (existing?.updatedAt || 0) + 1);
-    }
-    return ctx.db.patch(args.id, patch);
-  },
+  handler: patchHandler,
 });
 
 // Internal mutation for system operations like title generation

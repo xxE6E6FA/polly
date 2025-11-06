@@ -191,8 +191,10 @@ function useChatInputStoreBase<T>(
 
 export const useChatInputStore = Object.assign(useChatInputStoreBase, {
   getState: () => chatInputStoreApi.getState(),
-  setState: chatInputStoreApi.setState,
-  subscribe: chatInputStoreApi.subscribe.bind(chatInputStoreApi),
+  setState: (...args: Parameters<ChatInputStoreApi["setState"]>) =>
+    chatInputStoreApi.setState(...args),
+  subscribe: (...args: Parameters<ChatInputStoreApi["subscribe"]>) =>
+    chatInputStoreApi.subscribe(...args),
 }) as UseChatInputStore;
 
 export const getChatInputStore = () => chatInputStoreApi;

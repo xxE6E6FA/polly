@@ -2,7 +2,13 @@ import { v } from "convex/values";
 import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
-import { action, internalMutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import {
+  type ActionCtx,
+  action,
+  internalMutation,
+  type MutationCtx,
+} from "./_generated/server";
 import { scheduleRunAfter } from "./lib/scheduler";
 
 // Helper function to generate title without updating conversation
@@ -70,25 +76,30 @@ async function generateTitleHelper(message: string): Promise<string> {
   return generatedTitle;
 }
 
+export async function generateTitleHandler(
+  ctx: ActionCtx,
+  args: { message: string; conversationId?: Id<"conversations"> }
+): Promise<string> {
+  const generatedTitle = await generateTitleHelper(args.message);
+
+  // Update the conversation title if conversationId is provided
+  if (args.conversationId) {
+    await ctx.runMutation(internal.conversations.internalPatch, {
+      id: args.conversationId,
+      updates: { title: generatedTitle },
+      setUpdatedAt: true,
+    });
+  }
+
+  return generatedTitle;
+}
+
 export const generateTitle = action({
   args: {
     message: v.string(),
     conversationId: v.optional(v.id("conversations")),
   },
-  handler: async (ctx, args): Promise<string> => {
-    const generatedTitle = await generateTitleHelper(args.message);
-
-    // Update the conversation title if conversationId is provided
-    if (args.conversationId) {
-      await ctx.runMutation(internal.conversations.internalPatch, {
-        id: args.conversationId,
-        updates: { title: generatedTitle },
-        setUpdatedAt: true,
-      });
-    }
-
-    return generatedTitle;
-  },
+  handler: generateTitleHandler,
 });
 
 // Optimized background title generation with retry logic
@@ -144,6 +155,46 @@ export const generateTitleBackground = action({
 });
 
 // Internal mutation for batch title updates (for migrations or bulk operations)
+export async function batchUpdateTitlesHandler(
+  ctx: MutationCtx,
+  args: {
+    updates: Array<{ conversationId: Id<"conversations">; title: string }>;
+  }
+) {
+  // Update all titles in parallel with error handling for partial failures
+  const results = await Promise.allSettled(
+    args.updates.map(update =>
+      ctx.db.patch(update.conversationId, {
+        title: update.title,
+      })
+    )
+  );
+
+  // Log any failures without stopping the entire batch
+  const failures = results
+    .map((result, index) => ({ result, index }))
+    .filter(({ result }) => result.status === "rejected");
+
+  if (failures.length > 0) {
+    console.error(
+      `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
+    );
+    failures.forEach(({ result, index }) => {
+      const update = args.updates[index];
+      if (!update) {
+        console.error("Failed to determine update payload for failure", result);
+        return;
+      }
+      const reason =
+        result.status === "rejected" ? result.reason : "Unknown error";
+      console.error(
+        `Failed to update conversation ${update.conversationId}:`,
+        reason
+      );
+    });
+  }
+}
+
 export const batchUpdateTitles = internalMutation({
   args: {
     updates: v.array(
@@ -153,41 +204,5 @@ export const batchUpdateTitles = internalMutation({
       })
     ),
   },
-  handler: async (ctx, args) => {
-    // Update all titles in parallel with error handling for partial failures
-    const results = await Promise.allSettled(
-      args.updates.map(update =>
-        ctx.db.patch(update.conversationId, {
-          title: update.title,
-        })
-      )
-    );
-
-    // Log any failures without stopping the entire batch
-    const failures = results
-      .map((result, index) => ({ result, index }))
-      .filter(({ result }) => result.status === "rejected");
-
-    if (failures.length > 0) {
-      console.error(
-        `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
-      );
-      failures.forEach(({ result, index }) => {
-        const update = args.updates[index];
-        if (!update) {
-          console.error(
-            "Failed to determine update payload for failure",
-            result
-          );
-          return;
-        }
-        const reason =
-          result.status === "rejected" ? result.reason : "Unknown error";
-        console.error(
-          `Failed to update conversation ${update.conversationId}:`,
-          reason
-        );
-      });
-    }
-  },
+  handler: batchUpdateTitlesHandler,
 });

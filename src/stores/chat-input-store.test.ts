@@ -40,9 +40,7 @@ describe("chat-input-store", () => {
     expect(state.selectedModel).toBeNull();
 
     const testModel: AIModel = {
-      // biome-ignore lint/style/useNamingConvention: Convex system field
       _id: "model-1" as Id<"userModels">,
-      // biome-ignore lint/style/useNamingConvention: Convex system field
       _creationTime: Date.now(),
       userId: "user-1" as Id<"users">,
       modelId: "gpt-4o",

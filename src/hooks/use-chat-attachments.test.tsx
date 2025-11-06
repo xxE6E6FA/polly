@@ -1,11 +1,26 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { act, renderHook } from "@testing-library/react";
-import { getChatInputStore, getChatKey } from "@/stores/chat-input-store";
+import {
+  createChatInputStore,
+  getChatInputStore,
+  getChatKey,
+  setChatInputStoreApi,
+} from "@/stores/chat-input-store";
 import type { Attachment, ConversationId } from "@/types";
 import { useChatAttachments } from "./use-chat-attachments";
 
+let originalStore: ReturnType<typeof getChatInputStore>;
+
 beforeEach(() => {
   localStorage.clear();
+  // Create isolated store instance for each test
+  originalStore = getChatInputStore();
+  setChatInputStoreApi(createChatInputStore());
+});
+
+afterEach(() => {
+  // Restore original store instance
+  setChatInputStoreApi(originalStore);
 });
 
 const makeAttachment = (suffix: string): Attachment => ({
