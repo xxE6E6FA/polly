@@ -1,0 +1,76 @@
+---
+description: Test provider wrapper and core mocks
+globs: ["**/*.test.ts", "**/*.test.tsx"]
+---
+
+# Test Providers and Core Mocks
+
+## TestProviders
+- Import `TestProviders` from `test/TestProviders` and wrap rendered UI:
+```ts
+import { render } from "@testing-library/react";
+import { TestProviders } from "../../test/TestProviders";
+import { MyComponent } from "./my-component";
+
+test("renders inside app shell", () => {
+  render(
+    <TestProviders>
+      <MyComponent />
+    </TestProviders>
+  );
+});
+```
+
+Or use the helper:
+```ts
+import { renderWithProviders } from "../../test/test-utils";
+await renderWithProviders(<MyComponent />);
+```
+
+## Neutralize Convex/Auth/User Data
+When a component or hook imports `convex/react`, `@/providers/convex-provider`, or `@/providers/user-data-context`, install mocks BEFORE importing the unit:
+
+```ts
+import { installCoreAppMocks } from "../../test/TestProviders";
+installCoreAppMocks();
+
+import { HeavyComponent } from "./heavy-component";
+```
+
+You can pass overrides:
+```ts
+installCoreAppMocks({ isAuthenticated: true, user: { _id: "u1" } });
+```
+
+## Guidelines
+- Prefer `TestProviders` for DOM tests; it wraps UI/Tooltip/Toast/Batch/Private/Sidebar and ErrorBoundary.
+- Avoid real Convex/Auth in tests; rely on module mocks and keep tests deterministic.
+- If a test fails on CI but not locally, flush microtasks before calling hook methods.
+- When mocking packages with many exports (e.g., `convex/react`), import the real module once and spread it in the mock so other exports remain available:
+  ```ts
+  const convexReact = await import("convex/react");
+  mock.module("convex/react", () => ({
+    ...convexReact,
+    useQuery: () => mockData,
+  }));
+  ```
+
+## Provider-specific Patterns
+- **Do not mock providers via `mock.module()` in individual test files.** Provider mocks are global and will leak state into later suites when Bun randomizes file order (we hit this with `GenerationModeToggle` vs `PrivateModeProvider` under `--seed=1198959309`).
+- Instead, render against the real provider and, if you need to drive its state, wrap the subject with a lightweight initializer:
+  ```tsx
+  function PrivateModeInitializer({ initial, children }: { initial: boolean; children: React.ReactNode }) {
+    const { setPrivateMode } = usePrivateMode();
+    useLayoutEffect(() => setPrivateMode(initial), [initial, setPrivateMode]);
+    return <>{children}</>;
+  }
+
+  render(
+    <PrivateModeProvider>
+      <PrivateModeInitializer initial>
+        <GenerationModeToggle ... />
+      </PrivateModeInitializer>
+    </PrivateModeProvider>
+  );
+  ```
+- Combine this pattern with `waitFor` or `await act` when assertions rely on state changes triggered by events so the DOM reflects the updated provider state before expectations run.

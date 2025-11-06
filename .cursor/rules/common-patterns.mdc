@@ -132,6 +132,14 @@ const buttonVariants = cva(
 - **Roles**: Use semantic HTML elements and ARIA roles
 - **States**: Communicate component states to screen readers
 
+## Error Handling
+
+- **Error Boundaries**: Use proper error boundaries and try/catch blocks
+- **Backend Logging**: For Convex backend, use `log.*` from `convex/lib/logger` instead of `console.*` (lint-blocked)
+- **User-Friendly Messages**: Return user-friendly error messages
+- **LocalStorage Errors**: Silently catch localStorage errors in browser
+- **Meaningful Actions**: Don't use try-catch blocks unless you can perform a meaningful action in the catch block (empty catch blocks or console-only logging don't count)
+
 ## Examples
 
 ### Good Component Structure

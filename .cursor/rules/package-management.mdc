@@ -6,46 +6,47 @@ alwaysApply: true
 # Package Management & Build Commands
 
 ## Package Manager
-- **Always use pnpm**: Never use npm or yarn
-- **Install**: `pnpm install` for dependencies
-- **Add Package**: `pnpm add <package>` for new dependencies
-- **Dev Dependencies**: `pnpm add -D <package>` for dev-only packages
+- **Always use bun**: This project uses Bun as the package manager and runtime
+- **Install**: `bun install` for dependencies
+- **Add Package**: `bun add <package>` for new dependencies
+- **Dev Dependencies**: `bun add -d <package>` for dev-only packages
 
 ## Build Commands
-- **NEVER run `pnpm build`**: This triggers Convex deploy requiring user interaction
-- **Frontend Build**: Use `npx vite build` for frontend-only builds
-- **NEVER run `pnpm dev`**: User will run development servers themselves
-- **Convex Dev**: `npx convex dev` (run in separate terminal)
+- **NEVER run `bun run build`**: This triggers Convex deploy requiring user interaction
+- **Frontend Build**: Use `bun run build:frontend` for frontend-only builds
+- **NEVER run `bun run dev`**: User will run development servers themselves
+- **Convex Dev**: `bun run dev:convex` or `npx convex dev` (run in separate terminal)
 
 ## Development Workflow
-- **Backend**: `npx convex dev` (terminal A)
-- **Frontend**: `pnpm dev` (terminal B)
-- **Full Check**: `pnpm check` (lint + typecheck + build)
-- **Auto-fix**: `pnpm check:write` (fixes linting and organizes imports)
+- **Backend**: `bun run dev:convex` or `npx convex dev` (terminal A)
+- **Frontend**: `bun run dev:frontend` (terminal B)
+- **Full Check**: `bun run check` (lint + typecheck + build)
+- **Auto-fix**: `bun run check:write` (fixes linting and organizes imports)
 
 ## Code Quality Commands
-- **Lint**: `pnpm lint` (report only) or `pnpm lint:fix` (auto-fix)
-- **Format**: `pnpm format` (write) or `pnpm format:check` (check only)
-- **Type Check**: `pnpm typecheck` (TypeScript validation)
-- **Test**: `pnpm test` (watch mode) or `pnpm test:ci` (CI mode)
+- **Lint**: `bun run lint` (report only)
+- **Format**: `bun run format` (write) or `bun run format:check` (check only)
+- **Type Check**: `bun run typecheck` (TypeScript validation)
+- **Test**: `bun test` (watch mode) or `bun run test:ci` (CI mode)
+- **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
 
 ## Database Management
-- **Clear DB**: `pnpm clear-db` (development only)
-- **Clear Auth**: `pnpm clear-auth` (auth tables only)
+- **Clear DB**: `bun run clear-db` (development only)
+- **Clear Auth**: `bun run clear-auth` (auth tables only)
 
 ## Examples
 
 ```bash
 # ✅ Correct workflow
-pnpm install
-npx convex dev  # Terminal A
-pnpm dev        # Terminal B
+bun install
+bun run dev:convex  # Terminal A
+bun run dev:frontend  # Terminal B
 
 # ✅ Build commands
-npx vite build  # Frontend only
-pnpm check:write  # Auto-fix all issues
+bun run build:frontend  # Frontend only
+bun run check:write  # Auto-fix all issues
 
 # ❌ Never run these
-pnpm build      # Triggers Convex deploy
-pnpm dev        # User manages dev servers
+bun run build      # Triggers Convex deploy
+bun run dev        # User manages dev servers
 ```

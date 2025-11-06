@@ -1,258 +1,251 @@
 ---
-description: Vitest testing patterns and utilities
+description: Bun test patterns for React + Convex
 globs: ["**/*.test.ts", "**/*.test.tsx"]
 ---
 
-# Testing Guidelines (Vitest)
+# Testing Guidelines (Bun)
 
-## Test Structure
-- **Location**: Place tests near implementation files (`*.test.ts`, `*.test.tsx`)
-- **Naming**: Use descriptive test names that explain the scenario
-- **Organization**: Group related tests with `describe` blocks
+## Bun Test Architecture
 
-## Test Utilities
-- **Import from `src/test/utils.ts`**: Use provided test utilities
-- **Mock Helpers**: Leverage existing mock functions
-- **Environment Setup**: Tests run in `jsdom` for src/shared, `edge-runtime` for convex
+**How Bun Runs Tests:**
+- All test files execute in a single process for speed
+- Test files run in parallel by default
+- Module mocks (`mock.module()`) are process-global and shared
+- Tests configure mock behavior via global registries
 
-## Key Test Utilities
+## Test Isolation & Flakiness Prevention
 
-### Streaming Tests
+**ALWAYS** follow these patterns when writing tests to prevent flaky behavior:
+
+### Understanding Bun's Mock System
+
+**CRITICAL CONSTRAINTS**:
+
+- **`mock.module()` is process-global** - All test files run in the same process and share module mocks
+- **`mock.restore()` does NOT clear `mock.module()` mocks** - Only clears `spyOn()` and `mock()` function mocks
+- **Only ONE mock can exist per module** - Calling `mock.module()` multiple times overwrites previous mocks
+- **Parallel execution creates races** - Multiple tests modifying the same mock registry causes interference
+
+**Key Insight**: We install mocks ONCE (in preload) with a shared global registry. Tests configure the registry synchronously before rendering. This causes inherent flakiness when tests run in parallel, but individual files are 100% reliable.
+
+### Module Mocking Strategy
+
+**REQUIRED PATTERN**: Use the global mock registry from `test/global-mocks.ts`:
+- Mocks are preloaded once globally before all test files
+- Tests configure mock behavior via `setConvexMock()` and `setUserDataMock()`
+- Global `afterEach` in `test/global-mocks.ts` clears registries automatically
+- Each test must set up its mocks synchronously before rendering
+
+**Use the global mock registry:**
 ```typescript
-import { makeNdjsonStream, mockFetchNDJSON, flushAll } from "@/test/utils";
+// Import global mock helpers
+import { setConvexMock, setUserDataMock } from "../../test/global-mocks";
 
-// Mock NDJSON streaming
-const mockStream = mockFetchNDJSON([
-  { type: "chunk", data: "Hello" },
-  { type: "chunk", data: " World" },
-  { type: "done" }
-]);
+// Import module under test AFTER (mocks are preloaded globally)
+const { MyComponent } = await import("./my-component");
 
-// Create NDJSON stream
-const stream = makeNdjsonStream([
-  '{"message": "test"}',
-  '{"message": "test2"}'
-]);
-```
-
-### Additional Utilities Available
-- `mockGlobalFetchOnce()` - One-shot fetch mock
-- `mockGlobalFetchSequence()` - Multiple fetch responses
-- `withMockedURLObjectURL()` - URL object mocking
-- `stubAnchorClicks()` - Anchor click stubbing
-- `installFileReaderDataURLMock()` - FileReader mocking
-- `installImageMock()` - Image loading mocking
-- `installCanvasMock()` - Canvas context mocking
-- `makeFileList()` - FileList construction
-- `createOverlaysMock()` - Stream overlays mocking
-- `withFakeTimers()` - Timer mocking helper
-
-### Timer Tests
-```typescript
-import { withFakeTimers, flushAll } from "@/test/utils";
-
-test("handles timers correctly", async () => {
-  await withFakeTimers(async () => {
-    // Test code with timers
-    const promise = someAsyncFunction();
-    
-    // Advance timers
-    await flushAll({ timersMs: 1000 });
-    
-    const result = await promise;
-    expect(result).toBeDefined();
-  });
-});
-```
-
-### File Upload Tests
-```typescript
-import { makeFileList, installFileReaderMock } from "@/test/utils";
-
-test("handles file uploads", async () => {
-  installFileReaderMock();
-  
-  const files = [
-    new File(["content"], "test.txt", { type: "text/plain" })
-  ];
-  const fileList = makeFileList(files);
-  
-  // Test file handling
-  expect(fileList.length).toBe(1);
-});
-```
-
-### Convex/Overlays Mocking
-```typescript
-import { createOverlaysMock } from "@/test/utils";
-
-// Mock overlays store
-const { overlays, factory } = createOverlaysMock();
-vi.mock("@/stores/stream-overlays", () => factory);
-```
-
-## Test Patterns
-
-### Component Testing
-```typescript
-import { render, screen, fireEvent } from "@testing-library/react";
-import { UserProfile } from "./UserProfile";
-
-test("renders user profile correctly", () => {
-  const mockUser = { id: "1", name: "John Doe", email: "john@example.com" };
-  
-  render(<UserProfile user={mockUser} />);
-  
-  expect(screen.getByText("John Doe")).toBeInTheDocument();
-  expect(screen.getByText("john@example.com")).toBeInTheDocument();
-});
-
-test("handles user update", async () => {
-  const mockOnUpdate = vi.fn();
-  const mockUser = { id: "1", name: "John Doe" };
-  
-  render(<UserProfile user={mockUser} onUpdate={mockOnUpdate} />);
-  
-  fireEvent.click(screen.getByRole("button", { name: /update/i }));
-  
-  expect(mockOnUpdate).toHaveBeenCalledWith(mockUser);
-});
-```
-
-### Hook Testing
-```typescript
-import { renderHook, act, waitFor } from "@testing-library/react";
-import { useUserData } from "./useUserData";
-
-test("fetches user data on mount", async () => {
-  const mockFetch = vi.fn().mockResolvedValue({
-    json: () => Promise.resolve({ id: "1", name: "John" })
-  });
-  global.fetch = mockFetch;
-  
-  const { result } = renderHook(() => useUserData("1"));
-  
-  await act(async () => {
-    await flushAll({ microtasks: 1 });
+// Configure mocks in beforeEach or at the start of each test
+beforeEach(() => {
+  setConvexMock({
+    useQuery: () => myTestData,
+    useMutation: () => async () => {},
   });
   
-  expect(result.current.user).toEqual({ id: "1", name: "John" });
-  expect(mockFetch).toHaveBeenCalledWith("/api/users/1");
+  setUserDataMock({
+    user: { _id: "test-user", isAnonymous: false },
+  });
+});
+
+// Global afterEach in test/global-mocks.ts clears registries automatically
+```
+
+**Why this works:**
+- ONE global mock is set up in `test/global-mocks.ts` (preloaded before all tests)
+- Tests configure the shared registry synchronously before rendering
+- Simple, predictable, and fast
+
+**For mocking non-Convex modules or one-off behaviors, use `spyOn()`:**
+```typescript
+import * as MyModule from "./my-module";
+
+beforeEach(() => {
+  spyOn(MyModule, "myFunction").mockReturnValue(testValue);
+  // Global afterEach will restore this automatically
 });
 ```
 
-#### CRITICAL: Flush Microtasks After Hook Initialization
+**NEVER use `mock.module()` in test files** - it's global and causes conflicts. Use the global registries instead.
 
-**Always flush microtasks after rendering a hook before calling its methods.**
-
-This ensures all initial effects, memoized values, and mock setups are complete, preventing timing issues in CI:
+### Store Isolation (Required for Zustand stores)
+For tests using stores like `chat-input-store`, isolate each test with fresh instances:
 
 ```typescript
+const originalStore = getChatInputStore();
+
+beforeEach(() => {
+  setChatInputStoreApi(createChatInputStore()); // Fresh isolated store
+  localStorage.clear();
+  // ... other setup
+});
+
+afterAll(() => {
+  setChatInputStoreApi(originalStore); // Restore global store
+});
+```
+
+### Test Debugging
+When tests fail flakily:
+1. Note the failing seed from `--seed XXXX`
+2. Reproduce with: `bun test --seed XXXX`
+3. Use isolated test runs to identify interference
+
+### React Provider Tests & Async Updates
+
+- Prefer exercising real providers instead of mocking them with `mock.module()`. Module-level provider mocks persist across files; they caused seeded failures (see `PrivateModeProvider` under `--seed=1198959309`).
+- Render components inside the actual provider and use a tiny initializer component with `useLayoutEffect` to push desired state:
+  ```tsx
+  function PrivateModeInitializer({ initial, children }: Props) {
+    const { setPrivateMode } = usePrivateMode();
+    useLayoutEffect(() => setPrivateMode(initial), [initial, setPrivateMode]);
+    return <>{children}</>;
+  }
+  render(
+    <PrivateModeProvider>
+      <PrivateModeInitializer initial={true}>
+        <GenerationModeToggle ... />
+      </PrivateModeInitializer>
+    </PrivateModeProvider>
+  );
+  ```
+- When DOM assertions depend on state updates triggered by `fireEvent`, wrap them with `await waitFor(...)` (or `await act`) so React finishes processing before the expectation runs.
+
+## Structure
+- Location: colocate tests next to implementation files (`*.test.ts(x)`).
+- Naming: describe realistic scenarios and expected outcomes.
+- Independence: every test must pass in isolation. The suite runs randomized.
+
+## Runner & Environment
+- Runner: `bun test` (see `bunfig.toml`).
+- DOM: happy‑dom via `test/setup-bun.ts` (optional; only if installed).
+- RTL matchers: `@testing-library/jest-dom` loaded from `test/setup-bun.ts` when present.
+
+## React DOM Tests
+```ts
+import { render, screen } from "@testing-library/react";
+import { MyComponent } from "./my-component";
+
+test("shows user name", () => {
+  render(<MyComponent name="Ada" />);
+  expect(screen.getByText(/ada/i)).toBeInTheDocument();
+});
+```
+
+## Hook Tests
+```ts
 import { renderHook, act } from "@testing-library/react";
+import { useThing } from "./use-thing";
 
-// ❌ BAD - Can fail in CI due to timing
-test("calls action immediately", async () => {
-  const mockAction = vi.fn();
-  const { result } = renderHook(() => useChat({ conversationId: "c1" }));
-  
-  await act(async () => {
-    await result.current.sendMessage({ content: "test" });
-  });
-  
-  expect(mockAction).toHaveBeenCalled(); // May fail in CI!
-});
-
-// ✅ GOOD - Flush microtasks before calling methods
-test("calls action after initialization", async () => {
-  const mockAction = vi.fn();
-  const { result } = renderHook(() => useChat({ conversationId: "c1" }));
-  
-  // Flush microtasks to ensure all initial effects/memos execute
-  await act(async () => {
-    await Promise.resolve();
-  });
-  
-  await act(async () => {
-    await result.current.sendMessage({ content: "test" });
-  });
-  
-  expect(mockAction).toHaveBeenCalled(); // Reliable!
+test("initializes and updates", async () => {
+  const { result } = renderHook(() => useThing());
+  // Ensure effects/memos complete before invoking methods
+  await act(() => globalThis.flushMicrotasks());
+  await act(() => result.current.doWork());
+  expect(result.current.state.ready).toBe(true);
 });
 ```
 
-**When to flush microtasks:**
-- After rendering any hook that uses `useMemo`, `useEffect`, or calls other hooks
-- Before calling hook methods, especially those that depend on initialization
-- When testing hooks with mocked dependencies (`useQuery`, `useAction`, etc.)
-- In any test that fails only in CI but passes locally (timing issue indicator)
+## Convex in Frontend Code
 
-**Why `act + Promise.resolve` instead of `waitFor`:**
-- `waitFor` waits for specific state that might never arrive if mocks aren't set up correctly
-- `Promise.resolve()` flushes the microtask queue without making assumptions about state
-- Works reliably in CI environments where timing is less predictable
-- Simpler and faster than polling with `waitFor`
+**Use the global mock registry pattern:**
 
-### Convex Function Testing
-```typescript
-import { ConvexTestingHelper } from "convex/testing";
-import { api } from "@convex/_generated/api";
+```ts
+import { setConvexMock } from "../../test/global-mocks";
 
-test("creates user successfully", async () => {
-  const t = ConvexTestingHelper();
-  
-  const userId = await t.mutation(api.users.create, {
-    name: "John Doe",
-    email: "john@example.com"
+// Import AFTER global mock is set up
+const { MyComponent } = await import("./my-component");
+
+beforeEach(() => {
+  // Configure the global Convex mock for this test suite
+  // This gets cleared automatically by global afterEach
+  setConvexMock({
+    useQuery: () => myTestData,
+    useMutation: () => async () => {},
   });
-  
-  const user = await t.query(api.users.get, { id: userId });
-  expect(user).toEqual({
-    _id: userId,
-    name: "John Doe",
-    email: "john@example.com"
+});
+
+test("handles empty data", () => {
+  // Change the mock behavior for this specific test
+  setConvexMock({
+    useQuery: () => undefined,
+  });
+  // test code...
+});
+```
+
+For query-specific behavior, use a function that checks the query key:
+```ts
+const functionNameSymbol = Symbol.for("functionName");
+
+beforeEach(() => {
+  setConvexMock({
+    useQuery: (query, args) => {
+      const queryKey = query?.[functionNameSymbol];
+      if (queryKey === "messages:list") return serverMessages;
+      if (queryKey === "users:getCurrent") return currentUser;
+      return undefined;
+    },
   });
 });
 ```
 
-## Mock Patterns
 
-### Module Mocking
-```typescript
-// Mock at module scope before imports
-vi.mock("@/lib/api", () => ({
-  fetchUser: vi.fn().mockResolvedValue({ id: "1", name: "John" })
+
+## Router Mocks
+For React Router, you can either:
+
+**Option 1: Mock at module level** (if stable across all tests in the file):
+```ts
+const actualRouterDom = await import("react-router-dom");
+const navigateStub = createStub((path: string) => {});
+
+mock.module("react-router-dom", () => ({
+  ...actualRouterDom,
+  useNavigate: () => navigateStub,
 }));
 
-// Dynamic import in factory (for complex mocks)
-vi.mock("@/stores/stream-overlays", async () => {
-  const { createOverlaysMock } = await import("../../test/utils");
-  return createOverlaysMock().factory;
+beforeEach(() => {
+  navigateStub.calls.length = 0; // Clear call history
 });
 ```
 
-### Global Mocking
-```typescript
-import { mockGlobalFetchOnce, mockGlobalFetchSequence } from "@/test/utils";
+**Option 2: Use TestProviders** which wraps components in a MemoryRouter for proper context.
 
-// One-shot fetch mock
-mockGlobalFetchOnce({ json: () => Promise.resolve({ data: "test" }) });
+## Convex Function Tests (Backend)
+- Use the official Convex test utilities (e.g. `convex-test`) to call queries/mutations.
+- Keep tests pure (no network); seed any required data within the test.
 
-// Multiple fetch responses
-mockGlobalFetchSequence([
-  { json: () => Promise.resolve({ data: "first" }) },
-  { json: () => Promise.resolve({ data: "second" }) }
-]);
+## Mocking Patterns
+```ts
+import { mock } from "bun:test";
+
+// Basic module mock
+mock.module("@/lib/api", () => ({ fetchUser: async () => ({ id: "1" }) }));
+
+// Component/providers we don’t want active in tests
+mock.module("@/providers/convex-provider", () => ({
+  ConvexProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  getConvexClient: () => ({})
+}));
 ```
 
 ## Best Practices
-- **Deterministic Tests**: Avoid network calls and file system operations
-- **Pure Functions**: Test pure utility functions extensively
-- **Mock External Dependencies**: Mock APIs, databases, and external services
-- **Test Edge Cases**: Include error conditions and boundary cases
-- **Fast Tests**: Keep tests fast and focused
-- **Clear Assertions**: Use descriptive assertions and error messages
+- Avoid real network, time, or filesystem; mock at module boundaries.
+- Reset any global stores/singletons between tests.
+- Prefer rendering via RTL and asserting on user‑visible output.
+- Keep tests fast and focused; one behavior per test.
 
-## Coverage Requirements
-- **100% Coverage**: Lines, functions, branches, and statements
-- **Run Coverage**: `pnpm coverage` locally, `pnpm coverage:ci` in CI
-- **Thresholds**: Defined in `vitest.config.ts` with strict requirements
+## Running
+- All tests: `bun test`
+- Watch: `bun test --watch`
+- Randomized (seeded): `bun test --randomize --seed 1234`
+- Single file: `bun test path/to/file.test.tsx`
