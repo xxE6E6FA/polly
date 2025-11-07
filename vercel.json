@@ -4,10 +4,13 @@
   "outputDirectory": "dist",
   "devCommand": "bun run dev",
   "installCommand": "bun install",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ],
   "headers": [
