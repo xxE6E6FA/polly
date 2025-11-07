@@ -120,10 +120,36 @@ const buildProduction = async () => {
     console.log("  📄 Generating index.html...");
     let html = await Bun.file(indexPath).text();
 
-    const entries = await readdir(distDir);
-    const entryFile = entries.find(
-      file => file.startsWith("entry.client-") && file.endsWith(".js")
-    );
+    let entryFile: string | undefined;
+
+    if (result.outputs && result.outputs.length > 0) {
+      const entryOutput = result.outputs.find(
+        output =>
+          output.path.includes("entry.client") && output.kind === "entry-point"
+      );
+      if (entryOutput) {
+        entryFile = entryOutput.path.split("/").pop();
+      }
+    }
+
+    if (!entryFile) {
+      const entries = await readdir(distDir);
+      const entryFiles = entries.filter(
+        file => file.startsWith("entry.client-") && file.endsWith(".js")
+      );
+
+      if (entryFiles.length > 0) {
+        const entryStats = await Promise.all(
+          entryFiles.map(async file => {
+            const filePath = join(distDir, file);
+            const fileStat = await stat(filePath);
+            return { file, size: fileStat.size };
+          })
+        );
+
+        entryFile = entryStats.sort((a, b) => b.size - a.size)[0]?.file;
+      }
+    }
 
     if (entryFile) {
       html = html.replace(
@@ -135,6 +161,8 @@ const buildProduction = async () => {
         /<script type="module" src="\/src\/entry\.client\.tsx"><\/script>/,
         `<script type="module" src="/${entryFile}"></script>`
       );
+    } else {
+      throw new Error("Could not find entry.client bundle file");
     }
 
     await Bun.write(distIndexPath, html);
