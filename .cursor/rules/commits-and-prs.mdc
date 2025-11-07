@@ -174,5 +174,9 @@ Closes #123
    ```bash
    gh pr create --title "Descriptive PR title" --body "PR description with context"
    ```
+   If needed, specify head and base explicitly:
+   ```bash
+   gh pr create --head <branch-name> --base main --title "Descriptive PR title" --body "PR description"
+   ```
 6. **Review**: Address feedback and update commits as needed
 7. **Merge**: Use appropriate merge strategy (squash for feature branches)
