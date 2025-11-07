@@ -46,6 +46,10 @@
   ```bash
   gh pr create --title "Descriptive PR title" --body "PR description with context"
   ```
+  If needed, specify head and base explicitly:
+  ```bash
+  gh pr create --head <branch-name> --base main --title "Descriptive PR title" --body "PR description"
+  ```
 - See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines
 
 ## UI Styling Guidelines (Tailwind + shadcn)
