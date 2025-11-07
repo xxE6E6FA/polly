@@ -105,9 +105,12 @@ export const ProviderSummary = memo(
       return null;
     }
 
+    const availableProvidersSet = new Set(availableProviders);
+
     return (
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
         {Object.entries(stats.providerCounts)
+          .filter(([provider]) => availableProvidersSet.has(provider))
           .sort(([a], [b]) => {
             const providerOrder = Object.keys(PROVIDER_NAMES);
             const aIndex = providerOrder.indexOf(a);
