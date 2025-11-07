@@ -46,7 +46,7 @@ describe("useChatInputPreservation", () => {
     expect(result.current.getChatInputState()).toMatchObject({
       input: "",
       attachments: [],
-      reasoningConfig: expect.objectContaining({ enabled: false }),
+      reasoningConfig: { enabled: false, effort: "medium" },
       temperature: undefined,
     });
 

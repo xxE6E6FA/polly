@@ -1,9 +1,7 @@
-import tailwindcss from "@tailwindcss/postcss";
-import { build, serve } from "bun";
+import { $, build, serve } from "bun";
 import { existsSync, statSync, watch } from "fs";
-import { cp } from "fs/promises";
+import { mkdir, readdir, rm } from "fs/promises";
 import { join } from "path";
-import postcss from "postcss";
 
 const PORT = process.env.PORT || 3000;
 const HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
@@ -11,39 +9,51 @@ const isDev = process.env.NODE_ENV !== "production";
 const skipInitialBuild = process.env.SKIP_INITIAL_BUILD === "true";
 const convexUrl = process.env.VITE_CONVEX_URL || "";
 
-function getContentType(filePath: string): string {
-  const ext = filePath.split(".").pop()?.toLowerCase();
-  const mimeTypes: Record<string, string> = {
-    html: "text/html",
-    css: "text/css",
-    js: "application/javascript",
-    json: "application/json",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    svg: "image/svg+xml",
-    ico: "image/x-icon",
-    webmanifest: "application/manifest+json",
-  };
-  return mimeTypes[ext || ""] || "application/octet-stream";
+async function copyPublicDir(src: string, dest: string) {
+  if (!existsSync(src)) {
+    return;
+  }
+
+  const entries = await readdir(src);
+
+  for (const entry of entries) {
+    const srcPath = join(src, entry);
+    const destPath = join(dest, entry);
+
+    const stat = statSync(srcPath);
+    if (stat.isDirectory()) {
+      await mkdir(destPath, { recursive: true });
+      await copyPublicDir(srcPath, destPath);
+    } else if (stat.isFile()) {
+      await Bun.write(destPath, Bun.file(srcPath));
+    }
+  }
 }
 
 // Build for development
 const buildDev = async () => {
   const distDir = join(process.cwd(), "dist");
 
-  // CSS is imported in entry.client.tsx and processed by Bun's bundler with Tailwind v4
+  // Clean previous build files to prevent accumulation
+  if (existsSync(distDir)) {
+    await rm(distDir, { recursive: true, force: true });
+  }
 
+  await mkdir(distDir, { recursive: true });
+
+  // Build JS with optimized Bun bundler settings
   const result = await build({
     entrypoints: ["./src/entry.client.tsx"],
     outdir: "./dist",
     target: "browser",
     format: "esm",
-    splitting: false,
-    minify: false,
-    sourcemap: "inline",
-    // Extract CSS to separate files for better caching
-    cssChunking: true,
+    splitting: true, // Enable code splitting for better caching
+    minify: {
+      whitespace: false,
+      syntax: true,
+      identifiers: false, // Keep readable names in dev
+    },
+    sourcemap: "linked", // External sourcemaps for better performance
     define: {
       "process.env.NODE_ENV": JSON.stringify("development"),
       "import.meta.env.VITE_CONVEX_URL": JSON.stringify(convexUrl),
@@ -54,12 +64,19 @@ const buildDev = async () => {
     root: ".",
     publicPath: "/",
     naming: {
-      entry: "[name].[ext]",
+      entry: "[name]-[hash].[ext]", // Include hash to prevent cache issues
       chunk: "[name]-[hash].[ext]",
       asset: "[name]-[hash].[ext]",
     },
     packages: "bundle",
+    // Enable additional optimizations
+    emitDCEAnnotations: true,
   });
+
+  // Build CSS using Tailwind CLI for proper v4 support
+  // biome-ignore lint/suspicious/noConsole: Build script output
+  console.log("🎨 Processing CSS with Tailwind v4...");
+  await $`./node_modules/.bin/tailwindcss -i ./src/globals.css -o ./dist/globals.css`.quiet();
 
   if (!result.success) {
     console.error("Build failed:");
@@ -73,34 +90,7 @@ const buildDev = async () => {
   const publicDir = join(process.cwd(), "public");
 
   if (existsSync(publicDir)) {
-    await cp(publicDir, distDir, { recursive: true });
-  }
-
-  // Process CSS files through PostCSS/Tailwind
-  const globalsCssPath = join(process.cwd(), "src", "globals.css");
-  const distGlobalsCssPath = join(distDir, "globals.css");
-
-  if (existsSync(globalsCssPath)) {
-    const cssContent = await Bun.file(globalsCssPath).text();
-    const processed = await postcss([tailwindcss()]).process(cssContent, {
-      from: globalsCssPath,
-      to: distGlobalsCssPath,
-    });
-    await Bun.write(distGlobalsCssPath, processed.css);
-  }
-
-  // Process entry.client.css if it exists and contains Tailwind imports
-  const entryClientCssPath = join(distDir, "entry.client.css");
-  if (existsSync(entryClientCssPath)) {
-    const cssContent = await Bun.file(entryClientCssPath).text();
-    // Only process if it contains Tailwind imports
-    if (cssContent.includes("@import") && cssContent.includes("tailwindcss")) {
-      const processed = await postcss([tailwindcss()]).process(cssContent, {
-        from: entryClientCssPath,
-        to: entryClientCssPath,
-      });
-      await Bun.write(entryClientCssPath, processed.css);
-    }
+    await copyPublicDir(publicDir, distDir);
   }
 
   // Copy and update index.html to point to dist
@@ -108,19 +98,17 @@ const buildDev = async () => {
   const distIndexPath = join(distDir, "index.html");
   if (existsSync(indexPath)) {
     let html = await Bun.file(indexPath).text();
+    // Add CSS link in head
+    html = html.replace(
+      /<\/head>/,
+      `  <link rel="stylesheet" href="/globals.css">
+</head>`
+    );
     // Update script src to point to dist
     html = html.replace(
       /<script type="module" src="\/src\/entry\.client\.tsx"><\/script>/,
-      `<link rel="stylesheet" href="/entry.client.css" />
-    <script type="module" src="/entry.client.js"></script>`
+      `<script type="module" src="/entry.client.js"></script>`
     );
-
-    if (!html.includes('href="/globals.css"')) {
-      html = html.replace(
-        /<head>/,
-        '<head>\n    <link rel="stylesheet" href="/globals.css" />'
-      );
-    }
     await Bun.write(distIndexPath, html);
   }
 };
@@ -147,60 +135,52 @@ async function main() {
   serve({
     port: Number(PORT),
     hostname: HOSTNAME,
+    development: isDev,
     fetch(req) {
       const url = new URL(req.url);
-      const pathname = url.pathname;
+      let pathname = url.pathname;
 
-      // Serve files from dist directory
-      const distPath = join(process.cwd(), "dist", pathname);
-      if (existsSync(distPath)) {
-        const stats = statSync(distPath);
-        // If it's a directory, serve index.html instead
-        if (stats.isDirectory()) {
-          const indexPath = join(distPath, "index.html");
-          if (existsSync(indexPath)) {
-            return new Response(Bun.file(indexPath), {
-              headers: {
-                "Content-Type": "text/html",
-              },
-            });
+      if (pathname === "/") {
+        pathname = "/index.html";
+      }
+
+      const distPath = join(process.cwd(), "dist", pathname.slice(1));
+      const publicPath = join(process.cwd(), "public", pathname.slice(1));
+
+      try {
+        if (existsSync(distPath)) {
+          const stat = statSync(distPath);
+          if (stat.isFile()) {
+            const file = Bun.file(distPath);
+            return new Response(file);
           }
-        } else {
-          // It's a file, serve it with proper MIME type
-          const file = Bun.file(distPath);
-          const contentType = getContentType(distPath);
-          return new Response(file, {
-            headers: {
-              "Content-Type": contentType,
-            },
+        }
+      } catch {
+        // Continue to fallback logic
+      }
+
+      try {
+        if (existsSync(publicPath)) {
+          const stat = statSync(publicPath);
+          if (stat.isFile()) {
+            const publicFile = Bun.file(publicPath);
+            return new Response(publicFile);
+          }
+        }
+      } catch {
+        // Continue to SPA fallback
+      }
+
+      const indexPath = join(process.cwd(), "dist", "index.html");
+      try {
+        if (existsSync(indexPath)) {
+          const indexFile = Bun.file(indexPath);
+          return new Response(indexFile, {
+            headers: { "Content-Type": "text/html" },
           });
         }
-      }
-
-      // Fallback to public directory
-      const publicPath = join(process.cwd(), "public", pathname);
-      if (existsSync(publicPath)) {
-        const stats = statSync(publicPath);
-        if (stats.isDirectory()) {
-          return new Response("Not Found", { status: 404 });
-        }
-        const file = Bun.file(publicPath);
-        const contentType = getContentType(publicPath);
-        return new Response(file, {
-          headers: {
-            "Content-Type": contentType,
-          },
-        });
-      }
-
-      // Serve index.html for SPA routing
-      const indexPath = join(process.cwd(), "dist", "index.html");
-      if (existsSync(indexPath)) {
-        return new Response(Bun.file(indexPath), {
-          headers: {
-            "Content-Type": "text/html",
-          },
-        });
+      } catch {
+        // Final fallback
       }
 
       return new Response("Not Found", { status: 404 });

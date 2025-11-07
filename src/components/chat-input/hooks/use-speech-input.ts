@@ -180,7 +180,10 @@ export function useSpeechInput({
       source.connect(analyser);
       analyser.connect(silentGain);
       silentGain.connect(audioContext.destination);
-      waveformBufferRef.current = new Uint8Array(analyser.fftSize);
+      const buffer: Uint8Array = new Uint8Array(
+        new ArrayBuffer(analyser.fftSize)
+      );
+      waveformBufferRef.current = buffer;
 
       const recorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -208,6 +211,8 @@ export function useSpeechInput({
         if (!(buffer && analyserNode)) {
           return;
         }
+        // @ts-expect-error - TypeScript's Web Audio API types are overly strict
+        // The buffer is a valid Uint8Array created with ArrayBuffer
         analyserNode.getByteTimeDomainData(buffer);
         const segmentSize = Math.max(
           1,
