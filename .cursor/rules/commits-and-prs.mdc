@@ -170,6 +170,9 @@ Closes #123
 2. **Make changes**: Write code following project standards
 3. **Commit**: Use conventional commit format with title only
 4. **Push**: `git push -u origin <branch-name>`
-5. **Create PR**: Use concise, descriptive title (no Conventional Commits format required)
+5. **Create PR**: Use `gh pr create` with concise, descriptive title (no Conventional Commits format required)
+   ```bash
+   gh pr create --title "Descriptive PR title" --body "PR description with context"
+   ```
 6. **Review**: Address feedback and update commits as needed
 7. **Merge**: Use appropriate merge strategy (squash for feature branches)

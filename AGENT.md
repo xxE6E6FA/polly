@@ -42,7 +42,10 @@
 - **Title Only**: Commit messages MUST contain only a title (no body/description)
 - **Splitting**: Split commits when changes affect different areas or have different purposes
 - **Branch Names**: Use `<type>/<description>` format (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
-- **PR Titles**: Concise and descriptive (no Conventional Commits format required); provide context in PR description
+- **PR Creation**: Use `gh pr create` CLI tool with concise, descriptive title (no Conventional Commits format required)
+  ```bash
+  gh pr create --title "Descriptive PR title" --body "PR description with context"
+  ```
 - See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines
 
 ## UI Styling Guidelines (Tailwind + shadcn)
