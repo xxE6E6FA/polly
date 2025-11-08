@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Core Development:**
 - `bun run dev` - Start React Router development server
-- `npx convex dev` - Start Convex backend (run in separate terminal)
-- `bun run build` - Build for production (includes `convex deploy`)
+- `bun run dev:convex` - Start Convex backend (run in separate terminal)
+- `bun run build` - Build frontend for production
+- `bun run build:full` - Build and deploy (runs `convex deploy` + frontend build)
 
 **Code Quality:**
 - `bun run lint` - Analyze code with Biome

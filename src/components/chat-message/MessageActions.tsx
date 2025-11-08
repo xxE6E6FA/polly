@@ -1360,10 +1360,9 @@ function BranchAction({
             await new Promise(r => setTimeout(r, 50));
             token = authRef.current;
           }
-          const convexUrl = import.meta.env.VITE_CONVEX_URL;
-          if (convexUrl) {
+          if (import.meta.env.VITE_CONVEX_URL) {
             await startAuthorStream({
-              convexUrl,
+              convexUrl: import.meta.env.VITE_CONVEX_URL,
               authToken: token || undefined,
               conversationId: res.conversationId,
               assistantMessageId: res.assistantMessageId as Id<"messages">,

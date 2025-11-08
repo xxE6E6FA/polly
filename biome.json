@@ -640,6 +640,16 @@
       "linter": {
         "enabled": false
       }
+    },
+    {
+      "includes": ["vite.config.js"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": "off"
+          }
+        }
+      }
     }
   ],
   "assist": {

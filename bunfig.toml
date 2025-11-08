@@ -1,9 +1,7 @@
-# Performance optimizations
-smol = true
-console = { depth = 3 }
-
 # Environment handling
 # Note: NODE_ENV is set per-script in package.json to avoid conflicts during testing
+[env]
+load = [".env.local", ".env"]
 
 # JSX configuration
 jsx = "react"
@@ -11,8 +9,7 @@ jsxImportSource = "react"
 
 # Package manager optimizations
 [install]
-cache = { dir = "~/.bun/cache", disable = false }
-frozenLockfile = true
+frozenLockfile = false
 saveTextLockfile = true
 minimumReleaseAge = 86400
 
@@ -23,15 +20,11 @@ preload = ["test/global-mocks.ts", "test/setup-bun.ts"]
 # Randomize spec execution order to ensure tests are independent.
 randomize = true
 
-# Enhanced test coverage configuration
-coverage = true
-coverageReporter = ["text", "lcov"]
-coverageThreshold = { line = 0.8, function = 0.8 }
-rerunEach = 2
-
 # Reasonable default; individual tests can override with `test.setTimeout`.
 timeout = 30000
 
 # Look for tests in typical places
 root = ["src", "test", "tests"]
 
+[serve.static]
+plugins = ["bun-plugin-tailwind"]

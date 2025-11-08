@@ -38,7 +38,15 @@
       "WebFetch(domain:replicate.com)",
       "Bash(pnpm test:*)",
       "Bash(node:*)",
-      "Bash(pntml test:*)"
+      "Bash(pntml test:*)",
+      "WebFetch(domain:bun.sh)",
+      "Bash(bun:*)",
+      "Bash(cat:*)",
+      "Bash(xattr:*)",
+      "Bash(curl:*)",
+      "Bash(xargs curl -sL)",
+      "Bash(tar:*)",
+      "Bash(NODE_ENV=production bun build:*)"
     ],
     "deny": []
   },

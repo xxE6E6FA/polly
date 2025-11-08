@@ -205,15 +205,14 @@ const ChatSection = () => {
           setTimeout(() => {
             (async () => {
               try {
-                const convexUrl = import.meta.env.VITE_CONVEX_URL;
-                if (!convexUrl) {
+                if (!import.meta.env.VITE_CONVEX_URL) {
                   console.warn(
                     "Missing VITE_CONVEX_URL; skipping zero-state stream"
                   );
                   return;
                 }
                 await startAuthorStream({
-                  convexUrl,
+                  convexUrl: import.meta.env.VITE_CONVEX_URL,
                   authToken: authToken,
                   conversationId: result.conversationId,
                   assistantMessageId: result.assistantMessageId,

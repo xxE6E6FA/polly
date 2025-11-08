@@ -321,19 +321,10 @@ export const Sidebar = () => {
   );
 
   const scrollContainerStyle = useMemo(() => {
-    const base = {
+    return {
       "--shadow-height": `${shadowHeight}px`,
-    } as React.CSSProperties & {
-      WebkitMaskImage?: string;
-    };
-    if (isScrollHovered) {
-      base.maskImage =
-        "linear-gradient(to bottom, transparent 0px, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)";
-      base.WebkitMaskImage =
-        "linear-gradient(to bottom, transparent 0px, #000 var(--shadow-height), #000 calc(100% - var(--shadow-height)), transparent 100%)";
-    }
-    return base;
-  }, [shadowHeight, isScrollHovered]);
+    } as React.CSSProperties;
+  }, [shadowHeight]);
 
   return (
     <>
@@ -447,7 +438,8 @@ export const Sidebar = () => {
                 "flex-1 overflow-y-auto min-h-0 px-3 relative",
                 isMobile
                   ? "hide-scrollbar overscroll-contain"
-                  : "scrollbar-thin"
+                  : "scrollbar-thin",
+                isScrollHovered && "sidebar-scroll-hover"
               )}
               style={scrollContainerStyle}
               onPointerDown={handleScrollContainerPointerDown}

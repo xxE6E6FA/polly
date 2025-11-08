@@ -1,2 +1,2 @@
 bun latest
-node 20
+node lts

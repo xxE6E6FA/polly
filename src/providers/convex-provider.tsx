@@ -13,14 +13,12 @@ type ConvexProviderProps = {
 let clientInstance: ConvexReactClient | null = null;
 
 function getOrCreateClient(): ConvexReactClient {
+  const convexUrl = import.meta.env.VITE_CONVEX_URL;
   if (!clientInstance) {
-    const url = import.meta.env.VITE_CONVEX_URL;
-
-    if (!url) {
-      throw new Error("VITE_CONVEX_URL is not set");
+    if (!convexUrl) {
+      throw new Error("VITE_CONVEX_URL environment variable is not set");
     }
-
-    clientInstance = new ConvexReactClient(url);
+    clientInstance = new ConvexReactClient(convexUrl);
   }
 
   return clientInstance;

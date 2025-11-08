@@ -121,14 +121,15 @@ export const ConversationStarterPopover = ({
           setTimeout(() => {
             (async () => {
               try {
-                const token = await waitForToken(2000);
                 const convexUrl = import.meta.env.VITE_CONVEX_URL;
+                const token = await waitForToken(2000);
                 if (!convexUrl) {
                   console.warn(
                     "Missing VITE_CONVEX_URL; skipping conversation starter stream"
                   );
                   return;
                 }
+
                 await startAuthorStream({
                   convexUrl,
                   authToken: token || undefined,

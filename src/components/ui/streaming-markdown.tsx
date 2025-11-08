@@ -232,7 +232,7 @@ const StreamingMarkdownComponent = ({
 
   // Performance monitoring in development
   useEffect(() => {
-    if (process.env.NODE_ENV === "development" && isStreaming) {
+    if (import.meta.env.DEV && isStreaming) {
       const contentGrowth = children.length - lastContentLengthRef.current;
       if (contentGrowth > 0) {
         // Content growth tracking for development debugging
