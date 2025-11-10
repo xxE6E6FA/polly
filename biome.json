@@ -95,6 +95,7 @@
         "useAsConstAssertion": "error",
         "useBlockStatements": "error",
         "useCollapsedElseIf": "error",
+        "useComponentExportOnlyModules": "off",
         "useConst": "error",
         "useDefaultSwitchClause": "error",
         "useExponentiationOperator": "error",
