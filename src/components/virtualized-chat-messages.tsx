@@ -681,7 +681,6 @@ export const VirtualizedChatMessages = memo(
               contain: "layout style size",
               paddingTop: resolvedTopInset,
               paddingBottom: resolvedBottomInset,
-              // biome-ignore lint/style/useNamingConvention: vendor-specific property
               WebkitOverflowScrolling: "touch",
             }}
             className="overscroll-contain scrollbar-thin"

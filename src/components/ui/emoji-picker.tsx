@@ -132,11 +132,8 @@ function EmojiPickerContent({
       <EmojiPickerPrimitive.List
         className="select-none pb-1"
         components={{
-          // biome-ignore lint/style/useNamingConvention: Frimousse API requires these exact names
           Row: EmojiPickerRow,
-          // biome-ignore lint/style/useNamingConvention: Frimousse API requires these exact names
           Emoji: EmojiPickerEmoji,
-          // biome-ignore lint/style/useNamingConvention: Frimousse API requires these exact names
           CategoryHeader: EmojiPickerCategoryHeader,
         }}
         data-slot="emoji-picker-list"

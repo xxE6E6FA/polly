@@ -18,13 +18,9 @@ const logoMaskStyle: CSSProperties = {
   maskSize: "contain",
   maskRepeat: "no-repeat",
   maskPosition: "center",
-  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
   WebkitMaskImage: "url('/favicon.svg')",
-  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
   WebkitMaskSize: "contain",
-  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
   WebkitMaskRepeat: "no-repeat",
-  /* biome-ignore lint/style/useNamingConvention: vendor-prefixed properties required for Safari */
   WebkitMaskPosition: "center",
 };
 

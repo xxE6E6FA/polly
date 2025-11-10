@@ -86,7 +86,7 @@ export default function GeneralPage() {
 
   const fetchAllConversationIds = useCallback(async () => {
     const pageSize = 100;
-    let cursor: string | null | undefined = undefined;
+    let cursor: string | null | undefined;
     let isDone = false;
     const allConversationIds: Id<"conversations">[] = [];
 

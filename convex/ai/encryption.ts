@@ -1,7 +1,7 @@
 import { api } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { type ActionCtx } from "../_generated/server";
-import { type ProviderType } from "../types";
+import type { ActionCtx } from "../_generated/server";
+import type { ProviderType } from "../types";
 import { CONFIG } from "./config";
 
 export const serverDecryptApiKey = async (
@@ -85,7 +85,7 @@ export const getApiKey = async (
       }
 
       // Wait a short time before retrying (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 100));
+      await new Promise(resolve => setTimeout(resolve, 2 ** (attempt - 1) * 100));
     }
   }
 

@@ -144,13 +144,11 @@ export const EditableConversationTitle = ({
           ? ({
               maskImage:
                 "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
-              // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
               WebkitMaskImage:
                 "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
             } as React.CSSProperties)
           : ({
               maskImage: "none",
-              // biome-ignore lint/style/useNamingConvention: CSS property requires PascalCase
               WebkitMaskImage: "none",
             } as React.CSSProperties)
       }

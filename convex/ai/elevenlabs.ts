@@ -160,7 +160,7 @@ function normalizeElevenLabsScript(input: string): string {
     /(\d+(?:\.\d+)?)\s*(ms|millisecond(?:s)?|s|sec(?:onds?)?)['"]?\s*\/?\s*>/gi,
     (_match, value, unit) => normalizeBreakTag(`${value}${unit}`)
   );
-  result = result.replace(/\[(?:[^\[\]]{1,80})\]/g, "");
+  result = result.replace(/\[(?:[^[\]]{1,80})\]/g, "");
   result = result.replace(/<break\s+time\s*=\s*["']?([^"'>\s]+)["']?\s*><\/break>/gi, (_match, duration) => normalizeBreakTag(duration));
   result = result.replace(/<break\s+time\s*=\s*([^"'>\s/]+)\s*\/?\s*>/gi, (_match, duration) => normalizeBreakTag(duration));
   result = result.replace(/<pause(?:[^>]*)>/gi, "");

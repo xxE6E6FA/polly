@@ -311,7 +311,6 @@ export const suggestSampling = action({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // biome-ignore lint/style/useNamingConvention: Gemini API uses snake_case
           system_instruction: {
             parts: [{ text: systemPrompt }],
           },

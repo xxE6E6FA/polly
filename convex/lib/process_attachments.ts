@@ -1,5 +1,5 @@
 
-import { type ActionCtx } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 
 // Define Attachment type based on attachmentSchema

@@ -14,8 +14,6 @@ if (!convexUrl) {
 const client = new ConvexHttpClient(convexUrl);
 
 async function clearAuthTables() {
-  console.log("🔐 Clearing auth tables to fix orphaned accounts...");
-
   const authTables = [
     { name: "authAccounts", mutation: "clearAuthAccounts" },
     { name: "authSessions", mutation: "clearAuthSessions" },
@@ -26,19 +24,14 @@ async function clearAuthTables() {
 
   for (const { name, mutation } of authTables) {
     try {
-      const count = await client.mutation(
+      await client.mutation(
         api.internal[mutation as keyof typeof api.internal],
         {}
       );
-      console.log(`✅ Cleared ${name}: ${count} documents`);
     } catch (error) {
       console.error(`❌ Error clearing ${name}:`, error);
     }
   }
-
-  console.log(
-    "\n✨ Auth tables cleared! You can now sign in with Google again."
-  );
 }
 
 clearAuthTables().catch(console.error);

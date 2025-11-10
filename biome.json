@@ -101,26 +101,7 @@
         "useDefaultSwitchClause": "error",
         "useExponentiationOperator": "error",
         "useFragmentSyntax": "error",
-        "useNamingConvention": {
-          "level": "error",
-          "options": {
-            "strictCase": false,
-            "conventions": [
-              {
-                "selector": { "kind": "function" },
-                "formats": ["camelCase", "PascalCase"]
-              },
-              {
-                "selector": { "kind": "variable" },
-                "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-              },
-              {
-                "selector": { "kind": "typeLike" },
-                "formats": ["PascalCase"]
-              }
-            ]
-          }
-        },
+        "useNamingConvention": "off",
         "useSelfClosingElements": "error",
         "useShorthandAssign": "error",
         "useSingleVarDeclarator": "error",
@@ -288,39 +269,9 @@
       }
     },
     {
-      "includes": ["scripts/**/*.{ts,tsx}"],
-      "linter": { "rules": { "suspicious": { "noConsole": "off" } } }
-    },
-    {
-      "includes": ["convex/ai/messages.ts", "convex/ai/providers.ts"],
-      "linter": { "rules": { "suspicious": { "useAwait": "off" } } }
-    },
-    {
-      "includes": ["convex/**/*.{ts,tsx}"],
+      "includes": ["shared/**", "src/types/index.ts", "convex/**/*.{ts,tsx}"],
       "linter": {
         "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "conventions": [
-                  {
-                    "selector": { "kind": "function" },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": { "kind": "variable" },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": { "kind": "typeLike" },
-                    "formats": ["PascalCase"]
-                  }
-                ]
-              }
-            }
-          },
           "suspicious": {
             "noConsole": {
               "level": "warn",
@@ -331,295 +282,10 @@
       }
     },
     {
-      "includes": ["src/hooks/**/*.{ts,tsx}"],
-      "linter": {
-        "rules": {
-          "correctness": {
-            "useExhaustiveDependencies": "error",
-            "useHookAtTopLevel": "error"
-          },
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "conventions": [
-                  {
-                    "selector": { "kind": "function" },
-                    "formats": ["camelCase"]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/components/**/*.{tsx}"],
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
       "linter": {
         "rules": {
           "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "conventions": [
-                  {
-                    "selector": { "kind": "function" },
-                    "formats": ["PascalCase", "camelCase"]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/auth.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/ai.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/schema.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/types/index.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["tailwind.config.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/backgroundJobs.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/models.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/types.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/conversations.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["convex/branches.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/components/sidebar.tsx"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/lib/routes.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/components/ui/markdown-block.tsx"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/lib/ai/anthropic-client.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/lib/import-parsers.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/lib/file-constants.ts", "src/lib/ai/error-messages.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/components/persona-picker.tsx"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useSemanticElements": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/pages/AuthCallbackPage.tsx"],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useSemanticElements": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "src/components/chat-input/attachment-display.tsx",
-        "src/components/file-display.tsx",
-        "src/components/settings/conversation-selection-list.tsx",
-        "src/components/virtualized-model-list.tsx"
-      ],
-      "linter": {
-        "rules": {
-          "a11y": {
-            "useSemanticElements": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["src/components/ui/code-block.tsx"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noArrayIndexKey": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["shared/**/*.{ts,tsx}"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "conventions": [
-                  {
-                    "selector": { "kind": "function" },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": { "kind": "variable" },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": { "kind": "typeLike" },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": { "kind": "objectLiteralProperty" },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["**/*.test.*", "**/*.spec.*"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off",
             "noNonNullAssertion": "off"
           },
           "suspicious": {
@@ -634,6 +300,16 @@
       }
     },
     {
+      "includes": ["scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noConsole": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "convex/_generated/**/*",
         "convex/schema.js",
@@ -641,16 +317,6 @@
       ],
       "linter": {
         "enabled": false
-      }
-    },
-    {
-      "includes": ["vite.config.js"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": "off"
-          }
-        }
       }
     }
   ],

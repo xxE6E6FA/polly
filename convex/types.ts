@@ -18,7 +18,10 @@ export type StreamMessage = {
         type: "text" | "image_url" | "file";
         text?: string;
         image_url?: { url: string };
-        file?: { filename: string; file_data: string };
+        file?: {
+          filename: string;
+          file_data: string;
+        };
         attachment?: {
           storageId: Id<"_storage">;
           type: string;

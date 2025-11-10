@@ -127,7 +127,7 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
     case "3:4":
       // 3:4 ratio from 1024 width = 1024x1365, round to 1024x1368
       return { width: baseSize, height: roundToMultipleOf8(baseSize * (4 / 3)) };
-    default:
+    default: {
       // Parse custom ratio like "3:2"
       const [widthRatio, heightRatio] = aspectRatio.split(":").map(Number);
       if (widthRatio && heightRatio) {
@@ -142,6 +142,7 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
       }
       // Fallback to square
       return { width: baseSize, height: baseSize };
+    }
   }
 }
 
@@ -658,7 +659,7 @@ export const pollPrediction = internalAction({
       
       // Retry with exponential backoff
       if (args.attempt < args.maxAttempts) {
-        const retryDelay = Math.min(10000, 2000 * Math.pow(2, args.attempt - 1));
+        const retryDelay = Math.min(10000, 2000 * 2 ** (args.attempt - 1));
         await scheduleRunAfter(ctx, retryDelay, internal.ai.replicate.pollPrediction, {
           ...args,
           attempt: args.attempt + 1,

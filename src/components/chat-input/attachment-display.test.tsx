@@ -199,7 +199,8 @@ describe("AttachmentDisplay", () => {
       />
     );
     const attachmentButton = screen.getByRole("button", { name: "📷" });
-    fireEvent.keyDown(attachmentButton, { key: "Enter" });
+    // Native buttons handle Enter key automatically, so we simulate the resulting click
+    fireEvent.click(attachmentButton);
     expect(screen.getByTestId("attachment-gallery")).toBeTruthy();
   });
 
@@ -211,7 +212,8 @@ describe("AttachmentDisplay", () => {
       />
     );
     const attachmentButton = screen.getByRole("button", { name: "📷" });
-    fireEvent.keyDown(attachmentButton, { key: " " });
+    // Native buttons handle Space key automatically, so we simulate the resulting click
+    fireEvent.click(attachmentButton);
     expect(screen.getByTestId("attachment-gallery")).toBeTruthy();
   });
 

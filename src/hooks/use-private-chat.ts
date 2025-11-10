@@ -181,7 +181,6 @@ export function usePrivateChat(options?: {
 
         const result = streamText({
           ...streamOptions,
-          // biome-ignore lint/style/useNamingConvention: AI SDK property
           experimental_transform: smoothStream({
             delayInMs: 8,
             chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,

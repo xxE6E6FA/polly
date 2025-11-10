@@ -484,7 +484,6 @@ export const chatStream = httpAction(
         // Start streaming
         const result = streamText({
           ...streamOptions,
-          // biome-ignore lint/style/useNamingConvention: AI SDK uses this naming
           experimental_transform: smoothStream({
             delayInMs: CONFIG.PERF.SMOOTH_STREAM_DELAY_MS,
             chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,

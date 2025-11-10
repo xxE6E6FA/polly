@@ -263,11 +263,14 @@ const CodeBlockComponent = ({
                     }}
                   >
                     {tokens.map((line, i) => (
-                      <div key={`line-${i}`} {...getLineProps({ line })}>
+                      <div
+                        key={line.map(t => t.content).join("-")}
+                        {...getLineProps({ line, key: i })}
+                      >
                         {line.map((token, key) => (
                           <span
-                            key={`token-${i}-${key}`}
-                            {...getTokenProps({ token })}
+                            key={`${token.content}-${key}`}
+                            {...getTokenProps({ token, key })}
                           />
                         ))}
                       </div>

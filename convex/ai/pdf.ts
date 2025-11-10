@@ -2,7 +2,7 @@
  * PDF processing module - handles capability detection, text extraction, and persistence
  */
 
-import { type ActionCtx } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { v } from "convex/values";

@@ -8,13 +8,13 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createGroq } from "@ai-sdk/groq";
-import { type LanguageModel } from "ai";
+import type { LanguageModel } from "ai";
 
 import { api } from "../_generated/api";
-import { type Id } from "../_generated/dataModel";
-import { type ActionCtx } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { ActionCtx } from "../_generated/server";
 import { getProviderReasoningConfig } from "../../shared/reasoning-config";
-import { type ProviderStreamOptions, type ProviderType } from "../types";
+import type { ProviderStreamOptions, ProviderType } from "../types";
 import { isReasoningModel } from "./reasoning_detection";
 import { applyOpenRouterSorting } from "./server_utils";
 

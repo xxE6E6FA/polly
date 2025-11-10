@@ -46,7 +46,8 @@
       "Bash(curl:*)",
       "Bash(xargs curl -sL)",
       "Bash(tar:*)",
-      "Bash(NODE_ENV=production bun build:*)"
+      "Bash(NODE_ENV=production bun build:*)",
+      "WebFetch(domain:biomejs.dev)"
     ],
     "deny": []
   },

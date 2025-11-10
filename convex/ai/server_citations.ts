@@ -3,13 +3,13 @@
  * Enhanced citation extraction with database integration and multiple provider formats
  */
 import { extractCitations as extractCitationsShared } from "../lib/shared/citations";
-import {
-  type Citation,
-  type GoogleGroundingChunk,
-  type OpenRouterAnnotation,
-  type OpenRouterCitation,
-  type ProviderMetadata,
-  type WebSource,
+import type {
+  Citation,
+  GoogleGroundingChunk,
+  OpenRouterAnnotation,
+  OpenRouterCitation,
+  ProviderMetadata,
+  WebSource,
 } from "../types";
 
 // Citation extractor factory for Convex-specific formats

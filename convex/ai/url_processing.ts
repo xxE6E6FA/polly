@@ -1,11 +1,11 @@
 import { type Infer, v } from "convex/values";
 import Exa from "exa-js";
-import { type WebSource } from "../types";
+import type { WebSource } from "../types";
 
 // URL detection patterns - comprehensive coverage
 const URL_PATTERNS = {
   // Standard URLs with protocol
-  fullUrl: /https?:\/\/[^\s<>"{}|\\^`\[\]]+/gi,
+  fullUrl: /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi,
   // URLs without protocol (common in chat)
   bareUrl: /(?<!\w)(?:www\.|https?:\/\/)?[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+(?:\/[^\s]*)?/gi,
   // Markdown links (existing)

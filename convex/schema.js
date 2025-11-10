@@ -36,7 +36,7 @@ var requireDist = CommonJs(exports => {
   var pathValueRegExp = /^[\u0020-\u003A\u003D-\u007E]*$/;
   var ToString = Object.prototype.toString;
   var NullObject = /* @__PURE__ */ (() => {
-    const C = function () {};
+    const C = () => {};
     C.prototype = Object.create(null);
     return C;
   })();

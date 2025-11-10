@@ -52,27 +52,22 @@ function AttachmentDisplayInner({
                   : "px-2.5 py-1 text-xs ring-1 ring-slate-200/30 bg-slate-50/50 hover:bg-slate-100/50 dark:ring-slate-800/30 dark:bg-slate-950/20 dark:hover:bg-slate-900/30"
               )}
             >
-              <div
+              <button
+                type="button"
                 className={cn(
                   "flex items-center flex-1 min-w-0 cursor-pointer",
                   attachment.type === "image" ? "gap-2" : "gap-1.5"
                 )}
                 onClick={() => setPreviewFile(attachment)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setPreviewFile(attachment);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
+                aria-label={
+                  attachment.type === "image" ? "📷" : attachment.name
+                }
               >
                 <ImageThumbnail
                   attachment={attachment}
                   className={
                     attachment.type === "image" ? "h-12 w-12" : "h-4 w-4"
                   }
-                  onClick={() => setPreviewFile(attachment)}
                 />
                 {/* Only show name for non-image attachments with middle truncation */}
                 {attachment.type !== "image" && (
@@ -83,7 +78,7 @@ function AttachmentDisplayInner({
                     {truncateMiddle(attachment.name, 16)}
                   </span>
                 )}
-              </div>
+              </button>
 
               {/* Delete button - positioned absolutely on desktop, inline on mobile */}
               <Button

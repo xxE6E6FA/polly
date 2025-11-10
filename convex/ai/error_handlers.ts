@@ -119,7 +119,7 @@ export async function withRetry<T>(
 
       // Exponential backoff for retryable errors
       if (errorInfo.type === "WriteConflict") {
-        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        const delay = baseDelayMs * 2 ** (attempt - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }

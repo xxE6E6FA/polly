@@ -3,7 +3,7 @@
  * Implements intelligent caching for PDF text extraction to improve performance
  */
 
-import { type ActionCtx } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { internal } from "../_generated/api";

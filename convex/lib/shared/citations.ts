@@ -3,7 +3,7 @@
  * Used by both Convex and client-side implementations
  */
 
-import { type Citation } from "../../types";
+import type { Citation } from "../../types";
 
 /**
  * Extract citations from provider metadata

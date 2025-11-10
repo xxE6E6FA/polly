@@ -87,7 +87,7 @@ export const executeStreamingActionForRetry = async (
   };
 };
 
-export {
-  type StreamingActionResult,
-  type MessageActionArgs,
+export type {
+  StreamingActionResult,
+  MessageActionArgs,
 };
