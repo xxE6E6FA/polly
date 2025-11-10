@@ -69,6 +69,7 @@
         "useHookAtTopLevel": "error",
         "useIsNan": "error",
         "useJsxKeyInIterable": "error",
+        "useUniqueElementIds": "off",
         "useValidForDirection": "error",
         "useValidTypeof": "error",
         "useYield": "error"
@@ -257,7 +258,7 @@
             "useKeyWithClickEvents": "error",
             "useKeyWithMouseEvents": "error",
             "useMediaCaption": "error",
-            "useSemanticElements": "error",
+            "useSemanticElements": "warn",
             "useValidAnchor": "error",
             "useValidAriaProps": "error",
             "useValidAriaRole": "error",
