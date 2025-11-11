@@ -108,16 +108,47 @@ export const graduateAnonymousUser = mutation({
   handler: async (ctx, args) => {
     const { anonymousUserId, newUserId } = args;
 
+    // If the anonymous user and new user are the same, no graduation needed
+    // This happens when Convex Auth updates the anonymous user in-place
+    if (anonymousUserId === newUserId) {
+      return {
+        success: true,
+        conversationsTransferred: 0,
+        messagesTransferred: 0,
+      };
+    }
+
     // Get both users
     const anonymousUser = await ctx.db.get(anonymousUserId);
     const newUser = await ctx.db.get(newUserId);
 
-    if (!(anonymousUser && newUser)) {
-      throw new Error("One or both users not found");
+    // If anonymous user doesn't exist, it might have already been graduated
+    // (e.g., in React StrictMode or due to a race condition)
+    if (!anonymousUser) {
+      console.warn(
+        `Anonymous user ${anonymousUserId} not found - may have already been graduated`
+      );
+      return {
+        success: true,
+        conversationsTransferred: 0,
+        messagesTransferred: 0,
+      };
+    }
+
+    if (!newUser) {
+      throw new Error("New user not found");
     }
 
     if (!anonymousUser.isAnonymous) {
-      throw new Error("Source user is not anonymous");
+      // User is not anonymous anymore - might have been graduated already
+      console.warn(
+        `User ${anonymousUserId} is not anonymous - may have already been graduated`
+      );
+      return {
+        success: true,
+        conversationsTransferred: 0,
+        messagesTransferred: 0,
+      };
     }
 
     try {

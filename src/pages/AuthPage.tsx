@@ -22,11 +22,16 @@ export default function AuthPage() {
         set(CACHE_KEYS.anonymousUserGraduation, user._id);
       }
 
+      // Set flag to indicate we're starting OAuth flow
+      // This will be used to clear old tokens when we return
+      sessionStorage.setItem("polly:oauth-flow-active", "true");
+
       await signIn("google", {
         redirectTo: ROUTES.HOME,
       });
     } catch (_error) {
       managedToast.error("Failed to sign in. Please try again.");
+      sessionStorage.removeItem("polly:oauth-flow-active");
       setIsLoading(false);
     }
   }, [signIn, user, managedToast]);

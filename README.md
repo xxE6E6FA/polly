@@ -168,8 +168,8 @@ This contextual approach ensures web search is used only when it adds value, avo
 
 ## Build Notes
 
-- `bun run build` runs `convex deploy && vite build` and requires your Convex project to be configured.
-- If you only need a static frontend build, use `bun run build:frontend`.
+- `bun run build` runs `convex deploy && bun run build:frontend` and requires your Convex project to be configured.
+- If you only need a static frontend build, use `bun run build:frontend` (uses Bun's bundler with Tailwind plugin).
 - In CI we build the frontend with `build:frontend`; backend deploys are handled separately.
 
 ### PWA

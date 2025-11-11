@@ -5,12 +5,12 @@ description: Project architecture overview and stack information
 # Architecture Overview
 
 ## Tech Stack
-- **Frontend**: React 19 + TypeScript + Vite + React Router v7
+- **Frontend**: React 19 + TypeScript + Bun bundler + React Router v7
 - **Backend**: Convex (serverless functions, realtime database, auth, file storage)
 - **Styling**: TailwindCSS + shadcn/ui (Radix UI components)
 - **AI Integration**: Vercel AI SDK with multiple providers
 - **Code Quality**: Biome (replaces ESLint + Prettier)
-- **Testing**: Vitest + React Testing Library
+- **Testing**: Bun test + React Testing Library
 
 ## Key Data Models
 - **`users`**: User accounts and profiles

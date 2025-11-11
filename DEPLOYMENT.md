@@ -45,16 +45,18 @@ Required environment variables for production:
 
 ### vercel.json
 
-- Framework: Vite
-- Build Command: `bun run build`
+- Framework: Custom (Bun bundler)
+- Build Command: `bun run build` (runs `convex deploy && bun run build:frontend`)
 - Output Directory: `dist`
 - Rewrites: All routes redirect to index.html for client-side routing
 - Headers: Static assets are cached for 1 year
 
 ### Optimizations Applied
 
-- Code splitting for better performance
-- Source maps disabled in production
+- Code splitting with Bun's bundler for better performance
+- Minification and tree-shaking in production builds
+- Build caching (skips rebuild if no changes detected)
+- Source maps generated as external files
 - Vercel Analytics integrated
 - Proper caching headers for assets
 
@@ -66,15 +68,11 @@ Required environment variables for production:
 - Check that environment variables are set correctly
 - Review build logs in Vercel dashboard
 
-### @convex-dev/auth Build Issues
+### Build Configuration
 
-If you encounter build errors with `@convex-dev/auth`, ensure your `vite.config.ts` excludes it from optimization:
+The app uses Bun's bundler (configured in `scripts/build-with-bundler.ts`) which handles all dependencies correctly, including `@convex-dev/auth`. The frontend only imports from `@convex-dev/auth/react` (client-side code), while server-side auth code runs on Convex servers.
 
-```javascript
-optimizeDeps: {
-  exclude: ["@convex-dev/auth"],
-}
-```
+**Note**: Previous Vite-specific configurations (like `optimizeDeps.exclude`) are not needed with Bun's bundler.
 
 ### Routing Issues
 

@@ -30,7 +30,7 @@
 - Return user-friendly error messages; silently catch localStorage errors in browser.
 
 ## Architecture
-- **Frontend**: React 19 + Vite + TailwindCSS + Radix UI + React Router
+- **Frontend**: React 19 + Bun bundler + TailwindCSS + Radix UI + React Router
 - **Backend**: Convex (realtime database/functions, auth, file storage)
 - **AI**: Multiple providers (Anthropic, OpenAI, Google, OpenRouter) via AI SDK
 - **Key Data**: Users, conversations, messages, personas, API keys, background jobs

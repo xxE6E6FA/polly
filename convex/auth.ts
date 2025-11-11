@@ -1,7 +1,7 @@
 import Google from "@auth/core/providers/google";
 import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
 import { Password } from "@convex-dev/auth/providers/Password";
-import { convexAuth } from "@convex-dev/auth/server";
+import { convexAuth, invalidateSessions } from "@convex-dev/auth/server";
 import { ConvexError } from "convex/values";
 import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
 import type { Id } from "./_generated/dataModel";
@@ -9,10 +9,19 @@ import type { MutationCtx } from "./_generated/server";
 
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
-    // Google OAuth provider
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID ?? "",
-      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
+      clientId:
+        process.env.AUTH_GOOGLE_ID ??
+        (() => {
+          throw new Error("AUTH_GOOGLE_ID environment variable is required");
+        })(),
+      clientSecret:
+        process.env.AUTH_GOOGLE_SECRET ??
+        (() => {
+          throw new Error(
+            "AUTH_GOOGLE_SECRET environment variable is required"
+          );
+        })(),
       authorization: {
         params: {
           prompt: "consent",
@@ -21,15 +30,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         },
       },
     }),
-
-    // Password-based authentication (email/password)
-    Password({
-      // Customize password requirements if needed
-      // You can add password strength validation here
-    }),
-
-    // Anonymous authentication for guest users
-    Anonymous(),
+    Anonymous,
   ],
 
   // Session configuration
@@ -58,6 +59,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       const typedCtx = ctx as unknown as MutationCtx;
       const { existingUserId, profile, provider } = args;
 
+      // Access existingSessionId from the full args object
+      // biome-ignore lint/suspicious/noExplicitAny: Convex Auth doesn't export full type
+      const existingSessionId = (args as any).existingSessionId;
+
       // Extract profile fields with proper types
       const profileName =
         typeof profile.name === "string" ? profile.name : undefined;
@@ -71,6 +76,35 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           typeof profile.emailVerified === "number"
             ? profile.emailVerified
             : Date.now();
+      }
+
+      // If transitioning from anonymous to OAuth, invalidate the old anonymous session
+      // to prevent "Invalid refresh token" errors when the old session tries to refresh
+      if (
+        existingSessionId &&
+        provider.id !== "anonymous" &&
+        args.type === "oauth"
+      ) {
+        try {
+          // Get the session to check if it belongs to an anonymous user
+          const session = await typedCtx.db.get(
+            existingSessionId as Id<"authSessions">
+          );
+          if (session) {
+            const sessionUser = await typedCtx.db.get(
+              session.userId as Id<"users">
+            );
+
+            // Only invalidate if the session belongs to an anonymous user
+            if (sessionUser?.isAnonymous) {
+              // Invalidate all sessions for this anonymous user using Convex Auth's API
+              // biome-ignore lint/suspicious/noExplicitAny: Convex Auth doesn't export proper type for ctx
+              await invalidateSessions(ctx as any, { userId: session.userId });
+            }
+          }
+        } catch (_error) {
+          // Silently fail - don't block authentication if session cleanup fails
+        }
       }
 
       // Update existing user
