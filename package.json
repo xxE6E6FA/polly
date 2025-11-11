@@ -7,7 +7,7 @@
     "dev": "NODE_ENV=development bun run scripts/dev.ts",
     "dev:convex": "NODE_ENV=development convex dev",
     "dev:frontend": "NODE_ENV=development bun run --hot server.ts",
-    "build": "NODE_ENV=production sh -c \"convex deploy && bun run build:frontend\"",
+    "build": "NODE_ENV=production sh -c \"convex deploy --yes && bun run build:frontend\"",
     "build:frontend": "NODE_ENV=production bun run scripts/build-with-bundler.ts",
     "lint": "biome lint .",
     "lint:fix": "biome lint --write .",
