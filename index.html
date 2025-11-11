@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <title>Polly</title>
     <meta name="description" content="Chat with any AI model, your way" />
 
@@ -31,11 +34,22 @@
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b0f1a" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#0b0f1a"
+      media="(prefers-color-scheme: dark)"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
     <link
       href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,300..700&display=swap"
       rel="stylesheet"
@@ -49,41 +63,48 @@
       // Apply theme immediately to prevent flash
       (() => {
         // Disable animations initially
-        document.documentElement.classList.add('disable-animations');
-        
+        document.documentElement.classList.add("disable-animations");
+
         // Apply theme from localStorage
-        const themeKey = 'polly:theme/v1';
+        const themeKey = "polly:theme/v1";
         const storedTheme = localStorage.getItem(themeKey);
-        let resolvedTheme = 'system'; // Default to system
-        
+        let resolvedTheme = "system"; // Default to system
+
         if (storedTheme) {
           try {
             const parsed = JSON.parse(storedTheme);
             // Check if it's the versioned format
-            if (parsed && typeof parsed === 'object' && 'version' in parsed && 'data' in parsed) {
+            if (
+              parsed &&
+              typeof parsed === "object" &&
+              "version" in parsed &&
+              "data" in parsed
+            ) {
               resolvedTheme = parsed.data;
             }
           } catch (e) {
             // If parsing fails, fall back to system
-            resolvedTheme = 'system';
+            resolvedTheme = "system";
           }
         }
-        
+
         // Resolve system theme to actual theme
         let actualTheme;
-        if (resolvedTheme === 'light' || resolvedTheme === 'dark') {
+        if (resolvedTheme === "light" || resolvedTheme === "dark") {
           actualTheme = resolvedTheme;
         } else {
           // resolvedTheme is 'system' or invalid - use system preference
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          actualTheme = prefersDark ? 'dark' : 'light';
+          const prefersDark = window.matchMedia(
+            "(prefers-color-scheme: dark)",
+          ).matches;
+          actualTheme = prefersDark ? "dark" : "light";
         }
-        
+
         document.documentElement.classList.add(actualTheme);
-        
+
         // Remove disable-animations class after a short delay
         setTimeout(() => {
-          document.documentElement.classList.remove('disable-animations');
+          document.documentElement.classList.remove("disable-animations");
         }, 100);
       })();
     </script>

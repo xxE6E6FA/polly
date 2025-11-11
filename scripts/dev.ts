@@ -130,6 +130,12 @@ const buildDev = async () => {
       );
     }
 
+    // Remove the original globals.css reference
+    html = html.replace(
+      /<link rel="stylesheet" href="\/src\/globals\.css" \/>/,
+      ""
+    );
+
     // Add link to the bundled CSS file (not the manual globals.css)
     if (cssFiles.length > 0) {
       const cssFile = cssFiles[0]; // Use the first (and likely only) entry CSS file
@@ -254,8 +260,10 @@ async function main() {
                 contentType = "application/json";
               } else if (pathname.endsWith(".wasm")) {
                 contentType = "application/wasm";
-              } else if (pathname.match(/\.(png|jpe?g|gif|svg|webp|ico)$/)) {
+              } else if (pathname.match(/\.(png|jpe?g|gif|webp|ico)$/)) {
                 contentType = "image/*";
+              } else if (pathname.endsWith(".svg")) {
+                contentType = "image/svg+xml";
               } else if (pathname.match(/\.(woff2?|eot|ttf|otf)$/)) {
                 contentType = "font/*";
               } else {

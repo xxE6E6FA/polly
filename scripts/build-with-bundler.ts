@@ -180,6 +180,12 @@ const buildProduction = async () => {
       );
 
       if (entryFile) {
+        // Remove the original globals.css reference
+        html = html.replace(
+          /<link rel="stylesheet" href="\/src\/globals\.css" \/>/,
+          ""
+        );
+
         // Add link to the bundled CSS file
         if (cssFiles.length > 0) {
           const cssFile = cssFiles[0];
