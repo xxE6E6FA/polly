@@ -4,14 +4,16 @@ import { existsSync } from "fs";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { join } from "path";
 
-const convexUrl = process.env.VITE_CONVEX_URL || "";
+// In CI/CD environments, convex deploy --cmd sets CONVEX_URL
+// Locally, we use VITE_CONVEX_URL
+const convexUrl = process.env.VITE_CONVEX_URL || process.env.CONVEX_URL || "";
 const startTime = Date.now();
 
 // Build caching mechanism
 const getCacheKey = () => {
   const envVars = {
     NODE_ENV: process.env.NODE_ENV,
-    VITE_CONVEX_URL: process.env.VITE_CONVEX_URL,
+    VITE_CONVEX_URL: process.env.VITE_CONVEX_URL || process.env.CONVEX_URL,
   };
   return createHash("md5").update(JSON.stringify(envVars)).digest("hex");
 };
