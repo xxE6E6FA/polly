@@ -90,7 +90,7 @@ export const ProviderSummary = memo(
   }: ProviderSummaryProps) => {
     if (isInitialLoad && isLoading && availableProviders.length > 0) {
       return (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
           {availableProviders.map(provider => (
             <ProviderSummaryCardSkeleton key={provider} />
           ))}
@@ -108,7 +108,7 @@ export const ProviderSummary = memo(
     const availableProvidersSet = new Set(availableProviders);
 
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
         {Object.entries(stats.providerCounts)
           .filter(([provider]) => availableProvidersSet.has(provider))
           .sort(([a], [b]) => {

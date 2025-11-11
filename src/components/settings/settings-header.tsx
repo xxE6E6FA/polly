@@ -32,9 +32,9 @@ const NavigationHeader = ({
   };
 
   return (
-    <div className="flex-shrink-0 border-b border-border/40">
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+    <div className="flex-shrink-0 overflow-visible border-b border-border/40">
+      <div className="mx-auto max-w-7xl overflow-visible px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 p-1 -m-1">
           <Link to={backLink}>
             <Button className="h-8 px-2 sm:h-9" size="sm" variant="ghost">
               <ArrowLeftIcon className="mr-1 h-4 w-4 sm:mr-2" />

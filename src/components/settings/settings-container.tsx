@@ -115,7 +115,7 @@ export const SettingsContainer = ({
         <nav className="mb-6">
           <div className="w-fit">
             <div className="bg-muted/60 rounded-lg p-2 mb-6 shadow-sm ring-1 ring-border/30">
-              <div className="flex space-x-2 overflow-x-auto">
+              <div className="flex space-x-2 overflow-visible">
                 {settingsNavItems.map(item => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.href;
