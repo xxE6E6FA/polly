@@ -1220,7 +1220,7 @@ pre {
   background: linear-gradient(
     90deg,
     var(--color-muted) 25%,
-    var(--color-muted-foreground) / 0.1 50%,
+    color-mix(in srgb, var(--color-muted-foreground) 10%, transparent) 50%,
     var(--color-muted) 75%
   );
   background-size: 200% 100%;

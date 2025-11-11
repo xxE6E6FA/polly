@@ -8,6 +8,7 @@ import { useShallow } from "zustand/shallow";
 import { Citations } from "@/components/citations";
 import { Reasoning } from "@/components/reasoning";
 import { Button } from "@/components/ui/button";
+import { SkeletonText } from "@/components/ui/skeleton-text";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
   Tooltip,
@@ -766,11 +767,11 @@ export const AssistantBubble = ({
           <div className="relative">
             {/* Skeleton block to reserve space before first chunk */}
             {showSkeleton && (
-              <div className="select-none max-w-[74ch]">
-                <div className="skeleton-shimmer mb-2 h-4 w-3/4 rounded" />
-                <div className="skeleton-shimmer mb-2 h-4 w-5/6 rounded" />
-                <div className="skeleton-shimmer h-4 w-2/3 rounded" />
-              </div>
+              <SkeletonText
+                variant="shimmer"
+                lines={3}
+                className="max-w-[74ch]"
+              />
             )}
 
             {/* Crossfade to content when streaming starts or completes */}
