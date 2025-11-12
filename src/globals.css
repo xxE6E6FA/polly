@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@plugin '@tailwindcss/typography';
+@plugin "@tailwindcss/typography";
 @source "../src";
 
 @theme {
@@ -481,14 +481,8 @@
 
 body {
   font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   line-height: 1.55;
 }
 
@@ -1252,9 +1246,12 @@ pre {
   background: linear-gradient(
     90deg,
     transparent 10%,
-    var(--color-muted-foreground) / 0.05 35%,
-    var(--color-muted-foreground) / 0.14 50%,
-    var(--color-muted-foreground) / 0.05 65%,
+    var(--color-muted-foreground) /
+    0.05 35%,
+    var(--color-muted-foreground) /
+    0.14 50%,
+    var(--color-muted-foreground) /
+    0.05 65%,
     transparent 90%
   );
   transform: translateX(-100%);
@@ -1589,15 +1586,16 @@ pre {
   );
   --chat-input-target-radius: 1rem;
   --chat-input-outer-radius: calc(
-    var(--chat-input-target-radius) + var(--chat-input-max-inset) +
-      var(--chat-input-border-width)
+    var(--chat-input-target-radius) +
+    var(--chat-input-max-inset) +
+    var(--chat-input-border-width)
   );
   --chat-input-inner-radius: clamp(
     0px,
     var(--chat-input-target-radius),
     calc(
       var(--chat-input-outer-radius) -
-        (var(--chat-input-max-inset) + var(--chat-input-border-width))
+      (var(--chat-input-max-inset) + var(--chat-input-border-width))
     )
   );
   --chat-input-bottom-control-radius: var(--chat-input-inner-radius);
@@ -1833,7 +1831,8 @@ pre {
   background: transparent;
   padding: 0;
   color: var(--color-muted-foreground);
-  transition: color var(--duration-normal) var(--ease-standard),
+  transition:
+    color var(--duration-normal) var(--ease-standard),
     box-shadow var(--duration-normal) var(--ease-standard),
     background-color var(--duration-normal) var(--ease-standard);
 }
@@ -2212,23 +2211,22 @@ pre {
 }
 
 .number-input-with-spinners::-webkit-inner-spin-button {
+  /* Up arrow */
   background-image:
-    /* Up arrow */
     linear-gradient(
       135deg,
       transparent 40%,
       var(--color-foreground) 40%,
       var(--color-foreground) 60%,
       transparent 60%
-    ),
-    /* Down arrow */
-      linear-gradient(
-        45deg,
-        transparent 40%,
-        var(--color-foreground) 40%,
-        var(--color-foreground) 60%,
-        transparent 60%
-      );
+    ), /* Down arrow */
+    linear-gradient(
+      45deg,
+      transparent 40%,
+      var(--color-foreground) 40%,
+      var(--color-foreground) 60%,
+      transparent 60%
+    );
   background-position:
     50% 30%,
     50% 70%;

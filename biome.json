@@ -1,14 +1,14 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.3.0/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.3.5/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
     "includes": [
-      "src/**/*.{js,jsx,ts,tsx}",
+      "src/**/*.{js,jsx,ts,tsx,css}",
       "shared/**/*.{js,jsx,ts,tsx}",
       "convex/*.{ts,tsx}",
       "scripts/**/*.{js,jsx,ts,tsx}",
-      "*.{js,jsx,ts,tsx,json,jsonc}"
+      "*.{js,jsx,ts,tsx,json,jsonc,css}"
     ]
   },
   "formatter": {
@@ -326,6 +326,11 @@
       "source": {
         "organizeImports": "on"
       }
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
     }
   }
 }
