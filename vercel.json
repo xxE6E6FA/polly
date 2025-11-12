@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "bunx convex deploy --cmd 'bun run build:frontend'",
+  "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "devCommand": "bun run dev",
   "installCommand": "bun install",
