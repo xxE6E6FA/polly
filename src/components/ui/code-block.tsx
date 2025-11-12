@@ -3,6 +3,7 @@ import {
   CopyIcon,
   DownloadIcon,
   TextAlignJustifyIcon,
+  TextAlignLeftIcon,
 } from "@phosphor-icons/react";
 import { Highlight } from "prism-react-renderer";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -36,9 +37,6 @@ const CodeBlockComponent = ({
   const codeContainerRef = useRef<HTMLDivElement>(null);
   const componentRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
-
-  const headerButtonClass =
-    "h-7 w-7 rounded border border-border/60 bg-transparent p-0 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background";
 
   const processedCode = code;
   const processedLanguage = language;
@@ -160,9 +158,9 @@ const CodeBlockComponent = ({
       )}
       ref={componentRef}
     >
-      <div className="rounded-xl border border-border/60 bg-surface-variant/90 dark:bg-surface/70">
+      <div className="rounded-xl border border-border bg-card/95 shadow-sm backdrop-blur-xs dark:bg-card/95">
         {/* Header with language and actions */}
-        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/60 bg-surface-variant/80 dark:bg-surface/60 backdrop-blur-xs px-3 text-[13px] sm:px-6">
+        <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/70 bg-muted/60 px-3 text-[12px] text-muted-foreground sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">
             {processedLanguage || "text"}
           </span>
@@ -170,7 +168,7 @@ const CodeBlockComponent = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  className={headerButtonClass}
+                  className="code-block-header-btn"
                   size="sm"
                   variant="ghost"
                   onClick={handleDownload}
@@ -188,12 +186,16 @@ const CodeBlockComponent = ({
                   size="sm"
                   variant="ghost"
                   className={cn(
-                    headerButtonClass,
-                    wordWrap && "bg-accent/40 text-foreground border-accent/40"
+                    "code-block-header-btn",
+                    wordWrap && "text-primary"
                   )}
                   onClick={() => setWordWrap(!wordWrap)}
                 >
-                  <TextAlignJustifyIcon className="h-3 w-3" />
+                  {wordWrap ? (
+                    <TextAlignJustifyIcon className="h-3 w-3" />
+                  ) : (
+                    <TextAlignLeftIcon className="h-3 w-3" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -213,7 +215,7 @@ const CodeBlockComponent = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className={headerButtonClass}
+                    className="code-block-header-btn"
                     size="sm"
                     variant="ghost"
                     onClick={handleCopy}

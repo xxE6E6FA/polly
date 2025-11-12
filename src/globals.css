@@ -1821,6 +1821,34 @@ pre {
   );
 }
 
+/* Code block header buttons */
+.code-block-header-btn {
+  height: 1.75rem;
+  width: 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0;
+  color: var(--color-muted-foreground);
+  transition: color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    background-color var(--duration-normal) var(--ease-standard);
+}
+
+.code-block-header-btn:hover {
+  color: var(--color-foreground);
+}
+
+.code-block-header-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-ring),
+    0 0 0 4px var(--color-background);
+}
+
 /* Action Button Variant - for subtle action buttons across the app */
 .btn-action {
   background: transparent;
