@@ -160,7 +160,7 @@ const CodeBlockComponent = ({
       )}
       ref={componentRef}
     >
-      <div className="rounded-xl border border-border/60 bg-surface-variant/90 dark:bg-surface/70 shadow-sm">
+      <div className="rounded-xl border border-border/60 bg-surface-variant/90 dark:bg-surface/70">
         {/* Header with language and actions */}
         <div className="flex h-9 items-center justify-between rounded-t-xl border-b border-border/60 bg-surface-variant/80 dark:bg-surface/60 backdrop-blur-xs px-3 text-[13px] sm:px-6">
           <span className="font-mono font-medium text-muted-foreground">

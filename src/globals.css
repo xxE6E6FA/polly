@@ -1579,6 +1579,7 @@ pre {
 /* Chat Input Container States */
 .chat-input-container {
   position: relative;
+  overflow: hidden;
   --chat-input-border-width: 1px;
   --chat-input-padding-x: 0.5rem;
   --chat-input-padding-y: 0.5rem;
@@ -1757,6 +1758,25 @@ pre {
   padding: inherit;
   border: inherit;
   pointer-events: none;
+}
+
+/* Chat Input Footer Backdrop */
+.chat-input-footer-backdrop {
+  position: relative;
+  padding-bottom: 0.75rem;
+}
+
+.chat-input-footer-backdrop::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  top: var(--radius-xl);
+  background: var(--color-background);
+  border-top-left-radius: var(--chat-input-outer-radius);
+  border-top-right-radius: var(--chat-input-outer-radius);
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* Chat Input States */
