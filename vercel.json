@@ -6,6 +6,11 @@
   "outputDirectory": "dist",
   "devCommand": "bun run dev",
   "installCommand": "bun install",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
