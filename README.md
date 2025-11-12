@@ -1,4 +1,4 @@
-# Polly  
+# Polly
 
 Modern AI chat application built with React Router v7, Convex, and Vercel's AI SDK.
 
@@ -21,6 +21,7 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
    ```
 
    Or if using mise:
+
    ```bash
    mise install
    bun install
@@ -29,10 +30,6 @@ Modern AI chat application built with React Router v7, Convex, and Vercel's AI S
 3. **Start Development**
 
    ```bash
-   # Start Convex backend (in one terminal)
-   npx convex dev
-
-   # Start React Router dev server (in another terminal)
    bun run dev
    ```
 
@@ -64,28 +61,24 @@ Then run `mise install` in the project directory to install Bun and Node automat
 
 ## Checks & CI
 
-- Type checking:
-  - `bun run typecheck` – TypeScript type validation (`tsc --noEmit`).
-- Lint/format:
-  - `bun run lint` – Biome lint report.
-  - `bun run format` / `bun run format:check` – format write/check.
-  - `bun run check` / `bun run check:write` – lint+format check or write (also organizes imports).
-  - `bun run imports:organize` – organize imports only.
-- CI:
-  - GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome and a frontend build on pushes and PRs.
+- **Quick Fix**: `bun run fix` – Auto-fixes formatting, linting, and organizes imports via Biome.
+- **Full Verification**: `bun run check` – Verifies everything before committing (lint + format + typecheck + compiler health + build).
+- **Type Checking**: `bun run typecheck` – TypeScript type validation only.
+- **Testing**: `bun run test` – Run tests once, or `bun run test:watch` for watch mode.
+- **CI**: GitHub Actions workflow at `.github/workflows/ci.yml` runs Biome and a frontend build on pushes and PRs.
 
 ## Pre-commit Hooks
 
 This repo uses Husky + lint-staged to ensure code quality:
 
 **Automated checks on every commit:**
-- **Formatting & Linting**: Biome formats and applies lint fixes to staged files.
-- **Type Checking**: TypeScript validates types across the entire codebase (`tsc --noEmit`).
 
-**Manual validation commands:**
-- `bun run typecheck` - Run TypeScript type checking.
-- `bun run lint` - Run Biome linting.
-- `bun run pre-commit` - Run all pre-commit checks manually (typecheck + lint).
+- Biome auto-fixes formatting, linting, and organizes imports via `bun run fix`.
+
+**Before committing, run:**
+
+- `bun run fix` – Auto-fix all formatting and linting issues.
+- `bun run check` – Full verification (lint + format + typecheck + compiler health + build).
 
 If absolutely necessary, bypass hooks with `git commit --no-verify` (not recommended).
 
@@ -100,7 +93,7 @@ If absolutely necessary, bypass hooks with `git commit --no-verify` (not recomme
 #### Core Services
 
 - `GEMINI_API_KEY` - Google Gemini API key (required for title and summary generation)
-- `OPENAI_API_KEY` - OpenAI API key (required for audio transcription) 
+- `OPENAI_API_KEY` - OpenAI API key (required for audio transcription)
 - `EXA_API_KEY` - Exa.ai API key (enables web search for all AI models)
 
 #### OAuth Authentication

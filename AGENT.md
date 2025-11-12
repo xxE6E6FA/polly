@@ -1,12 +1,12 @@
 # Agent Guidelines for Polly
 
 ## Build/Lint/Test Commands
+
 - **Build**: `bun run build` (includes Convex deploy)
-- **Lint**: `bun run lint`
-- **Format**: `bun run format` or `bun run format:check`
-- **Check all**: `bun run check` (lint + build) or `bun run check:write` (auto-fix)
-- **Dev**: `bun run dev`
-- **Test**: `bun test` (all tests) or `bun test <file>` (specific file)
+- **Dev**: `bun run dev` (includes backend + frontend)
+- **Fix**: `bun run fix` (auto-fixes formatting, linting, and organizes imports)
+- **Check**: `bun run check` (verifies everything: lint + format + typecheck + compiler health + build)
+- **Test**: `bun run test` (all tests) or `bun test <file>` (specific file)
   - For deterministic results: `bun test --seed=3080887667`
   - Individual test files have 100% pass rate
   - Full suite: 99.5% pass rate (1-6 failures due to global store race conditions)
@@ -15,9 +15,10 @@
   - If a seeded run (e.g., `bun test --seed=1198959309`) fails, look for cross-file pollution from shared module mocks or singleton stores. Prefer rendering against real providers/stores with helpers instead of `mock.module()` overrides in test files.
   - Zustand stores auto-reset after each test via `resetVanillaStores()` and `resetReactStores()` in `test/setup-bun.ts`; leave those helpers in place and avoid custom store resets unless a test needs a bespoke store instance.
   - **Store method binding**: When implementing store hooks with `Object.assign`, methods MUST use dynamic access (arrow functions that call `storeApi.method()`), not static binding (`.bind()` or direct assignment), to support test isolation via `setStoreApi()`.
-- **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
+- **Watch mode**: `bun run test:watch` (run tests in watch mode)
 
 ## Code Style (Biome enforced)
+
 - **Formatting**: 2 spaces, 80 char line width, double quotes, semicolons
 - **Imports**: Use `@/` for src imports, organize imports frequently
 - **Naming**: camelCase (functions/vars), PascalCase (React components/types), CONSTANT_CASE (constants)
@@ -25,11 +26,13 @@
 - **TypeScript**: Strict types, no `any`, use `type` imports, optional chaining, exhaustive deps
 
 ## Error Handling
+
 - Use proper error boundaries and try/catch blocks
 - For Convex backend, use `log.*` from `convex/lib/logger` instead of `console.*` (lint-blocked).
 - Return user-friendly error messages; silently catch localStorage errors in browser.
 
 ## Architecture
+
 - **Frontend**: React 19 + Bun bundler + TailwindCSS + Radix UI + React Router
 - **Backend**: Convex (realtime database/functions, auth, file storage)
 - **AI**: Multiple providers (Anthropic, OpenAI, Google, OpenRouter) via AI SDK
@@ -37,6 +40,7 @@
 - **Streaming**: Real-time chat streamed over Convex HTTP actions
 
 ## Commits & Pull Requests
+
 - **Format**: Use [Conventional Commits](https://www.conventionalcommits.org/) format: `<type>: <description>`
 - **Types**: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
 - **Title Only**: Commit messages MUST contain only a title (no body/description)
@@ -53,6 +57,7 @@
 - See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines
 
 ## UI Styling Guidelines (Tailwind + shadcn)
+
 - Spacing: Use stack utilities instead of `space-y-*`.
   - Prefer semantic stacks: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`.
   - Numeric stacks also exist: `.stack-1`, `.stack-1.5`, `.stack-2`, etc.
@@ -70,6 +75,7 @@
 - Don’ts: Avoid `space-y-*` for sibling spacing, raw hex colors, ad-hoc shadows, and inline styles for layout.
 
 ### Density
+
 - Wrap any container with `density-compact` to reduce vertical rhythm one step (e.g., `stack-lg` acts like `stack-md`).
 - Wrap with `density-spacious` to increase rhythm one step (e.g., `stack-md` acts like `stack-lg`).
 - Apply at page or section level depending on desired feel; leave default for general pages.

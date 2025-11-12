@@ -6,26 +6,23 @@ Thanks for your interest in contributing! This doc outlines how to set up and su
 
 - Bun (latest) + Node 20.x (for Convex compatibility)
 - Install deps: `bun install` (or use `mise install` if using mise)
-- Start backend (terminal A): `npx convex dev`
-- Start frontend (terminal B): `bun run dev`
+- Start development: `bun run dev` (runs both backend and frontend)
 
 ## Testing
 
 We use Bun's built-in runner and React Testing Library for DOM tests.
 
-- Install test deps once:
-  - `bun add -d @testing-library/react @testing-library/jest-dom @happy-dom/global-registrator convex-test`
-- Run all tests: `bun test`
-- Watch mode: `bun test --watch`
+- Run all tests: `bun run test`
+- Watch mode: `bun run test:watch`
 - Single file: `bun test path/to/file.test.tsx`
 - Randomized order (reproducible): `bun test --randomize --seed 1234`
-- CI uses: `bun test --randomize --coverage --bail`
 
 ### Test Isolation & Flakiness Prevention
 
 To prevent flaky tests caused by shared state and global mocks:
 
 - **Store Isolation**: For tests using Zustand stores (e.g., `chat-input-store`):
+
   ```typescript
   beforeEach(() => {
     mock.restore(); // Clear global mocks first
@@ -41,6 +38,7 @@ To prevent flaky tests caused by shared state and global mocks:
 - **Mock Cleanup**: Always call `mock.restore()` in `beforeEach` to clear global mocks between tests.
 
 - **Avoid Global Hook Mocking**: Instead of mocking hooks globally (e.g., `mock.module("@/hooks/useSelectedModel", ...)`), prefer setting up store state directly:
+
   ```typescript
   beforeEach(() => {
     resetChatInputStoreApi();
@@ -51,6 +49,7 @@ To prevent flaky tests caused by shared state and global mocks:
 - **Test Seeds**: When tests fail, note the failing seed and use it to reproduce: `bun test --seed 12345`
 
 Notes:
+
 - DOM environment is provided by happy‑dom via `test/setup-bun.ts` (loaded automatically).
 - For components/hooks that import `convex/react`, prefer module‑level mocks in the test file.
 - For server functions under `convex/`, use the official `convex-test` utilities.
@@ -59,15 +58,14 @@ Notes:
 
 We use Husky + lint-staged to keep quality high:
 
-- On commit, staged files are auto-formatted and lint-fixed with Biome.
+- On commit, staged files are auto-fixed with `bun run fix` (formatting, linting, import organization via Biome).
 - To bypass in emergencies: `git commit --no-verify` (avoid for normal work).
 
 ## Code Quality
 
-- Lint report: `bun run lint`
-- Format write/check: `bun run format` / `bun run format:check`
-- One-shot check/fix: `bun run check` / `bun run check:write`
-- Organize imports: `bun run imports:organize`
+- Quick fix: `bun run fix` (auto-fixes formatting, linting, and organizes imports)
+- Full verification: `bun run check` (verifies everything before committing: lint + format + typecheck + compiler health + build)
+- Type checking only: `bun run typecheck`
 - Logging (Convex only): use `log.*` from `convex/lib/logger` — `console.*` is lint-blocked in `convex/**` (except `convex/lib/logger.ts`).
 
 ### Code Style (Biome enforced)
@@ -95,11 +93,13 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/) for consi
 - Examples: `feat: add image generation support`, `fix: prevent message flicker during streaming`
 
 **Branch Names:**
+
 - Format: `<type>/<description>` (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
 - Use kebab-case, keep concise (30-50 characters)
 - No timestamps or random suffixes
 
 **Pull Requests:**
+
 - PR title should be concise and descriptive (no Conventional Commits format required)
 - Provide context in PR description (what, why, testing notes)
 - Keep PRs focused on a single concern

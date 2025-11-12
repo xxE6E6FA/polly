@@ -50,7 +50,7 @@ beforeEach(() => {
     useQuery: () => myTestData,
     useMutation: () => async () => {},
   });
-  
+
   setUserDataMock({
     user: { _id: "test-user", isAnonymous: false },
   });
@@ -298,7 +298,7 @@ const result = await getUserSettings.handler(ctx as QueryCtx, {}); // TypeError!
    export async function myQueryHandler(ctx: QueryCtx, args: MyArgs) {
      // Business logic here
    }
-   
+
    export const myQuery = query({
      args: { ... },
      handler: myQueryHandler,
@@ -316,7 +316,7 @@ const result = await getUserSettings.handler(ctx as QueryCtx, {}); // TypeError!
 4. **Test the handler function**, not the wrapper:
    ```typescript
    import { myQueryHandler } from "./my-module";
-   
+
    test("does something", async () => {
      const ctx = makeConvexCtx({ ... });
      const result = await myQueryHandler(ctx as QueryCtx, { ... });
@@ -341,7 +341,7 @@ import { createConvexTestInstance } from "../test/convex-test-utils";
 test("integration test", async () => {
   const t = await createConvexTestInstance();
   if (!t) return; // Skip if not available
-  
+
   const { api } = await import("@convex/_generated/api");
   const result = await t.query(api.users.getById, { id });
   expect(result).toBeTruthy();
@@ -376,7 +376,7 @@ mock.module("@/providers/convex-provider", () => ({
 
 - **Main `tsconfig.json`** excludes all test files (`**/*.test.*`, `**/*.spec.*`)
 - **Bun runtime** reads `tsconfig.json` and won't type-check test files when running `bun test`
-- **Relaxed `tsconfig.test.json`** exists for optional manual type checking with `bun run typecheck:tests`
+- **Type checking** uses `bun run typecheck` for the main codebase
 
 This setup allows:
 - Type assertions (`as QueryCtx`, `as Id<"conversations">`) without strict type errors
@@ -390,8 +390,7 @@ This setup allows:
 - Naming conventions: off
 
 ## Running
-- All tests: `bun test`
-- Watch: `bun test --watch`
+- All tests: `bun run test`
+- Watch: `bun run test:watch`
 - Randomized (seeded): `bun test --randomize --seed 1234`
 - Single file: `bun test path/to/file.test.tsx`
-- Type check tests (optional): `bun run typecheck:tests`

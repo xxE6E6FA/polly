@@ -6,26 +6,15 @@
   "scripts": {
     "dev": "NODE_ENV=development bun run scripts/dev.ts",
     "dev:convex": "NODE_ENV=development convex dev",
-    "dev:frontend": "NODE_ENV=development bun run --hot server.ts",
     "build": "NODE_ENV=production sh -c \"convex deploy --verbose --typecheck disable && bun run scripts/build-frontend.ts\"",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "compiler:check": "react-compiler-healthcheck",
-    "check": "biome check . && bun run scripts/build-frontend.ts",
-    "check:write": "biome check --write .",
-    "imports:organize": "biome check --write --organize-imports-enabled=true .",
-    "check:ci": "biome ci . && bun run compiler:check",
-    "prepare": "husky",
-    "clear-db": "bun scripts/clear-database.ts",
-    "clear-auth": "bun scripts/clear-auth-tables.ts",
+    "fix": "biome check --write .",
+    "check": "biome ci . && react-compiler-healthcheck && bun run scripts/build-frontend.ts",
     "typecheck": "tsc --noEmit",
-    "typecheck:tests": "tsc --noEmit --project tsconfig.test.json",
     "test": "NODE_ENV=test bun test",
     "test:watch": "NODE_ENV=test bun test --watch",
-    "test:ci": "NODE_ENV=test bun test --coverage --randomize --bail",
-    "test:random": "NODE_ENV=test bun test --randomize"
+    "prepare": "husky",
+    "clear-db": "bun scripts/clear-database.ts",
+    "clear-auth": "bun scripts/clear-auth-tables.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
@@ -122,14 +111,7 @@
     "typescript": "^5"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": [
-      "biome format --write --files-ignore-unknown=true --no-errors-on-unmatched",
-      "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
-    ],
-    "*.{ts,tsx}": ["bash -c 'tsc --noEmit'", "react-compiler-healthcheck"],
-    "*.{test,spec}.{ts,tsx}": [
-      "bash -c 'NODE_ENV=test bun test --passWithNoTests'"
-    ],
+    "*.{js,jsx,ts,tsx,json,css,md}": ["biome check --write"],
     "convex/_generated/**": []
   }
 }

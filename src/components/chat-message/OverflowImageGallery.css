@@ -7,6 +7,7 @@
   margin-left: -50vw;
   margin-right: -50vw;
   padding: 0 max(0.5rem, calc((100vw - 48rem) / 2));
+  overflow: visible !important;
 }
 
 @media (max-width: 768px) {
@@ -32,7 +33,7 @@
   max-width: 48rem;
   margin: 0 auto;
   position: relative;
-  overflow: visible;
+  overflow: visible !important;
 }
 
 /* Style the toggle buttons when positioned above gallery */
@@ -58,13 +59,4 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transform-style: preserve-3d;
-}
-
-/* Ensure overflow is visible during transitions */
-.gallery-overflow-wrapper {
-  overflow: visible !important;
-}
-
-.gallery-overflow-inner {
-  overflow: visible !important;
 }

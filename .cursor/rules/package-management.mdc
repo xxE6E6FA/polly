@@ -14,21 +14,18 @@ alwaysApply: true
 ## Build Commands
 - **NEVER run `bun run build`**: This triggers Convex deploy requiring user interaction
 - **Frontend Build**: Use `bun run build:frontend` for frontend-only builds
-- **NEVER run `bun run dev`**: User will run development servers themselves
-- **Convex Dev**: `bun run dev:convex` or `npx convex dev` (run in separate terminal)
+- **Full Dev**: `bun run dev` (includes both backend and frontend)
+- **Convex Dev Separate**: `bun run dev:convex` or `npx convex dev` (if running backend separately)
 
 ## Development Workflow
-- **Backend**: `bun run dev:convex` or `npx convex dev` (terminal A)
-- **Frontend**: `bun run dev:frontend` (terminal B)
-- **Full Check**: `bun run check` (lint + typecheck + build)
-- **Auto-fix**: `bun run check:write` (fixes linting and organizes imports)
+- **Standard**: `bun run dev` (runs both backend and frontend automatically)
+- **Separate terminals** (if needed): `bun run dev:convex` (terminal A) for backend only
 
 ## Code Quality Commands
-- **Lint**: `bun run lint` (report only)
-- **Format**: `bun run format` (write) or `bun run format:check` (check only)
-- **Type Check**: `bun run typecheck` (TypeScript validation)
-- **Test**: `bun test` (watch mode) or `bun run test:ci` (CI mode)
-- **Imports**: organize via `bun run check:write` (Biome organizes imports when writing)
+- **Quick Fix**: `bun run fix` (auto-fixes formatting, linting, and organizes imports)
+- **Full Verification**: `bun run check` (verifies everything: lint + format + typecheck + compiler health + build)
+- **Type Check**: `bun run typecheck` (TypeScript validation only)
+- **Test**: `bun run test` (run once) or `bun run test:watch` (watch mode)
 
 ## Database Management
 - **Clear DB**: `bun run clear-db` (development only)
@@ -39,14 +36,14 @@ alwaysApply: true
 ```bash
 # ✅ Correct workflow
 bun install
-bun run dev:convex  # Terminal A
-bun run dev:frontend  # Terminal B
+bun run dev  # Starts both backend and frontend
 
-# ✅ Build commands
-bun run build:frontend  # Frontend only
-bun run check:write  # Auto-fix all issues
+# ✅ Code quality
+bun run fix    # Quick auto-fix for formatting/linting
+bun run check  # Full verification before committing
+bun run test   # Run tests
+bun run test:watch  # Watch mode
 
 # ❌ Never run these
-bun run build      # Triggers Convex deploy
-bun run dev        # User manages dev servers
+bun run build  # Triggers Convex deploy (user action required)
 ```

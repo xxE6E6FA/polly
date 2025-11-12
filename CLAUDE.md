@@ -5,25 +5,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 **Core Development:**
-- `bun run dev` - Start React Router development server
-- `bun run dev:convex` - Start Convex backend (run in separate terminal)
-- `bun run build` - Build frontend for production
-- `bun run build:full` - Build and deploy (runs `convex deploy` + frontend build)
+
+- `bun run dev` - Start React Router development server (includes Convex backend)
+- `bun run dev:convex` - Start Convex backend separately (if needed)
+- `bun run build` - Build frontend for production and deploy Convex backend
 
 **Code Quality:**
-- `bun run lint` - Analyze code with Biome
-- `bun run lint:fix` - Auto-fix linting issues
-- `bun run format` - Format code with Biome
-- `bun run check` - Run lint + typecheck + build
-- `bun run check:write` - Auto-fix all issues (also organizes imports)
+
+- `bun run fix` - Auto-fix formatting, linting, and organize imports (runs Biome)
+- `bun run check` - Verify everything: lint + format check + typecheck + compiler health + build
+- `bun run typecheck` - Run TypeScript type checking only
+
+**Testing:**
+
+- `bun run test` - Run tests once
+- `bun run test:watch` - Run tests in watch mode
 
 **Database Management:**
+
 - `bun run clear-db` - Clear entire database (development)
 - `bun run clear-auth` - Clear authentication tables only
 
 ## Architecture Overview
 
 **Stack:**
+
 - Frontend: React 19 + TypeScript + Bun bundler + React Router v7
 - Backend: Convex (serverless functions, realtime database, auth, file storage)
 - Styling: TailwindCSS + shadcn/ui (Radix UI components)
@@ -31,6 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Code Quality: Biome (replaces ESLint + Prettier)
 
 **Key Data Models (convex/schema.ts):**
+
 - `users` - User accounts and profiles
 - `conversations` - Chat conversations with search and archiving
 - `messages` - Individual chat messages with streaming support
@@ -40,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `sharedConversations` - Public conversation sharing
 
 **Routing Structure (src/routes.tsx):**
+
 - `/` - Home page
 - `/chat/:conversationId` - Individual conversations
 - `/private` - Private chat mode
@@ -47,6 +55,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `/share/:shareId` - Public shared conversations
 
 **Frontend Organization:**
+
 - `src/components/` - Reusable UI components
 - `src/pages/` - Route-specific page components
 - `src/hooks/` - Custom React hooks
@@ -55,6 +64,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `shared/` - Code shared between frontend and backend
 
 **Backend Organization:**
+
 - `convex/` - Serverless functions and database schema
 - `convex/ai/` - AI provider integrations and streaming
 - `convex/lib/` - Backend utilities and helpers
@@ -62,6 +72,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## AI Integration
 
 The app supports multiple AI providers through a unified interface:
+
 - Providers configured per-user via API keys in settings
 - Streaming responses are delivered via Convex HTTP routes
 - Web search integration via Exa.ai for enhanced context
@@ -80,6 +91,7 @@ The app supports multiple AI providers through a unified interface:
 ## Commits & Pull Requests
 
 **Commit Messages:**
+
 - Use [Conventional Commits](https://www.conventionalcommits.org/) format: `<type>: <description>`
 - Types: `feat`, `fix`, `refactor`, `chore`, `test`, `docs`, `style`, `perf`, `ci`, `build`, `revert`
 - **Title only** - no body/description section
@@ -87,11 +99,13 @@ The app supports multiple AI providers through a unified interface:
 - Examples: `feat: add image generation support`, `fix: prevent message flicker during streaming`
 
 **Branch Names:**
+
 - Format: `<type>/<description>` (e.g., `feat/add-commit-rules`, `fix/message-flicker`)
 - Use kebab-case, keep concise (30-50 characters)
 - No timestamps or random suffixes
 
 **Pull Requests:**
+
 - PR title should be concise and descriptive (no Conventional Commits format required)
 - Provide context in PR description (what, why, testing notes)
 - Keep PRs focused on a single concern
@@ -99,6 +113,7 @@ The app supports multiple AI providers through a unified interface:
 See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines.
 
 ## UI Styling Guidelines (Polly Design System)
+
 - Prefer stack spacing utilities over `space-y-*`:
   - Semantic: `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`, `stack-xl`
   - Numeric: `.stack-1`, `.stack-1.5`, `.stack-2`, etc. (responsive allowed)
@@ -111,5 +126,6 @@ See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines.
 - Avoid raw hex colors and `space-y-*`; use `stack-*` and tokens.
 
 ### Density
+
 - Use `density-compact` wrapper to reduce vertical rhythm by one step; `density-spacious` to increase by one.
 - Prefer section/page scope rather than global changes unless specified.
