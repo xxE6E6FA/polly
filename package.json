@@ -13,7 +13,7 @@
     "format": "biome format --write .",
     "format:check": "biome format .",
     "compiler:check": "react-compiler-healthcheck",
-    "check": "biome check . && bun run build:frontend",
+    "check": "biome check . && bun run scripts/build-frontend.ts",
     "check:write": "biome check --write .",
     "imports:organize": "biome check --write --organize-imports-enabled=true .",
     "check:ci": "biome ci . && bun run compiler:check",

@@ -7,7 +7,9 @@ on:
     branches: [ main, master ]
 
 jobs:
-  build-and-verify:
+  # Run checks on PRs without building/deploying
+  pr-checks:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,13 +21,39 @@ jobs:
       - name: Install deps
         run: bun install --frozen-lockfile
 
-      - name: Lint (Biome)
-        run: bun run biome check --reporter summary
+      - name: Lint & Compiler Check
+        run: bun run check:ci
 
-      - name: Build
-        run: bun run build:frontend
+      - name: Type Check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test:ci
+
+  # Run checks + build + deploy on production
+  deploy:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Lint & Compiler Check
+        run: bun run check:ci
+
+      - name: Type Check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test:ci
+
+      - name: Deploy
+        run: bun run build
         env:
-          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
-
-      - name: Test (Bun)
-        run: bun test --randomize --coverage --bail --seed ${{ github.run_number }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
