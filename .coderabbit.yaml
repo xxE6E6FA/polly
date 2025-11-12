@@ -1,19 +1,23 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 language: en-US
 
 reviews:
-  high_level_summary: false
+  sequence_diagrams: false
+  poem: false
+  in_progress_fortune: false
+  related_prs: false
   estimate_code_review_effort: false
-  assess_linked_issues: false
   profile: chill
+  path_filters:
+    - "!**/*.test.*"
+    - "!**/*.spec.*"
+    - "!convex/_generated/**"
+    - "!build/**"
+    - "!dist/**"
+    - "!node_modules/**"
   path_instructions:
     - path: "**/*.{ts,tsx,js,jsx}"
-      instructions: "Focus on security vulnerabilities, bugs, and architectural concerns. Skip style suggestions, formatting, naming conventions, and optional chaining suggestions as Biome handles these. Do not suggest code style improvements."
-
-path_filters:
-  - "!**/*.test.*"
-  - "!**/*.spec.*"
-  - "!convex/_generated/**"
-  - "!build/**"
-  - "!dist/**"
-  - "!node_modules/**"
-
+      instructions: >
+        Focus only on security vulnerabilities, bugs, and architectural concerns.
+        Skip style, formatting, naming, and cosmetic suggestions handled by Biome.
+        Do not suggest code style improvements.
