@@ -16,8 +16,8 @@ This guide covers deploying the Polly app to Vercel.
 2. Go to https://vercel.com/new
 3. Import your Git repository
 4. Configure environment variables:
-    - `VITE_CONVEX_URL`: Your Convex deployment URL
-    - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
+   - `VITE_CONVEX_URL`: Your Convex deployment URL
+   - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
 5. Click "Deploy"
 
 ### Option 2: Deploy via CLI
@@ -25,8 +25,8 @@ This guide covers deploying the Polly app to Vercel.
 1. Run `vercel` in your project directory
 2. Follow the prompts
 3. Set environment variables when prompted:
-    - `VITE_CONVEX_URL`: Your Convex deployment URL
-    - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
+   - `VITE_CONVEX_URL`: Your Convex deployment URL
+   - `GEMINI_API_KEY`: Google Gemini API key for PDF text extraction
 
 ## Environment Variables
 
@@ -46,7 +46,7 @@ Required environment variables for production:
 ### vercel.json
 
 - Framework: Custom (Bun bundler)
-- Build Command: `bun run build` (runs `convex deploy && bun run build:frontend`)
+- Build Command: `bun run build`
 - Output Directory: `dist`
 - Rewrites: All routes redirect to index.html for client-side routing
 - Headers: Static assets are cached for 1 year
@@ -70,9 +70,7 @@ Required environment variables for production:
 
 ### Build Configuration
 
-The app uses Bun's bundler (configured in `scripts/build-with-bundler.ts`) which handles all dependencies correctly, including `@convex-dev/auth`. The frontend only imports from `@convex-dev/auth/react` (client-side code), while server-side auth code runs on Convex servers.
-
-**Note**: Previous Vite-specific configurations (like `optimizeDeps.exclude`) are not needed with Bun's bundler.
+The app uses Bun's bundler (configured in `scripts/build-frontend.ts`) which handles all dependencies correctly, including `@convex-dev/auth`. The frontend only imports from `@convex-dev/auth/react` (client-side code), while server-side auth code runs on Convex servers.
 
 ### Routing Issues
 

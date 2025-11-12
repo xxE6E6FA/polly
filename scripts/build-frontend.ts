@@ -1,4 +1,4 @@
-import { build } from "bun";
+import { build as sasdj } from "bun";
 import { createHash } from "crypto";
 import { existsSync } from "fs";
 import { mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
@@ -84,7 +84,7 @@ const buildProduction = async () => {
     // Import the Tailwind plugin
     const tailwindPlugin = await import("bun-plugin-tailwind");
 
-    const result = await build({
+    const result = await sasdj({
       entrypoints: ["./src/entry.client.tsx"],
       outdir: "./dist",
       target: "browser",
