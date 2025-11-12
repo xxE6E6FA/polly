@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
   # Run checks on PRs without building/deploying
-  pr-checks:
-    if: github.event_name == 'pull_request'
+  healthcheck:
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,31 +29,3 @@ jobs:
 
       - name: Test
         run: bun run test:ci
-
-  # Run checks + build + deploy on production
-  deploy:
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-
-      - name: Install deps
-        run: bun install --frozen-lockfile
-
-      - name: Lint & Compiler Check
-        run: bun run check:ci
-
-      - name: Type Check
-        run: bun run typecheck
-
-      - name: Test
-        run: bun run test:ci
-
-      - name: Deploy
-        run: bun run build
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
