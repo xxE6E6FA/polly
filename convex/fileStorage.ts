@@ -10,6 +10,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { checkConversationAccess } from "./lib/conversation_utils";
 import { attachmentSchema } from "./lib/schemas";
 
 type FileTypeFilter = "image" | "pdf" | "text" | "all";
@@ -487,6 +488,28 @@ export async function getMessageAttachmentsHandler(
   ctx: QueryCtx,
   args: { messageId: Id<"messages"> }
 ) {
+  // Check authentication
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
+  // Get the message to find its conversation
+  const message = await ctx.db.get(args.messageId);
+  if (!message) {
+    throw new Error("Message not found");
+  }
+
+  // Check access to the conversation
+  const { hasAccess } = await checkConversationAccess(
+    ctx,
+    message.conversationId,
+    false
+  );
+  if (!hasAccess) {
+    throw new Error("Access denied");
+  }
+
   const userFiles = await ctx.db
     .query("userFiles")
     .withIndex("by_message", q => q.eq("messageId", args.messageId))
@@ -540,6 +563,36 @@ export async function getBatchMessageAttachmentsHandler(
   ctx: QueryCtx,
   args: { messageIds: Id<"messages">[] }
 ) {
+  // Check authentication
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
+  // Fetch all messages to verify access
+  const messages = await Promise.all(args.messageIds.map(id => ctx.db.get(id)));
+
+  // Verify access for every message's conversation
+  const conversationIds = new Set<Id<"conversations">>();
+  for (const message of messages) {
+    if (!message) {
+      throw new Error("One or more messages not found");
+    }
+    conversationIds.add(message.conversationId);
+  }
+
+  // Check access to all conversations
+  for (const conversationId of conversationIds) {
+    const { hasAccess } = await checkConversationAccess(
+      ctx,
+      conversationId,
+      false
+    );
+    if (!hasAccess) {
+      throw new Error("Access denied to one or more conversations");
+    }
+  }
+
   // Fetch all userFiles for these messages
   const allFiles = await Promise.all(
     args.messageIds.map(async messageId => {
