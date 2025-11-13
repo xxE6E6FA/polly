@@ -437,18 +437,21 @@ export async function deleteMultipleFilesHandler(
     }
   }
 
-  // Delete only owned entries from userFiles table
+  // Delete ALL owned entries from userFiles table
+  // This handles cloned messages where the same storageId has multiple userFiles entries
   for (const storageId of deletedStorageIds) {
-    const userFileEntry: Doc<"userFiles"> | null = await ctx.db
+    const userFileEntries: Doc<"userFiles">[] = await ctx.db
       .query("userFiles")
       // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
       .withIndex("by_storage_id", (q: any) =>
         q.eq("userId", userId).eq("storageId", storageId)
       )
-      .unique();
+      .collect();
 
-    if (userFileEntry && userFileEntry.userId === userId) {
-      await ctx.db.delete(userFileEntry._id);
+    for (const entry of userFileEntries) {
+      if (entry.userId === userId) {
+        await ctx.db.delete(entry._id);
+      }
     }
   }
 

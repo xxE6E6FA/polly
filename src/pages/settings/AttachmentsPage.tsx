@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -484,10 +485,7 @@ export default function AttachmentsPage() {
       {isLoading && (
         <div className="stack-lg">
           {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton
-              key={`skeleton-${i}`}
-              className="h-16 w-full"
-            />
+            <Skeleton key={`skeleton-${i}`} className="h-16 w-full" />
           ))}
         </div>
       )}
