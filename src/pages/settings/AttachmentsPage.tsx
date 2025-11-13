@@ -485,7 +485,7 @@ export default function AttachmentsPage() {
         <div className="stack-lg">
           {Array.from({ length: 6 }, (_, i) => (
             <Skeleton
-              key={`skeleton-${Date.now()}-${i}`}
+              key={`skeleton-${i}`}
               className="h-16 w-full"
             />
           ))}
