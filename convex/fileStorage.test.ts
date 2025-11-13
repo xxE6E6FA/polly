@@ -605,6 +605,7 @@ describe("fileStorage: getUserFiles", () => {
 
     const queryChain = {
       withIndex: mock(() => queryChain),
+      filter: mock(() => queryChain),
       order: mock(() => queryChain),
       paginate: mock(() =>
         Promise.resolve({

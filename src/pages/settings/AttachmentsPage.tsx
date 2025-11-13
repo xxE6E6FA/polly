@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/providers/toast-context";
 import type { Attachment } from "@/types";
 
@@ -113,7 +114,10 @@ export default function AttachmentsPage() {
 
   const managedToast = useToast();
 
-  // Query user files with server-side filtering and pagination
+  // Debounce search query to avoid excessive queries (300ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Query user files with server-side filtering, search, and pagination
   const {
     results: filesData,
     status,
@@ -123,6 +127,7 @@ export default function AttachmentsPage() {
     {
       fileType: fileType === "all" ? undefined : fileType,
       includeGenerated,
+      searchQuery: debouncedSearchQuery || undefined,
     },
     { initialNumItems: 50 }
   );
@@ -132,32 +137,19 @@ export default function AttachmentsPage() {
   const deleteMultipleFiles = useMutation(api.fileStorage.deleteMultipleFiles);
   const removeAttachment = useMutation(api.messages.removeAttachment);
 
-  // Filter and sort files (fileType and includeGenerated are already filtered server-side)
+  // Sort files (filtering is handled server-side)
   const filteredAndSortedFiles = useMemo(() => {
     if (!filesData) {
       return [];
     }
 
-    // Only apply client-side search filter (server handles fileType and includeGenerated)
-    const filtered = filesData.filter((file: UserFile | null) => {
-      if (!file) {
-        return false;
-      }
-
-      // Apply search query filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return (
-          file.attachment.name.toLowerCase().includes(query) ||
-          file.conversationName.toLowerCase().includes(query)
-        );
-      }
-
-      return true;
-    });
+    // Filter out null entries and sort
+    const validFiles = filesData.filter(
+      (file: UserFile | null) => file !== null
+    );
 
     // Sort files - create a new array to avoid mutating the original
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...validFiles].sort((a, b) => {
       if (!(a && b)) {
         return 0;
       }
@@ -183,7 +175,7 @@ export default function AttachmentsPage() {
     });
 
     return sorted;
-  }, [filesData, searchQuery, sortField, sortDirection]);
+  }, [filesData, sortField, sortDirection]);
 
   // Memoized file key generation to ensure consistency
   const getFileKey = useCallback((file: UserFile) => {

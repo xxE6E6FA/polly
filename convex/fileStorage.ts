@@ -242,6 +242,7 @@ export async function getUserFilesHandler(
     paginationOpts: PaginationOptions;
     fileType?: "image" | "pdf" | "text" | "all";
     includeGenerated?: boolean;
+    searchQuery?: string;
   }
 ) {
   const userId = await getAuthUserId(ctx);
@@ -251,26 +252,65 @@ export async function getUserFilesHandler(
 
   const fileType = args.fileType ?? "all";
   const includeGenerated = args.includeGenerated ?? true;
+  const searchQuery = args.searchQuery?.trim();
 
-  // Build the query based on filters
+  // Build the query based on filters - all filtering at database level
   let query;
 
-  if (fileType !== "all") {
-    // Use type-specific index for better performance
+  // If search query is provided, use search index
+  if (searchQuery) {
+    query = ctx.db
+      .query("userFiles")
+      .withSearchIndex("search_name", q =>
+        q.search("name", searchQuery).eq("userId", userId)
+      );
+
+    // Apply type filter if specified
+    if (fileType !== "all") {
+      query = query.filter(q => q.eq(q.field("type"), fileType));
+    }
+
+    // Apply isGenerated filter based on fileType and includeGenerated
+    if (fileType === "image" && !includeGenerated) {
+      query = query.filter(q => q.eq(q.field("isGenerated"), false));
+    } else if (fileType === "all" && !includeGenerated) {
+      query = query.filter(q => q.eq(q.field("isGenerated"), false));
+    }
+  } else if (fileType === "image" && !includeGenerated) {
+    // Special case: images only, exclude generated
+    // Use by_user_type_created for images and filter before ordering
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_type_created", q =>
+        q.eq("userId", userId).eq("type", "image")
+      )
+      .filter(q => q.eq(q.field("isGenerated"), false))
+      .order("desc");
+  } else if (fileType === "pdf" || fileType === "text") {
+    // PDF or text files (these are never generated, so includeGenerated doesn't matter)
     query = ctx.db
       .query("userFiles")
       .withIndex("by_user_type_created", q =>
         q.eq("userId", userId).eq("type", fileType)
       )
       .order("desc");
-  } else if (includeGenerated) {
-    // Get all files for user
+  } else if (fileType === "image" && includeGenerated) {
+    // All images including generated
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_type_created", q =>
+        q.eq("userId", userId).eq("type", "image")
+      )
+      .order("desc");
+  } else if (fileType === "all" && includeGenerated) {
+    // All files including generated
     query = ctx.db
       .query("userFiles")
       .withIndex("by_user_created", q => q.eq("userId", userId))
       .order("desc");
   } else {
-    // Filter out generated images
+    // fileType === "all" && !includeGenerated
+    // All files excluding generated images
     query = ctx.db
       .query("userFiles")
       .withIndex("by_user_generated", q =>
@@ -279,20 +319,12 @@ export async function getUserFilesHandler(
       .order("desc");
   }
 
-  // Apply pagination
+  // Apply pagination - no post-pagination filtering needed
   const paginatedResult = await query.paginate(args.paginationOpts);
-
-  // Filter out generated images if type is "image" and includeGenerated is false
-  const filteredFiles = paginatedResult.page.filter(file => {
-    if (fileType === "image" && !includeGenerated && file.isGenerated) {
-      return false;
-    }
-    return true;
-  });
 
   // Fetch conversation titles and file metadata
   const filesWithMetadata = await Promise.all(
-    filteredFiles.map(async file => {
+    paginatedResult.page.map(async file => {
       try {
         const conversation = await ctx.db.get(file.conversationId);
         const fileMetadata = await ctx.db.system.get(file.storageId);
@@ -354,6 +386,7 @@ export const getUserFiles = query({
       )
     ),
     includeGenerated: v.optional(v.boolean()),
+    searchQuery: v.optional(v.string()),
   },
   handler: getUserFilesHandler,
 });

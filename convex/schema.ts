@@ -149,5 +149,9 @@ export default defineSchema({
     .index("by_user_generated", ["userId", "isGenerated", "createdAt"])
     .index("by_storage_id", ["userId", "storageId"])
     .index("by_message", ["messageId"])
-    .index("by_conversation", ["conversationId", "createdAt"]),
+    .index("by_conversation", ["conversationId", "createdAt"])
+    .searchIndex("search_name", {
+      searchField: "name",
+      filterFields: ["userId", "type", "isGenerated"],
+    }),
 });
