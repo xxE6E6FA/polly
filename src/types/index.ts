@@ -404,9 +404,13 @@ export type APIKeys = {
 // EXPORT TYPES
 // ============================================================================
 
+export type ExportMessage = Omit<Doc<"messages">, "userId"> & {
+  userId?: Id<"users">;
+};
+
 export type ExportData = {
   conversation: Doc<"conversations">;
-  messages: Doc<"messages">[];
+  messages: ExportMessage[];
 };
 
 // ============================================================================

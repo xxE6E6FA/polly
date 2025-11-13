@@ -2,6 +2,17 @@ import type React from "react";
 import { lazy, Suspense } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * ImageGallery displays images from message.attachments (PRIMARY source)
+ *
+ * Data Flow:
+ * - Messages include attachments field (from messages.attachments in DB)
+ * - This component receives pre-fetched image URLs
+ * - No additional queries needed for display (fast!)
+ *
+ * For file management features, use AttachmentsPage which queries userFiles table
+ */
+
 const ImageGalleryCarousel = lazy(() =>
   import("./ImageGalleryCarousel").then(m => ({
     default: m.ImageGalleryCarousel,

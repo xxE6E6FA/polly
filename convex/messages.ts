@@ -34,6 +34,33 @@ import {
   webCitationSchema,
 } from "./lib/schemas";
 
+/**
+ * ============================================================================
+ * ATTACHMENT STORAGE PATTERN (Convex Direct Reference Pattern)
+ * ============================================================================
+ *
+ * Attachments are stored in TWO places and kept in sync:
+ *
+ * 1. PRIMARY: messages.attachments field (array)
+ *    - Fast direct access when displaying messages (no joins needed)
+ *    - This is the source of truth for what attachments belong to a message
+ *
+ * 2. SECONDARY: userFiles table (indexed)
+ *    - Enables efficient file-centric queries:
+ *      * "Show me all PDFs for this user"
+ *      * "Show me all images in this conversation"
+ *      * "Get file usage statistics"
+ *    - Used for file management UI, not for message display
+ *
+ * WHY BOTH?
+ * - Performance: Direct field access is ~1ms vs join queries
+ * - Flexibility: Can query files independently of messages
+ * - Convex pattern: Duplicating data is OK when kept in sync via ACID mutations
+ *
+ * See: https://stack.convex.dev/relationship-structures-let-s-talk-about-schemas
+ * ============================================================================
+ */
+
 // Shared handler function for getting message by ID
 async function handleGetMessageById(
   ctx: QueryCtx,
@@ -102,6 +129,7 @@ async function handleMessageDeletion(
   if (message.attachments) {
     for (const attachment of message.attachments) {
       if (attachment.storageId) {
+        // Delete from storage
         operations.push(
           ctx.storage.delete(attachment.storageId).catch(error => {
             console.warn(
@@ -109,6 +137,31 @@ async function handleMessageDeletion(
               error
             );
           })
+        );
+
+        // Delete userFiles entry
+        operations.push(
+          (async () => {
+            try {
+              const userFileEntry = attachment.storageId
+                ? await ctx.db
+                    .query("userFiles")
+                    .withIndex("by_storage_id", q =>
+                      q.eq("storageId", attachment.storageId as Id<"_storage">)
+                    )
+                    .unique()
+                : null;
+
+              if (userFileEntry) {
+                await ctx.db.delete(userFileEntry._id);
+              }
+            } catch (error) {
+              console.warn(
+                `Failed to delete userFile entry for storage ${attachment.storageId}:`,
+                error
+              );
+            }
+          })()
         );
       }
     }
@@ -135,12 +188,17 @@ export async function createHandler(
     imageGeneration?: Infer<typeof imageGenerationSchema>;
   }
 ) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new ConvexError("User not authenticated");
+  }
   // Rolling token estimate helper
   const estimateTokens = (text: string) =>
     Math.max(1, Math.ceil((text || "").length / 4));
 
   const messageId = await ctx.db.insert("messages", {
     ...args,
+    userId,
     isMainBranch: args.isMainBranch ?? true,
     createdAt: Date.now(),
   });
@@ -216,9 +274,15 @@ export const createUserMessageBatched = mutation({
     metadata: v.optional(extendedMessageMetadataSchema),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new ConvexError("User not authenticated");
+    }
+
     const messageId = await ctx.db.insert("messages", {
       ...args,
       role: "user",
+      userId,
       isMainBranch: args.isMainBranch ?? true,
       createdAt: Date.now(),
     });
@@ -627,21 +691,18 @@ export const removeMultiple = mutation({
     const conversationIds = new Set<Id<"conversations">>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
+    const userFileDeletionPromises: Promise<void>[] = [];
 
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
           conversationIds.add(message.conversationId);
-
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
-              const user = await ctx.db.get(conversation.userId);
-              if (user && "totalMessageCount" in user) {
-                const currentCount =
-                  userMessageCounts.get(conversation.userId) || 0;
-                userMessageCounts.set(conversation.userId, currentCount + 1);
-              }
+              const currentCount =
+                userMessageCounts.get(conversation.userId) || 0;
+              userMessageCounts.set(conversation.userId, currentCount + 1);
             }
           }
         }
@@ -656,6 +717,34 @@ export const removeMultiple = mutation({
                     error
                   );
                 })
+              );
+
+              // Delete corresponding userFiles entry
+              const storageId = attachment.storageId;
+              userFileDeletionPromises.push(
+                (async () => {
+                  try {
+                    if (!storageId) {
+                      return;
+                    }
+
+                    const userFileEntry = await ctx.db
+                      .query("userFiles")
+                      .withIndex("by_storage_id", q =>
+                        q.eq("storageId", storageId)
+                      )
+                      .unique();
+
+                    if (userFileEntry) {
+                      await ctx.db.delete(userFileEntry._id);
+                    }
+                  } catch (error) {
+                    console.warn(
+                      `Failed to delete userFile entry for storage ${storageId}:`,
+                      error
+                    );
+                  }
+                })()
               );
             }
           }
@@ -705,6 +794,7 @@ export const removeMultiple = mutation({
     );
 
     operations.push(...storageDeletePromises);
+    operations.push(...userFileDeletionPromises);
 
     await Promise.all(operations);
   },
@@ -720,6 +810,7 @@ export const internalRemoveMultiple = internalMutation({
     const conversationIds = new Set<Id<"conversations">>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
+    const userFileDeletionPromises: Promise<void>[] = [];
 
     for (const message of messages) {
       if (message) {
@@ -729,12 +820,9 @@ export const internalRemoveMultiple = internalMutation({
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
-              const user = await ctx.db.get(conversation.userId);
-              if (user && "totalMessageCount" in user) {
-                const currentCount =
-                  userMessageCounts.get(conversation.userId) || 0;
-                userMessageCounts.set(conversation.userId, currentCount + 1);
-              }
+              const currentCount =
+                userMessageCounts.get(conversation.userId) || 0;
+              userMessageCounts.set(conversation.userId, currentCount + 1);
             }
           }
         }
@@ -749,6 +837,34 @@ export const internalRemoveMultiple = internalMutation({
                     error
                   );
                 })
+              );
+
+              // Delete corresponding userFiles entry
+              const storageId = attachment.storageId;
+              userFileDeletionPromises.push(
+                (async () => {
+                  try {
+                    if (!storageId) {
+                      return;
+                    }
+
+                    const userFileEntry = await ctx.db
+                      .query("userFiles")
+                      .withIndex("by_storage_id", q =>
+                        q.eq("storageId", storageId)
+                      )
+                      .unique();
+
+                    if (userFileEntry) {
+                      await ctx.db.delete(userFileEntry._id);
+                    }
+                  } catch (error) {
+                    console.warn(
+                      `Failed to delete userFile entry for storage ${storageId}:`,
+                      error
+                    );
+                  }
+                })()
               );
             }
           }
@@ -798,6 +914,7 @@ export const internalRemoveMultiple = internalMutation({
     );
 
     operations.push(...storageDeletePromises);
+    operations.push(...userFileDeletionPromises);
 
     await Promise.all(operations);
   },

@@ -1,19 +1,22 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import type { PaginationResult } from "convex/server";
+import type { Infer } from "convex/values";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  internalMutation,
   type MutationCtx,
   mutation,
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { attachmentSchema } from "./lib/schemas";
 
 type FileTypeFilter = "image" | "pdf" | "text" | "all";
 
 type MessageAttachment = NonNullable<Doc<"messages">["attachments"]>[number];
 
-type AttachmentCandidate = {
+type _AttachmentCandidate = {
   storageId: Id<"_storage"> | null;
   attachment: MessageAttachment;
   messageId: Id<"messages">;
@@ -26,12 +29,12 @@ type AttachmentCandidate = {
 const MAX_LIMIT = 1000;
 const PAGE_SIZE_CAP = 200;
 
-type AttachmentFilters = {
+type _AttachmentFilters = {
   fileType: FileTypeFilter;
   includeGenerated: boolean;
 };
 
-function buildAttachmentKey(
+function _buildAttachmentKey(
   conversationId: Id<"conversations">,
   messageId: Id<"messages">,
   attachmentIndex: number,
@@ -43,7 +46,7 @@ function buildAttachmentKey(
   return `message:${conversationId}:${messageId}:${attachmentIndex}`;
 }
 
-function attachmentMatchesFilters(
+function _attachmentMatchesFilters(
   attachment: MessageAttachment,
   fileType: FileTypeFilter,
   includeGenerated: boolean
@@ -68,6 +71,85 @@ function attachmentMatchesFilters(
 function isNonNull<T>(value: T | null | undefined): value is T {
   return value != null;
 }
+
+/**
+ * Helper function to create userFiles entries for message attachments
+ * Call this whenever a message with attachments is created
+ */
+export async function createUserFileEntriesHandler(
+  ctx: MutationCtx,
+  args: {
+    userId: Id<"users">;
+    messageId: Id<"messages">;
+    conversationId: Id<"conversations">;
+    attachments: Infer<typeof attachmentSchema>[];
+  }
+) {
+  const entries: Id<"userFiles">[] = [];
+
+  for (const attachment of args.attachments) {
+    try {
+      // Only create entries for attachments with storageId
+      if (!attachment.storageId) {
+        continue;
+      }
+
+      const storageId = attachment.storageId;
+
+      // Check if entry already exists to avoid duplicates
+      const existing = await ctx.db
+        .query("userFiles")
+        .withIndex("by_storage_id", q => q.eq("storageId", storageId))
+        .unique();
+
+      if (existing) {
+        entries.push(existing._id);
+        continue;
+      }
+
+      const entryId = await ctx.db.insert("userFiles", {
+        userId: args.userId,
+        storageId,
+        messageId: args.messageId,
+        conversationId: args.conversationId,
+        type: attachment.type,
+        isGenerated: attachment.generatedImage?.isGenerated ?? false,
+        name: attachment.name,
+        size: attachment.size,
+        mimeType: attachment.mimeType,
+        createdAt: Date.now(),
+        // Include full attachment metadata
+        url: attachment.url,
+        content: attachment.content,
+        thumbnail: attachment.thumbnail,
+        textFileId: attachment.textFileId,
+        extractedText: attachment.extractedText,
+        extractionError: attachment.extractionError,
+        generatedImageSource: attachment.generatedImage?.source,
+        generatedImageModel: attachment.generatedImage?.model,
+        generatedImagePrompt: attachment.generatedImage?.prompt,
+      });
+      entries.push(entryId);
+    } catch (error) {
+      console.error("[createUserFileEntries] Error processing attachment:", {
+        attachment: { name: attachment.name, type: attachment.type },
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue processing other attachments even if one fails
+    }
+  }
+  return { created: entries.length, entryIds: entries };
+}
+
+export const createUserFileEntries = internalMutation({
+  args: {
+    userId: v.id("users"),
+    messageId: v.id("messages"),
+    conversationId: v.id("conversations"),
+    attachments: v.array(attachmentSchema),
+  },
+  handler: createUserFileEntriesHandler,
+});
 
 /**
  * Generate an upload URL for a file
@@ -148,6 +230,7 @@ export const deleteFile = mutation({
 
 /**
  * Get all user files with metadata and usage information
+ * Now using the dedicated userFiles table for efficient querying
  */
 export async function getUserFilesHandler(
   ctx: QueryCtx,
@@ -164,124 +247,83 @@ export async function getUserFilesHandler(
   }
 
   const limit = Math.max(1, Math.min(args.limit ?? PAGE_SIZE_CAP, MAX_LIMIT));
-  const filters: AttachmentFilters = {
-    fileType: args.fileType ?? "all",
-    includeGenerated: args.includeGenerated ?? true,
-  };
+  const fileType = args.fileType ?? "all";
+  const includeGenerated = args.includeGenerated ?? true;
 
-  // Pre-fetch all user's conversations to avoid pagination issues
-  const userConversations = await ctx.db
-    .query("conversations")
-    .withIndex("by_user_recent", q => q.eq("userId", userId))
-    .collect();
+  // Build the query based on filters
+  let query;
 
-  const conversationMap = new Map(userConversations.map(c => [c._id, c]));
-
-  // Get all messages with attachments - single collect() call
-  const allMessages = await ctx.db
-    .query("messages")
-    .withIndex("by_created_at")
-    .order("desc")
-    .collect();
-
-  const seenKeys = new Set<string>();
-  const results: AttachmentCandidate[] = [];
-
-  // Process messages and extract attachments
-  for (const message of allMessages) {
-    const conversation = conversationMap.get(message.conversationId);
-    if (!conversation) {
-      continue;
-    }
-
-    const attachments = (message.attachments ?? []) as MessageAttachment[];
-    if (attachments.length === 0) {
-      continue;
-    }
-
-    for (let idx = 0; idx < attachments.length; idx++) {
-      const attachment = attachments[idx];
-      if (!attachment) {
-        continue;
-      }
-
-      if (
-        !attachmentMatchesFilters(
-          attachment,
-          filters.fileType,
-          filters.includeGenerated
-        )
-      ) {
-        continue;
-      }
-
-      const storageId =
-        (attachment.storageId as Id<"_storage"> | undefined) ?? null;
-      const key = buildAttachmentKey(
-        conversation._id,
-        message._id,
-        idx,
-        storageId
-      );
-
-      if (seenKeys.has(key)) {
-        continue;
-      }
-
-      seenKeys.add(key);
-      results.push({
-        storageId,
-        attachment,
-        messageId: message._id,
-        conversationId: conversation._id,
-        conversationTitle: conversation.title ?? "Untitled conversation",
-        createdAt: message.createdAt ?? message._creationTime,
-        attachmentIndex: idx,
-      });
-
-      // Stop once we have enough results
-      if (results.length >= limit) {
-        break;
-      }
-    }
-
-    if (results.length >= limit) {
-      break;
-    }
+  if (fileType !== "all") {
+    // Use type-specific index for better performance
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_type_created", q =>
+        q.eq("userId", userId).eq("type", fileType)
+      )
+      .order("desc");
+  } else if (includeGenerated) {
+    // Get all files for user
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_created", q => q.eq("userId", userId))
+      .order("desc");
+  } else {
+    // Filter out generated images
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_generated", q =>
+        q.eq("userId", userId).eq("isGenerated", false)
+      )
+      .order("desc");
   }
 
-  const filesWithMetadata = await Promise.all(
-    results.map(async candidate => {
-      try {
-        if (!candidate.storageId) {
-          return {
-            storageId: null,
-            attachment: candidate.attachment,
-            messageId: candidate.messageId,
-            conversationId: candidate.conversationId,
-            conversationName: candidate.conversationTitle,
-            createdAt: candidate.createdAt,
-            url: null,
-            metadata: null,
-          };
-        }
+  // Apply additional filter for generated images if needed
+  const userFiles = await query.take(limit);
 
-        const fileMetadata = await ctx.db.system.get(candidate.storageId);
-        const fileUrl = await ctx.storage.getUrl(candidate.storageId);
+  // Filter out generated images if type is "image" and includeGenerated is false
+  const filteredFiles = userFiles.filter(file => {
+    if (fileType === "image" && !includeGenerated && file.isGenerated) {
+      return false;
+    }
+    return true;
+  });
+
+  // Fetch conversation titles and file metadata
+  const filesWithMetadata = await Promise.all(
+    filteredFiles.map(async file => {
+      try {
+        const conversation = await ctx.db.get(file.conversationId);
+        const fileMetadata = await ctx.db.system.get(file.storageId);
+        const fileUrl = await ctx.storage.getUrl(file.storageId);
+
+        // Get the attachment data from the message for full details
+        const message = await ctx.db.get(file.messageId);
+        const attachment = message?.attachments?.find(
+          att => att.storageId === file.storageId
+        );
 
         return {
-          storageId: candidate.storageId,
-          attachment: candidate.attachment,
-          messageId: candidate.messageId,
-          conversationId: candidate.conversationId,
-          conversationName: candidate.conversationTitle,
-          createdAt: candidate.createdAt,
+          storageId: file.storageId,
+          attachment: attachment || {
+            type: file.type,
+            name: file.name,
+            size: file.size,
+            url: fileUrl ?? "",
+            mimeType: file.mimeType,
+            generatedImage: file.isGenerated
+              ? { isGenerated: true, source: "unknown" }
+              : undefined,
+          },
+          messageId: file.messageId,
+          conversationId: file.conversationId,
+          conversationName: conversation?.title ?? "Untitled conversation",
+          createdAt: file.createdAt,
           url: fileUrl,
           metadata: fileMetadata,
         };
       } catch (error) {
         console.error(
-          `Failed to get metadata for file ${candidate.storageId ?? candidate.messageId}:`,
+          `Failed to get metadata for file ${file.storageId}:`,
           error
         );
         return null;
@@ -291,9 +333,11 @@ export async function getUserFilesHandler(
 
   const files = filesWithMetadata.filter(isNonNull);
 
+  // TODO: Implement proper cursor-based pagination
+  // For now, we use take() which is simpler but doesn't support cursors
   return {
     files,
-    hasMore: false,
+    hasMore: userFiles.length === limit,
     nextCursor: null,
   };
 }
@@ -335,31 +379,30 @@ export async function deleteMultipleFilesHandler(
     args.storageIds.map(storageId => ctx.storage.delete(storageId))
   );
 
+  // Delete entries from userFiles table
+  for (const storageId of args.storageIds) {
+    const userFileEntry = await ctx.db
+      .query("userFiles")
+      .withIndex("by_storage_id", q => q.eq("storageId", storageId))
+      .unique();
+
+    if (userFileEntry) {
+      await ctx.db.delete(userFileEntry._id);
+    }
+  }
+
   // Optionally update messages to remove references to deleted files
   if (args.updateMessages) {
-    // Get user's conversation IDs first
-    const userConversations = await ctx.db
-      .query("conversations")
-      .withIndex("by_user_recent", q => q.eq("userId", userId))
-      .collect();
-
-    const userConversationIds = new Set(userConversations.map(c => c._id));
     const storageIdSet = new Set(args.storageIds);
 
-    // Use a single paginated query to get all messages with attachments
+    // Use the new by_user_created index to get only user's messages
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_created_at")
-      .order("desc")
+      .withIndex("by_user_created", q => q.eq("userId", userId))
       .collect();
 
-    // Filter for user's messages and update attachments
+    // Update attachments in messages
     for (const message of messages) {
-      // Skip messages not in user's conversations
-      if (!userConversationIds.has(message.conversationId)) {
-        continue;
-      }
-
       if (message.attachments) {
         const updatedAttachments = message.attachments.filter(
           attachment =>
@@ -374,7 +417,6 @@ export async function deleteMultipleFilesHandler(
       }
     }
   }
-
   return { deletedCount: args.storageIds.length };
 }
 
@@ -388,6 +430,7 @@ export const deleteMultipleFiles = mutation({
 
 /**
  * Get file usage statistics for a user
+ * Now using the dedicated userFiles table for efficient querying
  */
 export async function getUserFileStatsHandler(ctx: QueryCtx) {
   const userId = await getAuthUserId(ctx);
@@ -395,19 +438,10 @@ export async function getUserFileStatsHandler(ctx: QueryCtx) {
     throw new Error("Not authenticated");
   }
 
-  // Get user's conversation IDs first
-  const userConversations = await ctx.db
-    .query("conversations")
-    .withIndex("by_user_recent", q => q.eq("userId", userId))
-    .collect();
-
-  const userConversationIds = new Set(userConversations.map(c => c._id));
-
-  // Use a single paginated query to get all messages
-  const messages = await ctx.db
-    .query("messages")
-    .withIndex("by_created_at")
-    .order("desc")
+  // Get all user files efficiently using the index
+  const userFiles = await ctx.db
+    .query("userFiles")
+    .withIndex("by_user_created", q => q.eq("userId", userId))
     .collect();
 
   let totalFiles = 0;
@@ -415,33 +449,15 @@ export async function getUserFileStatsHandler(ctx: QueryCtx) {
   const typeCounts = { image: 0, pdf: 0, text: 0 };
   const generatedImageCount = { count: 0, size: 0 };
 
-  for (const message of messages) {
-    // Skip messages not in user's conversations
-    if (!userConversationIds.has(message.conversationId)) {
-      continue;
-    }
+  for (const file of userFiles) {
+    totalFiles++;
+    totalSize += file.size;
 
-    if (message.attachments) {
-      for (const attachment of message.attachments) {
-        // Count files with storageId OR text files with content
-        if (
-          attachment.storageId ||
-          (attachment.type === "text" && attachment.content)
-        ) {
-          totalFiles++;
-          totalSize += attachment.size || 0;
-
-          if (
-            attachment.type === "image" &&
-            attachment.generatedImage?.isGenerated
-          ) {
-            generatedImageCount.count++;
-            generatedImageCount.size += attachment.size || 0;
-          } else {
-            typeCounts[attachment.type]++;
-          }
-        }
-      }
+    if (file.type === "image" && file.isGenerated) {
+      generatedImageCount.count++;
+      generatedImageCount.size += file.size;
+    } else {
+      typeCounts[file.type]++;
     }
   }
 
@@ -456,4 +472,122 @@ export async function getUserFileStatsHandler(ctx: QueryCtx) {
 export const getUserFileStats = query({
   args: {},
   handler: getUserFileStatsHandler,
+});
+
+/**
+ * Get attachments for a single message from userFiles table
+ * This is the primary query for the full migration from messages.attachments
+ */
+export async function getMessageAttachmentsHandler(
+  ctx: QueryCtx,
+  args: { messageId: Id<"messages"> }
+) {
+  const userFiles = await ctx.db
+    .query("userFiles")
+    .withIndex("by_message", q => q.eq("messageId", args.messageId))
+    .collect();
+
+  // Convert userFiles to attachment format
+  const attachments = await Promise.all(
+    userFiles.map(async file => {
+      // Generate URL from storageId
+      const url = (await ctx.storage.getUrl(file.storageId)) ?? "";
+
+      return {
+        type: file.type,
+        url,
+        name: file.name,
+        size: file.size,
+        content: file.content,
+        thumbnail: file.thumbnail,
+        storageId: file.storageId,
+        mimeType: file.mimeType,
+        textFileId: file.textFileId,
+        extractedText: file.extractedText,
+        extractionError: file.extractionError,
+        generatedImage: file.isGenerated
+          ? {
+              isGenerated: true,
+              source: file.generatedImageSource ?? "unknown",
+              model: file.generatedImageModel,
+              prompt: file.generatedImagePrompt,
+            }
+          : undefined,
+      };
+    })
+  );
+
+  return attachments;
+}
+
+export const getMessageAttachments = query({
+  args: {
+    messageId: v.id("messages"),
+  },
+  handler: getMessageAttachmentsHandler,
+});
+
+/**
+ * Get attachments for multiple messages in a single query (batched)
+ * More efficient than calling getMessageAttachments multiple times
+ */
+export async function getBatchMessageAttachmentsHandler(
+  ctx: QueryCtx,
+  args: { messageIds: Id<"messages">[] }
+) {
+  // Fetch all userFiles for these messages
+  const allFiles = await Promise.all(
+    args.messageIds.map(async messageId => {
+      const files = await ctx.db
+        .query("userFiles")
+        .withIndex("by_message", q => q.eq("messageId", messageId))
+        .collect();
+      return { messageId, files };
+    })
+  );
+
+  // Build a map of messageId -> attachments
+  const attachmentsByMessage: Record<string, Infer<typeof attachmentSchema>[]> =
+    {};
+
+  for (const { messageId, files } of allFiles) {
+    const attachments = await Promise.all(
+      files.map(async file => {
+        const url = (await ctx.storage.getUrl(file.storageId)) ?? "";
+
+        return {
+          type: file.type,
+          url,
+          name: file.name,
+          size: file.size,
+          content: file.content,
+          thumbnail: file.thumbnail,
+          storageId: file.storageId,
+          mimeType: file.mimeType,
+          textFileId: file.textFileId,
+          extractedText: file.extractedText,
+          extractionError: file.extractionError,
+          generatedImage: file.isGenerated
+            ? {
+                isGenerated: true,
+                source: file.generatedImageSource ?? "unknown",
+                model: file.generatedImageModel,
+                prompt: file.generatedImagePrompt,
+              }
+            : undefined,
+        };
+      })
+    );
+
+    attachmentsByMessage[messageId] = attachments;
+  }
+
+  return attachmentsByMessage;
+}
+
+export const getBatchMessageAttachments = query({
+  args: {
+    messageIds: v.array(v.id("messages")),
+  },
+  handler: getBatchMessageAttachmentsHandler,
 });

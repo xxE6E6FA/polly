@@ -14,6 +14,7 @@ import {
   sessionSchema,
   sharedConversationSchema,
   userApiKeySchema,
+  userFileSchema,
   userImageModelSchema,
   userModelSchema,
   userPersonaSettingsSchema,
@@ -70,6 +71,7 @@ export default defineSchema({
       "metadata.finishReason",
     ])
     .index("by_created_at", ["createdAt"])
+    .index("by_user_created", ["userId", "createdAt"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["conversationId", "isMainBranch"],
@@ -140,4 +142,12 @@ export default defineSchema({
     .index("by_user_created", ["userId", "createdAt"])
     .index("by_user_message", ["userId", "messageId"])
     .index("by_user_conversation", ["userId", "conversationId", "createdAt"]),
+
+  userFiles: defineTable(userFileSchema)
+    .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_type_created", ["userId", "type", "createdAt"])
+    .index("by_user_generated", ["userId", "isGenerated", "createdAt"])
+    .index("by_storage_id", ["storageId"])
+    .index("by_message", ["messageId"])
+    .index("by_conversation", ["conversationId", "createdAt"]),
 });

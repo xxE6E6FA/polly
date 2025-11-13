@@ -11,6 +11,17 @@ import {
 describe("branches.internalCloneMessages", () => {
   test("clones messages with correct field mapping", async () => {
     const targetConversationId = "conv-target" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const targetConversation = {
+      _id: targetConversationId,
+      _creationTime: Date.now(),
+      userId,
+      title: "Target Conv",
+      modelId: "test",
+      providerId: "openai",
+      archived: false,
+    };
 
     const sourceMessages = [
       {
@@ -38,6 +49,7 @@ describe("branches.internalCloneMessages", () => {
 
     const ctx = makeConvexCtx({
       db: {
+        get: mock(() => Promise.resolve(targetConversation)),
         insert: mock(() => Promise.resolve("new-msg-id" as Id<"messages">)),
       },
     });
@@ -47,10 +59,12 @@ describe("branches.internalCloneMessages", () => {
       sourceMessages,
     });
 
+    expect(ctx.db.get).toHaveBeenCalledWith(targetConversationId);
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "messages",
       expect.objectContaining({
         conversationId: targetConversationId,
+        userId,
         role: "user",
         content: "Hello",
         status: "done",
@@ -76,6 +90,17 @@ describe("branches.internalCloneMessages", () => {
 
   test("handles parent ID mapping for branched messages", async () => {
     const targetConversationId = "conv-target" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const targetConversation = {
+      _id: targetConversationId,
+      _creationTime: Date.now(),
+      userId,
+      title: "Target Conv",
+      modelId: "test",
+      providerId: "openai",
+      archived: false,
+    };
 
     const sourceMessages = [
       {
@@ -99,6 +124,7 @@ describe("branches.internalCloneMessages", () => {
     let insertCount = 0;
     const ctx = makeConvexCtx({
       db: {
+        get: mock(() => Promise.resolve(targetConversation)),
         insert: mock(() => {
           insertCount++;
           return Promise.resolve(insertCount === 1 ? newMsgId1 : newMsgId2);

@@ -113,11 +113,11 @@ export default function AttachmentsPage() {
 
   const managedToast = useToast();
 
-  // Query all user files (no filtering on server)
+  // Query user files with server-side filtering (uses userFiles table for efficient indexed queries)
   const filesData = useQuery(api.fileStorage.getUserFiles, {
-    fileType: "all",
-    includeGenerated: true,
-    limit: 1000, // Fetch more files since we're filtering client-side
+    fileType: fileType === "all" ? undefined : fileType,
+    includeGenerated,
+    limit: 1000,
   });
 
   // Mutations
@@ -125,35 +125,16 @@ export default function AttachmentsPage() {
   const deleteMultipleFiles = useMutation(api.fileStorage.deleteMultipleFiles);
   const removeAttachment = useMutation(api.messages.removeAttachment);
 
-  // Filter and sort files
+  // Filter and sort files (fileType and includeGenerated are already filtered server-side)
   const filteredAndSortedFiles = useMemo(() => {
     if (!filesData?.files) {
       return [];
     }
 
+    // Only apply client-side search filter (server handles fileType and includeGenerated)
     const filtered = filesData.files.filter((file: UserFile | null) => {
       if (!file) {
         return false;
-      }
-
-      // Apply file type filter
-      if (fileType !== "all") {
-        if (fileType === "image" && file.attachment.type !== "image") {
-          return false;
-        }
-        if (fileType === "pdf" && file.attachment.type !== "pdf") {
-          return false;
-        }
-        if (fileType === "text" && file.attachment.type !== "text") {
-          return false;
-        }
-      }
-
-      // Apply generated images filter
-      if (fileType === "image" && !includeGenerated) {
-        if (file.attachment.generatedImage?.isGenerated) {
-          return false;
-        }
       }
 
       // Apply search query filter
@@ -195,14 +176,7 @@ export default function AttachmentsPage() {
     });
 
     return sorted;
-  }, [
-    filesData?.files,
-    fileType,
-    includeGenerated,
-    searchQuery,
-    sortField,
-    sortDirection,
-  ]);
+  }, [filesData?.files, searchQuery, sortField, sortDirection]);
 
   // Memoized file key generation to ensure consistency
   const getFileKey = useCallback((file: UserFile) => {

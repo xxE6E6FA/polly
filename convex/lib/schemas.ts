@@ -2,116 +2,116 @@ import { v } from "convex/values";
 import type { Infer } from "convex/values";
 
 export const userModelSchema = v.object({
-    userId: v.id("users"),
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
+  userId: v.id("users"),
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
 
-    contextLength: v.number(),
-    maxOutputTokens: v.optional(v.number()),
-    supportsImages: v.boolean(),
-    supportsTools: v.boolean(),
-    supportsReasoning: v.boolean(),
-    supportsFiles: v.optional(v.boolean()),
-    inputModalities: v.optional(v.array(v.string())),
-    selected: v.optional(v.boolean()),
-    free: v.optional(v.boolean()),
-    isAvailable: v.optional(v.boolean()),
-    availabilityCheckedAt: v.optional(v.number()),
-    createdAt: v.number(),
+  contextLength: v.number(),
+  maxOutputTokens: v.optional(v.number()),
+  supportsImages: v.boolean(),
+  supportsTools: v.boolean(),
+  supportsReasoning: v.boolean(),
+  supportsFiles: v.optional(v.boolean()),
+  inputModalities: v.optional(v.array(v.string())),
+  selected: v.optional(v.boolean()),
+  free: v.optional(v.boolean()),
+  isAvailable: v.optional(v.boolean()),
+  availabilityCheckedAt: v.optional(v.number()),
+  createdAt: v.number(),
 });
 
 // Built-in models schema (global, not per-user)
 export const builtInModelSchema = v.object({
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
-    displayProvider: v.optional(v.string()),
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  displayProvider: v.optional(v.string()),
 
-    contextLength: v.number(),
-    maxOutputTokens: v.optional(v.number()),
-    supportsImages: v.boolean(),
-    supportsTools: v.boolean(),
-    supportsReasoning: v.boolean(),
-    supportsFiles: v.optional(v.boolean()),
-    inputModalities: v.optional(v.array(v.string())),
-    free: v.boolean(),
-    isActive: v.optional(v.boolean()), // Allow disabling built-in models
-    createdAt: v.number(),
+  contextLength: v.number(),
+  maxOutputTokens: v.optional(v.number()),
+  supportsImages: v.boolean(),
+  supportsTools: v.boolean(),
+  supportsReasoning: v.boolean(),
+  supportsFiles: v.optional(v.boolean()),
+  inputModalities: v.optional(v.array(v.string())),
+  free: v.boolean(),
+  isActive: v.optional(v.boolean()), // Allow disabling built-in models
+  createdAt: v.number(),
 });
 
 // Image models schema for Replicate image generation models
 export const userImageModelSchema = v.object({
-    userId: v.id("users"),
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
-    description: v.optional(v.string()),
-    
-    // Image generation specific fields
-    supportedAspectRatios: v.optional(v.array(v.string())),
-    supportsUpscaling: v.optional(v.boolean()),
-    supportsInpainting: v.optional(v.boolean()),
-    supportsOutpainting: v.optional(v.boolean()),
-    supportsImageToImage: v.optional(v.boolean()),
-    supportsMultipleImages: v.optional(v.boolean()),
-    supportsNegativePrompt: v.optional(v.boolean()),
-    
-    // Model metadata
-    modelVersion: v.optional(v.string()),
-    owner: v.optional(v.string()),
-    tags: v.optional(v.array(v.string())),
-    
-    selected: v.optional(v.boolean()),
-    createdAt: v.number(),
+  userId: v.id("users"),
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  description: v.optional(v.string()),
+
+  // Image generation specific fields
+  supportedAspectRatios: v.optional(v.array(v.string())),
+  supportsUpscaling: v.optional(v.boolean()),
+  supportsInpainting: v.optional(v.boolean()),
+  supportsOutpainting: v.optional(v.boolean()),
+  supportsImageToImage: v.optional(v.boolean()),
+  supportsMultipleImages: v.optional(v.boolean()),
+  supportsNegativePrompt: v.optional(v.boolean()),
+
+  // Model metadata
+  modelVersion: v.optional(v.string()),
+  owner: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+
+  selected: v.optional(v.boolean()),
+  createdAt: v.number(),
 });
 
 // Full image model definition schema - stores complete model details
 export const imageModelDefinitionSchema = v.object({
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
-    description: v.string(),
-    modelVersion: v.string(),
-    owner: v.string(),
-    tags: v.array(v.string()),
-    
-    // Image generation specific fields
-    supportedAspectRatios: v.array(v.string()),
-    supportsUpscaling: v.boolean(),
-    supportsInpainting: v.boolean(),
-    supportsOutpainting: v.boolean(),
-    supportsImageToImage: v.boolean(),
-    supportsMultipleImages: v.boolean(),
-    supportsNegativePrompt: v.optional(v.boolean()),
-    
-    // Rich metadata not in userImageModels
-    coverImageUrl: v.optional(v.string()),
-    exampleImages: v.optional(v.array(v.string())),
-    
-    // Metadata
-    createdAt: v.number(),
-    lastUpdated: v.number(),
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  description: v.string(),
+  modelVersion: v.string(),
+  owner: v.string(),
+  tags: v.array(v.string()),
+
+  // Image generation specific fields
+  supportedAspectRatios: v.array(v.string()),
+  supportsUpscaling: v.boolean(),
+  supportsInpainting: v.boolean(),
+  supportsOutpainting: v.boolean(),
+  supportsImageToImage: v.boolean(),
+  supportsMultipleImages: v.boolean(),
+  supportsNegativePrompt: v.optional(v.boolean()),
+
+  // Rich metadata not in userImageModels
+  coverImageUrl: v.optional(v.string()),
+  exampleImages: v.optional(v.array(v.string())),
+
+  // Metadata
+  createdAt: v.number(),
+  lastUpdated: v.number(),
 });
 
 // Model schema for internal actions (handles both user models and built-in models)
 export const modelForInternalActionsSchema = v.object({
-    modelId: v.string(),
-    name: v.string(),
-    provider: v.string(),
-    supportsReasoning: v.boolean(),
-    supportsImages: v.optional(v.boolean()),
-    supportsTools: v.optional(v.boolean()),
-    supportsFiles: v.optional(v.boolean()),
-    contextLength: v.optional(v.number()),
-    // Fields that may exist on built-in models
-    free: v.optional(v.boolean()),
-    isActive: v.optional(v.boolean()),
-    // Fields that may exist on user models  
-    selected: v.optional(v.boolean()),
+  modelId: v.string(),
+  name: v.string(),
+  provider: v.string(),
+  supportsReasoning: v.boolean(),
+  supportsImages: v.optional(v.boolean()),
+  supportsTools: v.optional(v.boolean()),
+  supportsFiles: v.optional(v.boolean()),
+  contextLength: v.optional(v.number()),
+  // Fields that may exist on built-in models
+  free: v.optional(v.boolean()),
+  isActive: v.optional(v.boolean()),
+  // Fields that may exist on user models
+  selected: v.optional(v.boolean()),
 
-    maxOutputTokens: v.optional(v.number()),
-    inputModalities: v.optional(v.array(v.string())),
+  maxOutputTokens: v.optional(v.number()),
+  inputModalities: v.optional(v.array(v.string())),
 });
 
 // Common attachment schema used across messages and conversations
@@ -129,12 +129,14 @@ export const attachmentSchema = v.object({
   extractedText: v.optional(v.string()), // Cached text extraction for PDFs (deprecated in favor of textFileId)
   extractionError: v.optional(v.string()), // Error message if extraction failed
   // Generated image metadata
-  generatedImage: v.optional(v.object({
-    isGenerated: v.boolean(),
-    source: v.string(), // "replicate", etc.
-    model: v.optional(v.string()),
-    prompt: v.optional(v.string()),
-  })),
+  generatedImage: v.optional(
+    v.object({
+      isGenerated: v.boolean(),
+      source: v.string(), // "replicate", etc.
+      model: v.optional(v.string()),
+      prompt: v.optional(v.string()),
+    }),
+  ),
 });
 
 // Reasoning configuration schema
@@ -149,7 +151,7 @@ export const messageRoleSchema = v.union(
   v.literal("user"),
   v.literal("assistant"),
   v.literal("system"),
-  v.literal("context")
+  v.literal("context"),
 );
 
 // Provider schema
@@ -160,7 +162,7 @@ export const providerSchema = v.union(
   v.literal("groq"),
   v.literal("openrouter"),
   v.literal("replicate"),
-  v.literal("elevenlabs")
+  v.literal("elevenlabs"),
 );
 
 // Web search citation schema
@@ -189,7 +191,9 @@ export const messageMetadataSchema = v.object({
   searchQuery: v.optional(v.string()),
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
-  searchMode: v.optional(v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))),
+  searchMode: v.optional(
+    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
+  ),
 });
 
 // Extended message metadata schema with status field
@@ -203,15 +207,19 @@ export const extendedMessageMetadataSchema = v.object({
   searchQuery: v.optional(v.string()),
   searchFeature: v.optional(v.string()),
   searchCategory: v.optional(v.string()),
-  searchMode: v.optional(v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))),
+  searchMode: v.optional(
+    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
+  ),
   status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
   webSearchCost: v.optional(v.number()),
   temperature: v.optional(v.number()),
-  usage: v.optional(v.object({
-    promptTokens: v.number(),
-    completionTokens: v.number(),
-    totalTokens: v.number(),
-  })),
+  usage: v.optional(
+    v.object({
+      promptTokens: v.number(),
+      completionTokens: v.number(),
+      totalTokens: v.number(),
+    }),
+  ),
 });
 
 export const ttsAudioCacheEntrySchema = v.object({
@@ -284,20 +292,28 @@ export const contextMessageSchema = v.object({
     v.string(),
     v.array(
       v.object({
-        type: v.union(v.literal("text"), v.literal("image_url"), v.literal("file")),
+        type: v.union(
+          v.literal("text"),
+          v.literal("image_url"),
+          v.literal("file"),
+        ),
         text: v.optional(v.string()),
         image_url: v.optional(v.object({ url: v.string() })),
-        file: v.optional(v.object({ 
-          filename: v.string(), 
-          file_data: v.string() 
-        })),
-        attachment: v.optional(v.object({
-          storageId: v.id("_storage"),
-          type: v.string(),
-          name: v.string(),
-        })),
-      })
-    )
+        file: v.optional(
+          v.object({
+            filename: v.string(),
+            file_data: v.string(),
+          }),
+        ),
+        attachment: v.optional(
+          v.object({
+            storageId: v.id("_storage"),
+            type: v.string(),
+            name: v.string(),
+          }),
+        ),
+      }),
+    ),
   ),
 });
 
@@ -309,37 +325,39 @@ export const reasoningConfigForActionSchema = v.object({
 });
 
 // Background job payload schemas
-const exportPayload = v.object({ 
+const exportPayload = v.object({
   includeAttachments: v.boolean(),
-  conversationIds: v.optional(v.array(v.id("conversations")))
+  conversationIds: v.optional(v.array(v.id("conversations"))),
 });
 
-const importPayload = v.object({ 
+const importPayload = v.object({
   fileUrl: v.string(),
   fileName: v.optional(v.string()),
-  originalFormat: v.optional(v.string())
+  originalFormat: v.optional(v.string()),
 });
 
 const bulkArchivePayload = v.object({
-  conversationIds: v.array(v.id("conversations"))
+  conversationIds: v.array(v.id("conversations")),
 });
 
 const bulkDeletePayload = v.object({
   conversationIds: v.array(v.id("conversations")),
-  permanentDelete: v.optional(v.boolean())
+  permanentDelete: v.optional(v.boolean()),
 });
 
 const conversationSummaryPayload = v.object({
   conversationId: v.id("conversations"),
-  messageRange: v.optional(v.object({
-    startMessageId: v.optional(v.id("messages")),
-    endMessageId: v.optional(v.id("messages"))
-  }))
+  messageRange: v.optional(
+    v.object({
+      startMessageId: v.optional(v.id("messages")),
+      endMessageId: v.optional(v.id("messages")),
+    }),
+  ),
 });
 
 const migrationPayload = v.object({
   migrationVersion: v.string(),
-  batchSize: v.optional(v.number())
+  batchSize: v.optional(v.number()),
 });
 
 // Discriminated union for payloads
@@ -348,10 +366,13 @@ export const jobPayloadSchema = v.union(
   v.object({ type: v.literal("import"), data: importPayload }),
   v.object({ type: v.literal("bulk_archive"), data: bulkArchivePayload }),
   v.object({ type: v.literal("bulk_delete"), data: bulkDeletePayload }),
-  v.object({ type: v.literal("conversation_summary"), data: conversationSummaryPayload }),
+  v.object({
+    type: v.literal("conversation_summary"),
+    data: conversationSummaryPayload,
+  }),
   v.object({ type: v.literal("data_migration"), data: migrationPayload }),
   v.object({ type: v.literal("model_migration"), data: migrationPayload }),
-  v.object({ type: v.literal("backup"), data: v.object({}) })
+  v.object({ type: v.literal("backup"), data: v.object({}) }),
 );
 
 // Background job result schemas
@@ -359,34 +380,34 @@ const exportResult = v.object({
   fileStorageId: v.id("_storage"),
   fileSizeBytes: v.number(),
   totalConversations: v.number(),
-  totalMessages: v.number()
+  totalMessages: v.number(),
 });
 
 const importResult = v.object({
   totalImported: v.number(),
   totalProcessed: v.number(),
   errors: v.array(v.string()),
-  conversationIds: v.array(v.string())
+  conversationIds: v.array(v.string()),
 });
 
 const bulkOperationResult = v.object({
   totalProcessed: v.number(),
   successCount: v.number(),
   errorCount: v.number(),
-  errors: v.array(v.string())
+  errors: v.array(v.string()),
 });
 
 const summaryResult = v.object({
   summary: v.string(),
   tokenCount: v.optional(v.number()),
-  model: v.optional(v.string())
+  model: v.optional(v.string()),
 });
 
 const migrationResult = v.object({
   migratedCount: v.number(),
   skippedCount: v.number(),
   errorCount: v.number(),
-  errors: v.array(v.string())
+  errors: v.array(v.string()),
 });
 
 // Background job type schema
@@ -398,7 +419,7 @@ export const backgroundJobTypeSchema = v.union(
   v.literal("conversation_summary"),
   v.literal("data_migration"),
   v.literal("model_migration"),
-  v.literal("backup")
+  v.literal("backup"),
 );
 
 // Background job category schema
@@ -406,7 +427,7 @@ export const backgroundJobCategorySchema = v.union(
   v.literal("data_transfer"),
   v.literal("bulk_operations"),
   v.literal("ai_processing"),
-  v.literal("maintenance")
+  v.literal("maintenance"),
 );
 
 // Background job status schema
@@ -415,7 +436,7 @@ export const backgroundJobStatusSchema = v.union(
   v.literal("processing"),
   v.literal("completed"),
   v.literal("failed"),
-  v.literal("cancelled")
+  v.literal("cancelled"),
 );
 
 // Background job priority schema
@@ -423,7 +444,7 @@ export const backgroundJobPrioritySchema = v.union(
   v.literal("low"),
   v.literal("normal"),
   v.literal("high"),
-  v.literal("urgent")
+  v.literal("urgent"),
 );
 
 // OpenRouter sorting schema
@@ -431,7 +452,7 @@ export const openRouterSortingSchema = v.union(
   v.literal("default"),
   v.literal("price"),
   v.literal("throughput"),
-  v.literal("latency")
+  v.literal("latency"),
 );
 
 // User schema
@@ -580,7 +601,7 @@ export const userSettingsSchema = v.object({
   ttsUseAudioTags: v.optional(v.boolean()),
   // removed voice hint
   ttsStabilityMode: v.optional(
-    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
+    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
   createdAt: v.number(),
   updatedAt: v.number(),
@@ -600,7 +621,7 @@ export const userSettingsUpdateSchema = v.object({
   ttsUseAudioTags: v.optional(v.boolean()),
   // removed voice hint
   ttsStabilityMode: v.optional(
-    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust"))
+    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
 });
 
@@ -609,9 +630,9 @@ export const messageStatusSchema = v.union(
   v.literal("thinking"),
   v.literal("searching"), // New status for web search in progress
   v.literal("reading_pdf"), // New status for PDF processing
-  v.literal("streaming"), 
+  v.literal("streaming"),
   v.literal("done"),
-  v.literal("error")
+  v.literal("error"),
 );
 
 // Image generation schema
@@ -620,24 +641,29 @@ export const imageGenerationSchema = v.object({
   status: v.optional(v.string()),
   output: v.optional(v.array(v.string())), // Array of image URLs from Replicate
   error: v.optional(v.string()),
-  metadata: v.optional(v.object({
-    duration: v.optional(v.number()),
-    model: v.optional(v.string()),
-    prompt: v.optional(v.string()),
-    params: v.optional(v.object({
-      aspectRatio: v.optional(v.string()),
-      steps: v.optional(v.number()),
-      guidanceScale: v.optional(v.number()),
-      seed: v.optional(v.number()),
-      negativePrompt: v.optional(v.string()),
-      count: v.optional(v.number()),
-    })),
-  })),
+  metadata: v.optional(
+    v.object({
+      duration: v.optional(v.number()),
+      model: v.optional(v.string()),
+      prompt: v.optional(v.string()),
+      params: v.optional(
+        v.object({
+          aspectRatio: v.optional(v.string()),
+          steps: v.optional(v.number()),
+          guidanceScale: v.optional(v.number()),
+          seed: v.optional(v.number()),
+          negativePrompt: v.optional(v.string()),
+          count: v.optional(v.number()),
+        }),
+      ),
+    }),
+  ),
 });
 
 // Message schema
 export const messageSchema = v.object({
   conversationId: v.id("conversations"),
+  userId: v.id("users"), // Denormalized for efficient querying
   role: v.string(),
   content: v.string(),
   status: v.optional(messageStatusSchema),
@@ -662,8 +688,6 @@ export const messageSchema = v.object({
   completedAt: v.optional(v.number()),
 });
 
-
-
 // Favorites schema for user-favorited messages
 export const messageFavoriteSchema = v.object({
   userId: v.id("users"),
@@ -672,7 +696,6 @@ export const messageFavoriteSchema = v.object({
   createdAt: v.number(),
 });
 
- 
 // Background job manifest schema (for database storage)
 export const backgroundJobManifestSchema = v.object({
   totalConversations: v.number(),
@@ -734,7 +757,7 @@ export const jobResultSchema = v.union(
   v.object({ type: v.literal("conversation_summary"), data: summaryResult }),
   v.object({ type: v.literal("data_migration"), data: migrationResult }),
   v.object({ type: v.literal("model_migration"), data: migrationResult }),
-  v.object({ type: v.literal("backup"), data: exportResult })
+  v.object({ type: v.literal("backup"), data: exportResult }),
 );
 
 // PDF text extraction cache schema
@@ -745,6 +768,32 @@ export const pdfTextCacheSchema = v.object({
   contentLength: v.number(), // Length of extracted text
   wordCount: v.number(), // Word count of extracted text
   expiresAt: v.number(), // Cache expiration timestamp
+});
+
+// User files tracking schema - for efficient file/attachment queries
+// Now contains full attachment metadata (migrated from messages.attachments)
+export const userFileSchema = v.object({
+  userId: v.id("users"),
+  storageId: v.id("_storage"),
+  messageId: v.id("messages"),
+  conversationId: v.id("conversations"),
+  type: v.union(v.literal("image"), v.literal("pdf"), v.literal("text")),
+  isGenerated: v.boolean(), // True for AI-generated images
+  name: v.string(),
+  size: v.number(),
+  mimeType: v.optional(v.string()),
+  createdAt: v.number(),
+  // Full attachment metadata (for migration from messages.attachments)
+  url: v.optional(v.string()), // Storage URL (can be regenerated from storageId)
+  content: v.optional(v.string()), // Extracted text content (for PDFs/text files)
+  thumbnail: v.optional(v.string()), // Thumbnail URL for images
+  textFileId: v.optional(v.id("_storage")), // Reference to stored text file (for PDFs)
+  extractedText: v.optional(v.string()), // Cached PDF text (deprecated, use textFileId)
+  extractionError: v.optional(v.string()), // Error message if PDF extraction failed
+  // Generated image metadata
+  generatedImageSource: v.optional(v.string()), // e.g., "replicate"
+  generatedImageModel: v.optional(v.string()), // Model used for generation
+  generatedImagePrompt: v.optional(v.string()), // Prompt used for generation
 });
 
 // ============================================================================

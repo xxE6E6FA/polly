@@ -10,6 +10,7 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { createUserFileEntriesHandler } from "./fileStorage";
 import { executeStreamingActionForRetry } from "./lib/conversation_utils";
 import {
   attachmentSchema,
@@ -103,10 +104,18 @@ export async function internalCloneMessagesHandler(
     }>;
   }
 ) {
+  // Get target conversation to extract userId
+  const targetConversation = await ctx.db.get(args.targetConversationId);
+  if (!targetConversation) {
+    throw new Error("Target conversation not found");
+  }
+
   const idMap = new Map<string, Id<"messages">>();
+
   for (const m of args.sourceMessages) {
     const newId = await ctx.db.insert("messages", {
       conversationId: args.targetConversationId,
+      userId: targetConversation.userId,
       role: m.role,
       content: m.content,
       status: m.status,
@@ -132,6 +141,16 @@ export async function internalCloneMessagesHandler(
       completedAt: m.completedAt,
     });
     idMap.set(m._id as unknown as string, newId);
+
+    // Create userFiles entries if message has attachments
+    if (m.attachments && m.attachments.length > 0) {
+      await createUserFileEntriesHandler(ctx, {
+        userId: targetConversation.userId,
+        messageId: newId,
+        conversationId: args.targetConversationId,
+        attachments: m.attachments,
+      });
+    }
   }
 }
 

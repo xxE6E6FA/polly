@@ -2,13 +2,16 @@ import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { CONFIG } from "./config";
 
-//
-
 export const convertStorageToData = async (
   ctx: ActionCtx,
   storageId: Id<"_storage">,
-  fileType?: string
-): Promise<{ blob: Blob; arrayBuffer: ArrayBuffer; base64: string; mimeType: string }> => {
+  fileType?: string,
+): Promise<{
+  blob: Blob;
+  arrayBuffer: ArrayBuffer;
+  base64: string;
+  mimeType: string;
+}> => {
   const blob = await ctx.storage.get(storageId);
   if (!blob) {
     throw new Error("File not found in storage");
@@ -17,7 +20,9 @@ export const convertStorageToData = async (
   const base64 = Buffer.from(new Uint8Array(arrayBuffer)).toString("base64");
   const mimeType =
     (blob as any).type ||
-    CONFIG.MIME_TYPES[(fileType as keyof typeof CONFIG.MIME_TYPES) || "default"] ||
+    CONFIG.MIME_TYPES[
+      (fileType as keyof typeof CONFIG.MIME_TYPES) || "default"
+    ] ||
     CONFIG.MIME_TYPES.default;
   return { blob, arrayBuffer, base64, mimeType };
 };
@@ -25,9 +30,13 @@ export const convertStorageToData = async (
 export const convertAttachment = async (
   ctx: ActionCtx,
   attachment: { storageId: Id<"_storage">; type: string; name?: string },
-  format: "dataUrl" | "aiSdk"
+  format: "dataUrl" | "aiSdk",
 ): Promise<string | { data: ArrayBuffer; mimeType: string }> => {
-  const storageData = await convertStorageToData(ctx, attachment.storageId, attachment.type);
+  const storageData = await convertStorageToData(
+    ctx,
+    attachment.storageId,
+    attachment.type,
+  );
   if (format === "dataUrl") {
     return `data:${storageData.mimeType};base64,${storageData.base64}`;
   }
@@ -37,7 +46,7 @@ export const convertAttachment = async (
 export const convertMessagePart = async (
   ctx: ActionCtx,
   part: any,
-  provider: string
+  provider: string,
 ): Promise<any> => {
   if (part.type === "text") {
     return { type: "text" as const, text: part.text || "" };
@@ -45,7 +54,11 @@ export const convertMessagePart = async (
   if (part.type === "image_url") {
     if (part.attachment?.storageId) {
       try {
-        const dataUrl = (await convertAttachment(ctx, part.attachment, "dataUrl")) as string;
+        const dataUrl = (await convertAttachment(
+          ctx,
+          part.attachment,
+          "dataUrl",
+        )) as string;
         return { type: "image" as const, image: dataUrl };
       } catch {
         // fallthrough
@@ -60,7 +73,11 @@ export const convertMessagePart = async (
       (provider === "anthropic" || provider === "google")
     ) {
       try {
-        const { data, mimeType } = (await convertAttachment(ctx, part.attachment, "aiSdk")) as {
+        const { data, mimeType } = (await convertAttachment(
+          ctx,
+          part.attachment,
+          "aiSdk",
+        )) as {
           data: ArrayBuffer;
           mimeType: string;
         };
@@ -75,8 +92,15 @@ export const convertMessagePart = async (
       }
       if (part.attachment.textFileId) {
         try {
-          const storageData = await convertStorageToData(ctx, part.attachment.textFileId, "text/plain");
-          return { type: "text" as const, text: new TextDecoder().decode(storageData.arrayBuffer) };
+          const storageData = await convertStorageToData(
+            ctx,
+            part.attachment.textFileId,
+            "text/plain",
+          );
+          return {
+            type: "text" as const,
+            text: new TextDecoder().decode(storageData.arrayBuffer),
+          };
         } catch {
           // fallthrough
         }
@@ -93,16 +117,19 @@ export const convertMessagePart = async (
 export const convertMessages = async (
   ctx: ActionCtx,
   messages: Array<{ role: string; content: string | any[] }>,
-  provider: string
+  provider: string,
 ): Promise<Array<{ role: "system" | "user" | "assistant"; content: any }>> => {
-  const promises = messages.map((msg) => {
+  const promises = messages.map(async (msg) => {
     if (typeof msg.content === "string") {
       return Promise.resolve({ role: msg.role as any, content: msg.content });
     }
-    return Promise.all(msg.content.map((p: any) => convertMessagePart(ctx, p, provider))).then((parts) => ({
+    const parts = await Promise.all(
+      msg.content.map((p: any) => convertMessagePart(ctx, p, provider)),
+    );
+    return {
       role: msg.role as any,
       content: parts,
-    }));
+    };
   });
   return await Promise.all(promises);
 };

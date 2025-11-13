@@ -3,6 +3,7 @@ import { makeConvexCtx } from "../test/convex-ctx";
 import type { Doc, Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
+  createUserFileEntriesHandler,
   deleteFileHandler,
   deleteMultipleFilesHandler,
   generateUploadUrlHandler,
@@ -11,6 +12,154 @@ import {
   getUserFileStatsHandler,
   getUserFilesHandler,
 } from "./fileStorage";
+
+describe("fileStorage: createUserFileEntries", () => {
+  test("creates userFile entries for message attachments", async () => {
+    const userId = "user-123" as Id<"users">;
+    const messageId = "msg-123" as Id<"messages">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const storageId = "storage-123" as Id<"_storage">;
+
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      unique: mock(() => Promise.resolve(null)),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => queryChain),
+        insert: mock(() => Promise.resolve("uf-123" as Id<"userFiles">)),
+      } as any,
+    });
+
+    const result = await createUserFileEntriesHandler(ctx as MutationCtx, {
+      userId,
+      messageId,
+      conversationId,
+      attachments: [
+        {
+          type: "image",
+          url: "",
+          name: "test.png",
+          size: 1024,
+          storageId,
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.entryIds).toHaveLength(1);
+    expect(ctx.db.insert).toHaveBeenCalledWith("userFiles", {
+      userId,
+      storageId,
+      messageId,
+      conversationId,
+      type: "image",
+      isGenerated: false,
+      name: "test.png",
+      size: 1024,
+      mimeType: "image/png",
+      createdAt: expect.any(Number),
+      url: "",
+      content: undefined,
+      thumbnail: undefined,
+      textFileId: undefined,
+      extractedText: undefined,
+      extractionError: undefined,
+      generatedImageSource: undefined,
+      generatedImageModel: undefined,
+      generatedImagePrompt: undefined,
+    });
+  });
+
+  test("skips attachments without storageId", async () => {
+    const userId = "user-123" as Id<"users">;
+    const messageId = "msg-123" as Id<"messages">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => ({})),
+        insert: mock(() => Promise.resolve("uf-123" as Id<"userFiles">)),
+      } as any,
+    });
+
+    const result = await createUserFileEntriesHandler(ctx as MutationCtx, {
+      userId,
+      messageId,
+      conversationId,
+      attachments: [
+        {
+          type: "text",
+          url: "",
+          name: "test.txt",
+          size: 512,
+          content: "Test content",
+          // No storageId
+        },
+      ],
+    });
+
+    expect(result.created).toBe(0);
+    expect(result.entryIds).toHaveLength(0);
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+
+  test("skips duplicate entries", async () => {
+    const userId = "user-123" as Id<"users">;
+    const messageId = "msg-123" as Id<"messages">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const storageId = "storage-123" as Id<"_storage">;
+    const existingId = "uf-existing" as Id<"userFiles">;
+
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      unique: mock(() =>
+        Promise.resolve({
+          _id: existingId,
+          _creationTime: Date.now(),
+          userId,
+          storageId,
+          messageId,
+          conversationId,
+          type: "image" as const,
+          isGenerated: false,
+          name: "test.png",
+          size: 1024,
+          createdAt: Date.now(),
+        })
+      ),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => queryChain),
+        insert: mock(() => Promise.resolve("uf-new" as Id<"userFiles">)),
+      } as any,
+    });
+
+    const result = await createUserFileEntriesHandler(ctx as MutationCtx, {
+      userId,
+      messageId,
+      conversationId,
+      attachments: [
+        {
+          type: "image",
+          url: "",
+          name: "test.png",
+          size: 1024,
+          storageId,
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.entryIds).toContain(existingId);
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+});
 
 describe("fileStorage: generateUploadUrl", () => {
   test("generates upload URL", async () => {
@@ -146,6 +295,26 @@ describe("fileStorage: getUserFiles", () => {
   const messageId = "msg-123" as Id<"messages">;
   const storageId = "storage-123" as Id<"_storage">;
 
+  function createMockUserFile(
+    overrides: Partial<Doc<"userFiles">> = {}
+  ): Doc<"userFiles"> {
+    return {
+      _id: "uf-123" as Id<"userFiles">,
+      _creationTime: Date.now(),
+      userId,
+      storageId,
+      messageId,
+      conversationId,
+      type: "image",
+      isGenerated: false,
+      name: "test.png",
+      size: 1024,
+      mimeType: "image/png",
+      createdAt: Date.now(),
+      ...overrides,
+    };
+  }
+
   function createMockConversation(
     overrides: Partial<Doc<"conversations">> = {}
   ): Doc<"conversations"> {
@@ -168,9 +337,18 @@ describe("fileStorage: getUserFiles", () => {
       _id: messageId,
       _creationTime: Date.now(),
       conversationId,
+      userId,
       role: "user",
       content: "Test message",
       createdAt: Date.now(),
+      attachments: [
+        {
+          type: "image",
+          name: "test.png",
+          size: 1024,
+          storageId,
+        },
+      ],
       ...overrides,
     };
   }
@@ -188,28 +366,14 @@ describe("fileStorage: getUserFiles", () => {
   });
 
   test("returns user files with image attachments", async () => {
+    const userFile = createMockUserFile();
     const conversation = createMockConversation();
-    const message = createMockMessage({
-      attachments: [
-        {
-          type: "image",
-          name: "test.png",
-          size: 1024,
-          storageId,
-        },
-      ],
-    });
+    const message = createMockMessage();
 
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([message])),
+      take: mock(() => Promise.resolve([userFile])),
     };
 
     const ctx = makeConvexCtx({
@@ -217,11 +381,15 @@ describe("fileStorage: getUserFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+        query: mock(() => queryChain),
+        get: mock((id: Id<any>) => {
+          if (id === conversationId) {
+            return Promise.resolve(conversation);
           }
-          return messagesQueryChain;
+          if (id === messageId) {
+            return Promise.resolve(message);
+          }
+          return Promise.resolve(null);
         }),
         system: {
           get: mock(() =>
@@ -251,20 +419,23 @@ describe("fileStorage: getUserFiles", () => {
   });
 
   test("filters files by type", async () => {
+    const pdfFile = createMockUserFile({
+      _id: "uf-pdf" as Id<"userFiles">,
+      storageId: "storage-pdf" as Id<"_storage">,
+      type: "pdf",
+      name: "test.pdf",
+      size: 2048,
+      mimeType: "application/pdf",
+    });
+
     const conversation = createMockConversation();
     const message = createMockMessage({
       attachments: [
         {
-          type: "image",
-          name: "test.png",
-          size: 1024,
-          storageId: "storage-1" as Id<"_storage">,
-        },
-        {
           type: "pdf",
           name: "test.pdf",
           size: 2048,
-          storageId: "storage-2" as Id<"_storage">,
+          storageId: "storage-pdf" as Id<"_storage">,
         },
       ],
     });
@@ -272,13 +443,7 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([message])),
+      take: mock(() => Promise.resolve([pdfFile])),
     };
 
     const ctx = makeConvexCtx({
@@ -286,19 +451,23 @@ describe("fileStorage: getUserFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+        query: mock(() => queryChain),
+        get: mock((id: Id<any>) => {
+          if (id === conversationId) {
+            return Promise.resolve(conversation);
           }
-          return messagesQueryChain;
+          if (id === messageId) {
+            return Promise.resolve(message);
+          }
+          return Promise.resolve(null);
         }),
         system: {
           get: mock(() =>
             Promise.resolve({
-              _id: storageId,
+              _id: "storage-pdf" as Id<"_storage">,
               _creationTime: Date.now(),
               sha256: "abc123",
-              size: 1024,
+              size: 2048,
               contentType: "application/pdf",
             })
           ),
@@ -318,25 +487,22 @@ describe("fileStorage: getUserFiles", () => {
   });
 
   test("excludes generated images when includeGenerated is false", async () => {
+    const uploadedFile = createMockUserFile({
+      _id: "uf-uploaded" as Id<"userFiles">,
+      storageId: "storage-uploaded" as Id<"_storage">,
+      name: "uploaded.png",
+      size: 2048,
+      isGenerated: false,
+    });
+
     const conversation = createMockConversation();
     const message = createMockMessage({
       attachments: [
         {
           type: "image",
-          name: "generated.png",
-          size: 1024,
-          storageId: "storage-1" as Id<"_storage">,
-          generatedImage: {
-            isGenerated: true,
-            provider: "dalle",
-            model: "dall-e-3",
-          },
-        },
-        {
-          type: "image",
           name: "uploaded.png",
           size: 2048,
-          storageId: "storage-2" as Id<"_storage">,
+          storageId: "storage-uploaded" as Id<"_storage">,
         },
       ],
     });
@@ -344,13 +510,7 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([message])),
+      take: mock(() => Promise.resolve([uploadedFile])),
     };
 
     const ctx = makeConvexCtx({
@@ -358,16 +518,20 @@ describe("fileStorage: getUserFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+        query: mock(() => queryChain),
+        get: mock((id: Id<any>) => {
+          if (id === conversationId) {
+            return Promise.resolve(conversation);
           }
-          return messagesQueryChain;
+          if (id === messageId) {
+            return Promise.resolve(message);
+          }
+          return Promise.resolve(null);
         }),
         system: {
           get: mock(() =>
             Promise.resolve({
-              _id: storageId,
+              _id: "storage-uploaded" as Id<"_storage">,
               _creationTime: Date.now(),
               sha256: "abc123",
               size: 2048,
@@ -391,31 +555,21 @@ describe("fileStorage: getUserFiles", () => {
   });
 
   test("respects limit parameter", async () => {
-    const conversation = createMockConversation();
-    const messages = Array.from({ length: 5 }, (_, i) =>
-      createMockMessage({
-        _id: `msg-${i}` as Id<"messages">,
-        attachments: [
-          {
-            type: "image",
-            name: `test-${i}.png`,
-            size: 1024,
-            storageId: `storage-${i}` as Id<"_storage">,
-          },
-        ],
+    const files = Array.from({ length: 5 }, (_, i) =>
+      createMockUserFile({
+        _id: `uf-${i}` as Id<"userFiles">,
+        storageId: `storage-${i}` as Id<"_storage">,
+        name: `test-${i}.png`,
       })
     );
+
+    const conversation = createMockConversation();
+    const message = createMockMessage();
 
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve(messages)),
+      take: mock(() => Promise.resolve(files.slice(0, 3))),
     };
 
     const ctx = makeConvexCtx({
@@ -423,11 +577,15 @@ describe("fileStorage: getUserFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+        query: mock(() => queryChain),
+        get: mock((id: Id<any>) => {
+          if (id === conversationId) {
+            return Promise.resolve(conversation);
           }
-          return messagesQueryChain;
+          if (id === messageId) {
+            return Promise.resolve(message);
+          }
+          return Promise.resolve(null);
         }),
         system: {
           get: mock(() =>
@@ -452,6 +610,15 @@ describe("fileStorage: getUserFiles", () => {
   });
 
   test("handles text attachments without storageId", async () => {
+    const textFile = createMockUserFile({
+      _id: "uf-text" as Id<"userFiles">,
+      storageId: "storage-text" as Id<"_storage">,
+      type: "text",
+      name: "test.txt",
+      size: 512,
+      mimeType: "text/plain",
+    });
+
     const conversation = createMockConversation();
     const message = createMockMessage({
       attachments: [
@@ -467,13 +634,7 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([message])),
+      take: mock(() => Promise.resolve([textFile])),
     };
 
     const ctx = makeConvexCtx({
@@ -481,28 +642,42 @@ describe("fileStorage: getUserFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+        query: mock(() => queryChain),
+        get: mock((id: Id<any>) => {
+          if (id === conversationId) {
+            return Promise.resolve(conversation);
           }
-          return messagesQueryChain;
+          if (id === messageId) {
+            return Promise.resolve(message);
+          }
+          return Promise.resolve(null);
         }),
+        system: {
+          get: mock(() =>
+            Promise.resolve({
+              _id: "storage-text" as Id<"_storage">,
+              _creationTime: Date.now(),
+              sha256: "abc123",
+              size: 512,
+              contentType: "text/plain",
+            })
+          ),
+        },
       } as any,
+      storage: {
+        getUrl: mock(() => Promise.resolve("https://example.com/test.txt")),
+      },
     });
 
     const result = await getUserFilesHandler(ctx as QueryCtx, {});
 
     expect(result.files).toHaveLength(1);
-    expect(result.files[0].storageId).toBeNull();
-    expect(result.files[0].url).toBeNull();
     expect(result.files[0].attachment.type).toBe("text");
   });
 });
 
 describe("fileStorage: deleteMultipleFiles", () => {
   const userId = "user-123" as Id<"users">;
-  const conversationId = "conv-123" as Id<"conversations">;
-  const messageId = "msg-123" as Id<"messages">;
   const storageIds = [
     "storage-1" as Id<"_storage">,
     "storage-2" as Id<"_storage">,
@@ -540,20 +715,43 @@ describe("fileStorage: deleteMultipleFiles", () => {
   });
 
   test("updates messages when updateMessages is true", async () => {
-    const conversation = {
-      _id: conversationId,
-      _creationTime: Date.now(),
-      userId,
-      title: "Test",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
+    const conversationId = "conv-123" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+
+    const userFiles = [
+      {
+        _id: "uf-1" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: storageIds[0],
+        messageId,
+        conversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "test1.png",
+        size: 1024,
+        createdAt: Date.now(),
+      },
+      {
+        _id: "uf-2" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: storageIds[1],
+        messageId,
+        conversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "test2.png",
+        size: 2048,
+        createdAt: Date.now(),
+      },
+    ];
 
     const message = {
       _id: messageId,
       _creationTime: Date.now(),
       conversationId,
+      userId,
       role: "user" as const,
       content: "Test",
       createdAt: Date.now(),
@@ -579,15 +777,17 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    const queryChain = {
-      withIndex: mock(() => queryChain),
-      order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
+    const userFilesQueryChain = {
+      withIndex: mock(() => userFilesQueryChain),
+      unique: mock((storageId: Id<"_storage">) => {
+        const file = userFiles.find(f => f.storageId === storageId);
+        return Promise.resolve(file || null);
+      }),
+      collect: mock(() => Promise.resolve(userFiles)),
     };
 
     const messagesQueryChain = {
       withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
       collect: mock(() => Promise.resolve([message])),
     };
 
@@ -597,12 +797,16 @@ describe("fileStorage: deleteMultipleFiles", () => {
       },
       db: {
         query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+          if (table === "userFiles") {
+            return userFilesQueryChain;
           }
-          return messagesQueryChain;
+          if (table === "messages") {
+            return messagesQueryChain;
+          }
+          return userFilesQueryChain;
         }),
         patch: mock(() => Promise.resolve(undefined)),
+        delete: mock(() => Promise.resolve(undefined)),
       } as any,
       storage: {
         delete: mock(() => Promise.resolve(undefined)),
@@ -629,30 +833,45 @@ describe("fileStorage: deleteMultipleFiles", () => {
 
   test("skips messages from other users conversations", async () => {
     const otherUserId = "user-456" as Id<"users">;
-    const userConversation = {
-      _id: conversationId,
-      _creationTime: Date.now(),
-      userId,
-      title: "User Conv",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
+    const conversationId = "conv-123" as Id<"conversations">;
+    const otherConversationId = "conv-456" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+    const otherMessageId = "msg-456" as Id<"messages">;
 
-    const otherConversation = {
-      _id: "conv-456" as Id<"conversations">,
-      _creationTime: Date.now(),
-      userId: otherUserId,
-      title: "Other Conv",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
+    const userFiles = [
+      {
+        _id: "uf-1" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: storageIds[0],
+        messageId,
+        conversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "test.png",
+        size: 1024,
+        createdAt: Date.now(),
+      },
+      {
+        _id: "uf-2" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId: otherUserId,
+        storageId: storageIds[1],
+        messageId: otherMessageId,
+        conversationId: otherConversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "other.png",
+        size: 2048,
+        createdAt: Date.now(),
+      },
+    ];
 
     const userMessage = {
       _id: messageId,
       _creationTime: Date.now(),
       conversationId,
+      userId,
       role: "user" as const,
       content: "Test",
       createdAt: Date.now(),
@@ -666,33 +885,22 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    const otherMessage = {
-      _id: "msg-456" as Id<"messages">,
-      _creationTime: Date.now(),
-      conversationId: otherConversation._id,
-      role: "user" as const,
-      content: "Test",
-      createdAt: Date.now(),
-      attachments: [
-        {
-          type: "image" as const,
-          name: "other.png",
-          size: 2048,
-          storageId: storageIds[1],
-        },
-      ],
-    };
-
-    const queryChain = {
-      withIndex: mock(() => queryChain),
-      order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([userConversation])),
+    const userFilesQueryChain = {
+      withIndex: mock(() => userFilesQueryChain),
+      unique: mock((storageId: Id<"_storage">) => {
+        const file = userFiles.find(
+          f => f.storageId === storageId && f.userId === userId
+        );
+        return Promise.resolve(file || null);
+      }),
+      collect: mock(() =>
+        Promise.resolve(userFiles.filter(f => f.userId === userId))
+      ),
     };
 
     const messagesQueryChain = {
       withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([userMessage, otherMessage])),
+      collect: mock(() => Promise.resolve([userMessage])),
     };
 
     const ctx = makeConvexCtx({
@@ -701,12 +909,16 @@ describe("fileStorage: deleteMultipleFiles", () => {
       },
       db: {
         query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
+          if (table === "userFiles") {
+            return userFilesQueryChain;
           }
-          return messagesQueryChain;
+          if (table === "messages") {
+            return messagesQueryChain;
+          }
+          return userFilesQueryChain;
         }),
         patch: mock(() => Promise.resolve(undefined)),
+        delete: mock(() => Promise.resolve(undefined)),
       } as any,
       storage: {
         delete: mock(() => Promise.resolve(undefined)),
@@ -741,67 +953,51 @@ describe("fileStorage: getUserFileStats", () => {
   });
 
   test("returns correct file statistics", async () => {
-    const conversation = {
-      _id: conversationId,
-      _creationTime: Date.now(),
-      userId,
-      title: "Test",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
-
-    const messages = [
+    const userFiles = [
       {
-        _id: "msg-1" as Id<"messages">,
+        _id: "uf-1" as Id<"userFiles">,
         _creationTime: Date.now(),
+        userId,
+        storageId: "storage-1" as Id<"_storage">,
+        messageId: "msg-1" as Id<"messages">,
         conversationId,
-        role: "user" as const,
-        content: "Test",
+        type: "image" as const,
+        isGenerated: false,
+        name: "test1.png",
+        size: 1024,
         createdAt: Date.now(),
-        attachments: [
-          {
-            type: "image" as const,
-            name: "test1.png",
-            size: 1024,
-            storageId: "storage-1" as Id<"_storage">,
-          },
-          {
-            type: "pdf" as const,
-            name: "test.pdf",
-            size: 2048,
-            storageId: "storage-2" as Id<"_storage">,
-          },
-        ],
       },
       {
-        _id: "msg-2" as Id<"messages">,
+        _id: "uf-2" as Id<"userFiles">,
         _creationTime: Date.now(),
+        userId,
+        storageId: "storage-2" as Id<"_storage">,
+        messageId: "msg-1" as Id<"messages">,
         conversationId,
-        role: "user" as const,
-        content: "Test",
+        type: "pdf" as const,
+        isGenerated: false,
+        name: "test.pdf",
+        size: 2048,
         createdAt: Date.now(),
-        attachments: [
-          {
-            type: "text" as const,
-            name: "test.txt",
-            size: 512,
-            content: "Test content",
-          },
-        ],
+      },
+      {
+        _id: "uf-3" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: "storage-3" as Id<"_storage">,
+        messageId: "msg-2" as Id<"messages">,
+        conversationId,
+        type: "text" as const,
+        isGenerated: false,
+        name: "test.txt",
+        size: 512,
+        createdAt: Date.now(),
       },
     ];
 
     const queryChain = {
       withIndex: mock(() => queryChain),
-      order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve(messages)),
+      collect: mock(() => Promise.resolve(userFiles)),
     };
 
     const ctx = makeConvexCtx({
@@ -809,12 +1005,7 @@ describe("fileStorage: getUserFileStats", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
-          }
-          return messagesQueryChain;
-        }),
+        query: mock(() => queryChain),
       } as any,
     });
 
@@ -834,56 +1025,38 @@ describe("fileStorage: getUserFileStats", () => {
   });
 
   test("counts generated images separately", async () => {
-    const conversation = {
-      _id: conversationId,
-      _creationTime: Date.now(),
-      userId,
-      title: "Test",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
-
-    const messages = [
+    const userFiles = [
       {
-        _id: "msg-1" as Id<"messages">,
+        _id: "uf-1" as Id<"userFiles">,
         _creationTime: Date.now(),
+        userId,
+        storageId: "storage-1" as Id<"_storage">,
+        messageId: "msg-1" as Id<"messages">,
         conversationId,
-        role: "user" as const,
-        content: "Test",
+        type: "image" as const,
+        isGenerated: true,
+        name: "generated.png",
+        size: 2048,
         createdAt: Date.now(),
-        attachments: [
-          {
-            type: "image" as const,
-            name: "generated.png",
-            size: 2048,
-            storageId: "storage-1" as Id<"_storage">,
-            generatedImage: {
-              isGenerated: true,
-              provider: "dalle",
-              model: "dall-e-3",
-            },
-          },
-          {
-            type: "image" as const,
-            name: "uploaded.png",
-            size: 1024,
-            storageId: "storage-2" as Id<"_storage">,
-          },
-        ],
+      },
+      {
+        _id: "uf-2" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: "storage-2" as Id<"_storage">,
+        messageId: "msg-1" as Id<"messages">,
+        conversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "uploaded.png",
+        size: 1024,
+        createdAt: Date.now(),
       },
     ];
 
     const queryChain = {
       withIndex: mock(() => queryChain),
-      order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([conversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve(messages)),
+      collect: mock(() => Promise.resolve(userFiles)),
     };
 
     const ctx = makeConvexCtx({
@@ -891,12 +1064,7 @@ describe("fileStorage: getUserFileStats", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
-          }
-          return messagesQueryChain;
-        }),
+        query: mock(() => queryChain),
       } as any,
     });
 
@@ -912,71 +1080,27 @@ describe("fileStorage: getUserFileStats", () => {
   });
 
   test("skips messages from other users", async () => {
-    const otherUserId = "user-456" as Id<"users">;
-    const userConversation = {
-      _id: conversationId,
-      _creationTime: Date.now(),
-      userId,
-      title: "User Conv",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
+    const _otherUserId = "user-456" as Id<"users">;
 
-    const otherConversation = {
-      _id: "conv-456" as Id<"conversations">,
-      _creationTime: Date.now(),
-      userId: otherUserId,
-      title: "Other Conv",
-      modelId: "test",
-      providerId: "openai",
-      archived: false,
-    };
-
-    const userMessage = {
-      _id: "msg-1" as Id<"messages">,
-      _creationTime: Date.now(),
-      conversationId,
-      role: "user" as const,
-      content: "Test",
-      createdAt: Date.now(),
-      attachments: [
-        {
-          type: "image" as const,
-          name: "user.png",
-          size: 1024,
-          storageId: "storage-1" as Id<"_storage">,
-        },
-      ],
-    };
-
-    const otherMessage = {
-      _id: "msg-2" as Id<"messages">,
-      _creationTime: Date.now(),
-      conversationId: otherConversation._id,
-      role: "user" as const,
-      content: "Test",
-      createdAt: Date.now(),
-      attachments: [
-        {
-          type: "image" as const,
-          name: "other.png",
-          size: 2048,
-          storageId: "storage-2" as Id<"_storage">,
-        },
-      ],
-    };
+    const userFiles = [
+      {
+        _id: "uf-1" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: "storage-1" as Id<"_storage">,
+        messageId: "msg-1" as Id<"messages">,
+        conversationId,
+        type: "image" as const,
+        isGenerated: false,
+        name: "user.png",
+        size: 1024,
+        createdAt: Date.now(),
+      },
+    ];
 
     const queryChain = {
       withIndex: mock(() => queryChain),
-      order: mock(() => queryChain),
-      collect: mock(() => Promise.resolve([userConversation])),
-    };
-
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      order: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([userMessage, otherMessage])),
+      collect: mock(() => Promise.resolve(userFiles)),
     };
 
     const ctx = makeConvexCtx({
@@ -984,12 +1108,7 @@ describe("fileStorage: getUserFileStats", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "conversations") {
-            return queryChain;
-          }
-          return messagesQueryChain;
-        }),
+        query: mock(() => queryChain),
       } as any,
     });
 

@@ -12,7 +12,7 @@ export const handleMessageDeletion = async (
   ctx: ActionCtx,
   messages: Doc<"messages">[],
   messageIndex: number,
-  retryType: "user" | "assistant"
+  retryType: "user" | "assistant",
 ) => {
   if (retryType === "assistant") {
     // For assistant retry, delete the assistant message itself AND everything after it
@@ -46,8 +46,8 @@ export const handleMessageDeletion = async (
       // Get all messages after the user message
       const messagesToDelete = messages.slice(messageIndex + 1);
       const additionalMessageIds = messagesToDelete
-        .filter(msg => msg.role !== "context") // Don't delete context messages
-        .map(msg => msg._id);
+        .filter((msg) => msg.role !== "context") // Don't delete context messages
+        .map((msg) => msg._id);
 
       messageIdsToDelete.push(...additionalMessageIds);
 
@@ -62,7 +62,7 @@ export const handleMessageDeletion = async (
 
 // Helper to find streaming assistant message
 export const findStreamingMessage = (
-  messages: Doc<"messages">[]
+  messages: Doc<"messages">[],
 ): Doc<"messages"> | null => {
   return (
     messages
@@ -74,7 +74,7 @@ export const findStreamingMessage = (
 // Helper to ensure conversation streaming state is cleared
 export const ensureStreamingCleared = async (
   ctx: ActionCtx | MutationCtx,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ) => {
   // Clear streaming state by patching the conversation directly
   if ("db" in ctx) {
@@ -88,26 +88,25 @@ export const ensureStreamingCleared = async (
 export const deleteMessagesAfterIndex = async (
   ctx: ActionCtx | MutationCtx,
   conversationId: Id<"conversations">,
-  afterMessageId: Id<"messages">
+  afterMessageId: Id<"messages">,
 ) => {
   // Get all messages in conversation
   const allMessages = await ctx.runQuery(api.messages.getAllInConversation, {
     conversationId,
   });
-  
+
   // Find the index of the target message
-  const afterMessageIndex = allMessages.findIndex((msg: any) => msg._id === afterMessageId);
+  const afterMessageIndex = allMessages.findIndex(
+    (msg: any) => msg._id === afterMessageId,
+  );
   if (afterMessageIndex === -1) return;
 
   // Get messages to delete (all messages after the target message)
   const messagesToDelete = allMessages.slice(afterMessageIndex + 1);
   const messageIds = messagesToDelete.map((msg: any) => msg._id);
-  
+
   if (messageIds.length > 0) {
-    const removeMultipleMutation =
-      (api.messages && (api.messages as Record<string, unknown>).removeMultiple) ??
-      "messages.removeMultiple";
-    await ctx.runMutation(removeMultipleMutation as any, {
+    await ctx.runMutation(api.messages.removeMultiple, {
       ids: messageIds,
     });
   }
@@ -124,7 +123,7 @@ export const resolveAttachmentUrls = async (
     size: number;
     content?: string;
     thumbnail?: string;
-  }>
+  }>,
 ): Promise<
   Array<{
     type: "image" | "pdf" | "text";
@@ -138,14 +137,14 @@ export const resolveAttachmentUrls = async (
   const resolvedAttachments = await Promise.all(
     attachments.map(async (attachment) => {
       let url = attachment.url;
-      
+
       if (attachment.storageId && !url) {
-        url = await ctx.storage.getUrl(attachment.storageId) ?? undefined;
+        url = (await ctx.storage.getUrl(attachment.storageId)) ?? undefined;
         if (!url) {
           throw new ConvexError("Failed to resolve attachment URL");
         }
       }
-      
+
       if (!url) {
         throw new ConvexError("Attachment must have either storageId or url");
       }
@@ -158,7 +157,7 @@ export const resolveAttachmentUrls = async (
         content: attachment.content,
         thumbnail: attachment.thumbnail,
       };
-    })
+    }),
   );
 
   return resolvedAttachments;
@@ -176,7 +175,7 @@ export const buildUserMessageContent = async (
     size: number;
     content?: string;
     thumbnail?: string;
-  }>
+  }>,
 ): Promise<{
   content: string;
   resolvedAttachments?: Array<{
@@ -197,7 +196,7 @@ export const buildUserMessageContent = async (
   // For text and PDF attachments with content, include in the message content
   let enhancedContent = content;
   const imageAttachments: typeof resolvedAttachments = [];
-  
+
   for (const attachment of resolvedAttachments) {
     if (attachment.type === "image") {
       imageAttachments.push(attachment);
@@ -209,7 +208,8 @@ export const buildUserMessageContent = async (
 
   return {
     content: enhancedContent,
-    resolvedAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
+    resolvedAttachments:
+      imageAttachments.length > 0 ? imageAttachments : undefined,
   };
 };
 
@@ -221,44 +221,22 @@ export const buildUserMessageContent = async (
 // DRY Helper: Fetch persona prompt if needed
 export async function getPersonaPrompt(
   ctx: QueryCtx | ActionCtx | MutationCtx,
-  personaId?: Id<"personas"> | null
+  personaId?: Id<"personas"> | null,
 ): Promise<string> {
   if (!personaId) {
     return "";
   }
 
-  const personaQuery =
-    (api.personas && (api.personas as Record<string, unknown>).get) ??
-    "personas.get";
-  const persona = await ctx.runQuery(personaQuery as any, { id: personaId });
+  const persona = await ctx.runQuery(api.personas.get, { id: personaId });
   return persona?.prompt || "";
 }
 
 // DRY Helper: Create a message (works for both ActionCtx and MutationCtx)
 export async function createMessage(
   ctx: ActionCtx | MutationCtx,
-  args: CreateMessageArgs
+  args: CreateMessageArgs,
 ): Promise<Id<"messages">> {
-  const mutation =
-    (api.messages && (api.messages as Record<string, unknown>).create) ??
-    "messages.create";
-  return (await ctx.runMutation(mutation as any, args)) as Id<"messages">;
-}
-
-// DRY Helper: Create a conversation (works for both ActionCtx and MutationCtx)
-export async function createConversation(
-  ctx: ActionCtx | MutationCtx,
-  args: CreateConversationArgs
-): Promise<Id<"conversations">> {
-  const mutation =
-    (api.conversations &&
-      (api.conversations as Record<string, unknown>).createConversation) ??
-    "conversations.createConversation";
-  const result = await ctx.runMutation(mutation as any, args);
-  if (result && typeof result === "object" && "conversationId" in result) {
-    return (result as { conversationId: Id<"conversations"> }).conversationId;
-  }
-  return result as Id<"conversations">;
+  return (await ctx.runMutation(api.messages.create, args)) as Id<"messages">;
 }
 
 export async function incrementUserMessageStats(
@@ -267,13 +245,14 @@ export async function incrementUserMessageStats(
   model: string,
   provider: string,
   tokensUsed?: number,
-  options?: { countTowardsMonthly?: boolean }
+  options?: { countTowardsMonthly?: boolean },
 ): Promise<void> {
   try {
     let countTowardsMonthly = options?.countTowardsMonthly;
 
     if (countTowardsMonthly === undefined) {
-      const canRunQuery = typeof (ctx as { runQuery?: unknown }).runQuery === "function";
+      const canRunQuery =
+        typeof (ctx as { runQuery?: unknown }).runQuery === "function";
       if (canRunQuery) {
         try {
           const modelLookup =
@@ -285,13 +264,13 @@ export async function incrementUserMessageStats(
             {
               modelId: model,
               provider,
-            }
+            },
           );
           countTowardsMonthly = Boolean(modelDoc?.free);
         } catch (lookupError) {
           console.warn(
             "[incrementUserMessageStats] Failed to determine model free status:",
-            lookupError
+            lookupError,
           );
           countTowardsMonthly = false;
         }
@@ -301,10 +280,7 @@ export async function incrementUserMessageStats(
     }
 
     // Schedule increment off the critical path to reduce contention
-    const incrementMutation =
-      (api.users && (api.users as Record<string, unknown>).incrementMessage) ??
-      "users.incrementMessage";
-    await scheduleRunAfter(ctx, 50, incrementMutation as any, {
+    await scheduleRunAfter(ctx, 50, api.users.incrementMessage, {
       userId,
       model,
       provider,
@@ -320,7 +296,7 @@ export async function incrementUserMessageStats(
 export async function scheduleTitleGeneration(
   ctx: ActionCtx,
   conversationId: Id<"conversations">,
-  delayMs: number = 3000
+  delayMs: number = 3000,
 ): Promise<void> {
   try {
     await scheduleRunAfter(ctx, delayMs, api.titleGeneration.generateTitle, {
@@ -337,7 +313,7 @@ export async function scheduleTitleGeneration(
 export function generateExportMetadata(
   conversation: Doc<"conversations">,
   messageCount: number,
-  attachmentCount: number = 0
+  attachmentCount: number = 0,
 ): {
   conversationId: string;
   title: string;
@@ -363,43 +339,54 @@ export { mergeSystemPrompts };
 export async function checkConversationAccess(
   ctx: QueryCtx | ActionCtx | MutationCtx,
   conversationId: Id<"conversations">,
-  allowSharedAccess: boolean
-): Promise<{ hasAccess: boolean; conversation: Doc<"conversations"> | null; isDeleted?: boolean }>;
+  allowSharedAccess: boolean,
+): Promise<{
+  hasAccess: boolean;
+  conversation: Doc<"conversations"> | null;
+  isDeleted?: boolean;
+}>;
 
 export async function checkConversationAccess(
   ctx: QueryCtx | ActionCtx | MutationCtx,
   conversationId: Id<"conversations">,
-  userId: Id<"users">
+  userId: Id<"users">,
 ): Promise<Doc<"conversations">>;
 
 export async function checkConversationAccess(
   ctx: QueryCtx | ActionCtx | MutationCtx,
   conversationId: Id<"conversations">,
-  userIdOrAllowShared?: Id<"users"> | boolean
-): Promise<Doc<"conversations"> | { hasAccess: boolean; conversation: Doc<"conversations"> | null; isDeleted?: boolean }> {
-  
+  userIdOrAllowShared?: Id<"users"> | boolean,
+): Promise<
+  | Doc<"conversations">
+  | {
+      hasAccess: boolean;
+      conversation: Doc<"conversations"> | null;
+      isDeleted?: boolean;
+    }
+> {
   if (typeof userIdOrAllowShared === "boolean") {
     // New overload: return access info object
     // Note: allowSharedAccess parameter is reserved for future use
-    
+
     try {
       const userId = await getAuthUserId(ctx);
       if (!userId) {
         return { hasAccess: false, conversation: null };
       }
 
-      const conversation = "db" in ctx 
-        ? await ctx.db.get(conversationId)
-        : await ctx.runQuery(api.conversations.get, { id: conversationId });
+      const conversation =
+        "db" in ctx
+          ? await ctx.db.get(conversationId)
+          : await ctx.runQuery(api.conversations.get, { id: conversationId });
       if (!conversation) {
         return { hasAccess: false, conversation: null, isDeleted: true };
       }
 
       const hasAccess = conversation.userId === userId; // For now, only owner has access
-      return { 
-        hasAccess, 
+      return {
+        hasAccess,
         conversation: hasAccess ? conversation : null,
-        isDeleted: false 
+        isDeleted: false,
       };
     } catch (error) {
       return { hasAccess: false, conversation: null };
@@ -408,14 +395,15 @@ export async function checkConversationAccess(
     // Legacy overload: return conversation or throw
     const userId = userIdOrAllowShared;
     const effectiveUserId = userId || (await getAuthUserId(ctx));
-    
+
     if (!effectiveUserId) {
       throw new ConvexError("Not authenticated");
     }
 
-    const conversation = "db" in ctx 
-      ? await ctx.db.get(conversationId)
-      : await ctx.runQuery(api.conversations.get, { id: conversationId });
+    const conversation =
+      "db" in ctx
+        ? await ctx.db.get(conversationId)
+        : await ctx.runQuery(api.conversations.get, { id: conversationId });
 
     if (!conversation) {
       throw new ConvexError("Conversation not found");

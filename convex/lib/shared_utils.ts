@@ -11,7 +11,9 @@ import { MAX_USER_MESSAGE_CHARS } from "../constants";
  */
 
 // Get authenticated user with consistent error handling
-export async function getAuthenticatedUser(ctx: MutationCtx | QueryCtx): Promise<Id<"users">> {
+export async function getAuthenticatedUser(
+  ctx: MutationCtx | QueryCtx,
+): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
     throw new ConvexError("User not authenticated");
@@ -20,7 +22,9 @@ export async function getAuthenticatedUser(ctx: MutationCtx | QueryCtx): Promise
 }
 
 // Get authenticated user and user data in one call
-export async function getAuthenticatedUserWithData(ctx: MutationCtx | QueryCtx): Promise<{
+export async function getAuthenticatedUserWithData(
+  ctx: MutationCtx | QueryCtx,
+): Promise<{
   userId: Id<"users">;
   user: Doc<"users">;
 }> {
@@ -33,7 +37,9 @@ export async function getAuthenticatedUserWithData(ctx: MutationCtx | QueryCtx):
 }
 
 // Get authenticated user and user data for actions (uses runQuery)
-export async function getAuthenticatedUserWithDataForAction(ctx: ActionCtx): Promise<{
+export async function getAuthenticatedUserWithDataForAction(
+  ctx: ActionCtx,
+): Promise<{
   userId: Id<"users">;
   user: Doc<"users">;
 }> {
@@ -49,7 +55,9 @@ export async function getAuthenticatedUserWithDataForAction(ctx: ActionCtx): Pro
 }
 
 // Validate user authentication and return user data
-export async function validateAuthenticatedUser(ctx: MutationCtx | QueryCtx): Promise<Doc<"users">> {
+export async function validateAuthenticatedUser(
+  ctx: MutationCtx | QueryCtx,
+): Promise<Doc<"users">> {
   const userId = await getAuthenticatedUser(ctx);
   const user = await ctx.db.get(userId);
   if (!user) {
@@ -66,7 +74,7 @@ export async function validateAuthenticatedUser(ctx: MutationCtx | QueryCtx): Pr
 export async function hasConversationAccess(
   ctx: MutationCtx | QueryCtx,
   conversationId: Id<"conversations">,
-  allowShared: boolean = true
+  allowShared: boolean = true,
 ): Promise<{ hasAccess: boolean; conversation: Doc<"conversations"> | null }> {
   try {
     const conversation = await ctx.db.get(conversationId);
@@ -86,8 +94,8 @@ export async function hasConversationAccess(
     if (allowShared) {
       const sharedConversation = await ctx.db
         .query("sharedConversations")
-        .withIndex("by_original_conversation", q =>
-          q.eq("originalConversationId", conversationId)
+        .withIndex("by_original_conversation", (q) =>
+          q.eq("originalConversationId", conversationId),
         )
         .first();
 
@@ -106,9 +114,13 @@ export async function hasConversationAccess(
 export async function validateConversationAccess(
   ctx: MutationCtx | QueryCtx,
   conversationId: Id<"conversations">,
-  allowShared: boolean = true
+  allowShared: boolean = true,
 ): Promise<Doc<"conversations">> {
-  const { hasAccess, conversation } = await hasConversationAccess(ctx, conversationId, allowShared);
+  const { hasAccess, conversation } = await hasConversationAccess(
+    ctx,
+    conversationId,
+    allowShared,
+  );
   if (!hasAccess || !conversation) {
     throw new ConvexError<string>("Access denied");
   }
@@ -123,7 +135,7 @@ export async function validateConversationAccess(
 export async function resolveModelWithCapabilities(
   ctx: MutationCtx | QueryCtx,
   model?: string,
-  provider?: string
+  provider?: string,
 ) {
   return await getUserEffectiveModelWithCapabilities(ctx, model, provider);
 }
@@ -135,7 +147,7 @@ export async function resolveModelWithCapabilities(
 // Get message count for conversation
 export async function getMessageCount(
   ctx: MutationCtx | QueryCtx,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<number> {
   return await ctx.runQuery(api.messages.getMessageCount, {
     conversationId,
@@ -146,15 +158,15 @@ export async function getMessageCount(
 export async function getConversationMessages(
   ctx: MutationCtx | QueryCtx,
   conversationId: Id<"conversations">,
-  includeMainBranchOnly: boolean = true
+  includeMainBranchOnly: boolean = true,
 ) {
   let query = ctx.db
     .query("messages")
-    .withIndex("by_conversation", q => q.eq("conversationId", conversationId))
+    .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
     .order("asc");
 
   if (includeMainBranchOnly) {
-    query = query.filter(q => q.eq(q.field("isMainBranch"), true));
+    query = query.filter((q) => q.eq(q.field("isMainBranch"), true));
   }
 
   return await query.collect();
@@ -175,12 +187,16 @@ export const ERROR_MESSAGES = {
 } as const;
 
 // Create standardized errors
-export function createError(message: keyof typeof ERROR_MESSAGES): ConvexError<string> {
+export function createError(
+  message: keyof typeof ERROR_MESSAGES,
+): ConvexError<string> {
   return new ConvexError(ERROR_MESSAGES[message]);
 }
 
 // Handle optional user authentication (returns null if not authenticated)
-export async function getOptionalUser(ctx: MutationCtx | QueryCtx): Promise<Id<"users"> | null> {
+export async function getOptionalUser(
+  ctx: MutationCtx | QueryCtx,
+): Promise<Id<"users"> | null> {
   try {
     return await getAuthUserId(ctx);
   } catch {
@@ -196,7 +212,7 @@ export async function getOptionalUser(ctx: MutationCtx | QueryCtx): Promise<Id<"
 export async function validateOwnership(
   _ctx: MutationCtx | QueryCtx,
   resourceUserId: Id<"users">,
-  errorMessage: string = "Access denied"
+  errorMessage: string = "Access denied",
 ): Promise<void> {
   // This function is currently a no-op but kept for interface compatibility
   // The actual validation should happen in mutations that check user access
@@ -212,35 +228,42 @@ export async function validateOwnership(
 // Validate monthly message limits
 export async function validateMonthlyMessageLimit(
   _ctx: MutationCtx | QueryCtx,
-  user: Doc<"users">
+  user: Doc<"users">,
 ): Promise<void> {
   const monthlyLimit = user.monthlyLimit ?? 1000; // Default from shared constants
   const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
   if (monthlyMessagesSent >= monthlyLimit) {
-    throw new ConvexError<string>("Monthly built-in model message limit reached.");
+    throw new ConvexError<string>(
+      "Monthly built-in model message limit reached.",
+    );
   }
 }
 
 // Validate monthly message limits for actions (no-op since actions don't have db access for validation)
 export async function validateMonthlyMessageLimitForAction(
   _ctx: ActionCtx,
-  user: Doc<"users">
+  user: Doc<"users">,
 ): Promise<void> {
   // For actions, we'll skip the validation since we can't reliably check/update the count
   // The actual validation should happen in mutations that process the messages
   const monthlyLimit = user.monthlyLimit ?? 1000;
   const monthlyMessagesSent = user.monthlyMessagesSent ?? 0;
   if (monthlyMessagesSent >= monthlyLimit) {
-    throw new ConvexError<string>("Monthly built-in model message limit reached.");
+    throw new ConvexError<string>(
+      "Monthly built-in model message limit reached.",
+    );
   }
 }
 
 // Create default conversation fields
-export function createDefaultConversationFields(userId: Id<"users">, options: {
-  title?: string;
-  personaId?: Id<"personas">;
-  sourceConversationId?: Id<"conversations">;
-} = {}) {
+export function createDefaultConversationFields(
+  userId: Id<"users">,
+  options: {
+    title?: string;
+    personaId?: Id<"personas">;
+    sourceConversationId?: Id<"conversations">;
+  } = {},
+) {
   return {
     title: options.title || "New Conversation",
     userId: userId,
@@ -256,18 +279,29 @@ export function createDefaultConversationFields(userId: Id<"users">, options: {
 }
 
 // Create default message fields
-export function createDefaultMessageFields(conversationId: Id<"conversations">, options: {
-  role: string;
-  content: string;
-  model?: string;
-  provider?: string;
-  attachments?: any[];
-  reasoningConfig?: any;
-  temperature?: number;
-  status?: "thinking" | "searching" | "reading_pdf" | "streaming" | "done" | "error";
-} = { role: "user", content: "" }) {
+export function createDefaultMessageFields(
+  conversationId: Id<"conversations">,
+  userId: Id<"users">,
+  options: {
+    role: string;
+    content: string;
+    model?: string;
+    provider?: string;
+    attachments?: any[];
+    reasoningConfig?: any;
+    temperature?: number;
+    status?:
+      | "thinking"
+      | "searching"
+      | "reading_pdf"
+      | "streaming"
+      | "done"
+      | "error";
+  } = { role: "user", content: "" },
+) {
   return {
     conversationId,
+    userId,
     role: options.role,
     content: options.content,
     model: options.model,
@@ -277,9 +311,10 @@ export function createDefaultMessageFields(conversationId: Id<"conversations">, 
     status: options.status,
     isMainBranch: true,
     createdAt: Date.now(),
-    metadata: options.temperature !== undefined
-      ? { temperature: options.temperature }
-      : undefined,
+    metadata:
+      options.temperature !== undefined
+        ? { temperature: options.temperature }
+        : undefined,
   };
 }
 
@@ -287,12 +322,10 @@ export function createDefaultMessageFields(conversationId: Id<"conversations">, 
 export function validateUserMessageLength(content: string) {
   if (content && content.length > MAX_USER_MESSAGE_CHARS) {
     throw new ConvexError(
-      `Your message is too long (${content.length} characters). The maximum allowed is ${MAX_USER_MESSAGE_CHARS}. Please attach a file or split the message into smaller parts.`
+      `Your message is too long (${content.length} characters). The maximum allowed is ${MAX_USER_MESSAGE_CHARS}. Please attach a file or split the message into smaller parts.`,
     );
   }
 }
-
-
 
 /**
  * Shared streaming utilities
@@ -302,7 +335,7 @@ export function validateUserMessageLength(content: string) {
 export async function setConversationStreaming(
   ctx: MutationCtx,
   conversationId: Id<"conversations">,
-  isStreaming: boolean
+  isStreaming: boolean,
 ): Promise<void> {
   await ctx.db.patch(conversationId, {
     isStreaming,
@@ -314,7 +347,7 @@ export async function setConversationStreaming(
 export async function setConversationStreamingForAction(
   ctx: ActionCtx,
   conversationId: Id<"conversations">,
-  isStreaming: boolean
+  isStreaming: boolean,
 ): Promise<void> {
   await ctx.runMutation(api.conversations.setStreaming, {
     conversationId,
@@ -325,17 +358,15 @@ export async function setConversationStreamingForAction(
 // Stop streaming for a conversation
 export async function stopConversationStreaming(
   ctx: MutationCtx,
-  conversationId: Id<"conversations">
+  conversationId: Id<"conversations">,
 ): Promise<void> {
   await setConversationStreaming(ctx, conversationId, false);
 
   // Also mark any streaming message as stopped
   const recentAssistantMessage = await ctx.db
     .query("messages")
-    .withIndex("by_conversation", q =>
-      q.eq("conversationId", conversationId)
-    )
-    .filter(q => q.eq(q.field("role"), "assistant"))
+    .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+    .filter((q) => q.eq(q.field("role"), "assistant"))
     .order("desc")
     .first();
 
@@ -365,7 +396,7 @@ export async function stopConversationStreaming(
 // Apply pagination to any query
 export async function applyPagination<T>(
   query: any,
-  paginationOpts?: { cursor?: string; numItems?: number }
+  paginationOpts?: { cursor?: string; numItems?: number },
 ): Promise<{ page: T[]; isDone: boolean; continueCursor: string | null }> {
   if (!paginationOpts) {
     return {

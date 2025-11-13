@@ -6,6 +6,7 @@ import {
   internalQuery,
   mutation,
 } from "./_generated/server";
+import { createUserFileEntriesHandler } from "./fileStorage";
 import {
   attachmentSchema,
   extendedMessageMetadataSchema,
@@ -73,6 +74,7 @@ export const processBatch = internalMutation({
         .filter(msg => msg?.content && msg.content.trim() !== "")
         .map((msg, msgIndex) => ({
           conversationId,
+          userId: args.userId,
           role: msg.role,
           content: msg.content,
           isMainBranch: true,
@@ -87,7 +89,18 @@ export const processBatch = internalMutation({
 
       // Insert all messages and count user messages
       for (const messageData of messagesToInsert) {
-        await ctx.db.insert("messages", messageData);
+        const messageId = await ctx.db.insert("messages", messageData);
+
+        // Create userFiles entries if message has attachments
+        if (messageData.attachments && messageData.attachments.length > 0) {
+          await createUserFileEntriesHandler(ctx, {
+            userId: args.userId,
+            messageId,
+            conversationId,
+            attachments: messageData.attachments,
+          });
+        }
+
         if (messageData.role === "user") {
           totalUserMessages++;
         }
