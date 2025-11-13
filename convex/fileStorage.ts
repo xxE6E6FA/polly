@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import type { PaginationResult } from "convex/server";
+import type { PaginationOptions, PaginationResult } from "convex/server";
+import { paginationOptsValidator } from "convex/server";
 import type { Infer } from "convex/values";
 import { ConvexError, v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -26,9 +27,6 @@ type _AttachmentCandidate = {
   createdAt: number;
   attachmentIndex: number;
 };
-
-const MAX_LIMIT = 1000;
-const PAGE_SIZE_CAP = 200;
 
 type _AttachmentFilters = {
   fileType: FileTypeFilter;
@@ -236,13 +234,12 @@ export const deleteFile = mutation({
 
 /**
  * Get all user files with metadata and usage information
- * Now using the dedicated userFiles table for efficient querying
+ * Now using the dedicated userFiles table with proper pagination support
  */
 export async function getUserFilesHandler(
   ctx: QueryCtx,
   args: {
-    limit?: number;
-    cursor?: string;
+    paginationOpts: PaginationOptions;
     fileType?: "image" | "pdf" | "text" | "all";
     includeGenerated?: boolean;
   }
@@ -252,7 +249,6 @@ export async function getUserFilesHandler(
     throw new Error("Not authenticated");
   }
 
-  const limit = Math.max(1, Math.min(args.limit ?? PAGE_SIZE_CAP, MAX_LIMIT));
   const fileType = args.fileType ?? "all";
   const includeGenerated = args.includeGenerated ?? true;
 
@@ -283,11 +279,11 @@ export async function getUserFilesHandler(
       .order("desc");
   }
 
-  // Apply additional filter for generated images if needed
-  const userFiles = await query.take(limit);
+  // Apply pagination
+  const paginatedResult = await query.paginate(args.paginationOpts);
 
   // Filter out generated images if type is "image" and includeGenerated is false
-  const filteredFiles = userFiles.filter(file => {
+  const filteredFiles = paginatedResult.page.filter(file => {
     if (fileType === "image" && !includeGenerated && file.isGenerated) {
       return false;
     }
@@ -339,19 +335,16 @@ export async function getUserFilesHandler(
 
   const files = filesWithMetadata.filter(isNonNull);
 
-  // TODO: Implement proper cursor-based pagination
-  // For now, we use take() which is simpler but doesn't support cursors
   return {
-    files,
-    hasMore: userFiles.length === limit,
-    nextCursor: null,
+    page: files,
+    isDone: paginatedResult.isDone,
+    continueCursor: paginatedResult.continueCursor,
   };
 }
 
 export const getUserFiles = query({
   args: {
-    limit: v.optional(v.number()),
-    cursor: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
     fileType: v.optional(
       v.union(
         v.literal("image"),
