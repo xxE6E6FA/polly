@@ -58,10 +58,8 @@ export const populateUserFilesBatch = mutation({
           // Check if entry already exists to avoid duplicates (using new compound index)
           const existing = await ctx.db
             .query("userFiles")
-            // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
-            .withIndex("by_storage_id", (q: any) =>
-              q.eq("userId", message.userId).eq("storageId", storageId),
-            )
+            .withIndex("by_message", q => q.eq("messageId", message._id))
+            .filter(q => q.eq(q.field("storageId"), storageId))
             .unique();
 
           if (existing) {
