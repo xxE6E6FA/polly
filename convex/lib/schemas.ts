@@ -772,6 +772,12 @@ export const pdfTextCacheSchema = v.object({
 
 // User files tracking schema - for efficient file/attachment queries
 // Now contains full attachment metadata (migrated from messages.attachments)
+//
+// IMPORTANT: DELETION OWNERSHIP VERIFICATION
+// When deleting userFiles entries, always verify ownership before deletion:
+// Fetch the userFiles entry and confirm userFileEntry.userId === current userId
+// before performing the delete. This prevents users from deleting other users' files.
+// See: fileStorage.ts deleteMultipleFiles, messages.ts handleMessageDeletion, etc.
 export const userFileSchema = v.object({
   userId: v.id("users"),
   storageId: v.id("_storage"),

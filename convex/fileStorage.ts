@@ -385,14 +385,18 @@ export async function deleteMultipleFilesHandler(
     args.storageIds.map(storageId => ctx.storage.delete(storageId))
   );
 
-  // Delete entries from userFiles table
+  // Delete entries from userFiles table (with ownership verification)
   for (const storageId of args.storageIds) {
-    const userFileEntry = await ctx.db
+    const userFileEntry: Doc<"userFiles"> | null = await ctx.db
       .query("userFiles")
-      .withIndex("by_storage_id", q => q.eq("storageId", storageId))
+      // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
+      .withIndex("by_storage_id", (q: any) =>
+        q.eq("userId", userId).eq("storageId", storageId)
+      )
       .unique();
 
-    if (userFileEntry) {
+    // Verify ownership before deleting
+    if (userFileEntry && userFileEntry.userId === userId) {
       await ctx.db.delete(userFileEntry._id);
     }
   }

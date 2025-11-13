@@ -95,7 +95,8 @@ async function handleMessageDeletion(
     role?: string;
     attachments?: Array<{ storageId?: Id<"_storage"> }>;
   },
-  operations: Promise<void>[]
+  operations: Promise<void>[],
+  userId?: Id<"users">
 ) {
   if (message.conversationId) {
     operations.push(
@@ -126,38 +127,36 @@ async function handleMessageDeletion(
     }
   }
 
-  if (message.attachments) {
+  if (message.attachments && userId) {
     for (const attachment of message.attachments) {
       if (attachment.storageId) {
+        const storageId = attachment.storageId;
+
         // Delete from storage
         operations.push(
-          ctx.storage.delete(attachment.storageId).catch(error => {
-            console.warn(
-              `Failed to delete file ${attachment.storageId}:`,
-              error
-            );
+          ctx.storage.delete(storageId).catch(error => {
+            console.warn(`Failed to delete file ${storageId}:`, error);
           })
         );
 
-        // Delete userFiles entry
+        // Delete userFiles entry (with ownership verification)
         operations.push(
           (async () => {
             try {
-              const userFileEntry = attachment.storageId
-                ? await ctx.db
-                    .query("userFiles")
-                    .withIndex("by_storage_id", q =>
-                      q.eq("storageId", attachment.storageId as Id<"_storage">)
-                    )
-                    .unique()
-                : null;
+              const userFileEntry = await ctx.db
+                .query("userFiles")
+                .withIndex("by_storage_id", q =>
+                  q.eq("userId", userId).eq("storageId", storageId)
+                )
+                .unique();
 
-              if (userFileEntry) {
+              // Verify ownership before deleting
+              if (userFileEntry && userFileEntry.userId === userId) {
                 await ctx.db.delete(userFileEntry._id);
               }
             } catch (error) {
               console.warn(
-                `Failed to delete userFile entry for storage ${attachment.storageId}:`,
+                `Failed to delete userFile entry for storage ${storageId}:`,
                 error
               );
             }
@@ -638,6 +637,11 @@ export async function removeHandler(
   ctx: MutationCtx,
   args: { id: Id<"messages"> }
 ) {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
   const message = await ctx.db.get(args.id);
 
   if (!message) {
@@ -657,7 +661,7 @@ export async function removeHandler(
   const operations: Promise<void>[] = [];
 
   // Use shared handler for deletion logic
-  await handleMessageDeletion(ctx, message, operations);
+  await handleMessageDeletion(ctx, message, operations, userId);
 
   operations.push(ctx.db.delete(args.id));
 
@@ -672,6 +676,11 @@ export const remove = mutation({
 export const removeMultiple = mutation({
   args: { ids: v.array(v.id("messages")) },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
     // Check access for all messages before proceeding
@@ -710,17 +719,15 @@ export const removeMultiple = mutation({
         if (message.attachments) {
           for (const attachment of message.attachments) {
             if (attachment.storageId) {
+              const storageId = attachment.storageId;
+
               storageDeletePromises.push(
-                ctx.storage.delete(attachment.storageId).catch(error => {
-                  console.warn(
-                    `Failed to delete file ${attachment.storageId}:`,
-                    error
-                  );
+                ctx.storage.delete(storageId).catch(error => {
+                  console.warn(`Failed to delete file ${storageId}:`, error);
                 })
               );
 
-              // Delete corresponding userFiles entry
-              const storageId = attachment.storageId;
+              // Delete corresponding userFiles entry (with ownership verification)
               userFileDeletionPromises.push(
                 (async () => {
                   try {
@@ -731,11 +738,12 @@ export const removeMultiple = mutation({
                     const userFileEntry = await ctx.db
                       .query("userFiles")
                       .withIndex("by_storage_id", q =>
-                        q.eq("storageId", storageId)
+                        q.eq("userId", userId).eq("storageId", storageId)
                       )
                       .unique();
 
-                    if (userFileEntry) {
+                    // Verify ownership before deleting
+                    if (userFileEntry && userFileEntry.userId === userId) {
                       await ctx.db.delete(userFileEntry._id);
                     }
                   } catch (error) {
@@ -807,6 +815,18 @@ export const internalRemoveMultiple = internalMutation({
   handler: async (ctx, args) => {
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
+    // Get userId from first message's conversation for ownership verification
+    let userId: Id<"users"> | null = null;
+    for (const message of messages) {
+      if (message?.conversationId) {
+        const conversation = await ctx.db.get(message.conversationId);
+        if (conversation) {
+          userId = conversation.userId;
+          break;
+        }
+      }
+    }
+
     const conversationIds = new Set<Id<"conversations">>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
@@ -827,35 +847,34 @@ export const internalRemoveMultiple = internalMutation({
           }
         }
 
-        if (message.attachments) {
+        if (message.attachments && userId) {
           for (const attachment of message.attachments) {
             if (attachment.storageId) {
+              const storageId = attachment.storageId;
+
               storageDeletePromises.push(
-                ctx.storage.delete(attachment.storageId).catch(error => {
-                  console.warn(
-                    `Failed to delete file ${attachment.storageId}:`,
-                    error
-                  );
+                ctx.storage.delete(storageId).catch(error => {
+                  console.warn(`Failed to delete file ${storageId}:`, error);
                 })
               );
 
-              // Delete corresponding userFiles entry
-              const storageId = attachment.storageId;
+              // Delete corresponding userFiles entry (with ownership verification)
               userFileDeletionPromises.push(
                 (async () => {
                   try {
-                    if (!storageId) {
+                    if (!(storageId && userId)) {
                       return;
                     }
 
                     const userFileEntry = await ctx.db
                       .query("userFiles")
                       .withIndex("by_storage_id", q =>
-                        q.eq("storageId", storageId)
+                        q.eq("userId", userId).eq("storageId", storageId)
                       )
                       .unique();
 
-                    if (userFileEntry) {
+                    // Verify ownership before deleting
+                    if (userFileEntry && userFileEntry.userId === userId) {
                       await ctx.db.delete(userFileEntry._id);
                     }
                   } catch (error) {

@@ -147,7 +147,7 @@ export default defineSchema({
     .index("by_user_created", ["userId", "createdAt"])
     .index("by_user_type_created", ["userId", "type", "createdAt"])
     .index("by_user_generated", ["userId", "isGenerated", "createdAt"])
-    .index("by_storage_id", ["storageId"])
+    .index("by_storage_id", ["userId", "storageId"])
     .index("by_message", ["messageId"])
     .index("by_conversation", ["conversationId", "createdAt"]),
 });

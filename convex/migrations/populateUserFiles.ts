@@ -55,10 +55,13 @@ export const populateUserFilesBatch = mutation({
 
           const storageId = attachment.storageId;
 
-          // Check if entry already exists to avoid duplicates
+          // Check if entry already exists to avoid duplicates (using new compound index)
           const existing = await ctx.db
             .query("userFiles")
-            .withIndex("by_storage_id", (q) => q.eq("storageId", storageId))
+            // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
+            .withIndex("by_storage_id", (q: any) =>
+              q.eq("userId", message.userId).eq("storageId", storageId),
+            )
             .unique();
 
           if (existing) {
