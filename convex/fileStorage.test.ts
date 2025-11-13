@@ -440,9 +440,11 @@ describe("fileStorage: getUserFiles", () => {
       },
     });
 
-    await expect(getUserFilesHandler(ctx as QueryCtx, {})).rejects.toThrow(
-      "Not authenticated"
-    );
+    await expect(
+      getUserFilesHandler(ctx as QueryCtx, {
+        paginationOpts: { numItems: 50, cursor: null },
+      })
+    ).rejects.toThrow("Not authenticated");
   });
 
   test("returns user files with image attachments", async () => {
@@ -453,7 +455,13 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      take: mock(() => Promise.resolve([userFile])),
+      paginate: mock(() =>
+        Promise.resolve({
+          page: [userFile],
+          isDone: true,
+          continueCursor: "",
+        })
+      ),
     };
 
     const ctx = makeConvexCtx({
@@ -488,14 +496,15 @@ describe("fileStorage: getUserFiles", () => {
       },
     });
 
-    const result = await getUserFilesHandler(ctx as QueryCtx, {});
+    const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 50, cursor: null },
+    });
 
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0].storageId).toBe(storageId);
-    expect(result.files[0].attachment.type).toBe("image");
-    expect(result.files[0].conversationName).toBe("Test Conversation");
-    expect(result.hasMore).toBe(false);
-    expect(result.nextCursor).toBeNull();
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].storageId).toBe(storageId);
+    expect(result.page[0].attachment.type).toBe("image");
+    expect(result.page[0].conversationName).toBe("Test Conversation");
+    expect(result.isDone).toBe(true);
   });
 
   test("filters files by type", async () => {
@@ -523,7 +532,13 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      take: mock(() => Promise.resolve([pdfFile])),
+      paginate: mock(() =>
+        Promise.resolve({
+          page: [pdfFile],
+          isDone: true,
+          continueCursor: "",
+        })
+      ),
     };
 
     const ctx = makeConvexCtx({
@@ -559,11 +574,12 @@ describe("fileStorage: getUserFiles", () => {
     });
 
     const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 50, cursor: null },
       fileType: "pdf",
     });
 
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0].attachment.type).toBe("pdf");
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].attachment.type).toBe("pdf");
   });
 
   test("excludes generated images when includeGenerated is false", async () => {
@@ -590,7 +606,13 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      take: mock(() => Promise.resolve([uploadedFile])),
+      paginate: mock(() =>
+        Promise.resolve({
+          page: [uploadedFile],
+          isDone: true,
+          continueCursor: "",
+        })
+      ),
     };
 
     const ctx = makeConvexCtx({
@@ -626,12 +648,13 @@ describe("fileStorage: getUserFiles", () => {
     });
 
     const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 50, cursor: null },
       fileType: "image",
       includeGenerated: false,
     });
 
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0].attachment.name).toBe("uploaded.png");
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].attachment.name).toBe("uploaded.png");
   });
 
   test("respects limit parameter", async () => {
@@ -649,7 +672,13 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      take: mock(() => Promise.resolve(files.slice(0, 3))),
+      paginate: mock(() =>
+        Promise.resolve({
+          page: files.slice(0, 3),
+          isDone: false,
+          continueCursor: "cursor-3",
+        })
+      ),
     };
 
     const ctx = makeConvexCtx({
@@ -684,9 +713,12 @@ describe("fileStorage: getUserFiles", () => {
       },
     });
 
-    const result = await getUserFilesHandler(ctx as QueryCtx, { limit: 3 });
+    const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 3, cursor: null },
+    });
 
-    expect(result.files.length).toBeLessThanOrEqual(3);
+    expect(result.page.length).toBeLessThanOrEqual(3);
+    expect(result.isDone).toBe(false);
   });
 
   test("handles text attachments without storageId", async () => {
@@ -714,7 +746,13 @@ describe("fileStorage: getUserFiles", () => {
     const queryChain = {
       withIndex: mock(() => queryChain),
       order: mock(() => queryChain),
-      take: mock(() => Promise.resolve([textFile])),
+      paginate: mock(() =>
+        Promise.resolve({
+          page: [textFile],
+          isDone: true,
+          continueCursor: "",
+        })
+      ),
     };
 
     const ctx = makeConvexCtx({
@@ -749,10 +787,12 @@ describe("fileStorage: getUserFiles", () => {
       },
     });
 
-    const result = await getUserFilesHandler(ctx as QueryCtx, {});
+    const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 50, cursor: null },
+    });
 
-    expect(result.files).toHaveLength(1);
-    expect(result.files[0].attachment.type).toBe("text");
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0].attachment.type).toBe("text");
   });
 });
 

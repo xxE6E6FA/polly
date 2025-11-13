@@ -111,7 +111,13 @@
     "typescript": "^5"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": ["biome check --write"],
+    "*.{js,jsx,ts,tsx,json,css,md}": [
+      "biome check --write --files-ignore-unknown=true --no-errors-on-unmatched"
+    ],
+    "*.{ts,tsx}": ["bash -c 'tsc --noEmit'", "react-compiler-healthcheck"],
+    "*.{test,spec}.{ts,tsx}": [
+      "bash -c 'NODE_ENV=test bun test --passWithNoTests'"
+    ],
     "convex/_generated/**": []
   }
 }
