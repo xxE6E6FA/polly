@@ -380,12 +380,10 @@ export async function deleteMultipleFilesHandler(
     throw new Error("Not authenticated");
   }
 
-  // Delete files from storage
-  await Promise.all(
-    args.storageIds.map(storageId => ctx.storage.delete(storageId))
-  );
+  // First, verify ownership of ALL files before deleting anything
+  // This prevents malicious users from deleting other users' files
+  const ownershipVerification: Map<Id<"_storage">, boolean> = new Map();
 
-  // Delete entries from userFiles table (with ownership verification)
   for (const storageId of args.storageIds) {
     const userFileEntry: Doc<"userFiles"> | null = await ctx.db
       .query("userFiles")
@@ -395,7 +393,34 @@ export async function deleteMultipleFilesHandler(
       )
       .unique();
 
-    // Verify ownership before deleting
+    // Only mark as owned if entry exists AND userId matches
+    ownershipVerification.set(
+      storageId,
+      !!(userFileEntry && userFileEntry.userId === userId)
+    );
+  }
+
+  // Delete only owned files from storage
+  const deletedStorageIds: Id<"_storage">[] = [];
+  for (const storageId of args.storageIds) {
+    if (ownershipVerification.get(storageId)) {
+      await ctx.storage.delete(storageId).catch(error => {
+        console.warn(`Failed to delete storage file ${storageId}:`, error);
+      });
+      deletedStorageIds.push(storageId);
+    }
+  }
+
+  // Delete only owned entries from userFiles table
+  for (const storageId of deletedStorageIds) {
+    const userFileEntry: Doc<"userFiles"> | null = await ctx.db
+      .query("userFiles")
+      // biome-ignore lint/suspicious/noExplicitAny: Convex query builder type
+      .withIndex("by_storage_id", (q: any) =>
+        q.eq("userId", userId).eq("storageId", storageId)
+      )
+      .unique();
+
     if (userFileEntry && userFileEntry.userId === userId) {
       await ctx.db.delete(userFileEntry._id);
     }
@@ -403,7 +428,7 @@ export async function deleteMultipleFilesHandler(
 
   // Optionally update messages to remove references to deleted files
   if (args.updateMessages) {
-    const storageIdSet = new Set(args.storageIds);
+    const deletedStorageIdSet = new Set(deletedStorageIds);
 
     // Use the new by_user_created index to get only user's messages
     const messages = await ctx.db
@@ -416,7 +441,10 @@ export async function deleteMultipleFilesHandler(
       if (message.attachments) {
         const updatedAttachments = message.attachments.filter(
           attachment =>
-            !(attachment.storageId && storageIdSet.has(attachment.storageId))
+            !(
+              attachment.storageId &&
+              deletedStorageIdSet.has(attachment.storageId)
+            )
         );
 
         if (updatedAttachments.length !== message.attachments.length) {
@@ -427,7 +455,7 @@ export async function deleteMultipleFilesHandler(
       }
     }
   }
-  return { deletedCount: args.storageIds.length };
+  return { deletedCount: deletedStorageIds.length };
 }
 
 export const deleteMultipleFiles = mutation({

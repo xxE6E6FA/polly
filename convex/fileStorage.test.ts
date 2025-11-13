@@ -776,10 +776,55 @@ describe("fileStorage: deleteMultipleFiles", () => {
   });
 
   test("deletes files from storage", async () => {
+    const userFiles = [
+      {
+        _id: "uf-1" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: storageIds[0],
+        messageId: "msg-123" as Id<"messages">,
+        conversationId: "conv-123" as Id<"conversations">,
+        type: "image" as const,
+        isGenerated: false,
+        name: "test1.png",
+        size: 1024,
+        createdAt: Date.now(),
+      },
+      {
+        _id: "uf-2" as Id<"userFiles">,
+        _creationTime: Date.now(),
+        userId,
+        storageId: storageIds[1],
+        messageId: "msg-123" as Id<"messages">,
+        conversationId: "conv-123" as Id<"conversations">,
+        type: "image" as const,
+        isGenerated: false,
+        name: "test2.png",
+        size: 2048,
+        createdAt: Date.now(),
+      },
+    ];
+
+    // Create a query chain that handles multiple calls during ownership verification
+    let callCount = 0;
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      unique: mock(() => {
+        const file = userFiles[callCount];
+        callCount++;
+        return Promise.resolve(file || null);
+      }),
+      collect: mock(() => Promise.resolve([])),
+    };
+
     const ctx = makeConvexCtx({
       auth: {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
+      db: {
+        query: mock(() => queryChain),
+        delete: mock(() => Promise.resolve(undefined)),
+      } as any,
       storage: {
         delete: mock(() => Promise.resolve(undefined)),
       },
@@ -857,17 +902,27 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    const userFilesQueryChain = {
-      withIndex: mock(() => userFilesQueryChain),
-      unique: mock((storageId: Id<"_storage">) => {
-        const file = userFiles.find(f => f.storageId === storageId);
-        return Promise.resolve(file || null);
-      }),
-      collect: mock(() => Promise.resolve(userFiles)),
-    };
+    // Track ownership verification calls and DB deletion calls
+    let ownershipCheckCount = 0;
+    let dbDeletionCount = 0;
 
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      unique: mock(() => {
+        // Return owned files during ownership verification phase
+        if (ownershipCheckCount < storageIds.length) {
+          const file = userFiles[ownershipCheckCount];
+          ownershipCheckCount++;
+          return Promise.resolve(file || null);
+        }
+        // Return owned files during DB deletion verification phase
+        if (dbDeletionCount < storageIds.length) {
+          const file = userFiles[dbDeletionCount];
+          dbDeletionCount++;
+          return Promise.resolve(file || null);
+        }
+        return Promise.resolve(null);
+      }),
       collect: mock(() => Promise.resolve([message])),
     };
 
@@ -876,15 +931,7 @@ describe("fileStorage: deleteMultipleFiles", () => {
         getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
       },
       db: {
-        query: mock((table: string) => {
-          if (table === "userFiles") {
-            return userFilesQueryChain;
-          }
-          if (table === "messages") {
-            return messagesQueryChain;
-          }
-          return userFilesQueryChain;
-        }),
+        query: mock(() => queryChain),
         patch: mock(() => Promise.resolve(undefined)),
         delete: mock(() => Promise.resolve(undefined)),
       } as any,
@@ -965,22 +1012,44 @@ describe("fileStorage: deleteMultipleFiles", () => {
       ],
     };
 
-    const userFilesQueryChain = {
-      withIndex: mock(() => userFilesQueryChain),
-      unique: mock((storageId: Id<"_storage">) => {
-        const file = userFiles.find(
-          f => f.storageId === storageId && f.userId === userId
-        );
-        return Promise.resolve(file || null);
-      }),
-      collect: mock(() =>
-        Promise.resolve(userFiles.filter(f => f.userId === userId))
-      ),
-    };
+    // Track ownership verification calls and DB deletion calls
+    let ownershipCheckCount = 0;
+    let dbDeletionCount = 0;
+    let isQueryingMessages = false;
 
-    const messagesQueryChain = {
-      withIndex: mock(() => messagesQueryChain),
-      collect: mock(() => Promise.resolve([userMessage])),
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      unique: mock(() => {
+        // Return owned files during ownership verification phase
+        if (ownershipCheckCount < storageIds.length) {
+          const file = userFiles.find(
+            f =>
+              f.storageId ===
+                storageIds[ownershipCheckCount % storageIds.length] &&
+              f.userId === userId
+          );
+          ownershipCheckCount++;
+          return Promise.resolve(file || null);
+        }
+        // Return owned files during DB deletion verification phase
+        if (dbDeletionCount < storageIds.length) {
+          const file = userFiles.find(
+            f =>
+              f.storageId === storageIds[dbDeletionCount % storageIds.length] &&
+              f.userId === userId
+          );
+          dbDeletionCount++;
+          return Promise.resolve(file || null);
+        }
+        return Promise.resolve(null);
+      }),
+      collect: mock(() => {
+        // Return messages if querying for messages, otherwise userFiles
+        if (isQueryingMessages) {
+          return Promise.resolve([userMessage]);
+        }
+        return Promise.resolve(userFiles.filter(f => f.userId === userId));
+      }),
     };
 
     const ctx = makeConvexCtx({
@@ -989,13 +1058,8 @@ describe("fileStorage: deleteMultipleFiles", () => {
       },
       db: {
         query: mock((table: string) => {
-          if (table === "userFiles") {
-            return userFilesQueryChain;
-          }
-          if (table === "messages") {
-            return messagesQueryChain;
-          }
-          return userFilesQueryChain;
+          isQueryingMessages = table === "messages";
+          return queryChain;
         }),
         patch: mock(() => Promise.resolve(undefined)),
         delete: mock(() => Promise.resolve(undefined)),
