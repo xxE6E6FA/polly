@@ -116,7 +116,7 @@
     ],
     "*.{ts,tsx}": ["bash -c 'tsc --noEmit'", "react-compiler-healthcheck"],
     "*.{test,spec}.{ts,tsx}": [
-      "bash -c 'NODE_ENV=test bun test --passWithNoTests'"
+      "bash -c 'NODE_ENV=test bun test --pass-with-no-tests'"
     ],
     "convex/_generated/**": []
   }
