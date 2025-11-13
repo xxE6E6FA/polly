@@ -20,9 +20,13 @@ describe("fileStorage: createUserFileEntries", () => {
     const conversationId = "conv-123" as Id<"conversations">;
     const storageId = "storage-123" as Id<"_storage">;
 
+    const filterChain = {
+      unique: mock(() => Promise.resolve(null)),
+    };
+
     const queryChain = {
       withIndex: mock(() => queryChain),
-      unique: mock(() => Promise.resolve(null)),
+      filter: mock(() => filterChain),
     };
 
     const ctx = makeConvexCtx({
@@ -113,8 +117,7 @@ describe("fileStorage: createUserFileEntries", () => {
     const storageId = "storage-123" as Id<"_storage">;
     const existingId = "uf-existing" as Id<"userFiles">;
 
-    const queryChain = {
-      withIndex: mock(() => queryChain),
+    const filterChain = {
       unique: mock(() =>
         Promise.resolve({
           _id: existingId,
@@ -130,6 +133,11 @@ describe("fileStorage: createUserFileEntries", () => {
           createdAt: Date.now(),
         })
       ),
+    };
+
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      filter: mock(() => filterChain),
     };
 
     const ctx = makeConvexCtx({
@@ -158,6 +166,78 @@ describe("fileStorage: createUserFileEntries", () => {
     expect(result.created).toBe(1);
     expect(result.entryIds).toContain(existingId);
     expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+
+  test("creates separate entries for different messages with same storageId", async () => {
+    const userId = "user-123" as Id<"users">;
+    const messageId1 = "msg-123" as Id<"messages">;
+    const messageId2 = "msg-456" as Id<"messages">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const storageId = "storage-123" as Id<"_storage">;
+
+    // First call returns null (no existing entry), second call also returns null
+    const filterChain = {
+      unique: mock(() => Promise.resolve(null)),
+    };
+
+    const queryChain = {
+      withIndex: mock(() => queryChain),
+      filter: mock(() => filterChain),
+    };
+
+    const insertedIds = ["uf-1" as Id<"userFiles">, "uf-2" as Id<"userFiles">];
+    let insertCount = 0;
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => queryChain),
+        insert: mock(() =>
+          Promise.resolve(insertedIds[insertCount++] as Id<"userFiles">)
+        ),
+      } as any,
+    });
+
+    // Create entry for first message
+    const result1 = await createUserFileEntriesHandler(ctx as MutationCtx, {
+      userId,
+      messageId: messageId1,
+      conversationId,
+      attachments: [
+        {
+          type: "image",
+          url: "",
+          name: "test.png",
+          size: 1024,
+          storageId,
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    // Create entry for second message (same storageId)
+    const result2 = await createUserFileEntriesHandler(ctx as MutationCtx, {
+      userId,
+      messageId: messageId2,
+      conversationId,
+      attachments: [
+        {
+          type: "image",
+          url: "",
+          name: "test.png",
+          size: 1024,
+          storageId,
+          mimeType: "image/png",
+        },
+      ],
+    });
+
+    // Both should create new entries (not reuse)
+    expect(result1.created).toBe(1);
+    expect(result2.created).toBe(1);
+    expect(result1.entryIds[0]).toBe("uf-1");
+    expect(result2.entryIds[0]).toBe("uf-2");
+    // Insert should be called twice, not reused
+    expect(ctx.db.insert).toHaveBeenCalledTimes(2);
   });
 });
 

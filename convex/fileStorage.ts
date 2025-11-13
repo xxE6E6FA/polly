@@ -96,17 +96,22 @@ export async function createUserFileEntriesHandler(
 
       const storageId = attachment.storageId;
 
-      // Check if entry already exists to avoid duplicates
+      // Check if entry already exists for THIS message to avoid duplicates
+      // When cloning, we want separate userFiles entries per message even if storageId is shared
       const existing = await ctx.db
         .query("userFiles")
-        .withIndex("by_storage_id", q => q.eq("storageId", storageId))
+        .withIndex("by_message", q => q.eq("messageId", args.messageId))
+        .filter(q => q.eq(q.field("storageId"), storageId))
         .unique();
 
       if (existing) {
+        // Reuse existing entry for this exact message/storageId combination
         entries.push(existing._id);
         continue;
       }
 
+      // Create a new entry - this allows multiple userFiles entries for the same storageId
+      // as long as they point to different messages (necessary for cloned messages)
       const entryId = await ctx.db.insert("userFiles", {
         userId: args.userId,
         storageId,
