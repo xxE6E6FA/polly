@@ -815,18 +815,6 @@ export const internalRemoveMultiple = internalMutation({
   handler: async (ctx, args) => {
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
-    // Get userId from first message's conversation for ownership verification
-    let userId: Id<"users"> | null = null;
-    for (const message of messages) {
-      if (message?.conversationId) {
-        const conversation = await ctx.db.get(message.conversationId);
-        if (conversation) {
-          userId = conversation.userId;
-          break;
-        }
-      }
-    }
-
     const conversationIds = new Set<Id<"conversations">>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
@@ -847,7 +835,7 @@ export const internalRemoveMultiple = internalMutation({
           }
         }
 
-        if (message.attachments && userId) {
+        if (message.attachments) {
           for (const attachment of message.attachments) {
             if (attachment.storageId) {
               const storageId = attachment.storageId;
@@ -858,24 +846,26 @@ export const internalRemoveMultiple = internalMutation({
                 })
               );
 
-              // Delete corresponding userFiles entry (with ownership verification)
+              // Delete corresponding userFiles entry by messageId (works even if userId unavailable)
               userFileDeletionPromises.push(
                 (async () => {
                   try {
-                    if (!(storageId && userId)) {
+                    if (!storageId) {
                       return;
                     }
 
-                    const userFileEntry = await ctx.db
+                    // Clean up by messageId to handle cases where userId is unavailable
+                    const userFileEntries = await ctx.db
                       .query("userFiles")
-                      .withIndex("by_storage_id", q =>
-                        q.eq("userId", userId).eq("storageId", storageId)
+                      .withIndex("by_message", q =>
+                        q.eq("messageId", message._id)
                       )
-                      .unique();
+                      .collect();
 
-                    // Verify ownership before deleting
-                    if (userFileEntry && userFileEntry.userId === userId) {
-                      await ctx.db.delete(userFileEntry._id);
+                    for (const entry of userFileEntries) {
+                      if (entry.storageId === storageId) {
+                        await ctx.db.delete(entry._id);
+                      }
                     }
                   } catch (error) {
                     console.warn(
