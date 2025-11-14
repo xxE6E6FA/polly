@@ -12,7 +12,7 @@ async function addUserIdToMessagesHandler(
     batchSize?: number;
   },
 ) {
-  const batchSize = args.batchSize ?? 100;
+  const batchSize = args.batchSize ?? 25;
 
   // Get all messages without userId
   const messages = await ctx.db
@@ -61,30 +61,28 @@ export const addUserIdToMessages = internalMutation({
 });
 
 /**
- * Run the full migration (all batches)
+ * Run one batch of the migration
+ * Call this multiple times until hasMore is false to complete the migration
+ *
+ * This processes ONE batch per call to avoid exceeding Convex's 16MB read limit
  */
 export const runMigration = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    let totalUpdated = 0;
-    let totalDeleted = 0;
-    const allErrors: string[] = [];
-    let hasMore = true;
-
-    while (hasMore) {
-      const result = await addUserIdToMessagesHandler(ctx, { batchSize: 100 });
-      totalUpdated += result.updated;
-      totalDeleted += result.deleted;
-      allErrors.push(...result.errors);
-      hasMore = result.hasMore;
-    }
+  args: {
+    batchSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Use smaller default batch size to stay under bytes limit
+    const result = await addUserIdToMessagesHandler(ctx, {
+      batchSize: args.batchSize ?? 25
+    });
 
     return {
-      success: allErrors.length === 0,
-      message: `Updated ${totalUpdated} messages, deleted ${totalDeleted} orphaned messages`,
-      updated: totalUpdated,
-      deleted: totalDeleted,
-      errors: allErrors,
+      success: result.errors.length === 0,
+      message: `Updated ${result.updated} messages, deleted ${result.deleted} orphaned messages${result.hasMore ? " (more batches remaining)" : " (migration complete)"}`,
+      updated: result.updated,
+      deleted: result.deleted,
+      hasMore: result.hasMore,
+      errors: result.errors,
     };
   },
 });
