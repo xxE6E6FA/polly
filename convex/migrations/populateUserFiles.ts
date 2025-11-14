@@ -3,8 +3,10 @@ import type { Id } from "../_generated/dataModel";
 import {
   mutation,
   internalMutation,
+  internalAction,
   type MutationCtx,
 } from "../_generated/server";
+import { internal } from "../_generated/api";
 
 /**
  * Helper function containing the core migration logic
@@ -91,8 +93,8 @@ async function populateUserFilesHelper(
   return {
     created,
     skipped,
-    continueCursor: result.continueCursor,
-    isDone: result.isDone,
+    hasMore: !result.isDone,
+    cursor: result.continueCursor,
     processedMessages: result.page.length,
     errors,
   };
@@ -115,24 +117,110 @@ export const populateUserFilesBatch = mutation({
 });
 
 /**
- * Alias for consistency with other migrations
- * Note: This runs a SINGLE batch only. Use the script to run all batches.
+ * Internal mutation that processes one batch of the migration
+ * Used by runMigration (action) for self-scheduling pattern
  */
-export const runMigration = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    // Run just one batch using the helper function
+export const runBatch = internalMutation({
+  args: {
+    batchSize: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
     const result = await populateUserFilesHelper(ctx, {
-      batchSize: 10,
+      batchSize: args.batchSize ?? 10,
+      cursor: args.cursor,
     });
 
     return {
-      success: result.errors.length === 0,
-      message: `Single batch: Created ${result.created}, skipped ${result.skipped}`,
-      ...result,
-      warning: result.isDone
-        ? "Migration complete!"
-        : "More batches needed - use the full migration script",
+      created: result.created,
+      skipped: result.skipped,
+      hasMore: result.hasMore,
+      cursor: result.cursor,
+      errors: result.errors,
+    };
+  },
+});
+
+/**
+ * Self-scheduling action that runs the entire migration automatically
+ *
+ * This action runs one batch and then schedules itself to run again if there's more work.
+ * This allows the migration to run to completion without manual intervention.
+ *
+ * Usage from Convex dashboard or via CLI:
+ *   npx convex run migrations/populateUserFiles:runMigration
+ *
+ * The migration will continue until all messages with attachments are processed.
+ * You can monitor progress in the Convex dashboard logs.
+ */
+export const runMigration = internalAction({
+  args: {
+    batchSize: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    totalCreated: v.optional(v.number()),
+    totalSkipped: v.optional(v.number()),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    status: "in_progress" | "complete";
+    message: string;
+    totalCreated: number;
+    totalSkipped: number;
+  }> => {
+    const totalCreated = args.totalCreated ?? 0;
+    const totalSkipped = args.totalSkipped ?? 0;
+
+    // Run one batch
+    const result: {
+      created: number;
+      skipped: number;
+      hasMore: boolean;
+      cursor: string | null;
+      errors: string[];
+    } = await ctx.runMutation(
+      internal.migrations.populateUserFiles.runBatch,
+      {
+        batchSize: args.batchSize,
+        cursor: args.cursor,
+      },
+    );
+
+    const newTotalCreated = totalCreated + result.created;
+    const newTotalSkipped = totalSkipped + result.skipped;
+
+    console.log(
+      `Migration progress: ${newTotalCreated} userFiles created, ${newTotalSkipped} skipped`,
+    );
+
+    // If there's more work, schedule the next batch
+    if (result.hasMore && result.cursor) {
+      await ctx.scheduler.runAfter(
+        0, // Run immediately
+        internal.migrations.populateUserFiles.runMigration,
+        {
+          batchSize: args.batchSize,
+          cursor: result.cursor,
+          totalCreated: newTotalCreated,
+          totalSkipped: newTotalSkipped,
+        },
+      );
+
+      return {
+        status: "in_progress",
+        message: `Processed batch: ${result.created} created, ${result.skipped} skipped. Total so far: ${newTotalCreated} created, ${newTotalSkipped} skipped. Scheduling next batch...`,
+        totalCreated: newTotalCreated,
+        totalSkipped: newTotalSkipped,
+      };
+    }
+
+    // Migration complete!
+    return {
+      status: "complete",
+      message: `Migration complete! Total: ${newTotalCreated} userFiles created, ${newTotalSkipped} skipped.`,
+      totalCreated: newTotalCreated,
+      totalSkipped: newTotalSkipped,
     };
   },
 });
