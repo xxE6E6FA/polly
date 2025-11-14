@@ -227,7 +227,7 @@ export function ConversationSelectionList({
   const handleDeleteConversation = useCallback(
     async (conversationId: Id<"conversations">) => {
       try {
-        await removeConversation({ conversationId });
+        await removeConversation({ id: conversationId });
         managedToast.success("Conversation deleted");
         // Invalidate conversations cache
         del(CACHE_KEYS.conversations);
