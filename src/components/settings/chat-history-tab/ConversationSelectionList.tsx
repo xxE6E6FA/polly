@@ -2,14 +2,17 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
+  ArrowCounterClockwiseIcon,
   CaretDownIcon,
   CaretUpIcon,
   DownloadIcon,
+  LinkIcon,
   PushPinIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   DataList,
   type DataListColumn,
@@ -69,7 +72,11 @@ export function ConversationSelectionList({
     { initialNumItems: 50 }
   );
 
+  const navigate = useNavigate();
   const bulkRemove = useMutation(api.conversations.bulkRemove);
+  const removeConversation = useMutation(api.conversations.remove);
+  const togglePin = useMutation(api.conversations.togglePin);
+  const toggleArchive = useMutation(api.conversations.toggleArchive);
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
 
@@ -171,6 +178,64 @@ export function ConversationSelectionList({
     }
   }, [selection, bulkRemove, backgroundJobs, managedToast]);
 
+  const handleGoToConversation = useCallback(
+    (conversationId: Id<"conversations">) => {
+      navigate(`/chat/${conversationId}`);
+    },
+    [navigate]
+  );
+
+  const handleTogglePin = useCallback(
+    async (conversationId: Id<"conversations">, isPinned: boolean) => {
+      try {
+        await togglePin({ conversationId });
+        managedToast.success(
+          isPinned ? "Conversation unpinned" : "Conversation pinned"
+        );
+      } catch (error) {
+        managedToast.error("Failed to update pin status", {
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      }
+    },
+    [togglePin, managedToast]
+  );
+
+  const handleToggleArchive = useCallback(
+    async (conversationId: Id<"conversations">, isArchived: boolean) => {
+      try {
+        await toggleArchive({ conversationId });
+        managedToast.success(
+          isArchived ? "Conversation unarchived" : "Conversation archived"
+        );
+      } catch (error) {
+        managedToast.error("Failed to update archive status", {
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      }
+    },
+    [toggleArchive, managedToast]
+  );
+
+  const handleDeleteConversation = useCallback(
+    async (conversationId: Id<"conversations">) => {
+      try {
+        await removeConversation({ conversationId });
+        managedToast.success("Conversation deleted");
+        // Invalidate conversations cache
+        del(CACHE_KEYS.conversations);
+      } catch (error) {
+        managedToast.error("Failed to delete conversation", {
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      }
+    },
+    [removeConversation, managedToast]
+  );
+
   // Render badges for a conversation
   const renderBadges = useCallback(
     (conversation: ConversationSummary) => {
@@ -232,8 +297,80 @@ export function ConversationSelectionList({
         hideOnMobile: true,
         render: conversation => formatDate(conversation.createdAt),
       },
+      {
+        key: "actions",
+        label: "Actions",
+        width: "w-40 flex-shrink-0",
+        className: "flex items-center justify-end gap-1",
+        hideOnMobile: true,
+        render: conversation => (
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation();
+                handleGoToConversation(conversation._id);
+              }}
+              className="h-8 px-2"
+              title="Go to conversation"
+            >
+              <LinkIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation();
+                handleTogglePin(conversation._id, !!conversation.isPinned);
+              }}
+              className={`h-8 px-2 ${conversation.isPinned ? "text-blue-500" : ""}`}
+              title={conversation.isPinned ? "Unpin" : "Pin"}
+            >
+              <PushPinIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation();
+                handleToggleArchive(
+                  conversation._id,
+                  !!conversation.isArchived
+                );
+              }}
+              className={`h-8 px-2 ${conversation.isArchived ? "text-muted-foreground" : ""}`}
+              title={conversation.isArchived ? "Unarchive" : "Archive"}
+            >
+              {conversation.isArchived ? (
+                <ArrowCounterClockwiseIcon className="h-4 w-4" />
+              ) : (
+                <ArchiveIcon className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation();
+                handleDeleteConversation(conversation._id);
+              }}
+              className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              title="Delete conversation"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
     ],
-    [renderBadges]
+    [
+      renderBadges,
+      handleGoToConversation,
+      handleTogglePin,
+      handleToggleArchive,
+      handleDeleteConversation,
+    ]
   );
 
   // Check if export is currently running
@@ -330,6 +467,65 @@ export function ConversationSelectionList({
             <div className="text-xs text-muted-foreground">
               {formatDate(conversation.createdAt)}
             </div>
+          )}
+          mobileActionsRender={conversation => (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleGoToConversation(conversation._id);
+                }}
+                className="h-9 w-9 p-0"
+                title="Go to conversation"
+              >
+                <LinkIcon className="h-5 w-5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleTogglePin(conversation._id, !!conversation.isPinned);
+                }}
+                className={`h-9 w-9 p-0 ${conversation.isPinned ? "text-blue-500" : ""}`}
+                title={conversation.isPinned ? "Unpin" : "Pin"}
+              >
+                <PushPinIcon className="h-5 w-5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleToggleArchive(
+                    conversation._id,
+                    !!conversation.isArchived
+                  );
+                }}
+                className={`h-9 w-9 p-0 ${conversation.isArchived ? "text-muted-foreground" : ""}`}
+                title={conversation.isArchived ? "Unarchive" : "Archive"}
+              >
+                {conversation.isArchived ? (
+                  <ArrowCounterClockwiseIcon className="h-5 w-5" />
+                ) : (
+                  <ArchiveIcon className="h-5 w-5" />
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  handleDeleteConversation(conversation._id);
+                }}
+                className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Delete conversation"
+              >
+                <TrashIcon className="h-5 w-5" />
+              </Button>
+            </>
           )}
         />
       )}
