@@ -27,11 +27,20 @@ export function useListSelection<T>(getItemKey: (item: T) => string) {
     (items: T[]) => {
       const allKeys = new Set(items.map(getItemKey));
       setSelectedKeys(prev => {
-        // If all items are selected, deselect all; otherwise select all
-        if (prev.size === allKeys.size) {
-          return new Set();
+        // Check if all current items are actually selected
+        const allSelected = items.every(item => prev.has(getItemKey(item)));
+
+        if (allSelected) {
+          // Deselect only the items in the current view
+          const newSet = new Set(prev);
+          items.forEach(item => newSet.delete(getItemKey(item)));
+          return newSet;
         }
-        return allKeys;
+
+        // Select all items in current view, keeping any others already selected
+        const newSet = new Set(prev);
+        allKeys.forEach(key => newSet.add(key));
+        return newSet;
       });
     },
     [getItemKey]
