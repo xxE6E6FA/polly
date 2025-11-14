@@ -1,3 +1,9 @@
+export type {
+  DataListColumn,
+  DataListSelection,
+  DataListSort,
+} from "./DataList";
+export { DataList } from "./DataList";
 export { ListBody } from "./ListBody";
 export { ListCell } from "./ListCell";
 export { ListContainer } from "./ListContainer";
