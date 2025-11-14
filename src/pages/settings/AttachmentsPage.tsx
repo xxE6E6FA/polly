@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ListBody,
   ListCell,
@@ -112,6 +113,7 @@ function getFileAttachmentIcon(attachment: Attachment) {
 }
 
 export default function AttachmentsPage() {
+  const navigate = useNavigate();
   const [fileType, setFileType] = useState<FileType>("all");
   const [includeGenerated, setIncludeGenerated] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -478,7 +480,7 @@ export default function AttachmentsPage() {
             >
               Created
             </SortableHeader>
-            <ListHeaderCell width="w-24 flex-shrink-0" />
+            <ListHeaderCell width="w-32 flex-shrink-0">Actions</ListHeaderCell>
           </ListHeader>
 
           <ListBody>
@@ -537,19 +539,9 @@ export default function AttachmentsPage() {
 
                     {/* File type and conversation */}
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="flex-shrink-0">
-                        {file.attachment.type}
+                      <span className="truncate" title={file.conversationName}>
+                        {file.conversationName}
                       </span>
-                      <span className="flex-shrink-0">•</span>
-                      <div className="flex items-center gap-1 min-w-0">
-                        <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                        <span
-                          className="truncate"
-                          title={file.conversationName}
-                        >
-                          {file.conversationName}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </ListCell>
@@ -564,7 +556,7 @@ export default function AttachmentsPage() {
 
                 {/* Action buttons */}
                 <ListCell
-                  width="w-24 flex-shrink-0"
+                  width="w-32 flex-shrink-0"
                   className="flex items-center justify-end gap-1"
                 >
                   <Button
@@ -575,8 +567,21 @@ export default function AttachmentsPage() {
                       setPreviewFile(file);
                     }}
                     className="h-8 px-2"
+                    title="Preview file"
                   >
                     <EyeIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      navigate(`/chat/${file.conversationId}`);
+                    }}
+                    className="h-8 px-2"
+                    title="Go to conversation"
+                  >
+                    <LinkIcon className="h-4 w-4" />
                   </Button>
                   {file.url && (
                     <Button
@@ -587,6 +592,7 @@ export default function AttachmentsPage() {
                         handleDownloadFile(file);
                       }}
                       className="h-8 px-2"
+                      title="Download file"
                     >
                       <DownloadIcon className="h-4 w-4" />
                     </Button>
