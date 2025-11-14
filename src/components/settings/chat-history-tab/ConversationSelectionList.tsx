@@ -18,20 +18,11 @@ import {
 } from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import {
-  Drawer,
-  DrawerBody,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useListSelection } from "@/hooks/use-list-selection";
 import { useListSort } from "@/hooks/use-list-sort";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
 
 type ConversationSummary = {
@@ -61,26 +52,9 @@ function formatDate(timestamp: number): string {
 export function ConversationSelectionList({
   recentlyImportedIds,
 }: ConversationSelectionListProps) {
-  const [isMobile, setIsMobile] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [includeAttachments, setIncludeAttachments] = useState(true);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const mql = window.matchMedia("(max-width: 640px)");
-    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
-      const matches =
-        "matches" in e ? e.matches : (e as MediaQueryList).matches;
-      setIsMobile(matches);
-    };
-    handler(mql);
-    const listener = (e: MediaQueryListEvent) => handler(e);
-    mql.addEventListener?.("change", listener);
-    return () => mql.removeEventListener?.("change", listener);
-  }, []);
 
   // Query conversations with pagination
   const {
@@ -271,223 +245,140 @@ export function ConversationSelectionList({
 
   return (
     <>
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3 stack-md">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Select Conversations</CardTitle>
-            <div className="flex items-center gap-2">
-              {someSelected ? (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    onClick={handleExport}
-                    disabled={isExporting}
-                  >
-                    {isExporting ? (
-                      "Exporting..."
-                    ) : (
-                      <>
-                        <DownloadIcon className="mr-1 h-3 w-3" />
-                        Export ({selection.selectedCount})
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-7 text-xs"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <TrashIcon className="mr-1 h-3 w-3" />
-                    Delete ({selection.selectedCount})
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    onClick={selection.clearSelection}
-                  >
-                    Clear Selection
-                  </Button>
-                </>
-              ) : (
+      {/* Controls */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            {someSelected ? (
+              <>
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => selection.toggleAll(sortedConversations)}
+                  onClick={handleExport}
+                  disabled={isExporting}
                 >
-                  Select All
+                  {isExporting ? (
+                    "Exporting..."
+                  ) : (
+                    <>
+                      <DownloadIcon className="mr-2 h-4 w-4" />
+                      Export ({selection.selectedCount})
+                    </>
+                  )}
                 </Button>
-              )}
-            </div>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <TrashIcon className="mr-2 h-4 w-4" />
+                  Delete ({selection.selectedCount})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={selection.clearSelection}
+                >
+                  Clear
+                </Button>
+              </>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => selection.toggleAll(sortedConversations)}
+              >
+                Select All
+              </Button>
+            )}
           </div>
 
           {someSelected && (
-            <div className="flex items-center space-x-2 text-sm">
+            <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
-                id="include-attachments"
                 checked={includeAttachments}
                 onChange={e => setIncludeAttachments(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded"
               />
-              <label
-                htmlFor="include-attachments"
-                className="text-muted-foreground text-xs"
-              >
-                Include attachment content in export
-              </label>
+              Include attachment content in export
+            </label>
+          )}
+        </div>
+      </div>
+
+      {/* Conversations List */}
+      {isLoading && <ListLoadingState count={6} height="h-12" />}
+
+      {!isLoading && sortedConversations.length === 0 && (
+        <ListEmptyState
+          title="No conversations found"
+          description="Start a new conversation to see it here"
+        />
+      )}
+
+      {!isLoading && sortedConversations.length > 0 && (
+        <DataList
+          items={sortedConversations}
+          getItemKey={getConversationKey}
+          columns={columns}
+          selection={selection}
+          sort={{
+            field: sortField,
+            direction: sortDirection,
+            onSort: toggleSort,
+          }}
+          sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
+          onRowClick={conv => selection.toggleItem(conv)}
+          mobileTitleRender={conversation => (
+            <div className="flex items-center gap-2 min-w-0">
+              {renderBadges(conversation)}
+              <span className="text-sm font-medium truncate">
+                {conversation.title}
+              </span>
             </div>
           )}
-        </CardHeader>
-
-        <CardContent className="flex-1 min-h-0 p-0 border-t border-border/30">
-          {isLoading && <ListLoadingState count={6} height="h-12" />}
-
-          {!isLoading && sortedConversations.length === 0 && (
-            <ListEmptyState
-              title="No conversations found"
-              description="Start a new conversation to see it here"
-            />
-          )}
-
-          {!isLoading && sortedConversations.length > 0 && (
-            <DataList
-              items={sortedConversations}
-              getItemKey={getConversationKey}
-              columns={columns}
-              selection={selection}
-              sort={{
-                field: sortField,
-                direction: sortDirection,
-                onSort: toggleSort,
-              }}
-              sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-              onRowClick={conv => selection.toggleItem(conv)}
-              mobileTitleRender={conversation => (
-                <div className="flex items-center gap-2 min-w-0">
-                  {renderBadges(conversation)}
-                  <span className="text-sm font-medium truncate">
-                    {conversation.title}
-                  </span>
-                </div>
-              )}
-              mobileMetadataRender={conversation => (
-                <div className="text-xs text-muted-foreground">
-                  {formatDate(conversation.createdAt)}
-                </div>
-              )}
-            />
-          )}
-
-          {/* Load More Button */}
-          {status === "CanLoadMore" && (
-            <div className="flex justify-center py-4 border-t">
-              <Button onClick={() => loadMore(50)} variant="outline" size="sm">
-                Load More
-              </Button>
+          mobileMetadataRender={conversation => (
+            <div className="text-xs text-muted-foreground">
+              {formatDate(conversation.createdAt)}
             </div>
           )}
+        />
+      )}
 
-          {status === "LoadingMore" && (
-            <div className="flex justify-center py-4 border-t">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                <span>Loading more conversations...</span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Load More Button */}
+      {status === "CanLoadMore" && (
+        <div className="flex justify-center py-4">
+          <Button onClick={() => loadMore(50)} variant="outline">
+            Load More
+          </Button>
+        </div>
+      )}
 
-      {/* Desktop Dialog */}
-      <Dialog
-        open={!isMobile && showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-      >
-        <DialogContent>
-          <DialogTitle>Delete Conversations</DialogTitle>
-          <div className="stack-lg">
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete {selection.selectedCount}{" "}
-              conversation{selection.selectedCount === 1 ? "" : "s"}? This
-              action cannot be undone.
-            </p>
-            {selection.selectedCount > 10 && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                <p className="text-blue-800 dark:text-blue-200 text-sm">
-                  Large deletions will be processed in the background. You'll be
-                  notified when complete.
-                </p>
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteDialog(false)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleBulkDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
+      {status === "LoadingMore" && (
+        <div className="flex justify-center py-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span>Loading more conversations...</span>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
-      {/* Mobile Drawer */}
-      <Drawer
-        open={isMobile && showDeleteDialog}
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-      >
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Delete Conversations</DrawerTitle>
-          </DrawerHeader>
-          <DrawerBody>
-            <div className="stack-lg">
-              <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete {selection.selectedCount}{" "}
-                conversation{selection.selectedCount === 1 ? "" : "s"}? This
-                action cannot be undone.
-              </p>
-              {selection.selectedCount > 10 && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                  <p className="text-blue-800 dark:text-blue-200 text-sm">
-                    Large deletions will be processed in the background. You'll
-                    be notified when complete.
-                  </p>
-                </div>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDialog(false)}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleBulkDelete}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
-          </DrawerBody>
-        </DrawerContent>
-      </Drawer>
+        title="Delete Conversations"
+        description={
+          selection.selectedCount > 10
+            ? `Are you sure you want to delete ${selection.selectedCount} conversations? Large deletions will be processed in the background. You'll be notified when complete. This action cannot be undone.`
+            : `Are you sure you want to delete ${selection.selectedCount} conversation${selection.selectedCount === 1 ? "" : "s"}? This action cannot be undone.`
+        }
+        confirmText={isDeleting ? "Deleting..." : "Delete"}
+        onConfirm={handleBulkDelete}
+        variant="destructive"
+        disabled={isDeleting}
+      />
     </>
   );
 }
