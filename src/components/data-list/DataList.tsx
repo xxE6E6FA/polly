@@ -52,6 +52,11 @@ interface DataListProps<TItem, TField extends string = string> {
   };
   mobileTitleRender?: (item: TItem) => React.ReactNode;
   mobileActionsRender?: (item: TItem) => React.ReactNode;
+  /**
+   * Custom metadata renderer for mobile view.
+   * When provided, replaces the default column-based mobile content rendering.
+   * Use this for compact, inline metadata display (e.g., "Conversation • Date").
+   */
   mobileMetadataRender?: (item: TItem) => React.ReactNode;
 }
 

@@ -592,7 +592,10 @@ export default function AttachmentsPage() {
                           />
                         ) : (
                           <button
-                            onClick={() => setPreviewFile(file)}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setPreviewFile(file);
+                            }}
                             className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
                             type="button"
                           >
