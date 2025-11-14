@@ -71,6 +71,7 @@ export default defineSchema({
       "metadata.finishReason",
     ])
     .index("by_created_at", ["createdAt"])
+    .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"])
     .searchIndex("search_content", {
       searchField: "content",
