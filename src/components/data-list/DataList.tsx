@@ -20,6 +20,7 @@ export interface DataListColumn<TItem, TField extends string = string> {
   width?: string;
   className?: string;
   hideOnMobile?: boolean;
+  hideLabelOnMobile?: boolean;
   render: (item: TItem) => React.ReactNode;
   mobileRender?: (item: TItem) => React.ReactNode;
 }
@@ -50,6 +51,8 @@ interface DataListProps<TItem, TField extends string = string> {
     desc: React.ComponentType<{ className?: string }>;
   };
   mobileTitleRender?: (item: TItem) => React.ReactNode;
+  mobileActionsRender?: (item: TItem) => React.ReactNode;
+  mobileMetadataRender?: (item: TItem) => React.ReactNode;
 }
 
 export function DataList<TItem, TField extends string = string>({
@@ -61,6 +64,8 @@ export function DataList<TItem, TField extends string = string>({
   onRowClick,
   sortIcons,
   mobileTitleRender,
+  mobileActionsRender,
+  mobileMetadataRender,
 }: DataListProps<TItem, TField>) {
   const hasSelection = !!selection;
 
@@ -137,7 +142,7 @@ export function DataList<TItem, TField extends string = string>({
 
               {/* Mobile Card Layout */}
               <div className="lg:hidden flex flex-col gap-2 w-full">
-                {/* Mobile Header with Selection */}
+                {/* Mobile Header with Selection, Title, and Actions */}
                 <div className="flex items-start gap-3">
                   {hasSelection && (
                     <SelectionCheckbox
@@ -152,29 +157,45 @@ export function DataList<TItem, TField extends string = string>({
                       ? mobileTitleRender(item)
                       : columns[0]?.render(item)}
                   </div>
+                  {mobileActionsRender && (
+                    <div className="flex-shrink-0 flex items-center gap-1">
+                      {mobileActionsRender(item)}
+                    </div>
+                  )}
                 </div>
 
-                {/* Mobile Content */}
-                <div className="stack-2 ml-11">
-                  {columns.slice(1).map(column => {
-                    if (column.hideOnMobile) {
-                      return null;
-                    }
+                {/* Mobile Metadata (optional inline display without labels) */}
+                {mobileMetadataRender && (
+                  <div className={hasSelection ? "ml-11" : ""}>
+                    {mobileMetadataRender(item)}
+                  </div>
+                )}
 
-                    const content = column.mobileRender
-                      ? column.mobileRender(item)
-                      : column.render(item);
+                {/* Mobile Content (columns with optional labels) */}
+                {!mobileMetadataRender && (
+                  <div className="stack-2 ml-11">
+                    {columns.slice(1).map(column => {
+                      if (column.hideOnMobile) {
+                        return null;
+                      }
 
-                    return (
-                      <div key={column.key} className="flex flex-col gap-0.5">
-                        <span className="text-xs text-muted-foreground font-medium">
-                          {column.label}
-                        </span>
-                        <div>{content}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      const content = column.mobileRender
+                        ? column.mobileRender(item)
+                        : column.render(item);
+
+                      return (
+                        <div key={column.key} className="flex flex-col gap-0.5">
+                          {!column.hideLabelOnMobile && (
+                            <span className="text-xs text-muted-foreground font-medium">
+                              {column.label}
+                            </span>
+                          )}
+                          <div>{content}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </ListRow>
           );

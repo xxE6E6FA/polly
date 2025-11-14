@@ -461,38 +461,110 @@ export default function AttachmentsPage() {
           mobileTitleRender={file => (
             <div className="flex items-center gap-2">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setPreviewFile(file);
+                  }}
+                  className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors overflow-hidden"
+                  type="button"
+                >
                   {file.attachment.type === "image" ? (
                     <ImageThumbnail
                       attachment={file.attachment}
                       className="h-full w-full rounded object-cover"
-                      onClick={() => setPreviewFile(file)}
                     />
                   ) : (
-                    <button
-                      onClick={() => setPreviewFile(file)}
-                      className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                      type="button"
-                    >
-                      {getFileAttachmentIcon(file.attachment)}
-                    </button>
+                    getFileAttachmentIcon(file.attachment)
+                  )}
+                </button>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="truncate font-medium"
+                    title={file.attachment.name}
+                  >
+                    {file.attachment.name}
+                  </div>
+                  {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                    <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                      <MagicWandIcon className="h-3 w-3 mr-1" />
+                      Generated
+                    </Badge>
                   )}
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <div
-                  className="truncate font-medium"
-                  title={file.attachment.name}
+            </div>
+          )}
+          mobileActionsRender={file => (
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  setPreviewFile(file);
+                }}
+                className="h-9 w-9 p-0"
+                title="Preview file"
+              >
+                <EyeIcon className="h-5 w-5" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  navigate(`/chat/${file.conversationId}`);
+                }}
+                className="h-9 w-9 p-0"
+                title="Go to conversation"
+              >
+                <LinkIcon className="h-5 w-5" />
+              </Button>
+              {file.url && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDownloadFile(file);
+                  }}
+                  className="h-9 w-9 p-0"
+                  title="Download file"
                 >
-                  {file.attachment.name}
-                </div>
-                {(file.attachment.generatedImage?.isGenerated ?? false) && (
-                  <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0 mt-1 inline-flex">
-                    <MagicWandIcon className="h-3 w-3 mr-1" />
-                    Generated
-                  </Badge>
-                )}
-              </div>
+                  <DownloadIcon className="h-5 w-5" />
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={e => {
+                  e.stopPropagation();
+                  setDeleteTarget(getFileKey(file));
+                  setShowDeleteDialog(true);
+                }}
+                className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                title={
+                  file.storageId
+                    ? "Delete file"
+                    : "Remove text attachment from message"
+                }
+              >
+                <TrashIcon className="h-5 w-5" />
+              </Button>
+            </>
+          )}
+          mobileMetadataRender={file => (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="truncate" title={file.conversationName}>
+                {file.conversationName}
+              </span>
+              <span>•</span>
+              <span className="flex-shrink-0">
+                {formatDate(file.createdAt)}
+              </span>
             </div>
           )}
           columns={
@@ -503,6 +575,7 @@ export default function AttachmentsPage() {
                 sortable: true,
                 sortField: "name",
                 className: "flex-1 min-w-0",
+                hideOnMobile: true, // Title is rendered via mobileTitleRender
                 render: file => (
                   <div className="flex items-center gap-3">
                     <div className="flex-shrink-0">
@@ -551,14 +624,6 @@ export default function AttachmentsPage() {
                     </div>
                   </div>
                 ),
-                mobileRender: file => (
-                  <span
-                    className="text-xs text-muted-foreground truncate"
-                    title={file.conversationName}
-                  >
-                    {file.conversationName}
-                  </span>
-                ),
               },
               {
                 key: "created",
@@ -567,6 +632,7 @@ export default function AttachmentsPage() {
                 sortField: "created",
                 width: "w-32 flex-shrink-0 ml-4",
                 className: "text-sm text-muted-foreground",
+                hideOnMobile: true, // Date is rendered via mobileMetadataRender
                 render: file => formatDate(file.createdAt),
               },
               {
@@ -574,6 +640,7 @@ export default function AttachmentsPage() {
                 label: "Actions",
                 width: "w-32 flex-shrink-0",
                 className: "flex items-center justify-end gap-1",
+                hideOnMobile: true, // Actions are rendered via mobileActionsRender
                 render: file => (
                   <div className="flex items-center gap-1">
                     <Button
