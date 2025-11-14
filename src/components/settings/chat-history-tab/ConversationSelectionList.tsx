@@ -1,15 +1,21 @@
-/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   ArchiveIcon,
-  CheckIcon,
+  CaretDownIcon,
+  CaretUpIcon,
   DownloadIcon,
   PushPinIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
-import type { PaginatedQueryReference } from "convex/react";
-import { useMutation } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, usePaginatedQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DataList,
+  type DataListColumn,
+  ListEmptyState,
+  ListLoadingState,
+} from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,9 +27,9 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Skeleton } from "@/components/ui/skeleton";
-import { VirtualizedPaginatedList } from "@/components/virtualized-paginated-list";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
+import { useListSelection } from "@/hooks/use-list-selection";
+import { useListSort } from "@/hooks/use-list-sort";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -38,30 +44,28 @@ type ConversationSummary = {
   updatedAt: number;
 };
 
+type SortField = "title" | "created";
+
 interface ConversationSelectionListProps {
-  selectedConversations: Set<Id<"conversations">>;
-  onConversationSelect: (
-    conversationId: Id<"conversations">,
-    index: number,
-    isShiftKey: boolean
-  ) => void;
-  onSelectAll: () => void;
-  clearSelection: () => void;
   recentlyImportedIds?: Set<Id<"conversations">>;
-  includeAttachments: boolean;
-  onIncludeAttachmentsChange: (include: boolean) => void;
+}
+
+function formatDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function ConversationSelectionList({
-  selectedConversations,
-  onConversationSelect,
-  onSelectAll,
-  clearSelection,
   recentlyImportedIds,
-  includeAttachments,
-  onIncludeAttachmentsChange,
 }: ConversationSelectionListProps) {
   const [isMobile, setIsMobile] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [includeAttachments, setIncludeAttachments] = useState(true);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -77,28 +81,68 @@ export function ConversationSelectionList({
     mql.addEventListener?.("change", listener);
     return () => mql.removeEventListener?.("change", listener);
   }, []);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Query conversations with pagination
+  const {
+    results: conversationsData,
+    status,
+    loadMore,
+  } = usePaginatedQuery(
+    api.conversations.list,
+    {
+      includeArchived: true,
+    },
+    { initialNumItems: 50 }
+  );
+
   const bulkRemove = useMutation(api.conversations.bulkRemove);
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
 
-  const handleItemClick = useCallback(
-    (conversationId: Id<"conversations">, index: number, shiftKey: boolean) => {
-      onConversationSelect(conversationId, index, shiftKey);
-    },
-    [onConversationSelect]
+  // Filter out null entries and ensure type safety
+  const conversations = useMemo(() => {
+    if (!conversationsData) {
+      return [];
+    }
+    return conversationsData.filter(
+      (conv): conv is ConversationSummary => conv !== null
+    );
+  }, [conversationsData]);
+
+  // Conversation key generation for selection
+  const getConversationKey = useCallback((conv: ConversationSummary) => {
+    return conv._id;
+  }, []);
+
+  // Sorting hook
+  const { sortField, sortDirection, toggleSort, sortItems } = useListSort<
+    SortField,
+    ConversationSummary
+  >("created", "desc", (conv, field) => {
+    if (field === "title") {
+      return conv.title.toLowerCase();
+    }
+    return conv.createdAt;
+  });
+
+  // Selection hook
+  const selection = useListSelection<ConversationSummary>(getConversationKey);
+
+  // Apply sorting
+  const sortedConversations = useMemo(
+    () => sortItems(conversations),
+    [sortItems, conversations]
   );
 
   const handleExport = useCallback(async () => {
-    if (selectedConversations.size === 0) {
+    if (selection.selectedCount === 0) {
       managedToast.error("Please select conversations to export");
       return;
     }
 
     try {
       const conversationIds = Array.from(
-        selectedConversations
+        selection.selectedKeys
       ) as Id<"conversations">[];
       await backgroundJobs.startExport(conversationIds, {
         includeAttachmentContent: includeAttachments,
@@ -113,17 +157,17 @@ export function ConversationSelectionList({
       });
     }
   }, [
-    selectedConversations,
+    selection.selectedKeys,
+    selection.selectedCount,
     includeAttachments,
     backgroundJobs,
-    managedToast.success,
-    managedToast.error,
+    managedToast,
   ]);
 
   const handleBulkDelete = useCallback(async () => {
     setIsDeleting(true);
     try {
-      const ids = Array.from(selectedConversations);
+      const ids = Array.from(selection.selectedKeys) as Id<"conversations">[];
       const BackgroundThreshold = 10;
 
       if (ids.length > BackgroundThreshold) {
@@ -142,7 +186,7 @@ export function ConversationSelectionList({
         del(CACHE_KEYS.conversations);
       }
 
-      clearSelection();
+      selection.clearSelection();
     } catch (_error) {
       managedToast.error("Delete Failed", {
         description: "Failed to delete conversations. Please try again.",
@@ -151,89 +195,79 @@ export function ConversationSelectionList({
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
-  }, [
-    selectedConversations,
-    bulkRemove,
-    backgroundJobs,
-    clearSelection,
-    managedToast.success,
-    managedToast.error,
-  ]);
+  }, [selection, bulkRemove, backgroundJobs, managedToast]);
 
-  const renderItem = useCallback(
-    (conversation: ConversationSummary, index: number) => {
-      const isSelected = selectedConversations.has(conversation._id);
+  // Render badges for a conversation
+  const renderBadges = useCallback(
+    (conversation: ConversationSummary) => {
       const isRecentlyImported = recentlyImportedIds?.has(conversation._id);
-      const isEven = index % 2 === 0;
+      const hasBadges =
+        isRecentlyImported || conversation.isPinned || conversation.isArchived;
+
+      if (!hasBadges) {
+        return null;
+      }
 
       return (
-        <button
-          key={conversation._id}
-          type="button"
-          className={cn(
-            "w-full flex items-center gap-3 px-6 py-3 text-left transition-colors duration-150",
-            isEven ? "bg-background" : "bg-muted/30",
-            isSelected && "!bg-primary/10 border-l-2 border-l-primary",
-            isRecentlyImported &&
-              "!bg-green-50 border-l-2 border-l-green-500 dark:!bg-green-950/30 dark:border-l-green-400",
-            "hover:bg-muted/70"
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {isRecentlyImported && (
+            <Badge
+              variant="default"
+              className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
+            >
+              New
+            </Badge>
           )}
-          onClick={e => handleItemClick(conversation._id, index, e.shiftKey)}
-        >
-          <div
-            className={cn(
-              "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
-              isSelected
-                ? "bg-primary border-primary"
-                : "border-muted-foreground/40 bg-background"
-            )}
-          >
-            {isSelected && (
-              <CheckIcon className="w-3 h-3 text-primary-foreground" />
-            )}
-          </div>
-
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {isRecentlyImported ||
-            conversation.isPinned ||
-            conversation.isArchived ? (
-              <div className="flex items-center gap-1 shrink-0">
-                {isRecentlyImported && (
-                  <Badge
-                    variant="default"
-                    className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    New
-                  </Badge>
-                )}
-                {conversation.isPinned && (
-                  <PushPinIcon className="w-3 h-3 text-blue-500" />
-                )}
-                {conversation.isArchived && (
-                  <ArchiveIcon className="w-3 h-3 text-muted-foreground" />
-                )}
-              </div>
-            ) : null}
-
-            <span className="text-sm font-medium min-w-0 flex-1 truncate">
-              {conversation.title}
-            </span>
-
-            <div className="shrink-0 text-xs text-muted-foreground mr-2">
-              {new Date(conversation.createdAt).toLocaleDateString()}
-            </div>
-          </div>
-        </button>
+          {conversation.isPinned && (
+            <PushPinIcon className="w-4 h-4 text-blue-500" />
+          )}
+          {conversation.isArchived && (
+            <ArchiveIcon className="w-4 h-4 text-muted-foreground" />
+          )}
+        </div>
       );
     },
-    [selectedConversations, handleItemClick, recentlyImportedIds]
+    [recentlyImportedIds]
+  );
+
+  // Define columns for DataList
+  const columns: DataListColumn<ConversationSummary, SortField>[] = useMemo(
+    () => [
+      {
+        key: "title",
+        label: "Conversation",
+        sortable: true,
+        sortField: "title",
+        className: "flex-1 min-w-0",
+        render: conversation => (
+          <div className="flex items-center gap-2 min-w-0">
+            {renderBadges(conversation)}
+            <span className="text-sm font-medium truncate">
+              {conversation.title}
+            </span>
+          </div>
+        ),
+      },
+      {
+        key: "created",
+        label: "Created",
+        sortable: true,
+        sortField: "created",
+        width: "w-32 flex-shrink-0",
+        className: "text-sm text-muted-foreground",
+        hideOnMobile: true,
+        render: conversation => formatDate(conversation.createdAt),
+      },
+    ],
+    [renderBadges]
   );
 
   // Check if export is currently running
   const activeJobs = backgroundJobs.getActiveJobs();
   const isExporting = activeJobs.some(job => job.type === "export");
 
-  const someSelected = selectedConversations.size > 0;
+  const someSelected = selection.selectedCount > 0;
+  const isLoading = status === "LoadingFirstPage";
 
   return (
     <>
@@ -256,7 +290,7 @@ export function ConversationSelectionList({
                     ) : (
                       <>
                         <DownloadIcon className="mr-1 h-3 w-3" />
-                        Export ({selectedConversations.size})
+                        Export ({selection.selectedCount})
                       </>
                     )}
                   </Button>
@@ -266,13 +300,14 @@ export function ConversationSelectionList({
                     className="h-7 text-xs"
                     onClick={() => setShowDeleteDialog(true)}
                   >
-                    Delete ({selectedConversations.size})
+                    <TrashIcon className="mr-1 h-3 w-3" />
+                    Delete ({selection.selectedCount})
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="h-7 text-xs"
-                    onClick={clearSelection}
+                    onClick={selection.clearSelection}
                   >
                     Clear Selection
                   </Button>
@@ -282,7 +317,7 @@ export function ConversationSelectionList({
                   size="sm"
                   variant="outline"
                   className="h-7 text-xs"
-                  onClick={onSelectAll}
+                  onClick={() => selection.toggleAll(sortedConversations)}
                 >
                   Select All
                 </Button>
@@ -296,7 +331,7 @@ export function ConversationSelectionList({
                 type="checkbox"
                 id="include-attachments"
                 checked={includeAttachments}
-                onChange={e => onIncludeAttachmentsChange(e.target.checked)}
+                onChange={e => setIncludeAttachments(e.target.checked)}
                 className="rounded border-gray-300"
               />
               <label
@@ -310,31 +345,61 @@ export function ConversationSelectionList({
         </CardHeader>
 
         <CardContent className="flex-1 min-h-0 p-0 border-t border-border/30">
-          <VirtualizedPaginatedList<ConversationSummary>
-            query={api.conversations.list as PaginatedQueryReference}
-            queryArgs={{
-              includeArchived: true,
-            }}
-            renderItem={renderItem}
-            getItemKey={item => item._id}
-            loadingSkeleton={
-              <div className="divide-y">
-                {Array.from({ length: 10 }, (_, i) => (
-                  <div key={`conv-skeleton-${i}`} className="p-3">
-                    <Skeleton className="h-5 w-full" />
-                  </div>
-                ))}
+          {isLoading && <ListLoadingState count={6} height="h-12" />}
+
+          {!isLoading && sortedConversations.length === 0 && (
+            <ListEmptyState
+              title="No conversations found"
+              description="Start a new conversation to see it here"
+            />
+          )}
+
+          {!isLoading && sortedConversations.length > 0 && (
+            <DataList
+              items={sortedConversations}
+              getItemKey={getConversationKey}
+              columns={columns}
+              selection={selection}
+              sort={{
+                field: sortField,
+                direction: sortDirection,
+                onSort: toggleSort,
+              }}
+              sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
+              onRowClick={conv => selection.toggleItem(conv)}
+              mobileTitleRender={conversation => (
+                <div className="flex items-center gap-2 min-w-0">
+                  {renderBadges(conversation)}
+                  <span className="text-sm font-medium truncate">
+                    {conversation.title}
+                  </span>
+                </div>
+              )}
+              mobileMetadataRender={conversation => (
+                <div className="text-xs text-muted-foreground">
+                  {formatDate(conversation.createdAt)}
+                </div>
+              )}
+            />
+          )}
+
+          {/* Load More Button */}
+          {status === "CanLoadMore" && (
+            <div className="flex justify-center py-4 border-t">
+              <Button onClick={() => loadMore(50)} variant="outline" size="sm">
+                Load More
+              </Button>
+            </div>
+          )}
+
+          {status === "LoadingMore" && (
+            <div className="flex justify-center py-4 border-t">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span>Loading more conversations...</span>
               </div>
-            }
-            zeroState={
-              <div className="flex items-center justify-center py-8 text-muted-foreground">
-                <p className="text-sm">No conversations found</p>
-              </div>
-            }
-            className="h-96"
-            itemHeight={36}
-            initialNumItems={20}
-          />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -347,11 +412,11 @@ export function ConversationSelectionList({
           <DialogTitle>Delete Conversations</DialogTitle>
           <div className="stack-lg">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete {selectedConversations.size}{" "}
-              conversation{selectedConversations.size === 1 ? "" : "s"}? This
+              Are you sure you want to delete {selection.selectedCount}{" "}
+              conversation{selection.selectedCount === 1 ? "" : "s"}? This
               action cannot be undone.
             </p>
-            {selectedConversations.size > 10 && (
+            {selection.selectedCount > 10 && (
               <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
                 <p className="text-blue-800 dark:text-blue-200 text-sm">
                   Large deletions will be processed in the background. You'll be
@@ -391,11 +456,11 @@ export function ConversationSelectionList({
           <DrawerBody>
             <div className="stack-lg">
               <p className="text-sm text-muted-foreground">
-                Are you sure you want to delete {selectedConversations.size}{" "}
-                conversation{selectedConversations.size === 1 ? "" : "s"}? This
+                Are you sure you want to delete {selection.selectedCount}{" "}
+                conversation{selection.selectedCount === 1 ? "" : "s"}? This
                 action cannot be undone.
               </p>
-              {selectedConversations.size > 10 && (
+              {selection.selectedCount > 10 && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
                   <p className="text-blue-800 dark:text-blue-200 text-sm">
                     Large deletions will be processed in the background. You'll

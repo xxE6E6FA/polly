@@ -8,12 +8,10 @@ import { ImportExportActions } from "@/components/settings/chat-history-tab/Impo
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
-import { useConversationSelection } from "@/hooks/use-conversation-selection";
 import { generateBackgroundExportFilename } from "@/lib/export";
 import { useToast } from "@/providers/toast-context";
 
 export default function ChatHistoryPage() {
-  const conversationSelection = useConversationSelection();
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
   const [downloadingJobId, setDownloadingJobId] = useState<string | null>(null);
@@ -169,16 +167,8 @@ export default function ChatHistoryPage() {
       <ImportExportActions />
 
       <ConversationSelectionList
-        selectedConversations={conversationSelection.selectedConversations}
-        onConversationSelect={conversationSelection.handleConversationSelect}
-        onSelectAll={conversationSelection.onSelectAll}
-        clearSelection={conversationSelection.clearSelection}
         recentlyImportedIds={
           new Set(recentlyImportedIds as Id<"conversations">[])
-        }
-        includeAttachments={conversationSelection.includeAttachments}
-        onIncludeAttachmentsChange={
-          conversationSelection.onIncludeAttachmentsChange
         }
       />
     </SettingsPageLayout>
