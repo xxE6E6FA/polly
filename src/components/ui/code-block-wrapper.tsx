@@ -1,6 +1,7 @@
 import type { LLMOutputComponent } from "@llm-ui/react";
 import { lazy, Suspense } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { extractFirstCodeBlock } from "./nested-code-block-parser";
 
 const CodeBlock = lazy(() =>
@@ -16,25 +17,7 @@ type CodeBlockWrapperProps = {
 // Simple loading placeholder that matches the code block height
 
 const CodeBlockSkeleton = () => {
-  return (
-    <div className="group relative mt-2 flex w-full flex-col pt-9">
-      <div className="absolute inset-x-0 top-0 flex h-9 items-center justify-between rounded-t-xl border border-b-0 bg-muted/60 px-4 py-2">
-        <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-        <div className="flex items-center gap-1">
-          <div className="h-7 w-7 animate-pulse rounded bg-muted" />
-          <div className="h-7 w-7 animate-pulse rounded bg-muted" />
-          <div className="h-7 w-7 animate-pulse rounded bg-muted" />
-        </div>
-      </div>
-      <div className="relative rounded-b-xl border border-border bg-card/95 p-4 shadow-sm">
-        <div className="stack-sm">
-          <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-        </div>
-      </div>
-    </div>
-  );
+  return <Skeleton className="mt-2 h-32 w-full rounded-lg" />;
 };
 
 // Direct usage component
