@@ -1,14 +1,11 @@
-// Primitive list components - no context, all state passed via props
-export {
-  ListBody,
-  ListCell,
-  ListContainer,
-  ListEmptyState,
-  ListHeader,
-  ListHeaderCell,
-  ListLoadingState,
-  ListRow,
-  SelectAllCheckbox,
-  SelectionCheckbox,
-  SortableHeader,
-} from "./DataList";
+export { ListBody } from "./ListBody";
+export { ListCell } from "./ListCell";
+export { ListContainer } from "./ListContainer";
+export { ListEmptyState } from "./ListEmptyState";
+export { ListHeader } from "./ListHeader";
+export { ListHeaderCell } from "./ListHeaderCell";
+export { ListLoadingState } from "./ListLoadingState";
+export { ListRow } from "./ListRow";
+export { SelectAllCheckbox } from "./SelectAllCheckbox";
+export { SelectionCheckbox } from "./SelectionCheckbox";
+export { SortableHeader } from "./SortableHeader";
