@@ -103,17 +103,37 @@ function renderTextModelsContent(
   if (isLoading) {
     return (
       <div className="stack-md">
-        {Array.from({ length: 8 }, (_, i) => (
+        {Array.from({ length: 2 }, (_, rowIdx) => (
           <div
-            key={`model-skeleton-${i}`}
-            className="flex items-center gap-4 rounded-lg border p-4"
+            key={`model-row-skeleton-${rowIdx}`}
+            className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
           >
-            <Skeleton className="h-8 w-8 rounded flex-shrink-0" />
-            <div className="flex-1 min-w-0 stack-xs">
-              <Skeleton className="h-5 w-48" />
-              <Skeleton className="h-4 w-full max-w-md" />
-            </div>
-            <Skeleton className="h-9 w-20 rounded flex-shrink-0" />
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={`model-skeleton-${rowIdx}-${i}`}
+                className="rounded-lg border p-4 min-h-[160px] flex flex-col"
+              >
+                <div className="mb-3 flex items-start justify-between">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <Skeleton className="h-10 w-full mb-2" />
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded" />
+                      <Skeleton className="h-5 w-12 rounded" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-8 w-12 rounded flex-shrink-0" />
+                </div>
+                <div className="flex flex-wrap gap-1 mb-3">
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <Skeleton className="h-6 w-16 rounded" />
+                </div>
+                <div className="mt-auto">
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>

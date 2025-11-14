@@ -107,8 +107,8 @@ function renderImageModelsContent(
 ) {
   if (isLoading || isSearching) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, i) => (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 8 }, (_, i) => (
           <div
             key={`image-model-skeleton-${i}`}
             className="rounded-lg border overflow-hidden"

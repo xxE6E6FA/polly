@@ -1,6 +1,7 @@
 import type { PaginatedQueryReference } from "convex/react";
 import { VList } from "virtua";
 import { Spinner } from "@/components/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useVirtualizedPagination } from "@/hooks/use-virtualized-pagination";
 
 interface VirtualizedPaginatedListProps<T> {
@@ -10,6 +11,7 @@ interface VirtualizedPaginatedListProps<T> {
   getItemKey?: (item: T, index: number) => string;
   emptyState?: React.ReactNode;
   zeroState?: React.ReactNode;
+  loadingSkeleton?: React.ReactNode;
   className?: string;
   itemHeight?: number;
   initialNumItems?: number;
@@ -22,6 +24,7 @@ export function VirtualizedPaginatedList<T>({
   getItemKey,
   emptyState,
   zeroState,
+  loadingSkeleton,
   className = "min-h-0 flex-1",
   itemHeight = 100,
   initialNumItems = 20,
@@ -33,6 +36,9 @@ export function VirtualizedPaginatedList<T>({
     });
 
   if (isLoading) {
+    if (loadingSkeleton) {
+      return <>{loadingSkeleton}</>;
+    }
     return (
       <div className="flex h-32 items-center justify-center">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">

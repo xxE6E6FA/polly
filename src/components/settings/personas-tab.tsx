@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -19,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -113,6 +115,11 @@ export const PersonasTab = () => {
     [togglePersonasGloballyMutation]
   );
 
+  // Check if data is still loading
+  const isLoadingPersonas = personasRaw === undefined;
+  const isLoadingBuiltInPersonas = allBuiltInPersonasRaw === undefined;
+  const isLoadingSettings = userSettingsRaw === undefined;
+
   return (
     <SettingsPageLayout>
       <SettingsHeader
@@ -130,10 +137,14 @@ export const PersonasTab = () => {
               picker will be hidden from the chat interface.
             </p>
           </div>
-          <Switch
-            checked={userSettings?.personasEnabled !== false}
-            onCheckedChange={handleTogglePersonasGlobally}
-          />
+          {isLoadingSettings ? (
+            <Skeleton className="h-6 w-11 rounded-full" />
+          ) : (
+            <Switch
+              checked={userSettings?.personasEnabled !== false}
+              onCheckedChange={handleTogglePersonasGlobally}
+            />
+          )}
         </div>
       </div>
 
@@ -141,55 +152,83 @@ export const PersonasTab = () => {
       {userSettings?.personasEnabled !== false && (
         <>
           {/* Built-in Personas Management */}
-          {allBuiltInPersonas && allBuiltInPersonas.length > 0 && (
+          {isLoadingBuiltInPersonas ? (
             <div className="stack-lg">
               <div>
                 <h3 className="text-lg font-semibold">Built-in Personas</h3>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {allBuiltInPersonas.map(persona => {
-                  const disabled = isPersonaDisabled(persona._id);
-                  return (
-                    <div
-                      key={persona._id}
-                      className={cn(
-                        "rounded-lg p-3 transition-all duration-200 shadow-sm ring-1 ring-border/30 bg-card focus-within:ring-2 focus-within:ring-ring motion-hover-lift",
-                        disabled && "opacity-60"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 flex-1 items-start gap-2">
-                          <span className="flex-shrink-0 text-lg">
-                            {persona.icon || "🤖"}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="truncate text-sm font-medium">
-                              {persona.name}
-                            </h4>
-                            <p className="line-clamp-2 text-xs text-muted-foreground">
-                              {persona.description}
-                            </p>
-                          </div>
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div
+                    key={`builtin-persona-skeleton-${i}`}
+                    className="rounded-lg p-3 shadow-sm ring-1 ring-border/30 bg-card"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-2">
+                        <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
+                        <div className="min-w-0 flex-1 stack-xs">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-3 w-full" />
                         </div>
-                        <Switch
-                          checked={!disabled}
-                          onCheckedChange={checked =>
-                            handleToggleBuiltInPersona({
-                              personaId: persona._id,
-                              isDisabled: !checked,
-                            })
-                          }
-                        />
                       </div>
+                      <Skeleton className="h-6 w-11 rounded-full flex-shrink-0" />
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
+          ) : (
+            allBuiltInPersonas &&
+            allBuiltInPersonas.length > 0 && (
+              <div className="stack-lg">
+                <div>
+                  <h3 className="text-lg font-semibold">Built-in Personas</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {allBuiltInPersonas.map(persona => {
+                    const disabled = isPersonaDisabled(persona._id);
+                    return (
+                      <div
+                        key={persona._id}
+                        className={cn(
+                          "rounded-lg p-3 transition-all duration-200 shadow-sm ring-1 ring-border/30 bg-card focus-within:ring-2 focus-within:ring-ring motion-hover-lift",
+                          disabled && "opacity-60"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 flex-1 items-start gap-2">
+                            <span className="flex-shrink-0 text-lg">
+                              {persona.icon || "🤖"}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="truncate text-sm font-medium">
+                                {persona.name}
+                              </h4>
+                              <p className="line-clamp-2 text-xs text-muted-foreground">
+                                {persona.description}
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={!disabled}
+                            onCheckedChange={checked =>
+                              handleToggleBuiltInPersona({
+                                personaId: persona._id,
+                                isDisabled: !checked,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )
           )}
 
           {/* User Custom Personas */}
-          {personas?.some(p => !p.isBuiltIn) && (
+          {isLoadingPersonas ? (
             <div className="stack-lg">
               <SectionHeader title="Custom Personas">
                 <Button asChild size="sm" variant="default">
@@ -203,109 +242,156 @@ export const PersonasTab = () => {
                 Your custom system prompts for different conversation styles
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-                {personas
-                  .filter(persona => !persona.isBuiltIn)
-                  .map(persona => (
-                    <div
-                      key={persona._id}
-                      className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card motion-hover-lift"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          <span className="flex-shrink-0 text-xl">
-                            {persona.icon || "🤖"}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-sm font-semibold">
-                              {persona.name}
-                            </h4>
-                            {persona.description && (
-                              <p className="text-xs text-muted-foreground">
-                                {persona.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex flex-shrink-0 gap-1">
-                          <Dialog>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <DialogTrigger asChild>
-                                  <Button size="sm" variant="ghost">
-                                    <FileTextIcon className="h-3 w-3" />
-                                  </Button>
-                                </DialogTrigger>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                View system prompt
-                              </TooltipContent>
-                            </Tooltip>
-                            <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-h-[80vh] sm:max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center gap-2">
-                                  <span className="text-lg">
-                                    {persona.icon || "🤖"}
-                                  </span>
-                                  {persona.name} - System Prompt
-                                </DialogTitle>
-                              </DialogHeader>
-                              <div className="flex-1 overflow-auto rounded-lg bg-muted/20 p-4">
-                                <StreamingMarkdown>
-                                  {persona.prompt}
-                                </StreamingMarkdown>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Link
-                                to={ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)}
-                              >
-                                <Button size="sm" variant="ghost">
-                                  <PencilSimpleLineIcon className="h-3 w-3" />
-                                </Button>
-                              </Link>
-                            </TooltipTrigger>
-                            <TooltipContent>Edit persona</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                className="text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setDeletingPersona(persona._id)}
-                              >
-                                <TrashIcon className="h-3 w-3" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete persona</TooltipContent>
-                          </Tooltip>
+                {Array.from({ length: 4 }, (_, i) => (
+                  <div
+                    key={`custom-persona-skeleton-${i}`}
+                    className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
+                        <div className="min-w-0 flex-1 stack-xs">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-full" />
                         </div>
                       </div>
+                      <div className="flex flex-shrink-0 gap-1">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             </div>
+          ) : (
+            personas?.some(p => !p.isBuiltIn) && (
+              <div className="stack-lg">
+                <SectionHeader title="Custom Personas">
+                  <Button asChild size="sm" variant="default">
+                    <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                      <PlusIcon className="h-4 w-4" />
+                      <span className="hidden sm:inline">Create Persona</span>
+                    </Link>
+                  </Button>
+                </SectionHeader>
+                <p className="text-sm text-muted-foreground">
+                  Your custom system prompts for different conversation styles
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                  {personas
+                    .filter(persona => !persona.isBuiltIn)
+                    .map(persona => (
+                      <div
+                        key={persona._id}
+                        className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card motion-hover-lift"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <span className="flex-shrink-0 text-xl">
+                              {persona.icon || "🤖"}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-semibold">
+                                {persona.name}
+                              </h4>
+                              {persona.description && (
+                                <p className="text-xs text-muted-foreground">
+                                  {persona.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-shrink-0 gap-1">
+                            <Dialog>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <DialogTrigger asChild>
+                                    <Button size="sm" variant="ghost">
+                                      <FileTextIcon className="h-3 w-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  View system prompt
+                                </TooltipContent>
+                              </Tooltip>
+                              <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden sm:max-h-[80vh] sm:max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center gap-2">
+                                    <span className="text-lg">
+                                      {persona.icon || "🤖"}
+                                    </span>
+                                    {persona.name} - System Prompt
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="flex-1 overflow-auto rounded-lg bg-muted/20 p-4">
+                                  <StreamingMarkdown>
+                                    {persona.prompt}
+                                  </StreamingMarkdown>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  to={ROUTES.SETTINGS.PERSONAS_EDIT(
+                                    persona._id
+                                  )}
+                                >
+                                  <Button size="sm" variant="ghost">
+                                    <PencilSimpleLineIcon className="h-3 w-3" />
+                                  </Button>
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit persona</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  className="text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() =>
+                                    setDeletingPersona(persona._id)
+                                  }
+                                >
+                                  <TrashIcon className="h-3 w-3" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete persona</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )
           )}
 
           {/* Empty State for Custom Personas */}
-          {personas && personas.filter(p => !p.isBuiltIn).length === 0 && (
-            <div className="rounded-lg border border-dashed py-8 text-center">
-              <UserIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-              <h3 className="mb-2 text-lg font-semibold">No Custom Personas</h3>
-              <p className="mb-4 text-muted-foreground">
-                Create your first custom persona to define specialized AI
-                behavior
-              </p>
-              <Button asChild variant="default">
-                <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Create Persona
-                </Link>
-              </Button>
-            </div>
-          )}
+          {!isLoadingPersonas &&
+            personas &&
+            personas.filter(p => !p.isBuiltIn).length === 0 && (
+              <div className="rounded-lg border border-dashed py-8 text-center">
+                <UserIcon className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="mb-2 text-lg font-semibold">
+                  No Custom Personas
+                </h3>
+                <p className="mb-4 text-muted-foreground">
+                  Create your first custom persona to define specialized AI
+                  behavior
+                </p>
+                <Button asChild variant="default">
+                  <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                    <PlusIcon className="mr-2 h-4 w-4" />
+                    Create Persona
+                  </Link>
+                </Button>
+              </div>
+            )}
         </>
       )}
 
