@@ -663,7 +663,7 @@ export const imageGenerationSchema = v.object({
 // Message schema
 export const messageSchema = v.object({
   conversationId: v.id("conversations"),
-  userId: v.id("users"), // Denormalized for efficient querying
+  userId: v.optional(v.id("users")), // Denormalized for efficient querying (temporarily optional for migration)
   role: v.string(),
   content: v.string(),
   status: v.optional(messageStatusSchema),
