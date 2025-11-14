@@ -183,73 +183,16 @@ export default function GeneralPage() {
     return (
       <SettingsPageLayout>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
-          {/* Aside skeleton */}
           <aside className="stack-lg">
-            {/* UserIdCard skeleton */}
-            <div className="rounded-lg border p-4 stack-sm">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-48" />
-            </div>
-
-            {/* Privacy section skeleton */}
-            <div className="rounded-lg border p-4 stack-md">
-              <Skeleton className="h-6 w-24 mb-2" />
-              <div className="flex items-center justify-between gap-6">
-                <div className="stack-xs flex-1">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <Skeleton className="h-6 w-11 rounded-full" />
-              </div>
-            </div>
+            <Skeleton className="h-32 w-full rounded-lg" />
+            <Skeleton className="h-24 w-full rounded-lg" />
           </aside>
 
-          {/* Main content skeleton */}
           <div className="stack-xl">
-            {/* Conversation Management section skeleton */}
-            <div className="rounded-lg border p-4 stack-md">
-              <Skeleton className="h-6 w-48 mb-4" />
-              <div className="stack-lg">
-                <div className="flex items-center justify-between gap-6">
-                  <div className="stack-xs flex-1">
-                    <Skeleton className="h-5 w-40" />
-                    <Skeleton className="h-4 w-full" />
-                  </div>
-                  <Skeleton className="h-6 w-11 rounded-full" />
-                </div>
-              </div>
-            </div>
-
-            {/* Data Controls section skeleton */}
-            <div className="rounded-lg border p-4 stack-md">
-              <Skeleton className="h-6 w-32 mb-4" />
-              <div className="stack-xs mb-4">
-                <Skeleton className="h-5 w-56" />
-                <Skeleton className="h-4 w-full" />
-              </div>
-              <Skeleton className="h-10 w-32" />
-            </div>
-
-            {/* About section skeleton */}
-            <div className="rounded-lg border p-4 stack-md">
-              <Skeleton className="h-6 w-20 mb-4" />
-              <Skeleton className="h-4 w-full mb-2" />
-              <Skeleton className="h-4 w-3/4 mb-4" />
-              <Skeleton className="h-10 w-40" />
-            </div>
-
-            {/* Account section skeleton */}
-            <div className="rounded-lg border p-4 stack-md">
-              <Skeleton className="h-6 w-28 mb-4" />
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                <div className="stack-xs flex-1">
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-                <Skeleton className="h-10 w-36" />
-              </div>
-            </div>
+            <Skeleton className="h-32 w-full rounded-lg" />
+            <Skeleton className="h-40 w-full rounded-lg" />
+            <Skeleton className="h-32 w-full rounded-lg" />
+            <Skeleton className="h-28 w-full rounded-lg" />
           </div>
         </div>
       </SettingsPageLayout>
