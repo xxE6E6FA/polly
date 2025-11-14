@@ -209,14 +209,14 @@ export function ConversationSelectionList({
     () => [
       {
         key: "title",
-        label: "Conversation",
+        label: "",
         sortable: true,
         sortField: "title",
         className: "flex-1 min-w-0",
         render: conversation => (
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-start gap-2 min-w-0">
             {renderBadges(conversation)}
-            <span className="text-sm font-medium truncate">
+            <span className="text-sm font-medium line-clamp-2 sm:truncate">
               {conversation.title}
             </span>
           </div>
@@ -227,8 +227,8 @@ export function ConversationSelectionList({
         label: "Created",
         sortable: true,
         sortField: "created",
-        width: "w-32 flex-shrink-0",
-        className: "text-sm text-muted-foreground",
+        width: "w-32 flex-shrink-0 ml-4",
+        className: "text-sm text-muted-foreground text-right",
         hideOnMobile: true,
         render: conversation => formatDate(conversation.createdAt),
       },
@@ -246,54 +246,42 @@ export function ConversationSelectionList({
   return (
     <>
       {/* Controls */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            {someSelected ? (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExport}
-                  disabled={isExporting}
-                >
-                  {isExporting ? (
-                    "Exporting..."
-                  ) : (
-                    <>
-                      <DownloadIcon className="mr-2 h-4 w-4" />
-                      Export ({selection.selectedCount})
-                    </>
-                  )}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <TrashIcon className="mr-2 h-4 w-4" />
-                  Delete ({selection.selectedCount})
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={selection.clearSelection}
-                >
-                  Clear
-                </Button>
-              </>
-            ) : (
+      {someSelected && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => selection.toggleAll(sortedConversations)}
+                onClick={handleExport}
+                disabled={isExporting}
               >
-                Select All
+                {isExporting ? (
+                  "Exporting..."
+                ) : (
+                  <>
+                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    Export ({selection.selectedCount})
+                  </>
+                )}
               </Button>
-            )}
-          </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <TrashIcon className="mr-2 h-4 w-4" />
+                Delete ({selection.selectedCount})
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={selection.clearSelection}
+              >
+                Clear
+              </Button>
+            </div>
 
-          {someSelected && (
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -303,9 +291,9 @@ export function ConversationSelectionList({
               />
               Include attachment content in export
             </label>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Conversations List */}
       {isLoading && <ListLoadingState count={6} height="h-12" />}
@@ -331,9 +319,9 @@ export function ConversationSelectionList({
           sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
           onRowClick={conv => selection.toggleItem(conv)}
           mobileTitleRender={conversation => (
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-start gap-2 min-w-0">
               {renderBadges(conversation)}
-              <span className="text-sm font-medium truncate">
+              <span className="text-sm font-medium line-clamp-2">
                 {conversation.title}
               </span>
             </div>
