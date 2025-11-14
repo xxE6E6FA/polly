@@ -1,10 +1,8 @@
-/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
   CaretDownIcon,
   CaretUpIcon,
-  CheckIcon,
   DownloadIcon,
   EyeIcon,
   FileCodeIcon,
@@ -18,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { DataList } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
@@ -33,14 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useListSelection } from "@/hooks/use-list-selection";
+import { useListSort } from "@/hooks/use-list-sort";
 import { useToast } from "@/providers/toast-context";
 import type { Attachment } from "@/types";
 
 type FileType = "all" | "image" | "pdf" | "text";
 type SortField = "name" | "created";
-type SortDirection = "asc" | "desc";
 
 interface UserFile {
   storageId: Id<"_storage"> | null; // null for content-based text attachments
@@ -101,7 +100,6 @@ function getFileAttachmentIcon(attachment: Attachment) {
 }
 
 export default function AttachmentsPage() {
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [fileType, setFileType] = useState<FileType>("all");
   const [includeGenerated, setIncludeGenerated] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -110,8 +108,6 @@ export default function AttachmentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<"selected" | string | null>(
     null
   );
-  const [sortField, setSortField] = useState<SortField>("created");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const managedToast = useToast();
 
@@ -138,90 +134,39 @@ export default function AttachmentsPage() {
   const deleteMultipleFiles = useMutation(api.fileStorage.deleteMultipleFiles);
   const removeAttachment = useMutation(api.messages.removeAttachment);
 
-  // Sort files (filtering is handled server-side)
-  const filteredAndSortedFiles = useMemo(() => {
+  // Filter out null entries
+  const validFiles = useMemo(() => {
     if (!filesData) {
       return [];
     }
-
-    // Filter out null entries and sort
-    const validFiles = filesData.filter(
+    return filesData.filter(
       (file: UserFile | null) => file !== null
-    );
+    ) as UserFile[];
+  }, [filesData]);
 
-    // Sort files - create a new array to avoid mutating the original
-    const sorted = [...validFiles].sort((a, b) => {
-      if (!(a && b)) {
-        return 0;
-      }
-
-      let aValue: string | number;
-      let bValue: string | number;
-
-      if (sortField === "name") {
-        aValue = a.attachment.name.toLowerCase();
-        bValue = b.attachment.name.toLowerCase();
-      } else {
-        aValue = a.createdAt;
-        bValue = b.createdAt;
-      }
-
-      if (aValue < bValue) {
-        return sortDirection === "asc" ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortDirection === "asc" ? 1 : -1;
-      }
-      return 0;
-    });
-
-    return sorted;
-  }, [filesData, sortField, sortDirection]);
-
-  // Memoized file key generation to ensure consistency
+  // File key generation for selection
   const getFileKey = useCallback((file: UserFile) => {
     return file.storageId || `${file.messageId}-${file.attachment.name}`;
   }, []);
 
-  // Selection handlers
-  const handleSelectFile = useCallback(
-    (file: UserFile) => {
-      const fileKey = getFileKey(file);
-      setSelectedFiles(prev => {
-        const newSet = new Set(prev);
-        if (newSet.has(fileKey)) {
-          newSet.delete(fileKey);
-        } else {
-          newSet.add(fileKey);
-        }
-        return newSet;
-      });
-    },
-    [getFileKey]
-  );
-
-  const handleSelectAll = useCallback(() => {
-    const validFiles = filteredAndSortedFiles.filter(f => f !== null);
-    const allFileKeys = new Set(validFiles.map(getFileKey));
-
-    if (selectedFiles.size === allFileKeys.size) {
-      setSelectedFiles(new Set());
-    } else {
-      setSelectedFiles(allFileKeys);
+  // Sorting hook
+  const { sortField, sortDirection, toggleSort, sortItems } = useListSort<
+    SortField,
+    UserFile
+  >("created", "desc", (file, field) => {
+    if (field === "name") {
+      return file.attachment.name.toLowerCase();
     }
-  }, [selectedFiles.size, filteredAndSortedFiles, getFileKey]);
+    return file.createdAt;
+  });
 
-  // Sort handlers
-  const handleSort = useCallback(
-    (field: SortField) => {
-      if (sortField === field) {
-        setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
-      } else {
-        setSortField(field);
-        setSortDirection("asc");
-      }
-    },
-    [sortField]
+  // Selection hook
+  const selection = useListSelection<UserFile>(getFileKey);
+
+  // Apply sorting
+  const sortedFiles = useMemo(
+    () => sortItems(validFiles),
+    [sortItems, validFiles]
   );
 
   // File operations
@@ -283,7 +228,7 @@ export default function AttachmentsPage() {
   );
 
   const handleDeleteSelected = useCallback(async () => {
-    if (selectedFiles.size === 0) {
+    if (selection.selectedCount === 0) {
       return;
     }
 
@@ -294,11 +239,8 @@ export default function AttachmentsPage() {
       attachmentName: string;
     }> = [];
 
-    for (const key of selectedFiles) {
-      const file = filteredAndSortedFiles.find(f => {
-        if (!f) {
-          return false;
-        }
+    for (const key of selection.selectedKeys) {
+      const file = sortedFiles.find(f => {
         const fileKey = getFileKey(f);
         return fileKey === key;
       });
@@ -344,7 +286,7 @@ export default function AttachmentsPage() {
         );
       }
 
-      setSelectedFiles(new Set());
+      selection.clearSelection();
 
       const storageMessage =
         storageIds.length > 0
@@ -367,8 +309,8 @@ export default function AttachmentsPage() {
       });
     }
   }, [
-    selectedFiles,
-    filteredAndSortedFiles,
+    selection,
+    sortedFiles,
     deleteMultipleFiles,
     removeAttachment,
     managedToast,
@@ -393,8 +335,8 @@ export default function AttachmentsPage() {
       handleDeleteSelected();
     } else if (deleteTarget) {
       // Find the file object by key
-      const file = filteredAndSortedFiles.find(f => {
-        const fileKey = f?.storageId || `${f?.messageId}-${f?.attachment.name}`;
+      const file = sortedFiles.find(f => {
+        const fileKey = getFileKey(f);
         return fileKey === deleteTarget;
       });
       if (file) {
@@ -405,9 +347,10 @@ export default function AttachmentsPage() {
     setDeleteTarget(null);
   }, [
     deleteTarget,
-    filteredAndSortedFiles,
+    sortedFiles,
     handleDeleteSelected,
     handleDeleteFile,
+    getFileKey,
   ]);
 
   const isLoading = status === "LoadingFirstPage";
@@ -465,7 +408,7 @@ export default function AttachmentsPage() {
             className="w-60"
           />
 
-          {selectedFiles.size > 0 && (
+          {selection.selectedCount > 0 && (
             <Button
               variant="destructive"
               size="sm"
@@ -475,244 +418,189 @@ export default function AttachmentsPage() {
               }}
             >
               <TrashIcon className="h-4 w-4 mr-2" />
-              Delete ({selectedFiles.size})
+              Delete ({selection.selectedCount})
             </Button>
           )}
         </div>
       </div>
 
       {/* Files Table */}
-      {isLoading && (
-        <div className="stack-lg">
-          {Array.from({ length: 6 }, (_, i) => (
-            <Skeleton key={`skeleton-${i}`} className="h-16 w-full" />
-          ))}
-        </div>
-      )}
+      {isLoading && <DataList.LoadingState count={6} height="h-16" />}
 
-      {!isLoading && filteredAndSortedFiles.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <FolderIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />
-          <h3 className="text-lg font-medium text-muted-foreground">
-            No files found
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            {searchQuery
+      {!isLoading && sortedFiles.length === 0 && (
+        <DataList.EmptyState
+          icon={<FolderIcon className="h-12 w-12" />}
+          title="No files found"
+          description={
+            searchQuery
               ? "Try adjusting your search or filter settings"
-              : "Upload files in your conversations to see them here"}
-          </p>
-        </div>
+              : "Upload files in your conversations to see them here"
+          }
+        />
       )}
 
-      {!isLoading && filteredAndSortedFiles.length > 0 && (
-        <div className="border rounded-lg overflow-hidden">
-          {/* Table Header */}
-          <div className="bg-muted/50 border-b">
-            <div className="flex items-center p-4">
-              <div className="w-8 flex-shrink-0">
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleSelectAll();
-                  }}
-                  className="flex h-4 w-4 items-center justify-center rounded border"
+      {!isLoading && sortedFiles.length > 0 && (
+        <DataList
+          selectedKeys={selection.selectedKeys}
+          isSelected={selection.isSelected}
+          isAllSelected={selection.isAllSelected}
+          toggleItem={selection.toggleItem}
+          toggleAll={selection.toggleAll}
+          clearSelection={selection.clearSelection}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          toggleSort={toggleSort}
+          getItemKey={getFileKey}
+        >
+          <DataList.Container>
+            <DataList.Header>
+              <DataList.SelectAllCell items={sortedFiles} />
+              <DataList.SortableHeaderCell
+                field="name"
+                className="flex-1 min-w-0"
+                SortIcons={{ Asc: CaretUpIcon, Desc: CaretDownIcon }}
+              >
+                Name
+              </DataList.SortableHeaderCell>
+              <DataList.SortableHeaderCell
+                field="created"
+                width="w-32 flex-shrink-0 ml-4"
+                SortIcons={{ Asc: CaretUpIcon, Desc: CaretDownIcon }}
+              >
+                Created
+              </DataList.SortableHeaderCell>
+              <DataList.HeaderCell width="w-24 flex-shrink-0" />
+            </DataList.Header>
+
+            <DataList.Body>
+              {sortedFiles.map(file => (
+                <DataList.Row
+                  key={getFileKey(file)}
+                  item={file}
+                  onClick={selection.toggleItem}
                 >
-                  {selectedFiles.size === filteredAndSortedFiles.length && (
-                    <CheckIcon className="h-3 w-3" />
-                  )}
-                </button>
-              </div>
-              <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => handleSort("name")}
-                  className="flex items-center gap-1 text-sm font-medium hover:text-foreground"
-                >
-                  Name
-                  {sortField === "name" &&
-                    (sortDirection === "asc" ? (
-                      <CaretUpIcon className="h-3 w-3" />
-                    ) : (
-                      <CaretDownIcon className="h-3 w-3" />
-                    ))}
-                </button>
-              </div>
-              <div className="w-32 flex-shrink-0 ml-4">
-                <button
-                  onClick={() => handleSort("created")}
-                  className="flex items-center gap-1 text-sm font-medium hover:text-foreground"
-                >
-                  Created
-                  {sortField === "created" &&
-                    (sortDirection === "asc" ? (
-                      <CaretUpIcon className="h-3 w-3" />
-                    ) : (
-                      <CaretDownIcon className="h-3 w-3" />
-                    ))}
-                </button>
-              </div>
-              <div className="w-24 flex-shrink-0" />
-            </div>
-          </div>
+                  <DataList.SelectCell item={file} />
 
-          {/* Table Body */}
-          <div className="divide-y">
-            {filteredAndSortedFiles
-              .filter(file => file !== null)
-              .map(file => {
-                if (!file) {
-                  return null;
-                }
-                return (
-                  <button
-                    key={
-                      file.storageId ||
-                      `${file.messageId}-${file.attachment.name}`
-                    }
-                    className={`group transition-all hover:bg-muted/30 cursor-pointer w-full text-left ${
-                      selectedFiles.has(
-                        file.storageId ||
-                          `${file.messageId}-${file.attachment.name}`
-                      )
-                        ? "bg-primary/5"
-                        : ""
-                    }`}
-                    onClick={() => handleSelectFile(file)}
-                    aria-label={`Select ${file.attachment.name}`}
-                  >
-                    <div className="flex items-center p-4">
-                      {/* Selection checkbox */}
-                      <div className="w-8 flex-shrink-0">
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            handleSelectFile(file);
-                          }}
-                          className="flex h-4 w-4 items-center justify-center rounded border"
-                        >
-                          {selectedFiles.has(
-                            file.storageId ||
-                              `${file.messageId}-${file.attachment.name}`
-                          ) && <CheckIcon className="h-3 w-3" />}
-                        </button>
-                      </div>
-
-                      {/* File info */}
-                      <div className="flex-1 min-w-0 flex items-center gap-3">
-                        {/* File thumbnail/icon */}
-                        <div className="flex-shrink-0">
-                          <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
-                            {file.attachment.type === "image" ? (
-                              <ImageThumbnail
-                                attachment={file.attachment}
-                                className="h-full w-full rounded object-cover"
-                                onClick={() => setPreviewFile(file)}
-                              />
-                            ) : (
-                              <button
-                                onClick={() => setPreviewFile(file)}
-                                className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                              >
-                                {getFileAttachmentIcon(file.attachment)}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* File details */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="truncate font-medium"
-                              title={file.attachment.name}
-                            >
-                              {file.attachment.name}
-                            </div>
-                            {(file.attachment.generatedImage?.isGenerated ??
-                              false) && (
-                              <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                                <MagicWandIcon className="h-3 w-3 mr-1" />
-                                Generated
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* File type and conversation */}
-                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                            <span className="flex-shrink-0">
-                              {file.attachment.type}
-                            </span>
-                            <span className="flex-shrink-0">•</span>
-                            <div className="flex items-center gap-1 min-w-0">
-                              <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                              <span
-                                className="truncate"
-                                title={file.conversationName}
-                              >
-                                {file.conversationName}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Date */}
-                      <div className="w-32 flex-shrink-0 ml-4 text-sm text-muted-foreground">
-                        {formatDate(file.createdAt)}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="w-24 flex-shrink-0 flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setPreviewFile(file);
-                          }}
-                          className="h-8 px-2"
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </Button>
-                        {file.url && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={e => {
-                              e.stopPropagation();
-                              handleDownloadFile(file);
-                            }}
-                            className="h-8 px-2"
+                  {/* File info */}
+                  <DataList.Cell className="flex-1 min-w-0 flex items-center gap-3">
+                    {/* File thumbnail/icon */}
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                        {file.attachment.type === "image" ? (
+                          <ImageThumbnail
+                            attachment={file.attachment}
+                            className="h-full w-full rounded object-cover"
+                            onClick={() => setPreviewFile(file)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setPreviewFile(file)}
+                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                            type="button"
                           >
-                            <DownloadIcon className="h-4 w-4" />
-                          </Button>
+                            {getFileAttachmentIcon(file.attachment)}
+                          </button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setDeleteTarget(
-                              file.storageId ||
-                                `${file.messageId}-${file.attachment.name}`
-                            );
-                            setShowDeleteDialog(true);
-                          }}
-                          className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title={
-                            file.storageId
-                              ? "Delete file"
-                              : "Remove text attachment from message"
-                          }
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </Button>
                       </div>
                     </div>
-                  </button>
-                );
-              })}
-          </div>
-        </div>
+
+                    {/* File details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="truncate font-medium"
+                          title={file.attachment.name}
+                        >
+                          {file.attachment.name}
+                        </div>
+                        {(file.attachment.generatedImage?.isGenerated ??
+                          false) && (
+                          <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                            <MagicWandIcon className="h-3 w-3 mr-1" />
+                            Generated
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* File type and conversation */}
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span className="flex-shrink-0">
+                          {file.attachment.type}
+                        </span>
+                        <span className="flex-shrink-0">•</span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                          <span
+                            className="truncate"
+                            title={file.conversationName}
+                          >
+                            {file.conversationName}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </DataList.Cell>
+
+                  {/* Date */}
+                  <DataList.Cell
+                    width="w-32 flex-shrink-0 ml-4"
+                    className="text-sm text-muted-foreground"
+                  >
+                    {formatDate(file.createdAt)}
+                  </DataList.Cell>
+
+                  {/* Action buttons */}
+                  <DataList.Cell
+                    width="w-24 flex-shrink-0"
+                    className="flex items-center justify-end gap-1"
+                  >
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setPreviewFile(file);
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Button>
+                    {file.url && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDownloadFile(file);
+                        }}
+                        className="h-8 px-2"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setDeleteTarget(getFileKey(file));
+                        setShowDeleteDialog(true);
+                      }}
+                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      title={
+                        file.storageId
+                          ? "Delete file"
+                          : "Remove text attachment from message"
+                      }
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </DataList.Cell>
+                </DataList.Row>
+              ))}
+            </DataList.Body>
+          </DataList.Container>
+        </DataList>
       )}
 
       {/* Load More Button */}
@@ -750,7 +638,7 @@ export default function AttachmentsPage() {
         title="Delete Files"
         description={
           deleteTarget === "selected"
-            ? `Are you sure you want to delete ${selectedFiles.size} selected files? This action cannot be undone and will remove them from your conversations.`
+            ? `Are you sure you want to delete ${selection.selectedCount} selected files? This action cannot be undone and will remove them from your conversations.`
             : "Are you sure you want to delete this file? This action cannot be undone and will remove it from your conversations."
         }
         confirmText="Delete"
