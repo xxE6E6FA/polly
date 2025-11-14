@@ -142,7 +142,7 @@ export function DataList<TItem, TField extends string = string>({
 
               {/* Mobile Card Layout */}
               <div className="lg:hidden flex flex-col gap-2 w-full">
-                {/* Mobile Header with Selection, Title, and Actions */}
+                {/* Mobile Header with Selection, Title, and Actions (sm+) */}
                 <div className="flex items-start gap-3">
                   {hasSelection && (
                     <SelectionCheckbox
@@ -158,7 +158,7 @@ export function DataList<TItem, TField extends string = string>({
                       : columns[0]?.render(item)}
                   </div>
                   {mobileActionsRender && (
-                    <div className="flex-shrink-0 flex items-center gap-1">
+                    <div className="hidden sm:flex flex-shrink-0 items-center gap-1">
                       {mobileActionsRender(item)}
                     </div>
                   )}
@@ -168,6 +168,15 @@ export function DataList<TItem, TField extends string = string>({
                 {mobileMetadataRender && (
                   <div className={hasSelection ? "ml-11" : ""}>
                     {mobileMetadataRender(item)}
+                  </div>
+                )}
+
+                {/* Mobile Actions (below content on xs) */}
+                {mobileActionsRender && (
+                  <div
+                    className={`flex sm:hidden items-center gap-1 ${hasSelection ? "ml-11" : ""}`}
+                  >
+                    {mobileActionsRender(item)}
                   </div>
                 )}
 
