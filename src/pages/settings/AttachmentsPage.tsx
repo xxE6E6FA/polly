@@ -18,17 +18,10 @@ import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ListBody,
-  ListCell,
-  ListContainer,
+  DataList,
+  type DataListColumn,
   ListEmptyState,
-  ListHeader,
-  ListHeaderCell,
   ListLoadingState,
-  ListRow,
-  SelectAllCheckbox,
-  SelectionCheckbox,
-  SortableHeader,
 } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -454,171 +447,196 @@ export default function AttachmentsPage() {
       )}
 
       {!isLoading && sortedFiles.length > 0 && (
-        <ListContainer>
-          <ListHeader>
-            <SelectAllCheckbox
-              checked={selection.isAllSelected(sortedFiles)}
-              onToggle={() => selection.toggleAll(sortedFiles)}
-            />
-            <SortableHeader
-              field="name"
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={toggleSort}
-              className="flex-1 min-w-0"
-              icons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-            >
-              Name
-            </SortableHeader>
-            <SortableHeader
-              field="created"
-              sortField={sortField}
-              sortDirection={sortDirection}
-              onSort={toggleSort}
-              width="w-32 flex-shrink-0 ml-4"
-              icons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-            >
-              Created
-            </SortableHeader>
-            <ListHeaderCell width="w-32 flex-shrink-0">Actions</ListHeaderCell>
-          </ListHeader>
-
-          <ListBody>
-            {sortedFiles.map(file => (
-              <ListRow
-                key={getFileKey(file)}
-                selected={selection.isSelected(file)}
-                onClick={() => selection.toggleItem(file)}
-              >
-                <SelectionCheckbox
-                  checked={selection.isSelected(file)}
-                  onToggle={() => selection.toggleItem(file)}
-                  label={`Select ${file.attachment.name}`}
-                />
-
-                {/* File info */}
-                <ListCell className="flex-1 min-w-0 flex items-center gap-3">
-                  {/* File thumbnail/icon */}
-                  <div className="flex-shrink-0">
-                    <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
-                      {file.attachment.type === "image" ? (
-                        <ImageThumbnail
-                          attachment={file.attachment}
-                          className="h-full w-full rounded object-cover"
-                          onClick={() => setPreviewFile(file)}
-                        />
-                      ) : (
-                        <button
-                          onClick={() => setPreviewFile(file)}
-                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                          type="button"
-                        >
-                          {getFileAttachmentIcon(file.attachment)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* File details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="truncate font-medium"
-                        title={file.attachment.name}
-                      >
-                        {file.attachment.name}
+        <DataList
+          items={sortedFiles}
+          getItemKey={getFileKey}
+          selection={selection}
+          sort={{
+            field: sortField,
+            direction: sortDirection,
+            onSort: toggleSort,
+          }}
+          sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
+          onRowClick={file => selection.toggleItem(file)}
+          mobileTitleRender={file => (
+            <div className="flex items-center gap-2">
+              <div className="flex-shrink-0">
+                <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                  {file.attachment.type === "image" ? (
+                    <ImageThumbnail
+                      attachment={file.attachment}
+                      className="h-full w-full rounded object-cover"
+                      onClick={() => setPreviewFile(file)}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setPreviewFile(file)}
+                      className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                      type="button"
+                    >
+                      {getFileAttachmentIcon(file.attachment)}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div
+                  className="truncate font-medium"
+                  title={file.attachment.name}
+                >
+                  {file.attachment.name}
+                </div>
+                {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                  <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0 mt-1 inline-flex">
+                    <MagicWandIcon className="h-3 w-3 mr-1" />
+                    Generated
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+          columns={
+            [
+              {
+                key: "name",
+                label: "Name",
+                sortable: true,
+                sortField: "name",
+                className: "flex-1 min-w-0",
+                render: file => (
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                        {file.attachment.type === "image" ? (
+                          <ImageThumbnail
+                            attachment={file.attachment}
+                            className="h-full w-full rounded object-cover"
+                            onClick={() => setPreviewFile(file)}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => setPreviewFile(file)}
+                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                            type="button"
+                          >
+                            {getFileAttachmentIcon(file.attachment)}
+                          </button>
+                        )}
                       </div>
-                      {(file.attachment.generatedImage?.isGenerated ??
-                        false) && (
-                        <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                          <MagicWandIcon className="h-3 w-3 mr-1" />
-                          Generated
-                        </Badge>
-                      )}
                     </div>
-
-                    {/* File type and conversation */}
-                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <span className="truncate" title={file.conversationName}>
-                        {file.conversationName}
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="truncate font-medium"
+                          title={file.attachment.name}
+                        >
+                          {file.attachment.name}
+                        </div>
+                        {(file.attachment.generatedImage?.isGenerated ??
+                          false) && (
+                          <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                            <MagicWandIcon className="h-3 w-3 mr-1" />
+                            Generated
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        <span
+                          className="truncate"
+                          title={file.conversationName}
+                        >
+                          {file.conversationName}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </ListCell>
-
-                {/* Date */}
-                <ListCell
-                  width="w-32 flex-shrink-0 ml-4"
-                  className="text-sm text-muted-foreground"
-                >
-                  {formatDate(file.createdAt)}
-                </ListCell>
-
-                {/* Action buttons */}
-                <ListCell
-                  width="w-32 flex-shrink-0"
-                  className="flex items-center justify-end gap-1"
-                >
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setPreviewFile(file);
-                    }}
-                    className="h-8 px-2"
-                    title="Preview file"
+                ),
+                mobileRender: file => (
+                  <span
+                    className="text-xs text-muted-foreground truncate"
+                    title={file.conversationName}
                   >
-                    <EyeIcon className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={e => {
-                      e.stopPropagation();
-                      navigate(`/chat/${file.conversationId}`);
-                    }}
-                    className="h-8 px-2"
-                    title="Go to conversation"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                  </Button>
-                  {file.url && (
+                    {file.conversationName}
+                  </span>
+                ),
+              },
+              {
+                key: "created",
+                label: "Created",
+                sortable: true,
+                sortField: "created",
+                width: "w-32 flex-shrink-0 ml-4",
+                className: "text-sm text-muted-foreground",
+                render: file => formatDate(file.createdAt),
+              },
+              {
+                key: "actions",
+                label: "Actions",
+                width: "w-32 flex-shrink-0",
+                className: "flex items-center justify-end gap-1",
+                render: file => (
+                  <div className="flex items-center gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={e => {
                         e.stopPropagation();
-                        handleDownloadFile(file);
+                        setPreviewFile(file);
                       }}
                       className="h-8 px-2"
-                      title="Download file"
+                      title="Preview file"
                     >
-                      <DownloadIcon className="h-4 w-4" />
+                      <EyeIcon className="h-4 w-4" />
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setDeleteTarget(getFileKey(file));
-                      setShowDeleteDialog(true);
-                    }}
-                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    title={
-                      file.storageId
-                        ? "Delete file"
-                        : "Remove text attachment from message"
-                    }
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </Button>
-                </ListCell>
-              </ListRow>
-            ))}
-          </ListBody>
-        </ListContainer>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => {
+                        e.stopPropagation();
+                        navigate(`/chat/${file.conversationId}`);
+                      }}
+                      className="h-8 px-2"
+                      title="Go to conversation"
+                    >
+                      <LinkIcon className="h-4 w-4" />
+                    </Button>
+                    {file.url && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleDownloadFile(file);
+                        }}
+                        className="h-8 px-2"
+                        title="Download file"
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setDeleteTarget(getFileKey(file));
+                        setShowDeleteDialog(true);
+                      }}
+                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      title={
+                        file.storageId
+                          ? "Delete file"
+                          : "Remove text attachment from message"
+                      }
+                    >
+                      <TrashIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ),
+              },
+            ] as DataListColumn<UserFile, SortField>[]
+          }
+        />
       )}
 
       {/* Load More Button */}
