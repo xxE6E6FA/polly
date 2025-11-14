@@ -3,13 +3,21 @@
 /**
  * CLI script to run Convex database migrations
  *
+ * LIMITATION: This script cannot directly execute internal migrations from the CLI
+ * because Convex internal mutations are not exposed to client-side API calls.
+ * The script serves as a helper to list available migrations and provide the
+ * correct commands to run them via the Convex CLI.
+ *
  * Usage:
- *   bun scripts/run-migration.ts <migrationName>
- *   bun scripts/run-migration.ts --list
+ *   bun scripts/run-migration.ts <migrationName>  # Shows how to run the migration
+ *   bun scripts/run-migration.ts --list           # Lists all migrations
+ *
+ * To actually run migrations, use:
+ *   bunx convex run migrations:<name>:runMigration '{}'
  *
  * Examples:
- *   bun scripts/run-migration.ts addUserIdToMessages
- *   bun scripts/run-migration.ts seedBuiltInModels
+ *   bun scripts/run-migration.ts addUserIdToMessages  # Shows command
+ *   bunx convex run migrations:addUserIdToMessages:runMigration '{}'  # Runs migration
  */
 
 import { ConvexHttpClient } from "convex/browser";
@@ -31,6 +39,10 @@ const AVAILABLE_MIGRATIONS = [
   {
     name: "populateUserFiles",
     path: "migrations.populateUserFiles.runMigration",
+  },
+  {
+    name: "updateUserFilesMetadata",
+    path: "migrations.updateUserFilesMetadata.runMigration",
   },
 ] as const;
 

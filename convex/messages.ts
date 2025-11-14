@@ -91,6 +91,7 @@ async function handleGetMessageById(
 async function handleMessageDeletion(
   ctx: MutationCtx,
   message: {
+    _id?: Id<"messages">;
     conversationId?: Id<"conversations">;
     role?: string;
     attachments?: Array<{ storageId?: Id<"_storage"> }>;
@@ -127,7 +128,7 @@ async function handleMessageDeletion(
     }
   }
 
-  if (message.attachments && userId) {
+  if (message.attachments) {
     for (const attachment of message.attachments) {
       if (attachment.storageId) {
         const storageId = attachment.storageId;
@@ -143,16 +144,36 @@ async function handleMessageDeletion(
         operations.push(
           (async () => {
             try {
-              const userFileEntry = await ctx.db
-                .query("userFiles")
-                .withIndex("by_storage_id", q =>
-                  q.eq("userId", userId).eq("storageId", storageId)
-                )
-                .unique();
+              if (userId) {
+                // Primary path: use by_storage_id index when userId is available
+                const userFileEntry = await ctx.db
+                  .query("userFiles")
+                  .withIndex("by_storage_id", q =>
+                    q.eq("userId", userId).eq("storageId", storageId)
+                  )
+                  .unique();
 
-              // Verify ownership before deleting
-              if (userFileEntry && userFileEntry.userId === userId) {
-                await ctx.db.delete(userFileEntry._id);
+                // Verify ownership before deleting
+                if (userFileEntry && userFileEntry.userId === userId) {
+                  await ctx.db.delete(userFileEntry._id);
+                }
+              } else if (message._id) {
+                // Fallback path: use by_message index when userId unavailable
+                // This prevents orphaned userFiles entries
+                const messageId = message._id;
+                console.warn(
+                  `Cleaning up userFiles for message ${messageId} without userId - using fallback by_message index`
+                );
+                const userFileEntries = await ctx.db
+                  .query("userFiles")
+                  .withIndex("by_message", q => q.eq("messageId", messageId))
+                  .collect();
+
+                for (const entry of userFileEntries) {
+                  if (entry.storageId === storageId) {
+                    await ctx.db.delete(entry._id);
+                  }
+                }
               }
             } catch (error) {
               console.warn(
