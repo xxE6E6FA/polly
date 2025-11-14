@@ -3,69 +3,17 @@ import type React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { SortDirection } from "@/hooks/use-list-sort";
 import { cn } from "@/lib/utils";
-import { DataListProvider, useDataListContext } from "./data-list-context";
 
 // ============================================================================
-// Root DataList Component
+// Container Components
 // ============================================================================
 
-export interface DataListProps<TItem, TField extends string> {
-  children: React.ReactNode;
-  selectedKeys: Set<string>;
-  isSelected: (item: TItem) => boolean;
-  isAllSelected: (items: TItem[]) => boolean;
-  toggleItem: (item: TItem) => void;
-  toggleAll: (items: TItem[]) => void;
-  clearSelection: () => void;
-  sortField: TField | null;
-  sortDirection: SortDirection;
-  toggleSort: (field: TField) => void;
-  getItemKey: (item: TItem) => string;
-}
-
-export function DataListRoot<TItem, TField extends string>({
-  children,
-  selectedKeys,
-  isSelected,
-  isAllSelected,
-  toggleItem,
-  toggleAll,
-  clearSelection,
-  sortField,
-  sortDirection,
-  toggleSort,
-  getItemKey,
-}: DataListProps<TItem, TField>) {
-  return (
-    <DataListProvider
-      value={{
-        selectedKeys,
-        isSelected,
-        isAllSelected,
-        toggleItem,
-        toggleAll,
-        clearSelection,
-        sortField,
-        sortDirection,
-        toggleSort,
-        getItemKey,
-      }}
-    >
-      {children}
-    </DataListProvider>
-  );
-}
-
-// ============================================================================
-// Container Component
-// ============================================================================
-
-interface ContainerProps {
+interface ListContainerProps {
   children: React.ReactNode;
   className?: string;
 }
 
-function Container({ children, className }: ContainerProps) {
+export function ListContainer({ children, className }: ListContainerProps) {
   return (
     <div className={cn("border rounded-lg overflow-hidden", className)}>
       {children}
@@ -74,15 +22,15 @@ function Container({ children, className }: ContainerProps) {
 }
 
 // ============================================================================
-// Header Component
+// Header Components
 // ============================================================================
 
-interface HeaderProps {
+interface ListHeaderProps {
   children: React.ReactNode;
   className?: string;
 }
 
-function Header({ children, className }: HeaderProps) {
+export function ListHeader({ children, className }: ListHeaderProps) {
   return (
     <div className={cn("bg-muted/50 border-b", className)}>
       <div className="flex items-center p-4">{children}</div>
@@ -90,17 +38,17 @@ function Header({ children, className }: HeaderProps) {
   );
 }
 
-// ============================================================================
-// Header Cell Components
-// ============================================================================
-
-interface HeaderCellProps {
+interface ListHeaderCellProps {
   children: React.ReactNode;
   className?: string;
   width?: string;
 }
 
-function HeaderCell({ children, className, width }: HeaderCellProps) {
+export function ListHeaderCell({
+  children,
+  className,
+  width,
+}: ListHeaderCellProps) {
   return (
     <div className={cn("text-sm font-medium", width, className)}>
       {children}
@@ -108,38 +56,38 @@ function HeaderCell({ children, className, width }: HeaderCellProps) {
   );
 }
 
-interface SortableHeaderCellProps<TField extends string> {
+interface SortableHeaderProps<TField extends string> {
   field: TField;
   children: React.ReactNode;
+  sortField: TField | null;
+  sortDirection: SortDirection;
+  onSort: (field: TField) => void;
   className?: string;
   width?: string;
-  SortIcons?: {
-    Asc: React.ComponentType<{ className?: string }>;
-    Desc: React.ComponentType<{ className?: string }>;
+  icons?: {
+    asc: React.ComponentType<{ className?: string }>;
+    desc: React.ComponentType<{ className?: string }>;
   };
 }
 
-function SortableHeaderCell<TField extends string>({
+export function SortableHeader<TField extends string>({
   field,
   children,
+  sortField,
+  sortDirection,
+  onSort,
   className,
   width,
-  SortIcons,
-}: SortableHeaderCellProps<TField>) {
-  const { sortField, sortDirection, toggleSort } = useDataListContext<
-    // biome-ignore lint/suspicious/noExplicitAny: Generic field type requires any
-    any,
-    TField
-  >();
-
+  icons,
+}: SortableHeaderProps<TField>) {
   const isActive = sortField === field;
-  const AscIcon = SortIcons?.Asc;
-  const DescIcon = SortIcons?.Desc;
+  const AscIcon = icons?.asc;
+  const DescIcon = icons?.desc;
 
   return (
     <div className={cn(width, className)}>
       <button
-        onClick={() => toggleSort(field)}
+        onClick={() => onSort(field)}
         className="flex items-center gap-1 text-sm font-medium hover:text-foreground"
         type="button"
       >
@@ -159,62 +107,64 @@ function SortableHeaderCell<TField extends string>({
   );
 }
 
-interface SelectAllCellProps<TItem> {
-  items: TItem[];
+interface SelectAllCheckboxProps {
+  checked: boolean;
+  onToggle: () => void;
   className?: string;
 }
 
-function SelectAllCell<TItem>({ items, className }: SelectAllCellProps<TItem>) {
-  const { isAllSelected, toggleAll } = useDataListContext<TItem, string>();
-  const allSelected = isAllSelected(items);
-
+export function SelectAllCheckbox({
+  checked,
+  onToggle,
+  className,
+}: SelectAllCheckboxProps) {
   return (
     <div className={cn("w-8 flex-shrink-0", className)}>
       <button
         onClick={e => {
           e.stopPropagation();
-          toggleAll(items);
+          onToggle();
         }}
         className="flex h-4 w-4 items-center justify-center rounded border"
         type="button"
-        aria-label={allSelected ? "Deselect all" : "Select all"}
+        aria-label={checked ? "Deselect all" : "Select all"}
       >
-        {allSelected && <CheckIcon className="h-3 w-3" />}
+        {checked && <CheckIcon className="h-3 w-3" />}
       </button>
     </div>
   );
 }
 
 // ============================================================================
-// Body Component
+// Body Components
 // ============================================================================
 
-interface BodyProps {
+interface ListBodyProps {
   children: React.ReactNode;
   className?: string;
 }
 
-function Body({ children, className }: BodyProps) {
+export function ListBody({ children, className }: ListBodyProps) {
   return <div className={cn("divide-y", className)}>{children}</div>;
 }
 
 // ============================================================================
-// Row Component
+// Row Components
 // ============================================================================
 
-interface RowProps<TItem> {
-  item: TItem;
+interface ListRowProps {
   children: React.ReactNode;
+  selected?: boolean;
+  onClick?: () => void;
   className?: string;
-  onClick?: (item: TItem) => void;
 }
 
-function Row<TItem>({ item, children, className, onClick }: RowProps<TItem>) {
-  const { isSelected } = useDataListContext<TItem, string>();
-  const selected = isSelected(item);
-
-  const handleClick = onClick ? () => onClick(item) : undefined;
-
+export function ListRow({
+  children,
+  selected = false,
+  onClick,
+  className,
+}: ListRowProps) {
   return (
     <div
       className={cn(
@@ -223,13 +173,13 @@ function Row<TItem>({ item, children, className, onClick }: RowProps<TItem>) {
         onClick && "cursor-pointer",
         className
       )}
-      onClick={handleClick}
+      onClick={onClick}
       onKeyDown={
-        handleClick
+        onClick
           ? e => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                handleClick();
+                onClick();
               }
             }
           : undefined
@@ -246,58 +196,65 @@ function Row<TItem>({ item, children, className, onClick }: RowProps<TItem>) {
 // Cell Components
 // ============================================================================
 
-interface CellProps {
+interface ListCellProps {
   children: React.ReactNode;
   className?: string;
   width?: string;
 }
 
-function Cell({ children, className, width }: CellProps) {
+export function ListCell({ children, className, width }: ListCellProps) {
   return <div className={cn(width, className)}>{children}</div>;
 }
 
-interface SelectCellProps<TItem> {
-  item: TItem;
+interface SelectionCheckboxProps {
+  checked: boolean;
+  onToggle: () => void;
+  label?: string;
   className?: string;
 }
 
-function SelectCell<TItem>({ item, className }: SelectCellProps<TItem>) {
-  const { isSelected, toggleItem, getItemKey } = useDataListContext<
-    TItem,
-    string
-  >();
-  const selected = isSelected(item);
-  const key = getItemKey(item);
-
+export function SelectionCheckbox({
+  checked,
+  onToggle,
+  label,
+  className,
+}: SelectionCheckboxProps) {
   return (
     <div className={cn("w-8 flex-shrink-0", className)}>
       <button
         onClick={e => {
           e.stopPropagation();
-          toggleItem(item);
+          onToggle();
         }}
         className="flex h-4 w-4 items-center justify-center rounded border"
         type="button"
-        aria-label={selected ? `Deselect item ${key}` : `Select item ${key}`}
+        aria-label={label || (checked ? "Deselect item" : "Select item")}
       >
-        {selected && <CheckIcon className="h-3 w-3" />}
+        {checked && <CheckIcon className="h-3 w-3" />}
       </button>
     </div>
   );
 }
 
 // ============================================================================
-// Empty State Component
+// State Components
 // ============================================================================
 
-interface EmptyStateProps {
+interface ListEmptyStateProps {
   icon: React.ReactNode;
   title: string;
   description: string;
+  action?: React.ReactNode;
   className?: string;
 }
 
-function EmptyState({ icon, title, description, className }: EmptyStateProps) {
+export function ListEmptyState({
+  icon,
+  title,
+  description,
+  action,
+  className,
+}: ListEmptyStateProps) {
   return (
     <div
       className={cn(
@@ -308,25 +265,22 @@ function EmptyState({ icon, title, description, className }: EmptyStateProps) {
       <div className="text-muted-foreground/40 mb-4">{icon}</div>
       <h3 className="text-lg font-medium text-muted-foreground">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
 
-// ============================================================================
-// Loading State Component
-// ============================================================================
-
-interface LoadingStateProps {
+interface ListLoadingStateProps {
   count?: number;
   height?: string;
   className?: string;
 }
 
-function LoadingState({
+export function ListLoadingState({
   count = 6,
   height = "h-16",
   className,
-}: LoadingStateProps) {
+}: ListLoadingStateProps) {
   return (
     <div className={cn("stack-lg", className)}>
       {Array.from({ length: count }, (_, i) => (
@@ -336,21 +290,3 @@ function LoadingState({
     </div>
   );
 }
-
-// ============================================================================
-// Compound Component Export
-// ============================================================================
-
-export const DataList = Object.assign(DataListRoot, {
-  Container,
-  Header,
-  HeaderCell,
-  SortableHeaderCell,
-  SelectAllCell,
-  Body,
-  Row,
-  Cell,
-  SelectCell,
-  EmptyState,
-  LoadingState,
-});

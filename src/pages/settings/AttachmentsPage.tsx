@@ -16,7 +16,19 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
-import { DataList } from "@/components/data-list";
+import {
+  ListBody,
+  ListCell,
+  ListContainer,
+  ListEmptyState,
+  ListHeader,
+  ListHeaderCell,
+  ListLoadingState,
+  ListRow,
+  SelectAllCheckbox,
+  SelectionCheckbox,
+  SortableHeader,
+} from "@/components/data-list";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
@@ -425,10 +437,10 @@ export default function AttachmentsPage() {
       </div>
 
       {/* Files Table */}
-      {isLoading && <DataList.LoadingState count={6} height="h-16" />}
+      {isLoading && <ListLoadingState count={6} height="h-16" />}
 
       {!isLoading && sortedFiles.length === 0 && (
-        <DataList.EmptyState
+        <ListEmptyState
           icon={<FolderIcon className="h-12 w-12" />}
           title="No files found"
           description={
@@ -440,167 +452,167 @@ export default function AttachmentsPage() {
       )}
 
       {!isLoading && sortedFiles.length > 0 && (
-        <DataList
-          selectedKeys={selection.selectedKeys}
-          isSelected={selection.isSelected}
-          isAllSelected={selection.isAllSelected}
-          toggleItem={selection.toggleItem}
-          toggleAll={selection.toggleAll}
-          clearSelection={selection.clearSelection}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          toggleSort={toggleSort}
-          getItemKey={getFileKey}
-        >
-          <DataList.Container>
-            <DataList.Header>
-              <DataList.SelectAllCell items={sortedFiles} />
-              <DataList.SortableHeaderCell
-                field="name"
-                className="flex-1 min-w-0"
-                SortIcons={{ Asc: CaretUpIcon, Desc: CaretDownIcon }}
+        <ListContainer>
+          <ListHeader>
+            <SelectAllCheckbox
+              checked={selection.isAllSelected(sortedFiles)}
+              onToggle={() => selection.toggleAll(sortedFiles)}
+            />
+            <SortableHeader
+              field="name"
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              className="flex-1 min-w-0"
+              icons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
+            >
+              Name
+            </SortableHeader>
+            <SortableHeader
+              field="created"
+              sortField={sortField}
+              sortDirection={sortDirection}
+              onSort={toggleSort}
+              width="w-32 flex-shrink-0 ml-4"
+              icons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
+            >
+              Created
+            </SortableHeader>
+            <ListHeaderCell width="w-24 flex-shrink-0" />
+          </ListHeader>
+
+          <ListBody>
+            {sortedFiles.map(file => (
+              <ListRow
+                key={getFileKey(file)}
+                selected={selection.isSelected(file)}
+                onClick={() => selection.toggleItem(file)}
               >
-                Name
-              </DataList.SortableHeaderCell>
-              <DataList.SortableHeaderCell
-                field="created"
-                width="w-32 flex-shrink-0 ml-4"
-                SortIcons={{ Asc: CaretUpIcon, Desc: CaretDownIcon }}
-              >
-                Created
-              </DataList.SortableHeaderCell>
-              <DataList.HeaderCell width="w-24 flex-shrink-0" />
-            </DataList.Header>
+                <SelectionCheckbox
+                  checked={selection.isSelected(file)}
+                  onToggle={() => selection.toggleItem(file)}
+                  label={`Select ${file.attachment.name}`}
+                />
 
-            <DataList.Body>
-              {sortedFiles.map(file => (
-                <DataList.Row
-                  key={getFileKey(file)}
-                  item={file}
-                  onClick={selection.toggleItem}
-                >
-                  <DataList.SelectCell item={file} />
-
-                  {/* File info */}
-                  <DataList.Cell className="flex-1 min-w-0 flex items-center gap-3">
-                    {/* File thumbnail/icon */}
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
-                        {file.attachment.type === "image" ? (
-                          <ImageThumbnail
-                            attachment={file.attachment}
-                            className="h-full w-full rounded object-cover"
-                            onClick={() => setPreviewFile(file)}
-                          />
-                        ) : (
-                          <button
-                            onClick={() => setPreviewFile(file)}
-                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                            type="button"
-                          >
-                            {getFileAttachmentIcon(file.attachment)}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* File details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="truncate font-medium"
-                          title={file.attachment.name}
+                {/* File info */}
+                <ListCell className="flex-1 min-w-0 flex items-center gap-3">
+                  {/* File thumbnail/icon */}
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                      {file.attachment.type === "image" ? (
+                        <ImageThumbnail
+                          attachment={file.attachment}
+                          className="h-full w-full rounded object-cover"
+                          onClick={() => setPreviewFile(file)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setPreviewFile(file)}
+                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                          type="button"
                         >
-                          {file.attachment.name}
-                        </div>
-                        {(file.attachment.generatedImage?.isGenerated ??
-                          false) && (
-                          <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                            <MagicWandIcon className="h-3 w-3 mr-1" />
-                            Generated
-                          </Badge>
-                        )}
-                      </div>
+                          {getFileAttachmentIcon(file.attachment)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                      {/* File type and conversation */}
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <span className="flex-shrink-0">
-                          {file.attachment.type}
+                  {/* File details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="truncate font-medium"
+                        title={file.attachment.name}
+                      >
+                        {file.attachment.name}
+                      </div>
+                      {(file.attachment.generatedImage?.isGenerated ??
+                        false) && (
+                        <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                          <MagicWandIcon className="h-3 w-3 mr-1" />
+                          Generated
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* File type and conversation */}
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <span className="flex-shrink-0">
+                        {file.attachment.type}
+                      </span>
+                      <span className="flex-shrink-0">•</span>
+                      <div className="flex items-center gap-1 min-w-0">
+                        <LinkIcon className="h-3 w-3 flex-shrink-0" />
+                        <span
+                          className="truncate"
+                          title={file.conversationName}
+                        >
+                          {file.conversationName}
                         </span>
-                        <span className="flex-shrink-0">•</span>
-                        <div className="flex items-center gap-1 min-w-0">
-                          <LinkIcon className="h-3 w-3 flex-shrink-0" />
-                          <span
-                            className="truncate"
-                            title={file.conversationName}
-                          >
-                            {file.conversationName}
-                          </span>
-                        </div>
                       </div>
                     </div>
-                  </DataList.Cell>
+                  </div>
+                </ListCell>
 
-                  {/* Date */}
-                  <DataList.Cell
-                    width="w-32 flex-shrink-0 ml-4"
-                    className="text-sm text-muted-foreground"
-                  >
-                    {formatDate(file.createdAt)}
-                  </DataList.Cell>
+                {/* Date */}
+                <ListCell
+                  width="w-32 flex-shrink-0 ml-4"
+                  className="text-sm text-muted-foreground"
+                >
+                  {formatDate(file.createdAt)}
+                </ListCell>
 
-                  {/* Action buttons */}
-                  <DataList.Cell
-                    width="w-24 flex-shrink-0"
-                    className="flex items-center justify-end gap-1"
+                {/* Action buttons */}
+                <ListCell
+                  width="w-24 flex-shrink-0"
+                  className="flex items-center justify-end gap-1"
+                >
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setPreviewFile(file);
+                    }}
+                    className="h-8 px-2"
                   >
+                    <EyeIcon className="h-4 w-4" />
+                  </Button>
+                  {file.url && (
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={e => {
                         e.stopPropagation();
-                        setPreviewFile(file);
+                        handleDownloadFile(file);
                       }}
                       className="h-8 px-2"
                     >
-                      <EyeIcon className="h-4 w-4" />
+                      <DownloadIcon className="h-4 w-4" />
                     </Button>
-                    {file.url && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDownloadFile(file);
-                        }}
-                        className="h-8 px-2"
-                      >
-                        <DownloadIcon className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setDeleteTarget(getFileKey(file));
-                        setShowDeleteDialog(true);
-                      }}
-                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      title={
-                        file.storageId
-                          ? "Delete file"
-                          : "Remove text attachment from message"
-                      }
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </DataList.Cell>
-                </DataList.Row>
-              ))}
-            </DataList.Body>
-          </DataList.Container>
-        </DataList>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setDeleteTarget(getFileKey(file));
+                      setShowDeleteDialog(true);
+                    }}
+                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title={
+                      file.storageId
+                        ? "Delete file"
+                        : "Remove text attachment from message"
+                    }
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
+                </ListCell>
+              </ListRow>
+            ))}
+          </ListBody>
+        </ListContainer>
       )}
 
       {/* Load More Button */}
