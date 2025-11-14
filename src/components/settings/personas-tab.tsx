@@ -138,7 +138,7 @@ export const PersonasTab = () => {
             </p>
           </div>
           {isLoadingSettings ? (
-            <Skeleton className="h-6 w-11 rounded-full" />
+            <Skeleton className="h-6 w-11 rounded-full flex-shrink-0" />
           ) : (
             <Switch
               checked={userSettings?.personasEnabled !== false}
@@ -159,21 +159,10 @@ export const PersonasTab = () => {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 6 }, (_, i) => (
-                  <div
+                  <Skeleton
                     key={`builtin-persona-skeleton-${i}`}
-                    className="rounded-lg p-3 shadow-sm ring-1 ring-border/30 bg-card"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 flex-1 items-start gap-2">
-                        <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
-                        <div className="min-w-0 flex-1 stack-xs">
-                          <Skeleton className="h-4 w-24" />
-                          <Skeleton className="h-3 w-full" />
-                        </div>
-                      </div>
-                      <Skeleton className="h-6 w-11 rounded-full flex-shrink-0" />
-                    </div>
-                  </div>
+                    className="h-20 w-full rounded-lg"
+                  />
                 ))}
               </div>
             </div>
@@ -243,25 +232,10 @@ export const PersonasTab = () => {
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 {Array.from({ length: 4 }, (_, i) => (
-                  <div
+                  <Skeleton
                     key={`custom-persona-skeleton-${i}`}
-                    className="stack-md rounded-lg p-3 sm:p-4 shadow-sm ring-1 ring-border/30 bg-card"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
-                        <Skeleton className="h-5 w-5 rounded flex-shrink-0" />
-                        <div className="min-w-0 flex-1 stack-xs">
-                          <Skeleton className="h-4 w-32" />
-                          <Skeleton className="h-3 w-full" />
-                        </div>
-                      </div>
-                      <div className="flex flex-shrink-0 gap-1">
-                        <Skeleton className="h-8 w-8 rounded" />
-                        <Skeleton className="h-8 w-8 rounded" />
-                        <Skeleton className="h-8 w-8 rounded" />
-                      </div>
-                    </div>
-                  </div>
+                    className="h-24 w-full rounded-lg"
+                  />
                 ))}
               </div>
             </div>
