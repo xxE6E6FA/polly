@@ -75,8 +75,7 @@ export function ConversationSelectionList({
   const navigate = useNavigate();
   const bulkRemove = useMutation(api.conversations.bulkRemove);
   const removeConversation = useMutation(api.conversations.remove);
-  const togglePin = useMutation(api.conversations.togglePin);
-  const toggleArchive = useMutation(api.conversations.toggleArchive);
+  const patchConversation = useMutation(api.conversations.patch);
   const backgroundJobs = useBackgroundJobs();
   const managedToast = useToast();
 
@@ -188,7 +187,10 @@ export function ConversationSelectionList({
   const handleTogglePin = useCallback(
     async (conversationId: Id<"conversations">, isPinned: boolean) => {
       try {
-        await togglePin({ conversationId });
+        await patchConversation({
+          conversationId,
+          isPinned: !isPinned,
+        });
         managedToast.success(
           isPinned ? "Conversation unpinned" : "Conversation pinned"
         );
@@ -199,13 +201,16 @@ export function ConversationSelectionList({
         });
       }
     },
-    [togglePin, managedToast]
+    [patchConversation, managedToast]
   );
 
   const handleToggleArchive = useCallback(
     async (conversationId: Id<"conversations">, isArchived: boolean) => {
       try {
-        await toggleArchive({ conversationId });
+        await patchConversation({
+          conversationId,
+          isArchived: !isArchived,
+        });
         managedToast.success(
           isArchived ? "Conversation unarchived" : "Conversation archived"
         );
@@ -216,7 +221,7 @@ export function ConversationSelectionList({
         });
       }
     },
-    [toggleArchive, managedToast]
+    [patchConversation, managedToast]
   );
 
   const handleDeleteConversation = useCallback(
