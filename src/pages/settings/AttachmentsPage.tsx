@@ -461,23 +461,24 @@ export default function AttachmentsPage() {
           mobileTitleRender={file => (
             <div className="flex items-center gap-2">
               <div className="flex-shrink-0">
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    setPreviewFile(file);
-                  }}
-                  className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors overflow-hidden"
-                  type="button"
-                >
-                  {file.attachment.type === "image" ? (
-                    <ImageThumbnail
-                      attachment={file.attachment}
-                      className="h-full w-full rounded object-cover"
-                    />
-                  ) : (
-                    getFileAttachmentIcon(file.attachment)
-                  )}
-                </button>
+                {file.attachment.type === "image" ? (
+                  <ImageThumbnail
+                    attachment={file.attachment}
+                    className="h-10 w-10 rounded border bg-muted/20 object-cover"
+                    onClick={() => setPreviewFile(file)}
+                  />
+                ) : (
+                  <button
+                    onClick={e => {
+                      e.stopPropagation();
+                      setPreviewFile(file);
+                    }}
+                    className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
+                    type="button"
+                  >
+                    {getFileAttachmentIcon(file.attachment)}
+                  </button>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -488,9 +489,12 @@ export default function AttachmentsPage() {
                     {file.attachment.name}
                   </div>
                   {(file.attachment.generatedImage?.isGenerated ?? false) && (
-                    <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                      <MagicWandIcon className="h-3 w-3 mr-1" />
-                      Generated
+                    <Badge
+                      className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
+                      title="Generated image"
+                    >
+                      <MagicWandIcon className="h-3 w-3" />
+                      <span className="ml-1 hidden sm:inline">Generated</span>
                     </Badge>
                   )}
                 </div>

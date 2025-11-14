@@ -187,7 +187,10 @@ export const ImageThumbnail = ({
       <button
         className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/10 ${className}`}
         title={attachment.name}
-        onClick={onClick}
+        onClick={e => {
+          e.stopPropagation();
+          onClick?.();
+        }}
         type="button"
       >
         <img
