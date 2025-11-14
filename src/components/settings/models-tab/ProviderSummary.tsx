@@ -1,6 +1,7 @@
 import { PROVIDER_NAMES } from "@shared/provider-constants";
 import { memo } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProviderSummaryCard = memo(
   ({
@@ -50,19 +51,7 @@ const ProviderSummaryCard = memo(
 ProviderSummaryCard.displayName = "ProviderSummaryCard";
 
 const ProviderSummaryCardSkeleton = memo(() => (
-  <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30">
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <div className="h-6 w-6 shrink-0 animate-pulse rounded bg-muted" />
-        <div className="min-w-0 flex-1">
-          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-        </div>
-      </div>
-      <div className="flex items-center justify-between gap-2">
-        <div className="h-4 w-20 animate-pulse rounded bg-muted" />
-      </div>
-    </div>
-  </div>
+  <Skeleton className="h-24 w-full rounded-lg" />
 ));
 
 ProviderSummaryCardSkeleton.displayName = "ProviderSummaryCardSkeleton";
