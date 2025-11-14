@@ -23,6 +23,8 @@ export function SelectionCheckbox({
         }}
         className="flex h-4 w-4 items-center justify-center rounded border"
         type="button"
+        role="checkbox"
+        aria-checked={checked}
         aria-label={label || (checked ? "Deselect item" : "Select item")}
       >
         {checked && <CheckIcon className="h-3 w-3" />}
