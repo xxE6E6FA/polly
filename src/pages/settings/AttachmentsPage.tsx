@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -15,7 +16,7 @@ import {
   MagicWandIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -33,6 +34,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useToast } from "@/providers/toast-context";
 import type { Attachment } from "@/types";
 
@@ -113,63 +115,42 @@ export default function AttachmentsPage() {
 
   const managedToast = useToast();
 
-  // Query all user files (no filtering on server)
-  const filesData = useQuery(api.fileStorage.getUserFiles, {
-    fileType: "all",
-    includeGenerated: true,
-    limit: 1000, // Fetch more files since we're filtering client-side
-  });
+  // Debounce search query to avoid excessive queries (300ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Query user files with server-side filtering, search, and pagination
+  const {
+    results: filesData,
+    status,
+    loadMore,
+  } = usePaginatedQuery(
+    api.fileStorage.getUserFiles,
+    {
+      fileType: fileType === "all" ? undefined : fileType,
+      includeGenerated,
+      searchQuery: debouncedSearchQuery || undefined,
+    },
+    { initialNumItems: 50 }
+  );
 
   // Mutations
   const deleteFile = useMutation(api.fileStorage.deleteFile);
   const deleteMultipleFiles = useMutation(api.fileStorage.deleteMultipleFiles);
   const removeAttachment = useMutation(api.messages.removeAttachment);
 
-  // Filter and sort files
+  // Sort files (filtering is handled server-side)
   const filteredAndSortedFiles = useMemo(() => {
-    if (!filesData?.files) {
+    if (!filesData) {
       return [];
     }
 
-    const filtered = filesData.files.filter((file: UserFile | null) => {
-      if (!file) {
-        return false;
-      }
-
-      // Apply file type filter
-      if (fileType !== "all") {
-        if (fileType === "image" && file.attachment.type !== "image") {
-          return false;
-        }
-        if (fileType === "pdf" && file.attachment.type !== "pdf") {
-          return false;
-        }
-        if (fileType === "text" && file.attachment.type !== "text") {
-          return false;
-        }
-      }
-
-      // Apply generated images filter
-      if (fileType === "image" && !includeGenerated) {
-        if (file.attachment.generatedImage?.isGenerated) {
-          return false;
-        }
-      }
-
-      // Apply search query filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
-        return (
-          file.attachment.name.toLowerCase().includes(query) ||
-          file.conversationName.toLowerCase().includes(query)
-        );
-      }
-
-      return true;
-    });
+    // Filter out null entries and sort
+    const validFiles = filesData.filter(
+      (file: UserFile | null) => file !== null
+    );
 
     // Sort files - create a new array to avoid mutating the original
-    const sorted = [...filtered].sort((a, b) => {
+    const sorted = [...validFiles].sort((a, b) => {
       if (!(a && b)) {
         return 0;
       }
@@ -195,14 +176,7 @@ export default function AttachmentsPage() {
     });
 
     return sorted;
-  }, [
-    filesData?.files,
-    fileType,
-    includeGenerated,
-    searchQuery,
-    sortField,
-    sortDirection,
-  ]);
+  }, [filesData, sortField, sortDirection]);
 
   // Memoized file key generation to ensure consistency
   const getFileKey = useCallback((file: UserFile) => {
@@ -436,27 +410,7 @@ export default function AttachmentsPage() {
     handleDeleteFile,
   ]);
 
-  if (!filesData) {
-    return (
-      <SettingsPageLayout>
-        <SettingsHeader
-          title="Attachments"
-          description="Manage your uploaded files and image generations"
-        />
-        <div className="stack-xl">
-          {/* Loading skeleton */}
-          <div className="stack-lg">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton
-                key={`skeleton-${Date.now()}-${i}`}
-                className="h-16 w-full"
-              />
-            ))}
-          </div>
-        </div>
-      </SettingsPageLayout>
-    );
-  }
+  const isLoading = status === "LoadingFirstPage";
 
   return (
     <SettingsPageLayout>
@@ -528,7 +482,15 @@ export default function AttachmentsPage() {
       </div>
 
       {/* Files Table */}
-      {filteredAndSortedFiles.length === 0 ? (
+      {isLoading && (
+        <div className="stack-lg">
+          {Array.from({ length: 6 }, (_, i) => (
+            <Skeleton key={`skeleton-${i}`} className="h-16 w-full" />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && filteredAndSortedFiles.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <FolderIcon className="h-12 w-12 text-muted-foreground/40 mb-4" />
           <h3 className="text-lg font-medium text-muted-foreground">
@@ -540,7 +502,9 @@ export default function AttachmentsPage() {
               : "Upload files in your conversations to see them here"}
           </p>
         </div>
-      ) : (
+      )}
+
+      {!isLoading && filteredAndSortedFiles.length > 0 && (
         <div className="border rounded-lg overflow-hidden">
           {/* Table Header */}
           <div className="bg-muted/50 border-b">
@@ -747,6 +711,24 @@ export default function AttachmentsPage() {
                   </button>
                 );
               })}
+          </div>
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {status === "CanLoadMore" && (
+        <div className="flex justify-center py-4">
+          <Button onClick={() => loadMore(50)} variant="outline">
+            Load More
+          </Button>
+        </div>
+      )}
+
+      {status === "LoadingMore" && (
+        <div className="flex justify-center py-4">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            <span>Loading more files...</span>
           </div>
         </div>
       )}

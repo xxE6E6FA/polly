@@ -149,7 +149,7 @@ export async function createConversationHandler(
   validateUserMessageLength(args.firstMessage);
   const userMessageId = await ctx.db.insert(
     "messages",
-    createDefaultMessageFields(conversationId, {
+    createDefaultMessageFields(conversationId, user._id, {
       role: "user",
       content: args.firstMessage,
       attachments: args.attachments,
@@ -157,6 +157,16 @@ export async function createConversationHandler(
       temperature: args.temperature,
     })
   );
+
+  // Create file entries for attachments if any
+  if (args.attachments && args.attachments.length > 0) {
+    await ctx.runMutation(internal.fileStorage.createUserFileEntries, {
+      userId: user._id,
+      messageId: userMessageId,
+      conversationId,
+      attachments: args.attachments,
+    });
+  }
 
   // Increment rolling token estimate for the first user message
   try {
@@ -182,7 +192,7 @@ export async function createConversationHandler(
   // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
   const assistantMessageId = await ctx.db.insert(
     "messages",
-    createDefaultMessageFields(conversationId, {
+    createDefaultMessageFields(conversationId, user._id, {
       role: "assistant",
       content: "",
       model: fullModel.modelId,
@@ -220,7 +230,6 @@ export async function createConversationHandler(
       }
     );
   }
-
   return {
     conversationId,
     userMessageId,
@@ -282,7 +291,6 @@ export const createUserMessage = action({
       args.model,
       args.provider
     );
-
     // Create user message only
     const userMessageId: Id<"messages"> = await ctx.runMutation(
       api.messages.create,
@@ -377,6 +385,10 @@ export const sendMessage = action({
   }> => {
     // Validate user message size before any writes
     validateUserMessageLength(args.content);
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
     const [conversation, fullModel] = await Promise.all([
       ctx.runQuery(api.conversations.get, { id: args.conversationId }),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
@@ -404,6 +416,16 @@ export const sendMessage = action({
           ? { temperature: args.temperature }
           : undefined,
     });
+
+    // Create file entries for attachments if any
+    if (processedAttachments && processedAttachments.length > 0) {
+      await ctx.runMutation(internal.fileStorage.createUserFileEntries, {
+        userId,
+        messageId: userMessageId,
+        conversationId: args.conversationId,
+        attachments: processedAttachments,
+      });
+    }
 
     // Then create assistant message and update streaming in parallel
     const [assistantMessageId] = await Promise.all([
@@ -1069,6 +1091,7 @@ export const createWithUserId = internalMutation({
     const userMessageId = await ctx.db.insert("messages", {
       conversationId,
       role: "user",
+      userId: args.userId,
       content: args.firstMessage,
       attachments: args.attachments,
       useWebSearch: args.useWebSearch,
@@ -1092,6 +1115,7 @@ export const createWithUserId = internalMutation({
       conversationId,
       role: "assistant",
       content: "",
+      userId: args.userId,
       model: args.model,
       provider: args.provider,
       isMainBranch: true,

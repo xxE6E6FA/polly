@@ -5,9 +5,7 @@ export const seedBuiltInModels = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Check if built-in models already exist
-    const existingBuiltInModels = await ctx.db
-      .query("builtInModels")
-      .first();
+    const existingBuiltInModels = await ctx.db.query("builtInModels").first();
 
     if (existingBuiltInModels) {
       return { success: true, message: "Built-in models already exist" };
@@ -79,11 +77,11 @@ export const seedBuiltInModels = internalMutation({
       // Check if this built-in model already exists
       const existingModel = await ctx.db
         .query("builtInModels")
-        .filter(q => 
+        .filter((q) =>
           q.and(
             q.eq(q.field("modelId"), model.modelId),
-            q.eq(q.field("provider"), model.provider)
-          )
+            q.eq(q.field("provider"), model.provider),
+          ),
         )
         .first();
 
@@ -96,9 +94,14 @@ export const seedBuiltInModels = internalMutation({
       }
     }
 
-    return { 
-      success: true, 
-      message: `Seeded ${insertedCount} global built-in models` 
+    return {
+      success: true,
+      message: `Seeded ${insertedCount} global built-in models`,
     };
   },
 });
+
+/**
+ * Alias for consistency with other migrations
+ */
+export const runMigration = seedBuiltInModels;
