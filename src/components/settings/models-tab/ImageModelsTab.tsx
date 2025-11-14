@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import {
   ArrowsClockwise,
@@ -18,6 +19,7 @@ import {
 } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import { isApiKeysArray } from "@/lib/type-guards";
@@ -105,8 +107,24 @@ function renderImageModelsContent(
 ) {
   if (isLoading || isSearching) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Spinner className="text-blue-500" size="lg" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={`image-model-skeleton-${i}`}
+            className="rounded-lg border overflow-hidden"
+          >
+            <Skeleton className="h-48 w-full" />
+            <div className="p-4 stack-sm">
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-2/3" />
+              <div className="flex gap-2 mt-2">
+                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-6 w-16 rounded-full" />
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
