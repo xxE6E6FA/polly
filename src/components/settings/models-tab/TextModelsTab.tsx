@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import {
   ArrowCounterClockwiseIcon,
@@ -17,6 +18,7 @@ import {
 } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import {
@@ -100,8 +102,20 @@ function renderTextModelsContent(
 ) {
   if (isLoading) {
     return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <Spinner className="text-blue-500" size="lg" />
+      <div className="stack-md">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div
+            key={`model-skeleton-${i}`}
+            className="flex items-center gap-4 rounded-lg border p-4"
+          >
+            <Skeleton className="h-8 w-8 rounded flex-shrink-0" />
+            <div className="flex-1 min-w-0 stack-xs">
+              <Skeleton className="h-5 w-48" />
+              <Skeleton className="h-4 w-full max-w-md" />
+            </div>
+            <Skeleton className="h-9 w-20 rounded flex-shrink-0" />
+          </div>
+        ))}
       </div>
     );
   }
