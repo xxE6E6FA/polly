@@ -1,0 +1,435 @@
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
+import {
+  FileCodeIcon,
+  FilePdfIcon,
+  FileTextIcon,
+  FolderIcon,
+  ImageIcon,
+  MagicWandIcon,
+  XIcon,
+} from "@phosphor-icons/react";
+import { usePaginatedQuery } from "convex/react";
+import { useCallback, useMemo, useState } from "react";
+import { ImageThumbnail } from "@/components/file-display";
+import { ListEmptyState, ListLoadingState } from "@/components/data-list";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
+import { cn } from "@/lib/utils";
+import type { Attachment } from "@/types";
+
+type FileType = "all" | "image" | "pdf" | "text";
+
+interface UserFile {
+  storageId: Id<"_storage"> | null;
+  attachment: Attachment;
+  messageId: Id<"messages">;
+  conversationId: Id<"conversations">;
+  conversationName: string;
+  createdAt: number;
+  url: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+const FILE_TYPE_OPTIONS = [
+  { value: "all", label: "All Files", icon: FolderIcon },
+  { value: "image", label: "Images", icon: ImageIcon },
+  { value: "pdf", label: "PDFs", icon: FilePdfIcon },
+  { value: "text", label: "Text Files", icon: FileTextIcon },
+] as const;
+
+const TEXT_FILE_EXTENSIONS = [
+  "txt",
+  "text",
+  "md",
+  "markdown",
+  "mdx",
+  "rtf",
+  "log",
+  "csv",
+  "tsv",
+] as const;
+
+function getFileAttachmentIcon(attachment: Attachment) {
+  if (attachment.type === "pdf") {
+    return <FilePdfIcon className="h-8 w-8 text-red-500" />;
+  }
+
+  if (attachment.type === "text") {
+    const extension = attachment.name.split(".").pop()?.toLowerCase();
+    const isTextFile =
+      extension &&
+      (TEXT_FILE_EXTENSIONS as readonly string[]).includes(extension);
+
+    if (isTextFile) {
+      return <FileTextIcon className="h-8 w-8 text-blue-500" />;
+    }
+    return <FileCodeIcon className="h-8 w-8 text-green-500" />;
+  }
+
+  return <FileTextIcon className="h-8 w-8 text-gray-500" />;
+}
+
+interface FileSelectorDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectFiles: (attachments: Attachment[]) => void;
+  /**
+   * Filter files based on model capabilities
+   * If provided, will only show files that the model supports
+   */
+  supportsImages?: boolean;
+}
+
+export function FileSelectorDialog({
+  open,
+  onOpenChange,
+  onSelectFiles,
+  supportsImages = true,
+}: FileSelectorDialogProps) {
+  const [fileType, setFileType] = useState<FileType>("all");
+  const [includeGenerated, setIncludeGenerated] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [previewFile, setPreviewFile] = useState<UserFile | null>(null);
+
+  // Debounce search query to avoid excessive queries (300ms delay)
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Query user files with server-side filtering, search, and pagination
+  const {
+    results: filesData,
+    status,
+    loadMore,
+  } = usePaginatedQuery(
+    api.fileStorage.getUserFiles,
+    {
+      fileType: fileType === "all" ? undefined : fileType,
+      includeGenerated,
+      searchQuery: debouncedSearchQuery || undefined,
+    },
+    { initialNumItems: 50 }
+  );
+
+  // Filter out null entries and apply model capability filtering
+  const validFiles = useMemo(() => {
+    if (!filesData) {
+      return [];
+    }
+    const filtered = filesData.filter(
+      (file: UserFile | null) => file !== null
+    ) as UserFile[];
+
+    // Filter based on model capabilities
+    if (!supportsImages) {
+      return filtered.filter(file => file.attachment.type !== "image");
+    }
+
+    return filtered;
+  }, [filesData, supportsImages]);
+
+  // File key generation for selection
+  const getFileKey = useCallback((file: UserFile) => {
+    return file.storageId || `${file.messageId}-${file.attachment.name}`;
+  }, []);
+
+  // Selection handlers
+  const toggleSelection = useCallback(
+    (file: UserFile) => {
+      const key = getFileKey(file);
+      setSelectedFiles(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) {
+          next.delete(key);
+        } else {
+          next.add(key);
+        }
+        return next;
+      });
+    },
+    [getFileKey]
+  );
+
+  const isSelected = useCallback(
+    (file: UserFile) => {
+      return selectedFiles.has(getFileKey(file));
+    },
+    [selectedFiles, getFileKey]
+  );
+
+  const handleSelectAll = useCallback(() => {
+    if (selectedFiles.size === validFiles.length) {
+      setSelectedFiles(new Set());
+    } else {
+      setSelectedFiles(new Set(validFiles.map(getFileKey)));
+    }
+  }, [selectedFiles.size, validFiles, getFileKey]);
+
+  const handleConfirm = useCallback(() => {
+    // Get selected file attachments
+    const attachments = validFiles
+      .filter(file => selectedFiles.has(getFileKey(file)))
+      .map(file => file.attachment);
+
+    onSelectFiles(attachments);
+    setSelectedFiles(new Set());
+    setSearchQuery("");
+    onOpenChange(false);
+  }, [validFiles, selectedFiles, getFileKey, onSelectFiles, onOpenChange]);
+
+  const handleCancel = useCallback(() => {
+    setSelectedFiles(new Set());
+    setSearchQuery("");
+    onOpenChange(false);
+  }, [onOpenChange]);
+
+  const isLoading = status === "LoadingFirstPage";
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Select Files from Library</DialogTitle>
+            <DialogDescription>
+              Choose files from your uploaded files and generated images
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Controls */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select
+                value={fileType}
+                onValueChange={(value: FileType) => setFileType(value)}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FILE_TYPE_OPTIONS.map(option => {
+                    const Icon = option.icon;
+                    return (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {option.label}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              {fileType === "image" && (
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={includeGenerated}
+                    onChange={e => setIncludeGenerated(e.target.checked)}
+                    className="rounded"
+                  />
+                  Include generated images
+                </label>
+              )}
+            </div>
+
+            <Input
+              placeholder="Search files..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full sm:w-60"
+            />
+          </div>
+
+          {/* Selection count and actions */}
+          {validFiles.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSelectAll}
+                  className="h-8"
+                >
+                  {selectedFiles.size === validFiles.length
+                    ? "Deselect All"
+                    : "Select All"}
+                </Button>
+                {selectedFiles.size > 0 && (
+                  <span className="text-muted-foreground">
+                    {selectedFiles.size} selected
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* File Grid */}
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            {isLoading && <ListLoadingState count={6} height="h-32" />}
+
+            {!isLoading && validFiles.length === 0 && (
+              <ListEmptyState
+                icon={<FolderIcon className="h-12 w-12" />}
+                title="No files found"
+                description={
+                  searchQuery
+                    ? "Try adjusting your search or filter settings"
+                    : "Upload files in your conversations to see them here"
+                }
+              />
+            )}
+
+            {!isLoading && validFiles.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                {validFiles.map(file => {
+                  const selected = isSelected(file);
+                  return (
+                    <div
+                      key={getFileKey(file)}
+                      className={cn(
+                        "relative group rounded-lg border-2 transition-all cursor-pointer",
+                        selected
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      )}
+                      onClick={() => toggleSelection(file)}
+                    >
+                      {/* Selection indicator */}
+                      <div
+                        className={cn(
+                          "absolute top-2 right-2 z-10 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
+                          selected
+                            ? "bg-primary border-primary"
+                            : "bg-background border-border group-hover:border-primary/50"
+                        )}
+                      >
+                        {selected && (
+                          <svg
+                            className="h-3 w-3 text-primary-foreground"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        )}
+                      </div>
+
+                      {/* File content */}
+                      <div className="p-2">
+                        {/* Thumbnail/Icon */}
+                        <div className="relative aspect-square rounded-md bg-muted/20 flex items-center justify-center mb-2 overflow-hidden">
+                          {file.attachment.type === "image" ? (
+                            <ImageThumbnail
+                              attachment={file.attachment}
+                              className="h-full w-full object-cover"
+                              onClick={e => {
+                                e.stopPropagation();
+                                setPreviewFile(file);
+                              }}
+                            />
+                          ) : (
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setPreviewFile(file);
+                              }}
+                              className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors"
+                              type="button"
+                            >
+                              {getFileAttachmentIcon(file.attachment)}
+                            </button>
+                          )}
+                          {/* Generated badge */}
+                          {(file.attachment.generatedImage?.isGenerated ??
+                            false) && (
+                            <Badge className="absolute bottom-1 left-1 bg-purple-500/90 text-white text-xs px-1 py-0">
+                              <MagicWandIcon className="h-3 w-3" />
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* File name */}
+                        <div
+                          className="text-xs font-medium truncate"
+                          title={file.attachment.name}
+                        >
+                          {file.attachment.name}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Load More Button */}
+            {status === "CanLoadMore" && (
+              <div className="flex justify-center py-4">
+                <Button onClick={() => loadMore(50)} variant="outline" size="sm">
+                  Load More
+                </Button>
+              </div>
+            )}
+
+            {status === "LoadingMore" && (
+              <div className="flex justify-center py-4">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  <span>Loading more files...</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirm}
+              disabled={selectedFiles.size === 0}
+            >
+              Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* File Preview Dialog */}
+      {previewFile && (
+        <FilePreviewDialog
+          attachment={previewFile.attachment}
+          open={!!previewFile}
+          onOpenChange={open => !open && setPreviewFile(null)}
+          imageUrl={previewFile.url || undefined}
+        />
+      )}
+    </>
+  );
+}

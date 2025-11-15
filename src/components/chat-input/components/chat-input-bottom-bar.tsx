@@ -14,6 +14,7 @@ import { ReasoningPicker } from "../../reasoning-picker";
 import { TemperaturePicker } from "../../temperature-picker";
 import { AspectRatioDrawer } from "../aspect-ratio-drawer";
 import { AspectRatioPicker } from "../aspect-ratio-picker";
+import { FileLibraryButton } from "../file-library-button";
 import { FileUploadButton } from "../file-upload-button";
 import { ImageGenerationSettings } from "../image-generation-settings";
 import { ImageSettingsDrawer } from "../image-settings-drawer";
@@ -258,11 +259,18 @@ export function ChatInputBottomBar({
         </div>
         <div className="flex items-center gap-0.5 sm:gap-2">
           {canSend && (
-            <FileUploadButton
-              disabled={disabled}
-              isSubmitting={isProcessing}
-              conversationId={conversationId}
-            />
+            <>
+              <FileUploadButton
+                disabled={disabled}
+                isSubmitting={isProcessing}
+                conversationId={conversationId}
+              />
+              <FileLibraryButton
+                disabled={disabled}
+                isSubmitting={isProcessing}
+                conversationId={conversationId}
+              />
+            </>
           )}
           <SendButtonGroup
             canSend={canSend}
