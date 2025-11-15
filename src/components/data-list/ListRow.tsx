@@ -5,6 +5,11 @@ interface ListRowProps {
   selected?: boolean;
   onClick?: () => void;
   className?: string;
+  /**
+   * CSS grid-template-columns value for column layout.
+   * Should match ListHeader's gridTemplate for proper alignment.
+   */
+  gridTemplate?: string;
 }
 
 export function ListRow({
@@ -12,6 +17,7 @@ export function ListRow({
   selected = false,
   onClick,
   className,
+  gridTemplate,
 }: ListRowProps) {
   return (
     <div
@@ -35,7 +41,12 @@ export function ListRow({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
-      <div className="flex items-center p-4">{children}</div>
+      <div
+        className="grid items-center gap-4 p-4"
+        style={gridTemplate ? { gridTemplateColumns: gridTemplate } : undefined}
+      >
+        {children}
+      </div>
     </div>
   );
 }

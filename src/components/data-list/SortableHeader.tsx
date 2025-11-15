@@ -8,6 +8,9 @@ interface SortableHeaderProps<TField extends string> {
   sortDirection: SortDirection;
   onSort: (field: TField) => void;
   className?: string;
+  /**
+   * @deprecated Width is now controlled by the grid template. Use className for styling only.
+   */
   width?: string;
   icons?: {
     asc: React.ComponentType<{ className?: string }>;
@@ -22,7 +25,6 @@ export function SortableHeader<TField extends string>({
   sortDirection,
   onSort,
   className,
-  width,
   icons,
 }: SortableHeaderProps<TField>) {
   const isActive = sortField === field;
@@ -30,7 +32,7 @@ export function SortableHeader<TField extends string>({
   const DescIcon = icons?.desc;
 
   return (
-    <div className={cn(width, className)}>
+    <div className={cn(className)}>
       <button
         onClick={() => onSort(field)}
         className="flex items-center gap-1 text-sm font-medium hover:text-foreground"

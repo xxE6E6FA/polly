@@ -10,6 +10,7 @@ import {
   SelectionCheckbox,
   SortableHeader,
 } from "@/components/data-list";
+import { generateGridTemplate } from "@/components/data-list/gridUtils";
 import type { SortDirection } from "@/hooks/use-list-sort";
 
 export interface DataListColumn<TItem, TField extends string = string> {
@@ -74,10 +75,17 @@ export function DataList<TItem, TField extends string = string>({
 }: DataListProps<TItem, TField>) {
   const hasSelection = !!selection;
 
+  // Generate CSS Grid template from column widths
+  // This ensures headers and rows are automatically aligned
+  const gridTemplate = generateGridTemplate(
+    columns.map(col => col.width),
+    hasSelection
+  );
+
   return (
     <ListContainer>
       {/* Desktop Table Header */}
-      <ListHeader className="hidden lg:flex">
+      <ListHeader className="hidden lg:flex" gridTemplate={gridTemplate}>
         {hasSelection && (
           <SelectAllCheckbox
             checked={selection.isAllSelected(items)}
@@ -93,7 +101,6 @@ export function DataList<TItem, TField extends string = string>({
                 sortField={sort.field}
                 sortDirection={sort.direction}
                 onSort={sort.onSort}
-                width={column.width}
                 className={column.className}
                 icons={sortIcons}
               >
@@ -103,11 +110,7 @@ export function DataList<TItem, TField extends string = string>({
           }
 
           return (
-            <ListHeaderCell
-              key={column.key}
-              width={column.width}
-              className={column.className}
-            >
+            <ListHeaderCell key={column.key} className={column.className}>
               {column.label}
             </ListHeaderCell>
           );
@@ -124,6 +127,7 @@ export function DataList<TItem, TField extends string = string>({
               key={key}
               selected={isSelected}
               onClick={onRowClick ? () => onRowClick(item) : undefined}
+              gridTemplate={gridTemplate}
             >
               {/* Desktop Table Layout */}
               <div className="hidden lg:contents">
@@ -135,11 +139,7 @@ export function DataList<TItem, TField extends string = string>({
                   />
                 )}
                 {columns.map(column => (
-                  <ListCell
-                    key={column.key}
-                    width={column.width}
-                    className={column.className}
-                  >
+                  <ListCell key={column.key} className={column.className}>
                     {column.render(item)}
                   </ListCell>
                 ))}
