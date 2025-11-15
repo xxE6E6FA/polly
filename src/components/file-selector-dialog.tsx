@@ -206,7 +206,7 @@ export function FileSelectorDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Select Files from Library</DialogTitle>
             <DialogDescription>
@@ -300,7 +300,7 @@ export function FileSelectorDialog({
             )}
 
             {!isLoading && validFiles.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {validFiles.map(file => {
                   const selected = isSelected(file);
                   return (
@@ -309,39 +309,13 @@ export function FileSelectorDialog({
                       className={cn(
                         "relative group rounded-lg border-2 transition-all cursor-pointer",
                         selected
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : "border-border hover:border-primary/50 hover:shadow-sm"
                       )}
                       onClick={() => toggleSelection(file)}
                     >
-                      {/* Selection indicator */}
-                      <div
-                        className={cn(
-                          "absolute top-2 right-2 z-10 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all",
-                          selected
-                            ? "bg-primary border-primary"
-                            : "bg-background border-border group-hover:border-primary/50"
-                        )}
-                      >
-                        {selected && (
-                          <svg
-                            className="h-3 w-3 text-primary-foreground"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={3}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                        )}
-                      </div>
-
                       {/* File content */}
-                      <div className="p-2">
+                      <div className="p-3">
                         {/* Thumbnail/Icon */}
                         <div className="relative aspect-square rounded-md bg-muted/20 flex items-center justify-center mb-2 overflow-hidden">
                           {file.attachment.type === "image" ? (
@@ -365,6 +339,26 @@ export function FileSelectorDialog({
                               {getFileAttachmentIcon(file.attachment)}
                             </button>
                           )}
+                          {/* Selection indicator */}
+                          {selected && (
+                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                              <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+                                <svg
+                                  className="h-6 w-6 text-primary-foreground"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={3}
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              </div>
+                            </div>
+                          )}
                           {/* Generated badge */}
                           {(file.attachment.generatedImage?.isGenerated ??
                             false) && (
@@ -376,7 +370,7 @@ export function FileSelectorDialog({
 
                         {/* File name */}
                         <div
-                          className="text-xs font-medium truncate"
+                          className="text-sm font-medium truncate"
                           title={file.attachment.name}
                         >
                           {file.attachment.name}
