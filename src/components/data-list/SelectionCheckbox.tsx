@@ -15,7 +15,7 @@ export function SelectionCheckbox({
   className,
 }: SelectionCheckboxProps) {
   return (
-    <div className={cn("w-8 flex-shrink-0", className)}>
+    <div className={cn(className)}>
       <button
         onClick={e => {
           e.stopPropagation();
