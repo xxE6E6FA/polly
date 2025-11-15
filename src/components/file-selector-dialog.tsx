@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,6 +36,8 @@ import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
 
 type FileType = "all" | "image" | "pdf" | "text";
+
+const FILES_PER_PAGE = 50;
 
 interface UserFile {
   storageId: Id<"_storage"> | null;
@@ -109,7 +110,6 @@ export function FileSelectorDialog({
   const [includeGenerated, setIncludeGenerated] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [previewFile, setPreviewFile] = useState<UserFile | null>(null);
 
   // Debounce search query to avoid excessive queries (300ms delay)
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -126,7 +126,7 @@ export function FileSelectorDialog({
       includeGenerated,
       searchQuery: debouncedSearchQuery || undefined,
     },
-    { initialNumItems: 50 }
+    { initialNumItems: FILES_PER_PAGE }
   );
 
   // Filter out null entries and apply model capability filtering
@@ -210,221 +210,208 @@ export function FileSelectorDialog({
   const isLoading = status === "LoadingFirstPage";
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Select Files from Library</DialogTitle>
-            <DialogDescription>
-              Choose files from your uploaded files and generated images
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Select Files from Library</DialogTitle>
+          <DialogDescription>
+            Choose files from your uploaded files and generated images
+          </DialogDescription>
+        </DialogHeader>
 
-          {/* Controls */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select
-                value={fileType}
-                onValueChange={(value: FileType) => setFileType(value)}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILE_TYPE_OPTIONS.map(option => {
-                    const Icon = option.icon;
-                    return (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          {option.label}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+        {/* Controls */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select
+              value={fileType}
+              onValueChange={(value: FileType) => setFileType(value)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FILE_TYPE_OPTIONS.map(option => {
+                  const Icon = option.icon;
+                  return (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
 
-              {fileType === "image" && (
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={includeGenerated}
-                    onChange={e => setIncludeGenerated(e.target.checked)}
-                    className="rounded"
-                  />
-                  Include generated images
-                </label>
-              )}
-            </div>
-
-            <Input
-              placeholder="Search files..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full sm:w-60"
-            />
+            {fileType === "image" && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={includeGenerated}
+                  onChange={e => setIncludeGenerated(e.target.checked)}
+                  className="rounded"
+                />
+                Include generated images
+              </label>
+            )}
           </div>
 
-          {/* Selection count and actions */}
-          {validFiles.length > 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  className="h-8"
-                >
-                  {selectedFiles.size === validFiles.length
-                    ? "Deselect All"
-                    : "Select All"}
-                </Button>
-                {selectedFiles.size > 0 && (
-                  <span className="text-muted-foreground">
-                    {selectedFiles.size} selected
-                  </span>
-                )}
-              </div>
+          <Input
+            placeholder="Search files..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full sm:w-60"
+          />
+        </div>
+
+        {/* Selection count and actions */}
+        {validFiles.length > 0 && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectAll}
+                className="h-8"
+              >
+                {selectedFiles.size === validFiles.length
+                  ? "Deselect All"
+                  : "Select All"}
+              </Button>
+              {selectedFiles.size > 0 && (
+                <span className="text-muted-foreground">
+                  {selectedFiles.size} selected
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* File Grid */}
+        <div className="flex-1 overflow-y-auto -mx-6 px-6">
+          {isLoading && <ListLoadingState count={6} height="h-32" />}
+
+          {!isLoading && validFiles.length === 0 && (
+            <ListEmptyState
+              icon={<FolderIcon className="h-12 w-12" />}
+              title="No files found"
+              description={
+                searchQuery
+                  ? "Try adjusting your search or filter settings"
+                  : "Upload files in your conversations to see them here"
+              }
+            />
+          )}
+
+          {!isLoading && validFiles.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-4">
+              {validFiles.map(file => {
+                const selected = isSelected(file);
+                return (
+                  <button
+                    key={getFileKey(file)}
+                    className={cn(
+                      "relative group rounded-lg border-2 transition-all overflow-hidden bg-muted/20 text-left w-full aspect-square",
+                      file.attachment.type === "image"
+                        ? "flex items-center justify-center"
+                        : "p-3 flex flex-col",
+                      selected
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border hover:border-primary/50 hover:shadow-sm"
+                    )}
+                    onClick={() => toggleSelection(file)}
+                  >
+                    {file.attachment.type === "image" ? (
+                      <ImageThumbnail
+                        attachment={file.attachment}
+                        className="h-full w-full object-cover pointer-events-none"
+                      />
+                    ) : (
+                      <div className="flex flex-col h-full pointer-events-none">
+                        <div className="flex items-center justify-center flex-1">
+                          {getFileAttachmentIcon(file.attachment)}
+                        </div>
+                        <div className="stack-xs text-center">
+                          <div
+                            className="text-sm font-medium text-foreground truncate"
+                            title={file.attachment.name}
+                          >
+                            {file.attachment.name}
+                          </div>
+                          <div
+                            className="text-xs text-muted-foreground truncate"
+                            title={file.conversationName}
+                          >
+                            {file.conversationName}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* Selection indicator */}
+                    {selected && (
+                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
+                        <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                          <svg
+                            className="h-5 w-5 text-primary-foreground"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={3}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                    {/* Generated badge */}
+                    {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                      <Badge className="absolute top-2 right-2 bg-purple-500/90 text-white text-xs px-1 py-0">
+                        <MagicWandIcon className="h-3 w-3" />
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
 
-          {/* File Grid */}
-          <div className="flex-1 overflow-y-auto -mx-6 px-6">
-            {isLoading && <ListLoadingState count={6} height="h-32" />}
+          {/* Load More Button */}
+          {status === "CanLoadMore" && (
+            <div className="flex justify-center py-4">
+              <Button
+                onClick={() => loadMore(FILES_PER_PAGE)}
+                variant="outline"
+                size="sm"
+              >
+                Load More
+              </Button>
+            </div>
+          )}
 
-            {!isLoading && validFiles.length === 0 && (
-              <ListEmptyState
-                icon={<FolderIcon className="h-12 w-12" />}
-                title="No files found"
-                description={
-                  searchQuery
-                    ? "Try adjusting your search or filter settings"
-                    : "Upload files in your conversations to see them here"
-                }
-              />
-            )}
-
-            {!isLoading && validFiles.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-4">
-                {validFiles.map(file => {
-                  const selected = isSelected(file);
-                  return (
-                    <button
-                      key={getFileKey(file)}
-                      className={cn(
-                        "relative group rounded-lg border-2 transition-all overflow-hidden bg-muted/20 text-left w-full aspect-square",
-                        file.attachment.type === "image"
-                          ? "flex items-center justify-center"
-                          : "p-3 flex flex-col",
-                        selected
-                          ? "border-primary bg-primary/10 shadow-sm"
-                          : "border-border hover:border-primary/50 hover:shadow-sm"
-                      )}
-                      onClick={() => toggleSelection(file)}
-                    >
-                      {file.attachment.type === "image" ? (
-                        <ImageThumbnail
-                          attachment={file.attachment}
-                          className="h-full w-full object-cover pointer-events-none"
-                        />
-                      ) : (
-                        <div className="flex flex-col h-full pointer-events-none">
-                          <div className="flex items-center justify-center flex-1">
-                            {getFileAttachmentIcon(file.attachment)}
-                          </div>
-                          <div className="stack-xs text-center">
-                            <div
-                              className="text-sm font-medium text-foreground truncate"
-                              title={file.attachment.name}
-                            >
-                              {file.attachment.name}
-                            </div>
-                            <div
-                              className="text-xs text-muted-foreground truncate"
-                              title={file.conversationName}
-                            >
-                              {file.conversationName}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {/* Selection indicator */}
-                      {selected && (
-                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
-                          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                            <svg
-                              className="h-5 w-5 text-primary-foreground"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={3}
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          </div>
-                        </div>
-                      )}
-                      {/* Generated badge */}
-                      {(file.attachment.generatedImage?.isGenerated ??
-                        false) && (
-                        <Badge className="absolute top-2 right-2 bg-purple-500/90 text-white text-xs px-1 py-0">
-                          <MagicWandIcon className="h-3 w-3" />
-                        </Badge>
-                      )}
-                    </button>
-                  );
-                })}
+          {status === "LoadingMore" && (
+            <div className="flex justify-center py-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span>Loading more files...</span>
               </div>
-            )}
+            </div>
+          )}
+        </div>
 
-            {/* Load More Button */}
-            {status === "CanLoadMore" && (
-              <div className="flex justify-center py-4">
-                <Button
-                  onClick={() => loadMore(50)}
-                  variant="outline"
-                  size="sm"
-                >
-                  Load More
-                </Button>
-              </div>
-            )}
-
-            {status === "LoadingMore" && (
-              <div className="flex justify-center py-4">
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  <span>Loading more files...</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleConfirm} disabled={selectedFiles.size === 0}>
-              Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* File Preview Dialog */}
-      {previewFile && (
-        <FilePreviewDialog
-          attachment={previewFile.attachment}
-          open={!!previewFile}
-          onOpenChange={open => !open && setPreviewFile(null)}
-          imageUrl={previewFile.url || undefined}
-        />
-      )}
-    </>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirm} disabled={selectedFiles.size === 0}>
+            Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
