@@ -85,7 +85,7 @@ export function DataList<TItem, TField extends string = string>({
   return (
     <ListContainer>
       {/* Desktop Table Header */}
-      <ListHeader className="hidden lg:flex" gridTemplate={gridTemplate}>
+      <ListHeader className="hidden lg:block" gridTemplate={gridTemplate}>
         {hasSelection && (
           <SelectAllCheckbox
             checked={selection.isAllSelected(items)}
