@@ -580,7 +580,7 @@ export default function AttachmentsPage() {
                 sortField: "name",
                 hideOnMobile: true, // Title is rendered via mobileTitleRender
                 render: file => (
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div className="flex-shrink-0">
                       <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
                         {file.attachment.type === "image" ? (
@@ -603,8 +603,8 @@ export default function AttachmentsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
                           className="truncate font-medium"
                           title={file.attachment.name}
@@ -619,7 +619,7 @@ export default function AttachmentsPage() {
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground min-w-0">
                         <span
                           className="truncate"
                           title={file.conversationName}
@@ -644,11 +644,11 @@ export default function AttachmentsPage() {
               {
                 key: "actions",
                 label: "Actions",
-                width: "w-32",
-                className: "flex items-center justify-end gap-1",
+                width: "w-40",
+                className: "text-right",
                 hideOnMobile: true, // Actions are rendered via mobileActionsRender
                 render: file => (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-end gap-1">
                     <Button
                       size="sm"
                       variant="ghost"
