@@ -183,6 +183,20 @@ export function FileSelectorDialog({
     }
   }, [selectedFiles.size, validFiles, getFileKey]);
 
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        // Reset state when closing
+        setSelectedFiles(new Set());
+        setSearchQuery("");
+        setFileType("all");
+        setIncludeGenerated(true);
+      }
+      onOpenChange(open);
+    },
+    [onOpenChange]
+  );
+
   const handleConfirm = useCallback(() => {
     // Get selected file attachments
     const attachments = validFiles
@@ -190,23 +204,15 @@ export function FileSelectorDialog({
       .map(file => file.attachment);
 
     onSelectFiles(attachments);
-    setSelectedFiles(new Set());
-    setSearchQuery("");
-    onOpenChange(false);
-  }, [validFiles, selectedFiles, getFileKey, onSelectFiles, onOpenChange]);
-
-  const handleCancel = useCallback(() => {
-    setSelectedFiles(new Set());
-    setSearchQuery("");
-    onOpenChange(false);
-  }, [onOpenChange]);
+    handleOpenChange(false);
+  }, [validFiles, selectedFiles, getFileKey, onSelectFiles, handleOpenChange]);
 
   const isLoading = status === "LoadingFirstPage";
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-7xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Select Files from Library</DialogTitle>
             <DialogDescription>
@@ -300,7 +306,7 @@ export function FileSelectorDialog({
             )}
 
             {!isLoading && validFiles.length > 0 && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {validFiles.map(file => {
                   const selected = isSelected(file);
                   return (
@@ -402,7 +408,7 @@ export function FileSelectorDialog({
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancel}>
+            <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button
