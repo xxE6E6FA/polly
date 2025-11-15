@@ -343,6 +343,7 @@ export async function getUserFilesHandler(
             name: file.name,
             size: file.size,
             url: fileUrl ?? "",
+            storageId: file.storageId,
             mimeType: file.mimeType,
             generatedImage: file.isGenerated
               ? { isGenerated: true, source: "unknown" }
