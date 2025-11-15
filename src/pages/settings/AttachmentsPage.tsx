@@ -578,7 +578,6 @@ export default function AttachmentsPage() {
                 label: "Name",
                 sortable: true,
                 sortField: "name",
-                className: "flex-1 min-w-0",
                 hideOnMobile: true, // Title is rendered via mobileTitleRender
                 render: file => (
                   <div className="flex items-center gap-3">
@@ -637,7 +636,7 @@ export default function AttachmentsPage() {
                 label: "Created",
                 sortable: true,
                 sortField: "created",
-                width: "w-32 flex-shrink-0 ml-4",
+                width: "w-32",
                 className: "text-sm text-muted-foreground",
                 hideOnMobile: true, // Date is rendered via mobileMetadataRender
                 render: file => formatDate(file.createdAt),
@@ -645,7 +644,7 @@ export default function AttachmentsPage() {
               {
                 key: "actions",
                 label: "Actions",
-                width: "w-32 flex-shrink-0",
+                width: "w-32",
                 className: "flex items-center justify-end gap-1",
                 hideOnMobile: true, // Actions are rendered via mobileActionsRender
                 render: file => (
