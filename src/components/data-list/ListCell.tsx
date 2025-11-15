@@ -3,9 +3,12 @@ import { cn } from "@/lib/utils";
 interface ListCellProps {
   children: React.ReactNode;
   className?: string;
+  /**
+   * @deprecated Width is now controlled by the grid template. Use className for styling only.
+   */
   width?: string;
 }
 
-export function ListCell({ children, className, width }: ListCellProps) {
-  return <div className={cn(width, className)}>{children}</div>;
+export function ListCell({ children, className }: ListCellProps) {
+  return <div className={cn(className)}>{children}</div>;
 }
