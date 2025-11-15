@@ -9,11 +9,6 @@ interface ListHeaderCellProps {
   width?: string;
 }
 
-export function ListHeaderCell({
-  children,
-  className,
-}: ListHeaderCellProps) {
-  return (
-    <div className={cn("text-sm font-medium", className)}>{children}</div>
-  );
+export function ListHeaderCell({ children, className }: ListHeaderCellProps) {
+  return <div className={cn("text-sm font-medium", className)}>{children}</div>;
 }

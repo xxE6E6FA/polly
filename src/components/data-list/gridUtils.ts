@@ -8,6 +8,7 @@
  * Used to convert Tailwind classes like "w-32" to "8rem" for grid-template-columns.
  */
 const TAILWIND_WIDTH_MAP: Record<string, string> = {
+  // Fixed widths (rem-based)
   "w-4": "1rem",
   "w-8": "2rem",
   "w-12": "3rem",
@@ -27,6 +28,21 @@ const TAILWIND_WIDTH_MAP: Record<string, string> = {
   "w-72": "18rem",
   "w-80": "20rem",
   "w-96": "24rem",
+  // Fractional widths (percentage-based)
+  "w-1/2": "50%",
+  "w-1/3": "33.333333%",
+  "w-2/3": "66.666667%",
+  "w-1/4": "25%",
+  "w-2/4": "50%",
+  "w-3/4": "75%",
+  "w-1/5": "20%",
+  "w-2/5": "40%",
+  "w-3/5": "60%",
+  "w-4/5": "80%",
+  "w-1/6": "16.666667%",
+  "w-5/6": "83.333333%",
+  // Full width
+  "w-full": "100%",
 };
 
 /**
@@ -47,6 +63,14 @@ function parseWidthClass(width?: string): string {
 
   if (widthClass && TAILWIND_WIDTH_MAP[widthClass]) {
     return TAILWIND_WIDTH_MAP[widthClass];
+  }
+
+  // Check if there's a width class that wasn't recognized (development warning)
+  const unrecognizedWidth = width.split(" ").find(cls => cls.startsWith("w-"));
+  if (unrecognizedWidth && process.env.NODE_ENV === "development") {
+    console.warn(
+      `[DataList] Unrecognized width class: "${unrecognizedWidth}". Falling back to flexible column (minmax(0, 1fr)). Supported classes: w-{size} (4-96), w-{fraction} (1/2, 1/3, etc.), w-full.`
+    );
   }
 
   // If no recognized width class, make it flexible
