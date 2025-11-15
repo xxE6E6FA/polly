@@ -70,7 +70,7 @@ const TEXT_FILE_EXTENSIONS = [
 
 function getFileAttachmentIcon(attachment: Attachment) {
   if (attachment.type === "pdf") {
-    return <FilePdfIcon className="h-8 w-8 text-red-500" />;
+    return <FilePdfIcon className="h-12 w-12 text-red-500" />;
   }
 
   if (attachment.type === "text") {
@@ -80,12 +80,12 @@ function getFileAttachmentIcon(attachment: Attachment) {
       (TEXT_FILE_EXTENSIONS as readonly string[]).includes(extension);
 
     if (isTextFile) {
-      return <FileTextIcon className="h-8 w-8 text-blue-500" />;
+      return <FileTextIcon className="h-12 w-12 text-blue-500" />;
     }
-    return <FileCodeIcon className="h-8 w-8 text-green-500" />;
+    return <FileCodeIcon className="h-12 w-12 text-green-500" />;
   }
 
-  return <FileTextIcon className="h-8 w-8 text-gray-500" />;
+  return <FileTextIcon className="h-12 w-12 text-gray-500" />;
 }
 
 interface FileSelectorDialogProps {
@@ -310,23 +310,18 @@ export function FileSelectorDialog({
                 {validFiles.map(file => {
                   const selected = isSelected(file);
                   return (
-                    <div
+                    <button
                       key={getFileKey(file)}
                       className={cn(
-                        "relative group rounded-lg border-2 transition-all cursor-pointer aspect-square overflow-hidden bg-muted/20 flex items-center justify-center",
+                        "relative group rounded-lg border-2 transition-all overflow-hidden bg-muted/20 text-left w-full aspect-square",
+                        file.attachment.type === "image"
+                          ? "flex items-center justify-center"
+                          : "p-3 flex flex-col",
                         selected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border hover:border-primary/50 hover:shadow-sm"
                       )}
                       onClick={() => toggleSelection(file)}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          toggleSelection(file);
-                        }
-                      }}
-                      role="button"
-                      tabIndex={0}
                     >
                       {file.attachment.type === "image" ? (
                         <ImageThumbnail
@@ -334,16 +329,32 @@ export function FileSelectorDialog({
                           className="h-full w-full object-cover pointer-events-none"
                         />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center pointer-events-none">
-                          {getFileAttachmentIcon(file.attachment)}
+                        <div className="flex flex-col h-full pointer-events-none">
+                          <div className="flex items-center justify-center flex-1">
+                            {getFileAttachmentIcon(file.attachment)}
+                          </div>
+                          <div className="stack-xs text-center">
+                            <div
+                              className="text-sm font-medium text-foreground truncate"
+                              title={file.attachment.name}
+                            >
+                              {file.attachment.name}
+                            </div>
+                            <div
+                              className="text-xs text-muted-foreground truncate"
+                              title={file.conversationName}
+                            >
+                              {file.conversationName}
+                            </div>
+                          </div>
                         </div>
                       )}
                       {/* Selection indicator */}
                       {selected && (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
-                          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+                          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
                             <svg
-                              className="h-6 w-6 text-primary-foreground"
+                              className="h-5 w-5 text-primary-foreground"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -361,11 +372,11 @@ export function FileSelectorDialog({
                       {/* Generated badge */}
                       {(file.attachment.generatedImage?.isGenerated ??
                         false) && (
-                        <Badge className="absolute bottom-1 left-1 bg-purple-500/90 text-white text-xs px-1 py-0">
+                        <Badge className="absolute top-2 right-2 bg-purple-500/90 text-white text-xs px-1 py-0">
                           <MagicWandIcon className="h-3 w-3" />
                         </Badge>
                       )}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
