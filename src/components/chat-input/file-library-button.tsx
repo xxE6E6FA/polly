@@ -30,10 +30,14 @@ export function FileLibraryButton({
   const handleSelectFiles = useCallback(
     async (attachments: Attachment[]) => {
       if (attachments.length > 0) {
-        const { appendAttachments } = await import(
-          "@/stores/actions/chat-input-actions"
-        );
-        appendAttachments(conversationId ?? undefined, attachments);
+        try {
+          const { appendAttachments } = await import(
+            "@/stores/actions/chat-input-actions"
+          );
+          appendAttachments(conversationId ?? undefined, attachments);
+        } catch (error) {
+          console.error("Failed to append attachments:", error);
+        }
       }
     },
     [conversationId]
@@ -55,15 +59,13 @@ export function FileLibraryButton({
             className={cn(
               "h-8 w-8 rounded-full p-0 shrink-0",
               "transition-all duration-200",
-              "bg-primary text-primary-foreground",
-              "hover:bg-primary/90 hover:text-primary-foreground",
               "hover:scale-105 active:scale-95",
               disabled && "cursor-not-allowed opacity-50 hover:scale-100"
             )}
             disabled={disabled || isSubmitting}
             size="icon"
             type="button"
-            variant="ghost"
+            variant="default"
             onClick={handleClick}
           >
             <FolderOpenIcon className="h-3.5 w-3.5" />
