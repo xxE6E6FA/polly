@@ -11,8 +11,8 @@ import {
 } from "@phosphor-icons/react";
 import { usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
-import { ImageThumbnail } from "@/components/file-display";
 import { ListEmptyState, ListLoadingState } from "@/components/data-list";
+import { ImageThumbnail } from "@/components/file-display";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -212,7 +212,7 @@ export function FileSelectorDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-7xl max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-7xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Select Files from Library</DialogTitle>
             <DialogDescription>
@@ -306,82 +306,65 @@ export function FileSelectorDialog({
             )}
 
             {!isLoading && validFiles.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6 gap-4">
                 {validFiles.map(file => {
                   const selected = isSelected(file);
                   return (
                     <div
                       key={getFileKey(file)}
                       className={cn(
-                        "relative group rounded-lg border-2 transition-all cursor-pointer",
+                        "relative group rounded-lg border-2 transition-all cursor-pointer aspect-square overflow-hidden bg-muted/20 flex items-center justify-center",
                         selected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : "border-border hover:border-primary/50 hover:shadow-sm"
                       )}
                       onClick={() => toggleSelection(file)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleSelection(file);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
                     >
-                      {/* File content */}
-                      <div className="p-3">
-                        {/* Thumbnail/Icon */}
-                        <div className="relative aspect-square rounded-md bg-muted/20 flex items-center justify-center mb-2 overflow-hidden">
-                          {file.attachment.type === "image" ? (
-                            <ImageThumbnail
-                              attachment={file.attachment}
-                              className="h-full w-full object-cover"
-                              onClick={e => {
-                                e.stopPropagation();
-                                setPreviewFile(file);
-                              }}
-                            />
-                          ) : (
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                setPreviewFile(file);
-                              }}
-                              className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors"
-                              type="button"
+                      {file.attachment.type === "image" ? (
+                        <ImageThumbnail
+                          attachment={file.attachment}
+                          className="h-full w-full object-cover pointer-events-none"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center pointer-events-none">
+                          {getFileAttachmentIcon(file.attachment)}
+                        </div>
+                      )}
+                      {/* Selection indicator */}
+                      {selected && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center pointer-events-none">
+                          <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
+                            <svg
+                              className="h-6 w-6 text-primary-foreground"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
                             >
-                              {getFileAttachmentIcon(file.attachment)}
-                            </button>
-                          )}
-                          {/* Selection indicator */}
-                          {selected && (
-                            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                              <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center">
-                                <svg
-                                  className="h-6 w-6 text-primary-foreground"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={3}
-                                    d="M5 13l4 4L19 7"
-                                  />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
-                          {/* Generated badge */}
-                          {(file.attachment.generatedImage?.isGenerated ??
-                            false) && (
-                            <Badge className="absolute bottom-1 left-1 bg-purple-500/90 text-white text-xs px-1 py-0">
-                              <MagicWandIcon className="h-3 w-3" />
-                            </Badge>
-                          )}
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
                         </div>
-
-                        {/* File name */}
-                        <div
-                          className="text-sm font-medium truncate"
-                          title={file.attachment.name}
-                        >
-                          {file.attachment.name}
-                        </div>
-                      </div>
+                      )}
+                      {/* Generated badge */}
+                      {(file.attachment.generatedImage?.isGenerated ??
+                        false) && (
+                        <Badge className="absolute bottom-1 left-1 bg-purple-500/90 text-white text-xs px-1 py-0">
+                          <MagicWandIcon className="h-3 w-3" />
+                        </Badge>
+                      )}
                     </div>
                   );
                 })}
@@ -391,7 +374,11 @@ export function FileSelectorDialog({
             {/* Load More Button */}
             {status === "CanLoadMore" && (
               <div className="flex justify-center py-4">
-                <Button onClick={() => loadMore(50)} variant="outline" size="sm">
+                <Button
+                  onClick={() => loadMore(50)}
+                  variant="outline"
+                  size="sm"
+                >
                   Load More
                 </Button>
               </div>
@@ -411,10 +398,7 @@ export function FileSelectorDialog({
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleConfirm}
-              disabled={selectedFiles.size === 0}
-            >
+            <Button onClick={handleConfirm} disabled={selectedFiles.size === 0}>
               Add {selectedFiles.size > 0 ? `(${selectedFiles.size})` : ""}
             </Button>
           </DialogFooter>
