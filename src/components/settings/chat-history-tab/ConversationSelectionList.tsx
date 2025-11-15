@@ -282,7 +282,7 @@ export function ConversationSelectionList({
         label: "",
         sortable: true,
         sortField: "title",
-        className: "flex-1 min-w-0",
+        hideOnMobile: true, // Title is rendered via mobileTitleRender
         render: conversation => (
           <div className="flex items-start gap-2 min-w-0">
             {renderBadges(conversation)}
@@ -297,7 +297,7 @@ export function ConversationSelectionList({
         label: "Created",
         sortable: true,
         sortField: "created",
-        width: "w-32 flex-shrink-0 ml-4",
+        width: "w-32",
         className: "text-sm text-muted-foreground text-right",
         hideOnMobile: true,
         render: conversation => formatDate(conversation.createdAt),
@@ -305,11 +305,11 @@ export function ConversationSelectionList({
       {
         key: "actions",
         label: "Actions",
-        width: "w-40 flex-shrink-0",
-        className: "flex items-center justify-end gap-1",
+        width: "w-40",
+        className: "text-right",
         hideOnMobile: true,
         render: conversation => (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-end gap-1">
             <Button
               size="sm"
               variant="ghost"
