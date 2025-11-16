@@ -68,6 +68,7 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
                     "chat-input-control border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
+                    "dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted",
                     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200"
                   )}
