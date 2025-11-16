@@ -82,7 +82,7 @@ function getProviderCardStyle(isConnected: boolean) {
   const baseStyle = "p-4 rounded-lg transition-all duration-200 shadow-sm";
 
   if (isConnected) {
-    return `${baseStyle} ring-1 ring-blue-500/30 bg-gradient-to-br from-blue-500/10 to-purple-500/10 hover:from-blue-500/15 hover:to-purple-500/15 dark:from-blue-500/15 dark:to-purple-500/15 dark:hover:from-blue-500/20 dark:hover:to-purple-500/20`;
+    return `${baseStyle} ring-1 ring-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10 dark:from-primary/15 dark:to-primary/10 dark:hover:from-primary/20 dark:hover:to-primary/15`;
   }
 
   return `${baseStyle} ring-1 ring-border/30 bg-card hover:bg-muted/70`;
@@ -258,7 +258,7 @@ export const ApiKeysTab = () => {
                         <Badge
                           variant="secondary"
                           size="sm"
-                          className="border border-blue-500/20 bg-gradient-to-r from-blue-500/10 to-purple-500/10 text-blue-700 dark:border-blue-500/30 dark:from-blue-500/20 dark:to-purple-500/20 dark:text-blue-300"
+                          className="border border-primary/20 bg-gradient-to-r from-primary/10 to-primary/5 text-primary dark:border-primary/30 dark:from-primary/20 dark:to-primary/15"
                         >
                           <CheckCircleIcon className="mr-1 h-3 w-3" /> Connected
                         </Badge>
@@ -277,7 +277,7 @@ export const ApiKeysTab = () => {
                       href={info.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
                     >
                       Get API key <ArrowSquareOutIcon className="h-3 w-3" />
                     </a>
@@ -292,7 +292,7 @@ export const ApiKeysTab = () => {
                       disabled
                       id={provider}
                       type="text"
-                      className="flex-1 h-9 border-blue-500/20 bg-blue-500/5 font-mono text-sm dark:bg-blue-500/10"
+                      className="flex-1 h-9 border-primary/20 bg-primary/5 font-mono text-sm dark:bg-primary/10"
                       placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
                     />
                     <Button
@@ -345,7 +345,7 @@ export const ApiKeysTab = () => {
                 href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
               >
                 View documentation <ArrowSquareOutIcon className="h-3 w-3" />
               </a>
