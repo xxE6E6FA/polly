@@ -3,6 +3,63 @@ import { existsSync, statSync, watch } from "fs";
 import { mkdir, readdir, rm } from "fs/promises";
 import { join } from "path";
 
+// Live reload configuration
+const RELOAD_ENDPOINT = "/__dev__/reload";
+const LIVE_RELOAD_SCRIPT = `<script>(function() {
+  function connect() {
+    const es = new EventSource("${RELOAD_ENDPOINT}");
+    es.onmessage = (e) => { if(e.data === "reload") location.reload(); };
+    es.onerror = () => {
+      es.close();
+      setTimeout(connect, 1000);
+    };
+  }
+  connect();
+})();</script>`;
+
+// Live reload client store with proper typing
+declare global {
+  var liveReloadClients: Set<ReadableStreamDefaultController<string>>;
+}
+
+globalThis.liveReloadClients = globalThis.liveReloadClients || new Set();
+
+// Inject live reload script into HTML (with duplicate prevention)
+function injectLiveReloadScript(html: string): string {
+  // Check if script is already injected to prevent duplicates
+  if (html.includes(RELOAD_ENDPOINT)) {
+    return html;
+  }
+
+  // Try case-insensitive replacement for </body>
+  const bodyTagRegex = /<\/body>/i;
+  if (bodyTagRegex.test(html)) {
+    return html.replace(bodyTagRegex, `${LIVE_RELOAD_SCRIPT}</body>`);
+  }
+
+  // Try case-insensitive replacement for </html>
+  const htmlTagRegex = /<\/html>/i;
+  if (htmlTagRegex.test(html)) {
+    return html.replace(htmlTagRegex, `${LIVE_RELOAD_SCRIPT}</html>`);
+  }
+
+  // Fallback: append to end if no closing tags found
+  return html + LIVE_RELOAD_SCRIPT;
+}
+
+// Notify all connected clients to reload
+// SSE format: "data: <message>\n\n" (note: double newline required by SSE spec)
+function notifyReload() {
+  for (const client of globalThis.liveReloadClients) {
+    try {
+      client.enqueue("data: reload\n\n");
+    } catch {
+      // Remove disconnected clients
+      globalThis.liveReloadClients.delete(client);
+    }
+  }
+}
+
 const PORT = process.env.PORT || 3000;
 const HOSTNAME = process.env.HOSTNAME || "0.0.0.0";
 const isDev = process.env.NODE_ENV !== "production";
@@ -152,18 +209,30 @@ const buildDev = async () => {
 };
 
 let DevWatcher: ReturnType<typeof watch> | undefined;
-let CssWatcher: ReturnType<typeof watch> | undefined;
+let rebuildTimeout: Timer | undefined;
 
 // Graceful shutdown handler
 const handleExit = (signal: string) => {
   console.log(`\n📦 Shutting down development server (${signal})...`);
 
-  // Close watchers
+  // Clear any pending rebuild timeout
+  if (rebuildTimeout) {
+    clearTimeout(rebuildTimeout);
+  }
+
+  // Close all SSE connections
+  for (const client of globalThis.liveReloadClients) {
+    try {
+      client.close();
+    } catch {
+      // Client may already be closed
+    }
+  }
+  globalThis.liveReloadClients.clear();
+
+  // Close watcher
   if (DevWatcher) {
     DevWatcher.close();
-  }
-  if (CssWatcher) {
-    CssWatcher.close();
   }
 
   // Kill all child processes
@@ -197,20 +266,65 @@ async function main() {
   }
 
   if (isDev) {
-    // Watch for changes and rebuild
-    DevWatcher = watch("./src", { recursive: true }, async (_, filename) => {
-      if (filename && !filename.includes("node_modules")) {
+    // Watch for changes and rebuild only for relevant file types
+    const relevantExtensions = [".ts", ".tsx", ".js", ".jsx", ".css"];
+
+    // Track rebuild state and queue pending rebuilds
+    let isRebuilding = false;
+    let hasPendingRebuild = false;
+
+    // Rebuild function that handles queued rebuilds
+    const rebuild = async (filename: string) => {
+      isRebuilding = true;
+      try {
         console.log(`🔄 Detected change in ${filename}, rebuilding...`);
         await buildDev();
+        notifyReload();
+      } catch (error) {
+        console.error("❌ Build failed:", error);
+      } finally {
+        isRebuilding = false;
+        // Process queued rebuild if one is pending
+        if (hasPendingRebuild) {
+          hasPendingRebuild = false;
+          await rebuild(filename);
+        }
       }
-    });
+    };
 
-    // CSS changes will trigger a full rebuild since CSS is bundled by Bun
-    CssWatcher = watch("./src", { recursive: true }, async (_, filename) => {
-      if (filename?.endsWith(".css")) {
-        console.log(`🔄 Detected CSS change in ${filename}, rebuilding...`);
-        await buildDev();
+    DevWatcher = watch("./src", { recursive: true }, (_, filename) => {
+      if (!filename || filename.includes("node_modules")) {
+        return;
       }
+
+      // Skip test files - they don't affect the browser build
+      if (filename.match(/\.(test|spec)\.(ts|tsx|js|jsx)$/)) {
+        return;
+      }
+
+      // Only rebuild for relevant file extensions
+      const hasRelevantExtension = relevantExtensions.some(ext =>
+        filename.endsWith(ext)
+      );
+
+      if (!hasRelevantExtension) {
+        return;
+      }
+
+      // Debounce rapid file changes (batch multiple saves)
+      if (rebuildTimeout) {
+        clearTimeout(rebuildTimeout);
+      }
+
+      rebuildTimeout = setTimeout(() => {
+        // Queue rebuild if one is already in progress
+        if (isRebuilding) {
+          hasPendingRebuild = true;
+          return;
+        }
+
+        rebuild(filename);
+      }, 150); // 150ms debounce - batch rapid changes
     });
   }
 
@@ -235,9 +349,43 @@ async function main() {
       port: Number(PORT),
       hostname: HOSTNAME,
       development: isDev,
-      fetch(req) {
+      async fetch(req) {
         const url = new URL(req.url);
         let pathname = url.pathname;
+
+        // Live reload SSE endpoint (dev-only)
+        if (pathname === RELOAD_ENDPOINT) {
+          // Security: Only allow in development mode
+          if (!isDev) {
+            return new Response("Not Found", { status: 404 });
+          }
+
+          let clientController: ReadableStreamDefaultController<string> | null =
+            null;
+
+          const stream = new ReadableStream({
+            start(controller) {
+              clientController = controller;
+              globalThis.liveReloadClients.add(controller);
+              // SSE initial connection message
+              controller.enqueue("data: connected\n\n");
+            },
+            cancel() {
+              // Clean up client on disconnection
+              if (clientController) {
+                globalThis.liveReloadClients.delete(clientController);
+              }
+            },
+          });
+
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              Connection: "keep-alive",
+            },
+          });
+        }
 
         if (pathname === "/") {
           pathname = "/index.html";
@@ -256,6 +404,12 @@ async function main() {
                 contentType = "text/css";
               } else if (pathname.endsWith(".html")) {
                 contentType = "text/html";
+                // Inject live reload script into HTML
+                const html = await file.text();
+                const modifiedHtml = injectLiveReloadScript(html);
+                return new Response(modifiedHtml, {
+                  headers: { "Content-Type": contentType },
+                });
               } else if (pathname.endsWith(".json")) {
                 contentType = "application/json";
               } else if (pathname.endsWith(".wasm")) {
@@ -285,7 +439,9 @@ async function main() {
         try {
           if (existsSync(indexPath)) {
             const indexFile = Bun.file(indexPath);
-            return new Response(indexFile, {
+            const html = await indexFile.text();
+            const modifiedHtml = injectLiveReloadScript(html);
+            return new Response(modifiedHtml, {
               headers: { "Content-Type": "text/html" },
             });
           }
