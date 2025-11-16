@@ -200,6 +200,8 @@
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(222.2 84% 4.9%);
   --color-foreground-focus: hsl(222.2 90% 2%);
+  --color-highlight: hsl(47 100% 85%);
+  --color-highlight-foreground: hsl(222.2 84% 4.9%);
   --color-card: hsl(220 14% 96%);
   --color-card-foreground: hsl(222.2 84% 4.9%);
   --color-popover: hsl(0 0% 100%);
@@ -401,6 +403,8 @@
     --color-background: hsl(220 14% 10%);
     --color-foreground: hsl(220 15% 95%);
     --color-foreground-focus: hsl(220 15% 100%);
+    --color-highlight: hsl(47 70% 25%);
+    --color-highlight-foreground: hsl(47 95% 85%);
     --color-card: hsl(220 13% 12%);
     --color-card-foreground: hsl(220 15% 95%);
     --color-popover: hsl(220 13% 10%);
