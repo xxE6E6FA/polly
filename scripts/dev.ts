@@ -6,12 +6,15 @@ import { join } from "path";
 // Live reload configuration
 const RELOAD_ENDPOINT = "/__dev__/reload";
 const LIVE_RELOAD_SCRIPT = `<script>(function() {
-  let es = new EventSource("${RELOAD_ENDPOINT}");
-  es.onmessage = (e) => { if(e.data === "reload") location.reload(); };
-  es.onerror = () => {
-    es.close();
-    setTimeout(() => { es = new EventSource("${RELOAD_ENDPOINT}"); }, 1000);
-  };
+  function connect() {
+    const es = new EventSource("${RELOAD_ENDPOINT}");
+    es.onmessage = (e) => { if(e.data === "reload") location.reload(); };
+    es.onerror = () => {
+      es.close();
+      setTimeout(connect, 1000);
+    };
+  }
+  connect();
 })();</script>`;
 
 // Live reload client store with proper typing
@@ -260,9 +263,29 @@ async function main() {
     // Watch for changes and rebuild only for relevant file types
     const relevantExtensions = [".ts", ".tsx", ".js", ".jsx", ".css"];
 
-    // Track rebuild state to prevent overlapping builds
+    // Track rebuild state and queue pending rebuilds
     let isRebuilding = false;
+    let hasPendingRebuild = false;
     let rebuildTimeout: Timer | undefined;
+
+    // Rebuild function that handles queued rebuilds
+    const rebuild = async (filename: string) => {
+      isRebuilding = true;
+      try {
+        console.log(`🔄 Detected change in ${filename}, rebuilding...`);
+        await buildDev();
+        notifyReload();
+      } catch (error) {
+        console.error("❌ Build failed:", error);
+      } finally {
+        isRebuilding = false;
+        // Process queued rebuild if one is pending
+        if (hasPendingRebuild) {
+          hasPendingRebuild = false;
+          rebuild(filename);
+        }
+      }
+    };
 
     DevWatcher = watch("./src", { recursive: true }, (_, filename) => {
       if (!filename || filename.includes("node_modules")) {
@@ -289,25 +312,13 @@ async function main() {
       }
 
       rebuildTimeout = setTimeout(() => {
-        // Prevent overlapping rebuilds
+        // Queue rebuild if one is already in progress
         if (isRebuilding) {
+          hasPendingRebuild = true;
           return;
         }
 
-        isRebuilding = true;
-
-        // Execute rebuild asynchronously
-        (async () => {
-          try {
-            console.log(`🔄 Detected change in ${filename}, rebuilding...`);
-            await buildDev();
-            notifyReload();
-          } catch (error) {
-            console.error("❌ Build failed:", error);
-          } finally {
-            isRebuilding = false;
-          }
-        })();
+        rebuild(filename);
       }, 150); // 150ms debounce - batch rapid changes
     });
   }
