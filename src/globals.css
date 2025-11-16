@@ -256,7 +256,7 @@
 
   /* Warning Colors */
   --color-warning: hsl(47.9 95.8% 53.1%);
-  --color-warning-foreground: hsl(222.2 47.4% 11.2%);
+  --color-warning-foreground: hsl(0 0% 10%);
   --color-warning-hover: hsl(48 96% 48%);
   --color-warning-active: hsl(48 97% 43%);
   --color-warning-bg: hsl(40 92% 90%);
@@ -413,9 +413,11 @@
     --color-card-foreground: hsl(0 0% 98%);
     --color-popover: hsl(228 8% 7%);
     --color-popover-foreground: hsl(0 0% 95%);
-    --color-primary: hsl(0 0% 99%);
-    --color-primary-hover: hsl(0 0% 95%);
-    --color-primary-active: hsl(0 0% 87%);
+    /* Primary button: dark background with white text for proper contrast */
+    --color-primary: hsl(0 0% 8%);
+    --color-primary-foreground: hsl(0 0% 98%);
+    --color-primary-hover: hsl(0 0% 16%);
+    --color-primary-active: hsl(0 0% 22%);
     --color-secondary: hsl(0 0% 14.9%);
     --color-secondary-foreground: hsl(0 0% 98%);
     --color-secondary-hover: hsl(240 4% 16%);
@@ -429,17 +431,28 @@
     --color-input-focus: hsl(0 0% 16%);
     --color-border: hsl(0 0% 14.9%);
     --color-ring: hsl(0 0% 52%);
-    --color-destructive: hsl(0 62.8% 30.6%);
-    --color-danger: hsl(0 62.8% 30.6%);
-    --color-danger-hover: hsl(0 75% 35%);
-    --color-danger-active: hsl(0 80% 40%);
+    /* Destructive/Danger: brighter red for better contrast with white text */
+    --color-destructive: hsl(0 72% 45%);
+    --color-destructive-foreground: hsl(0 0% 100%);
+    --color-danger: hsl(0 72% 45%);
+    --color-danger-foreground: hsl(0 0% 100%);
+    --color-danger-hover: hsl(0 75% 50%);
+    --color-danger-active: hsl(0 78% 55%);
+    /* Success: keep light mode value with white text */
+    --color-success: hsl(160.1 84.1% 39.4%);
+    --color-success-foreground: hsl(0 0% 100%);
     --color-success-hover: hsl(160 85% 45%);
     --color-success-active: hsl(160 86% 50%);
-    --color-warning-foreground: hsl(37 100% 76%);
-    --color-warning-hover: hsl(37 100% 80%);
-    --color-warning-active: hsl(37 100% 85%);
-    --color-info-hover: hsl(214.6 79.1% 67%);
-    --color-info-active: hsl(214.6 79.1% 72%);
+    /* Warning: darker text for contrast on bright yellow background */
+    --color-warning: hsl(47.9 95.8% 53.1%);
+    --color-warning-foreground: hsl(0 0% 10%);
+    --color-warning-hover: hsl(48 96% 58%);
+    --color-warning-active: hsl(48 97% 63%);
+    /* Info: keep light mode value with white text */
+    --color-info: hsl(188.7 94.5% 42.7%);
+    --color-info-foreground: hsl(0 0% 100%);
+    --color-info-hover: hsl(189 95% 48%);
+    --color-info-active: hsl(189 96% 53%);
     --color-surface: hsl(228 8% 7%);
     --color-surface-variant: hsl(228 5% 11%);
     --color-surface-hover: hsl(228 4% 14%);
