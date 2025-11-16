@@ -102,6 +102,7 @@
   --backdrop-blur-xs: 2px;
 
   /* Box Shadows - Minimal (Grok Style) */
+  /* Small shadows: none for flat interactive elements */
   --shadow-1: none;
   --shadow-2: none;
   --shadow-3: none;
@@ -109,15 +110,24 @@
   --shadow-5: none;
   --shadow-sm: none;
   --shadow: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-xl: none;
-  --shadow-2xl: none;
+  /* Medium shadows: subtle for dropdowns/menus */
+  --shadow-md:
+    0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  /* Large shadows: for modals and floating elements */
+  --shadow-lg:
+    0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-xl:
+    0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.12);
+  /* Elevation scale for floating UI */
   --shadow-elevation-1: none;
   --shadow-elevation-2: none;
-  --shadow-elevation-3: none;
-  --shadow-elevation-4: none;
-  --shadow-elevation-5: none;
+  --shadow-elevation-3:
+    0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-elevation-4:
+    0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+  --shadow-elevation-5:
+    0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
   --shadow-soft: none;
   --shadow-organic: none;
   --shadow-glow: none;
@@ -443,12 +453,25 @@
     --color-info-border: hsl(214 40% 25%);
     --color-danger-border: hsl(0 50% 20%);
 
-    /* Elevation (dark) - Minimal */
+    /* Elevation (dark) - Minimal shadows for floating elements only */
     --shadow-1: none;
     --shadow-2: none;
     --shadow-3: none;
     --shadow-4: none;
     --shadow-5: none;
+    --shadow-md:
+      0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    --shadow-lg:
+      0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
+    --shadow-xl:
+      0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.35);
+    --shadow-elevation-3:
+      0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
+    --shadow-elevation-4:
+      0 10px 15px -3px rgb(0 0 0 / 0.25), 0 4px 6px -4px rgb(0 0 0 / 0.25);
+    --shadow-elevation-5:
+      0 20px 25px -5px rgb(0 0 0 / 0.3), 0 8px 10px -6px rgb(0 0 0 / 0.3);
   }
 }
 
