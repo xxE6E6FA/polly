@@ -3,19 +3,42 @@ import { existsSync, statSync, watch } from "fs";
 import { mkdir, readdir, rm } from "fs/promises";
 import { join } from "path";
 
-// Live reload client store
+// Live reload configuration
+const RELOAD_ENDPOINT = "/__dev__/reload";
+const LIVE_RELOAD_SCRIPT = `<script>new EventSource("${RELOAD_ENDPOINT}").onmessage = (e) => { if(e.data === "reload") location.reload(); };</script>`;
+
+// Live reload client store with proper typing
 declare global {
-  var liveReloadClients: Set<ReadableStreamDefaultController>;
+  var liveReloadClients: Set<ReadableStreamDefaultController<string>>;
 }
 
 globalThis.liveReloadClients = globalThis.liveReloadClients || new Set();
 
+// Inject live reload script into HTML (with duplicate prevention)
+function injectLiveReloadScript(html: string): string {
+  // Check if script is already injected to prevent duplicates
+  if (html.includes(RELOAD_ENDPOINT)) {
+    return html;
+  }
+
+  // Try case-insensitive replacement for </body>
+  const bodyTagRegex = /<\/body>/i;
+  if (bodyTagRegex.test(html)) {
+    return html.replace(bodyTagRegex, `${LIVE_RELOAD_SCRIPT}</body>`);
+  }
+
+  // Fallback: append to end if no </body> tag found
+  return html + LIVE_RELOAD_SCRIPT;
+}
+
 // Notify all connected clients to reload
+// SSE format: "data: <message>\n\n" (note: double newline required by SSE spec)
 function notifyReload() {
   for (const client of globalThis.liveReloadClients) {
     try {
       client.enqueue("data: reload\n\n");
     } catch {
+      // Remove disconnected clients
       globalThis.liveReloadClients.delete(client);
     }
   }
@@ -242,10 +265,15 @@ async function main() {
       }
 
       isRebuilding = true;
-      console.log(`🔄 Detected change in ${filename}, rebuilding...`);
-      await buildDev();
-      notifyReload();
-      isRebuilding = false;
+      try {
+        console.log(`🔄 Detected change in ${filename}, rebuilding...`);
+        await buildDev();
+        notifyReload();
+      } catch (error) {
+        console.error("❌ Build failed:", error);
+      } finally {
+        isRebuilding = false;
+      }
     });
   }
 
@@ -274,17 +302,31 @@ async function main() {
         const url = new URL(req.url);
         let pathname = url.pathname;
 
-        // Live reload SSE endpoint
-        if (pathname === "/__dev__/reload") {
+        // Live reload SSE endpoint (dev-only)
+        if (pathname === RELOAD_ENDPOINT) {
+          // Security: Only allow in development mode
+          if (!isDev) {
+            return new Response("Not Found", { status: 404 });
+          }
+
+          let clientController: ReadableStreamDefaultController<string> | null =
+            null;
+
           const stream = new ReadableStream({
             start(controller) {
+              clientController = controller;
               globalThis.liveReloadClients.add(controller);
+              // SSE initial connection message
               controller.enqueue("data: connected\n\n");
             },
             cancel() {
-              // Client will be removed on error in notifyReload
+              // Clean up client on disconnection
+              if (clientController) {
+                globalThis.liveReloadClients.delete(clientController);
+              }
             },
           });
+
           return new Response(stream, {
             headers: {
               "Content-Type": "text/event-stream",
@@ -313,11 +355,7 @@ async function main() {
                 contentType = "text/html";
                 // Inject live reload script into HTML
                 const html = await file.text();
-                const liveReloadScript = `<script>new EventSource("/__dev__/reload").onmessage = (e) => { if(e.data === "reload") location.reload(); };</script>`;
-                const modifiedHtml = html.replace(
-                  "</body>",
-                  `${liveReloadScript}</body>`
-                );
+                const modifiedHtml = injectLiveReloadScript(html);
                 return new Response(modifiedHtml, {
                   headers: { "Content-Type": contentType },
                 });
@@ -351,11 +389,7 @@ async function main() {
           if (existsSync(indexPath)) {
             const indexFile = Bun.file(indexPath);
             const html = await indexFile.text();
-            const liveReloadScript = `<script>new EventSource("/__dev__/reload").onmessage = (e) => { if(e.data === "reload") location.reload(); };</script>`;
-            const modifiedHtml = html.replace(
-              "</body>",
-              `${liveReloadScript}</body>`
-            );
+            const modifiedHtml = injectLiveReloadScript(html);
             return new Response(modifiedHtml, {
               headers: { "Content-Type": "text/html" },
             });
