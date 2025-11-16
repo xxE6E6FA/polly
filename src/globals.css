@@ -136,8 +136,8 @@
   );
   --gradient-primary: linear-gradient(
     135deg,
-    hsl(258 90% 60%) 0%,
-    hsl(217.2 91.2% 59.8%) 100%
+    hsl(220 65% 58%) 0%,
+    hsl(200 70% 62%) 100%
   );
   --gradient-surface: linear-gradient(
     135deg,
@@ -146,24 +146,24 @@
   );
   --gradient-accent: linear-gradient(
     135deg,
-    hsl(262.1 83.3% 57.8%) 0%,
-    hsl(217.2 91.2% 59.8%) 100%
+    hsl(230 60% 65%) 0%,
+    hsl(210 65% 60%) 100%
   );
   --gradient-tropical: linear-gradient(
     135deg,
-    hsl(220 95% 55%),
-    hsl(260 85% 60%)
+    hsl(210 70% 58%),
+    hsl(190 65% 60%)
   );
   --gradient-organic: radial-gradient(
     ellipse 70% 70% at 50% 50%,
-    hsl(258 90% 60% / 0.15) 0%,
+    hsl(220 65% 58% / 0.15) 0%,
     transparent 70%
   );
   --gradient-header-from-logo: linear-gradient(
     135deg,
-    hsl(220 95% 55%),
-    hsl(260 85% 60%),
-    hsl(280 75% 65%)
+    hsl(210 70% 58%),
+    hsl(220 65% 62%),
+    hsl(230 60% 68%)
   );
 
   /* Animations */
@@ -196,7 +196,7 @@
   --color-input: hsl(220 14% 90%);
   --color-input-hover: hsl(220 14% 87%);
   --color-input-focus: hsl(220 14% 84%);
-  --color-ring: hsl(258 72% 58%);
+  --color-ring: hsl(220 60% 60%);
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(222.2 84% 4.9%);
   --color-foreground-focus: hsl(222.2 90% 2%);
@@ -211,10 +211,10 @@
   --color-active-element-border: hsl(220 14% 88%);
 
   /* Primary Colors */
-  --color-primary: hsl(258 90% 60%);
+  --color-primary: hsl(220 65% 58%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-primary-hover: hsl(258 90% 55%);
-  --color-primary-active: hsl(258 90% 50%);
+  --color-primary-hover: hsl(220 70% 63%);
+  --color-primary-active: hsl(220 65% 53%);
 
   /* Secondary Colors */
   --color-secondary: hsl(220 14% 93%);
@@ -231,7 +231,7 @@
   --color-accent-foreground: hsl(222 47% 11%);
   --color-accent-coral: hsl(16 85% 58%);
   --color-accent-orange: hsl(20.5 90.2% 48.2%);
-  --color-accent-purple: hsl(262.1 83.3% 57.8%);
+  --color-accent-purple: hsl(240 50% 68%);
   --color-accent-blue: hsl(217.2 91.2% 59.8%);
   --color-accent-yellow: hsl(47.9 95.8% 53.1%);
   --color-accent-cyan: hsl(188.7 94.5% 42.7%);
@@ -409,9 +409,9 @@
     --color-card-foreground: hsl(220 15% 95%);
     --color-popover: hsl(220 13% 10%);
     --color-popover-foreground: hsl(220 15% 95%);
-    --color-primary: hsl(258 90% 62%);
-    --color-primary-hover: hsl(258 90% 67%);
-    --color-primary-active: hsl(258 90% 72%);
+    --color-primary: hsl(220 65% 68%);
+    --color-primary-hover: hsl(220 70% 73%);
+    --color-primary-active: hsl(220 70% 78%);
     --color-secondary: hsl(220 13% 16%);
     --color-secondary-foreground: hsl(0 0% 98%);
     --color-secondary-hover: hsl(220 13% 18%);
@@ -424,7 +424,7 @@
     --color-input-hover: hsl(220 13% 22%);
     --color-input-focus: hsl(220 13% 26%);
     --color-border: hsl(220 13% 18%);
-    --color-ring: hsl(258 90% 62%);
+    --color-ring: hsl(220 65% 68%);
     --color-destructive: hsl(0 75% 50%);
     --color-danger: hsl(0 75% 50%);
     --color-danger-hover: hsl(0 80% 55%);
@@ -1124,7 +1124,7 @@ pre {
   bottom: 0;
   background: radial-gradient(
     ellipse 900px 350px at bottom,
-    rgba(147, 51, 234, 0.15),
+    rgba(86, 127, 195, 0.15),
     transparent 75%
   );
   animation: private-mode-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1134,7 +1134,7 @@ pre {
 .dark .private-mode-background::before {
   background: radial-gradient(
     ellipse 900px 350px at bottom,
-    rgba(147, 51, 234, 0.18),
+    rgba(100, 145, 215, 0.18),
     transparent 75%
   );
 }
@@ -1168,9 +1168,9 @@ pre {
 .gradient-text {
   background: linear-gradient(
     to right,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
+    hsl(210 70% 58%),
+    /* Calm blue */ hsl(220 65% 62%),
+    /* Blue-lavender */ hsl(230 60% 68%) /* Soft lavender */
   );
   background-clip: text;
   -webkit-background-clip: text;
@@ -1201,8 +1201,8 @@ pre {
     0 0 0 4px var(--color-ring) / 0.2;
   background-image: linear-gradient(
     to right,
-    hsl(220 95% 55% / 0.1),
-    /* Deep blue */ hsl(260 85% 60% / 0.1) /* Rich purple */
+    hsl(210 70% 58% / 0.1),
+    /* Calm blue */ hsl(220 65% 62% / 0.1) /* Blue-lavender */
   );
 }
 
@@ -1285,12 +1285,12 @@ pre {
 
 /* Polly Logo Gradient */
 .polly-logo-gradient-unified {
-  /* Option 1: Professional Blue to Purple gradient */
+  /* Calm Blue to Lavender gradient */
   background: linear-gradient(
     135deg,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
+    hsl(210 70% 58%),
+    /* Calm blue */ hsl(220 65% 62%),
+    /* Blue-lavender */ hsl(230 60% 68%) /* Soft lavender */
   );
   background-size: 200% 200%;
   /* Disable continuous animation by default to avoid idle CPU usage */
@@ -1301,9 +1301,9 @@ pre {
 .polly-logo-text-unified {
   background: linear-gradient(
     135deg,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
+    hsl(210 70% 58%),
+    /* Calm blue */ hsl(220 65% 62%),
+    /* Blue-lavender */ hsl(230 60% 68%) /* Soft lavender */
   );
   background-size: 200% 200%;
   background-clip: text;
@@ -1338,8 +1338,8 @@ pre {
 .dark .gradient-tropical {
   background: linear-gradient(
     135deg,
-    hsl(220 95% 60%),
-    /* Deep blue */ hsl(260 85% 65%) /* Rich purple */
+    hsl(210 70% 62%),
+    /* Calm blue */ hsl(200 65% 68%) /* Soft blue-cyan */
   );
 }
 
@@ -1424,9 +1424,9 @@ pre {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
   background: linear-gradient(
     135deg,
-    hsl(220 80% 65%),
-    hsl(260 75% 70%),
-    hsl(280 70% 75%)
+    hsl(210 70% 68%),
+    hsl(220 65% 72%),
+    hsl(230 60% 78%)
   );
   background-size: 200% 200%;
 }
@@ -1435,9 +1435,9 @@ pre {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
   background: linear-gradient(
     135deg,
-    hsl(220 80% 65%),
-    hsl(260 75% 70%),
-    hsl(280 70% 75%)
+    hsl(210 70% 68%),
+    hsl(220 65% 72%),
+    hsl(230 60% 78%)
   );
   background-size: 200% 200%;
   background-clip: text;
@@ -1807,21 +1807,21 @@ pre {
 }
 
 .chat-input-private {
-  border: 2px solid hsl(262 83% 58% / 0.6);
+  border: 2px solid hsl(220 65% 58% / 0.6);
   background: linear-gradient(
     to bottom right,
-    rgb(250 245 255 / 0.8),
-    rgb(250 245 255 / 0.5) 50%,
-    rgb(255 251 235 / 0.3)
+    rgb(240 245 252 / 0.8),
+    rgb(240 245 252 / 0.5) 50%,
+    rgb(245 248 252 / 0.3)
   );
 }
 
 .dark .chat-input-private {
   background: linear-gradient(
     to bottom right,
-    rgb(59 7 100 / 0.25),
-    rgb(88 28 135 / 0.15) 50%,
-    rgb(69 26 3 / 0.1)
+    rgb(30 60 110 / 0.25),
+    rgb(50 85 135 / 0.15) 50%,
+    rgb(40 55 75 / 0.1)
   );
 }
 
