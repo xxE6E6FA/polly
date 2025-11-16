@@ -1113,7 +1113,7 @@ pre {
   bottom: 0;
   background: radial-gradient(
     ellipse 900px 350px at bottom,
-    rgba(147, 51, 234, 0.15),
+    hsl(var(--color-accent-purple) / 0.15),
     transparent 75%
   );
   animation: private-mode-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1123,7 +1123,7 @@ pre {
 .dark .private-mode-background::before {
   background: radial-gradient(
     ellipse 900px 350px at bottom,
-    rgba(147, 51, 234, 0.18),
+    hsl(var(--color-accent-purple) / 0.18),
     transparent 75%
   );
 }
@@ -1155,12 +1155,7 @@ pre {
 
 /* Custom gradient text */
 .gradient-text {
-  background: linear-gradient(
-    to right,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
-  );
+  background: var(--gradient-accent);
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -1187,11 +1182,7 @@ pre {
 .focus-gradient:focus-within {
   outline: 1px solid var(--color-ring);
   outline-offset: 1px;
-  background-image: linear-gradient(
-    to right,
-    hsl(220 95% 55% / 0.1),
-    /* Deep blue */ hsl(260 85% 60% / 0.1) /* Rich purple */
-  );
+  background-image: none;
 }
 
 /* Loading skeleton animation */
@@ -1273,32 +1264,22 @@ pre {
 
 /* Polly Logo Gradient */
 .polly-logo-gradient-unified {
-  /* Option 1: Professional Blue to Purple gradient */
-  background: linear-gradient(
-    135deg,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
-  );
+  /* Minimal gradient */
+  background: var(--gradient-accent);
   background-size: 200% 200%;
   /* Disable continuous animation by default to avoid idle CPU usage */
   /* Animation will be enabled on hover/focus via group selector below */
-  filter: brightness(1.05) saturate(1.1);
+  filter: none;
 }
 
 .polly-logo-text-unified {
-  background: linear-gradient(
-    135deg,
-    hsl(220 95% 55%),
-    /* Deep blue */ hsl(260 85% 60%),
-    /* Rich purple */ hsl(280 75% 65%) /* Soft violet */
-  );
+  background: var(--gradient-accent);
   background-size: 200% 200%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
   /* Disable continuous animation by default to avoid idle CPU usage */
-  filter: brightness(1.05) saturate(1.1);
+  filter: none;
 }
 
 @keyframes polly-gradient-move {
@@ -1324,11 +1305,7 @@ pre {
 
 /* Enhanced dark mode gradients */
 .dark .gradient-tropical {
-  background: linear-gradient(
-    135deg,
-    hsl(220 95% 60%),
-    /* Deep blue */ hsl(260 85% 65%) /* Rich purple */
-  );
+  background: var(--gradient-tropical);
 }
 
 /* Refined dark mode scrollbar for sidebar */
@@ -1409,24 +1386,14 @@ pre {
 
 /* Refined Polly logo styling */
 .dark .polly-logo-gradient-unified {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-  background: linear-gradient(
-    135deg,
-    hsl(220 80% 65%),
-    hsl(260 75% 70%),
-    hsl(280 70% 75%)
-  );
+  filter: none;
+  background: var(--gradient-accent);
   background-size: 200% 200%;
 }
 
 .dark .polly-logo-text-unified {
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-  background: linear-gradient(
-    135deg,
-    hsl(220 80% 65%),
-    hsl(260 75% 70%),
-    hsl(280 70% 75%)
-  );
+  filter: none;
+  background: var(--gradient-accent);
   background-size: 200% 200%;
   background-clip: text;
   -webkit-background-clip: text;
@@ -1790,13 +1757,8 @@ pre {
 }
 
 .chat-input-private {
-  border: 2px solid hsl(262 83% 58% / 0.6);
-  background: linear-gradient(
-    to bottom right,
-    rgb(250 245 255 / 0.8),
-    rgb(250 245 255 / 0.5) 50%,
-    rgb(255 251 235 / 0.3)
-  );
+  border: 2px solid var(--color-accent-purple);
+  background: var(--color-surface);
 }
 
 .dark .chat-input-private {
@@ -1852,9 +1814,9 @@ pre {
 }
 
 .dark .btn-action:hover:not([disabled]) {
-  background: hsl(220 95% 60% / 0.1);
-  border: 1px solid hsl(220 95% 60% / 0.2);
-  color: hsl(220 95% 65%);
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
 }
 
 .btn-action:active:not([disabled]) {
@@ -1862,7 +1824,7 @@ pre {
 }
 
 .dark .btn-action:active:not([disabled]) {
-  background: hsl(220 95% 60% / 0.15);
+  background: var(--color-muted);
 }
 
 .btn-action[disabled] {
@@ -2326,21 +2288,21 @@ pre {
 }
 
 .zen-prose .prose {
-  --tw-prose-quote-borders: rgba(15, 23, 42, 0.18);
-  --tw-prose-hr: rgba(15, 23, 42, 0.12);
-  --tw-prose-pre-bg: rgba(15, 23, 42, 0.08);
-  --tw-prose-th-borders: rgba(15, 23, 42, 0.22);
-  --tw-prose-td-borders: rgba(15, 23, 42, 0.12);
-  color: rgba(35, 33, 31, 0.88);
+  --tw-prose-quote-borders: var(--color-border);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-pre-bg: var(--color-muted);
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+  color: var(--color-foreground);
 }
 
 .dark .zen-prose .prose {
-  --tw-prose-quote-borders: rgba(240, 236, 255, 0.28);
-  --tw-prose-hr: rgba(240, 236, 255, 0.1);
-  --tw-prose-pre-bg: rgba(240, 236, 255, 0.12);
-  --tw-prose-th-borders: rgba(240, 236, 255, 0.22);
-  --tw-prose-td-borders: rgba(240, 236, 255, 0.14);
-  color: rgba(241, 238, 231, 0.92);
+  --tw-prose-quote-borders: var(--color-border);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-pre-bg: var(--color-muted);
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+  color: var(--color-foreground);
 }
 
 .zen-prose .prose :where(p):not(:where([class~="not-prose"] *)) {
@@ -2405,19 +2367,19 @@ pre {
 .zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
   margin: clamp(1.25rem, 0.7vw + 1rem, 2rem) 0;
   font-style: italic;
-  color: rgba(35, 33, 31, 0.78);
-  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-foreground);
+  background: var(--color-card);
   border-radius: 1rem;
-  border-left: 6px solid rgba(35, 33, 31, 0.25);
+  border-left: 6px solid var(--color-border);
   padding: clamp(1.2rem, 0.7vw + 1rem, 1.8rem) clamp(1.4rem, 1vw + 1rem, 2.2rem);
   position: relative;
   width: 100%;
 }
 
 .dark .zen-prose .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-  color: rgba(241, 238, 231, 0.88);
-  background: rgba(14, 16, 24, 0.86);
-  border-left: 6px solid rgba(144, 137, 204, 0.38);
+  color: var(--color-foreground);
+  background: var(--color-card);
+  border-left: 6px solid var(--color-border);
 }
 
 .zen-prose .prose :where(blockquote)::before {
@@ -2431,12 +2393,12 @@ pre {
   position: absolute;
   top: clamp(0.2rem, 0.1vw + 0.05rem, 0.4rem);
   left: clamp(0.6rem, 0.4vw + 0.4rem, 1.1rem);
-  color: rgba(35, 33, 31, 0.25);
+  color: var(--color-muted-foreground);
   line-height: 1;
 }
 
 .dark .zen-prose .prose :where(blockquote)::before {
-  color: rgba(140, 132, 200, 0.35);
+  color: var(--color-muted-foreground);
 }
 
 .zen-prose .prose :where(blockquote p):not(:where([class~="not-prose"] *)) {
@@ -2459,15 +2421,15 @@ pre {
   margin: clamp(1.5rem, 0.8vw + 1.2rem, 2.5rem) 0;
   overflow: hidden;
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--color-card);
 }
 
 .dark .zen-prose .prose :where(table):not(:where([class~="not-prose"] *)) {
-  background: rgba(14, 16, 24, 0.86);
+  background: var(--color-card);
 }
 
 .zen-prose .prose :where(table thead tr):not(:where([class~="not-prose"] *)) {
-  background: rgba(35, 33, 31, 0.07);
+  background: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -2476,7 +2438,7 @@ pre {
   .zen-prose
   .prose
   :where(table thead tr):not(:where([class~="not-prose"] *)) {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-muted);
 }
 
 .zen-prose .prose :where(th):not(:where([class~="not-prose"] *)) {
@@ -2488,13 +2450,13 @@ pre {
     calc(1.35rem * var(--zen-font-scale, 1))
   );
   font-weight: 600;
-  color: rgba(35, 33, 31, 0.72);
-  border-bottom: 1px solid rgba(35, 33, 31, 0.12);
+  color: var(--color-foreground);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .dark .zen-prose .prose :where(th):not(:where([class~="not-prose"] *)) {
-  color: rgba(238, 236, 230, 0.9);
-  border-bottom: 1px solid rgba(240, 236, 255, 0.1);
+  color: var(--color-foreground);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .zen-prose .prose :where(td):not(:where([class~="not-prose"] *)) {
@@ -2505,25 +2467,25 @@ pre {
     calc(1.3rem * var(--zen-font-scale, 1))
   );
   line-height: calc(1.65 * var(--zen-line-scale, 1));
-  border-bottom: 1px solid rgba(35, 33, 31, 0.08);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .dark .zen-prose .prose :where(td):not(:where([class~="not-prose"] *)) {
-  color: rgba(232, 228, 222, 0.85);
-  border-bottom: 1px solid rgba(240, 236, 255, 0.08);
+  color: var(--color-foreground);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .zen-prose
   .prose
   :where(tbody tr:nth-child(even)):not(:where([class~="not-prose"] *)) {
-  background: rgba(35, 33, 31, 0.03);
+  background: var(--color-muted);
 }
 
 .dark
   .zen-prose
   .prose
   :where(tbody tr:nth-child(even)):not(:where([class~="not-prose"] *)) {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-muted);
 }
 
 .zen-prose
@@ -2536,15 +2498,15 @@ pre {
   margin: clamp(1.5rem, 0.8vw + 1.1rem, 2.5rem) 0;
   padding: clamp(1.2rem, 0.7vw + 1rem, 1.8rem);
   border-radius: 1.25rem;
-  background: rgba(15, 23, 42, 0.14);
-  color: rgba(240, 244, 255, 0.96);
+  background: var(--color-muted);
+  color: var(--color-foreground);
   position: relative;
   overflow: auto;
 }
 
 .dark .zen-prose .prose :where(pre):not(:where([class~="not-prose"] *)) {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(234, 238, 255, 0.95);
+  background: var(--color-muted);
+  color: var(--color-foreground);
 }
 
 .zen-prose .prose :where(pre)::before {
@@ -2554,7 +2516,7 @@ pre {
   height: 10px;
   width: 10px;
   border-radius: 50%;
-  background: #f87171;
+  background: var(--color-destructive);
   opacity: 0.85;
 }
 
@@ -2565,7 +2527,7 @@ pre {
   width: 10px;
   border-radius: 50%;
   left: 16px;
-  background: #fbbf24;
+  background: var(--color-accent-yellow);
 }
 
 .zen-prose .prose :where(pre)::before::before {
@@ -2575,7 +2537,7 @@ pre {
   width: 10px;
   border-radius: 50%;
   left: 32px;
-  background: #34d399;
+  background: var(--color-success);
 }
 
 .zen-prose .prose :where(pre code):not(:where([class~="not-prose"] *)) {
@@ -2593,7 +2555,7 @@ pre {
 }
 
 .zen-prose .prose :where(code):not(:where(pre code, [class~="not-prose"] *)) {
-  background: rgba(15, 23, 42, 0.08);
+  background: var(--color-muted);
   border-radius: 0.55rem;
   padding: 0.2em 0.45em;
   font-size: clamp(
@@ -2607,8 +2569,8 @@ pre {
   .zen-prose
   .prose
   :where(code):not(:where(pre code, [class~="not-prose"] *)) {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(247, 247, 255, 0.92);
+  background: var(--color-muted);
+  color: var(--color-foreground);
 }
 
 /* Mobile sidebar elevation - Minimal border only */
