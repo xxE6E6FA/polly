@@ -30,8 +30,8 @@ function getInitials(name?: string | null) {
 
 const STAT_ICON_COLORS: string[] = [
   "hsl(var(--primary))",
-  "hsl(260 85% 60%)",
-  "hsl(280 75% 65%)",
+  "hsl(var(--accent-blue))",
+  "hsl(var(--accent-cyan))",
 ];
 
 type StatCardProps = {
@@ -107,8 +107,8 @@ export const UserIdCard = () => {
 
   const [
     conversationColor = "hsl(var(--primary))",
-    totalMessagesColor = "hsl(260 85% 60%)",
-    monthlyMessagesColor = "hsl(280 75% 65%)",
+    totalMessagesColor = "hsl(var(--accent-blue))",
+    monthlyMessagesColor = "hsl(var(--accent-cyan))",
   ] = STAT_ICON_COLORS;
 
   const stats: StatCardProps[] = [

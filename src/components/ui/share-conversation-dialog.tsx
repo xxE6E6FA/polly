@@ -303,7 +303,7 @@ export const ControlledShareConversationDialog = ({
           ) : (
             <div className="stack-lg">
               <Button
-                className="h-11 w-full bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
+                className="h-11 w-full bg-gradient-to-r from-[hsl(210_70%_58%)] to-[hsl(230_60%_68%)] hover:from-[hsl(210_70%_53%)] hover:to-[hsl(230_60%_63%)]"
                 disabled={isSharing}
                 onClick={handleShare}
               >
