@@ -1664,6 +1664,20 @@ pre {
   border-radius: var(--chat-input-bottom-control-radius);
 }
 
+/* Dark mode: Make chat input control buttons white with proper borders */
+.dark .chat-input-control {
+  border-color: var(--color-border) !important;
+  background: var(--color-muted) !important;
+  background-image: none !important;
+  color: var(--color-foreground) !important;
+}
+
+.dark .chat-input-control:hover {
+  border-color: var(--color-border) !important;
+  background: var(--color-muted) !important;
+  background-image: none !important;
+}
+
 /* Hover state - clean, no glow */
 .chat-input-container:hover {
   border-color: var(--color-input-hover);
