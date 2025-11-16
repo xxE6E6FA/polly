@@ -209,10 +209,16 @@ const buildDev = async () => {
 };
 
 let DevWatcher: ReturnType<typeof watch> | undefined;
+let rebuildTimeout: Timer | undefined;
 
 // Graceful shutdown handler
 const handleExit = (signal: string) => {
   console.log(`\n📦 Shutting down development server (${signal})...`);
+
+  // Clear any pending rebuild timeout
+  if (rebuildTimeout) {
+    clearTimeout(rebuildTimeout);
+  }
 
   // Close all SSE connections
   for (const client of globalThis.liveReloadClients) {
@@ -266,7 +272,6 @@ async function main() {
     // Track rebuild state and queue pending rebuilds
     let isRebuilding = false;
     let hasPendingRebuild = false;
-    let rebuildTimeout: Timer | undefined;
 
     // Rebuild function that handles queued rebuilds
     const rebuild = async (filename: string) => {
@@ -282,7 +287,7 @@ async function main() {
         // Process queued rebuild if one is pending
         if (hasPendingRebuild) {
           hasPendingRebuild = false;
-          rebuild(filename);
+          await rebuild(filename);
         }
       }
     };
