@@ -5,7 +5,14 @@ import { join } from "path";
 
 // Live reload configuration
 const RELOAD_ENDPOINT = "/__dev__/reload";
-const LIVE_RELOAD_SCRIPT = `<script>new EventSource("${RELOAD_ENDPOINT}").onmessage = (e) => { if(e.data === "reload") location.reload(); };</script>`;
+const LIVE_RELOAD_SCRIPT = `<script>(function() {
+  let es = new EventSource("${RELOAD_ENDPOINT}");
+  es.onmessage = (e) => { if(e.data === "reload") location.reload(); };
+  es.onerror = () => {
+    es.close();
+    setTimeout(() => { es = new EventSource("${RELOAD_ENDPOINT}"); }, 1000);
+  };
+})();</script>`;
 
 // Live reload client store with proper typing
 declare global {
@@ -27,7 +34,13 @@ function injectLiveReloadScript(html: string): string {
     return html.replace(bodyTagRegex, `${LIVE_RELOAD_SCRIPT}</body>`);
   }
 
-  // Fallback: append to end if no </body> tag found
+  // Try case-insensitive replacement for </html>
+  const htmlTagRegex = /<\/html>/i;
+  if (htmlTagRegex.test(html)) {
+    return html.replace(htmlTagRegex, `${LIVE_RELOAD_SCRIPT}</html>`);
+  }
+
+  // Fallback: append to end if no closing tags found
   return html + LIVE_RELOAD_SCRIPT;
 }
 
@@ -198,6 +211,16 @@ let DevWatcher: ReturnType<typeof watch> | undefined;
 const handleExit = (signal: string) => {
   console.log(`\n📦 Shutting down development server (${signal})...`);
 
+  // Close all SSE connections
+  for (const client of globalThis.liveReloadClients) {
+    try {
+      client.close();
+    } catch {
+      // Client may already be closed
+    }
+  }
+  globalThis.liveReloadClients.clear();
+
   // Close watcher
   if (DevWatcher) {
     DevWatcher.close();
@@ -237,10 +260,11 @@ async function main() {
     // Watch for changes and rebuild only for relevant file types
     const relevantExtensions = [".ts", ".tsx", ".js", ".jsx", ".css"];
 
-    // Track last rebuild time to prevent duplicate builds
+    // Track rebuild state to prevent overlapping builds
     let isRebuilding = false;
+    let rebuildTimeout: Timer | undefined;
 
-    DevWatcher = watch("./src", { recursive: true }, async (_, filename) => {
+    DevWatcher = watch("./src", { recursive: true }, (_, filename) => {
       if (!filename || filename.includes("node_modules")) {
         return;
       }
@@ -259,21 +283,32 @@ async function main() {
         return;
       }
 
-      // Prevent overlapping rebuilds
-      if (isRebuilding) {
-        return;
+      // Debounce rapid file changes (batch multiple saves)
+      if (rebuildTimeout) {
+        clearTimeout(rebuildTimeout);
       }
 
-      isRebuilding = true;
-      try {
-        console.log(`🔄 Detected change in ${filename}, rebuilding...`);
-        await buildDev();
-        notifyReload();
-      } catch (error) {
-        console.error("❌ Build failed:", error);
-      } finally {
-        isRebuilding = false;
-      }
+      rebuildTimeout = setTimeout(() => {
+        // Prevent overlapping rebuilds
+        if (isRebuilding) {
+          return;
+        }
+
+        isRebuilding = true;
+
+        // Execute rebuild asynchronously
+        (async () => {
+          try {
+            console.log(`🔄 Detected change in ${filename}, rebuilding...`);
+            await buildDev();
+            notifyReload();
+          } catch (error) {
+            console.error("❌ Build failed:", error);
+          } finally {
+            isRebuilding = false;
+          }
+        })();
+      }, 150); // 150ms debounce - batch rapid changes
     });
   }
 
