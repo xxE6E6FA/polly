@@ -226,53 +226,53 @@
   --color-muted: hsl(220 14% 94%);
   --color-muted-foreground: hsl(220 9% 46%);
 
-  /* Accent Colors */
+  /* Accent Colors - Catppuccin inspired */
   --color-accent: hsl(220 14% 93%);
   --color-accent-foreground: hsl(222 47% 11%);
-  --color-accent-coral: hsl(16 85% 58%);
-  --color-accent-orange: hsl(20.5 90.2% 48.2%);
+  --color-accent-coral: hsl(15 65% 65%);
+  --color-accent-orange: hsl(25 60% 60%);
   --color-accent-purple: hsl(240 50% 68%);
-  --color-accent-blue: hsl(217.2 91.2% 59.8%);
-  --color-accent-yellow: hsl(47.9 95.8% 53.1%);
-  --color-accent-cyan: hsl(188.7 94.5% 42.7%);
-  --color-accent-emerald: hsl(160.1 84.1% 39.4%);
-  --color-accent-pink: hsl(328 85% 53%);
+  --color-accent-blue: hsl(220 70% 65%);
+  --color-accent-yellow: hsl(40 65% 65%);
+  --color-accent-cyan: hsl(190 60% 60%);
+  --color-accent-emerald: hsl(145 50% 50%);
+  --color-accent-pink: hsl(340 60% 70%);
 
-  /* Destructive Colors */
-  --color-destructive: hsl(0 84.2% 60.2%);
+  /* Destructive Colors - Catppuccin inspired */
+  --color-destructive: hsl(5 60% 60%);
   --color-destructive-foreground: hsl(0 0% 100%);
 
-  /* Success Colors */
-  --color-success: hsl(160.1 84.1% 39.4%);
+  /* Success Colors - Catppuccin inspired */
+  --color-success: hsl(145 50% 50%);
   --color-success-foreground: hsl(0 0% 100%);
-  --color-success-hover: hsl(160 85% 35%);
-  --color-success-active: hsl(160 86% 30%);
-  --color-success-bg: hsl(162 58% 86%);
-  --color-success-border: hsl(162 48% 68%);
+  --color-success-hover: hsl(145 52% 45%);
+  --color-success-active: hsl(145 54% 40%);
+  --color-success-bg: hsl(145 45% 88%);
+  --color-success-border: hsl(145 40% 70%);
 
-  /* Warning Colors */
-  --color-warning: hsl(47.9 95.8% 53.1%);
+  /* Warning Colors - Catppuccin inspired */
+  --color-warning: hsl(40 65% 65%);
   --color-warning-foreground: hsl(222.2 47.4% 11.2%);
-  --color-warning-hover: hsl(48 96% 48%);
-  --color-warning-active: hsl(48 97% 43%);
-  --color-warning-bg: hsl(40 92% 90%);
-  --color-warning-border: hsl(40 72% 70%);
+  --color-warning-hover: hsl(40 68% 60%);
+  --color-warning-active: hsl(40 70% 55%);
+  --color-warning-bg: hsl(40 60% 90%);
+  --color-warning-border: hsl(40 50% 75%);
 
-  /* Info Colors */
-  --color-info: hsl(188.7 94.5% 42.7%);
+  /* Info Colors - Catppuccin inspired */
+  --color-info: hsl(190 60% 60%);
   --color-info-foreground: hsl(0 0% 100%);
-  --color-info-hover: hsl(189 95% 48%);
-  --color-info-active: hsl(189 96% 53%);
-  --color-info-bg: hsl(205 90% 90%);
-  --color-info-border: hsl(205 68% 68%);
+  --color-info-hover: hsl(190 62% 55%);
+  --color-info-active: hsl(190 64% 50%);
+  --color-info-bg: hsl(190 55% 90%);
+  --color-info-border: hsl(190 45% 72%);
 
-  /* Danger Colors */
-  --color-danger: hsl(0 75% 50%);
+  /* Danger Colors - Catppuccin inspired */
+  --color-danger: hsl(5 60% 60%);
   --color-danger-foreground: hsl(0 0% 100%);
-  --color-danger-hover: hsl(0 80% 55%);
-  --color-danger-active: hsl(0 85% 60%);
-  --color-danger-bg: hsl(4 88% 92%);
-  --color-danger-border: hsl(4 72% 72%);
+  --color-danger-hover: hsl(5 62% 55%);
+  --color-danger-active: hsl(5 64% 50%);
+  --color-danger-bg: hsl(5 55% 92%);
+  --color-danger-border: hsl(5 45% 75%);
 
   /* Surface Colors */
   --color-surface: hsl(0 0% 100%);
@@ -282,25 +282,25 @@
   --color-surface-primary: hsl(220 14% 98%);
   --color-surface-secondary: hsl(220 14% 95%);
 
-  /* Coral Color Palette */
-  --color-coral-50: hsl(10 100% 97%);
-  --color-coral-100: hsl(10 80% 92%);
-  --color-coral-200: hsl(10 75% 85%);
-  --color-coral-300: hsl(10 75% 75%);
-  --color-coral-400: hsl(10 75% 68%);
-  --color-coral-500: hsl(10 75% 60%);
-  --color-coral-600: hsl(10 75% 52%);
-  --color-coral-700: hsl(10 75% 45%);
-  --color-coral-800: hsl(10 75% 38%);
-  --color-coral-900: hsl(10 75% 32%);
-  --color-coral-950: hsl(10 75% 20%);
+  /* Coral Color Palette - Catppuccin inspired */
+  --color-coral-50: hsl(15 60% 97%);
+  --color-coral-100: hsl(15 60% 92%);
+  --color-coral-200: hsl(15 60% 85%);
+  --color-coral-300: hsl(15 62% 75%);
+  --color-coral-400: hsl(15 63% 68%);
+  --color-coral-500: hsl(15 65% 60%);
+  --color-coral-600: hsl(15 65% 52%);
+  --color-coral-700: hsl(15 65% 45%);
+  --color-coral-800: hsl(15 65% 38%);
+  --color-coral-900: hsl(15 65% 32%);
+  --color-coral-950: hsl(15 65% 20%);
 
-  /* Chart Colors */
-  --color-chart-1: hsl(12 76% 61%);
-  --color-chart-2: hsl(173 58% 39%);
-  --color-chart-3: hsl(197 37% 24%);
-  --color-chart-4: hsl(43 74% 66%);
-  --color-chart-5: hsl(27 87% 67%);
+  /* Chart Colors - Catppuccin inspired */
+  --color-chart-1: hsl(15 65% 65%);
+  --color-chart-2: hsl(175 50% 55%);
+  --color-chart-3: hsl(220 65% 58%);
+  --color-chart-4: hsl(40 65% 65%);
+  --color-chart-5: hsl(25 60% 60%);
 }
 
 /* Keyframes for animations */
@@ -425,29 +425,29 @@
     --color-input-focus: hsl(220 13% 26%);
     --color-border: hsl(220 13% 18%);
     --color-ring: hsl(220 65% 68%);
-    --color-destructive: hsl(0 75% 50%);
-    --color-danger: hsl(0 75% 50%);
-    --color-danger-hover: hsl(0 80% 55%);
-    --color-danger-active: hsl(0 85% 60%);
-    --color-success-hover: hsl(160 85% 45%);
-    --color-success-active: hsl(160 86% 50%);
-    --color-warning-foreground: hsl(45 95% 82%);
-    --color-warning-hover: hsl(48 96% 58%);
-    --color-warning-active: hsl(48 97% 63%);
-    --color-info-hover: hsl(189 95% 48%);
-    --color-info-active: hsl(189 96% 53%);
+    --color-destructive: hsl(5 60% 60%);
+    --color-danger: hsl(5 60% 60%);
+    --color-danger-hover: hsl(5 62% 65%);
+    --color-danger-active: hsl(5 64% 70%);
+    --color-success-hover: hsl(145 52% 55%);
+    --color-success-active: hsl(145 54% 60%);
+    --color-warning-foreground: hsl(40 60% 85%);
+    --color-warning-hover: hsl(40 68% 70%);
+    --color-warning-active: hsl(40 70% 75%);
+    --color-info-hover: hsl(190 62% 65%);
+    --color-info-active: hsl(190 64% 70%);
     --color-surface: hsl(220 13% 11%);
     --color-surface-variant: hsl(220 13% 13%);
     --color-surface-hover: hsl(220 13% 15%);
     --color-surface-active: hsl(220 13% 17%);
-    --color-success-bg: hsl(160 60% 10%);
-    --color-warning-bg: hsl(45 82% 18%);
-    --color-info-bg: hsl(189 70% 10%);
-    --color-danger-bg: hsl(0 70% 10%);
-    --color-success-border: hsl(160 50% 20%);
-    --color-warning-border: hsl(45 70% 30%);
-    --color-info-border: hsl(189 50% 20%);
-    --color-danger-border: hsl(0 60% 20%);
+    --color-success-bg: hsl(145 45% 10%);
+    --color-warning-bg: hsl(40 55% 18%);
+    --color-info-bg: hsl(190 50% 10%);
+    --color-danger-bg: hsl(5 50% 10%);
+    --color-success-border: hsl(145 40% 20%);
+    --color-warning-border: hsl(40 45% 30%);
+    --color-info-border: hsl(190 40% 20%);
+    --color-danger-border: hsl(5 45% 20%);
 
     /* Elevation (dark) */
     --shadow-1:
