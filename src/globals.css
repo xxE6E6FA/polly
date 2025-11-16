@@ -475,13 +475,13 @@
   }
 
   ::selection {
-    background: var(--color-primary) / 0.16;
-    color: var(--color-foreground);
+    background: var(--color-highlight);
+    color: var(--color-highlight-foreground);
   }
 
   .dark ::selection {
-    background: var(--color-primary) / 0.22;
-    color: var(--color-foreground);
+    background: var(--color-highlight);
+    color: var(--color-highlight-foreground);
   }
 }
 
