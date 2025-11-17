@@ -138,6 +138,29 @@ function convertCitationsToMarkdownLinks(text: string): string {
     // Normalize spaces: [ 3 ] -> [3]
     .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
 
+  // Move citations to end of paragraphs
+  // Split by double newlines to identify paragraphs
+  normalized = normalized
+    .split(/\n\n+/)
+    .map(paragraph => {
+      // Extract all citations from the paragraph
+      const citations: string[] = [];
+      let cleaned = paragraph.replace(/\[(\d+)\]/g, match => {
+        citations.push(match);
+        return ""; // Remove from original position
+      });
+
+      // Clean up extra spaces left by removed citations
+      cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+
+      // Append citations at the end of the paragraph
+      if (citations.length > 0) {
+        return `${cleaned} ${citations.join("")}`;
+      }
+      return cleaned;
+    })
+    .join("\n\n");
+
   // Replace each [n] with [n](#cite-n)
   normalized = normalized.replace(/\[(\d+)\]/g, (_m, n: string) => {
     return `[${n}](#cite-${n})`;
@@ -276,9 +299,20 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="citation-pill inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border"
+              className="citation-pill inline-flex items-center gap-0.5 px-1.5 py-px text-[11px] font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border align-baseline"
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
+              onFocus={() => setOpen(true)}
+              onBlur={e => {
+                // Don't close if focusing within the popover
+                if (
+                  !(
+                    e.relatedTarget && e.currentTarget.contains(e.relatedTarget)
+                  )
+                ) {
+                  setOpen(false);
+                }
+              }}
               onClick={e => {
                 e.preventDefault();
                 // Scroll to citation in the gallery
@@ -293,13 +327,13 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                 <img
                   src={citation.favicon}
                   alt=""
-                  className="h-3 w-3 flex-shrink-0"
+                  className="h-2.5 w-2.5 flex-shrink-0"
                   onError={e => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
               )}
-              <span>{sourceName}</span>
+              <span className="leading-none">{sourceName}</span>
             </button>
           </PopoverTrigger>
           <PopoverContent
@@ -308,12 +342,16 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
             align="start"
             onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
+            onOpenAutoFocus={e => {
+              // Prevent auto-focus from interfering
+              e.preventDefault();
+            }}
           >
             <a
               href={citation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block p-3 hover:bg-muted/50 transition-colors rounded-lg"
+              className="block p-3 hover:bg-muted/50 transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               onClick={() => setOpen(false)}
             >
               <div className="flex items-start gap-2">
