@@ -463,7 +463,7 @@ export const PersonaForm = ({
             Define your assistant&apos;s personality, tone, and expertise. This
             guides how it will respond in conversations. Use the{" "}
             <Button
-              className="h-auto p-0 text-xs text-blue-500 underline hover:text-blue-600"
+              className="h-auto p-0 text-xs"
               disabled={!promptValue.trim() || isImprovingPrompt}
               size="sm"
               type="button"
@@ -475,7 +475,7 @@ export const PersonaForm = ({
             feature to transform simple ideas into structured prompts. Need more
             help?{" "}
             <a
-              className="text-blue-500 underline transition-colors hover:text-blue-600"
+              className="text-primary underline transition-colors hover:text-primary/80"
               href="https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/system-prompts"
               rel="noopener noreferrer"
               target="_blank"

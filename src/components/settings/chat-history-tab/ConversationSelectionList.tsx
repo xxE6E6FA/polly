@@ -175,7 +175,7 @@ export function ConversationSelectionList({
             isEven ? "bg-background" : "bg-muted/30",
             isSelected && "!bg-primary/10 border-l-2 border-l-primary",
             isRecentlyImported &&
-              "!bg-green-50 border-l-2 border-l-green-500 dark:!bg-green-950/30 dark:border-l-green-400",
+              "!bg-success/10 border-l-2 border-l-success dark:!bg-success/20 dark:border-l-success",
             "hover:bg-muted/70"
           )}
           onClick={e => handleItemClick(conversation._id, index, e.shiftKey)}
@@ -199,15 +199,12 @@ export function ConversationSelectionList({
             conversation.isArchived ? (
               <div className="flex items-center gap-1 shrink-0">
                 {isRecentlyImported && (
-                  <Badge
-                    variant="default"
-                    className="h-5 px-2 text-xs bg-green-600 hover:bg-green-700 text-white"
-                  >
+                  <Badge variant="success" className="h-5 px-2 text-xs">
                     New
                   </Badge>
                 )}
                 {conversation.isPinned && (
-                  <PushPinIcon className="w-3 h-3 text-blue-500" />
+                  <PushPinIcon className="w-3 h-3 text-primary" />
                 )}
                 {conversation.isArchived && (
                   <ArchiveIcon className="w-3 h-3 text-muted-foreground" />
@@ -297,7 +294,7 @@ export function ConversationSelectionList({
                 id="include-attachments"
                 checked={includeAttachments}
                 onChange={e => onIncludeAttachmentsChange(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-border"
               />
               <label
                 htmlFor="include-attachments"
@@ -352,8 +349,8 @@ export function ConversationSelectionList({
               action cannot be undone.
             </p>
             {selectedConversations.size > 10 && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                <p className="text-blue-800 dark:text-blue-200 text-sm">
+              <div className="p-3 bg-info/10 rounded-md border border-info/30">
+                <p className="text-info-foreground text-sm">
                   Large deletions will be processed in the background. You'll be
                   notified when complete.
                 </p>
@@ -396,8 +393,8 @@ export function ConversationSelectionList({
                 action cannot be undone.
               </p>
               {selectedConversations.size > 10 && (
-                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                  <p className="text-blue-800 dark:text-blue-200 text-sm">
+                <div className="p-3 bg-info/10 rounded-md border border-info/30">
+                  <p className="text-info-foreground text-sm">
                     Large deletions will be processed in the background. You'll
                     be notified when complete.
                   </p>
