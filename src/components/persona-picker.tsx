@@ -126,7 +126,6 @@ function PersonaPickerComponent({
                   "chat-input-control border border-border/50",
                   // Subtle pill effect to match ecosystem
                   "bg-muted text-foreground hover:bg-muted/80",
-                  "dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted",
                   // Focus ring parity
                   "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "transition-all duration-200",

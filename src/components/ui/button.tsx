@@ -61,13 +61,18 @@ export type ButtonProps = {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return (
-      <Comp
-        ref={ref}
-        className={cn(buttonVariants({ variant, size, className }))}
-        {...props}
-      />
-    );
+
+    // Automatically add dark mode styles for chat input controls
+    const hasChatInputControl = className?.includes("chat-input-control");
+    const enhancedClassName = hasChatInputControl
+      ? cn(
+          buttonVariants({ variant, size }),
+          className,
+          "dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted"
+        )
+      : cn(buttonVariants({ variant, size, className }));
+
+    return <Comp ref={ref} className={enhancedClassName} {...props} />;
   }
 );
 Button.displayName = "Button";

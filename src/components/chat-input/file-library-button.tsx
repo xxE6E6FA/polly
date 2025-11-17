@@ -57,9 +57,9 @@ export function FileLibraryButton({
           <Button
             aria-label="Select from library"
             className={cn(
+              "chat-input-control",
               "h-8 w-8 rounded-full p-0 shrink-0",
               "transition-all duration-200",
-              "dark:bg-muted dark:text-foreground dark:hover:bg-muted",
               "hover:scale-105 active:scale-95",
               disabled && "cursor-not-allowed opacity-50 hover:scale-100"
             )}

@@ -73,10 +73,10 @@ export function FileUploadButton({
           <Button
             aria-label="Upload files"
             className={cn(
+              "chat-input-control",
               "h-8 w-8 rounded-full p-0 shrink-0",
               "transition-all duration-200",
               "bg-primary text-primary-foreground",
-              "dark:bg-muted dark:text-foreground dark:hover:bg-muted",
               "hover:bg-primary/90 hover:text-primary-foreground",
               "hover:scale-105 active:scale-95",
               disabled && "cursor-not-allowed opacity-50 hover:scale-100"
