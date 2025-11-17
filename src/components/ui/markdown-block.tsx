@@ -161,9 +161,19 @@ function convertCitationsToMarkdownLinks(text: string): string {
     })
     .join("\n\n");
 
-  // Replace each [n] with [n](#cite-n)
-  normalized = normalized.replace(/\[(\d+)\]/g, (_m, n: string) => {
-    return `[${n}](#cite-${n})`;
+  // Group adjacent citations and replace with special format
+  // [1][2][3] becomes [1,2,3](#cite-group-1-2-3)
+  normalized = normalized.replace(/(?:\[(\d+)\])+/g, match => {
+    // Extract all citation numbers from the match
+    const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
+
+    if (numbers.length === 1) {
+      // Single citation
+      return `[${numbers[0]}](#cite-${numbers[0]})`;
+    }
+    // Multiple citations - create a group
+    const groupId = numbers.join("-");
+    return `[${numbers.join(",")}](#cite-group-${groupId})`;
   });
 
   return normalized;
@@ -266,23 +276,16 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
   ({ href, children, ...props }) => {
     const { citations } = useCitations();
     const [open, setOpen] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Reset currentIndex when popover opens
+    useEffect(() => {
+      if (open) {
+        setCurrentIndex(0);
+      }
+    }, [open]);
 
     if (href?.startsWith("#cite-")) {
-      // Extract citation number from href
-      const citationNumber = href ? parseInt(href.split("-").pop() || "0") : 0;
-      const citation =
-        citationNumber > 0 && citationNumber <= citations.length
-          ? citations[citationNumber - 1]
-          : null;
-
-      if (!citation) {
-        return (
-          <a {...props} href={href} className="citation-link">
-            {children}
-          </a>
-        );
-      }
-
       // Get domain for display
       const getDomain = (url: string) => {
         try {
@@ -292,14 +295,55 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
         }
       };
 
-      const sourceName = getDomain(citation.url);
+      // Check if this is a grouped citation
+      const isGroup = href.includes("#cite-group-");
+      let groupCitations: typeof citations = [];
+
+      if (isGroup) {
+        // Extract citation numbers from group ID
+        const groupId = href.replace("#cite-group-", "");
+        const citationNumbers = groupId.split("-").map(n => parseInt(n, 10));
+        groupCitations = citationNumbers
+          .map(n => (n > 0 && n <= citations.length ? citations[n - 1] : null))
+          .filter((c): c is NonNullable<typeof c> => c != null);
+      } else {
+        // Single citation
+        const citationNumber = parseInt(href.split("-").pop() || "0");
+        const citation =
+          citationNumber > 0 && citationNumber <= citations.length
+            ? citations[citationNumber - 1]
+            : null;
+        if (citation) {
+          groupCitations = [citation];
+        }
+      }
+
+      if (groupCitations.length === 0) {
+        return (
+          <a {...props} href={href} className="citation-link">
+            {children}
+          </a>
+        );
+      }
+
+      const currentCitation = groupCitations[currentIndex] ?? groupCitations[0];
+      if (!currentCitation) {
+        return (
+          <a {...props} href={href} className="citation-link">
+            {children}
+          </a>
+        );
+      }
+
+      const sourceName = getDomain(currentCitation.url);
 
       return (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="citation-pill inline-flex items-center gap-0.5 px-1.5 py-px text-[11px] font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border align-baseline"
+              className="citation-pill inline-flex items-center gap-0.5 px-1 h-[14px] text-[10px] font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border align-baseline"
+              style={{ lineHeight: "14px", verticalAlign: "baseline" }}
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
               onFocus={() => setOpen(true)}
@@ -323,17 +367,20 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                 });
               }}
             >
-              {citation.favicon && (
+              {currentCitation.favicon && (
                 <img
-                  src={citation.favicon}
+                  src={currentCitation.favicon}
                   alt=""
-                  className="h-2.5 w-2.5 flex-shrink-0"
+                  className="h-2 w-2 flex-shrink-0"
                   onError={e => {
                     (e.target as HTMLImageElement).style.display = "none";
                   }}
                 />
               )}
-              <span className="leading-none">{sourceName}</span>
+              <span style={{ lineHeight: "14px" }}>
+                {sourceName}
+                {groupCitations.length > 1 && ` +${groupCitations.length - 1}`}
+              </span>
             </button>
           </PopoverTrigger>
           <PopoverContent
@@ -347,17 +394,74 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
               e.preventDefault();
             }}
           >
+            {groupCitations.length > 1 && (
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setCurrentIndex(Math.max(0, currentIndex - 1));
+                  }}
+                  disabled={currentIndex === 0}
+                  className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Previous citation"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  {currentIndex + 1} of {groupCitations.length}
+                </span>
+                <button
+                  type="button"
+                  onClick={e => {
+                    e.stopPropagation();
+                    setCurrentIndex(
+                      Math.min(groupCitations.length - 1, currentIndex + 1)
+                    );
+                  }}
+                  disabled={currentIndex === groupCitations.length - 1}
+                  className="p-1 rounded hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Next citation"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
             <a
-              href={citation.url}
+              href={currentCitation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block p-3 hover:bg-muted/50 transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              className="block p-3 hover:bg-muted/50 transition-colors rounded-b-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
               onClick={() => setOpen(false)}
             >
               <div className="flex items-start gap-2">
-                {citation.favicon && (
+                {currentCitation.favicon && (
                   <img
-                    src={citation.favicon}
+                    src={currentCitation.favicon}
                     alt=""
                     className="h-4 w-4 mt-0.5 flex-shrink-0"
                     onError={e => {
@@ -367,10 +471,10 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-muted-foreground mb-1">
-                    {sourceName}
+                    {getDomain(currentCitation.url)}
                   </div>
                   <div className="font-medium text-sm line-clamp-2 text-foreground">
-                    {citation.title}
+                    {currentCitation.title}
                   </div>
                 </div>
               </div>
