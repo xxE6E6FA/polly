@@ -1958,44 +1958,15 @@ pre {
   animation: spin-reverse 1s linear infinite;
 }
 
-/* Keep citation groups together */
-.prose .citation-group {
-  display: inline;
-  white-space: nowrap;
-  position: relative;
-  /* Prevent line breaks within citation groups */
-  word-break: keep-all;
-  /* Add subtle padding for hover area */
-  padding: 0 2px;
-  margin: 0 -2px;
-  border-radius: 4px;
-  transition: background-color var(--duration-normal) var(--ease-standard);
+/* Citation pill styles - Pills with source names */
+.citation-pill {
+  /* Styling is handled by Tailwind classes in the component */
+  /* This selector is kept for any potential overrides */
+  vertical-align: baseline;
+  margin: 0 2px;
 }
 
-/* Minimal hover for citation group */
-.prose .citation-group:hover {
-  background-color: transparent;
-}
-
-/* Stack citations in a group by default */
-.citation-group .citation-link:not(:first-child) {
-  margin-left: -6px;
-  z-index: 9;
-}
-
-/* Expanded state for citation groups */
-.citation-group.expanded {
-  /* Use transform to expand without affecting layout */
-  z-index: 50;
-}
-
-.citation-group.expanded .citation-link:not(:first-child) {
-  /* Use transform instead of margin to prevent reflow */
-  transform: translateX(8px);
-  margin-left: -6px; /* Keep original margin */
-}
-
-/* Citation link styles - Minimal rectangular badges */
+/* Legacy citation link styles - kept for fallback */
 .citation-link {
   display: inline-flex;
   align-items: center;
@@ -2011,27 +1982,12 @@ pre {
   margin: 0 1px;
   z-index: 10;
   user-select: none;
-}
-
-/* Light mode citation colors - Minimal */
-.citation-link {
   color: var(--color-muted-foreground);
   background: var(--color-muted);
   border: 1px solid var(--color-border);
 }
 
 .citation-link:hover {
-  opacity: 0.7;
-}
-
-/* Dark mode citation colors - Minimal */
-.dark .citation-link {
-  color: var(--color-muted-foreground);
-  background: var(--color-muted);
-  border: 1px solid var(--color-border);
-}
-
-.dark .citation-link:hover {
   opacity: 0.7;
 }
 

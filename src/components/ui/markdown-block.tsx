@@ -269,13 +269,14 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
         }
       };
 
+      const sourceName = getDomain(citation.url);
+
       return (
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <a
-              {...props}
-              href={href}
-              className="citation-link cursor-pointer"
+            <button
+              type="button"
+              className="citation-pill inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border"
               onMouseEnter={() => setOpen(true)}
               onMouseLeave={() => setOpen(false)}
               onClick={e => {
@@ -288,8 +289,18 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                 });
               }}
             >
-              {children}
-            </a>
+              {citation.favicon && (
+                <img
+                  src={citation.favicon}
+                  alt=""
+                  className="h-3 w-3 flex-shrink-0"
+                  onError={e => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              )}
+              <span>{sourceName}</span>
+            </button>
           </PopoverTrigger>
           <PopoverContent
             className="w-80 p-0"
@@ -298,7 +309,13 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
             onMouseEnter={() => setOpen(true)}
             onMouseLeave={() => setOpen(false)}
           >
-            <div className="stack-sm p-3">
+            <a
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block p-3 hover:bg-muted/50 transition-colors rounded-lg"
+              onClick={() => setOpen(false)}
+            >
               <div className="flex items-start gap-2">
                 {citation.favicon && (
                   <img
@@ -311,36 +328,15 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                   />
                 )}
                 <div className="flex-1 min-w-0">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {sourceName}
+                  </div>
                   <div className="font-medium text-sm line-clamp-2 text-foreground">
                     {citation.title}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-0.5">
-                    {getDomain(citation.url)}
-                  </div>
                 </div>
               </div>
-              {citation.snippet && (
-                <div className="text-xs text-muted-foreground line-clamp-3 prose prose-sm">
-                  <Markdown
-                    options={{
-                      disableParsingRawHTML: true,
-                      forceBlock: false,
-                    }}
-                  >
-                    {citation.snippet}
-                  </Markdown>
-                </div>
-              )}
-              <a
-                href={citation.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                onClick={e => e.stopPropagation()}
-              >
-                Visit source →
-              </a>
-            </div>
+            </a>
           </PopoverContent>
         </Popover>
       );
