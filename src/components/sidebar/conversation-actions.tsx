@@ -174,7 +174,7 @@ export const ConversationActions = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                className="h-7 w-7 text-foreground/70 hover:bg-accent hover:text-foreground"
+                className="h-7 w-7 text-foreground/70 hover:text-foreground"
                 size="icon-sm"
                 variant="ghost"
                 onClick={onPinToggle}
