@@ -21,6 +21,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import type React from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CitationAvatarStack } from "@/components/citation-avatar-stack";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
+import type { WebSearchCitation } from "@/types";
 
 // Union type for models from getAvailableModels
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -1012,6 +1014,10 @@ type MessageActionsProps = {
   className?: string;
   // When true, keeps actions visible regardless of group hover.
   forceVisible?: boolean;
+  // Citations for avatar stack
+  citations?: WebSearchCitation[];
+  citationsExpanded?: boolean;
+  onToggleCitations?: () => void;
 };
 
 export const MessageActions = memo(
@@ -1034,6 +1040,9 @@ export const MessageActions = memo(
     provider,
     className,
     forceVisible,
+    citations,
+    citationsExpanded = false,
+    onToggleCitations,
   }: MessageActionsProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
@@ -1196,6 +1205,18 @@ export const MessageActions = memo(
               }}
             />
           )}
+
+          {/* Citations avatar stack */}
+          {!isUser &&
+            citations &&
+            citations.length > 0 &&
+            onToggleCitations && (
+              <CitationAvatarStack
+                citations={citations}
+                isExpanded={citationsExpanded}
+                onToggle={onToggleCitations}
+              />
+            )}
 
           {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
             <ActionButton

@@ -7,8 +7,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { generateHeadingId } from "@/lib/utils";
+import { useCitations } from "./citation-context";
 import { renderTextWithMathAndCitations } from "./markdown-utils.tsx";
 import { useMessageId } from "./streaming-markdown";
 
@@ -236,11 +241,101 @@ CitationGroup.displayName = "CitationGroup";
 // Citation Link component for handling citation links vs regular links
 const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
   ({ href, children, ...props }) => {
+    const { citations } = useCitations();
+    const [open, setOpen] = useState(false);
+
     if (href?.startsWith("#cite-")) {
+      // Extract citation number from href
+      const citationNumber = href ? parseInt(href.split("-").pop() || "0") : 0;
+      const citation =
+        citationNumber > 0 && citationNumber <= citations.length
+          ? citations[citationNumber - 1]
+          : null;
+
+      if (!citation) {
+        return (
+          <a {...props} href={href} className="citation-link">
+            {children}
+          </a>
+        );
+      }
+
+      // Get domain for display
+      const getDomain = (url: string) => {
+        try {
+          return new URL(url).hostname.replace("www.", "");
+        } catch {
+          return "website";
+        }
+      };
+
       return (
-        <a {...props} href={href} className="citation-link">
-          {children}
-        </a>
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <a
+              {...props}
+              href={href}
+              className="citation-link cursor-pointer"
+              onMouseEnter={() => setOpen(true)}
+              onMouseLeave={() => setOpen(false)}
+              onClick={e => {
+                e.preventDefault();
+                // Scroll to citation in the gallery
+                const element = document.getElementById(href.slice(1));
+                element?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+              }}
+            >
+              {children}
+            </a>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-80 p-0"
+            side="top"
+            align="start"
+            onMouseEnter={() => setOpen(true)}
+            onMouseLeave={() => setOpen(false)}
+          >
+            <div className="stack-sm p-3">
+              <div className="flex items-start gap-2">
+                {citation.favicon && (
+                  <img
+                    src={citation.favicon}
+                    alt=""
+                    className="h-4 w-4 mt-0.5 flex-shrink-0"
+                    onError={e => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm line-clamp-2 text-foreground">
+                    {citation.title}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {getDomain(citation.url)}
+                  </div>
+                </div>
+              </div>
+              {citation.snippet && (
+                <p className="text-xs text-muted-foreground line-clamp-3">
+                  {citation.snippet}
+                </p>
+              )}
+              <a
+                href={citation.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                onClick={e => e.stopPropagation()}
+              >
+                Visit source →
+              </a>
+            </div>
+          </PopoverContent>
+        </Popover>
       );
     }
 
