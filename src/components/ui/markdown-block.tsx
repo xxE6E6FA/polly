@@ -116,42 +116,30 @@ function normalizeEscapedMarkdown(text: string): string {
   return out;
 }
 
-// Convert plain [n] citations into markdown links so they always render as anchors
+// Convert plain [n] citations into markdown links with grouping support
 function convertCitationsToMarkdownLinks(text: string): string {
   if (!text) {
     return text;
   }
 
-  // Normalize escaped and grouped patterns first
-  let normalized = text
-    // Remove backslashes before brackets: \[1] -> [1]
-    .replace(/\\(\[|\])/g, "$1")
-    // Convert double brackets: [[1]] -> [1]
-    .replace(/\[\[(\d+)\]\]/g, "[$1]")
-    // Expand grouped citations: [1, 2,3] -> [1][2][3]
+  // Normalize citation formats and group adjacent citations
+  // AI should output [1][2][3], but we handle [1, 2, 3] as fallback
+  const normalized = text
+    // Expand comma-separated citations: [1, 2, 3] -> [1][2][3] (fallback)
     .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
       nums
         .split(",")
         .map(n => `[${n.trim()}]`)
         .join("")
     )
-    // Normalize spaces: [ 3 ] -> [3]
-    .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
-
-  // Group adjacent citations and replace with special format
-  // [1][2][3] becomes [1,2,3](#cite-group-1-2-3)
-  normalized = normalized.replace(/(?:\[(\d+)\])+/g, match => {
-    // Extract all citation numbers from the match
-    const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
-
-    if (numbers.length === 1) {
-      // Single citation
-      return `[${numbers[0]}](#cite-${numbers[0]})`;
-    }
-    // Multiple citations - create a group
-    const groupId = numbers.join("-");
-    return `[${numbers.join(",")}](#cite-group-${groupId})`;
-  });
+    // Group adjacent citations: [1][2][3] -> [1,2,3](#cite-group-1-2-3)
+    .replace(/(?:\[(\d+)\])+/g, match => {
+      const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
+      if (numbers.length === 1) {
+        return `[${numbers[0]}](#cite-${numbers[0]})`;
+      }
+      return `[${numbers.join(",")}](#cite-group-${numbers.join("-")})`;
+    });
 
   return normalized;
 }
