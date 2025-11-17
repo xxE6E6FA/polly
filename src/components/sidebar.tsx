@@ -385,7 +385,7 @@ export const Sidebar = () => {
                 }
               >
                 <Link className="group ml-1.5" to={ROUTES.HOME}>
-                  <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
+                  <div className="flex items-center gap-2">
                     <div
                       className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
                       style={{
