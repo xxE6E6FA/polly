@@ -35,6 +35,8 @@ const buttonVariants = cva(
           "bg-danger text-danger-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg",
         purple:
           "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg",
+        "chat-input":
+          "chat-input-control dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted",
       },
       size: {
         default: "h-9 px-4 py-2",
@@ -61,18 +63,13 @@ export type ButtonProps = {
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-
-    // Automatically add dark mode styles for chat input controls
-    const hasChatInputControl = className?.includes("chat-input-control");
-    const enhancedClassName = hasChatInputControl
-      ? cn(
-          buttonVariants({ variant, size }),
-          className,
-          "dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted"
-        )
-      : cn(buttonVariants({ variant, size, className }));
-
-    return <Comp ref={ref} className={enhancedClassName} {...props} />;
+    return (
+      <Comp
+        ref={ref}
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...props}
+      />
+    );
   }
 );
 Button.displayName = "Button";

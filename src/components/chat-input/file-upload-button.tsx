@@ -73,7 +73,6 @@ export function FileUploadButton({
           <Button
             aria-label="Upload files"
             className={cn(
-              "chat-input-control",
               "h-8 w-8 rounded-full p-0 shrink-0",
               "transition-all duration-200",
               "bg-primary text-primary-foreground",
@@ -84,7 +83,7 @@ export function FileUploadButton({
             disabled={disabled || isSubmitting}
             size="icon"
             type="button"
-            variant="ghost"
+            variant="chat-input"
             onClick={handleClick}
           >
             <PaperclipIcon className="h-3.5 w-3.5" />

@@ -57,7 +57,6 @@ export function FileLibraryButton({
           <Button
             aria-label="Select from library"
             className={cn(
-              "chat-input-control",
               "h-8 w-8 rounded-full p-0 shrink-0",
               "transition-all duration-200",
               "hover:scale-105 active:scale-95",
@@ -66,7 +65,7 @@ export function FileLibraryButton({
             disabled={disabled || isSubmitting}
             size="icon"
             type="button"
-            variant="default"
+            variant="chat-input"
             onClick={handleClick}
           >
             <FolderOpenIcon className="h-3.5 w-3.5" />
