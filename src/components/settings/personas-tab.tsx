@@ -231,7 +231,7 @@ export const PersonasTab = () => {
     },
     {
       key: "status",
-      label: "Status",
+      label: "",
       width: "w-24",
       className: "text-center",
       hideOnMobile: true,
@@ -250,7 +250,7 @@ export const PersonasTab = () => {
     },
     {
       key: "actions",
-      label: "Actions",
+      label: "",
       width: "w-32",
       className: "text-right",
       hideOnMobile: true,
@@ -431,7 +431,7 @@ export const PersonasTab = () => {
                 </>
               )}
               mobileMetadataRender={persona => (
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 text-xs">
                   <Badge
                     variant={
                       persona.type === "built-in" ? "secondary" : "default"
@@ -440,19 +440,16 @@ export const PersonasTab = () => {
                   >
                     {persona.type === "built-in" ? "Built-in" : "Custom"}
                   </Badge>
-                  <div className="flex items-center gap-2">
-                    <span>Status:</span>
-                    <Switch
-                      checked={
-                        persona.type === "built-in"
-                          ? !persona.isDisabled
-                          : persona.isActive
-                      }
-                      onCheckedChange={checked =>
-                        handleTogglePersona(persona, checked)
-                      }
-                    />
-                  </div>
+                  <Switch
+                    checked={
+                      persona.type === "built-in"
+                        ? !persona.isDisabled
+                        : persona.isActive
+                    }
+                    onCheckedChange={checked =>
+                      handleTogglePersona(persona, checked)
+                    }
+                  />
                 </div>
               )}
             />
