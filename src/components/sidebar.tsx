@@ -384,7 +384,7 @@ export const Sidebar = () => {
                     : undefined
                 }
               >
-                <Link className="group ml-1.5" to={ROUTES.HOME}>
+                <Link className="group ml-1.5 text-foreground" to={ROUTES.HOME}>
                   <div className="flex items-center gap-2">
                     <div
                       className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"

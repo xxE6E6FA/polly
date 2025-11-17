@@ -150,8 +150,8 @@
   );
   --gradient-accent: linear-gradient(
     135deg,
-    hsl(0 0% 4%) 0%,
-    hsl(0 0% 40%) 100%
+    hsl(0 0% 20%) 0%,
+    hsl(0 0% 35%) 100%
   );
   --gradient-tropical: linear-gradient(
     135deg,
@@ -465,13 +465,6 @@
     --color-warning-border: hsl(37 60% 25%);
     --color-info-border: hsl(214 40% 25%);
     --color-danger-border: hsl(0 50% 20%);
-
-    /* Dark mode gradient overrides for better logo visibility */
-    --gradient-accent: linear-gradient(
-      135deg,
-      hsl(214.6 79.1% 62.5%) 0%,
-      hsl(214.6 60% 45%) 100%
-    );
 
     /* Elevation (dark) - Minimal shadows for floating elements only */
     --shadow-1: none;
@@ -1305,22 +1298,18 @@ pre {
   transition-delay: 0s !important;
 }
 
-/* Polly Logo Gradient */
+/* Polly Logo - Monochrome */
 .polly-logo-gradient-unified {
-  /* Minimal gradient */
-  background: var(--gradient-accent);
-  background-size: 200% 200%;
+  /* Use currentColor for theme adaptation */
+  background: currentColor;
   /* Disable continuous animation by default to avoid idle CPU usage */
   /* Animation will be enabled on hover/focus via group selector below */
   filter: none;
 }
 
 .polly-logo-text-unified {
-  background: var(--gradient-accent);
-  background-size: 200% 200%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+  /* Use currentColor for theme adaptation */
+  color: currentColor;
   /* Disable continuous animation by default to avoid idle CPU usage */
   filter: none;
 }
@@ -1442,20 +1431,13 @@ pre {
 
 /* Tooltip styles consolidated in TooltipContent component */
 
-/* Refined Polly logo styling */
+/* Refined Polly logo styling - uses currentColor for theme adaptation */
 .dark .polly-logo-gradient-unified {
   filter: none;
-  background: var(--gradient-accent);
-  background-size: 200% 200%;
 }
 
 .dark .polly-logo-text-unified {
   filter: none;
-  background: var(--gradient-accent);
-  background-size: 200% 200%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
 }
 
 /* Refined dividers */
