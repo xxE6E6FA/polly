@@ -272,7 +272,7 @@ export const ZenModeDialog = ({
   return (
     <Dialog open={internalOpen} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-[60] bg-neutral-900/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
+        <DialogOverlay className="fixed inset-0 z-[60] bg-foreground/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
         <DialogPrimitive.Content
           className={cn(
             "fixed inset-0 z-[70] m-0 flex h-full w-full flex-col overflow-hidden p-0",
@@ -286,7 +286,7 @@ export const ZenModeDialog = ({
             "focus:outline-none"
           )}
         >
-          <div className="relative flex h-full w-full flex-col overflow-hidden bg-[#f6f2ea] text-[#23211f] dark:bg-[#111012] dark:text-[#f1ece4]">
+          <div className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
             <div className="relative z-[1] flex h-full flex-col overflow-hidden">
               <div
                 aria-hidden="true"
@@ -354,12 +354,12 @@ export const ZenModeDialog = ({
                     </article>
 
                     {citations && citations.length > 0 && (
-                      <aside className="mx-auto w-full max-w-3xl rounded-3xl border border-black/8 bg-white/80 p-6 shadow-[0_35px_60px_-45px_rgba(31,37,55,0.55)] backdrop-blur dark:border-white/10 dark:bg-white/10 dark:shadow-[0_35px_60px_-45px_rgba(0,0,0,0.65)]">
+                      <aside className="mx-auto w-full max-w-3xl rounded-3xl border border-border bg-card/80 p-6 shadow-lg backdrop-blur">
                         <Citations
                           citations={citations}
                           messageId={zenMessageId}
                           content={content || undefined}
-                          className="mt-0 text-black/70 [&_*]:text-black/70 [&_a]:text-sky-700 [&_a:hover]:text-sky-900 dark:text-white/80 dark:[&_*]:text-white/80 dark:[&_a]:text-sky-300 dark:[&_a:hover]:text-sky-200"
+                          className="mt-0 text-foreground/70 [&_*]:text-foreground/70 [&_a]:text-accent [&_a:hover]:text-accent/80"
                         />
                       </aside>
                     )}

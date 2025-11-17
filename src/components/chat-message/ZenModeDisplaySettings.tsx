@@ -44,7 +44,7 @@ export const ZenModeDisplaySettings = ({
   const stepperButtonClass = useMemo(
     () =>
       cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-black/10 bg-white/90 text-base font-semibold leading-none text-black/70 shadow-sm transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 dark:border-white/15 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/20 dark:focus-visible:ring-white/25",
+        "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-card/90 text-base font-semibold leading-none text-foreground/70 shadow-sm transition hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         "disabled:pointer-events-none disabled:opacity-40"
       ),
     []
@@ -66,11 +66,11 @@ export const ZenModeDisplaySettings = ({
       <PopoverContent
         align="end"
         sideOffset={16}
-        className="w-[320px] rounded-2xl border border-black/10 bg-white/95 p-5 text-black/75 shadow-sm backdrop-blur-xl dark:border-white/15 dark:bg-[#171320]/90 dark:text-white/85"
+        className="w-[320px] rounded-2xl border border-border bg-card/95 p-5 text-foreground/75 shadow-sm backdrop-blur-xl"
       >
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-medium text-black/50 dark:text-white/60">
+            <span className="text-xs font-medium text-muted-foreground">
               Font
             </span>
             <div className="grid grid-cols-2 gap-2">
@@ -82,9 +82,9 @@ export const ZenModeDisplaySettings = ({
                     type="button"
                     variant="outline"
                     className={cn(
-                      "h-9 w-full justify-center rounded-xl border-black/15 bg-white/80 text-sm font-medium text-black/70 hover:bg-white focus-visible:ring-1 focus-visible:ring-black/25 dark:border-white/20 dark:bg-transparent dark:text-white/80 dark:hover:bg-white/10",
+                      "h-9 w-full justify-center rounded-xl border-border bg-card/80 text-sm font-medium text-foreground/70 hover:bg-card focus-visible:ring-1 focus-visible:ring-ring",
                       isActive &&
-                        "border-black/60 bg-black/90 text-white shadow-sm hover:bg-black/85 hover:text-white focus-visible:ring-black/35 dark:border-white/60 dark:bg-white/85 dark:text-black dark:hover:bg-white/85 dark:hover:text-black"
+                        "border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/85 focus-visible:ring-primary"
                     )}
                     onClick={() => updateFontFamily(option.value)}
                     aria-pressed={isActive}
@@ -104,7 +104,7 @@ export const ZenModeDisplaySettings = ({
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold tracking-tight text-black/60 dark:text-white/75">
+            <span className="text-sm font-semibold tracking-tight text-foreground/60">
               Text size
             </span>
             <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export const ZenModeDisplaySettings = ({
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold tracking-tight text-black/60 dark:text-white/75">
+            <span className="text-sm font-semibold tracking-tight text-foreground/60">
               Line spacing
             </span>
             <div className="flex items-center gap-2">
@@ -156,7 +156,7 @@ export const ZenModeDisplaySettings = ({
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold tracking-tight text-black/60 dark:text-white/75">
+            <span className="text-sm font-semibold tracking-tight text-foreground/60">
               Width
             </span>
             <div className="flex items-center gap-2">

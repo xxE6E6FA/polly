@@ -86,7 +86,7 @@ function getFileAttachmentIcon(attachment: Attachment) {
     return <FileCodeIcon className="h-12 w-12 text-green-500" />;
   }
 
-  return <FileTextIcon className="h-12 w-12 text-gray-500" />;
+  return <FileTextIcon className="h-12 w-12 text-muted-foreground" />;
 }
 
 interface FileSelectorDialogProps {
