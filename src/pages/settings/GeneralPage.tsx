@@ -1,12 +1,15 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { DownloadSimple, GithubLogoIcon, Trash } from "@phosphor-icons/react";
+import {
+  DownloadSimpleIcon,
+  GithubLogoIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
-import { SettingsSection } from "@/components/settings/ui/SettingsSection";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Spinner } from "@/components/spinner";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
@@ -19,7 +22,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -185,7 +187,6 @@ export default function GeneralPage() {
         <div className="grid stack-6 lg:grid-cols-[minmax(0,280px)_1fr]">
           <aside className="stack-lg">
             <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-24 w-full" />
           </aside>
 
           <div className="stack-xl">
@@ -205,128 +206,136 @@ export default function GeneralPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,280px)_1fr]">
           <aside className="stack-lg">
             <UserIdCard />
-
-            <SettingsSection title="Privacy">
-              <div className="flex items-center justify-between gap-6">
-                <div className="stack-xs">
-                  <Label
-                    htmlFor="anonymize-toggle"
-                    className="text-base font-normal"
-                  >
-                    Anonymize User Data
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Blur your name, email, and avatar in the UI
-                  </p>
-                </div>
-                <Switch
-                  id="anonymize-toggle"
-                  checked={userSettings.anonymizeForDemo ?? false}
-                  onCheckedChange={handleAnonymizeToggle}
-                />
-              </div>
-            </SettingsSection>
           </aside>
 
-          <div className="stack-xl">
-            <SettingsSection title="Conversation Management">
-              <div className="stack-lg">
-                <div className="flex flex-wrap items-center justify-between gap-6">
-                  <div className="stack-xs">
-                    <Label
-                      htmlFor="auto-archive-toggle"
-                      className="text-base font-normal"
-                    >
-                      Enable Auto-Archive
-                    </Label>
+          <main className="max-w-3xl">
+            {/* Preferences */}
+            <section className="mb-12">
+              <h2 className="text-lg font-semibold mb-2">Preferences</h2>
+
+              <div className="stack-6">
+                {/* Anonymize for demos */}
+                <label
+                  htmlFor="anonymize-toggle"
+                  className="flex items-center justify-between gap-8 cursor-pointer"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium mb-1">Anonymize for demos</div>
                     <p className="text-sm text-muted-foreground">
-                      Automatically archive conversations after a set time
+                      Hide your name, email, and avatar from the UI
                     </p>
                   </div>
                   <Switch
-                    id="auto-archive-toggle"
-                    checked={autoArchiveEnabled}
-                    onCheckedChange={handleAutoArchiveToggle}
+                    id="anonymize-toggle"
+                    checked={userSettings.anonymizeForDemo ?? false}
+                    onCheckedChange={handleAnonymizeToggle}
                   />
-                </div>
+                </label>
 
-                {autoArchiveEnabled && (
-                  <div className="stack-sm">
-                    <Label className="text-sm font-medium">Archive After</Label>
-                    <Select
-                      value={autoArchiveDaysValue}
-                      onValueChange={handleAutoArchiveDaysChange}
-                    >
-                      <SelectTrigger className="w-full sm:w-60">
-                        <SelectValue placeholder="Select days" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {autoArchiveDaysOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Conversations archive based on their last activity. Pinned
-                      conversations never auto-archive.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </SettingsSection>
-
-            <SettingsSection title="Data Controls">
-              <div className="stack-lg">
-                <div className="stack-xs">
-                  <Label className="text-base font-normal">
-                    Export Conversation Archive
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Generate a downloadable backup with full conversation and
-                    attachment history.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <Button
-                    variant="outline"
-                    onClick={handleExportAllData}
-                    disabled={isExportingData}
+                {/* Auto-archive conversations */}
+                <div>
+                  <label
+                    htmlFor="auto-archive-toggle"
+                    className="flex items-center justify-between gap-8 mb-3 cursor-pointer"
                   >
-                    {isExportingData ? (
-                      <>
-                        <Spinner size="sm" className="mr-2" />
-                        Starting export...
-                      </>
-                    ) : (
-                      <>
-                        <DownloadSimple className="mr-2 h-4 w-4" />
-                        Export data
-                      </>
-                    )}
-                  </Button>
-                  {exportQueued && (
-                    <p className="text-xs text-muted-foreground">
-                      Export queued. Check the Chat History tab for progress.
-                    </p>
+                    <div className="flex-1">
+                      <div className="font-medium mb-1">
+                        Auto-archive conversations
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically move inactive conversations to archive
+                      </p>
+                    </div>
+                    <Switch
+                      id="auto-archive-toggle"
+                      checked={autoArchiveEnabled}
+                      onCheckedChange={handleAutoArchiveToggle}
+                    />
+                  </label>
+
+                  {autoArchiveEnabled && (
+                    <div className="ml-0 pl-0 flex items-center justify-left gap-4">
+                      <Select
+                        value={autoArchiveDaysValue}
+                        onValueChange={handleAutoArchiveDaysChange}
+                      >
+                        <SelectTrigger className="w-40">
+                          <SelectValue placeholder="Select days" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {autoArchiveDaysOptions.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Based on last activity. Pinned conversations are
+                        excluded.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
-            </SettingsSection>
+            </section>
 
-            <SettingsSection title="About">
+            {/* Data & Privacy */}
+            <section className="mb-12">
+              <h2 className="text-lg font-semibold mb-2">Data & Privacy</h2>
+
+              <div className="stack-6">
+                {/* Export */}
+                <div>
+                  <div className="font-medium mb-1">
+                    Export conversation archive
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Download a complete backup of your conversations and
+                    attachments
+                  </p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Button
+                      variant="primary"
+                      onClick={handleExportAllData}
+                      disabled={isExportingData}
+                    >
+                      {isExportingData ? (
+                        <>
+                          <Spinner size="sm" className="mr-2" />
+                          Starting export...
+                        </>
+                      ) : (
+                        <>
+                          <DownloadSimpleIcon className="mr-2 h-4 w-4" />
+                          Export data
+                        </>
+                      )}
+                    </Button>
+                    {exportQueued && (
+                      <p className="text-xs text-muted-foreground">
+                        Export queued. Check Chat History for progress.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* About */}
+            <section className="mb-12">
+              <h2 className="text-lg font-semibold mb-2">About</h2>
+
               <div>
-                <p className="mb-4 text-sm text-muted-foreground">
-                  Polly is an open source AI chat application. Found a bug or
-                  have a feature request? Contributions and feedback are
-                  welcome.
+                <p className="text-sm text-muted-foreground mb-3">
+                  Polly is an open source AI chat application. Contributions and
+                  feedback welcome.
                 </p>
                 <Button
                   asChild
                   className="w-full sm:w-auto"
                   size="default"
-                  variant="outline"
+                  variant="primary"
                 >
                   <a
                     className="flex items-center justify-center gap-2"
@@ -339,31 +348,27 @@ export default function GeneralPage() {
                   </a>
                 </Button>
               </div>
-            </SettingsSection>
+            </section>
 
-            <SettingsSection title="Account">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                <div className="stack-xs">
-                  <Label className="text-base font-normal">
-                    Delete Account
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Permanently remove your account, conversations, attachments,
-                    and settings. This action cannot be undone.
-                  </p>
-                </div>
-                <div>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setShowDeleteDialog(true)}
-                  >
-                    <Trash className="mr-2 h-4 w-4" />
-                    Delete Account
-                  </Button>
-                </div>
+            {/* Danger Zone */}
+            <section className="mb-12">
+              <h2 className="text-lg font-semibold mb-2">Danger Zone</h2>
+
+              <div>
+                <div className="font-medium mb-1">Delete account</div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Permanently delete your account and all associated data
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <TrashIcon className="mr-2 h-4 w-4" />
+                  Delete Account
+                </Button>
               </div>
-            </SettingsSection>
-          </div>
+            </section>
+          </main>
         </div>
       </SettingsPageLayout>
 
@@ -385,9 +390,8 @@ export default function GeneralPage() {
               </AlertDescription>
             </Alert>
             <p className="text-xs text-muted-foreground">
-              Need a copy first? Start an export from Data Controls before
-              deleting your account to keep a backup of your conversations and
-              attachments.
+              Need a copy first? Export your data from Data & Privacy before
+              deleting your account.
             </p>
           </div>
 
@@ -411,7 +415,7 @@ export default function GeneralPage() {
                 </>
               ) : (
                 <>
-                  <Trash className="mr-2 h-4 w-4" />
+                  <TrashIcon className="mr-2 h-4 w-4" />
                   Delete account
                 </>
               )}
