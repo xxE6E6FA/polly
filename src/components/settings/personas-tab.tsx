@@ -73,7 +73,7 @@ export const PersonasTab = () => {
     {}
   );
   const userPersonaSettingsRaw = useQuery(
-    api.userSettings.getUserSettings,
+    api.personas.getUserPersonaSettings,
     user?._id ? {} : "skip"
   );
   const userSettingsRaw = useUserSettings();
