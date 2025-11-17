@@ -412,6 +412,45 @@ export const getUserPersonaSettings = query({
   },
 });
 
+// List all user personas for settings page (including inactive ones)
+export const listAllForSettings = query({
+  args: {},
+  handler: async ctx => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return [];
+    }
+
+    // Get ALL user personas (both active and inactive)
+    const activePersonas = await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .take(100);
+
+    const inactivePersonas = await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q =>
+        q.eq("userId", userId).eq("isActive", false)
+      )
+      .take(100);
+
+    return [...activePersonas, ...inactivePersonas];
+  },
+});
+
+// List all built-in personas for settings page (including inactive)
+export const listAllBuiltInForSettings = query({
+  handler: async ctx => {
+    // Return all built-in personas regardless of isActive status
+    return await ctx.db
+      .query("personas")
+      .withIndex("by_built_in", q => q.eq("isBuiltIn", true))
+      .collect();
+  },
+});
+
 export const toggleBuiltInPersona = mutation({
   args: {
     personaId: v.id("personas"),

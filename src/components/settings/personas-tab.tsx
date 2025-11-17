@@ -64,8 +64,14 @@ interface EnrichedPersona {
 
 export const PersonasTab = () => {
   const { user } = useUserDataContext();
-  const personasRaw = useQuery(api.personas.list, user?._id ? {} : "skip");
-  const allBuiltInPersonasRaw = useQuery(api.personas.listAllBuiltIn, {});
+  const personasRaw = useQuery(
+    api.personas.listAllForSettings,
+    user?._id ? {} : "skip"
+  );
+  const allBuiltInPersonasRaw = useQuery(
+    api.personas.listAllBuiltInForSettings,
+    {}
+  );
   const userPersonaSettingsRaw = useQuery(
     api.userSettings.getUserSettings,
     user?._id ? {} : "skip"
