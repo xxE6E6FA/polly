@@ -5,9 +5,10 @@ import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
-import { Citations } from "@/components/citations";
+import { CitationsGallery } from "@/components/citations-gallery";
 import { Reasoning } from "@/components/reasoning";
 import { Button } from "@/components/ui/button";
+import { CitationProvider } from "@/components/ui/citation-context";
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
@@ -252,6 +253,7 @@ export const AssistantBubble = ({
 }: AssistantBubbleProps) => {
   // Use global conversation-level preview via onPreviewFile passed from parent
   const [showReasoning, setShowReasoning] = useState(false);
+  const [citationsExpanded, setCitationsExpanded] = useState(false);
   const overlayTools = useStreamOverlays(
     useShallow(s => s.tools[message.id] || [])
   );
@@ -782,13 +784,18 @@ export const AssistantBubble = ({
                   showSkeleton ? "opacity-0" : "opacity-100"
                 )}
               >
-                <StreamingMarkdown
-                  isStreaming={isMessageStreaming}
+                <CitationProvider
+                  citations={message.citations || []}
                   messageId={message.id}
-                  className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
                 >
-                  {displayContent}
-                </StreamingMarkdown>
+                  <StreamingMarkdown
+                    isStreaming={isMessageStreaming}
+                    messageId={message.id}
+                    className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
+                  >
+                    {displayContent}
+                  </StreamingMarkdown>
+                </CitationProvider>
               </div>
             )}
 
@@ -826,11 +833,12 @@ export const AssistantBubble = ({
         {message.citations &&
           message.citations.length > 0 &&
           (phase === "streaming" || phase === "complete") && (
-            <Citations
+            <CitationsGallery
               key={`citations-${message.id}-${phase}`}
               citations={message.citations}
               messageId={message.id}
               content={message.content}
+              isExpanded={citationsExpanded}
             />
           )}
 
@@ -916,6 +924,11 @@ export const AssistantBubble = ({
                 onRetryMessage={onRetryMessage}
                 onRefineMessage={onRefineMessage}
                 onOpenZenMode={isZenModeAvailable ? openZenMode : undefined}
+                citations={message.citations}
+                citationsExpanded={citationsExpanded}
+                onToggleCitations={() =>
+                  setCitationsExpanded(!citationsExpanded)
+                }
               />
             </div>
           </div>

@@ -1,157 +1,25 @@
 import type { LLMOutputComponent } from "@llm-ui/react";
 import Markdown, { RuleType } from "markdown-to-jsx";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
+import React, { useMemo } from "react";
 import { generateHeadingId } from "@/lib/utils";
-import { renderTextWithMathAndCitations } from "./markdown-utils.tsx";
+import { CitationGroup } from "./citation-group";
+import { CitationLink } from "./citation-link";
+import {
+  applyHardLineBreaks,
+  bufferIncompleteEntities,
+  convertCitationsToMarkdownLinks,
+  decodeMinimalEntities,
+  isMultiWord,
+  normalizeEscapedMarkdown,
+  normalizeLatexDelimiters,
+  removeParenthesesAroundItalics,
+  renderTextWithMathAndCitations,
+} from "./markdown-utils";
 import { useMessageId } from "./streaming-markdown";
-
-// Common numeric HTML entities that might appear during streaming (kept for parity only)
-
-// Regex patterns as constants to avoid recreation
-const INCOMPLETE_ENTITY_PATTERN = /&(?:#?x?[\dA-Fa-f]{0,6}|[A-Za-z]{0,10})?$/;
 
 // Whitespace characters pattern (excluding zero width joiner which can't be in character classes)
 const WHITESPACE_CHARS =
   "(?:\\t| |\\u00A0|\\u1680|\\u180E|\\u2000|\\u2001|\\u2002|\\u2003|\\u2004|\\u2005|\\u2006|\\u2007|\\u2008|\\u2009|\\u200A|\\u202F|\\u205F|\\u3000|\\u200B|\\u200C|\\uFEFF|\\u200D)";
-
-// Function to buffer incomplete HTML entities to prevent flashing during streaming
-function bufferIncompleteEntities(text: string): string {
-  if (!text || text.indexOf("&") === -1) {
-    return text;
-  }
-  const match = text.match(INCOMPLETE_ENTITY_PATTERN);
-  if (match && match[0].length > 1 && !match[0].endsWith(";")) {
-    return text.slice(0, -match[0].length);
-  }
-  return text;
-}
-
-// Normalize LaTeX delimiters so math parsing reliably recognizes blocks and inline math
-function normalizeLatexDelimiters(text: string): string {
-  if (!text) {
-    return text;
-  }
-  // Convert \\[ ... \\] to $$ ... $$ (display)
-  const convertDisplay = text.replace(
-    /\\\[([\s\S]*?)\\\]/g,
-    (_m, inner) => `$$${inner}$$`
-  );
-  // Convert \\( ... \\) to $ ... $ (inline)
-  const convertInline = convertDisplay.replace(
-    /\\\(([\s\S]*?)\\\)/g,
-    (_m, inner) => `$${inner}$`
-  );
-  return convertInline;
-}
-
-// Decode only minimal numeric entities we see from the streaming parser
-function decodeMinimalEntities(text: string): string {
-  if (!text) {
-    return text;
-  }
-  // Replace numeric space and newline entities
-  return text.replace(/&#x20;|&#32;/g, " ").replace(/&#x0A;|&#10;/g, "\n");
-}
-
-// Some providers escape Markdown control chars or send literal "\n" sequences.
-// Normalize the most common cases conservatively so Markdown parses correctly.
-function normalizeEscapedMarkdown(text: string): string {
-  if (!text) {
-    return text;
-  }
-
-  let out = text;
-
-  // 1) Convert literal backslash-n ("\\n") to real newlines when the text
-  // appears to be line-oriented (lots of "\\n" and very few real newlines).
-  const hasRealNewlines = out.includes("\n");
-  const literalNewlineMatches = out.match(/\\n/g);
-  if (
-    !hasRealNewlines &&
-    literalNewlineMatches &&
-    literalNewlineMatches.length >= 2
-  ) {
-    out = out.replace(/\\r?\\n/g, "\n");
-  }
-
-  // 2) Unescape leading block markers that were backslash-escaped, but only at
-  // true line starts so we don’t disturb inline content.
-  //   - Code fences:  \```lang  -> ```lang
-  //   - Closing fences:  \```   -> ```
-  //   - Headings: \### Title   -> ### Title
-  //   - Lists: \- item, \* item, \1. item -> unescaped
-  out = out
-    // Opening and closing fences at (optionally indented) line start
-    .replace(/(^|\n)[ \t]{0,3}\\```/g, "$1```")
-    // Headings at line start
-    .replace(/(^|\n)[ \t]{0,3}\\(#{1,6})(?=\s)/g, "$1$2")
-    // Unordered lists at line start
-    .replace(/(^|\n)[ \t]{0,3}\\([-*])(?=\s)/g, "$1$2")
-    // Ordered lists at line start (e.g., \1.)
-    .replace(/(^|\n)[ \t]{0,3}\\(\d+)\.(?=\s)/g, "$1$2.")
-    // Blockquotes and table rows at line start
-    .replace(/(^|\n)[ \t]{0,3}\\>(?=\s)/g, "$1>")
-    .replace(/(^|\n)[ \t]{0,3}\\\|/g, "$1|");
-
-  // 3) Remove stray backslash+space sequences immediately after inline emphasis
-  //    e.g., "*word*\\ equivalent" or "_word_\\\u00A0equivalent" -> "*word* equivalent"
-  out = out.replace(/(\*[^*\n]+\*|_[^_\n]+_)\\+[^\S\r\n]+/g, "$1 ");
-
-  // 4) Collapse multiple backslashes before horizontal/invisible spaces (outside code)
-  //    e.g., "\\\u00A0" or "\\ \t" -> single regular space
-  out = out.replace(new RegExp(`\\\\+${WHITESPACE_CHARS}+`, "g"), " ");
-
-  return out;
-}
-
-// Convert plain [n] citations into markdown links so they always render as anchors
-function convertCitationsToMarkdownLinks(text: string): string {
-  if (!text) {
-    return text;
-  }
-
-  // Normalize escaped and grouped patterns first
-  let normalized = text
-    // Remove backslashes before brackets: \[1] -> [1]
-    .replace(/\\(\[|\])/g, "$1")
-    // Convert double brackets: [[1]] -> [1]
-    .replace(/\[\[(\d+)\]\]/g, "[$1]")
-    // Expand grouped citations: [1, 2,3] -> [1][2][3]
-    .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
-      nums
-        .split(",")
-        .map(n => `[${n.trim()}]`)
-        .join("")
-    )
-    // Normalize spaces: [ 3 ] -> [3]
-    .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
-
-  // Replace each [n] with [n](#cite-n)
-  normalized = normalized.replace(/\[(\d+)\]/g, (_m, n: string) => {
-    return `[${n}](#cite-${n})`;
-  });
-
-  return normalized;
-}
-
-// Render LaTeX ($...$ and $$...$$) to KaTeX HTML before markdown parsing
-
-// Helper function to check if content is multi-word
-function isMultiWord(content: string): boolean {
-  const trimmed = content.trim();
-  return (
-    trimmed.includes(" ") || trimmed.includes("\n") || trimmed.includes("\t")
-  );
-}
-
-// Convert plain text citations into JSX during render (markdown-to-jsx renderRule)
 
 // Create heading override function - cached to prevent unnecessary re-renders
 const headingOverrideCache = new Map<
@@ -192,68 +60,6 @@ const createHeadingOverride = (
   return cachedOverride;
 };
 
-// Citation Group component with stable hover state
-const CitationGroup: React.FC<{ children: React.ReactNode }> = React.memo(
-  ({ children }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-    const handleMouseEnter = useCallback(() => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      setIsExpanded(true);
-    }, []);
-
-    const handleMouseLeave = useCallback(() => {
-      timeoutRef.current = setTimeout(() => {
-        setIsExpanded(false);
-      }, 150);
-    }, []);
-
-    useEffect(() => {
-      return () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-      };
-    }, []);
-
-    return (
-      <span
-        className={`citation-group ${isExpanded ? "expanded" : ""}`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        {children}
-      </span>
-    );
-  }
-);
-
-CitationGroup.displayName = "CitationGroup";
-
-// Citation Link component for handling citation links vs regular links
-const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
-  ({ href, children, ...props }) => {
-    if (href?.startsWith("#cite-")) {
-      return (
-        <a {...props} href={href} className="citation-link">
-          {children}
-        </a>
-      );
-    }
-
-    return (
-      <a {...props} href={href}>
-        {children}
-      </a>
-    );
-  }
-);
-
-CitationLink.displayName = "CitationLink";
-
 // Span Override component for handling citation groups
 const SpanOverride: React.FC<React.ComponentPropsWithoutRef<"span">> =
   React.memo(({ className, children, ...props }) => {
@@ -277,80 +83,6 @@ const EmphasisOverride: React.FC<React.ComponentPropsWithoutRef<"em">> =
   });
 
 EmphasisOverride.displayName = "EmphasisOverride";
-
-// Function to remove parentheses around italic text
-function removeParenthesesAroundItalics(text: string): string {
-  if (!text) {
-    return text;
-  }
-
-  const processItalicPattern =
-    (marker: string) => (match: string, content: string) => {
-      if (isMultiWord(content)) {
-        return `${marker}${content}${marker}`;
-      }
-      return match;
-    };
-
-  return text
-    .replace(/\(\s*\*([\s\S]*?)\*\s*\)/g, processItalicPattern("*"))
-    .replace(/\(\s*_([\s\S]*?)_\s*\)/g, processItalicPattern("_"));
-}
-
-// Convert explicit Markdown hard breaks to <br /> without mangling other whitespace
-function applyHardLineBreaksToString(text: string): React.ReactNode[] {
-  const nodes: React.ReactNode[] = [];
-  // 0) Clean stray backslash+horizontal-space (no newline) → single space
-  // This addresses artifacts like \\␠ after punctuation produced by some models.
-  const cleaned = text.replace(
-    new RegExp(`\\\\+${WHITESPACE_CHARS}+`, "g"),
-    " "
-  );
-
-  // 1) Honor hard-break markers:
-  // - two or more spaces before a newline
-  // - a single backslash immediately before a newline
-  const re = /(?: {2,}|\\)\r?\n/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while (true) {
-    match = re.exec(cleaned);
-    if (match === null) {
-      break;
-    }
-    const chunk = cleaned.slice(lastIndex, match.index);
-    if (chunk) {
-      nodes.push(chunk);
-    }
-    nodes.push(<br key={`br-${lastIndex}`} />);
-    lastIndex = re.lastIndex;
-  }
-  const tail = cleaned.slice(lastIndex);
-  if (tail) {
-    nodes.push(tail);
-  }
-  return nodes.length > 0 ? nodes : [cleaned];
-}
-
-function applyHardLineBreaks(node: React.ReactNode): React.ReactNode {
-  if (typeof node === "string") {
-    return applyHardLineBreaksToString(node);
-  }
-  if (Array.isArray(node)) {
-    return node.flatMap((child, index) => {
-      const processed = applyHardLineBreaks(child);
-      if (Array.isArray(processed)) {
-        return processed.map((n, i) =>
-          React.isValidElement(n)
-            ? React.cloneElement(n, { key: n.key ?? `n-${index}-${i}` })
-            : n
-        );
-      }
-      return processed;
-    });
-  }
-  return node;
-}
 
 // Markdown component for llm-ui
 const MarkdownBlockComponent: LLMOutputComponent = ({ blockMatch }) => {

@@ -7,7 +7,7 @@ export const exaSearchArgs = v.object({
   query: v.string(),
   maxResults: v.optional(v.number()),
   searchType: v.optional(
-    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep"))
+    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
   ),
   category: v.optional(
     v.union(
@@ -19,8 +19,8 @@ export const exaSearchArgs = v.object({
       v.literal("personal site"),
       v.literal("pdf"),
       v.literal("linkedin profile"),
-      v.literal("financial report")
-    )
+      v.literal("financial report"),
+    ),
   ),
   includeText: v.optional(v.boolean()),
   includeHighlights: v.optional(v.boolean()),
@@ -52,7 +52,17 @@ function detectResearchQuery(query: string): boolean {
     "systematic review",
   ];
   const lowerQuery = query.toLowerCase();
-  return researchKeywords.some(keyword => lowerQuery.includes(keyword));
+  return researchKeywords.some((keyword) => lowerQuery.includes(keyword));
+}
+
+// Helper function to extract site name from URL
+function extractSiteName(url: string): string {
+  try {
+    const domain = new URL(url).hostname;
+    return domain.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
 }
 
 export const exaResultsToCitations = (
@@ -68,33 +78,38 @@ export const exaResultsToCitations = (
     favicon?: string;
     summary?: string;
     score?: number;
-  }>
+  }>,
 ): Citation[] => {
-  return results.map(result => {
+  return results.map((result) => {
     return {
       type: "url_citation" as const,
       url: result.url,
       title: result.title || "Web Source",
       snippet: result.text || "",
       cited_text: result.highlights?.[0] || result.text?.substring(0, 200),
+      favicon: result.favicon,
+      image: result.image,
+      publishedDate: result.publishedDate,
+      author: result.author,
+      siteName: extractSiteName(result.url),
     };
   });
 };
 
 export async function searchWithExa(
   apiKey: string,
-  args: ExaSearchArgs
+  args: ExaSearchArgs,
 ): Promise<{
   citations: Citation[];
   sources: WebSource[];
   context: string;
   rawResults: unknown;
 }> {
-  
   try {
     const exa = new Exa(apiKey);
 
-    const searchMode = args.searchType || (detectResearchQuery(args.query) ? "deep" : "fast");
+    const searchMode =
+      args.searchType || (detectResearchQuery(args.query) ? "deep" : "fast");
 
     const searchOptions: Record<string, unknown> = {
       numResults: args.maxResults || WEB_SEARCH_MAX_RESULTS,
@@ -123,20 +138,25 @@ export async function searchWithExa(
 
     const searchResults = await exa.searchAndContents(
       args.query,
-      searchOptions
+      searchOptions,
     );
 
     const citations = exaResultsToCitations(searchResults.results);
-    const sources: WebSource[] = searchResults.results.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources: WebSource[] = searchResults.results.map((result) => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     const context =
       searchResults.context ||
       searchResults.results
         .slice(0, 3)
-        .map(r => {
+        .map((r) => {
           const result = r as {
             url: string;
             title?: string | null;
@@ -149,7 +169,7 @@ export async function searchWithExa(
             ""
           );
         })
-        .filter(text => text.length > 0)
+        .filter((text) => text.length > 0)
         .join("\n\n")
         .substring(0, 2000) ||
       "No relevant content found.";
@@ -163,7 +183,7 @@ export async function searchWithExa(
   } catch (error) {
     console.error("Exa search error:", error);
     throw new Error(
-      `Failed to search with Exa: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to search with Exa: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -171,7 +191,7 @@ export async function searchWithExa(
 // Get direct answers using Exa (using search for answer-like responses)
 export async function getExaAnswer(
   apiKey: string,
-  args: { question: string; numResults?: number }
+  args: { question: string; numResults?: number },
 ): Promise<{
   answer: string;
   citations: Citation[];
@@ -186,10 +206,15 @@ export async function getExaAnswer(
     });
 
     const citations = exaResultsToCitations(results.citations);
-    const sources = results.citations.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources = results.citations.map((result) => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     return {
       answer: results.answer as string,
@@ -200,7 +225,7 @@ export async function getExaAnswer(
   } catch (error) {
     console.error("Exa answer error:", error);
     throw new Error(
-      `Failed to get answer from Exa: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to get answer from Exa: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -208,7 +233,7 @@ export async function getExaAnswer(
 // Find similar pages using Exa
 export async function findSimilarWithExa(
   apiKey: string,
-  args: { url: string; numResults?: number; includeText?: boolean }
+  args: { url: string; numResults?: number; includeText?: boolean },
 ): Promise<{
   citations: Citation[];
   sources: WebSource[];
@@ -224,10 +249,15 @@ export async function findSimilarWithExa(
     });
 
     const citations = exaResultsToCitations(similarResults.results);
-    const sources = similarResults.results.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources = similarResults.results.map((result) => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     // Extract context if available from Exa
     const resultWithContext = similarResults as typeof similarResults & {
@@ -239,7 +269,7 @@ export async function findSimilarWithExa(
       resultWithContext.context ||
       similarResults.results
         .slice(0, 3)
-        .map(r => {
+        .map((r) => {
           const result = r as {
             url: string;
             title?: string | null;
@@ -252,7 +282,7 @@ export async function findSimilarWithExa(
             ""
           );
         })
-        .filter(text => text.length > 0)
+        .filter((text) => text.length > 0)
         .join("\n\n")
         .substring(0, 2000) ||
       "No similar content found.";
@@ -266,12 +296,10 @@ export async function findSimilarWithExa(
   } catch (error) {
     console.error("Exa find similar error:", error);
     throw new Error(
-      `Failed to find similar with Exa: ${error instanceof Error ? error.message : String(error)}`
+      `Failed to find similar with Exa: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
-
-
 
 export interface WebSearchArgs {
   query: string;
@@ -294,7 +322,7 @@ export interface WebSearchResult {
  */
 export async function performWebSearch(
   apiKey: string,
-  args: WebSearchArgs
+  args: WebSearchArgs,
 ): Promise<WebSearchResult> {
   const searchType = args.searchType || "search";
   const maxResults = args.maxResults || WEB_SEARCH_MAX_RESULTS; // Default to 12 results
@@ -327,7 +355,9 @@ export async function performWebSearch(
           return result;
         }
 
-        const searchMode = args.searchMode || (detectResearchQuery(args.query) ? "deep" : "fast");
+        const searchMode =
+          args.searchMode ||
+          (detectResearchQuery(args.query) ? "deep" : "fast");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
@@ -352,7 +382,9 @@ export async function performWebSearch(
 
       case "search":
       default: {
-        const searchMode = args.searchMode || (detectResearchQuery(args.query) ? "deep" : "fast");
+        const searchMode =
+          args.searchMode ||
+          (detectResearchQuery(args.query) ? "deep" : "fast");
         const result = await searchWithExa(apiKey, {
           query: args.query,
           maxResults,
@@ -371,16 +403,16 @@ export async function performWebSearch(
           excludeDomains: args.excludeDomains,
           includeText: true,
           includeHighlights: true,
-        });   
+        });
         return result;
       }
     }
   } catch (error) {
-          console.error(`❌ Exa ${searchType} error:`, error);
+    console.error(`❌ Exa ${searchType} error:`, error);
     throw new Error(
       `Failed to perform ${searchType} with Exa: ${
         error instanceof Error ? error.message : String(error)
-      }`
+      }`,
     );
   }
 }
@@ -391,7 +423,7 @@ export async function performWebSearch(
  */
 export function extractSearchContext(
   searchType: string,
-  searchResult: WebSearchResult
+  searchResult: WebSearchResult,
 ): string {
   if (searchType === "answer") {
     const answerData = searchResult.rawResults as { answer?: string };
