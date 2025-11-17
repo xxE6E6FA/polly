@@ -16,6 +16,7 @@ export function SelectionCheckbox({
 }: SelectionCheckboxProps) {
   return (
     <div className={cn(className)}>
+      {/* biome-ignore lint/a11y/useSemanticElements: Custom shadcn/ui checkbox pattern */}
       <button
         onClick={e => {
           e.stopPropagation();
