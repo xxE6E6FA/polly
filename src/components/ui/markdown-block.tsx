@@ -334,8 +334,7 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="citation-pill inline-flex items-center gap-0.5 px-1 h-[14px] text-[10px] font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border align-baseline"
-              style={{ lineHeight: "14px", verticalAlign: "baseline" }}
+              className="citation-pill inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] leading-tight font-medium rounded-md bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer border border-border/50 hover:border-border"
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
               onFocus={() => setOpen(true)}
@@ -369,7 +368,7 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                   }}
                 />
               )}
-              <span style={{ lineHeight: "14px" }}>
+              <span className="leading-tight">
                 {sourceName}
                 {groupCitations.length > 1 && ` +${groupCitations.length - 1}`}
               </span>
