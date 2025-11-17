@@ -65,7 +65,7 @@ export function FileLibraryButton({
             disabled={disabled || isSubmitting}
             size="icon"
             type="button"
-            variant="chat-input"
+            variant="default"
             onClick={handleClick}
           >
             <FolderOpenIcon className="h-3.5 w-3.5" />

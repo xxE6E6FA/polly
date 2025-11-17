@@ -413,11 +413,11 @@
     --color-card-foreground: hsl(0 0% 98%);
     --color-popover: hsl(228 8% 7%);
     --color-popover-foreground: hsl(0 0% 95%);
-    /* Primary button: dark background with white text for proper contrast */
-    --color-primary: hsl(0 0% 8%);
-    --color-primary-foreground: hsl(0 0% 98%);
-    --color-primary-hover: hsl(0 0% 16%);
-    --color-primary-active: hsl(0 0% 22%);
+    /* Primary button: white background with dark text in dark mode (Grok style) */
+    --color-primary: hsl(0 0% 98%);
+    --color-primary-foreground: hsl(0 0% 4%);
+    --color-primary-hover: hsl(0 0% 95%);
+    --color-primary-active: hsl(0 0% 90%);
     --color-secondary: hsl(0 0% 14.9%);
     --color-secondary-foreground: hsl(0 0% 98%);
     --color-secondary-hover: hsl(240 4% 16%);
