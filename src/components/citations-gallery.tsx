@@ -226,15 +226,14 @@ export const CitationsGallery = ({
   const citedCount = citedIndices.size;
   const totalCount = citations.length;
 
-  if (!isExpanded) {
-    return null;
-  }
-
   return (
     <div
       ref={containerRef}
       className={cn(
-        "mt-3 animate-in slide-in-from-top-2 duration-200",
+        "mt-3 transition-all duration-300 ease-out overflow-hidden",
+        isExpanded
+          ? "animate-in slide-in-from-top-2 opacity-100 max-h-[2000px]"
+          : "opacity-0 max-h-0 pointer-events-none",
         className
       )}
     >

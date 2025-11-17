@@ -335,6 +335,15 @@
   }
 }
 
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -1105,7 +1114,11 @@ pre {
 
 /* Custom animations - using keyframes defined above */
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.2s ease-out;
 }
 
 .animate-slide-up {
@@ -1956,14 +1969,6 @@ pre {
 
 .animate-spin-reverse {
   animation: spin-reverse 1s linear infinite;
-}
-
-/* Citation pill styles - Pills with source names */
-.citation-pill {
-  /* Styling is handled by Tailwind classes in the component */
-  /* This selector is kept for any potential overrides */
-  vertical-align: baseline;
-  margin: 0 2px;
 }
 
 /* Legacy citation link styles - kept for fallback */

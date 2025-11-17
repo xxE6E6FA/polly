@@ -12,7 +12,7 @@ import {
   HeartIcon,
   NotePencilIcon,
   SpeakerHighIcon,
-  Square,
+  SquareIcon,
   TextAaIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
@@ -980,7 +980,7 @@ function getTTSIcon(ttsState: TtsState): React.ReactNode {
   }
   if (ttsState === "playing") {
     return (
-      <Square
+      <SquareIcon
         className="h-3.5 w-3.5 text-red-500"
         weight="fill"
         aria-hidden="true"
@@ -1306,16 +1306,19 @@ export const MessageActions = memo(
               onClick={onDeleteMessage}
             />
           )}
-        </div>
 
-        {/* Citations avatar stack */}
-        {!isUser && citations && citations.length > 0 && onToggleCitations && (
-          <CitationAvatarStack
-            citations={citations}
-            isExpanded={citationsExpanded}
-            onToggle={onToggleCitations}
-          />
-        )}
+          {/* Citations avatar stack */}
+          {!isUser &&
+            citations &&
+            citations.length > 0 &&
+            onToggleCitations && (
+              <CitationAvatarStack
+                citations={citations}
+                isExpanded={citationsExpanded}
+                onToggle={onToggleCitations}
+              />
+            )}
+        </div>
 
         {!isUser &&
           (model && provider === "openrouter" ? (

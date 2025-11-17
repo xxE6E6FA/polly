@@ -50,9 +50,7 @@ export function CitationAvatarStack({
           size="sm"
           onClick={onToggle}
           className={cn(
-            "btn-action h-7 px-2 gap-1.5 transition-all duration-200 ease-out",
-            "motion-safe:hover:scale-105",
-            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
+            "btn-action h-7 px-1 gap-1.5",
             isExpanded && "bg-muted",
             className
           )}
@@ -62,7 +60,7 @@ export function CitationAvatarStack({
             {visibleCitations.map((citation, index) => (
               <Avatar
                 key={citation.url || `citation-${index}`}
-                className="h-5 w-5 border-2 border-background"
+                className="h-5 w-5 border-2 border-muted"
               >
                 {citation.favicon ? (
                   <AvatarImage
