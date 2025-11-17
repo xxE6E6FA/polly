@@ -742,7 +742,7 @@ http.route({
                     .map((c, idx) => `[${idx + 1}] ${c.title} - ${c.url}`)
                     .join(
                       "\n"
-                    )}\n\nWhen using information from these search results, you MUST include citations in the format [1], [2], etc. corresponding to the source numbers above.`,
+                    )}\n\nCITATION FORMATTING RULES:\n- Use citations in the format [1], [2], etc. corresponding to the source numbers above\n- ALWAYS place citations at the END of the sentence where you use information from that source\n- NEVER place citations in the middle of sentences\n- If multiple sources support the same sentence, group them together at the end: [1][2][3]\n- Citations should appear immediately after the period: "sentence.[1]" not "sentence[1]."`,
                 };
                 // Insert after the first system message
                 streamMsgs.splice(1, 0, searchResultsMessage);

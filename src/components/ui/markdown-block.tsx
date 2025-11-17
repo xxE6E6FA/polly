@@ -138,29 +138,6 @@ function convertCitationsToMarkdownLinks(text: string): string {
     // Normalize spaces: [ 3 ] -> [3]
     .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
 
-  // Move citations to end of paragraphs
-  // Split by double newlines to identify paragraphs
-  normalized = normalized
-    .split(/\n\n+/)
-    .map(paragraph => {
-      // Extract all citations from the paragraph
-      const citations: string[] = [];
-      let cleaned = paragraph.replace(/\[(\d+)\]/g, match => {
-        citations.push(match);
-        return ""; // Remove from original position
-      });
-
-      // Clean up extra spaces left by removed citations
-      cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
-
-      // Append citations at the end of the paragraph
-      if (citations.length > 0) {
-        return `${cleaned} ${citations.join("")}`;
-      }
-      return cleaned;
-    })
-    .join("\n\n");
-
   // Group adjacent citations and replace with special format
   // [1][2][3] becomes [1,2,3](#cite-group-1-2-3)
   normalized = normalized.replace(/(?:\[(\d+)\])+/g, match => {
