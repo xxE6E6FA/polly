@@ -206,9 +206,9 @@
   --color-foreground-focus: hsl(0 0% 2%);
   --color-highlight: hsl(214.6 79.1% 62.5%);
   --color-highlight-foreground: hsl(0 0% 100%);
-  --color-card: hsl(0 0% 100%);
+  --color-card: hsl(0 0% 98%);
   --color-card-foreground: hsl(0 0% 4%);
-  --color-popover: hsl(0 0% 100%);
+  --color-popover: hsl(0 0% 98%);
   --color-popover-foreground: hsl(0 0% 4%);
   --color-sidebar-tinted: hsl(0 0% 97%);
   --color-active-element-tint: hsl(0 0% 96.1%);
