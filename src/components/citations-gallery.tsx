@@ -36,7 +36,7 @@ export const CitationsGallery = ({
   const [showAllSources, setShowAllSources] = useState(true);
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [citedIndices, setCitedIndices] = useState<Set<number>>(new Set());
-  const citationRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const citationRefs = useRef<(HTMLElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const observerRef = useRef<MutationObserver | null>(null);
@@ -244,57 +244,43 @@ export const CitationsGallery = ({
           const citationNumber = originalIndex + 1;
 
           return (
-            <div
+            <a
               key={citation.url || `citation-${originalIndex}`}
               ref={el => {
                 citationRefs.current[originalIndex] = el;
               }}
               data-citation-index={originalIndex}
               id={`cite-${citationNumber}`}
+              href={citation.url}
+              target="_blank"
+              rel="noopener noreferrer"
               className={cn(
-                "group relative rounded-lg border border-border bg-card p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-sm",
+                "group relative rounded-lg border border-border bg-card p-3 transition-all duration-200 hover:border-primary/40 hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 block",
                 activeCitation === citationNumber &&
-                  "border-primary/60 bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                  "border-primary/60 bg-primary/5 ring-1 ring-primary/20"
               )}
             >
-              <div className="stack-sm">
-                <div className="flex items-start gap-2.5">
-                  <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 text-[10px] font-semibold text-primary bg-primary/10 rounded-full flex-shrink-0">
-                    {citationNumber}
-                  </span>
-                  {citation.favicon && (
-                    <img
-                      src={citation.favicon}
-                      alt=""
-                      className="h-4 w-4 mt-0.5 flex-shrink-0"
-                      onError={e => {
-                        (e.target as HTMLImageElement).style.display = "none";
-                      }}
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <a
-                      href={citation.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="group/link"
-                    >
-                      <div className="font-medium text-sm line-clamp-2 text-foreground group-hover/link:text-primary group-hover/link:underline transition-colors">
-                        {citation.title}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {getDomain(citation.url)}
-                      </div>
-                    </a>
+              <div className="flex items-start gap-2">
+                {citation.favicon && (
+                  <img
+                    src={citation.favicon}
+                    alt=""
+                    className="h-4 w-4 mt-0.5 flex-shrink-0"
+                    onError={e => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-muted-foreground mb-1">
+                    {getDomain(citation.url)}
+                  </div>
+                  <div className="font-medium text-sm line-clamp-2 text-foreground">
+                    {citation.title}
                   </div>
                 </div>
-                {citation.snippet && (
-                  <p className="text-xs text-muted-foreground line-clamp-2 pl-8">
-                    {citation.snippet}
-                  </p>
-                )}
               </div>
-            </div>
+            </a>
           );
         })}
       </div>
