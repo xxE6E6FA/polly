@@ -56,7 +56,7 @@ export function ImageModelDrawer({
           variant="chat-input"
           size="sm"
           aria-label="Select image model"
-          className="h-9 w-9 p-0 sm:hidden bg-accent/60 text-accent-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="h-9 w-9 p-0 sm:hidden bg-muted/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           disabled={disabled}
         >
           <Image className="h-4 w-4" />
@@ -134,7 +134,7 @@ export function ImageModelDrawer({
           <div className="pt-2">
             <Link
               to={ROUTES.SETTINGS.IMAGE_MODELS}
-              className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-muted/40 hover:bg-accent/50 transition-colors shadow-sm"
+              className="flex items-center justify-center gap-2 w-full p-3 rounded-lg bg-muted/40 hover:bg-muted transition-colors shadow-sm"
             >
               <GearIcon className="h-4 w-4" />
               <span className="text-sm">Manage Image Models</span>

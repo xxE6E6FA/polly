@@ -97,7 +97,7 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
               className={cn(
                 "h-6 w-auto gap-1 px-1.5 py-0.5 text-xs font-medium sm:h-7 sm:gap-1.5 sm:px-2 sm:text-xs",
                 "transition-all duration-200 rounded-md border-0 focus:ring-0 shadow-none",
-                "bg-accent/40 dark:bg-accent/20 text-foreground/90"
+                "bg-muted/40 text-foreground/90"
               )}
             >
               <div className="flex items-center gap-1">
@@ -165,7 +165,7 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
                             }
                             className={cn(
                               "cursor-pointer mx-2 rounded-md px-3 py-2.5",
-                              model === enabledModel.modelId && "bg-accent"
+                              model === enabledModel.modelId && "bg-muted"
                             )}
                           >
                             <div className="flex flex-col gap-0.5 min-w-0 flex-1">

@@ -101,9 +101,8 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                     onClick={() => handleRatioSelect(ratio.value)}
                     className={cn(
                       "flex items-center justify-between p-1.5 rounded-md text-xs transition-colors",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      aspectRatio === ratio.value &&
-                        "bg-accent text-accent-foreground"
+                      "hover:bg-muted",
+                      aspectRatio === ratio.value && "bg-muted"
                     )}
                   >
                     <div className="flex items-center gap-2">

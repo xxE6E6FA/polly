@@ -359,7 +359,7 @@ export const ZenModeDialog = ({
                           citations={citations}
                           messageId={zenMessageId}
                           content={content || undefined}
-                          className="mt-0 text-foreground/70 [&_*]:text-foreground/70 [&_a]:text-accent [&_a:hover]:text-accent/80"
+                          className="mt-0 text-foreground/70 [&_*]:text-foreground/70 [&_a]:text-foreground [&_a:hover]:text-primary"
                         />
                       </aside>
                     )}
