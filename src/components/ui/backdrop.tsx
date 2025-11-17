@@ -14,10 +14,10 @@ export const Backdrop = forwardRef<HTMLDivElement, BackdropProps>(
         ref={ref}
         className={cn(
           "fixed inset-0",
-          // Base colors - use theme variables
+          // Base colors - explicit black with opacity for consistent backdrop
           variant === "default"
-            ? "bg-foreground/20 dark:bg-foreground/10"
-            : "bg-foreground/80",
+            ? "bg-black/20"
+            : "bg-black/80 dark:bg-black/60",
           // Blur effect
           blur === "sm" && "backdrop-blur-sm",
           blur === "md" && "backdrop-blur-md",
