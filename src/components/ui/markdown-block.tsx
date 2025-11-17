@@ -277,6 +277,7 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
     const { citations } = useCitations();
     const [open, setOpen] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
+    const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Reset currentIndex when popover opens
     useEffect(() => {
@@ -284,6 +285,32 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
         setCurrentIndex(0);
       }
     }, [open]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+      return () => {
+        if (closeTimeoutRef.current) {
+          clearTimeout(closeTimeoutRef.current);
+        }
+      };
+    }, []);
+
+    const handleMouseEnter = useCallback(() => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+      setOpen(true);
+    }, []);
+
+    const handleMouseLeave = useCallback(() => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+      closeTimeoutRef.current = setTimeout(() => {
+        setOpen(false);
+      }, 300); // 300ms delay before closing
+    }, []);
 
     if (href?.startsWith("#cite-")) {
       // Get domain for display
@@ -344,8 +371,8 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
               type="button"
               className="citation-pill inline-flex items-center gap-0.5 px-1 h-[14px] text-[10px] font-medium rounded-full bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer border border-border align-baseline"
               style={{ lineHeight: "14px", verticalAlign: "baseline" }}
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
               onFocus={() => setOpen(true)}
               onBlur={e => {
                 // Don't close if focusing within the popover
@@ -354,7 +381,7 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                     e.relatedTarget && e.currentTarget.contains(e.relatedTarget)
                   )
                 ) {
-                  setOpen(false);
+                  handleMouseLeave();
                 }
               }}
               onClick={e => {
@@ -387,8 +414,8 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
             className="w-80 p-0"
             side="top"
             align="start"
-            onMouseEnter={() => setOpen(true)}
-            onMouseLeave={() => setOpen(false)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             onOpenAutoFocus={e => {
               // Prevent auto-focus from interfering
               e.preventDefault();
@@ -456,7 +483,6 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
               target="_blank"
               rel="noopener noreferrer"
               className="block p-3 hover:bg-muted/50 transition-colors rounded-b-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-              onClick={() => setOpen(false)}
             >
               <div className="flex items-start gap-2">
                 {currentCitation.favicon && (
