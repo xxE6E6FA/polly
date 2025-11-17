@@ -87,6 +87,7 @@ export const PersonasTab = () => {
   const toggleBuiltInPersonaMutation = useMutation(
     api.personas.toggleBuiltInPersona
   );
+  const togglePersonaMutation = useMutation(api.personas.togglePersona);
   const togglePersonasGloballyMutation = useMutation(
     api.userSettings.togglePersonasEnabled
   );
@@ -132,7 +133,7 @@ export const PersonasTab = () => {
   const { sortField, sortDirection, toggleSort, sortItems } = useListSort<
     SortField,
     EnrichedPersona
-  >("name", "asc", (persona, field) => {
+  >("type", "asc", (persona, field) => {
     if (field === "name") {
       return persona.name.toLowerCase();
     }
@@ -166,10 +167,14 @@ export const PersonasTab = () => {
           personaId: persona._id,
           isDisabled: !checked,
         });
+      } else {
+        togglePersonaMutation({
+          id: persona._id,
+          isActive: checked,
+        });
       }
-      // Custom personas are always enabled (no toggle)
     },
-    [toggleBuiltInPersonaMutation]
+    [toggleBuiltInPersonaMutation, togglePersonaMutation]
   );
 
   const handleTogglePersonasGlobally = useCallback(
@@ -226,19 +231,14 @@ export const PersonasTab = () => {
       hideOnMobile: true,
       render: persona => (
         <div className="flex justify-center">
-          {persona.type === "built-in" ? (
-            <Switch
-              checked={!persona.isDisabled}
-              onCheckedChange={checked => handleTogglePersona(persona, checked)}
-            />
-          ) : (
-            <Badge
-              variant="outline"
-              className="bg-green-500/10 text-green-700 dark:text-green-400"
-            >
-              Active
-            </Badge>
-          )}
+          <Switch
+            checked={
+              persona.type === "built-in"
+                ? !persona.isDisabled
+                : persona.isActive
+            }
+            onCheckedChange={checked => handleTogglePersona(persona, checked)}
+          />
         </div>
       ),
     },
@@ -250,23 +250,23 @@ export const PersonasTab = () => {
       hideOnMobile: true,
       render: persona => (
         <div className="flex justify-end gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={e => {
-                  e.stopPropagation();
-                  setViewingPersona(persona);
-                }}
-              >
-                <FileTextIcon className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>View system prompt</TooltipContent>
-          </Tooltip>
           {persona.type === "custom" && (
             <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      setViewingPersona(persona);
+                    }}
+                  >
+                    <FileTextIcon className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View system prompt</TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button size="sm" variant="ghost" asChild>
@@ -389,18 +389,18 @@ export const PersonasTab = () => {
               )}
               mobileActionsRender={persona => (
                 <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={e => {
-                      e.stopPropagation();
-                      setViewingPersona(persona);
-                    }}
-                  >
-                    <FileTextIcon className="h-3.5 w-3.5" />
-                  </Button>
                   {persona.type === "custom" && (
                     <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={e => {
+                          e.stopPropagation();
+                          setViewingPersona(persona);
+                        }}
+                      >
+                        <FileTextIcon className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" asChild>
                         <Link
                           to={ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)}
@@ -434,24 +434,19 @@ export const PersonasTab = () => {
                   >
                     {persona.type === "built-in" ? "Built-in" : "Custom"}
                   </Badge>
-                  {persona.type === "built-in" ? (
-                    <div className="flex items-center gap-2">
-                      <span>Status:</span>
-                      <Switch
-                        checked={!persona.isDisabled}
-                        onCheckedChange={checked =>
-                          handleTogglePersona(persona, checked)
-                        }
-                      />
-                    </div>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="text-xs bg-green-500/10 text-green-700 dark:text-green-400"
-                    >
-                      Active
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <span>Status:</span>
+                    <Switch
+                      checked={
+                        persona.type === "built-in"
+                          ? !persona.isDisabled
+                          : persona.isActive
+                      }
+                      onCheckedChange={checked =>
+                        handleTogglePersona(persona, checked)
+                      }
+                    />
+                  </div>
                 </div>
               )}
             />
