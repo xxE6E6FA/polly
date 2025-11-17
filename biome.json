@@ -31,8 +31,12 @@
     },
     "rules": {
       "recommended": false,
+      "a11y": {
+        "useGenericFontNames": "error"
+      },
       "complexity": {
         "noExtraBooleanCast": "error",
+        "noImportantStyles": "warn",
         "noUselessCatch": "error",
         "noUselessEscapeInRegex": "error",
         "noUselessFragments": "error",
@@ -51,12 +55,24 @@
         "noGlobalObjectCalls": "error",
         "noInvalidBuiltinInstantiation": "error",
         "noInvalidConstructorSuper": "error",
+        "noInvalidDirectionInLinearGradient": "error",
+        "noInvalidGridAreas": "error",
+        "noInvalidPositionAtImportRule": "error",
+        "noMissingVarFunction": "error",
         "noNonoctalDecimalEscape": "error",
         "noPrecisionLoss": "error",
         "noSelfAssign": "error",
         "noSetterReturn": "error",
         "noSwitchDeclarations": "error",
         "noUndeclaredVariables": "error",
+        "noUnknownFunction": "error",
+        "noUnknownMediaFeatureName": "error",
+        "noUnknownProperty": "error",
+        "noUnknownPseudoClass": "error",
+        "noUnknownPseudoElement": "error",
+        "noUnknownTypeSelector": "error",
+        "noUnknownUnit": "error",
+        "noUnmatchableAnbSelector": "error",
         "noUnreachable": "error",
         "noUnreachableSuper": "error",
         "noUnsafeFinally": "error",
@@ -84,6 +100,7 @@
         "noGlobalEval": "error"
       },
       "style": {
+        "noDescendingSpecificity": "warn",
         "noInferrableTypes": "error",
         "noNamespace": "error",
         "noNegationElse": "error",
@@ -93,6 +110,7 @@
         "noShoutyConstants": "error",
         "noUnusedTemplateLiteral": "error",
         "noUselessElse": "error",
+        "noValueAtRule": "error",
         "useAsConstAssertion": "error",
         "useBlockStatements": "error",
         "useCollapsedElseIf": "error",
@@ -124,12 +142,18 @@
         "noControlCharactersInRegex": "error",
         "noDebugger": "error",
         "noDoubleEquals": "error",
+        "noDuplicateAtImportRules": "error",
         "noDuplicateCase": "error",
         "noDuplicateClassMembers": "error",
+        "noDuplicateCustomProperties": "error",
         "noDuplicateElseIf": "error",
+        "noDuplicateFontNames": "error",
         "noDuplicateJsxProps": "error",
         "noDuplicateObjectKeys": "error",
         "noDuplicateParameters": "error",
+        "noDuplicateProperties": "off",
+        "noDuplicateSelectorsKeyframeBlock": "error",
+        "noEmptyBlock": "error",
         "noEmptyBlockStatements": "error",
         "noEmptyInterface": "error",
         "noExplicitAny": "error",
@@ -138,6 +162,7 @@
         "noFunctionAssign": "error",
         "noGlobalAssign": "error",
         "noImportAssign": "error",
+        "noImportantInKeyframe": "error",
         "noIrregularWhitespace": "error",
         "noMisleadingCharacterClass": "error",
         "noMisleadingInstantiator": "error",
@@ -145,9 +170,12 @@
         "noRedeclare": "error",
         "noSelfCompare": "error",
         "noShadowRestrictedNames": "error",
+        "noShorthandPropertyOverrides": "error",
         "noSparseArray": "error",
+        "noUnknownAtRules": "error",
         "noUnsafeDeclarationMerging": "error",
         "noUnsafeNegation": "error",
+        "noUselessEscapeInString": "error",
         "useAwait": "error",
         "useGetterReturn": "error",
         "useNamespaceKeyword": "error"
@@ -331,6 +359,17 @@
   "css": {
     "parser": {
       "tailwindDirectives": true
+    },
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineEnding": "lf",
+      "lineWidth": 80,
+      "quoteStyle": "double"
+    },
+    "linter": {
+      "enabled": true
     }
   }
 }

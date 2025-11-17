@@ -1012,23 +1012,23 @@ pre {
 
 /* Allow text selection for content that should be selectable */
 .selectable-text {
-  user-select: text !important;
+  user-select: text;
 }
 
 /* Allow text selection for all content (includes images, etc.) */
 .selectable-all {
-  user-select: all !important;
+  user-select: all;
 }
 
 /* Auto selection for inputs and form elements */
 .selectable-auto {
-  user-select: auto !important;
+  user-select: auto;
 }
 
 /* Ensure all children of selectable elements are also selectable */
 .selectable-text *,
 .prose * {
-  user-select: text !important;
+  user-select: text;
 }
 
 /* Code block styling */
@@ -1292,10 +1292,10 @@ pre {
 .disable-animations *,
 .disable-animations *::before,
 .disable-animations *::after {
-  animation-duration: 0s !important;
-  animation-delay: 0s !important;
-  transition-duration: 0s !important;
-  transition-delay: 0s !important;
+  animation-duration: 0s;
+  animation-delay: 0s;
+  transition-duration: 0s;
+  transition-delay: 0s;
 }
 
 /* Polly Logo - Monochrome */
@@ -1355,24 +1355,6 @@ pre {
   background: var(--gradient-tropical);
 }
 
-/* Refined dark mode scrollbar for sidebar */
-.dark .scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-}
-
-.dark .scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: var(--color-border) / 0.5;
-  border-radius: 3px;
-}
-
-.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: var(--color-border) / 0.7;
-}
-
 /* Light mode scrollbar refinement */
 .scrollbar-thin::-webkit-scrollbar {
   width: 6px;
@@ -1388,6 +1370,24 @@ pre {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border) / 0.7;
+}
+
+/* Refined dark mode scrollbar for sidebar */
+.dark .scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border) / 0.5;
+  border-radius: 3px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: var(--color-border) / 0.7;
 }
 
@@ -1457,7 +1457,7 @@ pre {
 @media (prefers-reduced-motion: reduce) {
   .group:hover .polly-logo-gradient-unified,
   .group:focus-visible .polly-logo-gradient-unified {
-    animation: none !important;
+    animation: none;
   }
 }
 
@@ -1500,46 +1500,6 @@ pre {
   background: var(--color-background);
 }
 
-/* Dark mode chat input - Clean, refined states */
-.dark .chat-input-container {
-  background: var(--color-card) / 0.85;
-  background: color-mix(
-    in srgb,
-    var(--color-card) 82%,
-    var(--color-background) 18%
-  );
-  border: 1px solid var(--color-border) / 0.8;
-  backdrop-filter: blur(6px);
-  /* Transition colors subtly and prep for transform/shadow */
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    transform 280ms ease,
-    box-shadow 280ms ease;
-  will-change: transform, box-shadow;
-}
-
-/* Hover state - subtle enhancement */
-.dark .chat-input-container:hover {
-  border-color: var(--color-input-hover);
-  background: var(--color-card) / 0.9;
-  background: color-mix(
-    in srgb,
-    var(--color-card) 88%,
-    var(--color-background) 12%
-  );
-}
-
-/* Focus state - single clean border */
-.dark .chat-input-container:focus-within {
-  background: var(--color-card);
-  background: color-mix(
-    in srgb,
-    var(--color-card) 94%,
-    var(--color-background) 6%
-  );
-}
-
 /* Picker trigger styles */
 .picker-trigger {
   position: relative;
@@ -1567,7 +1527,7 @@ pre {
   opacity: 1;
 }
 
-/* Chat Input Container States */
+/* Chat Input Container States - Base styles first */
 .chat-input-container {
   position: relative;
   overflow: hidden;
@@ -1608,6 +1568,59 @@ pre {
     border-color 180ms ease,
     transform 280ms ease;
   will-change: transform;
+}
+
+/* Hover state - clean, no glow */
+.chat-input-container:hover {
+  border-color: var(--color-input-hover);
+  background: var(--color-background);
+  background: color-mix(in srgb, var(--color-background) 90%, white 10%);
+}
+
+/* Focus state - single clean border */
+.chat-input-container:focus-within {
+  background: var(--color-background);
+  background: color-mix(
+    in srgb,
+    var(--color-background) 72%,
+    var(--color-card) 28%
+  );
+}
+
+/* Dark mode chat input - Clean, refined states */
+.dark .chat-input-container {
+  background: var(--color-card) / 0.85;
+  background: color-mix(
+    in srgb,
+    var(--color-card) 82%,
+    var(--color-background) 18%
+  );
+  border: 1px solid var(--color-border) / 0.8;
+  backdrop-filter: blur(6px);
+  /* Transition colors subtly and prep for transform/shadow */
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 280ms ease,
+    box-shadow 280ms ease;
+  will-change: transform, box-shadow;
+}
+
+/* Hover state - subtle enhancement */
+.dark .chat-input-container:hover {
+  border-color: var(--color-input-hover);
+  background: var(--color-card) / 0.9;
+  background: color-mix(in srgb, var(--color-card) 90%, transparent);
+}
+
+/* Focus state - single clean border */
+.dark .chat-input-container:focus-within {
+  background: var(--color-card);
+  background: color-mix(
+    in srgb,
+    var(--color-card) 94%,
+    var(--color-background) 6%
+  );
 }
 
 /* Simplified transition when the textarea is transitioning (both enter/exit) */
@@ -1661,36 +1674,15 @@ pre {
   border-radius: var(--chat-input-bottom-control-radius);
 }
 
-/* Hover state - clean, no glow */
-.chat-input-container:hover {
-  border-color: var(--color-input-hover);
-  background: var(--color-background);
-  background: color-mix(
-    in srgb,
-    var(--color-background) 80%,
-    var(--color-card) 20%
-  );
-}
-
-/* Focus state - single clean border */
-.chat-input-container:focus-within {
-  background: var(--color-background);
-  background: color-mix(
-    in srgb,
-    var(--color-background) 72%,
-    var(--color-card) 28%
-  );
-}
-
 /* Chat input textarea styles */
 .chat-input-container textarea {
-  outline: none !important;
+  outline: none;
   background: transparent;
   color: var(--color-foreground);
 }
 
 .chat-input-container textarea:focus {
-  outline: none !important;
+  outline: none;
   background: transparent;
   color: var(--color-foreground);
 }
@@ -1701,13 +1693,13 @@ pre {
 
 /* Dark mode textarea styles */
 .dark .chat-input-container textarea {
-  outline: none !important;
+  outline: none;
   background: transparent;
   color: var(--color-foreground);
 }
 
 .dark .chat-input-container textarea:focus {
-  outline: none !important;
+  outline: none;
   background: transparent;
   color: var(--color-foreground);
 }
@@ -2012,13 +2004,13 @@ pre {
   font-size: 10px;
   font-weight: 500;
   border-radius: 3px;
-  text-decoration: none !important;
+  text-decoration: none;
   transition: opacity var(--duration-fast) var(--ease-standard);
   vertical-align: super;
   position: relative;
   margin: 0 1px;
   z-index: 10;
-  user-select: none !important;
+  user-select: none;
 }
 
 /* Light mode citation colors - Minimal */
@@ -2045,7 +2037,7 @@ pre {
 
 /* Message Content Styles */
 .prose {
-  user-select: text !important;
+  user-select: text;
 }
 
 /* Prose Typography Customizations */
@@ -2602,56 +2594,56 @@ pre {
 /* Respect reduced motion preferences globally */
 @media (prefers-reduced-motion: reduce) {
   * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
   }
 }
 
 /* Custom prose theme colors that match our design system */
 @layer utilities {
   .prose {
-    color: var(--color-foreground) !important;
-    --tw-prose-body: var(--color-foreground) !important;
-    --tw-prose-headings: var(--color-foreground) !important;
-    --tw-prose-lead: var(--color-muted-foreground) !important;
-    --tw-prose-links: var(--color-primary) !important;
-    --tw-prose-bold: var(--color-foreground) !important;
-    --tw-prose-counters: var(--color-muted-foreground) !important;
-    --tw-prose-bullets: var(--color-muted-foreground) !important;
-    --tw-prose-hr: var(--color-border) !important;
-    --tw-prose-quotes: var(--color-muted-foreground) !important;
-    --tw-prose-quote-borders: var(--color-border) !important;
-    --tw-prose-captions: var(--color-muted-foreground) !important;
-    --tw-prose-kbd: var(--color-foreground) !important;
-    --tw-prose-kbd-shadows: var(--color-border) !important;
-    --tw-prose-code: var(--color-foreground) !important;
-    --tw-prose-pre-code: var(--color-foreground) !important;
-    --tw-prose-pre-bg: var(--color-surface-variant) !important;
-    --tw-prose-th-borders: var(--color-border) !important;
-    --tw-prose-td-borders: var(--color-border) !important;
+    color: var(--color-foreground);
+    --tw-prose-body: var(--color-foreground);
+    --tw-prose-headings: var(--color-foreground);
+    --tw-prose-lead: var(--color-muted-foreground);
+    --tw-prose-links: var(--color-primary);
+    --tw-prose-bold: var(--color-foreground);
+    --tw-prose-counters: var(--color-muted-foreground);
+    --tw-prose-bullets: var(--color-muted-foreground);
+    --tw-prose-hr: var(--color-border);
+    --tw-prose-quotes: var(--color-muted-foreground);
+    --tw-prose-quote-borders: var(--color-border);
+    --tw-prose-captions: var(--color-muted-foreground);
+    --tw-prose-kbd: var(--color-foreground);
+    --tw-prose-kbd-shadows: var(--color-border);
+    --tw-prose-code: var(--color-foreground);
+    --tw-prose-pre-code: var(--color-foreground);
+    --tw-prose-pre-bg: var(--color-surface-variant);
+    --tw-prose-th-borders: var(--color-border);
+    --tw-prose-td-borders: var(--color-border);
   }
 
   .dark .prose {
-    color: var(--color-foreground) !important;
-    --tw-prose-body: var(--color-foreground) !important;
-    --tw-prose-headings: var(--color-foreground) !important;
-    --tw-prose-lead: var(--color-muted-foreground) !important;
-    --tw-prose-links: var(--color-primary) !important;
-    --tw-prose-bold: var(--color-foreground) !important;
-    --tw-prose-counters: var(--color-muted-foreground) !important;
-    --tw-prose-bullets: var(--color-muted-foreground) !important;
-    --tw-prose-hr: var(--color-border) !important;
-    --tw-prose-quotes: var(--color-muted-foreground) !important;
-    --tw-prose-quote-borders: var(--color-border) !important;
-    --tw-prose-captions: var(--color-muted-foreground) !important;
-    --tw-prose-kbd: var(--color-foreground) !important;
-    --tw-prose-kbd-shadows: var(--color-border) !important;
-    --tw-prose-code: var(--color-foreground) !important;
-    --tw-prose-pre-code: var(--color-foreground) !important;
-    --tw-prose-pre-bg: var(--color-surface-variant) !important;
-    --tw-prose-th-borders: var(--color-border) !important;
-    --tw-prose-td-borders: var(--color-border) !important;
+    color: var(--color-foreground);
+    --tw-prose-body: var(--color-foreground);
+    --tw-prose-headings: var(--color-foreground);
+    --tw-prose-lead: var(--color-muted-foreground);
+    --tw-prose-links: var(--color-primary);
+    --tw-prose-bold: var(--color-foreground);
+    --tw-prose-counters: var(--color-muted-foreground);
+    --tw-prose-bullets: var(--color-muted-foreground);
+    --tw-prose-hr: var(--color-border);
+    --tw-prose-quotes: var(--color-muted-foreground);
+    --tw-prose-quote-borders: var(--color-border);
+    --tw-prose-captions: var(--color-muted-foreground);
+    --tw-prose-kbd: var(--color-foreground);
+    --tw-prose-kbd-shadows: var(--color-border);
+    --tw-prose-code: var(--color-foreground);
+    --tw-prose-pre-code: var(--color-foreground);
+    --tw-prose-pre-bg: var(--color-surface-variant);
+    --tw-prose-th-borders: var(--color-border);
+    --tw-prose-td-borders: var(--color-border);
   }
 }
