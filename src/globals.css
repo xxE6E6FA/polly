@@ -196,9 +196,9 @@
   --ease-smooth: cubic-bezier(0.33, 1, 0.68, 1);
 
   /* Colors - Light Mode Defaults (Grok Minimal) */
-  --color-border: hsl(0 0% 89.8%);
-  --color-input: hsl(0 0% 100%);
-  --color-input-hover: hsl(0 0% 100%);
+  --color-border: hsl(0 0% 85%);
+  --color-input: hsl(0 0% 98%);
+  --color-input-hover: hsl(0 0% 99%);
   --color-input-focus: hsl(0 0% 100%);
   --color-ring: hsl(0 0% 52%);
   --color-background: hsl(0 0% 100%);
@@ -212,7 +212,7 @@
   --color-popover-foreground: hsl(0 0% 4%);
   --color-sidebar-tinted: hsl(0 0% 97%);
   --color-active-element-tint: hsl(0 0% 96.1%);
-  --color-active-element-border: hsl(0 0% 89.8%);
+  --color-active-element-border: hsl(0 0% 85%);
 
   /* Primary Colors (Minimal Black) */
   --color-primary: hsl(0 0% 4%);
