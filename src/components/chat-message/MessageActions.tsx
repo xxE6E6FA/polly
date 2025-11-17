@@ -1206,18 +1206,6 @@ export const MessageActions = memo(
             />
           )}
 
-          {/* Citations avatar stack */}
-          {!isUser &&
-            citations &&
-            citations.length > 0 &&
-            onToggleCitations && (
-              <CitationAvatarStack
-                citations={citations}
-                isExpanded={citationsExpanded}
-                onToggle={onToggleCitations}
-              />
-            )}
-
           {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
             <ActionButton
               disabled={isEditing}
@@ -1319,6 +1307,15 @@ export const MessageActions = memo(
             />
           )}
         </div>
+
+        {/* Citations avatar stack */}
+        {!isUser && citations && citations.length > 0 && onToggleCitations && (
+          <CitationAvatarStack
+            citations={citations}
+            isExpanded={citationsExpanded}
+            onToggle={onToggleCitations}
+          />
+        )}
 
         {!isUser &&
           (model && provider === "openrouter" ? (

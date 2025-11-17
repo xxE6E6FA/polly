@@ -320,9 +320,16 @@ const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> = React.memo(
                 </div>
               </div>
               {citation.snippet && (
-                <p className="text-xs text-muted-foreground line-clamp-3">
-                  {citation.snippet}
-                </p>
+                <div className="text-xs text-muted-foreground line-clamp-3 prose prose-sm">
+                  <Markdown
+                    options={{
+                      disableParsingRawHTML: true,
+                      forceBlock: false,
+                    }}
+                  >
+                    {citation.snippet}
+                  </Markdown>
+                </div>
               )}
               <a
                 href={citation.url}

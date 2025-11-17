@@ -40,7 +40,6 @@ export function CitationAvatarStack({
   }
 
   const visibleCount = Math.min(citations.length, 3);
-  const remainingCount = citations.length - visibleCount;
   const visibleCitations = citations.slice(0, visibleCount);
 
   return (
@@ -77,16 +76,9 @@ export function CitationAvatarStack({
               </Avatar>
             ))}
           </div>
-          {remainingCount > 0 && (
-            <span className="text-xs font-medium text-muted-foreground">
-              +{remainingCount}
-            </span>
-          )}
-          {citations.length <= 3 && (
-            <span className="text-xs font-medium text-muted-foreground">
-              {citations.length}
-            </span>
-          )}
+          <span className="text-xs font-medium text-muted-foreground">
+            {citations.length} source{citations.length === 1 ? "" : "s"}
+          </span>
         </Button>
       </TooltipTrigger>
       <TooltipContent>

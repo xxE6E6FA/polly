@@ -77,6 +77,10 @@ export const exaResultsToCitations = (
       title: result.title || "Web Source",
       snippet: result.text || "",
       cited_text: result.highlights?.[0] || result.text?.substring(0, 200),
+      favicon: result.favicon,
+      image: result.image,
+      publishedDate: result.publishedDate,
+      author: result.author,
     };
   });
 };
@@ -127,10 +131,15 @@ export async function searchWithExa(
     );
 
     const citations = exaResultsToCitations(searchResults.results);
-    const sources: WebSource[] = searchResults.results.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources: WebSource[] = searchResults.results.map(result => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     const context =
       searchResults.context ||
@@ -186,10 +195,15 @@ export async function getExaAnswer(
     });
 
     const citations = exaResultsToCitations(results.citations);
-    const sources = results.citations.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources = results.citations.map(result => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     return {
       answer: results.answer as string,
@@ -224,10 +238,15 @@ export async function findSimilarWithExa(
     });
 
     const citations = exaResultsToCitations(similarResults.results);
-    const sources = similarResults.results.map(result => ({
-      url: result.url,
-      title: result.title || undefined,
-    }));
+    const sources = similarResults.results.map(result => {
+      const r = result as typeof result & { text?: string };
+      return {
+        url: result.url,
+        title: result.title || undefined,
+        snippet: r.text || undefined,
+        description: r.text || undefined,
+      };
+    });
 
     // Extract context if available from Exa
     const resultWithContext = similarResults as typeof similarResults & {

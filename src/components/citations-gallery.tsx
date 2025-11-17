@@ -33,7 +33,7 @@ export const CitationsGallery = ({
   activeDuration = 3000,
   isExpanded,
 }: CitationsGalleryProps) => {
-  const [showAllSources, setShowAllSources] = useState(false);
+  const [showAllSources, setShowAllSources] = useState(true);
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [citedIndices, setCitedIndices] = useState<Set<number>>(new Set());
   const citationRefs = useRef<(HTMLDivElement | null)[]>([]);
