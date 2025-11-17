@@ -35,7 +35,7 @@ export const CitationPill = React.forwardRef<
         variant="outline"
         size="sm"
         className={cn(
-          "h-5 gap-1 px-2 py-1 text-xs leading-tight align-baseline mx-2 rounded-full"
+          "h-5 gap-1 px-2 py-1 text-xs leading-tight align-baseline rounded-full inline-flex"
         )}
         style={{ verticalAlign: "baseline" }}
         onMouseEnter={onMouseEnter}
@@ -48,11 +48,24 @@ export const CitationPill = React.forwardRef<
         onClick={e => {
           e.preventDefault();
           // Scroll to citation in the gallery
-          const element = document.getElementById(href.slice(1));
-          element?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
+          const citationId = href.slice(1);
+          if (!citationId) {
+            return;
+          }
+
+          const element = document.getElementById(citationId);
+          if (!element) {
+            return;
+          }
+
+          try {
+            element.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          } catch (error) {
+            console.warn("Failed to scroll to citation:", error);
+          }
         }}
       >
         {favicon && (

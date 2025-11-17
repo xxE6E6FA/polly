@@ -2,6 +2,10 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PopoverContent } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+// Animation timing constant
+const POPOVER_ANIMATION_DURATION = 200; // milliseconds
 
 export interface Citation {
   url: string;
@@ -48,7 +52,7 @@ export const CitationPopoverContent: React.FC<CitationPopoverContentProps> = ({
     // Delay the actual mouse leave to allow animation
     setTimeout(() => {
       onMouseLeave();
-    }, 200);
+    }, POPOVER_ANIMATION_DURATION);
   };
 
   const currentCitation = citations[currentIndex] ?? citations[0];
@@ -58,7 +62,10 @@ export const CitationPopoverContent: React.FC<CitationPopoverContentProps> = ({
 
   return (
     <PopoverContent
-      className={`w-80 p-0 ${isExiting ? "animate-fade-out" : "animate-fade-in"}`}
+      className={cn(
+        "w-80 p-0 transition-opacity duration-200",
+        isExiting ? "opacity-0" : "opacity-100"
+      )}
       side="top"
       align="start"
       onMouseEnter={onMouseEnter}
@@ -71,7 +78,7 @@ export const CitationPopoverContent: React.FC<CitationPopoverContentProps> = ({
       }}
     >
       {citations.length > 1 && (
-        <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+        <div className="flex items-center justify-between p-2 border-b border-border">
           <Button
             type="button"
             variant="ghost"
@@ -131,7 +138,10 @@ export const CitationPopoverContent: React.FC<CitationPopoverContentProps> = ({
         href={currentCitation.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block p-3 hover:bg-muted/50 transition-colors rounded-b-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        className={cn(
+          "block p-3 hover:bg-muted/50 transition-colors rounded-b-lg",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        )}
       >
         <div className="flex items-start gap-2">
           {currentCitation.favicon && (

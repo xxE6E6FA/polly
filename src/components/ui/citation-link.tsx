@@ -5,6 +5,11 @@ import { CitationPill } from "./citation-pill";
 import type { Citation } from "./citation-popover";
 import { CitationPopoverContent } from "./citation-popover";
 
+// Constants for popover timing
+const POPOVER_ANIMATION_DURATION = 200; // milliseconds
+const POPOVER_HOVER_DELAY = 150; // milliseconds
+const POPOVER_CLOSE_DELAY = POPOVER_ANIMATION_DURATION + POPOVER_HOVER_DELAY; // 350ms total
+
 // Citation Link component for handling citation links vs regular links
 export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
   React.memo(({ href, children, ...props }) => {
@@ -42,7 +47,7 @@ export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
         if (!isHoveringRef.current) {
           setOpen(false);
         }
-      }, 350); // 200ms animation + 150ms hover delay
+      }, POPOVER_CLOSE_DELAY);
     }, []);
 
     if (href?.startsWith("#cite-")) {

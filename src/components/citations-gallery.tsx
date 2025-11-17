@@ -69,17 +69,16 @@ export const CitationsGallery = ({
 
       // Fallback: parse raw message content if DOM links not present yet
       if (usedIndices.size === 0 && content) {
-        const regex = /\[(\d+)\]/g;
-        let match: RegExpExecArray | null = regex.exec(content);
-        while (match !== null) {
+        for (const match of content.matchAll(/\[(\d+)\]/g)) {
           const capture = match[1];
-          if (capture) {
-            const num = parseInt(capture, 10);
-            if (!Number.isNaN(num) && num >= 1 && num <= citations.length) {
-              usedIndices.add(num - 1);
-            }
+          if (!capture) {
+            continue;
           }
-          match = regex.exec(content);
+
+          const num = parseInt(capture, 10);
+          if (!Number.isNaN(num) && num >= 1 && num <= citations.length) {
+            usedIndices.add(num - 1);
+          }
         }
       }
 

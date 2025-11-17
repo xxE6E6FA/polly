@@ -102,6 +102,30 @@ export function normalizeEscapedMarkdown(text: string): string {
   return out;
 }
 
+// Normalize citation patterns to clean [N] format
+export function normalizeCitationPatterns(text: string): string {
+  if (!text) {
+    return text;
+  }
+
+  return (
+    text
+      // Remove backslashes before brackets: \[1] -> [1]
+      .replace(/\\(\[|\])/g, "$1")
+      // Convert double brackets to single: [[1]] -> [1]
+      .replace(/\[\[(\d+)\]\]/g, "[$1]")
+      // Normalize grouped citations: [1, 2,3] -> [1][2][3]
+      .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
+        nums
+          .split(",")
+          .map(n => `[${n.trim()}]`)
+          .join("")
+      )
+      // Normalize single citation spacing: [ 1 ] -> [1]
+      .replace(/\[\s*(\d+)\s*\]/g, "[$1]")
+  );
+}
+
 // Convert plain [n] citations into markdown links with grouping support
 export function convertCitationsToMarkdownLinks(text: string): string {
   if (!text) {
@@ -218,20 +242,7 @@ function stripDanglingClosers(text: string): string {
 
 function renderCitationsForPlainText(text: string): ReactNode {
   // Normalize common escaped or malformed citation patterns first
-  const normalized = text
-    // Remove backslashes before brackets: \[1] -> [1]
-    .replace(/\\(\[|\])/g, "$1")
-    // Convert double brackets to single: [[1]] -> [1]
-    .replace(/\[\[(\d+)\]\]/g, "[$1]")
-    // Normalize grouped citations: [1, 2,3] -> [1][2][3]
-    .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
-      nums
-        .split(",")
-        .map(n => `[${n.trim()}]`)
-        .join("")
-    )
-    // Normalize single citation spacing: [ 1 ] -> [1]
-    .replace(/\[\s*(\d+)\s*\]/g, "[$1]");
+  const normalized = normalizeCitationPatterns(text);
 
   const parts: ReactNode[] = [];
   let start = 0;
