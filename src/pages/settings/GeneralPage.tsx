@@ -6,7 +6,6 @@ import { useConvex, useMutation } from "convex/react";
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
-import { SettingsSection } from "@/components/settings/ui/SettingsSection";
 import { UserIdCard } from "@/components/settings/user-id-card";
 import { Spinner } from "@/components/spinner";
 import { Alert, AlertDescription, AlertIcon } from "@/components/ui/alert";
@@ -206,7 +205,10 @@ export default function GeneralPage() {
           <aside className="stack-lg">
             <UserIdCard />
 
-            <SettingsSection title="Privacy">
+            <div className="stack-lg border-t border-border pt-6">
+              <div>
+                <h2 className="text-lg font-semibold">Privacy</h2>
+              </div>
               <div className="flex items-center justify-between gap-6">
                 <div className="stack-xs">
                   <Label
@@ -225,11 +227,16 @@ export default function GeneralPage() {
                   onCheckedChange={handleAnonymizeToggle}
                 />
               </div>
-            </SettingsSection>
+            </div>
           </aside>
 
-          <div className="stack-xl">
-            <SettingsSection title="Conversation Management">
+          <main className="stack-xl">
+            <section className="stack-lg">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  Conversation Management
+                </h2>
+              </div>
               <div className="stack-lg">
                 <div className="flex flex-wrap items-center justify-between gap-6">
                   <div className="stack-xs">
@@ -275,9 +282,12 @@ export default function GeneralPage() {
                   </div>
                 )}
               </div>
-            </SettingsSection>
+            </section>
 
-            <SettingsSection title="Data Controls">
+            <section className="stack-lg border-t border-border pt-8">
+              <div>
+                <h2 className="text-lg font-semibold">Data Controls</h2>
+              </div>
               <div className="stack-lg">
                 <div className="stack-xs">
                   <Label className="text-base font-normal">
@@ -313,11 +323,14 @@ export default function GeneralPage() {
                   )}
                 </div>
               </div>
-            </SettingsSection>
+            </section>
 
-            <SettingsSection title="About">
+            <section className="stack-lg border-t border-border pt-8">
               <div>
-                <p className="mb-4 text-sm text-muted-foreground">
+                <h2 className="text-lg font-semibold">About</h2>
+              </div>
+              <div className="stack-lg">
+                <p className="text-sm text-muted-foreground">
                   Polly is an open source AI chat application. Found a bug or
                   have a feature request? Contributions and feedback are
                   welcome.
@@ -339,9 +352,12 @@ export default function GeneralPage() {
                   </a>
                 </Button>
               </div>
-            </SettingsSection>
+            </section>
 
-            <SettingsSection title="Account">
+            <section className="stack-lg border-t border-border pt-8">
+              <div>
+                <h2 className="text-lg font-semibold">Account</h2>
+              </div>
               <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                 <div className="stack-xs">
                   <Label className="text-base font-normal">
@@ -362,8 +378,8 @@ export default function GeneralPage() {
                   </Button>
                 </div>
               </div>
-            </SettingsSection>
-          </div>
+            </section>
+          </main>
         </div>
       </SettingsPageLayout>
 
