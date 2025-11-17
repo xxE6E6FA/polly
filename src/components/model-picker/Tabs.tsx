@@ -194,8 +194,8 @@ export function ModelPickerTabs({
                       value={`${m.name ?? m.modelId} ${m.modelId}`}
                       onSelect={() => onSelectImageModel(m.modelId)}
                       className={cn(
-                        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-accent/60",
-                        selectedImageModelId === m.modelId && "bg-accent"
+                        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-muted",
+                        selectedImageModelId === m.modelId && "bg-muted"
                       )}
                     >
                       <div className="min-w-0 flex-1">

@@ -20,7 +20,7 @@ export function SelectableListItem({
       type="button"
       className={cn(
         "w-full flex items-center justify-between gap-2 p-2 rounded-md border text-left transition-colors",
-        "hover:bg-accent/50 hover:border-primary/50",
+        "hover:bg-muted hover:border-primary/50",
         selected ? "border-primary bg-primary/10" : "border-border",
         className
       )}

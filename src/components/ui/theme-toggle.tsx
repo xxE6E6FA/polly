@@ -82,7 +82,7 @@ export const ThemeToggle = ({
             className={cn(
               "pl-2",
               theme === "light" &&
-                "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
             <SunIcon className="mr-2 h-4 w-4" />
@@ -94,7 +94,7 @@ export const ThemeToggle = ({
             className={cn(
               "pl-2",
               theme === "dark" &&
-                "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
             <MoonIcon className="mr-2 h-4 w-4" />
@@ -106,7 +106,7 @@ export const ThemeToggle = ({
             className={cn(
               "pl-2",
               theme === "system" &&
-                "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                "bg-muted font-medium [&>span:first-child]:hidden"
             )}
           >
             <MonitorIcon className="mr-2 h-4 w-4" />

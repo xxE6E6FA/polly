@@ -89,7 +89,7 @@ export const FilePreviewDialog = ({
           <div className="relative overflow-hidden rounded-xl bg-background shadow-md">
             <button
               onClick={() => onOpenChange(false)}
-              className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white backdrop-blur-sm transition-opacity hover:bg-black/70 focus:outline-none focus:ring-2 focus:ring-white/50"
+              className="absolute right-4 top-4 z-10 rounded-full bg-foreground/50 p-2 text-background backdrop-blur-sm transition-opacity hover:bg-foreground/70 focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="Close preview"
             >
               <XIcon className="h-5 w-5" />

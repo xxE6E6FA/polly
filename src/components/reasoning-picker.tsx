@@ -118,8 +118,8 @@ function getProviderTheme(provider?: string) {
       return {
         icon: SparkleIcon,
         color: "text-muted-foreground",
-        bgColor: "bg-accent/50",
-        hoverBgColor: "hover:bg-accent/60",
+        bgColor: "bg-muted/50",
+        hoverBgColor: "hover:bg-muted/60",
       };
   }
 }

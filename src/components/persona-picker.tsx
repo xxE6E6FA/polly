@@ -117,13 +117,13 @@ function PersonaPickerComponent({
               <Button
                 ref={triggerRef}
                 type="button"
-                variant="ghost"
+                variant="chat-input"
                 size="sm"
                 disabled={disabled}
                 className={cn(
                   // Unified pill sizing
                   "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                  "chat-input-control border border-border/50",
+                  "border border-border/50",
                   // Subtle pill effect to match ecosystem
                   "bg-muted text-foreground hover:bg-muted/80",
                   // Focus ring parity

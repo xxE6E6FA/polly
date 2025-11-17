@@ -29,10 +29,10 @@ const ToggleGroupItem = React.forwardRef<
       "transition-colors transition-transform duration-200 transform-gpu",
       "data-[state=off]:hover:scale-105 data-[state=off]:active:scale-95",
       // Subtle hover bg only when off
-      "data-[state=off]:hover:bg-black/5 data-[state=off]:dark:hover:bg-white/5",
+      "data-[state=off]:hover:bg-foreground/5",
       // Colors
       "text-primary dark:text-primary/70",
-      "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:!text-white",
+      "data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
       // Focus ring aligned with upload/send (outside with offset)
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       "disabled:pointer-events-none disabled:opacity-50",

@@ -175,7 +175,7 @@ export const ImageThumbnail = ({
   if (attachment.storageId && !thumbnailUrl) {
     return (
       <div
-        className={`flex flex-shrink-0 items-center justify-center rounded bg-slate-100 dark:bg-slate-800 ${className}`}
+        className={`flex flex-shrink-0 items-center justify-center rounded bg-muted ${className}`}
       >
         <Spinner size="sm" className="h-3 w-3 opacity-60" />
       </div>
@@ -185,7 +185,7 @@ export const ImageThumbnail = ({
   if (attachment.type === "image" && thumbnailUrl) {
     return (
       <button
-        className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-white shadow-sm ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/10 ${className}`}
+        className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-card shadow-sm ring-1 ring-border ${className}`}
         title={attachment.name}
         onClick={e => {
           e.stopPropagation();

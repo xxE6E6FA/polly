@@ -267,7 +267,7 @@ export const AttachmentGalleryDialog = ({
               e.stopPropagation();
               onOpenChange(false);
             }}
-            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
+            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
             aria-label="Close"
           >
             <XIcon className="h-5 w-5" />
@@ -283,7 +283,7 @@ export const AttachmentGalleryDialog = ({
                   e.stopPropagation();
                   goToPrevious();
                 }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
                 aria-label="Previous attachment"
               >
                 <CaretLeftIcon className="h-6 w-6" />
@@ -296,7 +296,7 @@ export const AttachmentGalleryDialog = ({
                   e.stopPropagation();
                   goToNext();
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70 transition-all duration-200 hover:scale-110"
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
                 aria-label="Next attachment"
               >
                 <CaretRightIcon className="h-6 w-6" />

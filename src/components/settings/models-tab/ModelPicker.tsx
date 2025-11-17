@@ -119,7 +119,7 @@ export function ModelPicker({
                 <div
                   className={
                     value === m.id
-                      ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-accent text-accent-foreground"
+                      ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-muted"
                       : "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 hover:bg-muted/50"
                   }
                 >
@@ -129,7 +129,7 @@ export function ModelPicker({
                     </div>
                     {m.description && (
                       <div
-                        className={`mt-1.5 line-clamp-2 text-xs ${value === m.id ? "text-accent-foreground/80" : "text-muted-foreground"}`}
+                        className={`mt-1.5 line-clamp-2 text-xs ${value === m.id ? "text-foreground/80" : "text-muted-foreground"}`}
                       >
                         {m.description}
                       </div>

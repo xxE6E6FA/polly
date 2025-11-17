@@ -87,7 +87,7 @@ const ModelItemComponent = ({
     <CommandItem
       key={model.modelId}
       className={cn(
-        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-accent/70 dark:hover:bg-accent/50",
+        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-muted",
         isDisabled && "cursor-not-allowed opacity-60 hover:bg-transparent"
       )}
       value={`${model.name} ${model.provider} ${model.modelId}`}

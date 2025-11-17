@@ -347,8 +347,8 @@ const ConversationItemComponent = ({
             className={cn(
               "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
-                ? "bg-accent text-foreground shadow-sm"
-                : "text-foreground/80 hover:text-foreground hover:bg-accent/70"
+                ? "bg-muted text-foreground shadow-sm"
+                : "text-foreground/80 hover:text-foreground hover:bg-muted"
             )}
             onMouseEnter={() => {
               if (!isMobile) {

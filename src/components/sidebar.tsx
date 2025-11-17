@@ -332,7 +332,7 @@ export const Sidebar = () => {
         <button
           type="button"
           aria-label="Expand sidebar"
-          className="fixed inset-y-0 left-0 z-40 w-5 cursor-e-resize bg-transparent transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring hover:bg-accent/40"
+          className="fixed inset-y-0 left-0 z-40 w-5 cursor-e-resize bg-transparent transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring hover:bg-muted/40"
           onClick={handleExpandZoneClick}
         />
       )}
@@ -384,8 +384,8 @@ export const Sidebar = () => {
                     : undefined
                 }
               >
-                <Link className="group ml-1.5" to={ROUTES.HOME}>
-                  <div className="flex items-center gap-2 transition-transform group-hover:scale-105">
+                <Link className="group ml-1.5 text-foreground" to={ROUTES.HOME}>
+                  <div className="flex items-center gap-2">
                     <div
                       className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
                       style={{
@@ -411,7 +411,7 @@ export const Sidebar = () => {
                       size="icon-sm"
                       title="Close sidebar"
                       variant="ghost"
-                      className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                      className="text-foreground/70 hover:text-foreground h-9 w-9"
                       onClick={() => setSidebarVisible(false)}
                     >
                       <SidebarSimple className="h-5 w-5" />
@@ -493,7 +493,7 @@ export const Sidebar = () => {
         {!isMobile && isSidebarVisible && (
           <div
             ref={resizeRef}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/70 active:bg-accent transition-colors z-10"
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-muted active:bg-muted transition-colors z-10"
             data-sidebar-interactive="true"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
@@ -522,7 +522,7 @@ export const Sidebar = () => {
                 size="icon-sm"
                 title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
                 variant="ghost"
-                className="hover:bg-accent text-foreground/70 hover:text-foreground h-9 w-9"
+                className="text-foreground/70 hover:text-foreground h-9 w-9"
                 style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
                 onClick={toggleSidebarWithCheck}
               >

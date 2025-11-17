@@ -51,7 +51,7 @@ const VoiceRow = ({
   onPlayToggle,
 }: VoiceRowProps) => {
   const containerClass = selected
-    ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-accent text-accent-foreground"
+    ? "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 bg-muted"
     : "relative flex w-full items-center justify-between gap-4 rounded-md pl-4 pr-3 py-2 hover:bg-muted/50 focus-within:bg-muted/50";
 
   return (
@@ -70,7 +70,7 @@ const VoiceRow = ({
           </div>
           {!isDefault && description && (
             <div
-              className={`mt-1.5 line-clamp-2 text-xs ${selected ? "text-accent-foreground/80" : "text-muted-foreground"}`}
+              className={`mt-1.5 line-clamp-2 text-xs ${selected ? "text-foreground/80" : "text-muted-foreground"}`}
             >
               {description}
             </div>
@@ -84,7 +84,7 @@ const VoiceRow = ({
               type="button"
               className={`h-8 w-8 rounded-full p-0 ${
                 isPlaying
-                  ? "bg-accent text-accent-foreground border-accent"
+                  ? "bg-muted border-muted"
                   : "hover:bg-muted/60 focus-visible:bg-muted/60"
               }`}
               aria-label={isPlaying ? "Pause preview" : "Play preview"}

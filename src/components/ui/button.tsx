@@ -14,11 +14,11 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 focus-visible:bg-destructive/90",
         outline:
-          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+          "border border-input bg-background shadow-sm hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
         secondary:
           "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary-hover focus-visible:bg-secondary-hover",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
+          "hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground",
         action: "btn-action",
         link: "text-primary underline-offset-4 hover:underline focus-visible:underline",
         tropical:
@@ -35,6 +35,8 @@ const buttonVariants = cva(
           "bg-danger text-danger-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg",
         purple:
           "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg",
+        "chat-input":
+          "chat-input-control dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted",
       },
       size: {
         default: "h-9 px-4 py-2",

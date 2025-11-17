@@ -69,15 +69,15 @@ function DetailedJobCard({
 
   const getStatusIcon = () => {
     if (isCompleted) {
-      return <CheckCircleIcon className="h-5 w-5 text-emerald-600" />;
+      return <CheckCircleIcon className="h-5 w-5 text-success" />;
     }
     if (isFailed) {
-      return <Warning className="h-5 w-5 text-red-600" />;
+      return <Warning className="h-5 w-5 text-danger" />;
     }
     if (isActive) {
-      return <Spinner className="h-5 w-5 text-blue-600" />;
+      return <Spinner className="h-5 w-5 text-primary" />;
     }
-    return <ClockIcon className="h-5 w-5 text-gray-500" />;
+    return <ClockIcon className="h-5 w-5 text-muted-foreground" />;
   };
 
   const getDescription = () => {
@@ -167,7 +167,7 @@ function DetailedJobCard({
               </div>
             )}
             {isFailed && job.error && (
-              <p className="text-xs text-red-600 mt-1">{job.error}</p>
+              <p className="text-xs text-danger mt-1">{job.error}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -192,7 +192,7 @@ function DetailedJobCard({
               variant="ghost"
               size="sm"
               onClick={() => onRemove(job.id)}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-danger"
               title="Remove job from history"
               aria-label="Remove job from history"
             >

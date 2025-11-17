@@ -58,7 +58,7 @@ export function TemperatureDrawer({
           variant="ghost"
           size="sm"
           aria-label="Temperature"
-          className="h-9 w-9 rounded-full p-0 sm:hidden bg-accent/60 text-accent-foreground hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="h-9 w-9 rounded-full p-0 sm:hidden bg-muted/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           disabled={disabled}
         >
           <ThermometerIcon className="h-4 w-4" />
@@ -112,7 +112,7 @@ export function TemperatureDrawer({
                   onClick={() => onTemperatureChange(preset.value)}
                   className={cn(
                     "p-2 rounded-md border text-left transition-all",
-                    "hover:bg-accent/50 hover:border-primary/50",
+                    "hover:bg-muted hover:border-primary/50",
                     currentValue === preset.value
                       ? "border-primary bg-primary/10"
                       : "border-border/30"

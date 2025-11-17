@@ -61,12 +61,12 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
             <TooltipTrigger asChild>
               <PopoverTrigger asChild>
                 <Button
-                  variant="ghost"
+                  variant="chat-input"
                   size="sm"
                   disabled={disabled}
                   className={cn(
                     "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                    "chat-input-control border border-border",
+                    "border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
                     "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200"
@@ -101,9 +101,8 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
                     onClick={() => handleRatioSelect(ratio.value)}
                     className={cn(
                       "flex items-center justify-between p-1.5 rounded-md text-xs transition-colors",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      aspectRatio === ratio.value &&
-                        "bg-accent text-accent-foreground"
+                      "hover:bg-muted",
+                      aspectRatio === ratio.value && "bg-muted"
                     )}
                   >
                     <div className="flex items-center gap-2">
