@@ -742,7 +742,7 @@ http.route({
                     .map((c, idx) => `[${idx + 1}] ${c.title} - ${c.url}`)
                     .join(
                       "\n"
-                    )}\n\nCITATION FORMATTING RULES:\n- Use citations in the format [1], [2], etc. corresponding to the source numbers above\n- ALWAYS place citations at the END of the sentence where you use information from that source\n- NEVER place citations in the middle of sentences\n- If multiple sources support the same sentence, group them together at the end: [1][2][3]\n- Citations should appear immediately after the period: "sentence.[1]" not "sentence[1]."`,
+                    )}\n\nCITATION FORMATTING RULES:\n- Use PLAIN SQUARE BRACKETS ONLY: [1], [2], etc. - DO NOT create markdown links like [1](#cite-1)\n- ALWAYS place citations at the END of the sentence where you use information from that source\n- NEVER place citations in the middle of sentences\n- If multiple sources support the same sentence, group them together at the end: [1][2][3]\n- Citations should appear immediately after the period: "sentence.[1]" not "sentence[1]."\n- Example: "The Steam Deck is popular.[1][2]" NOT "The Steam Deck is popular.[1](#cite-1)[2](#cite-2)"`,
                 };
                 // Insert after the first system message
                 streamMsgs.splice(1, 0, searchResultsMessage);

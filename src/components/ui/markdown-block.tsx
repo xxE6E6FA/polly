@@ -123,23 +123,25 @@ function convertCitationsToMarkdownLinks(text: string): string {
   }
 
   // Normalize citation formats and group adjacent citations
-  // AI should output [1][2][3], but we handle [1, 2, 3] as fallback
-  const normalized = text
+  let normalized = text
+    // Remove existing markdown links from AI output: [1](#cite-1) -> [1]
+    .replace(/\[(\d+)\]\(#cite-(?:group-)?[\d-]+\)/g, "[$1]")
     // Expand comma-separated citations: [1, 2, 3] -> [1][2][3] (fallback)
     .replace(/\[\s*(\d+(?:\s*,\s*\d+)+)\s*\]/g, (_m, nums: string) =>
       nums
         .split(",")
         .map(n => `[${n.trim()}]`)
         .join("")
-    )
-    // Group adjacent citations: [1][2][3] -> [1,2,3](#cite-group-1-2-3)
-    .replace(/(?:\[(\d+)\])+/g, match => {
-      const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
-      if (numbers.length === 1) {
-        return `[${numbers[0]}](#cite-${numbers[0]})`;
-      }
-      return `[${numbers.join(",")}](#cite-group-${numbers.join("-")})`;
-    });
+    );
+
+  // Group adjacent citations: [1][2][3] -> [1,2,3](#cite-group-1-2-3)
+  normalized = normalized.replace(/(?:\[(\d+)\])+/g, match => {
+    const numbers = Array.from(match.matchAll(/\[(\d+)\]/g)).map(m => m[1]);
+    if (numbers.length === 1) {
+      return `[${numbers[0]}](#cite-${numbers[0]})`;
+    }
+    return `[${numbers.join(",")}](#cite-group-${numbers.join("-")})`;
+  });
 
   return normalized;
 }
