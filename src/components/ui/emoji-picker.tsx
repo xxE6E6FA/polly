@@ -82,7 +82,7 @@ function EmojiPickerEmoji({
     <button
       {...props}
       className={cn(
-        "data-[active]:bg-accent data-[active]:text-accent-foreground hover:bg-accent/70 flex size-9 items-center justify-center rounded-sm text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        "data-[active]:bg-muted hover:bg-muted flex size-9 items-center justify-center rounded-sm text-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         className
       )}
       data-slot="emoji-picker-emoji"
