@@ -71,7 +71,7 @@ const UserSectionContent = ({
       <div className="border-t border-border/50">
         <Link className="block w-full" to={ROUTES.AUTH}>
           <Button
-            className="flex h-9 w-full items-center rounded-none justify-start gap-5 px-5 py-7 text-sm text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+            className="flex h-9 w-full items-center rounded-none justify-start gap-5 px-5 py-7 text-sm text-muted-foreground hover:text-foreground"
             variant="ghost"
           >
             <SignInIcon className="h-4 w-4" />
@@ -87,7 +87,7 @@ const UserSectionContent = ({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm hover:bg-accent/70"
+            className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm"
             variant="ghost"
           >
             {user?.image ? (
@@ -154,7 +154,7 @@ const UserSectionContent = ({
                   className={cn(
                     "pl-2",
                     theme === "light" &&
-                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                      "bg-muted font-medium [&>span:first-child]:hidden"
                   )}
                 >
                   <SunIcon className="mr-2 h-4 w-4" />
@@ -168,7 +168,7 @@ const UserSectionContent = ({
                   className={cn(
                     "pl-2",
                     theme === "dark" &&
-                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                      "bg-muted font-medium [&>span:first-child]:hidden"
                   )}
                 >
                   <MoonIcon className="mr-2 h-4 w-4" />
@@ -182,7 +182,7 @@ const UserSectionContent = ({
                   className={cn(
                     "pl-2",
                     theme === "system" &&
-                      "bg-accent font-medium text-accent-foreground [&>span:first-child]:hidden"
+                      "bg-muted font-medium [&>span:first-child]:hidden"
                   )}
                 >
                   <MonitorIcon className="mr-2 h-4 w-4" />
@@ -194,10 +194,7 @@ const UserSectionContent = ({
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem
-            onClick={handleSignOut}
-            className="text-red-600 dark:text-red-400"
-          >
+          <DropdownMenuItem onClick={handleSignOut} className="text-danger">
             <SignOutIcon className="h-4 w-4" />
             Sign Out
           </DropdownMenuItem>
