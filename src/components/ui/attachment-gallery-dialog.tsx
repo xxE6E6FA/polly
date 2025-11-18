@@ -251,8 +251,8 @@ export const AttachmentGalleryDialog = ({
   return (
     <DialogComponent open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="fixed inset-0 z-50 flex items-center justify-center focus:outline-none 
-                   data-[state=open]:animate-in data-[state=closed]:animate-out 
+        className="fixed inset-0 z-modal flex items-center justify-center focus:outline-none
+                   data-[state=open]:animate-in data-[state=closed]:animate-out
                    data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
                    data-[state=open]:duration-300 data-[state=closed]:duration-200"
       >

@@ -18,7 +18,7 @@ const DialogOverlay = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof Dialog.Backdrop>
 >(({ className, ...props }, ref) => (
   <Dialog.Backdrop ref={ref} {...props}>
-    <Backdrop blur="md" className={cn("z-50", className)} variant="heavy" />
+    <Backdrop blur="md" className={cn("z-modal", className)} variant="heavy" />
   </Dialog.Backdrop>
 ));
 DialogOverlay.displayName = "DialogOverlay";
@@ -32,7 +32,7 @@ const DialogContent = React.forwardRef<
     <Dialog.Popup
       ref={ref}
       className={cn(
-        "fixed z-50 grid w-full gap-4 border bg-background shadow-sm duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
+        "fixed z-modal grid w-full gap-4 border bg-background shadow-sm duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
         // Mobile: full width, positioned at bottom
         "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
         // Desktop: centered modal

@@ -91,9 +91,7 @@ export const ConversationActions = ({
               <Button
                 className={cn(
                   "h-8 w-8 text-foreground/70 transition-opacity hover:text-foreground",
-                  isMobile
-                    ? "opacity-100"
-                    : "opacity-0 group-hover:opacity-100",
+                  isMobile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}
                 size="icon-sm"
                 variant="ghost"
@@ -157,7 +155,7 @@ export const ConversationActions = ({
             "flex flex-shrink-0 items-center gap-0.5 transition-all duration-200 ease-in-out",
             isHovered || isDesktopPopoverOpen
               ? "opacity-100 translate-x-0"
-              : "opacity-0 translate-x-2 pointer-events-none",
+              : "opacity-0 translate-x-2 pointer-events-none"
           )}
         >
           <Tooltip>
@@ -245,13 +243,13 @@ export const ConversationContextMenu = ({
 
   return (
     <ContextMenu.Portal>
-      <ContextMenu.Positioner className="z-[200]">
+      <ContextMenu.Positioner className="z-context-menu">
         <ContextMenu.Popup
           className={cn(
             "min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-foreground shadow-lg",
             "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
             "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
-            "transition-[opacity,transform] duration-200",
+            "transition-[opacity,transform] duration-200"
           )}
         >
           {showBatchActions ? (
@@ -266,7 +264,7 @@ export const ConversationContextMenu = ({
                 onSelect={() => handleBulkAction("export-json")}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <FileCodeIcon className="h-4 w-4" />
@@ -279,7 +277,7 @@ export const ConversationContextMenu = ({
                 onSelect={() => handleBulkAction("archive")}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <ArchiveIcon className="h-4 w-4" />
@@ -291,7 +289,7 @@ export const ConversationContextMenu = ({
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-                  "text-destructive focus:text-destructive",
+                  "text-destructive focus:text-destructive"
                 )}
               >
                 <TrashIcon className="h-4 w-4" />
@@ -305,7 +303,7 @@ export const ConversationContextMenu = ({
                 onSelect={onPinToggle}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <PushPinIcon
@@ -319,7 +317,7 @@ export const ConversationContextMenu = ({
                 onSelect={onStartEdit}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <PencilSimpleIcon className="h-4 w-4" />
@@ -332,7 +330,7 @@ export const ConversationContextMenu = ({
                 onSelect={onShare}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <ShareNetworkIcon className="h-4 w-4" />
@@ -344,7 +342,7 @@ export const ConversationContextMenu = ({
                 disabled={exportingFormat === "md" || isDeleteJobInProgress}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <FileTextIcon className="h-4 w-4" />
@@ -358,7 +356,7 @@ export const ConversationContextMenu = ({
                 disabled={exportingFormat === "json" || isDeleteJobInProgress}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <FileCodeIcon className="h-4 w-4" />
@@ -371,7 +369,7 @@ export const ConversationContextMenu = ({
                 onSelect={onArchive}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
-                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
                 )}
               >
                 <ArchiveIcon className="h-4 w-4" />
@@ -383,7 +381,7 @@ export const ConversationContextMenu = ({
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-                  "text-destructive focus:text-destructive",
+                  "text-destructive focus:text-destructive"
                 )}
               >
                 <TrashIcon className="h-4 w-4" />

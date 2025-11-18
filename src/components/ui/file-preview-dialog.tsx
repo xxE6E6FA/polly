@@ -134,10 +134,10 @@ export const FilePreviewDialog = ({
   }
 
   const contentClassNames = {
-    pdf: "fixed left-[50%] top-[50%] z-50 max-h-[95vh] w-[95vw] max-w-6xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+    pdf: "fixed left-[50%] top-[50%] z-modal max-h-[95vh] w-[95vw] max-w-6xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
     image:
-      "fixed left-[50%] top-[50%] z-50 max-h-[90vh] w-[90vw] max-w-5xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
-    text: "fixed left-[50%] top-[50%] z-50 max-h-[90vh] w-[90vw] max-w-4xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+      "fixed left-[50%] top-[50%] z-modal max-h-[90vh] w-[90vw] max-w-5xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+    text: "fixed left-[50%] top-[50%] z-modal max-h-[90vh] w-[90vw] max-w-4xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
   };
 
   return (

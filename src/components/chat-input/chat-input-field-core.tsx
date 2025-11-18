@@ -81,8 +81,6 @@ export const ChatInputFieldCore = memo(
 
     const textareaStyle = useMemo(
       () => ({
-        // Force GPU acceleration and composition layer
-        transform: "translate3d(0, 0, 0)",
         // Conditionally enable transitions - only for fullscreen changes, not during typing
         transition: isTransitioning
           ? "height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05), max-height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05), min-height 360ms cubic-bezier(0.2, 0.85, 0.3, 1.05)"

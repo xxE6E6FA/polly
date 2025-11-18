@@ -404,9 +404,7 @@ export const SendButtonGroup = ({
   // Calculate hover scale classes
   let hoverScaleClasses: string | undefined;
   if (canShowHoverScale) {
-    hoverScaleClasses = isExpanded
-      ? "hover:scale-[1.02] active:scale-[0.98]"
-      : "hover:scale-105 active:scale-95";
+    hoverScaleClasses = "";
   }
 
   return (
@@ -528,7 +526,7 @@ export const SendButtonGroup = ({
                       "relative z-10",
                       "transition-all transform-gpu",
                       // Upload-like hover/active scale when expanded
-                      "hover:scale-105 active:scale-95",
+
                       dropdownMenuTriggerAnimationClasses,
                       "hover:bg-transparent",
                       "focus-visible:bg-transparent",

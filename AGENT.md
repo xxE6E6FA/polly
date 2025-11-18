@@ -72,7 +72,21 @@
 - Focus states: Use `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
 - Buttons/Badges: Prefer component variants (e.g., `variant="secondary"`, `variant="outline"`) over manual classes.
 - Typography: Default body uses Inter; prefer `leading-relaxed` or rely on base; use `text-balance`/`text-pretty` where appropriate.
-- Don’ts: Avoid `space-y-*` for sibling spacing, raw hex colors, ad-hoc shadows, and inline styles for layout.
+- Z-Index: Use predefined utility classes for consistent layering (bottom to top):
+  - `z-content` (0): Default content, background elements
+  - `z-backdrop` (5): Mobile sidebar backdrop, overlay backdrops
+  - `z-sidebar` (10): Sidebar components, chat header, navigation
+  - `z-chat-input` (20): Chat input container, send buttons, overlays
+  - `z-sticky` (30): Sticky elements, floating controls, copy buttons
+  - `z-select` (40): Select dropdowns, status indicators
+  - `z-popover` (50): Popover content, dropdown content, form suggestions
+  - `z-drawer` (60): Drawer overlays, mobile navigation panels
+  - `z-tooltip` (70): Tooltip content, help text overlays
+  - `z-modal` (80): Dialog overlays, alert dialogs, zen mode
+  - `z-command-palette` (90): Command palette, quick actions
+  - `z-context-menu` (100): Context menus, right-click menus
+  - Set z-index at primitive level when possible; never use arbitrary values like `z-[999]`
+- Don'ts: Avoid `space-y-*` for sibling spacing, raw hex colors, ad-hoc shadows, inline styles for layout, and arbitrary z-index values.
 
 ### Density
 

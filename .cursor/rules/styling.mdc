@@ -22,7 +22,7 @@ globs: ["src/**/*.tsx"]
 ## Elevation & Shadows
 - **Shadow Utilities Only**: Use `shadow-sm`, `shadow-md`, `shadow-lg`, `shadow-xl`, `shadow-2xl`
 - **No Custom Shadows**: Avoid inline `box-shadow` styles
-- **Elevation Mapping**: 
+- **Elevation Mapping**:
   - `shadow-sm` → elevation-1
   - `shadow-md` → elevation-2
   - `shadow-lg` → elevation-3
@@ -93,9 +93,78 @@ globs: ["src/**/*.tsx"]
 </div>
 ```
 
+## Z-Index Layering System
+
+### Overview
+We use a structured z-index system with CSS custom properties and Tailwind utility classes to maintain consistent layering throughout the application.
+
+### Z-Index Layers (Bottom to Top)
+1. **Content Layer** (`z-content` = 0): Default content area, background elements, base page content
+2. **Backdrop Layer** (`z-backdrop` = 5): Mobile sidebar backdrop, overlay backdrops that appear above content but below UI elements
+3. **Sidebar Layer** (`z-sidebar` = 10): Sidebar components, chat header, navigation elements, conversation items
+4. **Chat Input Layer** (`z-chat-input` = 20): Chat input container, send button groups, chat input overlays, prompts ticker
+5. **Sticky Layer** (`z-sticky` = 30): Sticky positioned elements, floating controls, code block copy buttons, resize handles
+6. **Select Layer** (`z-select` = 40): Select dropdowns, online status indicators, offline overlays
+7. **Popover Layer** (`z-popover` = 50): Popover content, dropdown content (non-context), form field suggestions
+8. **Drawer Layer** (`z-drawer` = 60): Drawer overlays and content, mobile navigation panels, slide-out components
+9. **Tooltip Layer** (`z-tooltip` = 70): Tooltip content, help text overlays
+10. **Modal Layer** (`z-modal` = 80): Dialog overlays and content, alert dialogs, file preview dialogs, zen mode
+11. **Command Palette Layer** (`z-command-palette` = 90): Command palette interface, quick actions overlay
+12. **Context Menu Layer** (`z-context-menu` = 100): Context menus, right-click menus, dropdown submenus
+
+### Usage Guidelines
+- **Use predefined utility classes**: `z-backdrop`, `z-sidebar`, `z-modal`, etc.
+- **Set z-index at primitive level**: Dialog/Modal primitives use `z-modal`, Drawer primitives use `z-drawer`, etc.
+- **Follow the layering hierarchy**: Modals above popovers, popovers above sticky elements, etc.
+- **Don't use arbitrary values**: Avoid `z-[999]` or hardcoded `z-50`
+
+### Implementation
+Z-index values are defined as CSS custom properties in `src/globals.css` and have corresponding Tailwind utility classes:
+
+```css
+/* CSS Custom Properties */
+--z-content: 0;
+--z-backdrop: 5;
+--z-sidebar: 10;
+--z-chat-input: 20;
+--z-sticky: 30;
+--z-select: 40;
+--z-popover: 50;
+--z-drawer: 60;
+--z-tooltip: 70;
+--z-modal: 80;
+--z-command-palette: 90;
+--z-context-menu: 100;
+
+/* Utility Classes */
+.z-backdrop { z-index: var(--z-backdrop); }
+.z-sidebar { z-index: var(--z-sidebar); }
+.z-modal { z-index: var(--z-modal); }
+/* etc... */
+```
+
+### Common Patterns
+```tsx
+// ✅ Mobile sidebar backdrop
+<Backdrop className="z-backdrop lg:hidden" onClick={closeSidebar} />
+
+// ✅ Modal components (inherit from primitives)
+<Dialog className="z-modal"> {/* Often automatic from primitive */}
+  <DialogContent>Modal content</DialogContent>
+</Dialog>
+
+// ✅ Sticky elements
+<div className="sticky top-0 z-sticky">Sticky header</div>
+
+// ❌ Don't use arbitrary values
+<div className="z-[999]">Bad</div>
+<div className="z-50">Also bad</div>
+```
+
 ## Anti-Patterns to Avoid
 - **`space-y-*`**: Use `stack-*` utilities instead (some legacy usage exists)
 - **Hardcoded Colors**: Use theme tokens only
 - **Custom Shadows**: Use Tailwind shadow utilities (some custom shadows exist for specific cases)
 - **Inline Styles**: Use Tailwind classes for layout and styling
 - **Manual Focus States**: Use the standard focus pattern
+- **Arbitrary Z-Index**: Use predefined z-index utilities, not `z-[999]` or hardcoded values

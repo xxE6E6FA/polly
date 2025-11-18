@@ -18,7 +18,7 @@ const PopoverPopup = React.forwardRef<
   <Popover.Popup
     ref={ref}
     className={cn(
-      "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+      "z-popover w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
       "data-[starting-style]:animate-in data-[ending-style]:animate-out",
       "data-[ending-style]:fade-out-0 data-[starting-style]:fade-in-0",
       "data-[ending-style]:zoom-out-95 data-[starting-style]:zoom-in-95",

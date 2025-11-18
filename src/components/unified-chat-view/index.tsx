@@ -520,7 +520,7 @@ export const UnifiedChatView = memo(
               {renderMessageArea()}
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 top-0 z-30">
+            <div className="pointer-events-none absolute inset-x-0 top-0">
               <header
                 ref={headerOverlayRef}
                 className="pointer-events-auto px-3 sm:px-6"
@@ -543,7 +543,7 @@ export const UnifiedChatView = memo(
               </header>
             </div>
 
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0">
               <div
                 ref={footerOverlayRef}
                 className="pointer-events-auto px-3 pt-3 sm:px-6"
