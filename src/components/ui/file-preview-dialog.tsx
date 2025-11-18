@@ -1,5 +1,8 @@
 import { XIcon } from "@phosphor-icons/react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import {
+  Dialog as DialogComponent,
+  DialogPortal,
+} from "@/components/ui/dialog";
 
 import { Backdrop } from "@/components/ui/backdrop";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
@@ -139,19 +142,10 @@ export const FilePreviewDialog = ({
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay asChild>
-          <Backdrop className="z-50" variant="heavy" />
-        </DialogPrimitive.Overlay>
-
-        <DialogPrimitive.Content
-          className={contentClassNames[attachment.type]}
-          onOpenAutoFocus={e => e.preventDefault()}
-        >
-          {content}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+    <DialogComponent open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <div className={contentClassNames[attachment.type]}>{content}</div>
+      </DialogPortal>
+    </DialogComponent>
   );
 };
