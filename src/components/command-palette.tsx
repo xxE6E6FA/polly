@@ -1116,7 +1116,7 @@ export function CommandPalette({
     <>
       {/* Command Palette Container */}
       <div
-        className={`fixed left-1/2 top-[15%] z-50 w-full max-w-2xl -translate-x-1/2 px-4 transition-all duration-200 ease-out ${
+        className={`fixed left-1/2 top-[15%] z-command-palette w-full max-w-2xl -translate-x-1/2 px-4 transition-all duration-200 ease-out ${
           open
             ? "opacity-100 scale-100"
             : "opacity-0 scale-95 pointer-events-none"

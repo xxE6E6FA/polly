@@ -1,7 +1,7 @@
 import { CloudSlashIcon } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type OfflinePlaceholderProps = {
   title?: string;
@@ -35,9 +35,12 @@ export function OfflinePlaceholder({
               </Button>
             )}
             {showHomeLink && (
-              <Button asChild size="lg" variant="outline">
-                <Link to="/">Go Home</Link>
-              </Button>
+              <Link
+                to="/"
+                className={buttonVariants({ size: "lg", variant: "outline" })}
+              >
+                Go Home
+              </Link>
             )}
           </div>
         </div>

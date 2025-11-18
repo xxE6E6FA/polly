@@ -125,6 +125,29 @@ See `.cursor/rules/commits-and-prs.mdc` for detailed guidelines.
 - Focus states: `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background`.
 - Avoid raw hex colors and `space-y-*`; use `stack-*` and tokens.
 
+### Z-Index Layering System
+
+Use predefined utility classes for consistent layering (bottom to top):
+
+- `z-content` (0): Default content area, background elements
+- `z-backdrop` (5): Mobile sidebar backdrop, overlay backdrops
+- `z-sidebar` (10): Sidebar components, chat header, navigation elements
+- `z-chat-input` (20): Chat input container, send button groups, overlays
+- `z-sticky` (30): Sticky positioned elements, floating controls, copy buttons
+- `z-select` (40): Select dropdowns, status indicators, offline overlays
+- `z-popover` (50): Popover content, dropdown content, form suggestions
+- `z-drawer` (60): Drawer overlays, mobile navigation panels
+- `z-tooltip` (70): Tooltip content, help text overlays
+- `z-modal` (80): Dialog overlays, alert dialogs, zen mode, file previews
+- `z-command-palette` (90): Command palette interface, quick actions
+- `z-context-menu` (100): Context menus, right-click menus, submenus
+
+**Guidelines:**
+
+- Set z-index at primitive component level when possible (Dialog, Drawer, Popover primitives)
+- Never use arbitrary values like `z-[999]` or hardcoded `z-50`
+- Follow the layering hierarchy: modals above popovers, popovers above sticky elements
+
 ### Density
 
 - Use `density-compact` wrapper to reduce vertical rhythm by one step; `density-spacious` to increase by one.

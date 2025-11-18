@@ -69,7 +69,7 @@ export function FileUploadButton({
         onChange={handleFileSelect}
       />
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             aria-label="Upload files"
             className={cn(

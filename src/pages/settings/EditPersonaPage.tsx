@@ -8,7 +8,7 @@ import {
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { ROUTES } from "@/lib/routes";
 import { isPersona } from "@/lib/type-guards";
@@ -131,9 +131,9 @@ export default function EditPersonaPage() {
       <SettingsPageLayout>
         <div className="stack-xl">
           <h1 className="text-2xl font-semibold">Persona not found</h1>
-          <Button asChild>
-            <Link to={ROUTES.SETTINGS.PERSONAS}>Back to Personas</Link>
-          </Button>
+          <Link to={ROUTES.SETTINGS.PERSONAS} className={buttonVariants()}>
+            Back to Personas
+          </Link>
         </div>
       </SettingsPageLayout>
     );
@@ -172,9 +172,12 @@ export default function EditPersonaPage() {
           {isDeleting ? "Deleting..." : "Delete Persona"}
         </Button>
         <div className="flex gap-3">
-          <Button asChild disabled={isLoading} size="default" variant="outline">
-            <Link to={ROUTES.SETTINGS.PERSONAS}>Cancel</Link>
-          </Button>
+          <Link
+            to={ROUTES.SETTINGS.PERSONAS}
+            className={buttonVariants({ size: "default", variant: "outline" })}
+          >
+            Cancel
+          </Link>
           <Button
             disabled={!isFormValid || isLoading}
             size="default"

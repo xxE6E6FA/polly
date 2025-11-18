@@ -39,7 +39,7 @@ export const BatchActions = () => {
 
         <div className="flex items-center gap-1">
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 size="icon-sm"
                 variant="ghost"
@@ -56,7 +56,7 @@ export const BatchActions = () => {
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 size="icon-sm"
                 variant="ghost"
@@ -73,7 +73,7 @@ export const BatchActions = () => {
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 size="icon-sm"
                 variant="ghost"
@@ -92,7 +92,7 @@ export const BatchActions = () => {
           <div className="mx-1 h-4 w-px bg-border/60" />
 
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 size="icon-sm"
                 variant="ghost"

@@ -1,4 +1,3 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   useCallback,
   useEffect,
@@ -8,7 +7,12 @@ import {
   useState,
 } from "react";
 import { Citations } from "@/components/citations";
-import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types";
@@ -272,10 +276,10 @@ export const ZenModeDialog = ({
   return (
     <Dialog open={internalOpen} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="fixed inset-0 z-[60] bg-foreground/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
-        <DialogPrimitive.Content
+        <DialogOverlay className="fixed inset-0 bg-foreground/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
+        <DialogContent
           className={cn(
-            "fixed inset-0 z-[70] m-0 flex h-full w-full flex-col overflow-hidden p-0",
+            "fixed inset-0 m-0 flex h-full w-full flex-col overflow-hidden p-0",
             "transform-gpu origin-bottom sm:origin-center",
             "data-[state=open]:animate-in data-[state=closed]:animate-out",
             "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
@@ -287,10 +291,10 @@ export const ZenModeDialog = ({
           )}
         >
           <div className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
-            <div className="relative z-[1] flex h-full flex-col overflow-hidden">
+            <div className="relative z-sidebar flex h-full flex-col overflow-hidden">
               <div
                 aria-hidden="true"
-                className="fixed inset-x-0 z-[69]"
+                className="fixed inset-x-0 z-modal"
                 onPointerEnter={handleTopEdgePointerEnter}
                 style={{
                   top: 0,
@@ -368,7 +372,7 @@ export const ZenModeDialog = ({
               </section>
             </div>
           </div>
-        </DialogPrimitive.Content>
+        </DialogContent>
       </DialogPortal>
     </Dialog>
   );

@@ -70,12 +70,6 @@ export const CitationPopoverContent: React.FC<CitationPopoverContentProps> = ({
       align="start"
       onMouseEnter={onMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onOpenAutoFocus={e => {
-        e.preventDefault();
-      }}
-      onCloseAutoFocus={e => {
-        e.preventDefault();
-      }}
     >
       {citations.length > 1 && (
         <div className="flex items-center justify-between p-2 border-b border-border">

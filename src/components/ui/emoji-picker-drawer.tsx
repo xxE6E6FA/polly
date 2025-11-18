@@ -429,7 +429,7 @@ export function EmojiPickerDrawer({
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+      <DrawerTrigger>
         {children || (
           <Button
             variant="ghost"

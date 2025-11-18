@@ -260,7 +260,7 @@ export default function GeneralPage() {
                         onValueChange={handleAutoArchiveDaysChange}
                       >
                         <SelectTrigger className="w-40">
-                          <SelectValue placeholder="Select days" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {autoArchiveDaysOptions.map(option => (
@@ -332,7 +332,6 @@ export default function GeneralPage() {
                   feedback welcome.
                 </p>
                 <Button
-                  asChild
                   className="w-full sm:w-auto"
                   size="default"
                   variant="primary"

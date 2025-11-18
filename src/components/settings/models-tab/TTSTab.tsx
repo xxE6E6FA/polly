@@ -96,7 +96,7 @@ export const TTSTab = () => {
             }}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select stability" />
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="creative">Creative</SelectItem>

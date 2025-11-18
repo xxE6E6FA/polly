@@ -876,7 +876,7 @@ export const AssistantBubble = ({
               {/* Delete message */}
               {onDeleteMessage && (
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <Button
                       variant="ghost"
                       size="sm"

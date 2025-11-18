@@ -2,7 +2,7 @@ import { ChatCircleIcon, KeyIcon, LightningIcon } from "@phosphor-icons/react";
 import { MONTHLY_MESSAGE_LIMIT } from "@shared/constants";
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 const AnonymousUserUpsellComponent = () => {
@@ -48,9 +48,16 @@ const AnonymousUserUpsellComponent = () => {
         </div>
       </div>
 
-      <Button asChild className="w-full" size="sm" variant="default">
-        <Link to={ROUTES.AUTH}>Sign In</Link>
-      </Button>
+      <Link
+        to={ROUTES.AUTH}
+        className={buttonVariants({
+          className: "w-full",
+          size: "sm",
+          variant: "default",
+        })}
+      >
+        Sign In
+      </Link>
 
       <p className="mt-3 text-center text-xs text-muted-foreground">
         Free to use • No credit card required

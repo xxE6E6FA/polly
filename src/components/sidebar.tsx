@@ -361,7 +361,7 @@ export const Sidebar = () => {
             blur="sm"
             variant="default"
             className={cn(
-              "z-30 lg:hidden transition-opacity duration-300",
+              "z-backdrop lg:hidden transition-opacity duration-300",
               isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
             )}
             onClick={handleBackdropClick}

@@ -1,30 +1,30 @@
-import * as SwitchPrimitives from "@radix-ui/react-switch";
+import * as SwitchPrimitives from "@base-ui-components/react/switch";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitives.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Root>
+const SwitchRoot = React.forwardRef<
+  React.ElementRef<typeof SwitchPrimitives.Switch.Root>,
+  React.ComponentPropsWithoutRef<typeof SwitchPrimitives.Switch.Root>
 >(({ className, ...props }, ref) => (
-  <SwitchPrimitives.Root
+  <SwitchPrimitives.Switch.Root
     className={cn(
       // Track
       "group inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-[background-color,border-color] duration-200",
       // Focus + disabled
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50",
       // States
-      "data-[state=unchecked]:bg-muted/60 data-[state=unchecked]:border-border",
-      "data-[state=checked]:bg-primary data-[state=checked]:border-primary/70",
+      "data-[unchecked]:bg-muted/60 data-[unchecked]:border-border",
+      "data-[checked]:bg-primary data-[checked]:border-primary/70",
       // Hover states
-      "hover:data-[state=unchecked]:bg-muted",
-      "hover:data-[state=checked]:bg-primary-hover hover:data-[state=checked]:border-primary",
+      "hover:data-[unchecked]:bg-muted",
+      "hover:data-[checked]:bg-primary-hover hover:data-[checked]:border-primary",
       className
     )}
     {...props}
     ref={ref}
   >
-    <SwitchPrimitives.Thumb
+    <SwitchPrimitives.Switch.Thumb
       className={cn(
         // Thumb uses token foreground on primary for consistent contrast
         "pointer-events-none block h-4 w-4 rounded-full bg-primary-foreground ring-0",
@@ -33,11 +33,12 @@ const Switch = React.forwardRef<
         // Springy easing on toggle + hover/active micro-interactions
         "[transition-timing-function:cubic-bezier(.175,.885,.32,1.275)] group-hover:shadow-md group-active:shadow-sm group-active:scale-95",
         // Positions
-        "translate-x-0 group-data-[state=unchecked]:translate-x-0 group-data-[state=checked]:translate-x-4"
+        "translate-x-0 group-data-[unchecked]:translate-x-0 group-data-[checked]:translate-x-4"
       )}
     />
-  </SwitchPrimitives.Root>
+  </SwitchPrimitives.Switch.Root>
 ));
-Switch.displayName = SwitchPrimitives.Root.displayName;
+SwitchRoot.displayName = "Switch";
 
-export { Switch };
+// Export with original name for backward compatibility
+export { SwitchRoot as Switch };

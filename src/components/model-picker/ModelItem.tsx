@@ -135,7 +135,7 @@ const ModelItemComponent = ({
               const IconComponent = capability.icon;
               return (
                 <Tooltip key={`${model.modelId}-${capability.label}-${index}`}>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <div className="flex h-6 w-6 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                       <IconComponent className="h-3.5 w-3.5" />
                     </div>
@@ -161,7 +161,7 @@ const ModelItemComponent = ({
   if (isPollyDisabled) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{modelItem}</TooltipTrigger>
+        <TooltipTrigger>{modelItem}</TooltipTrigger>
         <TooltipContent>
           <div>
             <div className="font-semibold text-foreground">
@@ -180,7 +180,7 @@ const ModelItemComponent = ({
   if (isUnavailable) {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{modelItem}</TooltipTrigger>
+        <TooltipTrigger>{modelItem}</TooltipTrigger>
         <TooltipContent>
           <div>
             <div className="font-semibold text-foreground">

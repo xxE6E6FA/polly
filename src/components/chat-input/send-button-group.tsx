@@ -404,9 +404,7 @@ export const SendButtonGroup = ({
   // Calculate hover scale classes
   let hoverScaleClasses: string | undefined;
   if (canShowHoverScale) {
-    hoverScaleClasses = isExpanded
-      ? "hover:scale-[1.02] active:scale-[0.98]"
-      : "hover:scale-105 active:scale-95";
+    hoverScaleClasses = "";
   }
 
   return (
@@ -439,7 +437,7 @@ export const SendButtonGroup = ({
           <>
             <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-0.5 z-10">
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     type="button"
                     size="icon-sm"
@@ -460,7 +458,7 @@ export const SendButtonGroup = ({
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     type="button"
                     size="icon-sm"
@@ -511,8 +509,8 @@ export const SendButtonGroup = ({
         {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
+              <TooltipTrigger>
+                <DropdownMenuTrigger>
                   <Button
                     disabled={
                       isLoading || isSummarizing || !isExpanded || isCollapsing
@@ -528,7 +526,7 @@ export const SendButtonGroup = ({
                       "relative z-10",
                       "transition-all transform-gpu",
                       // Upload-like hover/active scale when expanded
-                      "hover:scale-105 active:scale-95",
+
                       dropdownMenuTriggerAnimationClasses,
                       "hover:bg-transparent",
                       "focus-visible:bg-transparent",
@@ -627,7 +625,7 @@ export const SendButtonGroup = ({
         )}
 
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger>
             <Button
               disabled={isButtonDisabled}
               type={

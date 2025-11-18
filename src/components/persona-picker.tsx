@@ -112,8 +112,8 @@ function PersonaPickerComponent({
         onOpenChange={disabled ? undefined : setOpen}
       >
         <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild disabled={disabled}>
+          <TooltipTrigger>
+            <PopoverTrigger disabled={disabled}>
               <Button
                 ref={triggerRef}
                 type="button"
@@ -141,9 +141,7 @@ function PersonaPickerComponent({
           </TooltipContent>
         </Tooltip>
         <PopoverContent
-          forceMount
           data-debug-id="PersonaPicker"
-          avoidCollisions
           className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border border-border/50 bg-popover p-0 shadow-lg"
           side="top"
           sideOffset={4}
