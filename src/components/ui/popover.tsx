@@ -69,6 +69,12 @@ type PopoverContentProps = React.ComponentPropsWithoutRef<
   align?: "start" | "center" | "end";
   sideOffset?: number;
   alignOffset?: number;
+  // Legacy Radix props - accepted but ignored for Base UI compatibility
+  forceMount?: boolean;
+  avoidCollisions?: boolean;
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  onInteractOutside?: (event: Event) => void;
 };
 
 const PopoverContent = React.forwardRef<
@@ -81,6 +87,12 @@ const PopoverContent = React.forwardRef<
       align = "center",
       sideOffset = 4,
       alignOffset = 0,
+      // Destructure and ignore legacy Radix props
+      forceMount,
+      avoidCollisions,
+      onOpenAutoFocus,
+      onCloseAutoFocus,
+      onInteractOutside,
       ...props
     },
     ref

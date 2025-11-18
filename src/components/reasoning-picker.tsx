@@ -13,11 +13,10 @@ import {
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -131,7 +130,7 @@ const ReasoningPickerComponent = ({
   className,
   disabled = false,
 }: ReasoningPickerProps) => {
-  const [selectOpen, setSelectOpen] = useState(false);
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   // Get the actual provider once for the entire component
   const provider = useMemo(() => {
@@ -219,6 +218,8 @@ const ReasoningPickerComponent = ({
 
   const handleChange = useCallback(
     (value: string) => {
+      setPopoverOpen(false); // Close popover after selection
+
       if (value === "off") {
         onConfigChange({
           ...config,
@@ -317,16 +318,10 @@ const ReasoningPickerComponent = ({
   );
 
   return (
-    <Select
-      value={currentValue}
-      onValueChange={handleChange}
-      open={disabled ? false : selectOpen}
-      onOpenChange={disabled ? undefined : setSelectOpen}
-      disabled={disabled}
-    >
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <Tooltip>
         <TooltipTrigger>
-          <SelectTrigger data-debug-id="ReasoningPicker" disabled={disabled}>
+          <PopoverTrigger disabled={disabled}>
             <Button
               type="button"
               variant="ghost"
@@ -361,43 +356,46 @@ const ReasoningPickerComponent = ({
                 </span>
               </div>
             </Button>
-          </SelectTrigger>
+          </PopoverTrigger>
         </TooltipTrigger>
         <TooltipContent>
           <div className="text-xs">Configure thinking</div>
         </TooltipContent>
       </Tooltip>
-      <SelectContent
-        data-debug-id="ReasoningPicker"
-        align="end"
-        className="min-w-[140px]"
-      >
-        {availableOptions.map(option => {
-          const OptionIcon = option.icon;
-          return (
-            <SelectItem
-              key={option.value}
-              value={option.value}
-              className="text-xs"
-            >
-              <div className="flex items-center gap-2">
-                {OptionIcon ? (
-                  <OptionIcon className="h-4 w-4" weight="bold" />
-                ) : (
-                  <div className="h-4 w-4" />
+      <PopoverContent align="end" className="w-[160px] p-1">
+        <div className="flex flex-col gap-0.5">
+          {availableOptions.map(option => {
+            const OptionIcon = option.icon;
+            const isSelected = option.value === currentValue;
+            return (
+              <Button
+                key={option.value}
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleChange(option.value)}
+                className={cn(
+                  "h-auto w-full justify-start gap-2 px-2 py-1.5 text-xs font-normal",
+                  isSelected && "bg-muted"
                 )}
-                <div className="flex flex-col">
+              >
+                {OptionIcon ? (
+                  <OptionIcon className="h-4 w-4 shrink-0" weight="bold" />
+                ) : (
+                  <div className="h-4 w-4 shrink-0" />
+                )}
+                <div className="flex flex-col items-start gap-0.5">
                   <span className="font-medium">{option.label}</span>
                   <span className="text-[10px] text-muted-foreground">
                     {option.description}
                   </span>
                 </div>
-              </div>
-            </SelectItem>
-          );
-        })}
-      </SelectContent>
-    </Select>
+              </Button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
