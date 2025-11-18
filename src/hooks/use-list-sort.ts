@@ -14,7 +14,8 @@ export interface SortConfig<TField extends string> {
 export function useListSort<TField extends string, TItem>(
   initialField: TField | null = null,
   initialDirection: SortDirection = "asc",
-  getValue: (item: TItem, field: TField) => string | number
+  getValue: (item: TItem, field: TField) => string | number,
+  getStableValue?: (item: TItem) => string | number
 ) {
   const [sortField, setSortField] = useState<TField | null>(initialField);
   const [sortDirection, setSortDirection] =
@@ -50,10 +51,24 @@ export function useListSort<TField extends string, TItem>(
         if (aValue > bValue) {
           return sortDirection === "asc" ? 1 : -1;
         }
+
+        // Stable secondary sort if values are equal
+        if (getStableValue) {
+          const aStable = getStableValue(a);
+          const bStable = getStableValue(b);
+          if (aStable < bStable) {
+            return -1;
+          }
+          if (aStable > bStable) {
+            return 1;
+          }
+          return 0;
+        }
+
         return 0;
       });
     },
-    [sortField, sortDirection, getValue]
+    [sortField, sortDirection, getValue, getStableValue]
   );
 
   return {
