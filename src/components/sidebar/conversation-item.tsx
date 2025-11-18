@@ -342,7 +342,7 @@ const ConversationItemComponent = ({
   return (
     <>
       <ContextMenu>
-        <ContextMenuTrigger asChild>
+        <ContextMenuTrigger>
           <div
             className={cn(
               "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",

@@ -3,19 +3,66 @@ import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui-components/react/t
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+type ToggleGroupProps = Omit<
+  React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive>,
+  "value" | "onValueChange"
+> & {
+  type?: "single" | "multiple";
+  value?: string | readonly string[];
+  onValueChange?: (value: string | readonly string[]) => void;
+};
+
 const ToggleGroupRoot = React.forwardRef<
   React.ElementRef<typeof ToggleGroupPrimitive>,
-  React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive>
->(({ className, ...props }, ref) => (
-  <ToggleGroupPrimitive
-    ref={ref}
-    className={cn(
-      "inline-flex items-center justify-center rounded-full p-0.5 gap-0.5",
-      className
-    )}
-    {...props}
-  />
-));
+  ToggleGroupProps
+>(({ className, type = "multiple", value, onValueChange, ...props }, ref) => {
+  // Convert single value to array for Base UI
+  const baseValue = React.useMemo(() => {
+    if (type === "single" && typeof value === "string") {
+      return [value];
+    }
+    return value as readonly string[] | undefined;
+  }, [type, value]);
+
+  const handleValueChange = React.useCallback(
+    (
+      newValue: readonly string[],
+      _eventDetails: {
+        reason: "none";
+        event: Event;
+        cancel: () => void;
+        allowPropagation: () => void;
+        isCanceled: boolean;
+        isPropagationAllowed: boolean;
+      }
+    ) => {
+      if (!onValueChange) {
+        return;
+      }
+
+      if (type === "single") {
+        // For single mode, pass the first value or empty string
+        onValueChange(newValue[0] || "");
+      } else {
+        onValueChange(newValue);
+      }
+    },
+    [type, onValueChange]
+  );
+
+  return (
+    <ToggleGroupPrimitive
+      ref={ref}
+      className={cn(
+        "inline-flex items-center justify-center rounded-full p-0.5 gap-0.5",
+        className
+      )}
+      value={baseValue}
+      onValueChange={handleValueChange}
+      {...props}
+    />
+  );
+});
 ToggleGroupRoot.displayName = "ToggleGroup";
 
 const ToggleGroupItem = React.forwardRef<

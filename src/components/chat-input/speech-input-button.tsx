@@ -48,7 +48,7 @@ const ACTION_BASE = [
 
 const CancelRecordingButton = ({ onCancel }: { onCancel: () => void }) => (
   <Tooltip>
-    <TooltipTrigger asChild>
+    <TooltipTrigger>
       <Button
         type="button"
         size="icon-sm"
@@ -68,7 +68,7 @@ const CancelRecordingButton = ({ onCancel }: { onCancel: () => void }) => (
 
 const AcceptTranscriptButton = ({ onSubmit }: { onSubmit: () => void }) => (
   <Tooltip>
-    <TooltipTrigger asChild>
+    <TooltipTrigger>
       <Button
         type="button"
         size="icon-sm"
@@ -94,7 +94,7 @@ const StartRecordingButton = ({
   onStart: () => void;
 }) => (
   <Tooltip>
-    <TooltipTrigger asChild>
+    <TooltipTrigger>
       <Button
         type="button"
         size="icon-sm"

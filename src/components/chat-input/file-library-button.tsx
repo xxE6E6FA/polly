@@ -53,7 +53,7 @@ export function FileLibraryButton({
   return (
     <>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             aria-label="Select from library"
             className={cn(

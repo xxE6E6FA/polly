@@ -35,7 +35,7 @@ export function ImageSettingsDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger asChild>
+      <DrawerTrigger>
         <Button
           variant="ghost"
           size="sm"

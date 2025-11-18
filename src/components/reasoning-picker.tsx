@@ -325,12 +325,8 @@ const ReasoningPickerComponent = ({
       disabled={disabled}
     >
       <Tooltip>
-        <TooltipTrigger asChild>
-          <SelectTrigger
-            asChild
-            data-debug-id="ReasoningPicker"
-            disabled={disabled}
-          >
+        <TooltipTrigger>
+          <SelectTrigger data-debug-id="ReasoningPicker" disabled={disabled}>
             <Button
               type="button"
               variant="ghost"

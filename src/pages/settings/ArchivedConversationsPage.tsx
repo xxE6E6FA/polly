@@ -12,7 +12,7 @@ import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Spinner } from "@/components/spinner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Tooltip,
@@ -138,19 +138,24 @@ export const ArchivedConversationsPage = () => {
           {/* Actions */}
           <div className="w-32 flex-shrink-0 ml-4 flex items-center justify-end gap-1">
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild size="sm" variant="ghost" className="h-8 px-2">
-                  <Link to={ROUTES.CHAT_CONVERSATION(conversation._id)}>
-                    <EyeIcon className="h-4 w-4" />
-                  </Link>
-                </Button>
+              <TooltipTrigger>
+                <Link
+                  to={ROUTES.CHAT_CONVERSATION(conversation._id)}
+                  className={buttonVariants({
+                    size: "sm",
+                    variant: "ghost",
+                    className: "h-8 px-2",
+                  })}
+                >
+                  <EyeIcon className="h-4 w-4" />
+                </Link>
               </TooltipTrigger>
               <TooltipContent>
                 <p>View conversation</p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -170,7 +175,7 @@ export const ArchivedConversationsPage = () => {
               </TooltipContent>
             </Tooltip>
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger>
                 <Button
                   size="sm"
                   variant="ghost"

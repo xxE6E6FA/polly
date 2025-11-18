@@ -1,4 +1,4 @@
-import * as Menu from "@base-ui-components/react/menu";
+import { Menu } from "@base-ui-components/react/menu";
 import { CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -63,11 +63,12 @@ const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof Menu.Popup>,
   React.ComponentPropsWithoutRef<typeof Menu.Popup> & {
     side?: "top" | "bottom" | "left" | "right";
+    align?: "start" | "center" | "end";
     sideOffset?: number;
   }
->(({ className, sideOffset = 4, side = "bottom", ...props }, ref) => (
+>(({ className, sideOffset = 4, side = "bottom", align, ...props }, ref) => (
   <Menu.Portal>
-    <Menu.Positioner side={side} sideOffset={sideOffset}>
+    <Menu.Positioner side={side} sideOffset={sideOffset} align={align}>
       <Menu.Popup
         ref={ref}
         className={cn(

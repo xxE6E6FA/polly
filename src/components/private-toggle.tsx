@@ -14,7 +14,7 @@ export const PrivateToggle = () => {
   return (
     <div className="absolute top-4 right-4 z-10">
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             onClick={togglePrivateMode}
             variant={isPrivateMode ? "purple" : "ghost"}

@@ -1,6 +1,6 @@
 "use client";
 
-import * as ContextMenu from "@base-ui-components/react/context-menu";
+import { ContextMenu } from "@base-ui-components/react/context-menu";
 import { CaretRightIcon, CheckIcon, CircleIcon } from "@phosphor-icons/react";
 import * as React from "react";
 

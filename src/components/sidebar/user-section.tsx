@@ -85,7 +85,7 @@ const UserSectionContent = ({
   return (
     <div className="border-t border-border/50">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        <DropdownMenuTrigger>
           <Button
             className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm"
             variant="ghost"
@@ -129,7 +129,7 @@ const UserSectionContent = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem asChild>
+          <DropdownMenuItem>
             <Link
               to={ROUTES.SETTINGS.ROOT}
               onMouseEnter={preloadSettings}

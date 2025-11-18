@@ -15,7 +15,7 @@ import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import {
   Tooltip,
@@ -144,7 +144,7 @@ export default function SharedConversationsPage() {
             />
             <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1">
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     className={cn("h-7 w-7 p-0", isCopied && "text-primary")}
                     variant="ghost"
@@ -158,16 +158,18 @@ export default function SharedConversationsPage() {
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button asChild className="h-7 w-7 p-0" variant="ghost">
-                    <a
-                      href={shareUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ArrowSquareOutIcon className="h-3.5 w-3.5" />
-                    </a>
-                  </Button>
+                <TooltipTrigger>
+                  <a
+                    href={shareUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={buttonVariants({
+                      className: "h-7 w-7 p-0",
+                      variant: "ghost",
+                    })}
+                  >
+                    <ArrowSquareOutIcon className="h-3.5 w-3.5" />
+                  </a>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Open shared view</p>
@@ -180,23 +182,26 @@ export default function SharedConversationsPage() {
         {/* Actions */}
         <div className="w-24 flex-shrink-0 ml-4 flex items-center justify-end gap-1">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button asChild size="sm" variant="ghost" className="h-8 px-2">
-                <Link
-                  to={ROUTES.CHAT_CONVERSATION(
-                    conversation.originalConversationId
-                  )}
-                >
-                  <LinkIcon className="h-4 w-4" />
-                </Link>
-              </Button>
+            <TooltipTrigger>
+              <Link
+                to={ROUTES.CHAT_CONVERSATION(
+                  conversation.originalConversationId
+                )}
+                className={buttonVariants({
+                  size: "sm",
+                  variant: "ghost",
+                  className: "h-8 px-2",
+                })}
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Link>
             </TooltipTrigger>
             <TooltipContent>
               <p>Go to conversation</p>
             </TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 size="sm"
                 variant="ghost"
@@ -280,9 +285,12 @@ export default function SharedConversationsPage() {
           title="No shared conversations"
           description="Share a conversation to make it publicly accessible via a link"
           cta={
-            <Button asChild variant="outline">
-              <Link to={ROUTES.HOME}>Go to conversations</Link>
-            </Button>
+            <Link
+              to={ROUTES.HOME}
+              className={buttonVariants({ variant: "outline" })}
+            >
+              Go to conversations
+            </Link>
           }
         />
       ) : (

@@ -94,7 +94,7 @@ export const ImageActions = ({
   return (
     <div className={cn("flex items-center gap-1", className)}>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             variant="ghost"
             size="sm"
@@ -111,7 +111,7 @@ export const ImageActions = ({
       </Tooltip>
 
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             variant="ghost"
             size="sm"
@@ -127,7 +127,7 @@ export const ImageActions = ({
 
       {onRetry && (
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger>
             <Button
               variant="ghost"
               size="sm"

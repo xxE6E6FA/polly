@@ -1,10 +1,9 @@
 import { XIcon } from "@phosphor-icons/react";
+import { Backdrop } from "@/components/ui/backdrop";
 import {
   Dialog as DialogComponent,
   DialogPortal,
 } from "@/components/ui/dialog";
-
-import { Backdrop } from "@/components/ui/backdrop";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { getFileLanguage } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";

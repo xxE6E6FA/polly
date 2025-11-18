@@ -60,8 +60,8 @@ const TemperaturePickerComponent = ({
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <Tooltip>
-        <TooltipTrigger asChild>
-          <PopoverTrigger asChild>
+        <TooltipTrigger>
+          <PopoverTrigger>
             <Button
               variant="chat-input"
               size="sm"

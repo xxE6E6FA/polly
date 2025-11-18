@@ -9,9 +9,9 @@ import {
 import { Citations } from "@/components/citations";
 import {
   Dialog,
+  DialogContent,
   DialogOverlay,
   DialogPortal,
-  DialogContent,
 } from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";

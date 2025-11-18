@@ -211,8 +211,8 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
       <div className={className}>
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger asChild>
+            <TooltipTrigger>
+              <PopoverTrigger>
                 <Button
                   variant="ghost"
                   size="sm"

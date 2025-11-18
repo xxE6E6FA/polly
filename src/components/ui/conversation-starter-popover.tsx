@@ -165,9 +165,7 @@ export const ConversationStarterPopover = ({
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild className={className}>
-        {children}
-      </PopoverTrigger>
+      <PopoverTrigger className={className}>{children}</PopoverTrigger>
       <PopoverContent
         align="start"
         className="w-80 p-4"

@@ -112,8 +112,8 @@ function PersonaPickerComponent({
         onOpenChange={disabled ? undefined : setOpen}
       >
         <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild disabled={disabled}>
+          <TooltipTrigger>
+            <PopoverTrigger disabled={disabled}>
               <Button
                 ref={triggerRef}
                 type="button"

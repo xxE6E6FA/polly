@@ -1,4 +1,4 @@
-import * as AlertDialog from "@base-ui-components/react/alert-dialog";
+import { AlertDialog } from "@base-ui-components/react/alert-dialog";
 import * as React from "react";
 
 import { Backdrop } from "@/components/ui/backdrop";

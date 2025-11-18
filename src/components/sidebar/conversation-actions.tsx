@@ -100,7 +100,7 @@ export const ConversationActions = ({
             open={isMobilePopoverOpen}
             onOpenChange={onMobilePopoverChange}
           >
-            <DrawerTrigger asChild>
+            <DrawerTrigger>
               <Button
                 className={cn(
                   "h-8 w-8 text-foreground/70 transition-opacity hover:text-foreground",
@@ -172,7 +172,7 @@ export const ConversationActions = ({
           )}
         >
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 className="h-7 w-7 text-foreground/70 hover:text-foreground"
                 size="icon-sm"
@@ -194,7 +194,7 @@ export const ConversationActions = ({
             open={isDesktopPopoverOpen}
             onOpenChange={onDesktopPopoverChange}
           >
-            <PopoverTrigger asChild>
+            <PopoverTrigger>
               <Button
                 className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
                 size="icon-sm"

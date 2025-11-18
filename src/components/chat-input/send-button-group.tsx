@@ -439,7 +439,7 @@ export const SendButtonGroup = ({
           <>
             <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-0.5 z-10">
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     type="button"
                     size="icon-sm"
@@ -460,7 +460,7 @@ export const SendButtonGroup = ({
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     type="button"
                     size="icon-sm"
@@ -511,8 +511,8 @@ export const SendButtonGroup = ({
         {shouldShowDropdown && (
           <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
+              <TooltipTrigger>
+                <DropdownMenuTrigger>
                   <Button
                     disabled={
                       isLoading || isSummarizing || !isExpanded || isCollapsing
@@ -627,7 +627,7 @@ export const SendButtonGroup = ({
         )}
 
         <Tooltip>
-          <TooltipTrigger asChild>
+          <TooltipTrigger>
             <Button
               disabled={isButtonDisabled}
               type={

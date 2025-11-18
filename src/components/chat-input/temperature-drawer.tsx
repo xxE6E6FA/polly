@@ -53,7 +53,7 @@ export function TemperatureDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger asChild>
+      <DrawerTrigger>
         <Button
           variant="ghost"
           size="sm"

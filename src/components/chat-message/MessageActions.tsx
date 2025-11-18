@@ -231,7 +231,7 @@ const RetryDropdown = memo(
                             <Tooltip
                               key={`${model.modelId}-${capability.label}-${index}`}
                             >
-                              <TooltipTrigger asChild>
+                              <TooltipTrigger>
                                 <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                                   <IconComponent className="h-3 w-3" />
                                 </div>
@@ -312,7 +312,7 @@ const RetryDropdown = memo(
                                   <Tooltip
                                     key={`${model.modelId}-${capability.label}-${index}`}
                                   >
-                                    <TooltipTrigger asChild>
+                                    <TooltipTrigger>
                                       <div className="flex h-5 w-5 cursor-help items-center justify-center rounded-md bg-muted/70 transition-all duration-200 hover:bg-muted/90 dark:bg-muted/50 dark:hover:bg-muted/70">
                                         <IconComponent className="h-3 w-3" />
                                       </div>
@@ -619,8 +619,8 @@ const RetryDropdown = memo(
         <div className="hidden sm:block">
           <DropdownMenu open={open} onOpenChange={handleOpenChange}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
+              <TooltipTrigger>
+                <DropdownMenuTrigger>
                   <Button
                     className={cn(
                       "btn-action h-7 w-7 transition-all duration-200 ease-out",
@@ -762,8 +762,8 @@ const RetryDropdown = memo(
             onOpenChange={handleMobileSheetOpenChange}
           >
             <Tooltip>
-              <TooltipTrigger asChild>
-                <DrawerTrigger asChild>
+              <TooltipTrigger>
+                <DrawerTrigger>
                   <Button
                     className={cn(
                       "btn-action h-7 w-7 transition-all duration-200 ease-out",
@@ -924,7 +924,7 @@ const ActionButton = memo(
   }: ActionButtonProps) => {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <Button
             className={cn(
               "btn-action h-7 w-7 transition-all duration-200 ease-out",

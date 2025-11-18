@@ -7,7 +7,7 @@ import {
   type PersonaFormData,
 } from "@/components/settings/persona-form";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 
@@ -89,9 +89,12 @@ export default function NewPersonaPage() {
       />
 
       <div className="flex justify-end gap-3 border-t pt-4">
-        <Button asChild disabled={isLoading} size="default" variant="outline">
-          <Link to={ROUTES.SETTINGS.PERSONAS}>Cancel</Link>
-        </Button>
+        <Link
+          to={ROUTES.SETTINGS.PERSONAS}
+          className={buttonVariants({ size: "default", variant: "outline" })}
+        >
+          Cancel
+        </Link>
         <Button
           disabled={!isFormValid || isLoading}
           size="default"

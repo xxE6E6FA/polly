@@ -90,7 +90,7 @@ export const ImageModelPicker = memo<ImageModelPickerProps>(
     return (
       <div className={className}>
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
+          <PopoverTrigger>
             <Button
               variant="ghost"
               disabled={disabled}

@@ -1,4 +1,4 @@
-import * as Dialog from "@base-ui-components/react/dialog";
+import { Dialog } from "@base-ui-components/react/dialog";
 import { XIcon } from "@phosphor-icons/react";
 import * as React from "react";
 
@@ -29,26 +29,24 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <Dialog.Viewport>
-      <Dialog.Popup
-        ref={ref}
-        className={cn(
-          "fixed z-50 grid w-full gap-4 border bg-background shadow-sm duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
-          // Mobile: full width, positioned at bottom
-          "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
-          // Desktop: centered modal
-          "sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg sm:p-6",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        <Dialog.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[popup-open]:bg-muted data-[popup-open]:text-muted-foreground sm:right-4 sm:top-4">
-          <XIcon className="h-5 w-5 sm:h-4 sm:w-4" />
-          <span className="sr-only">Close</span>
-        </Dialog.Close>
-      </Dialog.Popup>
-    </Dialog.Viewport>
+    <Dialog.Popup
+      ref={ref}
+      className={cn(
+        "fixed z-50 grid w-full gap-4 border bg-background shadow-sm duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
+        // Mobile: full width, positioned at bottom
+        "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
+        // Desktop: centered modal
+        "sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg sm:p-6",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <Dialog.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[popup-open]:bg-muted data-[popup-open]:text-muted-foreground sm:right-4 sm:top-4">
+        <XIcon className="h-5 w-5 sm:h-4 sm:w-4" />
+        <span className="sr-only">Close</span>
+      </Dialog.Close>
+    </Dialog.Popup>
   </DialogPortal>
 ));
 DialogContent.displayName = "DialogContent";

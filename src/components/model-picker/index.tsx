@@ -109,7 +109,7 @@ const ModelPickerComponent = ({
           <label id="model-picker-label" className="sr-only">
             Select a model
           </label>
-          <PopoverTrigger asChild>
+          <PopoverTrigger>
             <ModelPickerTrigger open={open} selectedModel={displayModel} />
           </PopoverTrigger>
         </div>
@@ -135,8 +135,8 @@ const ModelPickerComponent = ({
           Select a model
         </label>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild disabled={disabled}>
+          <TooltipTrigger>
+            <PopoverTrigger disabled={disabled}>
               <ModelPickerTrigger
                 open={open}
                 selectedModel={displayModel}

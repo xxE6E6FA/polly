@@ -339,7 +339,7 @@ export const PersonaForm = ({
                   open={isEmojiPickerOpen}
                   onOpenChange={setIsEmojiPickerOpen}
                 >
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button size="default" variant="outline">
                       <SmileyIcon className="mr-2 h-4 w-4" />
                       Choose Emoji

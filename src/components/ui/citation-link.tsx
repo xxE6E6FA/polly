@@ -107,7 +107,7 @@ export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
 
       return (
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
+          <PopoverTrigger>
             <CitationPill
               favicon={pillCitation.favicon}
               sourceName={sourceName}

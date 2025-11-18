@@ -1,17 +1,15 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
-import {
-  Dialog as DialogComponent,
-  DialogPortal,
-  DialogContent,
-} from "@/components/ui/dialog";
-
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
 import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog as DialogComponent,
+  DialogContent,
+  DialogPortal,
+} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { getFileLanguage } from "@/lib/file-utils";
 

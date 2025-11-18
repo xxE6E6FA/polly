@@ -52,7 +52,7 @@ export const ZenModeDisplaySettings = ({
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger>
         <Button
           type="button"
           variant="ghost"

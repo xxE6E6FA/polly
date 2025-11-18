@@ -59,8 +59,8 @@ export const EnhancedSlider = forwardRef<HTMLDivElement, EnhancedSliderProps>(
     }, [value, isControlled, internalValue]);
 
     const handleSliderChange = useCallback(
-      (newValue: number[]) => {
-        const val = newValue[0];
+      (newValue: number | readonly number[]) => {
+        const val = Array.isArray(newValue) ? newValue[0] : newValue;
         if (val === undefined) {
           return;
         }

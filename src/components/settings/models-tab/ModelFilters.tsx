@@ -88,7 +88,7 @@ export const ModelFilters = memo(
           </Button>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button
                 className="min-w-[120px] justify-start gap-2 h-9"
                 disabled={isPending}
@@ -133,7 +133,7 @@ export const ModelFilters = memo(
           </DropdownMenu>
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger>
               <Button className="gap-1.5 h-9" size="sm" variant="outline">
                 <FunnelIcon className="h-4 w-4 shrink-0" />
                 <span className="hidden text-xs sm:inline">Capabilities</span>

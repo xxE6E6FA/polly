@@ -5,7 +5,19 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const TooltipProvider = TooltipPrimitive.Tooltip.Provider;
+// Wrapper for TooltipProvider to accept legacy Radix props
+const TooltipProvider: React.FC<
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Tooltip.Provider> & {
+    delayDuration?: number;
+    skipDelayDuration?: number;
+    disableHoverableContent?: boolean;
+  }
+> = ({
+  delayDuration,
+  skipDelayDuration,
+  disableHoverableContent,
+  ...props
+}) => <TooltipPrimitive.Tooltip.Provider {...props} />;
 
 const TooltipRoot = TooltipPrimitive.Tooltip.Root;
 

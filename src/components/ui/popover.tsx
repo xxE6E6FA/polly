@@ -1,4 +1,4 @@
-import * as Popover from "@base-ui-components/react/popover";
+import { Popover } from "@base-ui-components/react/popover";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -15,6 +15,12 @@ type PopoverContentProps = React.ComponentPropsWithoutRef<
   side?: "top" | "bottom" | "left" | "right";
   align?: "start" | "center" | "end";
   sideOffset?: number;
+  // Legacy Radix props - accepted but ignored for Base UI compatibility
+  forceMount?: boolean;
+  avoidCollisions?: boolean;
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
+  onInteractOutside?: (event: Event) => void;
 };
 
 const popoverContentBaseClasses =
@@ -25,7 +31,19 @@ const PopoverContent = React.forwardRef<
   PopoverContentProps
 >(
   (
-    { className, align = "center", side = "bottom", sideOffset = 4, ...props },
+    {
+      className,
+      align = "center",
+      side = "bottom",
+      sideOffset = 4,
+      // Destructure and ignore legacy Radix props
+      forceMount,
+      avoidCollisions,
+      onOpenAutoFocus,
+      onCloseAutoFocus,
+      onInteractOutside,
+      ...props
+    },
     ref
   ) => (
     <PopoverPortal>
