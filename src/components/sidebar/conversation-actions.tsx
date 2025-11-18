@@ -1,3 +1,4 @@
+import { ContextMenu } from "@base-ui-components/react/context-menu";
 import {
   ArchiveIcon,
   DotsThreeVerticalIcon,
@@ -8,13 +9,9 @@ import {
   ShareNetworkIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import type * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
 import {
   Drawer,
   DrawerBody,
@@ -274,90 +271,155 @@ export const ConversationContextMenu = ({
   };
 
   return (
-    <ContextMenuContent className="w-48">
-      {showBatchActions ? (
-        <>
-          {/* Batch actions */}
-          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            {selectionCount} conversations selected
-          </div>
-          <ContextMenuSeparator />
+    <ContextMenu.Portal>
+      <ContextMenu.Positioner className="z-[200]">
+        <ContextMenu.Popup
+          className={cn(
+            "min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-foreground shadow-lg",
+            "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
+            "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
+            "transition-[opacity,transform] duration-200"
+          )}
+        >
+          {showBatchActions ? (
+            <>
+              {/* Batch actions */}
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                {selectionCount} conversations selected
+              </div>
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={() => handleBulkAction("export-json")}>
-            <FileCodeIcon className="h-4 w-4" />
-            Export selected as JSON
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("export-json")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileCodeIcon className="h-4 w-4" />
+                Export selected as JSON
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={() => handleBulkAction("archive")}>
-            <ArchiveIcon className="h-4 w-4" />
-            Archive selected
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("archive")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+                Archive selected
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => handleBulkAction("delete")}
-            className="text-destructive focus:text-destructive"
-          >
-            <TrashIcon className="h-4 w-4" />
-            Delete selected
-          </ContextMenuItem>
-        </>
-      ) : (
-        <>
-          {/* Single conversation actions */}
-          <ContextMenuItem onSelect={onPinToggle}>
-            <PushPinIcon
-              className="h-4 w-4"
-              weight={conversation.isPinned ? "fill" : "regular"}
-            />
-            {conversation.isPinned ? "Unpin" : "Pin"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("delete")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "text-destructive focus:text-destructive"
+                )}
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete selected
+              </ContextMenu.Item>
+            </>
+          ) : (
+            <>
+              {/* Single conversation actions */}
+              <ContextMenu.Item
+                onSelect={onPinToggle}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <PushPinIcon
+                  className="h-4 w-4"
+                  weight={conversation.isPinned ? "fill" : "regular"}
+                />
+                {conversation.isPinned ? "Unpin" : "Pin"}
+              </ContextMenu.Item>
 
-          <ContextMenuItem onSelect={onStartEdit}>
-            <PencilSimpleIcon className="h-4 w-4" />
-            Edit title
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onStartEdit}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <PencilSimpleIcon className="h-4 w-4" />
+                Edit title
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={onShare}>
-            <ShareNetworkIcon className="h-4 w-4" />
-            Share
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onShare}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ShareNetworkIcon className="h-4 w-4" />
+                Share
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => onExport("md")}
-            disabled={exportingFormat === "md" || isDeleteJobInProgress}
-          >
-            <FileTextIcon className="h-4 w-4" />
-            {exportingFormat === "md" ? "Exporting..." : "Export as Markdown"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => onExport("md")}
+                disabled={exportingFormat === "md" || isDeleteJobInProgress}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileTextIcon className="h-4 w-4" />
+                {exportingFormat === "md"
+                  ? "Exporting..."
+                  : "Export as Markdown"}
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => onExport("json")}
-            disabled={exportingFormat === "json" || isDeleteJobInProgress}
-          >
-            <FileCodeIcon className="h-4 w-4" />
-            {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => onExport("json")}
+                disabled={exportingFormat === "json" || isDeleteJobInProgress}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileCodeIcon className="h-4 w-4" />
+                {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={onArchive}>
-            <ArchiveIcon className="h-4 w-4" />
-            Archive
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onArchive}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+                Archive
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={onDelete}
-            className="text-destructive focus:text-destructive"
-          >
-            <TrashIcon className="h-4 w-4" />
-            Delete
-          </ContextMenuItem>
-        </>
-      )}
-    </ContextMenuContent>
+              <ContextMenu.Item
+                onSelect={onDelete}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "text-destructive focus:text-destructive"
+                )}
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete
+              </ContextMenu.Item>
+            </>
+          )}
+        </ContextMenu.Popup>
+      </ContextMenu.Positioner>
+    </ContextMenu.Portal>
   );
 };

@@ -1,3 +1,4 @@
+import { ContextMenu } from "@base-ui-components/react/context-menu";
 import { api } from "@convex/_generated/api";
 import { CheckIcon, CircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
@@ -5,7 +6,6 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
@@ -341,8 +341,8 @@ const ConversationItemComponent = ({
 
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger>
           <div
             className={cn(
               "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",
@@ -467,7 +467,7 @@ const ConversationItemComponent = ({
               />
             </div>
           </div>
-        </ContextMenuTrigger>
+        </ContextMenu.Trigger>
 
         <ConversationContextMenu
           conversation={conversation}
@@ -480,7 +480,7 @@ const ConversationItemComponent = ({
           onArchive={handleArchiveClick}
           onDelete={handleDeleteClick}
         />
-      </ContextMenu>
+      </ContextMenu.Root>
 
       <ConfirmationDialog
         cancelText={confirmationDialog.state.cancelText}
