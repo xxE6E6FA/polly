@@ -45,7 +45,7 @@ const ConversationItemComponent = ({
   const [isDesktopPopoverOpen, setIsDesktopPopoverOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<"json" | "md" | null>(
-    null
+    null,
   );
 
   const { isMobile, setSidebarVisible } = useUI();
@@ -78,12 +78,12 @@ const ConversationItemComponent = ({
   // Check if there are any active delete jobs
   const activeDeleteJobs = backgroundJobs
     .getActiveJobs()
-    .filter(job => job.type === "bulk_delete");
+    .filter((job) => job.type === "bulk_delete");
   const isDeleteJobInProgress = activeDeleteJobs.length > 0;
 
   const exportData = useQuery(
     api.conversations.getForExport,
-    exportingFormat && conversation._id ? { id: conversation._id } : "skip"
+    exportingFormat && conversation._id ? { id: conversation._id } : "skip",
   );
 
   // Handle export when data is ready
@@ -164,7 +164,7 @@ const ConversationItemComponent = ({
         }
       },
     }),
-    [managedToast, conversation._id]
+    [managedToast, conversation._id],
   );
 
   const handleStartEdit = useCallback(() => {
@@ -189,7 +189,7 @@ const ConversationItemComponent = ({
       });
       setIsEditing(false);
     },
-    [conversation, patchConversation]
+    [conversation, patchConversation],
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -214,7 +214,7 @@ const ConversationItemComponent = ({
         }
 
         if (isCurrentConversation) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         await handleError.archive(async () => {
@@ -225,7 +225,7 @@ const ConversationItemComponent = ({
           // Invalidate conversations cache to reflect archived conversation
           del(CACHE_KEYS.conversations);
         });
-      }
+      },
     );
   }, [
     confirmationDialog,
@@ -255,13 +255,13 @@ const ConversationItemComponent = ({
         }
 
         if (isCurrentConversation) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
         await handleError.delete(async () => {
           await deleteConversation({ id: conversation._id });
         });
-      }
+      },
     );
   }, [
     confirmationDialog,
@@ -287,7 +287,7 @@ const ConversationItemComponent = ({
         updates: { isPinned: !conversation.isPinned },
       });
     },
-    [conversation, patchConversation]
+    [conversation, patchConversation],
   );
 
   const handleExport = useCallback(
@@ -297,7 +297,7 @@ const ConversationItemComponent = ({
       }
       setExportingFormat(format);
     },
-    [exportingFormat, isDeleteJobInProgress]
+    [exportingFormat, isDeleteJobInProgress],
   );
 
   const handleShareClick = useCallback(() => {
@@ -336,7 +336,7 @@ const ConversationItemComponent = ({
       selectRange,
       conversation._id,
       allVisibleIds,
-    ]
+    ],
   );
 
   return (
@@ -345,10 +345,10 @@ const ConversationItemComponent = ({
         <ContextMenu.Trigger>
           <div
             className={cn(
-              "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",
+              "group relative rounded-md transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
                 ? "bg-muted text-foreground shadow-sm"
-                : "text-foreground/80 hover:text-foreground hover:bg-muted"
+                : "text-foreground/80 hover:text-foreground hover:bg-muted",
             )}
             onMouseEnter={() => {
               if (!isMobile) {
@@ -358,17 +358,18 @@ const ConversationItemComponent = ({
             onMouseLeave={() => !isMobile && setIsHovered(false)}
           >
             {/* Selection checkbox - positioned absolutely, slides in from left when in bulk mode */}
-            <div className="absolute left-2 top-0 h-full flex items-center">
+            <div className="absolute left-2 top-0 h-full flex items-center z-10">
               <div
                 className={cn(
                   "flex items-center transition-all duration-200 ease-in-out",
                   isBulkMode
                     ? "opacity-100 translate-x-0"
-                    : "opacity-0 -translate-x-2 pointer-events-none"
+                    : "opacity-0 -translate-x-2 pointer-events-none",
                 )}
               >
                 <button
-                  onClick={e => {
+                  type="button"
+                  onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
 
@@ -393,27 +394,24 @@ const ConversationItemComponent = ({
               </div>
             </div>
 
+            {/* Main content area - make the whole area clickable with Link */}
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               prefetch="intent"
               className={cn(
-                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
+                "flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out relative",
                 isMobile ? "py-2" : "py-1.5",
                 // Adjust padding dynamically based on checkbox visibility
-                isBulkMode ? "px-2 pl-8" : "px-2"
+                isBulkMode ? "px-2 pl-8" : "px-2",
+                // Add padding on the right for actions
+                shouldShowActions ? "pr-16" : "pr-10",
               )}
               onClick={
-                isEditing ? e => e.preventDefault() : handleConversationClick
+                isEditing ? (e) => e.preventDefault() : handleConversationClick
               }
               data-conversation-id={conversation._id}
             >
-              <div
-                className={cn(
-                  "flex-1 min-w-0 transition-all duration-200 ease-in-out",
-                  // Only add padding when actions are visible (not on mobile and not in bulk mode)
-                  shouldShowActions ? "pr-16" : "pr-2"
-                )}
-              >
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {conversation.parentConversationId && (
                     <GitBranchIcon
@@ -444,8 +442,8 @@ const ConversationItemComponent = ({
               )}
             </Link>
 
-            {/* Position actions absolutely to overlay title area */}
-            <div className="absolute right-2 top-0 h-full flex items-center">
+            {/* Position actions absolutely - now sibling to Link instead of nested */}
+            <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
               <ConversationActions
                 conversation={conversation}
                 isEditing={isEditing}
@@ -530,5 +528,5 @@ export const ConversationItem = memo(
 
     // Ignore changes to allVisibleIds to avoid list-wide re-renders
     return true;
-  }
+  },
 );

@@ -5,7 +5,6 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Wrapper for TooltipProvider to accept legacy Radix props
 const TooltipProvider: React.FC<
   React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Tooltip.Provider> & {
     delayDuration?: number;
@@ -16,29 +15,49 @@ const TooltipProvider: React.FC<
   delayDuration,
   skipDelayDuration,
   disableHoverableContent,
+  children,
   ...props
-}) => <TooltipPrimitive.Tooltip.Provider {...props} />;
+}) => (
+  <TooltipPrimitive.Tooltip.Provider
+    delay={delayDuration ?? 600}
+    timeout={skipDelayDuration ?? 400}
+    {...props}
+  >
+    {children}
+  </TooltipPrimitive.Tooltip.Provider>
+);
+TooltipProvider.displayName = "TooltipProvider";
 
-const TooltipRoot = TooltipPrimitive.Tooltip.Root;
+const Tooltip = TooltipPrimitive.Tooltip.Root;
 
-const TooltipTrigger = TooltipPrimitive.Tooltip.Trigger;
+const TooltipTrigger = React.forwardRef<
+  React.ElementRef<typeof TooltipPrimitive.Tooltip.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Tooltip.Trigger>
+>((props, ref) => <TooltipPrimitive.Tooltip.Trigger ref={ref} {...props} />);
+TooltipTrigger.displayName = "TooltipTrigger";
 
 const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Tooltip.Positioner>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Tooltip.Positioner>
+  React.ElementRef<typeof TooltipPrimitive.Tooltip.Popup>,
+  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Tooltip.Positioner> & {
+    children?: React.ReactNode;
+  }
 >(({ className, side = "top", sideOffset = 4, children, ...props }, ref) => (
   <TooltipPrimitive.Tooltip.Portal>
     <TooltipPrimitive.Tooltip.Positioner
-      ref={ref}
       side={side}
       sideOffset={sideOffset}
-      className={cn(
-        "z-[90] overflow-hidden rounded-md bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-sm data-[open]:animate-in data-[open]:fade-in-0 data-[open]:zoom-in-95 data-[closed]:animate-out data-[closed]:fade-out-0 data-[closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
-        className
-      )}
       {...props}
     >
-      <TooltipPrimitive.Tooltip.Popup>
+      <TooltipPrimitive.Tooltip.Popup
+        ref={ref}
+        className={cn(
+          "z-[90] overflow-hidden rounded-md border bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-md",
+          "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
+          "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
+          "transition-[opacity,transform] duration-200 origin-[var(--transform-origin)]",
+          className
+        )}
+      >
         {children}
       </TooltipPrimitive.Tooltip.Popup>
     </TooltipPrimitive.Tooltip.Positioner>
@@ -46,10 +65,4 @@ const TooltipContent = React.forwardRef<
 ));
 TooltipContent.displayName = "TooltipContent";
 
-// Export with original names for backward compatibility
-export {
-  TooltipRoot as Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-};
+export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };

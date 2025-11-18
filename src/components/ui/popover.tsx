@@ -9,22 +9,67 @@ const PopoverTrigger = Popover.Trigger;
 
 const PopoverPortal = Popover.Portal;
 
+const PopoverPositioner = Popover.Positioner;
+
+const PopoverPopup = React.forwardRef<
+  React.ElementRef<typeof Popover.Popup>,
+  React.ComponentPropsWithoutRef<typeof Popover.Popup>
+>(({ className, ...props }, ref) => (
+  <Popover.Popup
+    ref={ref}
+    className={cn(
+      "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+      "data-[starting-style]:animate-in data-[ending-style]:animate-out",
+      "data-[ending-style]:fade-out-0 data-[starting-style]:fade-in-0",
+      "data-[ending-style]:zoom-out-95 data-[starting-style]:zoom-in-95",
+      "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
+      "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+      className
+    )}
+    {...props}
+  />
+));
+PopoverPopup.displayName = "PopoverPopup";
+
+const PopoverArrow = Popover.Arrow;
+
+const PopoverBackdrop = Popover.Backdrop;
+
+const PopoverTitle = React.forwardRef<
+  React.ElementRef<typeof Popover.Title>,
+  React.ComponentPropsWithoutRef<typeof Popover.Title>
+>(({ className, ...props }, ref) => (
+  <Popover.Title
+    ref={ref}
+    className={cn("text-base font-medium", className)}
+    {...props}
+  />
+));
+PopoverTitle.displayName = "PopoverTitle";
+
+const PopoverDescription = React.forwardRef<
+  React.ElementRef<typeof Popover.Description>,
+  React.ComponentPropsWithoutRef<typeof Popover.Description>
+>(({ className, ...props }, ref) => (
+  <Popover.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props}
+  />
+));
+PopoverDescription.displayName = "PopoverDescription";
+
+const PopoverClose = Popover.Close;
+
+// Compatibility layer for existing code that uses PopoverContent
 type PopoverContentProps = React.ComponentPropsWithoutRef<
   typeof Popover.Popup
 > & {
   side?: "top" | "bottom" | "left" | "right";
   align?: "start" | "center" | "end";
   sideOffset?: number;
-  // Legacy Radix props - accepted but ignored for Base UI compatibility
-  forceMount?: boolean;
-  avoidCollisions?: boolean;
-  onOpenAutoFocus?: (event: Event) => void;
-  onCloseAutoFocus?: (event: Event) => void;
-  onInteractOutside?: (event: Event) => void;
+  alignOffset?: number;
 };
-
-const popoverContentBaseClasses =
-  "z-[80] w-72 rounded-md border border-border bg-popover text-foreground shadow-lg outline-none transition-[background-color,border-color,color,box-shadow,opacity] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0";
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof Popover.Popup>,
@@ -32,31 +77,38 @@ const PopoverContent = React.forwardRef<
 >(
   (
     {
-      className,
-      align = "center",
       side = "bottom",
+      align = "center",
       sideOffset = 4,
-      // Destructure and ignore legacy Radix props
-      forceMount,
-      avoidCollisions,
-      onOpenAutoFocus,
-      onCloseAutoFocus,
-      onInteractOutside,
+      alignOffset = 0,
       ...props
     },
     ref
   ) => (
     <PopoverPortal>
-      <Popover.Positioner side={side} align={align} sideOffset={sideOffset}>
-        <Popover.Popup
-          ref={ref}
-          className={cn(popoverContentBaseClasses, className)}
-          {...props}
-        />
-      </Popover.Positioner>
+      <PopoverPositioner
+        side={side}
+        align={align}
+        sideOffset={sideOffset}
+        alignOffset={alignOffset}
+      >
+        <PopoverPopup ref={ref} {...props} />
+      </PopoverPositioner>
     </PopoverPortal>
   )
 );
 PopoverContent.displayName = "PopoverContent";
 
-export { PopoverRoot as Popover, PopoverTrigger, PopoverContent };
+export {
+  PopoverRoot as Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverPortal,
+  PopoverPositioner,
+  PopoverPopup,
+  PopoverArrow,
+  PopoverBackdrop,
+  PopoverTitle,
+  PopoverDescription,
+  PopoverClose,
+};

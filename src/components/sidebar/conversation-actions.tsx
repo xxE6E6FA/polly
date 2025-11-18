@@ -21,10 +21,11 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -74,17 +75,6 @@ export const ConversationActions = ({
   onExport: _onExport,
   onShare: _onShare,
 }: ConversationActionsProps) => {
-  const popoverStopPropagation = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  const handleInteractOutside = (e: Event) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('[role="button"]')) {
-      e.preventDefault();
-    }
-  };
-
   if (conversation.isStreaming || isEditing || isBulkMode) {
     return null;
   }
@@ -187,49 +177,30 @@ export const ConversationActions = ({
             </TooltipContent>
           </Tooltip>
 
-          <Popover
+          <DropdownMenu
             open={isDesktopPopoverOpen}
             onOpenChange={onDesktopPopoverChange}
           >
-            <PopoverTrigger>
-              <Button
-                className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
-                size="icon-sm"
-                variant="ghost"
-                onClick={popoverStopPropagation}
+            <DropdownMenuTrigger className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+              <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={5} className="w-40">
+              <DropdownMenuItem
+                className="h-8 gap-2 px-2 text-xs"
+                onClick={() => onArchive()}
               >
-                <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={5}
-              className="w-40 p-1"
-              onClick={popoverStopPropagation}
-              onInteractOutside={handleInteractOutside}
-            >
-              <div className="flex flex-col gap-0.5">
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onArchive()}
-                >
-                  <ArchiveIcon className="h-3.5 w-3.5" />
-                  Archive
-                </Button>
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onDelete()}
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                  Delete
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+                <ArchiveIcon className="h-3.5 w-3.5" />
+                Archive
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="h-8 gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                onClick={() => onDelete()}
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </>

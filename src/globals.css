@@ -204,7 +204,7 @@
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(0 0% 4%);
   --color-foreground-focus: hsl(0 0% 2%);
-  --color-highlight: hsl(214.6 79.1% 62.5%);
+  --color-highlight: hsl(0 0% 16%);
   --color-highlight-foreground: hsl(0 0% 100%);
   --color-card: hsl(0 0% 98%);
   --color-card-foreground: hsl(0 0% 4%);
@@ -231,8 +231,8 @@
   --color-muted-foreground: hsl(0 0% 45.1%);
 
   /* Accent Colors (Use Sparingly) */
-  --color-accent: hsl(214.6 60% 45%);
-  --color-accent-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(0 0% 96.1%);
+  --color-accent-foreground: hsl(0 0% 9%);
   --color-accent-coral: hsl(22 100% 51.6%);
   --color-accent-orange: hsl(22 100% 51.6%);
   --color-accent-purple: hsl(263 70% 50.4%);
