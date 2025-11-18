@@ -27,7 +27,6 @@ export const Sidebar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [shadowHeight, setShadowHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const sidebarRootRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
   const {
@@ -168,111 +167,6 @@ export const Sidebar = () => {
     setSidebarVisible(false);
   }, [setSidebarVisible]);
 
-  const clearCursor = useCallback(() => {
-    if (sidebarRootRef.current) {
-      sidebarRootRef.current.style.cursor = "";
-    }
-    document.body.style.cursor = "";
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      clearCursor();
-    };
-  }, [clearCursor]);
-
-  const isInteractiveTarget = useCallback((target: EventTarget | null) => {
-    if (!(target instanceof HTMLElement)) {
-      return false;
-    }
-
-    if (target.isContentEditable) {
-      return true;
-    }
-
-    const interactiveSelector =
-      "a, button, input, textarea, select, [role='button'], [role='menuitem'], [role='menu'], [data-sidebar-interactive='true']";
-
-    return Boolean(target.closest(interactiveSelector));
-  }, []);
-
-  const updateCursorForTarget = useCallback(
-    (target: EventTarget | null) => {
-      if (isMobile) {
-        clearCursor();
-        return;
-      }
-
-      if (isInteractiveTarget(target)) {
-        clearCursor();
-        return;
-      }
-
-      if (isSelectionMode) {
-        clearCursor();
-        return;
-      }
-
-      if (sidebarRootRef.current) {
-        sidebarRootRef.current.style.cursor = "w-resize";
-      }
-      document.body.style.cursor = "w-resize";
-    },
-    [clearCursor, isInteractiveTarget, isMobile, isSelectionMode]
-  );
-
-  const handleSidebarContainerPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      updateCursorForTarget(event.target);
-
-      if (
-        isMobile ||
-        isInteractiveTarget(event.target) ||
-        event.button > 0 ||
-        isSelectionMode
-      ) {
-        return;
-      }
-
-      setSidebarVisible(false);
-      clearCursor();
-    },
-    [
-      clearCursor,
-      isInteractiveTarget,
-      isMobile,
-      setSidebarVisible,
-      updateCursorForTarget,
-      isSelectionMode,
-    ]
-  );
-
-  const handleScrollContainerPointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      updateCursorForTarget(event.target);
-
-      if (
-        isMobile ||
-        isInteractiveTarget(event.target) ||
-        event.button > 0 ||
-        isSelectionMode
-      ) {
-        return;
-      }
-
-      setSidebarVisible(false);
-      clearCursor();
-    },
-    [
-      clearCursor,
-      isInteractiveTarget,
-      isMobile,
-      setSidebarVisible,
-      updateCursorForTarget,
-      isSelectionMode,
-    ]
-  );
-
   const handleExpandZoneClick = useCallback(() => {
     if (isMobile) {
       return;
@@ -280,36 +174,6 @@ export const Sidebar = () => {
 
     setSidebarVisible(true);
   }, [isMobile, setSidebarVisible]);
-
-  const handleSidebarPointerEnter = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      updateCursorForTarget(event.target);
-    },
-    [updateCursorForTarget]
-  );
-
-  const handleSidebarPointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      updateCursorForTarget(event.target);
-    },
-    [updateCursorForTarget]
-  );
-
-  const handleSidebarPointerLeave = useCallback(() => {
-    clearCursor();
-  }, [clearCursor]);
-
-  useEffect(() => {
-    if (!isSidebarVisible) {
-      clearCursor();
-    }
-  }, [clearCursor, isSidebarVisible]);
-
-  useEffect(() => {
-    if (isSelectionMode) {
-      clearCursor();
-    }
-  }, [clearCursor, isSelectionMode]);
 
   const sidebarStyle = useMemo(
     () =>
@@ -346,7 +210,6 @@ export const Sidebar = () => {
             : "transition-[width] duration-300 ease-out",
           isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : "")
         )}
-        ref={sidebarRootRef}
         style={{
           ...sidebarStyle,
           width: (() => {
@@ -366,15 +229,9 @@ export const Sidebar = () => {
         role={isMobile ? "dialog" : undefined}
         aria-modal={isMobile ? true : undefined}
         aria-hidden={!isSidebarVisible}
-        onPointerEnter={handleSidebarPointerEnter}
-        onPointerMove={handleSidebarPointerMove}
-        onPointerLeave={handleSidebarPointerLeave}
       >
         {isSidebarVisible && (
-          <div
-            className="flex h-full flex-col"
-            onPointerDown={handleSidebarContainerPointerDown}
-          >
+          <div className="flex h-full flex-col">
             <div className="flex-shrink-0">
               <div
                 className="flex h-10 items-center px-3 pt-2"
@@ -405,19 +262,17 @@ export const Sidebar = () => {
                   </div>
                 </Link>
 
-                {isMobile && (
-                  <div className="ml-auto">
-                    <Button
-                      size="icon-sm"
-                      title="Close sidebar"
-                      variant="ghost"
-                      className="text-foreground/70 hover:text-foreground h-9 w-9"
-                      onClick={() => setSidebarVisible(false)}
-                    >
-                      <SidebarSimple className="h-5 w-5" />
-                    </Button>
-                  </div>
-                )}
+                <div className="ml-auto">
+                  <Button
+                    size="icon-sm"
+                    title="Collapse sidebar"
+                    variant="ghost"
+                    className="text-foreground/70 hover:text-foreground h-9 w-9"
+                    onClick={() => setSidebarVisible(false)}
+                  >
+                    <SidebarSimple className="h-5 w-5" />
+                  </Button>
+                </div>
               </div>
 
               <div className="px-3 py-2">
@@ -442,7 +297,6 @@ export const Sidebar = () => {
                 isScrollHovered && "sidebar-scroll-hover"
               )}
               style={scrollContainerStyle}
-              onPointerDown={handleScrollContainerPointerDown}
               onMouseEnter={() => {
                 setHoveringOverSidebar(true);
                 setIsScrollHovered(true);
