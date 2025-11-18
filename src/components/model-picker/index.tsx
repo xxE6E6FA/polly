@@ -114,7 +114,6 @@ const ModelPickerComponent = ({
           </PopoverTrigger>
         </div>
         <PopoverContent
-          avoidCollisions
           className="flex w-[min(calc(100vw-2rem),380px)] max-h-[min(calc(100dvh-8rem),360px)] min-h-0 flex-col overflow-hidden border border-border/50 bg-popover shadow-lg [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input]]:w-full"
           side="top"
           sideOffset={4}
@@ -152,7 +151,6 @@ const ModelPickerComponent = ({
         </Tooltip>
       </div>
       <PopoverContent
-        avoidCollisions
         className="flex w-[min(calc(100vw-2rem),380px)] max-h-[min(calc(100dvh-8rem),360px)] min-h-0 flex-col overflow-hidden border border-border/50 bg-popover shadow-lg [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input]]:w-full"
         side="top"
         sideOffset={4}

@@ -86,7 +86,6 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
             </TooltipContent>
           </Tooltip>
           <PopoverContent
-            forceMount
             data-debug-id="AspectRatioPicker"
             className="w-56 border border-border/50 bg-popover p-3"
             align="start"

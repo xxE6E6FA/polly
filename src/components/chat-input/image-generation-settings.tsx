@@ -239,7 +239,6 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
             </TooltipContent>
           </Tooltip>
           <PopoverContent
-            forceMount
             data-debug-id="ImageGenerationSettings"
             className="flex w-80 max-h-[50vh] flex-col overflow-hidden border border-border/50 bg-popover p-4"
             align="end"
