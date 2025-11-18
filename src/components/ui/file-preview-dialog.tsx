@@ -1,7 +1,9 @@
 import { XIcon } from "@phosphor-icons/react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-
 import { Backdrop } from "@/components/ui/backdrop";
+import {
+  Dialog as DialogComponent,
+  DialogPortal,
+} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { getFileLanguage } from "@/lib/file-utils";
 import { cn } from "@/lib/utils";
@@ -132,26 +134,17 @@ export const FilePreviewDialog = ({
   }
 
   const contentClassNames = {
-    pdf: "fixed left-[50%] top-[50%] z-50 max-h-[95vh] w-[95vw] max-w-6xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+    pdf: "fixed left-[50%] top-[50%] z-modal max-h-[95vh] w-[95vw] max-w-6xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
     image:
-      "fixed left-[50%] top-[50%] z-50 max-h-[90vh] w-[90vw] max-w-5xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
-    text: "fixed left-[50%] top-[50%] z-50 max-h-[90vh] w-[90vw] max-w-4xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+      "fixed left-[50%] top-[50%] z-modal max-h-[90vh] w-[90vw] max-w-5xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
+    text: "fixed left-[50%] top-[50%] z-modal max-h-[90vh] w-[90vw] max-w-4xl translate-x-[-50%] translate-y-[-50%] focus:outline-none",
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay asChild>
-          <Backdrop className="z-50" variant="heavy" />
-        </DialogPrimitive.Overlay>
-
-        <DialogPrimitive.Content
-          className={contentClassNames[attachment.type]}
-          onOpenAutoFocus={e => e.preventDefault()}
-        >
-          {content}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+    <DialogComponent open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <div className={contentClassNames[attachment.type]}>{content}</div>
+      </DialogPortal>
+    </DialogComponent>
   );
 };

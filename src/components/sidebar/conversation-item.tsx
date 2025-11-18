@@ -1,3 +1,4 @@
+import { ContextMenu } from "@base-ui-components/react/context-menu";
 import { api } from "@convex/_generated/api";
 import { CheckIcon, CircleIcon, GitBranchIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
@@ -5,7 +6,6 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { ControlledShareConversationDialog } from "@/components/ui/share-conversation-dialog";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
@@ -341,11 +341,11 @@ const ConversationItemComponent = ({
 
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
+      <ContextMenu.Root>
+        <ContextMenu.Trigger>
           <div
             className={cn(
-              "group relative flex items-center rounded-md transition-all duration-200 ease-in-out my-0",
+              "group relative rounded-md transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
                 ? "bg-muted text-foreground shadow-sm"
                 : "text-foreground/80 hover:text-foreground hover:bg-muted"
@@ -358,7 +358,7 @@ const ConversationItemComponent = ({
             onMouseLeave={() => !isMobile && setIsHovered(false)}
           >
             {/* Selection checkbox - positioned absolutely, slides in from left when in bulk mode */}
-            <div className="absolute left-2 top-0 h-full flex items-center">
+            <div className="absolute left-2 top-0 h-full flex items-center z-10">
               <div
                 className={cn(
                   "flex items-center transition-all duration-200 ease-in-out",
@@ -368,6 +368,7 @@ const ConversationItemComponent = ({
                 )}
               >
                 <button
+                  type="button"
                   onClick={e => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -393,27 +394,24 @@ const ConversationItemComponent = ({
               </div>
             </div>
 
+            {/* Main content area - make the whole area clickable with Link */}
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               prefetch="intent"
               className={cn(
-                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out",
+                "flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out relative",
                 isMobile ? "py-2" : "py-1.5",
                 // Adjust padding dynamically based on checkbox visibility
-                isBulkMode ? "px-2 pl-8" : "px-2"
+                isBulkMode ? "px-2 pl-8" : "px-2",
+                // Add padding on the right for actions
+                shouldShowActions ? "pr-16" : "pr-10"
               )}
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
               }
               data-conversation-id={conversation._id}
             >
-              <div
-                className={cn(
-                  "flex-1 min-w-0 transition-all duration-200 ease-in-out",
-                  // Only add padding when actions are visible (not on mobile and not in bulk mode)
-                  shouldShowActions ? "pr-16" : "pr-2"
-                )}
-              >
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {conversation.parentConversationId && (
                     <GitBranchIcon
@@ -444,8 +442,8 @@ const ConversationItemComponent = ({
               )}
             </Link>
 
-            {/* Position actions absolutely to overlay title area */}
-            <div className="absolute right-2 top-0 h-full flex items-center">
+            {/* Position actions absolutely - now sibling to Link instead of nested */}
+            <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
               <ConversationActions
                 conversation={conversation}
                 isEditing={isEditing}
@@ -467,7 +465,7 @@ const ConversationItemComponent = ({
               />
             </div>
           </div>
-        </ContextMenuTrigger>
+        </ContextMenu.Trigger>
 
         <ConversationContextMenu
           conversation={conversation}
@@ -480,7 +478,7 @@ const ConversationItemComponent = ({
           onArchive={handleArchiveClick}
           onDelete={handleDeleteClick}
         />
-      </ContextMenu>
+      </ContextMenu.Root>
 
       <ConfirmationDialog
         cancelText={confirmationDialog.state.cancelText}

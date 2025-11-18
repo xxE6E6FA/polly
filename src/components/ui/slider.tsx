@@ -1,28 +1,31 @@
 "use client";
 
-import * as SliderPrimitive from "@radix-ui/react-slider";
+import * as SliderPrimitive from "@base-ui-components/react/slider";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Slider = React.forwardRef<
-  React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
+const SliderRoot = React.forwardRef<
+  HTMLDivElement,
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Slider.Root>
 >(({ className, ...props }, ref) => (
-  <SliderPrimitive.Root
-    ref={ref}
+  <SliderPrimitive.Slider.Root
+    ref={ref as React.RefObject<HTMLDivElement>}
     className={cn(
       "relative flex w-full touch-none select-none items-center",
       className
     )}
     {...props}
   >
-    <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
-      <SliderPrimitive.Range className="absolute h-full bg-primary" />
-    </SliderPrimitive.Track>
-    <SliderPrimitive.Thumb className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
-  </SliderPrimitive.Root>
+    <SliderPrimitive.Slider.Control className="relative w-full">
+      <SliderPrimitive.Slider.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
+        <SliderPrimitive.Slider.Indicator className="absolute h-full bg-primary" />
+      </SliderPrimitive.Slider.Track>
+      <SliderPrimitive.Slider.Thumb className="block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50" />
+    </SliderPrimitive.Slider.Control>
+  </SliderPrimitive.Slider.Root>
 ));
-Slider.displayName = SliderPrimitive.Root.displayName;
+SliderRoot.displayName = "Slider";
 
-export { Slider };
+// Export with original name for backward compatibility
+export { SliderRoot as Slider };

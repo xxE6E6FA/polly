@@ -74,7 +74,7 @@ export function AspectRatioDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger asChild>
+      <DrawerTrigger>
         <Button
           variant="ghost"
           size="sm"

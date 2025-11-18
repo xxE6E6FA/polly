@@ -27,7 +27,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { Switch } from "@/components/ui/switch";
@@ -278,7 +277,7 @@ export const PersonasTab = () => {
           {persona.type === "custom" && (
             <>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -293,20 +292,20 @@ export const PersonasTab = () => {
                 <TooltipContent>View system prompt</TooltipContent>
               </Tooltip>
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link
-                      to={ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)}
-                      onClick={e => e.stopPropagation()}
-                    >
+                <TooltipTrigger>
+                  <Link
+                    to={ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <Button size="sm" variant="ghost">
                       <PencilSimpleLineIcon className="h-3.5 w-3.5" />
-                    </Link>
-                  </Button>
+                    </Button>
+                  </Link>
                 </TooltipTrigger>
                 <TooltipContent>Edit persona</TooltipContent>
               </Tooltip>
               <Tooltip>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -364,125 +363,45 @@ export const PersonasTab = () => {
                 Built-in and custom system prompts in one place
               </p>
             </div>
-            <Button asChild size="sm" variant="default">
-              <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+            <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+              <Button size="sm" variant="default">
                 <PlusIcon className="h-4 w-4" />
                 <span className="hidden sm:inline">Create Persona</span>
-              </Link>
-            </Button>
+              </Button>
+            </Link>
           </div>
 
-          {isLoading && <ListLoadingState count={6} />}
-          {!isLoading && enrichedPersonas.length === 0 && (
+          {/* DataList for all personas */}
+          {isLoading && <ListLoadingState />}
+          {!isLoading && sortedPersonas.length === 0 && (
             <ListEmptyState
               icon={<UserIcon className="h-12 w-12" />}
               title="No Personas"
               description="Create your first custom persona to define specialized AI behavior"
               action={
-                <Button asChild variant="default">
-                  <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                <Link to={ROUTES.SETTINGS.PERSONAS_NEW}>
+                  <Button variant="default">
                     <PlusIcon className="mr-2 h-4 w-4" />
                     Create Persona
-                  </Link>
-                </Button>
+                  </Button>
+                </Link>
               }
             />
           )}
-          {!isLoading && enrichedPersonas.length > 0 && (
+          {!isLoading && sortedPersonas.length > 0 && (
             <DataList
               items={sortedPersonas}
-              getItemKey={persona => persona._id}
               columns={columns}
               sort={{
                 field: sortField,
                 direction: sortDirection,
                 onSort: toggleSort,
               }}
-              sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-              mobileTitleRender={persona => {
-                const isDisabled =
-                  persona.type === "built-in"
-                    ? persona.isDisabled
-                    : !persona.isActive;
-                return (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className={`text-lg flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
-                    >
-                      {persona.icon || "🤖"}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div
-                        className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}
-                      >
-                        {persona.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground line-clamp-1">
-                        {persona.description}
-                      </div>
-                    </div>
-                  </div>
-                );
+              getItemKey={(persona: EnrichedPersona) => persona._id}
+              sortIcons={{
+                asc: CaretUpIcon,
+                desc: CaretDownIcon,
               }}
-              mobileActionsRender={persona => (
-                <>
-                  {persona.type === "custom" && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setViewingPersona(persona);
-                        }}
-                      >
-                        <FileTextIcon className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button size="sm" variant="ghost" asChild>
-                        <Link
-                          to={ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <PencilSimpleLineIcon className="h-3.5 w-3.5" />
-                        </Link>
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                        onClick={e => {
-                          e.stopPropagation();
-                          setDeletingPersona(persona._id);
-                        }}
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                      </Button>
-                    </>
-                  )}
-                </>
-              )}
-              mobileMetadataRender={persona => (
-                <div className="flex items-center gap-3 text-xs">
-                  <Badge
-                    variant={
-                      persona.type === "built-in" ? "secondary" : "default"
-                    }
-                    className="text-xs"
-                  >
-                    {persona.type === "built-in" ? "Built-in" : "Custom"}
-                  </Badge>
-                  <Switch
-                    checked={
-                      persona.type === "built-in"
-                        ? !persona.isDisabled
-                        : persona.isActive
-                    }
-                    onCheckedChange={checked =>
-                      handleTogglePersona(persona, checked)
-                    }
-                  />
-                </div>
-              )}
             />
           )}
         </div>

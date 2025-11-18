@@ -1,3 +1,4 @@
+import { ContextMenu } from "@base-ui-components/react/context-menu";
 import {
   ArchiveIcon,
   DotsThreeVerticalIcon,
@@ -8,13 +9,9 @@ import {
   ShareNetworkIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
+import type * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-} from "@/components/ui/context-menu";
 import {
   Drawer,
   DrawerBody,
@@ -24,10 +21,11 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -77,17 +75,6 @@ export const ConversationActions = ({
   onExport: _onExport,
   onShare: _onShare,
 }: ConversationActionsProps) => {
-  const popoverStopPropagation = (e: React.MouseEvent) => {
-    e.stopPropagation();
-  };
-
-  const handleInteractOutside = (e: Event) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('[role="button"]')) {
-      e.preventDefault();
-    }
-  };
-
   if (conversation.isStreaming || isEditing || isBulkMode) {
     return null;
   }
@@ -100,7 +87,7 @@ export const ConversationActions = ({
             open={isMobilePopoverOpen}
             onOpenChange={onMobilePopoverChange}
           >
-            <DrawerTrigger asChild>
+            <DrawerTrigger>
               <Button
                 className={cn(
                   "h-8 w-8 text-foreground/70 transition-opacity hover:text-foreground",
@@ -172,7 +159,7 @@ export const ConversationActions = ({
           )}
         >
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 className="h-7 w-7 text-foreground/70 hover:text-foreground"
                 size="icon-sm"
@@ -190,49 +177,30 @@ export const ConversationActions = ({
             </TooltipContent>
           </Tooltip>
 
-          <Popover
+          <DropdownMenu
             open={isDesktopPopoverOpen}
             onOpenChange={onDesktopPopoverChange}
           >
-            <PopoverTrigger asChild>
-              <Button
-                className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground"
-                size="icon-sm"
-                variant="ghost"
-                onClick={popoverStopPropagation}
+            <DropdownMenuTrigger className="pointer-events-auto h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer">
+              <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={5} className="w-40">
+              <DropdownMenuItem
+                className="h-8 gap-2 px-2 text-xs"
+                onClick={() => onArchive()}
               >
-                <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              sideOffset={5}
-              className="w-40 p-1"
-              onClick={popoverStopPropagation}
-              onInteractOutside={handleInteractOutside}
-            >
-              <div className="flex flex-col gap-0.5">
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onArchive()}
-                >
-                  <ArchiveIcon className="h-3.5 w-3.5" />
-                  Archive
-                </Button>
-                <Button
-                  className="h-8 justify-start gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onDelete()}
-                >
-                  <TrashIcon className="h-3.5 w-3.5" />
-                  Delete
-                </Button>
-              </div>
-            </PopoverContent>
-          </Popover>
+                <ArchiveIcon className="h-3.5 w-3.5" />
+                Archive
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="h-8 gap-2 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                onClick={() => onDelete()}
+              >
+                <TrashIcon className="h-3.5 w-3.5" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </>
@@ -274,90 +242,155 @@ export const ConversationContextMenu = ({
   };
 
   return (
-    <ContextMenuContent className="w-48">
-      {showBatchActions ? (
-        <>
-          {/* Batch actions */}
-          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            {selectionCount} conversations selected
-          </div>
-          <ContextMenuSeparator />
+    <ContextMenu.Portal>
+      <ContextMenu.Positioner className="z-context-menu">
+        <ContextMenu.Popup
+          className={cn(
+            "min-w-[12rem] overflow-hidden rounded-md border bg-popover p-1 text-foreground shadow-lg",
+            "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
+            "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
+            "transition-[opacity,transform] duration-200"
+          )}
+        >
+          {showBatchActions ? (
+            <>
+              {/* Batch actions */}
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+                {selectionCount} conversations selected
+              </div>
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={() => handleBulkAction("export-json")}>
-            <FileCodeIcon className="h-4 w-4" />
-            Export selected as JSON
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("export-json")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileCodeIcon className="h-4 w-4" />
+                Export selected as JSON
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={() => handleBulkAction("archive")}>
-            <ArchiveIcon className="h-4 w-4" />
-            Archive selected
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("archive")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+                Archive selected
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => handleBulkAction("delete")}
-            className="text-destructive focus:text-destructive"
-          >
-            <TrashIcon className="h-4 w-4" />
-            Delete selected
-          </ContextMenuItem>
-        </>
-      ) : (
-        <>
-          {/* Single conversation actions */}
-          <ContextMenuItem onSelect={onPinToggle}>
-            <PushPinIcon
-              className="h-4 w-4"
-              weight={conversation.isPinned ? "fill" : "regular"}
-            />
-            {conversation.isPinned ? "Unpin" : "Pin"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => handleBulkAction("delete")}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "text-destructive focus:text-destructive"
+                )}
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete selected
+              </ContextMenu.Item>
+            </>
+          ) : (
+            <>
+              {/* Single conversation actions */}
+              <ContextMenu.Item
+                onSelect={onPinToggle}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <PushPinIcon
+                  className="h-4 w-4"
+                  weight={conversation.isPinned ? "fill" : "regular"}
+                />
+                {conversation.isPinned ? "Unpin" : "Pin"}
+              </ContextMenu.Item>
 
-          <ContextMenuItem onSelect={onStartEdit}>
-            <PencilSimpleIcon className="h-4 w-4" />
-            Edit title
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onStartEdit}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <PencilSimpleIcon className="h-4 w-4" />
+                Edit title
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={onShare}>
-            <ShareNetworkIcon className="h-4 w-4" />
-            Share
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onShare}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ShareNetworkIcon className="h-4 w-4" />
+                Share
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => onExport("md")}
-            disabled={exportingFormat === "md" || isDeleteJobInProgress}
-          >
-            <FileTextIcon className="h-4 w-4" />
-            {exportingFormat === "md" ? "Exporting..." : "Export as Markdown"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => onExport("md")}
+                disabled={exportingFormat === "md" || isDeleteJobInProgress}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileTextIcon className="h-4 w-4" />
+                {exportingFormat === "md"
+                  ? "Exporting..."
+                  : "Export as Markdown"}
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={() => onExport("json")}
-            disabled={exportingFormat === "json" || isDeleteJobInProgress}
-          >
-            <FileCodeIcon className="h-4 w-4" />
-            {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={() => onExport("json")}
+                disabled={exportingFormat === "json" || isDeleteJobInProgress}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <FileCodeIcon className="h-4 w-4" />
+                {exportingFormat === "json" ? "Exporting..." : "Export as JSON"}
+              </ContextMenu.Item>
 
-          <ContextMenuSeparator />
+              <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
-          <ContextMenuItem onSelect={onArchive}>
-            <ArchiveIcon className="h-4 w-4" />
-            Archive
-          </ContextMenuItem>
+              <ContextMenu.Item
+                onSelect={onArchive}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+                )}
+              >
+                <ArchiveIcon className="h-4 w-4" />
+                Archive
+              </ContextMenu.Item>
 
-          <ContextMenuItem
-            onSelect={onDelete}
-            className="text-destructive focus:text-destructive"
-          >
-            <TrashIcon className="h-4 w-4" />
-            Delete
-          </ContextMenuItem>
-        </>
-      )}
-    </ContextMenuContent>
+              <ContextMenu.Item
+                onSelect={onDelete}
+                className={cn(
+                  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
+                  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+                  "text-destructive focus:text-destructive"
+                )}
+              >
+                <TrashIcon className="h-4 w-4" />
+                Delete
+              </ContextMenu.Item>
+            </>
+          )}
+        </ContextMenu.Popup>
+      </ContextMenu.Positioner>
+    </ContextMenu.Portal>
   );
 };

@@ -339,7 +339,7 @@ export const PersonaForm = ({
                   open={isEmojiPickerOpen}
                   onOpenChange={setIsEmojiPickerOpen}
                 >
-                  <PopoverTrigger asChild>
+                  <PopoverTrigger>
                     <Button size="default" variant="outline">
                       <SmileyIcon className="mr-2 h-4 w-4" />
                       Choose Emoji
@@ -668,7 +668,7 @@ export const PersonaForm = ({
         </div>
       )}
       {isFullScreenEditor && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div className="fixed inset-0 z-modal flex flex-col bg-background">
           {/* Header */}
           <div className="flex flex-shrink-0 flex-col justify-between gap-3 border-b p-4 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex min-w-0 items-center justify-between gap-2 sm:justify-start sm:gap-4">

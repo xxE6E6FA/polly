@@ -178,7 +178,7 @@ const ModelCard = memo(
             {isUnavailable ? (
               onRemove ? (
                 <Tooltip>
-                  <TooltipTrigger asChild>
+                  <TooltipTrigger>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -215,7 +215,7 @@ const ModelCard = memo(
             const IconComponent = capability.icon;
             return (
               <Tooltip key={capability.label || `capability-${index}`}>
-                <TooltipTrigger asChild>
+                <TooltipTrigger>
                   <div
                     className={`flex h-6 w-6 items-center justify-center rounded transition-colors ${getCapabilityIconClassName(
                       isEnabled,
@@ -240,7 +240,7 @@ const ModelCard = memo(
           })}
           {(model.contextLength || model.contextWindow) && (
             <Tooltip>
-              <TooltipTrigger asChild>
+              <TooltipTrigger>
                 <div
                   className={`flex h-6 items-center justify-center rounded px-2 text-xs font-medium transition-colors ${getContextBadgeClassName(
                     isEnabled,
@@ -278,7 +278,7 @@ const ModelCard = memo(
           }`}
         >
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <span className="truncate">{model.modelId}</span>
             </TooltipTrigger>
             <TooltipContent>{model.modelId}</TooltipContent>

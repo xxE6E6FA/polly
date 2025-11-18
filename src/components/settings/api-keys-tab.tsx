@@ -268,7 +268,6 @@ export const ApiKeysTab = () => {
                 </div>
                 {!isConnected && (
                   <Button
-                    asChild
                     size="sm"
                     variant="ghost"
                     className="ml-3 h-8 shrink-0 px-3 text-xs"
@@ -360,7 +359,7 @@ export const ApiKeysTab = () => {
                 onValueChange={handleOpenRouterSortingChange}
               >
                 <SelectTrigger id="openrouter-sorting" className="w-full">
-                  <SelectValue placeholder="Select a sorting strategy" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">

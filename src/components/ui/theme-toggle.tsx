@@ -65,7 +65,7 @@ export const ThemeToggle = ({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger>
         <Button
           className={cn("transition-colors duration-150", className)}
           size={size}

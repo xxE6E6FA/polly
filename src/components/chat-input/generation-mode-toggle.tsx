@@ -25,15 +25,17 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
     const isImageModeDisabled =
       disabled || isPrivateMode || !hasReplicateApiKey;
 
-    const handleValueChange = (value: string) => {
-      if (value !== "text" && value !== "image") {
+    const handleValueChange = (value: string | readonly string[]) => {
+      // Convert array to string if needed (for single mode)
+      const stringValue = Array.isArray(value) ? value[0] : value;
+      if (stringValue !== "text" && stringValue !== "image") {
         return;
       }
-      if (value === "image" && (isPrivateMode || !hasReplicateApiKey)) {
+      if (stringValue === "image" && (isPrivateMode || !hasReplicateApiKey)) {
         return;
       }
-      if (value !== mode) {
-        onModeChange(value);
+      if (stringValue !== mode) {
+        onModeChange(stringValue);
       }
     };
 

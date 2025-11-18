@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 const NoModelsStateComponent = () => (
   <Tooltip open>
-    <TooltipTrigger asChild>
+    <TooltipTrigger>
       <Button
         disabled
         variant="ghost"

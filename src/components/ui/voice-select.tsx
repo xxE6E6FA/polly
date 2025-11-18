@@ -89,7 +89,7 @@ export function VoiceSelect({
       onValueChange={v => onChange(v === sentinelDefault ? undefined : v)}
     >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder={placeholder} />
+        <SelectValue />
       </SelectTrigger>
       <SelectContent>
         {includeDefaultItem && (

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { AnimatedLogo } from "@/components/ui/animated-logo";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 
 type NotFoundPageProps = {
   title?: string;
@@ -27,9 +27,9 @@ export const NotFoundPage = ({
           </div>
         </div>
 
-        <Button asChild size="lg">
-          <Link to="/">New Chat</Link>
-        </Button>
+        <Link to="/" className={buttonVariants({ size: "lg" })}>
+          New Chat
+        </Link>
       </div>
     </div>
   );

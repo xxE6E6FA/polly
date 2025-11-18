@@ -29,7 +29,7 @@ import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ChatMessage, ConversationId } from "@/types";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import {
   Drawer,
@@ -267,13 +267,13 @@ const ChatHeaderComponent = ({
         "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
         !isSidebarVisible && "pl-12 sm:pl-14",
         isSidebarVisible && "transition-[padding] duration-300 ease-out",
-        "z-10"
+        "z-sidebar"
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
         {persona && (
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Badge
                 className="flex-shrink-0 cursor-default gap-1.5"
                 variant="info"
@@ -293,7 +293,7 @@ const ChatHeaderComponent = ({
         {conversationId && Array.isArray(branches) && branches.length > 1 && (
           <div>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger>
                 <Button variant="outline" size="sm" className="h-7">
                   <span className="text-xxs">
                     {getBranchLabel(
@@ -373,20 +373,17 @@ const ChatHeaderComponent = ({
       {/* Only show actions for authenticated users */}
       {user && !user.isAnonymous && (
         <div className="flex items-center gap-1 sm:gap-1.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
+          <Link
+            to={ROUTES.HOME}
             aria-label="More actions"
-            asChild
+            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
           >
-            <Link to={ROUTES.HOME}>
-              <NotePencilIcon className="h-4 w-4" />
-            </Link>
-          </Button>
+            <NotePencilIcon className="h-4 w-4" />
+          </Link>
           {/* Desktop menu */}
           <div className="hidden sm:block">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -451,7 +448,7 @@ const ChatHeaderComponent = ({
           {/* Mobile drawer */}
           <div className="sm:hidden">
             <Drawer>
-              <DrawerTrigger asChild>
+              <DrawerTrigger>
                 <Button
                   variant="ghost"
                   size="icon-sm"

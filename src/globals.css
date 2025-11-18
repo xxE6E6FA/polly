@@ -195,6 +195,20 @@
   --ease-expand: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-smooth: cubic-bezier(0.33, 1, 0.68, 1);
 
+  /* Z-Index Scale - Layered from bottom to top */
+  --z-content: 0;
+  --z-backdrop: 5;
+  --z-sidebar: 10;
+  --z-chat-input: 20;
+  --z-sticky: 30;
+  --z-select: 40;
+  --z-popover: 50;
+  --z-drawer: 60;
+  --z-tooltip: 70;
+  --z-modal: 80;
+  --z-command-palette: 90;
+  --z-context-menu: 100;
+
   /* Colors - Light Mode Defaults (Grok Minimal) */
   --color-border: hsl(0 0% 75%);
   --color-input: hsl(0 0% 100%);
@@ -204,7 +218,7 @@
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(0 0% 4%);
   --color-foreground-focus: hsl(0 0% 2%);
-  --color-highlight: hsl(214.6 79.1% 62.5%);
+  --color-highlight: hsl(0 0% 16%);
   --color-highlight-foreground: hsl(0 0% 100%);
   --color-card: hsl(0 0% 98%);
   --color-card-foreground: hsl(0 0% 4%);
@@ -231,8 +245,8 @@
   --color-muted-foreground: hsl(0 0% 45.1%);
 
   /* Accent Colors (Use Sparingly) */
-  --color-accent: hsl(214.6 60% 45%);
-  --color-accent-foreground: hsl(0 0% 100%);
+  --color-accent: hsl(0 0% 96.1%);
+  --color-accent-foreground: hsl(0 0% 9%);
   --color-accent-coral: hsl(22 100% 51.6%);
   --color-accent-orange: hsl(22 100% 51.6%);
   --color-accent-purple: hsl(263 70% 50.4%);
@@ -305,6 +319,60 @@
   --color-chart-3: hsl(197 37% 24%);
   --color-chart-4: hsl(43 74% 66%);
   --color-chart-5: hsl(27 87% 67%);
+
+  /* Z-Index Utilities */
+  --z-index-content: var(--z-content);
+  --z-index-backdrop: var(--z-backdrop);
+  --z-index-sidebar: var(--z-sidebar);
+  --z-index-chat-input: var(--z-chat-input);
+  --z-index-sticky: var(--z-sticky);
+  --z-index-select: var(--z-select);
+  --z-index-popover: var(--z-popover);
+  --z-index-drawer: var(--z-drawer);
+  --z-index-tooltip: var(--z-tooltip);
+  --z-index-modal: var(--z-modal);
+  --z-index-command-palette: var(--z-command-palette);
+  --z-index-context-menu: var(--z-context-menu);
+}
+
+/* Z-Index Utilities */
+@layer utilities {
+  .z-content {
+    z-index: var(--z-content);
+  }
+  .z-backdrop {
+    z-index: var(--z-backdrop);
+  }
+  .z-sidebar {
+    z-index: var(--z-sidebar);
+  }
+  .z-chat-input {
+    z-index: var(--z-chat-input);
+  }
+  .z-sticky {
+    z-index: var(--z-sticky);
+  }
+  .z-select {
+    z-index: var(--z-select);
+  }
+  .z-popover {
+    z-index: var(--z-popover);
+  }
+  .z-drawer {
+    z-index: var(--z-drawer);
+  }
+  .z-tooltip {
+    z-index: var(--z-tooltip);
+  }
+  .z-modal {
+    z-index: var(--z-modal);
+  }
+  .z-command-palette {
+    z-index: var(--z-command-palette);
+  }
+  .z-context-menu {
+    z-index: var(--z-context-menu);
+  }
 }
 
 /* Keyframes for animations */
@@ -1166,7 +1234,7 @@ pre {
     transparent 75%
   );
   animation: private-mode-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 0;
+  z-index: var(--z-content);
 }
 
 .dark .private-mode-background::before {
@@ -1183,7 +1251,7 @@ pre {
 
 .private-mode-background > * {
   position: relative;
-  z-index: 1;
+  z-index: var(--z-sidebar);
 }
 
 /* Fade in with upward movement animation */
@@ -1544,6 +1612,7 @@ pre {
 .chat-input-container {
   position: relative;
   overflow: hidden;
+  z-index: var(--z-chat-input);
   --chat-input-border-width: 1px;
   --chat-input-padding-x: 0.5rem;
   --chat-input-padding-y: 0.5rem;
@@ -1580,7 +1649,6 @@ pre {
     background-color 180ms ease,
     border-color 180ms ease,
     transform 280ms ease;
-  will-change: transform;
 }
 
 /* Hover state - clean, no glow */
@@ -1612,11 +1680,10 @@ pre {
   backdrop-filter: blur(6px);
   /* Transition colors subtly and prep for transform/shadow */
   transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
+    background-color 280ms ease,
+    border-color 280ms ease,
     transform 280ms ease,
     box-shadow 280ms ease;
-  will-change: transform, box-shadow;
 }
 
 /* Hover state - subtle enhancement */
@@ -1638,7 +1705,6 @@ pre {
 
 /* Simplified transition when the textarea is transitioning (both enter/exit) */
 .chat-input-container:has(textarea[data-transitioning="true"]) {
-  transform: scale(1.002);
   transition-timing-function: cubic-bezier(0.2, 0.85, 0.3, 1.05);
 }
 
@@ -1761,14 +1827,15 @@ pre {
 .chat-input-footer-backdrop::before {
   content: "";
   position: absolute;
-  inset-inline: 0;
+  left: 0;
+  right: 0;
   bottom: 0;
   top: var(--radius-xl);
   background: var(--color-background);
   border-top-left-radius: var(--chat-input-outer-radius);
   border-top-right-radius: var(--chat-input-outer-radius);
   pointer-events: none;
-  z-index: -1;
+  z-index: calc(var(--z-chat-input) - 1);
 }
 
 /* Chat Input States */
@@ -1985,7 +2052,7 @@ pre {
   vertical-align: super;
   position: relative;
   margin: 0 1px;
-  z-index: 10;
+  z-index: var(--z-sidebar);
   user-select: none;
   color: var(--color-muted-foreground);
   background: var(--color-muted);

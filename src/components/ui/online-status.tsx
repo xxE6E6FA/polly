@@ -106,7 +106,7 @@ export function OnlineStatus({
   if (variant === "floating") {
     return (
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger>
           <div className="fixed bottom-4 right-4 z-40 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {statusContent}
           </div>
@@ -120,7 +120,7 @@ export function OnlineStatus({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>{statusContent}</TooltipTrigger>
+      <TooltipTrigger>{statusContent}</TooltipTrigger>
       <TooltipContent>
         <p>{tooltipContent}</p>
       </TooltipContent>

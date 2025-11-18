@@ -211,8 +211,8 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
       <div className={className}>
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger asChild>
+            <TooltipTrigger>
+              <PopoverTrigger>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -239,7 +239,6 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
             </TooltipContent>
           </Tooltip>
           <PopoverContent
-            forceMount
             data-debug-id="ImageGenerationSettings"
             className="flex w-80 max-h-[50vh] flex-col overflow-hidden border border-border/50 bg-popover p-4"
             align="end"

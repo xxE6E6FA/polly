@@ -83,7 +83,10 @@ export const SettingsContainer = ({
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
       {/* Mobile Navigation */}
       <div className="mb-6 sm:hidden">
-        <Select value={location.pathname} onValueChange={navigate}>
+        <Select
+          value={location.pathname}
+          onValueChange={(value: string) => navigate(value)}
+        >
           <SelectTrigger className="w-full">
             <SelectValue>
               {currentItem && (

@@ -196,7 +196,7 @@ export default function FavoritesPage() {
                     </div>
                     <div className="flex items-center gap-1 ml-2">
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -213,7 +213,7 @@ export default function FavoritesPage() {
                         <TooltipContent>Open conversation</TooltipContent>
                       </Tooltip>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button
                             variant="ghost"
                             size="icon-sm"
@@ -226,7 +226,7 @@ export default function FavoritesPage() {
                         <TooltipContent>Copy message</TooltipContent>
                       </Tooltip>
                       <Tooltip>
-                        <TooltipTrigger asChild>
+                        <TooltipTrigger>
                           <Button
                             variant="ghost"
                             size="icon-sm"

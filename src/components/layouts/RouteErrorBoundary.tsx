@@ -1,7 +1,7 @@
 import { WarningIcon } from "@phosphor-icons/react";
 import { isRouteErrorResponse, Link, useRouteError } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
 
 export const RouteErrorBoundary = () => {
@@ -17,9 +17,9 @@ export const RouteErrorBoundary = () => {
             <p className="mb-8 text-muted-foreground">
               The page you're looking for doesn't exist.
             </p>
-            <Button asChild>
-              <Link to={ROUTES.HOME}>Go Home</Link>
-            </Button>
+            <Link to={ROUTES.HOME} className={buttonVariants()}>
+              Go Home
+            </Link>
           </div>
         </div>
       );
@@ -35,9 +35,9 @@ export const RouteErrorBoundary = () => {
           {error.data?.message && (
             <p className="mb-8 text-muted-foreground">{error.data.message}</p>
           )}
-          <Button asChild>
-            <Link to={ROUTES.HOME}>Go Home</Link>
-          </Button>
+          <Link to={ROUTES.HOME} className={buttonVariants()}>
+            Go Home
+          </Link>
         </div>
       </div>
     );

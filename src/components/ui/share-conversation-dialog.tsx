@@ -51,7 +51,7 @@ export const ShareConversationDialog = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>{children}</DialogTrigger>
+        <DialogTrigger>{children}</DialogTrigger>
       </Dialog>
       <ControlledShareConversationDialog
         conversationId={conversationId}
@@ -216,7 +216,7 @@ export const ControlledShareConversationDialog = ({
                   />
                   <div className="absolute right-2 top-1/2 flex -translate-y-1/2">
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger>
                         <Button
                           disabled={isCopied}
                           size="sm"
@@ -241,7 +241,7 @@ export const ControlledShareConversationDialog = ({
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger>
                         <Button
                           className="h-8 w-8 p-0"
                           size="sm"

@@ -46,7 +46,7 @@ export const ImageViewToggle: React.FC<ImageViewToggleProps> = ({
       <div className="flex justify-end mb-3">
         <div className="flex bg-black/60 rounded-lg p-1 gap-1 z-10">
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 variant="ghost"
                 size="sm"
@@ -71,7 +71,7 @@ export const ImageViewToggle: React.FC<ImageViewToggleProps> = ({
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger asChild>
+            <TooltipTrigger>
               <Button
                 variant="ghost"
                 size="sm"

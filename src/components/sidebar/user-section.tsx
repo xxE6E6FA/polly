@@ -1,6 +1,5 @@
 import type { Doc } from "@convex/types";
 import {
-  CheckIcon,
   GearIcon,
   MonitorIcon,
   MoonIcon,
@@ -56,16 +55,6 @@ const UserSectionContent = ({
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
 
-  const handleSignOut = () => {
-    navigate("/signout");
-  };
-
-  const handleThemeChange = (value: string) => {
-    if (value === "light" || value === "dark" || value === "system") {
-      setTheme(value);
-    }
-  };
-
   if (!isAuthenticated) {
     return (
       <div className="border-t border-border/50">
@@ -85,59 +74,53 @@ const UserSectionContent = ({
   return (
     <div className="border-t border-border/50">
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm"
-            variant="ghost"
-          >
-            {user?.image ? (
-              <img
-                alt={user.name || "User avatar"}
-                className={cn(
-                  "h-6 w-6 rounded-full object-cover",
-                  shouldAnonymize && "blur-sm"
-                )}
-                loading="lazy"
-                src={user.image}
-                onError={e => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = "none";
-                  const fallback = target.nextElementSibling as HTMLElement;
-                  if (fallback) {
-                    fallback.style.display = "flex";
-                  }
-                }}
-              />
-            ) : (
-              <div
-                className={cn(
-                  "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
-                  shouldAnonymize && "blur-sm"
-                )}
-              >
-                <UserIcon className="h-3 w-3 text-white" />
-              </div>
-            )}
-            <span
+        <DropdownMenuTrigger className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm hover:bg-accent hover:text-accent-foreground transition-colors border-0 bg-transparent flex items-center text-left">
+          {user?.image ? (
+            <img
+              alt={user.name || "User avatar"}
               className={cn(
-                "truncate text-foreground",
-                shouldAnonymize && "blur-md"
+                "h-6 w-6 rounded-full object-cover",
+                shouldAnonymize && "blur-sm"
+              )}
+              loading="lazy"
+              src={user.image}
+              onError={e => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const fallback = target.nextElementSibling as HTMLElement;
+                if (fallback) {
+                  fallback.style.display = "flex";
+                }
+              }}
+            />
+          ) : (
+            <div
+              className={cn(
+                "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
+                shouldAnonymize && "blur-sm"
               )}
             >
-              {user?.name || user?.email || "User"}
-            </span>
-          </Button>
+              <UserIcon className="h-3 w-3 text-white" />
+            </div>
+          )}
+          <span
+            className={cn(
+              "truncate text-foreground",
+              shouldAnonymize && "blur-md"
+            )}
+          >
+            {user?.name || user?.email || "User"}
+          </span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-48">
-          <DropdownMenuItem asChild>
-            <Link
-              to={ROUTES.SETTINGS.ROOT}
-              onMouseEnter={preloadSettings}
-              className="w-full"
-            >
-              <GearIcon className="h-4 w-4" />
-              Settings
-            </Link>
+        <DropdownMenuContent
+          sideOffset={4}
+          align="center"
+          side="top"
+          className="w-48"
+        >
+          <DropdownMenuItem onClick={() => navigate(ROUTES.SETTINGS.ROOT)}>
+            <GearIcon className="h-4 w-4" />
+            Settings
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
@@ -147,54 +130,35 @@ const UserSectionContent = ({
             <DropdownMenuSubContent>
               <DropdownMenuRadioGroup
                 value={theme}
-                onValueChange={handleThemeChange}
+                onValueChange={value => {
+                  if (
+                    value === "light" ||
+                    value === "dark" ||
+                    value === "system"
+                  ) {
+                    setTheme(value);
+                  }
+                }}
               >
-                <DropdownMenuRadioItem
-                  value="light"
-                  className={cn(
-                    "pl-2",
-                    theme === "light" &&
-                      "bg-muted font-medium [&>span:first-child]:hidden"
-                  )}
-                >
-                  <SunIcon className="mr-2 h-4 w-4" />
-                  <span>Light</span>
-                  {theme === "light" && (
-                    <CheckIcon className="ml-auto h-4 w-4" />
-                  )}
+                <DropdownMenuRadioItem value="light">
+                  <SunIcon className="h-4 w-4" />
+                  Light
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem
-                  value="dark"
-                  className={cn(
-                    "pl-2",
-                    theme === "dark" &&
-                      "bg-muted font-medium [&>span:first-child]:hidden"
-                  )}
-                >
-                  <MoonIcon className="mr-2 h-4 w-4" />
-                  <span>Dark</span>
-                  {theme === "dark" && (
-                    <CheckIcon className="ml-auto h-4 w-4" />
-                  )}
+                <DropdownMenuRadioItem value="dark">
+                  <MoonIcon className="h-4 w-4" />
+                  Dark
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem
-                  value="system"
-                  className={cn(
-                    "pl-2",
-                    theme === "system" &&
-                      "bg-muted font-medium [&>span:first-child]:hidden"
-                  )}
-                >
-                  <MonitorIcon className="mr-2 h-4 w-4" />
-                  <span>System</span>
-                  {theme === "system" && (
-                    <CheckIcon className="ml-auto h-4 w-4" />
-                  )}
+                <DropdownMenuRadioItem value="system">
+                  <MonitorIcon className="h-4 w-4" />
+                  System
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
-          <DropdownMenuItem onClick={handleSignOut} className="text-danger">
+          <DropdownMenuItem
+            onClick={() => navigate("/signout")}
+            className="text-danger"
+          >
             <SignOutIcon className="h-4 w-4" />
             Sign Out
           </DropdownMenuItem>

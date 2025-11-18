@@ -73,7 +73,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
   if (user?.isAnonymous) {
     return (
       <Drawer>
-        <DrawerTrigger asChild>
+        <DrawerTrigger>
           <Button
             variant="ghost"
             size="sm"
@@ -105,7 +105,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger asChild>
+      <DrawerTrigger>
         <Button
           variant="ghost"
           size="sm"

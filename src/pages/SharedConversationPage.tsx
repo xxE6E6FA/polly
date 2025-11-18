@@ -126,7 +126,6 @@ export default function SharedConversationPage() {
                   size="icon-sm"
                 />
                 <Button
-                  asChild
                   size="sm"
                   variant="primary"
                   className="w-full sm:w-auto sm:px-4"
