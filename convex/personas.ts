@@ -421,22 +421,25 @@ export const listAllForSettings = query({
       return [];
     }
 
-    // Get ALL user personas (both active and inactive)
+    // Get ALL user personas (both active and inactive) and sort by creation time to maintain stable order
     const activePersonas = await ctx.db
       .query("personas")
       .withIndex("by_user_active", q =>
         q.eq("userId", userId).eq("isActive", true)
       )
-      .take(100);
+      .collect();
 
     const inactivePersonas = await ctx.db
       .query("personas")
       .withIndex("by_user_active", q =>
         q.eq("userId", userId).eq("isActive", false)
       )
-      .take(100);
+      .collect();
 
-    return [...activePersonas, ...inactivePersonas];
+    // Combine and sort by creation time to maintain stable ordering regardless of active status
+    return [...activePersonas, ...inactivePersonas].sort(
+      (a, b) => a._creationTime - b._creationTime
+    );
   },
 });
 

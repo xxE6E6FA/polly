@@ -135,22 +135,29 @@ export const PersonasTab = () => {
     return [...builtInEnriched, ...customEnriched];
   }, [allBuiltInPersonas, personas, isPersonaDisabled]);
 
-  // Sorting
+  // Sorting with stable secondary sort by creation time
   const { sortField, sortDirection, toggleSort, sortItems } = useListSort<
     SortField,
     EnrichedPersona
-  >("type", "asc", (persona, field) => {
-    if (field === "name") {
-      return persona.name.toLowerCase();
-    }
-    if (field === "type") {
-      return persona.type === "built-in" ? 0 : 1;
-    }
-    return "";
-  });
+  >(
+    "type",
+    "asc",
+    (persona, field) => {
+      if (field === "name") {
+        return persona.name.toLowerCase();
+      }
+      if (field === "type") {
+        return persona.type === "built-in" ? 0 : 1;
+      }
+      return "";
+    },
+    persona => persona._creationTime
+  );
 
-  // Apply sorting to personas
-  const sortedPersonas = sortItems(enrichedPersonas);
+  const sortedPersonas = useMemo(
+    () => sortItems(enrichedPersonas),
+    [sortItems, enrichedPersonas]
+  );
 
   // Handlers
   const handleDeletePersona = useCallback(
@@ -204,17 +211,29 @@ export const PersonasTab = () => {
       sortable: true,
       sortField: "name",
       width: "minmax(200px, 1fr)",
-      render: persona => (
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xl flex-shrink-0">{persona.icon || "🤖"}</span>
-          <div className="min-w-0 flex-1">
-            <div className="font-medium truncate">{persona.name}</div>
-            <div className="text-sm text-muted-foreground line-clamp-2">
-              {persona.description}
+      render: persona => {
+        const isDisabled =
+          persona.type === "built-in" ? persona.isDisabled : !persona.isActive;
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className={`text-xl flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
+            >
+              {persona.icon || "🤖"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div
+                className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}
+              >
+                {persona.name}
+              </div>
+              <div className="text-sm text-muted-foreground line-clamp-2">
+                {persona.description}
+              </div>
             </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: "type",
@@ -380,19 +399,31 @@ export const PersonasTab = () => {
                 onSort: toggleSort,
               }}
               sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-              mobileTitleRender={persona => (
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-lg flex-shrink-0">
-                    {persona.icon || "🤖"}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate">{persona.name}</div>
-                    <div className="text-xs text-muted-foreground line-clamp-1">
-                      {persona.description}
+              mobileTitleRender={persona => {
+                const isDisabled =
+                  persona.type === "built-in"
+                    ? persona.isDisabled
+                    : !persona.isActive;
+                return (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`text-lg flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
+                    >
+                      {persona.icon || "🤖"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}
+                      >
+                        {persona.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground line-clamp-1">
+                        {persona.description}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                );
+              }}
               mobileActionsRender={persona => (
                 <>
                   {persona.type === "custom" && (
