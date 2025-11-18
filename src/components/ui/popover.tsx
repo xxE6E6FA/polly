@@ -1,35 +1,44 @@
-import * as PopoverPrimitive from "@radix-ui/react-popover";
+import * as Popover from "@base-ui-components/react/popover";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Popover = PopoverPrimitive.Root;
+const PopoverRoot = Popover.Root;
 
-const PopoverTrigger = PopoverPrimitive.Trigger;
+const PopoverTrigger = Popover.Trigger;
 
-const PopoverPortal = PopoverPrimitive.Portal;
+const PopoverPortal = Popover.Portal;
 
 type PopoverContentProps = React.ComponentPropsWithoutRef<
-  typeof PopoverPrimitive.Content
->;
+  typeof Popover.Popup
+> & {
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
+  sideOffset?: number;
+};
 
 const popoverContentBaseClasses =
-  "z-[80] w-72 rounded-md border border-border bg-popover text-foreground shadow-lg outline-none transition-[background-color,border-color,color,box-shadow,opacity] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0";
+  "z-[80] w-72 rounded-md border border-border bg-popover text-foreground shadow-lg outline-none transition-[background-color,border-color,color,box-shadow,opacity] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0";
 
 const PopoverContent = React.forwardRef<
-  React.ElementRef<typeof PopoverPrimitive.Content>,
+  React.ElementRef<typeof Popover.Popup>,
   PopoverContentProps
->(({ className, align = "center", sideOffset = 4, ...props }, ref) => (
-  <PopoverPortal>
-    <PopoverPrimitive.Content
-      ref={ref}
-      align={align}
-      sideOffset={sideOffset}
-      className={cn(popoverContentBaseClasses, className)}
-      {...props}
-    />
-  </PopoverPortal>
-));
-PopoverContent.displayName = PopoverPrimitive.Content.displayName;
+>(
+  (
+    { className, align = "center", side = "bottom", sideOffset = 4, ...props },
+    ref
+  ) => (
+    <PopoverPortal>
+      <Popover.Positioner side={side} align={align} sideOffset={sideOffset}>
+        <Popover.Popup
+          ref={ref}
+          className={cn(popoverContentBaseClasses, className)}
+          {...props}
+        />
+      </Popover.Positioner>
+    </PopoverPortal>
+  )
+);
+PopoverContent.displayName = "PopoverContent";
 
-export { Popover, PopoverTrigger, PopoverContent };
+export { PopoverRoot as Popover, PopoverTrigger, PopoverContent };

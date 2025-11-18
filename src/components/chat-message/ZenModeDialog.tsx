@@ -1,4 +1,3 @@
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   useCallback,
   useEffect,
@@ -8,7 +7,12 @@ import {
   useState,
 } from "react";
 import { Citations } from "@/components/citations";
-import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogOverlay,
+  DialogPortal,
+  DialogContent,
+} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types";
@@ -273,7 +277,7 @@ export const ZenModeDialog = ({
     <Dialog open={internalOpen} onOpenChange={handleDialogOpenChange}>
       <DialogPortal>
         <DialogOverlay className="fixed inset-0 z-[60] bg-foreground/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:duration-300 data-[state=closed]:duration-200" />
-        <DialogPrimitive.Content
+        <DialogContent
           className={cn(
             "fixed inset-0 z-[70] m-0 flex h-full w-full flex-col overflow-hidden p-0",
             "transform-gpu origin-bottom sm:origin-center",
@@ -368,7 +372,7 @@ export const ZenModeDialog = ({
               </section>
             </div>
           </div>
-        </DialogPrimitive.Content>
+        </DialogContent>
       </DialogPortal>
     </Dialog>
   );
