@@ -8,6 +8,7 @@ import {
   ArrowUpIcon,
   CheckIcon,
   CopyIcon,
+  DotsThreeIcon,
   GitBranchIcon,
   HeartIcon,
   NotePencilIcon,
@@ -964,30 +965,15 @@ function getTTSTooltip(ttsState: TtsState): string {
   return "Listen";
 }
 
-function getTTSAriaLabel(ttsState: TtsState): string {
+// Helper to render TTS icon in dropdown menu item
+function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
-    return "Cancel TTS generation";
+    return <Spinner size="sm" className="h-4 w-4 mr-2" />;
   }
   if (ttsState === "playing") {
-    return "Stop audio playback";
+    return <SquareIcon className="h-4 w-4 mr-2 text-red-500" weight="fill" />;
   }
-  return "Listen to assistant response";
-}
-
-function getTTSIcon(ttsState: TtsState): React.ReactNode {
-  if (ttsState === "loading") {
-    return <Spinner size="sm" className="h-3.5 w-3.5" />;
-  }
-  if (ttsState === "playing") {
-    return (
-      <SquareIcon
-        className="h-3.5 w-3.5 text-red-500"
-        weight="fill"
-        aria-hidden="true"
-      />
-    );
-  }
-  return <SpeakerHighIcon className="h-3.5 w-3.5" aria-hidden="true" />;
+  return <SpeakerHighIcon className="h-4 w-4 mr-2" />;
 }
 
 type MessageActionsProps = {
@@ -1196,64 +1182,96 @@ export const MessageActions = memo(
       className
     );
 
+    // Check if we have overflow actions
+    const hasOverflowActions =
+      (!isPrivateMode && messageId && conversationId) || // Branch action
+      (!isPrivateMode && messageId && !messageId.startsWith("private-")) || // Favorite action
+      (!isUser && messageId) || // TTS action
+      (!isUser && onOpenZenMode) || // Zen mode action
+      onEditMessage; // Edit action
+
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
-          {/* Branch from this message */}
-          {!isPrivateMode && messageId && conversationId && (
-            <BranchAction
-              conversationId={conversationId}
-              messageId={messageId}
-              onSuccess={newConversationId => {
-                navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-              }}
-            />
+          {/* Overflow menu for less frequently used actions */}
+          {hasOverflowActions && (
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger>
+                  <DropdownMenuTrigger>
+                    <Button
+                      className={cn(
+                        "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                        "motion-safe:hover:scale-105",
+                        "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                      )}
+                      disabled={isEditing}
+                      size="sm"
+                      variant="ghost"
+                      aria-label="More actions"
+                    >
+                      <DotsThreeIcon
+                        className="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>More actions</p>
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                {onEditMessage && (
+                  <DropdownMenuItem onClick={onEditMessage}>
+                    <NotePencilIcon className="h-4 w-4 mr-2" />
+                    Edit message
+                  </DropdownMenuItem>
+                )}
+
+                {!isPrivateMode && messageId && conversationId && (
+                  <BranchActionMenuItem
+                    conversationId={conversationId}
+                    messageId={messageId}
+                    onSuccess={newConversationId => {
+                      navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+                    }}
+                  />
+                )}
+
+                {!isPrivateMode &&
+                  messageId &&
+                  !messageId.startsWith("private-") && (
+                    <DropdownMenuItem onClick={handleToggleFavorite}>
+                      <HeartIcon
+                        className={cn(
+                          "h-4 w-4 mr-2",
+                          isFavorited && "text-destructive"
+                        )}
+                        weight={isFavorited ? "fill" : "regular"}
+                      />
+                      {isFavorited ? "Unfavorite" : "Favorite"}
+                    </DropdownMenuItem>
+                  )}
+
+                {!isUser && messageId && (
+                  <DropdownMenuItem onClick={handleTTS}>
+                    {getTTSIconForDropdown(ttsState)}
+                    {getTTSTooltip(ttsState)}
+                  </DropdownMenuItem>
+                )}
+
+                {!isUser && onOpenZenMode && (
+                  <DropdownMenuItem onClick={onOpenZenMode}>
+                    <TextAaIcon className="h-4 w-4 mr-2" />
+                    Zen mode
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
 
-          {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
-            <ActionButton
-              disabled={isEditing}
-              tooltip={isFavorited ? "Unfavorite" : "Favorite"}
-              ariaLabel={
-                isFavorited ? "Remove from favorites" : "Add to favorites"
-              }
-              icon={
-                isFavorited ? (
-                  <HeartIcon
-                    className="h-3.5 w-3.5 text-destructive"
-                    weight="fill"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <HeartIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                )
-              }
-              onClick={handleToggleFavorite}
-            />
-          )}
-          {!isUser && messageId && (
-            <ActionButton
-              disabled={isEditing}
-              tooltip={getTTSTooltip(ttsState)}
-              ariaLabel={getTTSAriaLabel(ttsState)}
-              icon={getTTSIcon(ttsState)}
-              onClick={handleTTS}
-              className={
-                ttsState === "playing"
-                  ? "hover:bg-red-50 dark:hover:bg-red-950/20"
-                  : undefined
-              }
-            />
-          )}
-          {!isUser && onOpenZenMode && (
-            <ActionButton
-              disabled={isEditing}
-              tooltip="Zen mode"
-              ariaLabel="Open this message in Zen Mode"
-              icon={<TextAaIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-              onClick={onOpenZenMode}
-            />
-          )}
+          {/* Primary actions: Copy, Retry, Delete */}
           <ActionButton
             disabled={isEditing}
             tooltip="Copy message"
@@ -1271,18 +1289,6 @@ export const MessageActions = memo(
             }
             onClick={copyToClipboard}
           />
-
-          {onEditMessage && (
-            <ActionButton
-              disabled={isEditing}
-              icon={
-                <NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              }
-              tooltip="Edit message"
-              ariaLabel="Edit this message"
-              onClick={onEditMessage}
-            />
-          )}
 
           {onRetryMessage && (
             <RetryDropdown
@@ -1347,8 +1353,8 @@ export const MessageActions = memo(
 
 MessageActions.displayName = "MessageActions";
 
-// Inline component to keep branch UI self-contained here
-function BranchAction({
+// Branch action as a dropdown menu item
+function BranchActionMenuItem({
   conversationId,
   messageId,
   onSuccess,
@@ -1421,12 +1427,10 @@ function BranchAction({
 
   return (
     <>
-      <ActionButton
-        tooltip="Branch from here"
-        ariaLabel="Create a new branch from this message"
-        icon={<GitBranchIcon className="h-3.5 w-3.5" aria-hidden="true" />}
-        onClick={() => setOpen(true)}
-      />
+      <DropdownMenuItem onClick={() => setOpen(true)}>
+        <GitBranchIcon className="h-4 w-4 mr-2" />
+        Branch from here
+      </DropdownMenuItem>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
