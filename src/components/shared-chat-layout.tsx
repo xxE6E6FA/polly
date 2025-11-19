@@ -78,12 +78,8 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
       )}
     >
       <Sidebar forceHidden={isPrivateMode} />
-
-      {/* Private Mode Header */}
       <PrivateModeHeader />
-
-      {/* Private Toggle - Visible when NOT in private mode */}
-      {!isPrivateMode && <PrivateToggle />}
+      <PrivateToggle />
 
       <main
         className={cn(

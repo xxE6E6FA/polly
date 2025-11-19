@@ -373,13 +373,6 @@ const ChatHeaderComponent = ({
       {/* Only show actions for authenticated users */}
       {user && !user.isAnonymous && (
         <div className="flex items-center gap-1 sm:gap-1.5">
-          <Link
-            to={ROUTES.HOME}
-            aria-label="More actions"
-            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-          >
-            <NotePencilIcon className="h-4 w-4" />
-          </Link>
           {/* Desktop menu */}
           <div className="hidden sm:block">
             <DropdownMenu>

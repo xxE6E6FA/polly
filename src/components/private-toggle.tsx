@@ -21,6 +21,10 @@ export const PrivateToggle = () => {
     togglePrivateMode();
   };
 
+  if (!isPrivateMode || location.pathname.startsWith("/chat")) {
+    return null;
+  }
+
   return (
     <div className="absolute top-4 right-4 z-50">
       <Tooltip>
