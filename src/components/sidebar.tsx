@@ -1,5 +1,9 @@
 import { api } from "@convex/_generated/api";
-import { HeartIcon, SidebarSimple } from "@phosphor-icons/react";
+import {
+  HeartIcon,
+  NotePencilIcon,
+  SidebarSimpleIcon,
+} from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -25,7 +29,8 @@ const SHADOW_HEIGHT = 6;
 
 export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [shadowHeight, setShadowHeight] = useState(0);
+  const [topShadow, setTopShadow] = useState(0);
+  const [bottomShadow, setBottomShadow] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const resizeRef = useRef<HTMLDivElement>(null);
   const [isScrollHovered, setIsScrollHovered] = useState(false);
@@ -76,14 +81,15 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     const isScrollable = scrollHeight > clientHeight;
 
     if (isScrollable) {
-      const topShadow = scrollTop > SCROLL_THRESHOLD ? SHADOW_HEIGHT : 0;
-      const bottomShadow =
+      setTopShadow(scrollTop > SCROLL_THRESHOLD ? SHADOW_HEIGHT : 0);
+      setBottomShadow(
         scrollTop < scrollHeight - clientHeight - SCROLL_THRESHOLD
           ? SHADOW_HEIGHT
-          : 0;
-      setShadowHeight(Math.max(topShadow, bottomShadow));
+          : 0
+      );
     } else {
-      setShadowHeight(0);
+      setTopShadow(0);
+      setBottomShadow(0);
     }
   }, []);
 
@@ -179,16 +185,18 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     () =>
       ({
         "--sidebar-width": `${sidebarWidth}px`,
-        "--shadow-height": `${shadowHeight}px`,
+        "--shadow-height-top": `${topShadow}px`,
+        "--shadow-height-bottom": `${bottomShadow}px`,
       }) as React.CSSProperties,
-    [sidebarWidth, shadowHeight]
+    [sidebarWidth, topShadow, bottomShadow]
   );
 
   const scrollContainerStyle = useMemo(() => {
     return {
-      "--shadow-height": `${shadowHeight}px`,
+      "--shadow-height-top": `${topShadow}px`,
+      "--shadow-height-bottom": `${bottomShadow}px`,
     } as React.CSSProperties;
-  }, [shadowHeight]);
+  }, [topShadow, bottomShadow]);
 
   return (
     <>
@@ -203,10 +211,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 bg-card dark:bg-card",
-          isSidebarVisible &&
-            !forceHidden &&
-            "dark:border-r dark:border-border",
+          "fixed inset-y-0 left-0 z-40 bg-sidebar dark:bg-sidebar border-r border-border/40",
           !forceHidden &&
             (isMobile
               ? "transform transition-transform duration-300 ease-out rounded-r-xl"
@@ -235,19 +240,22 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
       >
         {isSidebarVisible && (
           <div className="flex h-full flex-col">
-            <div className="flex-shrink-0">
-              <div
-                className="flex h-10 items-center px-3 pt-2"
-                style={
-                  isMobile
-                    ? { paddingTop: "calc(env(safe-area-inset-top) + 8px)" }
-                    : undefined
-                }
-              >
-                <Link className="group ml-1.5 text-foreground" to={ROUTES.HOME}>
-                  <div className="flex items-center gap-2">
+            <div
+              className="flex-shrink-0 pt-4 px-3 pb-2"
+              style={
+                isMobile
+                  ? { paddingTop: "calc(env(safe-area-inset-top) + 16px)" }
+                  : undefined
+              }
+            >
+              <div className="flex items-center justify-between mb-4 pl-2 pr-2">
+                <div className="flex items-center gap-2">
+                  <Link
+                    className="group flex items-center gap-2 text-sidebar-foreground/90 hover:text-sidebar-foreground transition-colors"
+                    to={ROUTES.HOME}
+                  >
                     <div
-                      className="polly-logo-gradient-unified flex-shrink-0 w-5 h-5"
+                      className="polly-logo-gradient-unified flex-shrink-0 w-6 h-6"
                       style={{
                         maskImage: "url('/favicon.svg')",
                         maskSize: "contain",
@@ -259,27 +267,59 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                         WebkitMaskPosition: "center",
                       }}
                     />
-                    <h1 className="leading-none font-semibold polly-logo-text-unified text-base">
+                    <span className="font-semibold text-sm tracking-tight">
                       Polly
-                    </h1>
-                  </div>
-                </Link>
+                    </span>
+                  </Link>
+                </div>
 
-                <div className="ml-auto">
+                <div className="flex items-center gap-1">
+                  {user &&
+                    !user.isAnonymous &&
+                    favorites &&
+                    favorites.total > 0 && (
+                      <Link to={ROUTES.FAVORITES}>
+                        <Button
+                          size="icon-sm"
+                          title="New chat"
+                          variant="ghost"
+                          className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                        >
+                          <HeartIcon
+                            className="h-4.5 w-4.5"
+                            weight={
+                              location.pathname === ROUTES.FAVORITES
+                                ? "fill"
+                                : "regular"
+                            }
+                          />
+                        </Button>
+                      </Link>
+                    )}
+
+                  <Link to={ROUTES.HOME}>
+                    <Button
+                      size="icon-sm"
+                      title="New chat"
+                      variant="ghost"
+                      className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                    >
+                      <NotePencilIcon className="h-4.5 w-4.5" />
+                    </Button>
+                  </Link>
                   <Button
                     size="icon-sm"
                     title="Collapse sidebar"
                     variant="ghost"
-                    className="text-foreground/70 hover:text-foreground h-9 w-9"
+                    className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
                     onClick={() => setSidebarVisible(false)}
                   >
-                    <SidebarSimple className="h-5 w-5" />
+                    <SidebarSimpleIcon className="h-4.5 w-4.5" />
                   </Button>
                 </div>
               </div>
 
-              {/* Search Bar - Distinct Form Input */}
-              <div className="px-3 pt-2 pb-4">
+              <div>
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (
@@ -310,23 +350,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 setIsScrollHovered(false);
               }}
             >
-              {user &&
-                !user.isAnonymous &&
-                favorites &&
-                favorites.total > 0 && (
-                  <div className="pb-3 border-b border-border/30">
-                    <Link
-                      to={ROUTES.FAVORITES}
-                      className="flex items-center gap-2 py-2 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-200 no-underline"
-                    >
-                      <HeartIcon
-                        className="h-4 w-4 text-amber-500 dark:text-amber-400 flex-shrink-0"
-                        weight="fill"
-                      />
-                      <span className="text-xs font-semibold">Favorites</span>
-                    </Link>
-                  </div>
-                )}
               <ConversationList
                 currentConversationId={currentConversationId}
                 searchQuery={searchQuery}
@@ -348,11 +371,13 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         {!isMobile && isSidebarVisible && (
           <div
             ref={resizeRef}
-            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-muted active:bg-muted transition-colors z-10"
+            className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/10 active:bg-primary/20 transition-colors z-10 group"
             data-sidebar-interactive="true"
             onMouseDown={handleResizeStart}
             onDoubleClick={handleDoubleClick}
-          />
+          >
+            <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border/50 transition-colors" />
+          </div>
         )}
       </div>
 
@@ -381,7 +406,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
                 onClick={toggleSidebarWithCheck}
               >
-                <SidebarSimple className="h-5 w-5" />
+                <SidebarSimpleIcon className="h-5 w-5" />
               </Button>
             </div>
           )}
