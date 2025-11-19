@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
@@ -257,10 +258,10 @@ export function FileSelectorDialog({
             )}
           </div>
 
-          <Input
+          <SearchInput
             placeholder="Search files..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
             className="w-full sm:w-60"
           />
         </div>

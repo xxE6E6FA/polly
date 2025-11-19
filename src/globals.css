@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@plugin "tailwindcss-animate";
 @source "../src";
 
 @theme {
@@ -101,16 +102,7 @@
   /* Backdrop Blur */
   --backdrop-blur-xs: 2px;
 
-  /* Box Shadows - Minimal (Grok Style) */
-  /* Small shadows: none for flat interactive elements */
-  --shadow-1: none;
-  --shadow-2: none;
-  --shadow-3: none;
-  --shadow-4: none;
-  --shadow-5: none;
-  --shadow-sm: none;
-  --shadow: none;
-  /* Medium shadows: subtle for dropdowns/menus */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md:
     0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
   /* Large shadows: for modals and floating elements */
@@ -201,19 +193,20 @@
   --z-sidebar: 10;
   --z-chat-input: 20;
   --z-sticky: 30;
-  --z-select: 40;
-  --z-popover: 50;
-  --z-drawer: 60;
-  --z-tooltip: 70;
+  --z-drawer: 75;
   --z-modal: 80;
   --z-command-palette: 90;
+  --z-popover: 100;
   --z-context-menu: 100;
+  --z-select: 105;
+  --z-tooltip: 120;
 
   /* Colors - Light Mode Defaults (Grok Minimal) */
   --color-border: hsl(0 0% 75%);
   --color-input: hsl(0 0% 100%);
   --color-input-hover: hsl(0 0% 98%);
   --color-input-focus: hsl(0 0% 97%);
+  --color-input-border: hsl(0 0% 80%);
   --color-ring: hsl(0 0% 52%);
   --color-background: hsl(0 0% 100%);
   --color-foreground: hsl(0 0% 4%);
@@ -506,8 +499,9 @@
     --color-input: hsl(0 0% 16%);
     --color-input-hover: hsl(0 0% 16%);
     --color-input-focus: hsl(0 0% 16%);
-    --color-border: hsl(0 0% 14.9%);
+    --color-border: hsl(0 0% 25%);
     --color-ring: hsl(0 0% 52%);
+    --color-input-border: hsl(0 0% 25%);
     /* Destructive/Danger: brighter red for better contrast with white text */
     --color-destructive: hsl(0 72% 45%);
     --color-destructive-foreground: hsl(0 0% 100%);
@@ -543,12 +537,6 @@
     --color-info-border: hsl(214 40% 25%);
     --color-danger-border: hsl(0 50% 20%);
 
-    /* Elevation (dark) - Minimal shadows for floating elements only */
-    --shadow-1: none;
-    --shadow-2: none;
-    --shadow-3: none;
-    --shadow-4: none;
-    --shadow-5: none;
     --shadow-md:
       0 4px 6px -1px rgb(0 0 0 / 0.2), 0 2px 4px -2px rgb(0 0 0 / 0.2);
     --shadow-lg:
@@ -571,7 +559,15 @@
     box-sizing: border-box;
     user-select: none;
   }
+
+  /* Base UI: Portal isolation to prevent z-index conflicts */
+  #root {
+    isolation: isolate;
+  }
+
+  /* Base UI: iOS 26+ Safari support for backdrops */
   body {
+    position: relative;
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
@@ -1193,66 +1189,7 @@ pre {
   animation: slideUp 0.4s ease-out;
 }
 
-/* Private mode background animations */
-@keyframes private-mode-enter {
-  from {
-    opacity: 0;
-    transform: translateY(120px) scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes private-mode-exit {
-  from {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateY(120px) scale(0.85);
-  }
-}
-
-.private-mode-background {
-  position: relative;
-  overflow: hidden;
-}
-
-.private-mode-background::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(
-    ellipse 900px 350px at bottom,
-    hsl(var(--color-accent-purple) / 0.15),
-    transparent 75%
-  );
-  animation: private-mode-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: var(--z-content);
-}
-
-.dark .private-mode-background::before {
-  background: radial-gradient(
-    ellipse 900px 350px at bottom,
-    hsl(var(--color-accent-purple) / 0.18),
-    transparent 75%
-  );
-}
-
-.private-mode-background.exiting::before {
-  animation: private-mode-exit 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.private-mode-background > * {
-  position: relative;
-  z-index: var(--z-sidebar);
-}
+/* Private mode transitions handled via Tailwind classes in SharedChatLayout */
 
 /* Fade in with upward movement animation */
 @keyframes fade-in-up {
@@ -1613,144 +1550,18 @@ pre {
   position: relative;
   overflow: hidden;
   z-index: var(--z-chat-input);
-  --chat-input-border-width: 1px;
-  --chat-input-padding-x: 0.5rem;
-  --chat-input-padding-y: 0.5rem;
-  --chat-input-max-inset: max(
-    var(--chat-input-padding-x),
-    var(--chat-input-padding-y)
-  );
-  --chat-input-target-radius: 1rem;
-  --chat-input-outer-radius: calc(
-    var(--chat-input-target-radius) +
-    var(--chat-input-max-inset) +
-    var(--chat-input-border-width)
-  );
-  --chat-input-inner-radius: clamp(
-    0px,
-    var(--chat-input-target-radius),
-    calc(
-      var(--chat-input-outer-radius) -
-      (var(--chat-input-max-inset) + var(--chat-input-border-width))
-    )
-  );
-  --chat-input-bottom-control-radius: var(--chat-input-inner-radius);
-  border-radius: var(--chat-input-outer-radius);
-  background: var(--color-background);
-  background: color-mix(
-    in srgb,
-    var(--color-background) 86%,
-    var(--color-card) 14%
-  );
-  border: 1px solid var(--color-border);
-  backdrop-filter: none;
-  /* Transition colors subtly and prep for transform/shadow */
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    transform 280ms ease;
+  border-radius: 1.65rem;
+  padding: 0.6rem 0.5rem;
+  background: var(--color-muted);
+  border: 1px solid var(--color-input-border);
+  box-shadow: var(--shadow-sm);
 }
 
-/* Hover state - clean, no glow */
-.chat-input-container:hover {
-  border-color: var(--color-input-hover);
-  background: var(--color-background);
-  background: color-mix(in srgb, var(--color-background) 90%, white 10%);
-}
-
-/* Focus state - single clean border */
-.chat-input-container:focus-within {
-  background: var(--color-background);
-  background: color-mix(
-    in srgb,
-    var(--color-background) 72%,
-    var(--color-card) 28%
-  );
-}
-
-/* Dark mode chat input - Clean, refined states */
+/* Dark mode chat input - Clean, minimal (Grok-inspired) */
 .dark .chat-input-container {
-  background: var(--color-card) / 0.85;
-  background: color-mix(
-    in srgb,
-    var(--color-card) 82%,
-    var(--color-background) 18%
-  );
-  border: 1px solid var(--color-border) / 0.8;
-  backdrop-filter: blur(6px);
-  /* Transition colors subtly and prep for transform/shadow */
-  transition:
-    background-color 280ms ease,
-    border-color 280ms ease,
-    transform 280ms ease,
-    box-shadow 280ms ease;
-}
-
-/* Hover state - subtle enhancement */
-.dark .chat-input-container:hover {
-  border-color: var(--color-input-hover);
-  background: var(--color-card) / 0.9;
-  background: color-mix(in srgb, var(--color-card) 90%, transparent);
-}
-
-/* Focus state - single clean border */
-.dark .chat-input-container:focus-within {
-  background: var(--color-card);
-  background: color-mix(
-    in srgb,
-    var(--color-card) 94%,
-    var(--color-background) 6%
-  );
-}
-
-/* Simplified transition when the textarea is transitioning (both enter/exit) */
-.chat-input-container:has(textarea[data-transitioning="true"]) {
-  transition-timing-function: cubic-bezier(0.2, 0.85, 0.3, 1.05);
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .chat-input-container,
-  .dark .chat-input-container {
-    transition:
-      background-color 0.01ms,
-      border-color 0.01ms;
-  }
-  .chat-input-container:has(textarea[data-transitioning="true"]) {
-    transform: none;
-  }
-}
-
-@media (min-width: 640px) {
-  .chat-input-container {
-    --chat-input-padding-x: 0.625rem;
-    --chat-input-padding-y: 0.625rem;
-  }
-}
-
-.chat-input-surface {
-  border-radius: var(--chat-input-inner-radius);
-}
-
-.chat-input-bottom-bar {
-  --chat-input-bottom-control-gap: 0rem;
-  --chat-input-bottom-control-radius: clamp(
-    0px,
-    calc(var(--chat-input-inner-radius) - var(--chat-input-bottom-control-gap)),
-    var(--chat-input-inner-radius)
-  );
-}
-
-.chat-input-send-group {
-  border-radius: var(--chat-input-bottom-control-radius);
-}
-
-.chat-input-send-group button {
-  border-radius: inherit;
-}
-
-.chat-input-control {
-  border-radius: var(--chat-input-bottom-control-radius);
+  background: var(--color-muted);
+  border: 1px solid var(--color-input-border);
+  box-shadow: none;
 }
 
 /* Chat input textarea styles */
@@ -1838,12 +1649,6 @@ pre {
   z-index: calc(var(--z-chat-input) - 1);
 }
 
-/* Chat Input States */
-.chat-input-enabled {
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-}
-
 /* Drawer handle size (single source of truth) */
 .drawer-handle {
   /* Consistent handle across all drawers */
@@ -1859,20 +1664,6 @@ pre {
 .chat-input-disabled {
   border: 1px solid var(--color-border);
   opacity: 0.75;
-}
-
-.chat-input-private {
-  border: 2px solid var(--color-accent-purple);
-  background: var(--color-surface);
-}
-
-.dark .chat-input-private {
-  background: linear-gradient(
-    to bottom right,
-    rgb(59 7 100 / 0.25),
-    rgb(88 28 135 / 0.15) 50%,
-    rgb(69 26 3 / 0.1)
-  );
 }
 
 /* Code block header buttons */
@@ -2674,4 +2465,96 @@ pre {
     --tw-prose-th-borders: var(--color-border);
     --tw-prose-td-borders: var(--color-border);
   }
+}
+
+/* Switch Component Styles */
+.switch-root {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  height: 1.25rem; /* 20px */
+  width: 2.25rem; /* 36px */
+  flex-shrink: 0;
+  cursor: pointer;
+
+  /* Appearance */
+  border-radius: var(--radius-pill);
+  border-width: 1px;
+  border-style: solid;
+
+  /* Transitions */
+  transition-property: background-color, border-color;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-standard);
+
+  /* Focus */
+  outline: none;
+
+  /* Unchecked state */
+  background-color: color-mix(in srgb, var(--color-muted) 60%, transparent);
+  border-color: var(--color-border);
+}
+
+.switch-root:hover[data-unchecked] {
+  background-color: var(--color-muted);
+}
+
+.switch-root[data-checked] {
+  background-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+
+.switch-root:hover[data-checked] {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary);
+}
+
+.switch-root:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px var(--color-background);
+}
+
+.switch-root[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.switch-thumb {
+  /* Layout */
+  display: block;
+  height: 1rem; /* 16px */
+  width: 1rem; /* 16px */
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+
+  /* Appearance */
+  background-color: var(--color-primary-foreground);
+  box-shadow: var(--shadow-sm);
+
+  /* Transitions */
+  transition-property: transform, box-shadow;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  will-change: transform;
+
+  /* Position - unchecked */
+  transform: translateX(0);
+}
+
+.switch-root[data-checked] .switch-thumb {
+  transform: translateX(1rem); /* 16px - moves to the right */
+}
+
+.switch-root:hover .switch-thumb {
+  box-shadow: var(--shadow-md);
+}
+
+.switch-root:active .switch-thumb {
+  box-shadow: var(--shadow-sm);
+  transform: scale(0.95);
+}
+
+.switch-root[data-checked]:active .switch-thumb {
+  transform: translateX(1rem) scale(0.95);
 }

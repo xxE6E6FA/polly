@@ -116,7 +116,7 @@ export function ChatInputBottomBar({
   return (
     <div className="relative">
       <div className="chat-input-bottom-bar flex items-center justify-between p-1">
-        <div className="flex min-w-0 flex-1 items-center gap-0.5">
+        <div className="flex min-w-0 flex-1 items-center">
           {canSend && <ModelDrawer disabled={disabled} />}
 
           {canSend && generationMode === "text" && (

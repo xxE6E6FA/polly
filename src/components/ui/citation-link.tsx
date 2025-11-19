@@ -1,137 +1,143 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Popover, PopoverTrigger } from "@/components/ui/popover";
+import { PreviewCard } from "@base-ui-components/react/preview-card";
+import React, { useMemo } from "react";
+import type { WebSearchCitation } from "@/types";
 import { useCitations } from "./citation-context";
 import { CitationPill } from "./citation-pill";
 import type { Citation } from "./citation-popover";
-import { CitationPopoverContent } from "./citation-popover";
+import { CitationPreviewPopup } from "./citation-popover";
 
-// Constants for popover timing
-const POPOVER_ANIMATION_DURATION = 200; // milliseconds
-const POPOVER_HOVER_DELAY = 150; // milliseconds
-const POPOVER_CLOSE_DELAY = POPOVER_ANIMATION_DURATION + POPOVER_HOVER_DELAY; // 350ms total
-
-// Citation Link component for handling citation links vs regular links
+/**
+ * Refactored CitationLink:
+ * - Uses PreviewCard primitives for hover preview instead of custom Popover.
+ * - Ensures hooks are not conditionally skipped (no early return before hooks).
+ * - Maps WebSearchCitation -> internal Citation shape.
+ * - Falls back to a plain anchor for non-citation links or missing data.
+ */
 export const CitationLink: React.FC<React.ComponentPropsWithoutRef<"a">> =
   React.memo(({ href, children, ...props }) => {
     const { citations } = useCitations();
-    const [open, setOpen] = useState(false);
-    const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const isHoveringRef = useRef(false);
+    const isCitationRef = href?.startsWith("#cite-");
 
-    // Cleanup timeout on unmount
-    useEffect(() => {
-      return () => {
-        if (closeTimeoutRef.current) {
-          clearTimeout(closeTimeoutRef.current);
-        }
-      };
-    }, []);
+    // Map raw WebSearchCitation objects to internal Citation shape up-front.
+    const mapped: Citation[] = useMemo(
+      () =>
+        citations.map((c: WebSearchCitation) => ({
+          url: c.url,
+          title: c.title,
+          favicon: c.favicon,
+          siteName: c.siteName,
+          description: c.description || c.snippet,
+        })),
+      [citations]
+    );
 
-    const handleMouseEnter = useCallback(() => {
-      isHoveringRef.current = true;
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
+    // Derive grouped / single citation list (empty array if not a citation ref).
+    const groupCitations: Citation[] = useMemo(() => {
+      if (!(isCitationRef && href)) {
+        return [];
       }
-      setOpen(true);
-    }, []);
-
-    const handleMouseLeave = useCallback(() => {
-      isHoveringRef.current = false;
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-
-      // Delay close to allow fade-out animation
-      closeTimeoutRef.current = setTimeout(() => {
-        if (!isHoveringRef.current) {
-          setOpen(false);
-        }
-      }, POPOVER_CLOSE_DELAY);
-    }, []);
-
-    if (href?.startsWith("#cite-")) {
-      // Get display name from citation (prefer siteName, fallback to domain)
-      const getDisplayName = (citation: Citation) => {
-        if (citation.siteName) {
-          return citation.siteName;
-        }
-        try {
-          return new URL(citation.url).hostname.replace("www.", "");
-        } catch {
-          return "website";
-        }
-      };
-
-      // Check if this is a grouped citation
       const isGroup = href.includes("#cite-group-");
-      let groupCitations: Citation[] = [];
-
       if (isGroup) {
-        // Extract citation numbers from group ID
         const groupId = href.replace("#cite-group-", "");
-        const citationNumbers = groupId.split("-").map(n => parseInt(n, 10));
-        groupCitations = citationNumbers
-          .map(n => (n > 0 && n <= citations.length ? citations[n - 1] : null))
-          .filter((c): c is NonNullable<typeof c> => c != null);
-      } else {
-        // Single citation
-        const citationNumber = parseInt(href.split("-").pop() || "0");
-        const citation =
-          citationNumber > 0 && citationNumber <= citations.length
-            ? citations[citationNumber - 1]
-            : null;
-        if (citation) {
-          groupCitations = [citation];
-        }
+        const citationNumbers = groupId
+          .split("-")
+          .map(n => parseInt(n, 10))
+          .filter(n => !Number.isNaN(n));
+        return citationNumbers
+          .map(n => (n > 0 && n <= mapped.length ? mapped[n - 1] : null))
+          .filter((c): c is Citation => c != null);
       }
+      const citationNumber = parseInt(href.split("-").pop() || "0", 10);
+      const single =
+        citationNumber > 0 && citationNumber <= mapped.length
+          ? mapped[citationNumber - 1]
+          : null;
+      return single ? [single] : [];
+    }, [href, isCitationRef, mapped]);
 
-      if (groupCitations.length === 0) {
-        return (
-          <a {...props} href={href} className="citation-link">
-            {children}
-          </a>
-        );
-      }
-
-      // For the pill, always show the first citation's info
-      const pillCitation = groupCitations[0];
-      if (!pillCitation) {
-        return (
-          <a {...props} href={href} className="citation-link">
-            {children}
-          </a>
-        );
-      }
-      const sourceName = getDisplayName(pillCitation);
-
+    // Non-citation: render plain anchor before any citation-specific logic.
+    if (!isCitationRef) {
       return (
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger>
-            <CitationPill
-              favicon={pillCitation.favicon}
-              sourceName={sourceName}
-              groupCount={groupCitations.length}
-              href={href}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              onOpenChange={setOpen}
-            />
-          </PopoverTrigger>
-          <CitationPopoverContent
-            citations={groupCitations}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            onOpenChange={setOpen}
-          />
-        </Popover>
+        <a {...props} href={href}>
+          {children}
+        </a>
       );
     }
 
+    // No valid citation(s): keep legacy class for styling.
+    if (groupCitations.length === 0) {
+      return (
+        <a {...props} href={href} className="citation-link">
+          {children}
+        </a>
+      );
+    }
+
+    const pillCitation = groupCitations[0];
+    if (!pillCitation) {
+      return (
+        <a {...props} href={href} className="citation-link">
+          {children}
+        </a>
+      );
+    }
+
+    const sourceName =
+      pillCitation.siteName ||
+      (() => {
+        try {
+          return new URL(pillCitation.url).hostname.replace(/^www\./, "");
+        } catch {
+          return "website";
+        }
+      })();
+
     return (
-      <a {...props} href={href}>
-        {children}
-      </a>
+      <PreviewCard.Root>
+        <PreviewCard.Trigger
+          href={pillCitation.url}
+          className="inline-flex align-baseline no-underline hover:no-underline"
+          style={{ textDecoration: "none" }}
+          onClick={e => {
+            // Preserve scroll-to behavior instead of navigation.
+            e.preventDefault();
+            const citationId = href?.slice(1);
+            if (!citationId) {
+              return;
+            }
+            const element = document.getElementById(citationId);
+            if (!element) {
+              return;
+            }
+            try {
+              element.scrollIntoView({ behavior: "smooth", block: "center" });
+            } catch {
+              /* noop */
+            }
+          }}
+        >
+          <CitationPill
+            sourceName={sourceName}
+            groupCount={groupCitations.length}
+            className="hover:text-foreground hover:bg-muted"
+          />
+        </PreviewCard.Trigger>
+        <PreviewCard.Portal>
+          <PreviewCard.Positioner
+            side="bottom"
+            align="center"
+            sideOffset={8}
+            className="z-popover pointer-events-none data-[open]:pointer-events-auto"
+          >
+            <PreviewCard.Popup
+              className="citation-preview w-80 rounded-xl border border-border/50 bg-popover shadow-xl transition-transform transition-opacity duration-200 data-[starting-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[ending-style]:scale-[0.98]"
+              data-citation-group={groupCitations.length > 1 ? "true" : "false"}
+            >
+              <CitationPreviewPopup citations={groupCitations} />
+            </PreviewCard.Popup>
+          </PreviewCard.Positioner>
+        </PreviewCard.Portal>
+      </PreviewCard.Root>
     );
   });
 

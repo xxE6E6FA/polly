@@ -44,12 +44,12 @@ function getModelCardClassName(
   isUnavailable: boolean
 ): string {
   if (isEnabled && !isUnavailable) {
-    return "border-primary/40 bg-primary/10 hover:border-primary/50 hover:bg-primary/15 cursor-pointer";
+    return "bg-primary/5 ring-1 ring-primary cursor-pointer";
   }
   if (isUnavailable) {
-    return "border-red-200 bg-red-50 cursor-not-allowed dark:border-red-800 dark:bg-red-950/20";
+    return "bg-red-50 ring-1 ring-red-200 cursor-not-allowed dark:bg-red-950/20 dark:ring-red-800";
   }
-  return "border-border/40 bg-background hover:border-border hover:bg-muted/30 cursor-pointer";
+  return "bg-card ring-1 ring-input-border hover:shadow-md hover:bg-muted/30 cursor-pointer";
 }
 
 function getCapabilityIconClassName(
@@ -104,15 +104,14 @@ const ModelCard = memo(
             long: `${(contextLength / 1000).toFixed(0)}K tokens`,
           };
 
-    const handleClick = useCallback(() => {
-      if (!isUnavailable) {
-        onToggle(model);
-      }
-    }, [model, onToggle, isUnavailable]);
-
-    const handleSwitchClick = useCallback((e: React.MouseEvent) => {
-      e.stopPropagation();
-    }, []);
+    const handleSwitchChange = useCallback(
+      (checked: boolean) => {
+        if (!isUnavailable) {
+          onToggle(model);
+        }
+      },
+      [model, onToggle, isUnavailable]
+    );
 
     const handleRemoveClick = useCallback(
       (e: React.MouseEvent) => {
@@ -125,87 +124,98 @@ const ModelCard = memo(
     );
 
     return (
-      <div
-        className={`group relative min-h-[160px] rounded-lg border p-4 transition-all duration-200 flex flex-col ${getModelCardClassName(
+      <label
+        className={`group relative min-h-[160px] rounded-lg p-4 transition-all duration-200 flex flex-col ${getModelCardClassName(
           isEnabled,
           isUnavailable
         )}`}
-        onClick={handleClick}
-        onKeyDown={e => {
-          if ((e.key === "Enter" || e.key === " ") && !isUnavailable) {
-            e.preventDefault();
-            handleClick();
-          }
-        }}
-        role={isUnavailable ? "button" : "button"}
-        tabIndex={isUnavailable ? -1 : 0}
       >
-        <div className="mb-3 flex items-start justify-between">
-          <div className="min-w-0 flex-1 pr-2">
-            <div className="mb-1.5 min-h-[2.5rem]">
-              <h4
-                className={`break-words text-sm font-medium leading-tight line-clamp-2 ${
-                  isUnavailable ? "text-red-700 dark:text-red-300" : ""
-                }`}
-              >
-                {model.name}
-              </h4>
-            </div>
-            <div className="flex items-center gap-2">
+        <div className="mb-3">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div
+              className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 ${
+                isUnavailable ? "bg-red-100 dark:bg-red-900/30" : "bg-muted"
+              }`}
+            >
               <ProviderIcon
                 provider={model.provider}
-                className={`h-4 w-4 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
+                className={`h-3 w-3 ${isUnavailable ? "text-red-600 dark:text-red-400" : ""}`}
               />
-              {model.free && !isUnavailable && (
-                <Badge
-                  className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-                  variant="secondary"
-                >
-                  Free
-                </Badge>
-              )}
-              {isUnavailable && (
-                <Badge
-                  className="h-5 shrink-0 border-red-200 bg-red-100 px-1.5 py-0 text-[10px] text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                  variant="secondary"
-                >
-                  Unavailable
-                </Badge>
-              )}
+              <span
+                className={`text-[10px] font-medium capitalize ${
+                  isUnavailable
+                    ? "text-red-700 dark:text-red-300"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {model.provider}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {(() => {
+                if (isUnavailable && onRemove) {
+                  return (
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveClick}
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
+                          title="Remove model"
+                          aria-label="Remove unavailable model"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Remove model</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+                if (isUnavailable) {
+                  return (
+                    <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
+                      Unavailable
+                    </span>
+                  );
+                }
+                return (
+                  <Switch
+                    checked={isEnabled}
+                    disabled={isUnavailable}
+                    onCheckedChange={handleSwitchChange}
+                  />
+                );
+              })()}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {isUnavailable ? (
-              onRemove ? (
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemoveClick}
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 dark:hover:text-red-400"
-                      title="Remove model"
-                      aria-label="Remove unavailable model"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Remove model</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span className="rounded bg-red-100 px-2 py-1 text-xs text-red-700 dark:bg-red-900 dark:text-red-300">
-                  Unavailable
-                </span>
-              )
-            ) : (
-              <Switch
-                checked={isEnabled}
-                onCheckedChange={handleClick}
-                onClick={handleSwitchClick}
-                disabled={isUnavailable}
-              />
+          <div className="mb-1.5 min-h-[2.5rem]">
+            <h4
+              className={`break-words text-sm font-medium leading-tight line-clamp-2 ${
+                isUnavailable ? "text-red-700 dark:text-red-300" : ""
+              }`}
+            >
+              {model.name}
+            </h4>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {model.free && !isUnavailable && (
+              <Badge
+                className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
+                variant="secondary"
+              >
+                Free
+              </Badge>
+            )}
+            {isUnavailable && (
+              <Badge
+                className="h-5 shrink-0 border-red-200 bg-red-100 px-1.5 py-0 text-[10px] text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
+                variant="secondary"
+              >
+                Unavailable
+              </Badge>
             )}
           </div>
         </div>
@@ -270,21 +280,21 @@ const ModelCard = memo(
           )}
         </div>
 
-        <div
-          className={`mt-auto flex items-center gap-2 text-xs ${
-            isUnavailable
-              ? "text-red-600 dark:text-red-400"
-              : "text-muted-foreground"
-          }`}
-        >
-          <Tooltip>
-            <TooltipTrigger>
-              <span className="truncate">{model.modelId}</span>
-            </TooltipTrigger>
-            <TooltipContent>{model.modelId}</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
+        <Tooltip>
+          <TooltipTrigger className="mt-auto min-w-0 overflow-hidden text-left">
+            <div
+              className={`text-xs text-ellipsis whitespace-nowrap overflow-hidden ${
+                isUnavailable
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {model.modelId}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>{model.modelId}</TooltipContent>
+        </Tooltip>
+      </label>
     );
   }
 );

@@ -18,6 +18,7 @@ import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useChatHistory } from "@/stores/chat-ui-store";
@@ -349,11 +350,8 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       if (!(canSendMessage && online)) {
         return "chat-input-disabled";
       }
-      if (isPrivateMode) {
-        return "chat-input-private";
-      }
-      return "chat-input-enabled";
-    }, [canSendMessage, isPrivateMode, online]);
+      return "";
+    }, [canSendMessage, online]);
 
     const immediateHasText = input.trim().length > 0 || attachments.length > 0;
     const deferredInputHasText = useDeferredValue(immediateHasText);
@@ -438,6 +436,22 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
             selectedImageModel={selectedImageModel}
           />
         </ChatInputContainer>
+        <div
+          className={cn(
+            "mx-auto w-full max-w-3xl px-4 overflow-hidden transition-all duration-300 ease-in-out",
+            isPrivateMode
+              ? cn(
+                  "max-h-20 opacity-100",
+                  hasExistingMessages ? "mt-1" : "mt-2"
+                )
+              : "max-h-0 opacity-0 mt-0"
+          )}
+        >
+          <p className="text-xs text-muted-foreground text-center pb-2 sm:pb-0">
+            Messages are not saved to the server, but may be analyzed by the AI
+            provider.
+          </p>
+        </div>
       </SpeechInputProvider>
     );
   }

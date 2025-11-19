@@ -27,10 +27,10 @@ const ImageModelCard = memo(
     }, [model, onToggle]);
 
     return (
-      <div
+      <label
         className={cn(
-          "group rounded-lg bg-card overflow-hidden transition-all duration-200 hover:shadow-sm ring-1 ring-border/30 motion-hover-lift",
-          isEnabled && "ring-1 ring-primary bg-primary/10"
+          "group rounded-lg bg-card overflow-hidden transition-all duration-200 hover:shadow-md ring-1 ring-input-border motion-hover-lift cursor-pointer",
+          isEnabled && "ring-1 ring-primary bg-primary/5"
         )}
       >
         {/* Example Image with consistent aspect ratio */}
@@ -59,19 +59,21 @@ const ImageModelCard = memo(
         {/* Model Information */}
         <div className="p-4 stack-sm">
           <div className="flex items-start justify-between gap-2">
-            <div className="flex items-start gap-2 min-w-0 flex-1">
-              <ProviderIcon
-                provider={model.provider}
-                className="h-4 w-4 mt-0.5 shrink-0"
-              />
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium leading-tight text-sm line-clamp-1">
-                  {model.name}
-                </h3>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium leading-tight text-sm line-clamp-1 mb-1">
+                {model.name}
+              </h3>
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-0.5">
+                  <ProviderIcon provider={model.provider} className="h-3 w-3" />
+                  <span className="text-[10px] font-medium capitalize text-muted-foreground">
+                    {model.provider}
+                  </span>
+                </div>
                 {model.owner && (
-                  <p className="text-xs text-muted-foreground line-clamp-1">
+                  <span className="text-xs text-muted-foreground line-clamp-1">
                     by {model.owner}
-                  </p>
+                  </span>
                 )}
               </div>
             </div>
@@ -115,7 +117,7 @@ const ImageModelCard = memo(
             </div>
           )}
         </div>
-      </div>
+      </label>
     );
   }
 );

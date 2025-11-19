@@ -73,13 +73,12 @@ export function FileUploadButton({
           <Button
             aria-label="Upload files"
             className={cn(
-              "h-8 w-8 rounded-full p-0 shrink-0",
-              "transition-all duration-200",
+              "shrink-0 transition-all duration-200",
               "hover:scale-105 active:scale-95",
               disabled && "cursor-not-allowed opacity-50 hover:scale-100"
             )}
             disabled={disabled || isSubmitting}
-            size="icon"
+            size="icon-pill"
             type="button"
             variant="default"
             onClick={handleClick}

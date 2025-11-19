@@ -1059,7 +1059,11 @@ export const MessageActions = memo(
     const toggleFavorite = useMutation(api.messages.toggleFavorite);
     const isFavorited = useQuery(
       api.messages.isFavorited,
-      !isPrivateMode && messageId && !messageId.startsWith("private-")
+      !isPrivateMode &&
+        messageId &&
+        !messageId.startsWith("private-") &&
+        !messageId.startsWith("user-") &&
+        !messageId.startsWith("assistant-")
         ? ({ messageId: messageId as Id<"messages"> } as const)
         : ("skip" as const)
     );

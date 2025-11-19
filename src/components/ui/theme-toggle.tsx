@@ -87,7 +87,6 @@ export const ThemeToggle = ({
           >
             <SunIcon className="mr-2 h-4 w-4" />
             <span>Light</span>
-            {theme === "light" && <CheckIcon className="ml-auto h-4 w-4" />}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="dark"
@@ -99,7 +98,6 @@ export const ThemeToggle = ({
           >
             <MoonIcon className="mr-2 h-4 w-4" />
             <span>Dark</span>
-            {theme === "dark" && <CheckIcon className="ml-auto h-4 w-4" />}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="system"
@@ -111,7 +109,6 @@ export const ThemeToggle = ({
           >
             <MonitorIcon className="mr-2 h-4 w-4" />
             <span>System</span>
-            {theme === "system" && <CheckIcon className="ml-auto h-4 w-4" />}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

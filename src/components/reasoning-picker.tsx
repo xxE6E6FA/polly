@@ -325,12 +325,10 @@ const ReasoningPickerComponent = ({
             <Button
               type="button"
               variant="ghost"
-              size="sm"
+              size="pill"
               disabled={disabled}
               className={cn(
-                // Unified pill sizing/styling
-                "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                "rounded-full border border-border/50",
+                "border border-border",
                 "transition-all duration-200",
                 // Subtle at rest; provider-accent when active
                 currentValue !== "off"
@@ -362,7 +360,7 @@ const ReasoningPickerComponent = ({
           <div className="text-xs">Configure thinking</div>
         </TooltipContent>
       </Tooltip>
-      <PopoverContent align="end" className="w-[160px] p-1">
+      <PopoverContent align="end" className="w-[160px] p-1" rounded>
         <div className="flex flex-col gap-0.5">
           {availableOptions.map(option => {
             const OptionIcon = option.icon;

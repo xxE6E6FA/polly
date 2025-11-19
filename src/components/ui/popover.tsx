@@ -13,12 +13,12 @@ const PopoverPositioner = Popover.Positioner;
 
 const PopoverPopup = React.forwardRef<
   React.ElementRef<typeof Popover.Popup>,
-  React.ComponentPropsWithoutRef<typeof Popover.Popup>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof Popover.Popup> & { rounded?: boolean }
+>(({ className, rounded = false, ...props }, ref) => (
   <Popover.Popup
     ref={ref}
     className={cn(
-      "z-popover w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+      "w-72 border bg-popover text-popover-foreground shadow-md outline-none",
       "data-[starting-style]:animate-in data-[ending-style]:animate-out",
       "data-[ending-style]:fade-out-0 data-[starting-style]:fade-in-0",
       "data-[ending-style]:zoom-out-95 data-[starting-style]:zoom-in-95",
@@ -69,6 +69,7 @@ type PopoverContentProps = React.ComponentPropsWithoutRef<
   align?: "start" | "center" | "end";
   sideOffset?: number;
   alignOffset?: number;
+  rounded?: boolean;
 };
 
 const PopoverContent = React.forwardRef<
@@ -81,6 +82,8 @@ const PopoverContent = React.forwardRef<
       align = "center",
       sideOffset = 4,
       alignOffset = 0,
+      className,
+      rounded = false,
       ...props
     },
     ref
@@ -91,8 +94,14 @@ const PopoverContent = React.forwardRef<
         align={align}
         sideOffset={sideOffset}
         alignOffset={alignOffset}
+        className="z-popover"
       >
-        <PopoverPopup ref={ref} {...props} />
+        <PopoverPopup
+          ref={ref}
+          className={className}
+          rounded={rounded}
+          {...props}
+        />
       </PopoverPositioner>
     </PopoverPortal>
   )

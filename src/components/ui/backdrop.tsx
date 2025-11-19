@@ -17,7 +17,7 @@ export const Backdrop = forwardRef<HTMLDivElement, BackdropProps>(
           // Base colors - use theme variables
           variant === "default"
             ? "bg-foreground/20 dark:bg-foreground/10"
-            : "bg-foreground/80",
+            : "bg-background/80",
           // Blur effect
           blur === "sm" && "backdrop-blur-sm",
           blur === "md" && "backdrop-blur-md",

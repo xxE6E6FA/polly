@@ -1,4 +1,5 @@
 import { GhostIcon } from "@phosphor-icons/react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -10,14 +11,23 @@ import { usePrivateMode } from "@/providers/private-mode-context";
 
 export const PrivateToggle = () => {
   const { isPrivateMode, togglePrivateMode } = usePrivateMode();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleToggle = () => {
+    if (isPrivateMode && location.pathname.startsWith("/private")) {
+      navigate("/");
+    }
+    togglePrivateMode();
+  };
 
   return (
-    <div className="absolute top-4 right-4 z-10">
+    <div className="absolute top-4 right-4 z-50">
       <Tooltip>
         <TooltipTrigger>
           <Button
-            onClick={togglePrivateMode}
-            variant={isPrivateMode ? "purple" : "ghost"}
+            onClick={handleToggle}
+            variant={isPrivateMode ? "default" : "ghost"}
             size="sm"
             className={cn(
               "rounded-full px-3 py-1.5 text-xs backdrop-blur-sm",

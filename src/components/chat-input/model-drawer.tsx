@@ -120,7 +120,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
         <DrawerHeader>
           <DrawerTitle>Select Model</DrawerTitle>
         </DrawerHeader>
-        <DrawerBody className="stack-md">
+        <DrawerBody>
           <ModelPickerTabs
             activeTab={activeTab}
             onActiveTabChange={setActiveTab}
@@ -135,7 +135,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
           />
           {/* Custom image model input */}
           {activeTab === "image" && (
-            <div className="stack-md">
+            <div>
               <Label className="text-sm font-medium">Custom Model ID</Label>
               <Input
                 value={

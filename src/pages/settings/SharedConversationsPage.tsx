@@ -17,6 +17,7 @@ import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -137,7 +138,7 @@ export default function SharedConversationsPage() {
         {/* URL field with copy and view buttons */}
         <div className="w-96 flex-shrink-0 ml-4">
           <div className="relative">
-            <input
+            <Input
               readOnly
               className="w-full rounded-lg border bg-muted/30 px-3 py-2 pr-20 font-mono text-xs"
               value={shareUrl}

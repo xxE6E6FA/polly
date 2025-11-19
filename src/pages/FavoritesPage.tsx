@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import {
@@ -133,10 +134,10 @@ export default function FavoritesPage() {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-lg font-semibold">Favorites</h1>
-          <Input
+          <SearchInput
             placeholder="Search favorites..."
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={setSearch}
             className="w-64"
           />
         </div>
