@@ -63,14 +63,12 @@ const TemperaturePickerComponent = ({
         <TooltipTrigger>
           <PopoverTrigger>
             <Button
-              variant="chat-input"
-              size="sm"
+              variant="ghost"
+              size="pill"
               disabled={disabled}
               className={cn(
-                "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                "border border-border/50",
+                "border border-border",
                 "bg-muted text-foreground hover:bg-muted/80",
-                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                 "transition-all duration-200"
               )}
             >
@@ -92,6 +90,7 @@ const TemperaturePickerComponent = ({
         className="w-64 border border-border/50 bg-popover p-4 shadow-lg"
         align="start"
         sideOffset={4}
+        rounded
       >
         <div className="stack-lg">
           <div className="stack-sm">

@@ -36,6 +36,7 @@ import {
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
+import { Backdrop } from "@/components/ui/backdrop";
 import {
   Command,
   CommandEmpty,
@@ -1114,16 +1115,28 @@ export function CommandPalette({
 
   return (
     <>
+      {/* Backdrop */}
+      <Backdrop
+        variant="heavy"
+        blur="md"
+        className={`z-command-palette ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        data-state={open ? "open" : "closed"}
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+
       {/* Command Palette Container */}
       <div
         className={`fixed left-1/2 top-[15%] z-command-palette w-full max-w-2xl -translate-x-1/2 px-4 transition-all duration-200 ease-out ${
           open
-            ? "opacity-100 scale-100"
-            : "opacity-0 scale-95 pointer-events-none"
+            ? "opacity-100 scale-100 translate-y-0"
+            : "opacity-0 scale-95 -translate-y-2 pointer-events-none"
         }`}
       >
         <Command
-          className="mx-auto w-full overflow-hidden rounded-lg bg-card shadow-2xl"
+          className="mx-auto w-full overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl [&_[cmdk-input-wrapper]]:border-0"
           data-command-palette
           shouldFilter={false}
           value={selectedValue}
@@ -1132,9 +1145,9 @@ export function CommandPalette({
           loop
           vimBindings={false}
         >
-          <div className="border-b border-border/20 relative">
+          <div className="border-b border-border/10 relative">
             {navigation.currentMenu !== "main" && (
-              <div className="flex items-center px-4 py-2 border-b border-border/10">
+              <div className="flex items-center px-4 py-2 border-b border-border/50 bg-muted/30">
                 <CommandItem
                   value="back"
                   onSelect={navigateBack}

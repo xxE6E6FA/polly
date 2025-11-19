@@ -23,7 +23,7 @@ import type { ConversationId } from "@/types";
 const SCROLL_THRESHOLD = 6;
 const SHADOW_HEIGHT = 6;
 
-export const Sidebar = () => {
+export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [shadowHeight, setShadowHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -192,7 +192,7 @@ export const Sidebar = () => {
 
   return (
     <>
-      {!(isMobile || isSidebarVisible) && (
+      {!(isMobile || isSidebarVisible || forceHidden) && (
         <button
           type="button"
           aria-label="Expand sidebar"
@@ -204,10 +204,13 @@ export const Sidebar = () => {
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 bg-card dark:bg-card",
-          isSidebarVisible && "dark:border-r dark:border-border",
-          isMobile
-            ? "transform transition-transform duration-300 ease-out rounded-r-xl"
-            : "transition-[width] duration-300 ease-out",
+          isSidebarVisible &&
+            !forceHidden &&
+            "dark:border-r dark:border-border",
+          !forceHidden &&
+            (isMobile
+              ? "transform transition-transform duration-300 ease-out rounded-r-xl"
+              : "transition-[width,transform] duration-300 ease-out"),
           isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : "")
         )}
         style={{
@@ -222,7 +225,7 @@ export const Sidebar = () => {
             return "0";
           })(),
           transform:
-            isMobile && !isSidebarVisible
+            (isMobile && !isSidebarVisible) || forceHidden
               ? "translateX(-100%)"
               : "translateX(0)",
         }}

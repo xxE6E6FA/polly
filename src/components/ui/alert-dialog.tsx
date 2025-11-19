@@ -15,9 +15,14 @@ const AlertDialogOverlay = React.forwardRef<
   React.ElementRef<typeof AlertDialog.Backdrop>,
   React.ComponentPropsWithoutRef<typeof AlertDialog.Backdrop>
 >(({ className, ...props }, ref) => (
-  <AlertDialog.Backdrop ref={ref} {...props}>
-    <Backdrop blur="md" className={cn("z-modal", className)} variant="heavy" />
-  </AlertDialog.Backdrop>
+  <AlertDialog.Backdrop
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-modal bg-background/80 backdrop-blur-sm [animation-duration:200ms] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
 ));
 AlertDialogOverlay.displayName = "AlertDialogOverlay";
 
@@ -27,18 +32,20 @@ const AlertDialogContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
-    <AlertDialog.Popup
-      ref={ref}
-      className={cn(
-        "fixed z-modal grid w-full gap-4 bg-card shadow-lg duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
-        // Mobile: full width, positioned at bottom
-        "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
-        // Desktop: centered modal
-        "sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg sm:p-6",
-        className
-      )}
-      {...props}
-    />
+    <div className="fixed inset-0 z-modal flex items-end justify-center pointer-events-none sm:items-center">
+      <AlertDialog.Popup
+        ref={ref}
+        className={cn(
+          "pointer-events-auto grid w-full gap-4 bg-background shadow-2xl [animation-duration:200ms] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-2 data-[state=open]:slide-in-from-bottom-2 sm:data-[state=closed]:slide-out-to-top-2 sm:data-[state=open]:slide-in-from-top-2 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[closed]:slide-out-to-bottom-2 data-[open]:slide-in-from-bottom-2 sm:data-[closed]:slide-out-to-top-2 sm:data-[open]:slide-in-from-top-2",
+          // Mobile: full width, positioned at bottom (handled by flex wrapper)
+          "rounded-t-xl p-6",
+          // Desktop: centered modal (handled by flex wrapper)
+          "sm:max-w-lg sm:rounded-xl",
+          className
+        )}
+        {...props}
+      />
+    </div>
   </AlertDialogPortal>
 ));
 AlertDialogContent.displayName = "AlertDialogContent";

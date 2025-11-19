@@ -47,7 +47,7 @@ const SelectTrigger = React.forwardRef<
         ref={ref}
         className={cn(
           variant === "default"
-            ? "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-border/60 bg-background/40 backdrop-blur-sm px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:bg-background/60 hover:border-border focus-visible:bg-background focus-visible:border-border transition-[background-color,border-color,color,box-shadow] duration-200"
+            ? "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input-border bg-background/40 backdrop-blur-sm px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 hover:bg-background/60 hover:border-input-border focus-visible:bg-background focus-visible:border-input-border transition-[background-color,border-color,color,box-shadow] duration-200"
             : "flex items-center whitespace-nowrap rounded-md border-0 bg-transparent px-0 py-0 text-sm shadow-none outline-none focus:outline-none focus:ring-0 focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50",
           className
         )}
@@ -112,16 +112,18 @@ const SelectContent = React.forwardRef<
         side={side}
         sideOffset={sideOffset}
         className={cn(
-          "absolute z-select max-h-96 min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border-0 bg-popover text-foreground shadow-md transition-[background-color,color,box-shadow,transform] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
+          "absolute z-select max-h-96 min-w-[8rem] overflow-hidden rounded-lg border-0 bg-popover text-foreground shadow-md transition-[background-color,color,box-shadow,transform] duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[var(--transform-origin)]",
           className
         )}
         {...props}
       >
-        <SelectScrollUpButton />
-        <SelectPrimitive.Select.Popup className="p-1">
-          {children}
-        </SelectPrimitive.Select.Popup>
-        <SelectScrollDownButton />
+        <div className="max-h-96 overflow-y-auto overflow-x-hidden">
+          <SelectScrollUpButton />
+          <SelectPrimitive.Select.Popup className="p-1">
+            {children}
+          </SelectPrimitive.Select.Popup>
+          <SelectScrollDownButton />
+        </div>
       </SelectPrimitive.Select.Positioner>
     </SelectPrimitive.Select.Portal>
   );

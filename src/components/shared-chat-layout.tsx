@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
+import { PrivateModeHeader } from "./private-mode-header";
+import { PrivateToggle } from "./private-toggle";
 
 type SharedChatLayoutProps = {
   children: React.ReactNode;
@@ -15,10 +17,8 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
   const { isPrivateMode } = usePrivateMode();
   const { isSidebarVisible, isMobile } = useUI();
   const { sidebarWidth } = useSidebarWidth();
-  const [isExiting, setIsExiting] = useState(false);
-  const [, startTransition] = useTransition();
+  const [, _startTransition] = useTransition();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const prevPrivateMode = useRef(isPrivateMode);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,48 +47,58 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
 
-  useEffect(() => {
-    if (prevPrivateMode.current && !isPrivateMode) {
-      setIsExiting(true);
+  const showPrivateBackground = isPrivateMode;
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+  // In private mode, we effectively hide the sidebar by setting width to 0 in calculations
+  // or by ensuring the main content takes full width.
+  const effectiveSidebarVisible = isSidebarVisible && !isPrivateMode;
 
-      startTransition(() => {
-        timeoutRef.current = setTimeout(() => {
-          setIsExiting(false);
-          timeoutRef.current = null;
-        }, 700);
-      });
+  const mainStyle = useMemo(() => {
+    const style: React.CSSProperties = {
+      "--sidebar-width": `${sidebarWidth}px`,
+      "--sidebar-visible": effectiveSidebarVisible ? "1" : "0",
+    } as React.CSSProperties;
+
+    // Only apply margin-left if we're NOT in private mode (or exiting).
+    // In private mode, we rely on the tailwind classes (mx-4) to set the margins.
+    // Inline styles override classes, so we must not set it here if we want mx-4 to work.
+    if (!showPrivateBackground) {
+      style.marginLeft =
+        !isMobile && effectiveSidebarVisible ? "var(--sidebar-width)" : "0";
     }
 
-    prevPrivateMode.current = isPrivateMode;
-  }, [isPrivateMode]);
-
-  const showPrivateBackground = isPrivateMode || isExiting;
-
-  const mainStyle = useMemo(
-    () => ({
-      "--sidebar-width": `${sidebarWidth}px`,
-      "--sidebar-visible": isSidebarVisible ? "1" : "0",
-      marginLeft: !isMobile && isSidebarVisible ? "var(--sidebar-width)" : "0",
-    }),
-    [sidebarWidth, isSidebarVisible, isMobile]
-  );
+    return style;
+  }, [sidebarWidth, effectiveSidebarVisible, isMobile, showPrivateBackground]);
 
   return (
-    <div className="flex min-h-[100dvh] w-full">
-      <Sidebar />
+    <div
+      className={cn(
+        "flex min-h-[100dvh] w-full transition-colors duration-500 relative",
+        isPrivateMode ? "bg-foreground" : "bg-muted/30 dark:bg-muted/10"
+      )}
+    >
+      <Sidebar forceHidden={isPrivateMode} />
+
+      {/* Private Mode Header */}
+      <PrivateModeHeader />
+
+      {/* Private Toggle - Visible when NOT in private mode */}
+      {!isPrivateMode && <PrivateToggle />}
+
       <main
         className={cn(
-          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-300 ease-out bg-background",
-          showPrivateBackground && "private-mode-background",
-          isExiting && "exiting"
+          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          // Base styles
+          "bg-background",
+          // Private mode specific styles: use margins to create the "shrunk" card effect
+          // mt-12 gives space for the header
+          showPrivateBackground
+            ? "mx-4 mb-4 mt-12 rounded-xl border border-border/50 shadow-xl ring-1 ring-black/5 dark:ring-white/5"
+            : ""
         )}
         style={mainStyle}
       >
-        <div className="flex-1 overflow-hidden">{children}</div>
+        <div className="flex-1 overflow-hidden relative z-10">{children}</div>
       </main>
     </div>
   );

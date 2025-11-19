@@ -215,13 +215,11 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
               <PopoverTrigger>
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="pill"
                   disabled={disabled}
                   className={cn(
-                    "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                    "rounded-full border border-border",
+                    "border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
-                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200",
                     "relative"
                   )}
@@ -243,6 +241,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
             className="flex w-80 max-h-[50vh] flex-col overflow-hidden border border-border/50 bg-popover p-4"
             align="end"
             sideOffset={8}
+            rounded
           >
             <div className="flex items-center justify-between pb-4 border-b border-border">
               <h3 className="text-sm font-medium">Generation Settings</h3>

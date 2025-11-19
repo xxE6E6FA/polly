@@ -546,9 +546,10 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 bottom-0">
               <div
                 ref={footerOverlayRef}
-                className="pointer-events-auto px-3 pt-3 sm:px-6"
+                className="pointer-events-auto px-3 py-3 sm:px-6"
                 style={{
                   right: overlayScrollbarOffset,
+                  paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
                 }}
               >
                 <div className="mx-auto w-full max-w-3xl space-y-3">

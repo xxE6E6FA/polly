@@ -117,17 +117,12 @@ function PersonaPickerComponent({
               <Button
                 ref={triggerRef}
                 type="button"
-                variant="chat-input"
-                size="sm"
+                variant="ghost"
+                size="pill"
                 disabled={disabled}
                 className={cn(
-                  // Unified pill sizing
-                  "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
-                  "border border-border/50",
-                  // Subtle pill effect to match ecosystem
+                  "border border-border",
                   "bg-muted text-foreground hover:bg-muted/80",
-                  // Focus ring parity
-                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   "transition-all duration-200",
                   className
                 )}
@@ -145,6 +140,7 @@ function PersonaPickerComponent({
           className="w-[min(calc(100vw-2rem),380px)] overflow-hidden border border-border/50 bg-popover p-0 shadow-lg"
           side="top"
           sideOffset={4}
+          rounded
         >
           <PersonaList
             personas={availablePersonas}

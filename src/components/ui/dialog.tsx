@@ -17,9 +17,14 @@ const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof Dialog.Backdrop>,
   React.ComponentPropsWithoutRef<typeof Dialog.Backdrop>
 >(({ className, ...props }, ref) => (
-  <Dialog.Backdrop ref={ref} {...props}>
-    <Backdrop blur="md" className={cn("z-modal", className)} variant="heavy" />
-  </Dialog.Backdrop>
+  <Dialog.Backdrop
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-modal bg-background/80 backdrop-blur-sm [animation-duration:200ms] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
+      className
+    )}
+    {...props}
+  />
 ));
 DialogOverlay.displayName = "DialogOverlay";
 
@@ -29,24 +34,26 @@ const DialogContent = React.forwardRef<
 >(({ className, children, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
-    <Dialog.Popup
-      ref={ref}
-      className={cn(
-        "fixed z-modal grid w-full gap-4 border bg-background shadow-sm duration-200 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0",
-        // Mobile: full width, positioned at bottom
-        "left-0 bottom-0 top-auto translate-x-0 translate-y-0 rounded-t-lg p-4",
-        // Desktop: centered modal
-        "sm:left-[50%] sm:top-[50%] sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:rounded-lg sm:p-6",
-        className
-      )}
-      {...props}
-    >
-      {children}
-      <Dialog.Close className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[popup-open]:bg-muted data-[popup-open]:text-muted-foreground sm:right-4 sm:top-4">
-        <XIcon className="h-5 w-5 sm:h-4 sm:w-4" />
-        <span className="sr-only">Close</span>
-      </Dialog.Close>
-    </Dialog.Popup>
+    <div className="fixed inset-0 z-modal flex items-end justify-center pointer-events-none sm:items-center">
+      <Dialog.Popup
+        ref={ref}
+        className={cn(
+          "pointer-events-auto grid w-full gap-4 border bg-background shadow-2xl [animation-duration:200ms] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-bottom-2 data-[state=open]:slide-in-from-bottom-2 sm:data-[state=closed]:slide-out-to-top-2 sm:data-[state=open]:slide-in-from-top-2 data-[open]:animate-in data-[closed]:animate-out data-[closed]:fade-out-0 data-[open]:fade-in-0 data-[closed]:zoom-out-95 data-[open]:zoom-in-95 data-[closed]:slide-out-to-bottom-2 data-[open]:slide-in-from-bottom-2 sm:data-[closed]:slide-out-to-top-2 sm:data-[open]:slide-in-from-top-2",
+          // Mobile: full width, positioned at bottom (handled by flex wrapper)
+          "rounded-t-xl p-6",
+          // Desktop: centered modal (handled by flex wrapper)
+          "sm:max-w-lg sm:rounded-xl",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        <Dialog.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground data-[open]:bg-accent data-[open]:text-muted-foreground">
+          <XIcon className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </Dialog.Close>
+      </Dialog.Popup>
+    </div>
   </DialogPortal>
 ));
 DialogContent.displayName = "DialogContent";

@@ -212,7 +212,7 @@ export function VoiceList({
   return (
     <div className={`stack-md w-full ${className || ""}`}>
       {label && <Label className="text-sm font-medium">{label}</Label>}
-      <Command className="w-full rounded-md bg-popover shadow-sm">
+      <Command className="w-full rounded-md bg-popover shadow-sm border border-input-border">
         <CommandInput placeholder="Search voices..." />
         <CommandList ref={listRef} style={{ maxHeight, overflowY: "auto" }}>
           <CommandEmpty>No voices found</CommandEmpty>

@@ -20,7 +20,7 @@ const ProviderSummaryCard = memo(
       className={`w-full cursor-pointer rounded-lg p-4 text-left transition-all duration-200 shadow-sm hover:shadow motion-hover-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
         isSelected
           ? "ring-1 ring-primary bg-primary/10 hover:bg-primary/15"
-          : "ring-1 ring-border/30 bg-card hover:bg-muted/70"
+          : "ring-1 ring-input-border bg-card hover:bg-muted/70"
       }`}
       onClick={() => onToggle(provider)}
     >

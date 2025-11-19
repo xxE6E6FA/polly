@@ -59,8 +59,7 @@ export const ChatInputFieldCore = memo(
         cn(
           "relative w-full",
           shouldAutoResize &&
-            "auto-resize-textarea overflow-y-auto max-h-60 sm:max-h-72",
-          "pl-2.5 pt-2 pb-1 pr-10 sm:pr-12",
+            "auto-resize-textarea px-2.5 py-1.5 overflow-y-auto max-h-60 sm:max-h-72",
           disabled && "cursor-not-allowed opacity-50",
           className
         ),

@@ -27,14 +27,13 @@ export const ModelPickerTrigger = forwardRef<
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-labelledby="model-picker-label"
-        variant="chat-input"
+        variant="ghost"
+        size="pill"
         className={cn(
-          // Consistent chip sizing across pickers
-          "h-8 w-auto gap-2 px-2.5 text-xs font-medium sm:h-8",
           // Distinctive, but subtle gradient pill
           "border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-foreground/90",
           // Motion + focus
-          "transition-all duration-200 hover:from-primary/15 hover:to-primary/10 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "transition-all duration-200 hover:from-primary/15 hover:to-primary/10 focus-visible:ring-2 focus-visible:ring-primary/50",
           // Prevent stacking context issues when popover is open
           open && "active:scale-100",
           className

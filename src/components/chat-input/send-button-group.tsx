@@ -27,8 +27,6 @@ import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
-const ICON_WRAPPER_CLASS = "grid h-full w-full place-items-center text-current";
-
 const ICON_CLASS = "h-4 w-4 shrink-0";
 
 type RecordingWaveformProps = {
@@ -249,57 +247,41 @@ export const SendButtonGroup = ({
   const renderButtonContent = useMemo(() => {
     if (isStreaming) {
       return (
-        <span className={ICON_WRAPPER_CLASS}>
-          <SquareIcon className={ICON_CLASS} weight="fill" aria-hidden="true" />
-        </span>
+        <SquareIcon className={ICON_CLASS} weight="fill" aria-hidden="true" />
       );
     }
 
     if (isLoading || isSummarizing) {
       return (
-        <span className={ICON_WRAPPER_CLASS}>
-          <Spinner
-            size="sm"
-            variant="white"
-            className="!grid h-full w-full place-items-center [&_svg]:h-4 [&_svg]:w-4"
-          />
-        </span>
+        <Spinner
+          size="sm"
+          variant="white"
+          className="[&_svg]:h-4 [&_svg]:w-4"
+        />
       );
     }
 
     if (!hasInputText && isTranscribing) {
       return (
-        <span className={ICON_WRAPPER_CLASS}>
-          <Spinner
-            size="sm"
-            variant="white"
-            className="!grid h-full w-full place-items-center [&_svg]:h-4 [&_svg]:w-4"
-          />
-        </span>
+        <Spinner
+          size="sm"
+          variant="white"
+          className="[&_svg]:h-4 [&_svg]:w-4"
+        />
       );
     }
 
     if (!hasInputText && isRecording) {
       return (
-        <span className={ICON_WRAPPER_CLASS}>
-          <CheckIcon className={ICON_CLASS} weight="bold" aria-hidden="true" />
-        </span>
+        <CheckIcon className={ICON_CLASS} weight="bold" aria-hidden="true" />
       );
     }
 
     if (!hasInputText && isSupported) {
-      return (
-        <span className={ICON_WRAPPER_CLASS}>
-          <MicrophoneIcon className={ICON_CLASS} aria-hidden="true" />
-        </span>
-      );
+      return <MicrophoneIcon className={ICON_CLASS} aria-hidden="true" />;
     }
 
-    return (
-      <span className={ICON_WRAPPER_CLASS}>
-        <PaperPlaneTiltIcon className={ICON_CLASS} aria-hidden="true" />
-      </span>
-    );
+    return <PaperPlaneTiltIcon className={ICON_CLASS} aria-hidden="true" />;
   }, [
     isStreaming,
     isLoading,
@@ -411,8 +393,8 @@ export const SendButtonGroup = ({
     <div className="relative">
       <div
         className={cn(
-          "chat-input-send-group relative flex items-stretch",
-          "h-8",
+          "relative flex items-stretch",
+          "h-8 rounded-full",
           "transition-all",
           easingClass,
           widthClass,
@@ -517,23 +499,18 @@ export const SendButtonGroup = ({
                     }
                     type="button"
                     variant="ghost"
+                    size="icon-pill"
                     aria-label="More send options"
                     title="More send options"
                     className={cn(
                       "absolute left-0 top-0 bottom-0",
-                      "w-8 h-8 p-0",
-                      "grid place-items-center rounded-full",
                       "relative z-10",
+                      "gap-0",
                       "transition-all transform-gpu",
-                      // Upload-like hover/active scale when expanded
-
                       dropdownMenuTriggerAnimationClasses,
                       "hover:bg-transparent",
                       "focus-visible:bg-transparent",
                       "disabled:cursor-not-allowed",
-                      // Focus ring: use outside ring like upload/send
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                      // Text color to drive icon via text-current
                       "text-primary-foreground",
                       "hover:text-primary-foreground",
                       "focus-visible:text-primary-foreground"
@@ -634,11 +611,11 @@ export const SendButtonGroup = ({
                   : "submit"
               }
               variant="ghost"
+              size="icon-pill"
               className={cn(
-                "absolute top-0 bottom-0 right-0 w-8 p-0 h-8 leading-none rounded-full",
-                // Use grid centering to align icon perfectly
-                "!grid place-items-center !items-center !justify-center !gap-0",
+                "absolute top-0 bottom-0 right-0",
                 "relative z-10",
+                "gap-0",
                 shouldShowWaveform && "opacity-0 pointer-events-none",
                 // Keep icon color in sync with state
                 isStreaming || canSend || (!hasInputText && isSupported)
@@ -653,11 +630,8 @@ export const SendButtonGroup = ({
                     ],
                 "hover:bg-transparent",
                 "focus-visible:bg-transparent",
-                // Background highlight handled by the overlay above; keep button surface transparent
                 "disabled:cursor-not-allowed",
-                "transition-colors duration-200",
-                // Focus ring: use outside ring like upload for consistency
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                "transition-colors duration-200"
               )}
               onClick={handleButtonClick}
               onMouseEnter={() => setHoveredSegment("send")}

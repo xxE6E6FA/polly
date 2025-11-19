@@ -11,6 +11,7 @@ export const ROUTES = {
     MODELS: "/settings/models",
     TEXT_MODELS: "/settings/models/text",
     IMAGE_MODELS: "/settings/models/image",
+    TTS_MODELS: "/settings/models/tts",
     PERSONAS: "/settings/personas",
     PERSONAS_NEW: "/settings/personas/new",
     PERSONAS_EDIT: (id: string) => `/settings/personas/${id}/edit`,

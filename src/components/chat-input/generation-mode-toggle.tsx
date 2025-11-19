@@ -47,7 +47,7 @@ export const GenerationModeToggle = memo<GenerationModeToggleProps>(
         className={cn(
           "h-8 w-16 bg-primary/20 shadow-sm p-0.5",
           "dark:bg-muted dark:ring-border",
-          "chat-input-control transition-all duration-200 hover:shadow-md",
+          "transition-all duration-200 hover:shadow-md",
           "ring-1 ring-primary/25",
           disabled && "opacity-50 cursor-not-allowed",
           className

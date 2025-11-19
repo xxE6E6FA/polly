@@ -31,6 +31,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
 import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
   SelectContent,
@@ -408,10 +409,10 @@ export default function AttachmentsPage() {
         </div>
 
         <div className="flex gap-2">
-          <Input
+          <SearchInput
             placeholder="Search files..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
             className="w-60"
           />
 

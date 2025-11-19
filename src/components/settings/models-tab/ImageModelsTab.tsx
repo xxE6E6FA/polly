@@ -1,7 +1,7 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
 import {
-  ArrowsClockwise,
+  ArrowCounterClockwiseIcon,
   KeyIcon,
   MagnifyingGlassIcon,
 } from "@phosphor-icons/react";
@@ -19,7 +19,13 @@ import {
 } from "react";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useDebounce } from "@/hooks/use-debounce";
 
 import { isApiKeysArray } from "@/lib/type-guards";
@@ -604,11 +610,6 @@ export const ImageModelsTab = () => {
 
   return (
     <div className="stack-xl">
-      <SettingsHeader
-        description="Browse curated image generation models from Replicate's text-to-image collection. Use API search to find any model on Replicate, or add custom models by ID."
-        title="Image Models"
-      />
-
       {error && (
         <Alert className="mb-6" variant="danger">
           <AlertIcon variant="danger" />
@@ -619,33 +620,76 @@ export const ImageModelsTab = () => {
         </Alert>
       )}
 
+      {/* Custom Model Input */}
+      <div className="rounded-lg bg-muted/50 p-4 shadow-sm ring-1 ring-border/30">
+        <h3 className="text-sm font-medium mb-2">Add Custom Model</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Enter a model ID from replicate.com (e.g., "stability-ai/sdxl" or
+          "black-forest-labs/flux-dev")
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="owner/model-name"
+            value={customModelId}
+            onChange={e => setCustomModelId(e.target.value)}
+            onKeyDown={handleCustomModelKeyPress}
+            disabled={isAddingCustomModel}
+            className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-10"
+            onClick={handleAddCustomModel}
+            disabled={!customModelId.trim() || isAddingCustomModel}
+          >
+            {isAddingCustomModel ? (
+              <>
+                <Spinner className="h-3 w-3 mr-1" />
+                Adding...
+              </>
+            ) : (
+              "Add Model"
+            )}
+          </Button>
+        </div>
+      </div>
+
       <div className="stack-xl">
         {/* Filters */}
         <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative min-w-0 flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-            <input
-              className="h-10 w-full rounded-md border border-input bg-background px-3 pl-10 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              placeholder={
-                searchMode === "api"
-                  ? "Search all Replicate models..."
-                  : "Search curated models locally..."
-              }
-              value={filterState.searchQuery}
-              onChange={e => handleSearchChange(e.target.value)}
-            />
-            {isSearching && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 transform">
-                <Spinner size="sm" />
-              </div>
-            )}
-          </div>
+          <SearchInput
+            placeholder={
+              searchMode === "api"
+                ? "Search all Replicate models..."
+                : "Search curated models locally..."
+            }
+            value={filterState.searchQuery}
+            onChange={handleSearchChange}
+            className="min-w-0 flex-1"
+          />
 
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 gap-3 items-center">
             <Button
               size="sm"
-              variant={searchMode === "api" ? "secondary" : "outline"}
-              className="gap-2 h-10 text-sm"
+              variant={filterState.showOnlySelected ? "default" : "secondary"}
+              className="gap-2 h-9 text-sm"
+              onClick={handleShowSelectedToggle}
+            >
+              Selected
+              {filterState.showOnlySelected &&
+                enabledImageModels.length > 0 && (
+                  <span className="rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-xs text-primary-foreground">
+                    {enabledImageModels.length}
+                  </span>
+                )}
+            </Button>
+
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-2 h-9 text-sm"
               onClick={handleSearchModeToggle}
               title={
                 searchMode === "api"
@@ -656,35 +700,26 @@ export const ImageModelsTab = () => {
               {searchMode === "api" ? "API Search" : "Local Search"}
             </Button>
 
-            <Button
-              size="sm"
-              variant={filterState.showOnlySelected ? "secondary" : "outline"}
-              className="gap-2 h-10 text-sm"
-              onClick={handleShowSelectedToggle}
-            >
-              Selected
-              {filterState.showOnlySelected &&
-                enabledImageModels.length > 0 && (
-                  <span className="rounded-full bg-secondary-foreground/20 px-1.5 py-0.5 text-xs text-secondary-foreground">
-                    {enabledImageModels.length}
-                  </span>
-                )}
-            </Button>
-
             {enabledImageModels.length > 0 && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2 h-10 text-sm"
-                onClick={handleRefreshCapabilities}
-                disabled={isRefreshing}
-                title="Refresh model capabilities from latest OpenAPI schemas"
-              >
-                <ArrowsClockwise
-                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-                />
-                {isRefreshing ? "Refreshing..." : "Refresh"}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Button
+                    aria-label="Refresh model capabilities"
+                    className="shrink-0 w-9 h-9"
+                    disabled={isRefreshing}
+                    size="icon"
+                    variant="ghost"
+                    onClick={handleRefreshCapabilities}
+                  >
+                    <ArrowCounterClockwiseIcon
+                      className={`h-4 w-4 ${isRefreshing ? "animate-[spin_1s_linear_infinite_reverse]" : ""}`}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Refresh capabilities for enabled models
+                </TooltipContent>
+              </Tooltip>
             )}
 
             {hasActiveFilters && (
@@ -692,48 +727,12 @@ export const ImageModelsTab = () => {
                 disabled={isPending}
                 variant="outline"
                 size="sm"
-                className="h-10"
+                className="h-9"
                 onClick={clearAllFilters}
               >
                 Clear filters
               </Button>
             )}
-          </div>
-        </div>
-
-        {/* Custom Model Input */}
-        <div className="rounded-lg bg-muted/50 p-4 shadow-sm ring-1 ring-border/30">
-          <h3 className="text-sm font-medium mb-2">Add Custom Model</h3>
-          <p className="text-xs text-muted-foreground mb-3">
-            Enter a model ID from replicate.com (e.g., "stability-ai/sdxl" or
-            "black-forest-labs/flux-dev")
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="owner/model-name"
-              value={customModelId}
-              onChange={e => setCustomModelId(e.target.value)}
-              onKeyDown={handleCustomModelKeyPress}
-              disabled={isAddingCustomModel}
-              className="h-10 flex-1 rounded-md border border-input bg-background px-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-10"
-              onClick={handleAddCustomModel}
-              disabled={!customModelId.trim() || isAddingCustomModel}
-            >
-              {isAddingCustomModel ? (
-                <>
-                  <Spinner className="h-3 w-3 mr-1" />
-                  Adding...
-                </>
-              ) : (
-                "Add Model"
-              )}
-            </Button>
           </div>
         </div>
 

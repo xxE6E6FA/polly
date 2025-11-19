@@ -1,10 +1,6 @@
 /** biome-ignore-all lint/suspicious/noArrayIndexKey: acceptable for skeletons */
 import { api } from "@convex/_generated/api";
-import {
-  ArrowCounterClockwiseIcon,
-  KeyIcon,
-  MagnifyingGlassIcon,
-} from "@phosphor-icons/react";
+import { KeyIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
 import Fuse from "fuse.js";
 import {
@@ -212,27 +208,7 @@ export const TextModelsTab = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [unfilteredModels, setUnfilteredModels] = useState<FetchedModel[]>([]);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const fetchAllModelsAction = useAction(api.models.fetchAllModels);
-
-  const fetchAllModels = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const models = await fetchAllModelsAction({});
-      // Always exclude Replicate and ElevenLabs from Text Models listing
-      const filtered = models.filter(
-        m => !["replicate", "elevenlabs"].includes(m.provider.toLowerCase())
-      );
-      setUnfilteredModels(filtered);
-      setIsInitialLoad(false);
-      setError(null);
-    } catch (e) {
-      setError(e as Error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchAllModelsAction]);
 
   // Create a set of available model IDs from API-fetched models
   const availableModelIds = useMemo(() => {
@@ -397,26 +373,6 @@ export const TextModelsTab = () => {
     });
   }, []);
 
-  const handleRefresh = useCallback(async () => {
-    if (availableProviders.length === 0) {
-      return;
-    }
-
-    await fetchAllModels();
-  }, [fetchAllModels, availableProviders]);
-
-  useEffect(() => {
-    const loadModels = async () => {
-      if (availableProviders.length === 0) {
-        return;
-      }
-
-      await fetchAllModels();
-    };
-
-    loadModels();
-  }, [fetchAllModels, availableProviders]);
-
   if (availableProviders.length === 0) {
     return (
       <div className="stack-xl">
@@ -436,24 +392,6 @@ export const TextModelsTab = () => {
 
   return (
     <div className="stack-xl">
-      <div className="flex items-start justify-between">
-        <SettingsHeader
-          description="Browse and explore AI models from your configured providers. Enable models to use them in conversations."
-          title="Text Models"
-        />
-        <Button
-          aria-label="Refresh models"
-          className="shrink-0 gap-2"
-          disabled={isLoading}
-          size="sm"
-          variant="outline"
-          onClick={handleRefresh}
-        >
-          <ArrowCounterClockwiseIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">Refresh</span>
-        </Button>
-      </div>
-
       {error && (
         <Alert className="mb-6" variant="danger">
           <AlertIcon variant="danger" />
@@ -471,7 +409,7 @@ export const TextModelsTab = () => {
           stats={stats}
           onProviderToggle={handleProviderToggle}
           isLoading={isLoading}
-          isInitialLoad={isInitialLoad}
+          isInitialLoad={isLoading && unfilteredModels.length === 0}
         />
       </div>
 
@@ -486,6 +424,9 @@ export const TextModelsTab = () => {
           stats={stats}
           enabledModelsCount={enabledModels.length}
           isPending={isPending}
+          onModelsFetched={setUnfilteredModels}
+          onLoadingChange={setIsLoading}
+          onError={setError}
         />
 
         <ActiveFilters

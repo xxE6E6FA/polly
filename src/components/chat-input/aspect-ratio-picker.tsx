@@ -61,14 +61,12 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
             <TooltipTrigger>
               <PopoverTrigger>
                 <Button
-                  variant="chat-input"
-                  size="sm"
+                  variant="ghost"
+                  size="pill"
                   disabled={disabled}
                   className={cn(
-                    "h-8 w-auto gap-2 px-2.5 text-xs font-medium",
                     "border border-border",
                     "bg-muted text-foreground hover:bg-muted/80",
-                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                     "transition-all duration-200"
                   )}
                 >
@@ -90,6 +88,7 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
             className="w-56 border border-border/50 bg-popover p-3"
             align="start"
             sideOffset={4}
+            rounded
           >
             <div className="stack-sm">
               <div className="grid gap-0.5">
