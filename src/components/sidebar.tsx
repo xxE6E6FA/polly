@@ -384,8 +384,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
       {isMobile && (
         <>
           <Backdrop
-            blur="sm"
-            variant="default"
             className={cn(
               "z-backdrop lg:hidden transition-opacity duration-300",
               isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"

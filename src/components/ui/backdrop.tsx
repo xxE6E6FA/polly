@@ -2,11 +2,7 @@ import { forwardRef } from "react";
 
 import { cn } from "@/lib/utils";
 
-interface BackdropProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: string;
-  blur?: string;
-  asChild?: boolean;
-}
+interface BackdropProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export const Backdrop = forwardRef<HTMLDivElement, BackdropProps>(
   ({ className, ...props }, ref) => {
