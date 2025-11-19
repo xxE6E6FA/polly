@@ -1031,6 +1031,7 @@ export const MessageActions = memo(
     onToggleCitations,
   }: MessageActionsProps) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isOverflowDrawerOpen, setIsOverflowDrawerOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
     const navigate = useNavigate();
@@ -1190,85 +1191,205 @@ export const MessageActions = memo(
       (!isUser && onOpenZenMode) || // Zen mode action
       onEditMessage; // Edit action
 
+    const renderOverflowMenuItems = () => (
+      <>
+        {onEditMessage && (
+          <DropdownMenuItem onClick={onEditMessage}>
+            <NotePencilIcon className="h-4 w-4 mr-2" />
+            Edit message
+          </DropdownMenuItem>
+        )}
+
+        {!isPrivateMode && messageId && conversationId && (
+          <BranchActionMenuItem
+            conversationId={conversationId}
+            messageId={messageId}
+            onSuccess={newConversationId => {
+              navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+            }}
+          />
+        )}
+
+        {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
+          <DropdownMenuItem onClick={handleToggleFavorite}>
+            <HeartIcon
+              className={cn("h-4 w-4 mr-2", isFavorited && "text-destructive")}
+              weight={isFavorited ? "fill" : "regular"}
+            />
+            {isFavorited ? "Unfavorite" : "Favorite"}
+          </DropdownMenuItem>
+        )}
+
+        {!isUser && messageId && (
+          <DropdownMenuItem onClick={handleTTS}>
+            {getTTSIconForDropdown(ttsState)}
+            {getTTSTooltip(ttsState)}
+          </DropdownMenuItem>
+        )}
+
+        {!isUser && onOpenZenMode && (
+          <DropdownMenuItem onClick={onOpenZenMode}>
+            <TextAaIcon className="h-4 w-4 mr-2" />
+            Zen mode
+          </DropdownMenuItem>
+        )}
+      </>
+    );
+
+    const renderOverflowDrawerItems = () => (
+      <>
+        {onEditMessage && (
+          <button
+            onClick={() => {
+              setIsOverflowDrawerOpen(false);
+              onEditMessage();
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+          >
+            <NotePencilIcon className="h-4 w-4" />
+            Edit message
+          </button>
+        )}
+
+        {!isPrivateMode && messageId && conversationId && (
+          <BranchActionDrawerItem
+            conversationId={conversationId}
+            messageId={messageId}
+            onSuccess={newConversationId => {
+              setIsOverflowDrawerOpen(false);
+              navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+            }}
+          />
+        )}
+
+        {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
+          <button
+            onClick={() => {
+              setIsOverflowDrawerOpen(false);
+              handleToggleFavorite();
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+          >
+            <HeartIcon
+              className={cn("h-4 w-4", isFavorited && "text-destructive")}
+              weight={isFavorited ? "fill" : "regular"}
+            />
+            {isFavorited ? "Unfavorite" : "Favorite"}
+          </button>
+        )}
+
+        {!isUser && messageId && (
+          <button
+            onClick={() => {
+              setIsOverflowDrawerOpen(false);
+              handleTTS();
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+          >
+            {getTTSIconForDropdown(ttsState)}
+            {getTTSTooltip(ttsState)}
+          </button>
+        )}
+
+        {!isUser && onOpenZenMode && (
+          <button
+            onClick={() => {
+              setIsOverflowDrawerOpen(false);
+              onOpenZenMode();
+            }}
+            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+          >
+            <TextAaIcon className="h-4 w-4" />
+            Zen mode
+          </button>
+        )}
+      </>
+    );
+
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
-          {/* Overflow menu for less frequently used actions */}
+          {/* Desktop: Overflow dropdown menu */}
           {hasOverflowActions && (
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger>
-                  <DropdownMenuTrigger>
-                    <Button
-                      className={cn(
-                        "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                        "motion-safe:hover:scale-105",
-                        "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                      )}
-                      disabled={isEditing}
-                      size="sm"
-                      variant="ghost"
-                      aria-label="More actions"
-                    >
-                      <DotsThreeIcon
-                        className="h-3.5 w-3.5"
-                        aria-hidden="true"
-                      />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>More actions</p>
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end">
-                {onEditMessage && (
-                  <DropdownMenuItem onClick={onEditMessage}>
-                    <NotePencilIcon className="h-4 w-4 mr-2" />
-                    Edit message
-                  </DropdownMenuItem>
-                )}
+            <>
+              <div className="hidden sm:block">
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <DropdownMenuTrigger>
+                        <Button
+                          className={cn(
+                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                            "motion-safe:hover:scale-105",
+                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                          )}
+                          disabled={isEditing}
+                          size="sm"
+                          variant="ghost"
+                          aria-label="More actions"
+                        >
+                          <DotsThreeIcon
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>More actions</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    {renderOverflowMenuItems()}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
-                {!isPrivateMode && messageId && conversationId && (
-                  <BranchActionMenuItem
-                    conversationId={conversationId}
-                    messageId={messageId}
-                    onSuccess={newConversationId => {
-                      navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-                    }}
-                  />
-                )}
+              {/* Mobile: Overflow drawer */}
+              <div className="sm:hidden">
+                <Drawer
+                  open={isOverflowDrawerOpen}
+                  onOpenChange={setIsOverflowDrawerOpen}
+                >
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <DrawerTrigger>
+                        <Button
+                          className={cn(
+                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                            "motion-safe:hover:scale-105",
+                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                          )}
+                          disabled={isEditing}
+                          size="sm"
+                          variant="ghost"
+                          aria-label="More actions"
+                        >
+                          <DotsThreeIcon
+                            className="h-3.5 w-3.5"
+                            aria-hidden="true"
+                          />
+                        </Button>
+                      </DrawerTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>More actions</p>
+                    </TooltipContent>
+                  </Tooltip>
 
-                {!isPrivateMode &&
-                  messageId &&
-                  !messageId.startsWith("private-") && (
-                    <DropdownMenuItem onClick={handleToggleFavorite}>
-                      <HeartIcon
-                        className={cn(
-                          "h-4 w-4 mr-2",
-                          isFavorited && "text-destructive"
-                        )}
-                        weight={isFavorited ? "fill" : "regular"}
-                      />
-                      {isFavorited ? "Unfavorite" : "Favorite"}
-                    </DropdownMenuItem>
-                  )}
-
-                {!isUser && messageId && (
-                  <DropdownMenuItem onClick={handleTTS}>
-                    {getTTSIconForDropdown(ttsState)}
-                    {getTTSTooltip(ttsState)}
-                  </DropdownMenuItem>
-                )}
-
-                {!isUser && onOpenZenMode && (
-                  <DropdownMenuItem onClick={onOpenZenMode}>
-                    <TextAaIcon className="h-4 w-4 mr-2" />
-                    Zen mode
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DrawerContent>
+                    <DrawerHeader>
+                      <DrawerTitle>More actions</DrawerTitle>
+                    </DrawerHeader>
+                    <DrawerBody>
+                      <div className="flex flex-col">
+                        {renderOverflowDrawerItems()}
+                      </div>
+                    </DrawerBody>
+                  </DrawerContent>
+                </Drawer>
+              </div>
+            </>
           )}
 
           {/* Primary actions: Copy, Retry, Delete */}
@@ -1353,7 +1474,7 @@ export const MessageActions = memo(
 
 MessageActions.displayName = "MessageActions";
 
-// Branch action as a dropdown menu item
+// Branch action as a dropdown menu item (desktop)
 function BranchActionMenuItem({
   conversationId,
   messageId,
@@ -1431,6 +1552,117 @@ function BranchActionMenuItem({
         <GitBranchIcon className="h-4 w-4 mr-2" />
         Branch from here
       </DropdownMenuItem>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Branch</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground">
+            This will create a new conversation with all messages up to this
+            point. Continue in the new branch afterwards.
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={loading} onClick={handleConfirm}>
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" variant="primary" />
+                  <span>Creating…</span>
+                </span>
+              ) : (
+                "Create branch"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// Branch action as a drawer item (mobile)
+function BranchActionDrawerItem({
+  conversationId,
+  messageId,
+  onSuccess,
+}: {
+  conversationId: string;
+  messageId: string;
+  onSuccess: (newConversationId: string, assistantMessageId?: string) => void;
+}) {
+  const createBranch = useAction(api.branches.createBranch);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const managedToast = useToast();
+  const setStreaming = useMutation(api.conversations.setStreaming);
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
+
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+      const res = await createBranch({
+        conversationId: conversationId as Id<"conversations">,
+        messageId: messageId as Id<"messages">,
+      });
+      // If we have an assistant placeholder, kick off HTTP streaming first
+      if (res.assistantMessageId) {
+        try {
+          // Wait briefly for auth token if not yet available
+          const start = Date.now();
+          let token = authRef.current;
+          while (!token && Date.now() - start < 2000) {
+            await new Promise(r => setTimeout(r, 50));
+            token = authRef.current;
+          }
+          if (import.meta.env.VITE_CONVEX_URL) {
+            await startAuthorStream({
+              convexUrl: import.meta.env.VITE_CONVEX_URL,
+              authToken: token || undefined,
+              conversationId: res.conversationId,
+              assistantMessageId: res.assistantMessageId as Id<"messages">,
+              onFinish: async () => {
+                try {
+                  await setStreaming({
+                    conversationId: res.conversationId,
+                    isStreaming: false,
+                  });
+                } catch {
+                  // best-effort only
+                }
+              },
+            });
+          } else {
+            console.warn("Missing VITE_CONVEX_URL; skipping stream start");
+          }
+        } catch {
+          // Ignore errors when starting stream
+        }
+      }
+      onSuccess(res.conversationId, res.assistantMessageId);
+      managedToast.success("Branched conversation");
+    } catch (_e) {
+      managedToast.error("Failed to create branch");
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
+      >
+        <GitBranchIcon className="h-4 w-4" />
+        Branch from here
+      </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
