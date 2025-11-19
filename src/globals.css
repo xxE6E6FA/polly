@@ -217,9 +217,14 @@
   --color-card-foreground: hsl(0 0% 4%);
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(0 0% 4%);
+  --color-sidebar-foreground: hsl(0 0% 20%);
+  --color-sidebar-muted: hsl(0 0% 40%);
+  --color-sidebar-hover: hsl(0 0% 92%);
   --color-sidebar-tinted: hsl(0 0% 97%);
   --color-active-element-tint: hsl(0 0% 96.1%);
+  --color-active-element-tint: hsl(0 0% 96.1%);
   --color-active-element-border: hsl(0 0% 75%);
+  --color-sidebar: hsl(0 0% 98%);
 
   /* Primary Colors (Minimal Black) */
   --color-primary: hsl(0 0% 4%);
@@ -483,6 +488,10 @@
     --color-card-foreground: hsl(0 0% 98%);
     --color-popover: hsl(228 8% 7%);
     --color-popover-foreground: hsl(0 0% 95%);
+    --color-sidebar: hsl(228 5% 8%);
+    --color-sidebar-foreground: hsl(228 5% 90%);
+    --color-sidebar-muted: hsl(228 5% 60%);
+    --color-sidebar-hover: hsl(228 5% 14%);
     /* Primary button: white background with dark text in dark mode (Grok style) */
     --color-primary: hsl(0 0% 98%);
     --color-primary-foreground: hsl(0 0% 4%);
@@ -1065,15 +1074,15 @@ pre {
   mask-image: linear-gradient(
     to bottom,
     transparent 0px,
-    #000 var(--shadow-height),
-    #000 calc(100% - var(--shadow-height)),
+    #000 var(--shadow-height-top),
+    #000 calc(100% - var(--shadow-height-bottom)),
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0px,
-    #000 var(--shadow-height),
-    #000 calc(100% - var(--shadow-height)),
+    #000 var(--shadow-height-top),
+    #000 calc(100% - var(--shadow-height-bottom)),
     transparent 100%
   );
 }

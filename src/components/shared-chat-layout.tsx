@@ -74,7 +74,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
     <div
       className={cn(
         "flex min-h-[100dvh] w-full transition-colors duration-500 relative",
-        isPrivateMode ? "bg-foreground" : "bg-muted/30 dark:bg-muted/10"
+        isPrivateMode ? "bg-foreground" : "bg-background"
       )}
     >
       <Sidebar forceHidden={isPrivateMode} />
@@ -87,7 +87,7 @@ export const SharedChatLayout = ({ children }: SharedChatLayoutProps) => {
 
       <main
         className={cn(
-          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          "min-w-0 flex-1 overflow-hidden flex flex-col transition-all duration-300 ease-out",
           // Base styles
           "bg-background",
           // Private mode specific styles: use margins to create the "shrunk" card effect

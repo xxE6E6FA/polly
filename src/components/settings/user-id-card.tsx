@@ -1,3 +1,4 @@
+import { Meter } from "@base-ui-components/react/meter";
 import type { IconProps } from "@phosphor-icons/react";
 import {
   CalendarBlankIcon,
@@ -10,7 +11,6 @@ import {
 import type { ComponentType } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { cn, resizeGoogleImageUrl } from "@/lib/utils";
@@ -100,10 +100,6 @@ export const UserIdCard = () => {
   if (!user || user.isAnonymous) {
     return null;
   }
-
-  const usagePercentage = monthlyUsage
-    ? Math.min(100, (monthlyMessagesSent / monthlyUsage.monthlyLimit) * 100)
-    : 0;
 
   const [
     conversationColor = "hsl(var(--color-primary))",
@@ -227,33 +223,51 @@ export const UserIdCard = () => {
         {monthlyUsage &&
           monthlyUsage.monthlyLimit > 0 &&
           !hasUnlimitedCalls && (
-            <div className="space-y-3 bg-muted/40 p-4">
+            <Meter.Root
+              value={monthlyMessagesSent}
+              max={monthlyUsage.monthlyLimit}
+              getAriaValueText={(_, value) =>
+                `${value} out of ${monthlyUsage.monthlyLimit}`
+              }
+              className="space-y-3 bg-muted/40 p-4"
+            >
               <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <span>Monthly Usage</span>
-                <span className="font-mono text-foreground">
-                  {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
-                </span>
+                <Meter.Label>Monthly Usage</Meter.Label>
+                <Meter.Value className="font-mono text-foreground">
+                  {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
+                </Meter.Value>
               </div>
-              <Progress className="h-2" value={usagePercentage} />
+              <Meter.Track className="h-2 w-full overflow-hidden rounded-full bg-secondary">
+                <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
+              </Meter.Track>
               {typeof monthlyUsage.remainingMessages === "number" && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>{monthlyUsage.remainingMessages} remaining</span>
                   <span>Resets {formatResetDate(user.createdAt)}</span>
                 </div>
               )}
-            </div>
+            </Meter.Root>
           )}
       </div>
 
       {monthlyUsage && monthlyUsage.monthlyLimit > 0 && !hasUnlimitedCalls && (
-        <div className="rounded-xl border border-border/60 bg-muted/30 p-4 lg:hidden">
+        <Meter.Root
+          value={monthlyMessagesSent}
+          max={monthlyUsage.monthlyLimit}
+          getAriaValueText={(_, value) =>
+            `${value} out of ${monthlyUsage.monthlyLimit}`
+          }
+          className="rounded-xl border border-border/60 bg-muted/30 p-4 lg:hidden"
+        >
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-            <span>Monthly Usage</span>
-            <span className="font-mono text-foreground">
-              {monthlyMessagesSent}/{monthlyUsage.monthlyLimit}
-            </span>
+            <Meter.Label>Monthly Usage</Meter.Label>
+            <Meter.Value className="font-mono text-foreground">
+              {(_, value) => `${value}/${monthlyUsage.monthlyLimit}`}
+            </Meter.Value>
           </div>
-          <Progress className="mt-3 h-2" value={usagePercentage} />
+          <Meter.Track className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
+            <Meter.Indicator className="h-full w-full flex-1 bg-primary transition-all" />
+          </Meter.Track>
           {typeof monthlyUsage.remainingMessages === "number" && (
             <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
               <span className="font-mono">
@@ -262,7 +276,7 @@ export const UserIdCard = () => {
               <span>Resets {formatResetDate(user.createdAt)}</span>
             </div>
           )}
-        </div>
+        </Meter.Root>
       )}
     </div>
   );

@@ -347,8 +347,8 @@ const ConversationItemComponent = ({
             className={cn(
               "group relative rounded-lg transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                ? "bg-muted text-sidebar-foreground"
+                : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover"
             )}
             onMouseEnter={() => {
               if (!isMobile) {
@@ -380,7 +380,7 @@ const ConversationItemComponent = ({
                       toggleSelection(conversation._id);
                     }
                   }}
-                  className="flex items-center justify-center w-4 h-4 rounded border border-muted-foreground/30 hover:border-muted-foreground/50 transition-colors"
+                  className="flex items-center justify-center w-4 h-4 rounded border border-sidebar-muted/30 hover:border-sidebar-muted/50 transition-colors"
                 >
                   {isItemSelected ? (
                     <CheckIcon
@@ -415,7 +415,7 @@ const ConversationItemComponent = ({
                 <div className="flex items-center gap-1.5 min-w-0">
                   {conversation.parentConversationId && (
                     <GitBranchIcon
-                      className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0"
+                      className="w-3.5 h-3.5 text-sidebar-muted flex-shrink-0"
                       aria-label="Branched conversation"
                       weight="bold"
                     />
@@ -437,7 +437,7 @@ const ConversationItemComponent = ({
 
               {conversation.isStreaming && (!isHovered || isMobile) && (
                 <div className="mr-1 flex items-center">
-                  <Spinner className="text-muted-foreground" size="sm" />
+                  <Spinner className="text-sidebar-muted" size="sm" />
                 </div>
               )}
             </Link>
