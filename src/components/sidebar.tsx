@@ -278,7 +278,8 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 </div>
               </div>
 
-              <div className="px-3 py-2">
+              {/* Search Bar - Distinct Form Input */}
+              <div className="px-3 pt-2 pb-4">
                 {isSelectionMode || hasSelection ? (
                   <BatchActions />
                 ) : (
@@ -313,19 +314,16 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 !user.isAnonymous &&
                 favorites &&
                 favorites.total > 0 && (
-                  <div className="pt-1 pb-2">
-                    <Link to={ROUTES.FAVORITES}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start gap-2 h-auto py-1.5 px-2 rounded-md border border-border/60 bg-muted/40 text-foreground/80 hover:text-foreground hover:bg-muted"
-                      >
-                        <HeartIcon
-                          className="h-4 w-4 text-muted-foreground"
-                          weight="fill"
-                        />
-                        <span className="text-xs font-medium">Favorites</span>
-                      </Button>
+                  <div className="pb-3 border-b border-border/30">
+                    <Link
+                      to={ROUTES.FAVORITES}
+                      className="flex items-center gap-2 py-2 px-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all duration-200 no-underline"
+                    >
+                      <HeartIcon
+                        className="h-4 w-4 text-amber-500 dark:text-amber-400 flex-shrink-0"
+                        weight="fill"
+                      />
+                      <span className="text-xs font-semibold">Favorites</span>
                     </Link>
                   </div>
                 )}

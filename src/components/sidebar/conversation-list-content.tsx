@@ -129,7 +129,7 @@ export const ConversationListContent = ({
   }
 
   return (
-    <div className="pb-3">
+    <div className="pb-3 pt-3">
       {groupedConversations.pinned.length > 0 && (
         <ConversationGroup title="Pinned">
           {groupedConversations.pinned.map(conversation => (

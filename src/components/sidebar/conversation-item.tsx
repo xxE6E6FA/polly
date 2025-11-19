@@ -345,10 +345,10 @@ const ConversationItemComponent = ({
         <ContextMenu.Trigger>
           <div
             className={cn(
-              "group relative rounded-md transition-all duration-200 ease-in-out my-0",
+              "group relative rounded-lg transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
-                ? "bg-muted text-foreground shadow-sm"
-                : "text-foreground/80 hover:text-foreground hover:bg-muted"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             )}
             onMouseEnter={() => {
               if (!isMobile) {
@@ -399,10 +399,10 @@ const ConversationItemComponent = ({
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               prefetch="intent"
               className={cn(
-                "flex items-center min-w-0 no-underline text-inherit rounded-md transition-all duration-200 ease-in-out relative",
-                isMobile ? "py-2" : "py-1.5",
+                "flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out relative",
+                isMobile ? "py-2.5" : "py-2",
                 // Adjust padding dynamically based on checkbox visibility
-                isBulkMode ? "px-2 pl-8" : "px-2",
+                isBulkMode ? "px-2.5 pl-8" : "px-2.5",
                 // Add padding on the right for actions
                 shouldShowActions ? "pr-16" : "pr-10"
               )}

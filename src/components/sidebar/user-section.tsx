@@ -60,11 +60,11 @@ const UserSectionContent = ({
       <div className="border-t border-border/50">
         <Link className="block w-full" to={ROUTES.AUTH}>
           <Button
-            className="flex h-9 w-full items-center rounded-none justify-start gap-5 px-5 py-7 text-sm text-muted-foreground hover:text-foreground"
+            className="flex h-auto w-full items-center rounded-none justify-start gap-3 px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
             variant="ghost"
           >
             <SignInIcon className="h-4 w-4" />
-            Sign In
+            <span className="font-medium">Sign In</span>
           </Button>
         </Link>
       </div>
@@ -74,43 +74,45 @@ const UserSectionContent = ({
   return (
     <div className="border-t border-border/50">
       <DropdownMenu>
-        <DropdownMenuTrigger className="rounded-none h-9 w-full justify-start gap-5 px-5 py-7 text-sm hover:bg-accent hover:text-accent-foreground transition-colors border-0 bg-transparent flex items-center text-left">
-          {user?.image ? (
-            <img
-              alt={user.name || "User avatar"}
+        <DropdownMenuTrigger className="cursor-pointer rounded-none h-auto w-full justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/60 transition-colors border-0 bg-transparent flex items-center text-left">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            {user?.image ? (
+              <img
+                alt={user.name || "User avatar"}
+                className={cn(
+                  "h-7 w-7 rounded-full object-cover flex-shrink-0",
+                  shouldAnonymize && "blur-sm"
+                )}
+                loading="lazy"
+                src={user.image}
+                onError={e => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = "none";
+                  const fallback = target.nextElementSibling as HTMLElement;
+                  if (fallback) {
+                    fallback.style.display = "flex";
+                  }
+                }}
+              />
+            ) : (
+              <div
+                className={cn(
+                  "h-7 w-7 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple flex-shrink-0",
+                  shouldAnonymize && "blur-sm"
+                )}
+              >
+                <UserIcon className="h-3.5 w-3.5 text-white" />
+              </div>
+            )}
+            <span
               className={cn(
-                "h-6 w-6 rounded-full object-cover",
-                shouldAnonymize && "blur-sm"
-              )}
-              loading="lazy"
-              src={user.image}
-              onError={e => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = "none";
-                const fallback = target.nextElementSibling as HTMLElement;
-                if (fallback) {
-                  fallback.style.display = "flex";
-                }
-              }}
-            />
-          ) : (
-            <div
-              className={cn(
-                "h-6 w-6 flex items-center justify-center rounded-full bg-gradient-to-br from-accent-coral to-accent-purple",
-                shouldAnonymize && "blur-sm"
+                "truncate text-foreground text-sm font-medium",
+                shouldAnonymize && "blur-md"
               )}
             >
-              <UserIcon className="h-3 w-3 text-white" />
-            </div>
-          )}
-          <span
-            className={cn(
-              "truncate text-foreground",
-              shouldAnonymize && "blur-md"
-            )}
-          >
-            {user?.name || user?.email || "User"}
-          </span>
+              {user?.name || user?.email || "User"}
+            </span>
+          </div>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           sideOffset={4}
@@ -200,8 +202,10 @@ export const UserSection = () => {
 
 const UserSectionSkeleton = () => {
   return (
-    <div className="border-t border-border/50 pt-4 pb-3">
-      <div className="h-9 animate-pulse rounded-md bg-muted/40 px-3" />
+    <div className="border-t border-border/50">
+      <div className="px-4 py-3">
+        <div className="h-7 animate-pulse rounded-md bg-muted/40" />
+      </div>
     </div>
   );
 };
