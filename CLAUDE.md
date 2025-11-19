@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Stack:**
 
-- Frontend: React 19 + TypeScript + Bun bundler + React Router v7
+- Frontend: React 19 + TypeScript + Vite + React Router v7
 - Backend: Convex (serverless functions, realtime database, auth, file storage)
 - Styling: TailwindCSS + shadcn/ui (Radix UI components)
 - AI Integration: Vercel AI SDK with multiple providers (Anthropic, OpenAI, Google, OpenRouter)

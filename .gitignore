@@ -18,6 +18,9 @@
 /dist
 .build-cache
 
+# vite
+.vite
+
 # misc
 .DS_Store
 *.pem

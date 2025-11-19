@@ -13,8 +13,8 @@ alwaysApply: true
 
 ## Build Commands
 - **NEVER run `bun run build`**: This triggers Convex deploy requiring user interaction
-- **Frontend Build**: Use `bun run build:frontend` for frontend-only builds
-- **Full Dev**: `bun run dev` (includes both backend and frontend)
+- **Frontend Build**: Use `vite build` for frontend-only builds
+- **Full Dev**: `bun run dev` (includes both backend and frontend with Vite)
 - **Convex Dev Separate**: `bun run dev:convex` or `npx convex dev` (if running backend separately)
 
 ## Development Workflow
