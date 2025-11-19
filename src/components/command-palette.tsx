@@ -1117,8 +1117,6 @@ export function CommandPalette({
     <>
       {/* Backdrop */}
       <Backdrop
-        variant="heavy"
-        blur="md"
         className={`z-command-palette ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
