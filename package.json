@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n vite,convex -c cyan,magenta \"vite\" \"NODE_ENV=development convex dev\"",
-    "dev:bun": "NODE_ENV=development bun run scripts/dev.ts",
     "dev:convex": "NODE_ENV=development convex dev",
     "build": "NODE_ENV=production sh -c \"convex deploy --verbose --typecheck disable && bun run scripts/build-frontend.ts\"",
     "fix": "biome check --write .",
@@ -88,7 +87,6 @@
     "@vercel/react-router": "^1.1.2",
     "@vitejs/plugin-react": "^5.1.1",
     "babel-plugin-react-compiler": "1.0.0",
-    "bun-plugin-tailwind": "^0.1.2",
     "concurrently": "^9.2.1",
     "convex-test": "^0.0.38",
     "dotenv": "^16.5.0",
