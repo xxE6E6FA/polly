@@ -1294,12 +1294,9 @@ pre {
   background: linear-gradient(
     90deg,
     transparent 10%,
-    var(--color-muted-foreground) /
-    0.05 35%,
-    var(--color-muted-foreground) /
-    0.14 50%,
-    var(--color-muted-foreground) /
-    0.05 65%,
+    var(--color-muted-foreground) / 0.12 35%,
+    var(--color-muted-foreground) / 0.25 50%,
+    var(--color-muted-foreground) / 0.12 65%,
     transparent 90%
   );
   transform: translateX(-100%);
