@@ -43,6 +43,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -183,9 +184,11 @@ const RetryDropdown = memo(
 
     const renderTextModelList = () => (
       <>
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Try a different model
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            Try a different model
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
 
         {/* Free Models Group */}
         {modelGroups.freeModels.length > 0 && (
@@ -345,9 +348,11 @@ const RetryDropdown = memo(
 
     const renderImageModelList = () => (
       <>
-        <DropdownMenuLabel className="text-xs text-muted-foreground">
-          Try a different image model
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs text-muted-foreground">
+            Try a different image model
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         {imageModelOptions.length === 0 ? (
           <div className="px-2 py-2 text-sm text-muted-foreground">
             {enabledImageModels === undefined
@@ -663,56 +668,58 @@ const RetryDropdown = memo(
             >
               {!isUser && (
                 <>
-                  <DropdownMenuLabel className="pl-0 pr-1">
-                    <div className="text-xs font-medium text-muted-foreground px-3 mb-1">
-                      Refine response
-                    </div>
-                    <div className="relative flex items-center">
-                      <Input
-                        id="refine-input"
-                        autoFocus
-                        value={refineText}
-                        onChange={e => setRefineText(e.target.value)}
-                        placeholder="Type a change request…"
-                        className="h-6 w-full border-none px-3 font-normal text-foreground placeholder:text-muted-foreground shadow-none outline-none focus:ring-0 focus-visible:ring-0"
-                        onKeyDown={e => {
-                          if (
-                            e.key === "Enter" &&
-                            refineText.trim().length > 0
-                          ) {
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="pl-0 pr-1">
+                      <div className="text-xs font-medium text-muted-foreground px-3 mb-1">
+                        Refine response
+                      </div>
+                      <div className="relative flex items-center">
+                        <Input
+                          id="refine-input"
+                          autoFocus
+                          value={refineText}
+                          onChange={e => setRefineText(e.target.value)}
+                          placeholder="Type a change request…"
+                          className="h-6 w-full border-none px-3 font-normal text-foreground placeholder:text-muted-foreground shadow-none outline-none focus:ring-0 focus-visible:ring-0"
+                          onKeyDown={e => {
+                            if (
+                              e.key === "Enter" &&
+                              refineText.trim().length > 0
+                            ) {
+                              handleRefine("custom", refineText.trim());
+                              setRefineText("");
+                              setOpen(false);
+                              onDropdownOpenChange?.(false);
+                            }
+                            if (e.key === "ArrowDown") {
+                              e.preventDefault();
+                              const firstAction =
+                                document.getElementById("add-details-action");
+                              (firstAction as HTMLElement | null)?.focus();
+                            }
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 rounded-full p-0 shrink-0"
+                          aria-label="Submit instruction"
+                          title="Submit"
+                          onClick={() => {
+                            if (refineText.trim().length === 0) {
+                              return;
+                            }
                             handleRefine("custom", refineText.trim());
                             setRefineText("");
                             setOpen(false);
                             onDropdownOpenChange?.(false);
-                          }
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            const firstAction =
-                              document.getElementById("add-details-action");
-                            (firstAction as HTMLElement | null)?.focus();
-                          }
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-6 w-6 rounded-full p-0 shrink-0"
-                        aria-label="Submit instruction"
-                        title="Submit"
-                        onClick={() => {
-                          if (refineText.trim().length === 0) {
-                            return;
-                          }
-                          handleRefine("custom", refineText.trim());
-                          setRefineText("");
-                          setOpen(false);
-                          onDropdownOpenChange?.(false);
-                        }}
-                      >
-                        <ArrowUpIcon className="h-2 w-2" />
-                      </Button>
-                    </div>
-                  </DropdownMenuLabel>
+                          }}
+                        >
+                          <ArrowUpIcon className="h-2 w-2" />
+                        </Button>
+                      </div>
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator className="my-1" />
 
                   <DropdownMenuItem
@@ -740,9 +747,11 @@ const RetryDropdown = memo(
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
-                Retry
-              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  Retry
+                </DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuItem
                 onClick={handleRetrySame}
                 className="flex items-center gap-2"

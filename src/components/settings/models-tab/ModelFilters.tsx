@@ -150,7 +150,9 @@ export const ModelFilters = memo(
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Filter by Provider</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Filter by Provider</DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               {availableProviders.map(provider => (
                 <DropdownMenuCheckboxItem
@@ -194,7 +196,9 @@ export const ModelFilters = memo(
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel>Filter by Capabilities</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Filter by Capabilities</DropdownMenuLabel>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <div className="max-h-80 overflow-y-auto">
                 {allCapabilities.map(capability => (
