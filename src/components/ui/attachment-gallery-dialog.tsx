@@ -1,15 +1,10 @@
+import { Dialog } from "@base-ui-components/react/dialog";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CaretLeftIcon, CaretRightIcon, XIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog as DialogComponent,
-  DialogContent,
-  DialogPortal,
-} from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { getFileLanguage } from "@/lib/file-utils";
 
@@ -249,92 +244,105 @@ export const AttachmentGalleryDialog = ({
   };
 
   return (
-    <DialogComponent open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="fixed inset-0 z-modal flex items-center justify-center focus:outline-none
-                   data-[state=open]:animate-in data-[state=closed]:animate-out
-                   data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
-                   data-[state=open]:duration-300 data-[state=closed]:duration-200"
-      >
-        {/* Close button */}
-        <Button
-          variant="ghost"
-          size="lg"
-          onClick={e => {
-            e.stopPropagation();
-            onOpenChange(false);
-          }}
-          className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
-          aria-label="Close"
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        {/* Backdrop */}
+        <Dialog.Backdrop
+          className="fixed inset-0 z-modal bg-background/95 backdrop-blur-md
+                     data-[state=open]:animate-in data-[state=closed]:animate-out
+                     data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
+                     data-[open]:animate-in data-[closed]:animate-out
+                     data-[closed]:fade-out-0 data-[open]:fade-in-0
+                     [animation-duration:200ms]"
+        />
+
+        {/* Full-screen popup container */}
+        <Dialog.Popup
+          className="fixed inset-0 z-modal flex items-center justify-center focus:outline-none"
+          aria-label={`Preview: ${currentDisplayAttachment.name}`}
         >
-          <XIcon className="h-5 w-5" />
-        </Button>
-
-        {/* Navigation buttons - only show when there are multiple attachments */}
-        {attachments.length > 1 && (
-          <>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={e => {
-                e.stopPropagation();
-                goToPrevious();
-              }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
-              aria-label="Previous attachment"
-            >
-              <CaretLeftIcon className="h-6 w-6" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={e => {
-                e.stopPropagation();
-                goToNext();
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
-              aria-label="Next attachment"
-            >
-              <CaretRightIcon className="h-6 w-6" />
-            </Button>
-          </>
-        )}
-
-        {/* Attachment content + clickable backdrop area */}
-        <div
-          className="flex h-full w-full items-center justify-center p-8"
-          onClick={e => {
-            // For images, click anywhere to close; otherwise only true backdrop clicks
-            if (isImage) {
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="lg"
+            onClick={e => {
+              e.stopPropagation();
               onOpenChange(false);
-            } else if (e.target === e.currentTarget) {
-              onOpenChange(false);
-            }
-          }}
-          onKeyDown={e => {
-            // Allow keyboard users to close dialog with Enter or Space
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
+            }}
+            className="absolute right-4 top-4 z-20 h-10 w-10 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+            aria-label="Close"
+          >
+            <XIcon className="h-5 w-5" />
+          </Button>
+
+          {/* Navigation buttons - only show when there are multiple attachments */}
+          {attachments.length > 1 && (
+            <>
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={e => {
+                  e.stopPropagation();
+                  goToPrevious();
+                }}
+                className="absolute left-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+                aria-label="Previous attachment"
+              >
+                <CaretLeftIcon className="h-6 w-6" />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="lg"
+                onClick={e => {
+                  e.stopPropagation();
+                  goToNext();
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-foreground/50 text-background backdrop-blur-sm hover:bg-foreground/70 transition-all duration-200 hover:scale-110"
+                aria-label="Next attachment"
+              >
+                <CaretRightIcon className="h-6 w-6" />
+              </Button>
+            </>
+          )}
+
+          {/* Attachment content + clickable backdrop area */}
+          <div
+            className="flex h-full w-full items-center justify-center p-8"
+            onClick={e => {
+              // For images, click anywhere to close; otherwise only true backdrop clicks
               if (isImage) {
                 onOpenChange(false);
               } else if (e.target === e.currentTarget) {
                 onOpenChange(false);
               }
-            }
-          }}
-          tabIndex={isImage ? 0 : -1}
-        >
-          <div
-            key={currentDisplayAttachment.url || currentDisplayAttachment.name}
-            className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 ${
-              isImage ? "pointer-events-none" : ""
-            }`}
+            }}
+            onKeyDown={e => {
+              // Allow keyboard users to close dialog with Enter or Space
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                if (isImage) {
+                  onOpenChange(false);
+                } else if (e.target === e.currentTarget) {
+                  onOpenChange(false);
+                }
+              }
+            }}
+            tabIndex={isImage ? 0 : -1}
           >
-            {renderAttachmentContent()}
+            <div
+              key={
+                currentDisplayAttachment.url || currentDisplayAttachment.name
+              }
+              className={`h-full w-full max-w-7xl transition-all duration-300 ease-out animate-in fade-in-0 ${
+                isImage ? "pointer-events-none" : ""
+              }`}
+            >
+              {renderAttachmentContent()}
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </DialogComponent>
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 };
