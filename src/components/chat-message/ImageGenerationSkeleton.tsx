@@ -35,7 +35,7 @@ export const ImageGenerationSkeleton = memo<ImageGenerationSkeletonProps>(
           className
         )}
       >
-        <div className="text-xs font-medium text-muted-foreground">
+        <div className="relative text-xs font-medium text-muted-foreground">
           Generating image…
         </div>
       </div>
