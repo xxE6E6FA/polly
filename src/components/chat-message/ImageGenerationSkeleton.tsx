@@ -6,26 +6,17 @@ interface ImageGenerationSkeletonProps {
   className?: string;
 }
 
-const getAspectRatioClass = (aspectRatio: string) => {
-  switch (aspectRatio) {
-    case "1:1":
-      return "aspect-square";
-    case "16:9":
-      return "aspect-video";
-    case "9:16":
-      return "aspect-[9/16]";
-    case "4:3":
-      return "aspect-[4/3]";
-    case "3:4":
-      return "aspect-[3/4]";
-    default:
-      return "aspect-square";
-  }
+const aspectRatioClasses: Record<string, string> = {
+  "1:1": "aspect-square",
+  "16:9": "aspect-video",
+  "9:16": "aspect-[9/16]",
+  "4:3": "aspect-[4/3]",
+  "3:4": "aspect-[3/4]",
 };
 
 export const ImageGenerationSkeleton = memo<ImageGenerationSkeletonProps>(
   ({ aspectRatio = "1:1", className = "" }) => {
-    const aspectClass = getAspectRatioClass(aspectRatio);
+    const aspectClass = aspectRatioClasses[aspectRatio] || "aspect-square";
 
     return (
       <div
@@ -35,7 +26,7 @@ export const ImageGenerationSkeleton = memo<ImageGenerationSkeletonProps>(
           className
         )}
       >
-        <div className="text-xs font-medium text-muted-foreground">
+        <div className="relative text-xs font-medium text-muted-foreground">
           Generating image…
         </div>
       </div>
