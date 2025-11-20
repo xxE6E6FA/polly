@@ -106,12 +106,12 @@ function getImageInputConfig(modelName: string): { paramName: string; isArray: b
 // Ensures all dimensions are divisible by 8 (required by most AI models)
 function convertAspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
   const baseSize = 1024; // Standard size for most models (already divisible by 8)
-  
+
   // Helper to round to nearest multiple of 8
   const roundToMultipleOf8 = (value: number): number => {
     return Math.round(value / 8) * 8;
   };
-  
+
   switch (aspectRatio) {
     case "1:1":
       return { width: baseSize, height: baseSize }; // 1024x1024
@@ -143,6 +143,28 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
       // Fallback to square
       return { width: baseSize, height: baseSize };
     }
+  }
+}
+
+// Helper function to detect aspect ratio support from OpenAPI schema
+function detectAspectRatioSupportFromSchema(modelData: any): "aspect_ratio" | "dimensions" | "none" {
+  try {
+    const inputProps = modelData?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties;
+    if (!inputProps || typeof inputProps !== "object") return "none";
+
+    // Check if model has aspect_ratio parameter
+    if (inputProps.aspect_ratio) {
+      return "aspect_ratio";
+    }
+
+    // Check if model has width/height parameters
+    if (inputProps.width || inputProps.height) {
+      return "dimensions";
+    }
+
+    return "none";
+  } catch {
+    return "none";
   }
 }
 
@@ -230,40 +252,49 @@ export const generateImage = action({
       const replicate = new Replicate({
         auth: apiKey,
       });
-      
-      // Check if model supports aspect ratio parameter based on known models
-      // This is a simplified approach since we no longer cache all model capabilities
-      const aspectRatioSupportedModels = [
-        "black-forest-labs/flux-schnell",
-        "black-forest-labs/flux-dev", 
-        "black-forest-labs/flux-pro",
-        "stability-ai/sdxl",
-        "stability-ai/stable-diffusion-xl-base-1.0",
-        "lucataco/sdxl",
-      ];
-      const supportsAspectRatio = aspectRatioSupportedModels.some(supported => args.model.includes(supported));
-      
+
       // Determine if the model accepts an image input and prepare input image(s)
       let inputImageUrls: string[] = [];
       let imageInputConfig: { paramName: string; isArray: boolean } | null = null;
-      
-      // Resolve model version and introspect schema to detect image input param
+      let aspectRatioMode: "aspect_ratio" | "dimensions" | "none" = "none";
+
+      // Resolve model version and introspect schema to detect image input param and aspect ratio support
       try {
         const [owner, name] = args.model.split("/");
         if (!owner || !name) {
           throw new Error("Model must be specified as 'owner/name'");
         }
         const modelData = await replicate.models.get(owner, name);
+
+        // Detect image input parameter
         const schemaConfig = detectImageInputFromSchema(modelData);
         if (schemaConfig) {
           imageInputConfig = schemaConfig;
         } else if (isImageEditingModel(args.model)) {
           imageInputConfig = getImageInputConfig(args.model);
         }
+
+        // Detect aspect ratio support from schema
+        aspectRatioMode = detectAspectRatioSupportFromSchema(modelData);
       } catch {
-        // Fall back to heuristic if version lookup fails
+        // Fall back to heuristics if version lookup fails
         if (isImageEditingModel(args.model)) {
           imageInputConfig = getImageInputConfig(args.model);
+        }
+
+        // Fallback: Check hardcoded list for known models
+        const aspectRatioSupportedModels = [
+          "black-forest-labs/flux-schnell",
+          "black-forest-labs/flux-dev",
+          "black-forest-labs/flux-pro",
+          "stability-ai/sdxl",
+          "stability-ai/stable-diffusion-xl-base-1.0",
+          "lucataco/sdxl",
+        ];
+        if (aspectRatioSupportedModels.some(supported => args.model.includes(supported))) {
+          aspectRatioMode = "aspect_ratio";
+        } else {
+          aspectRatioMode = "dimensions";
         }
       }
 
@@ -393,17 +424,20 @@ export const generateImage = action({
       if (args.params) {
         // Handle aspect ratio or dimensions based on model support
         if (args.params.aspectRatio) {
-          if (supportsAspectRatio) {
-            // Model supports aspect_ratio parameter
+          if (aspectRatioMode === "aspect_ratio") {
+            // Model supports aspect_ratio parameter directly
             input.aspect_ratio = args.params.aspectRatio;
-          } else {
-            // Model doesn't support aspect_ratio, convert to width/height
+          } else if (aspectRatioMode === "dimensions") {
+            // Model uses width/height parameters, convert aspect ratio to dimensions
             const dimensions = convertAspectRatioToDimensions(args.params.aspectRatio);
             input.width = dimensions.width;
             input.height = dimensions.height;
+          } else {
+            // Unknown model support, try aspect_ratio first as it's more common
+            input.aspect_ratio = args.params.aspectRatio;
           }
         }
-        
+
         if (args.params.width && !args.params.aspectRatio) {
           input.width = args.params.width;
         }
