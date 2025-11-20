@@ -769,11 +769,7 @@ export const AssistantBubble = ({
           <div className="relative">
             {/* Skeleton block to reserve space before first chunk */}
             {showSkeleton && (
-              <SkeletonText
-                variant="shimmer"
-                lines={3}
-                className="max-w-[74ch]"
-              />
+              <SkeletonText lines={3} className="max-w-[74ch]" />
             )}
 
             {/* Crossfade to content when streaming starts or completes */}

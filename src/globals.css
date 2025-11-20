@@ -1260,24 +1260,23 @@ pre {
 
 .skeleton-shimmer {
   background: linear-gradient(
-    90deg,
-    var(--color-muted) 25%,
-    color-mix(in srgb, var(--color-muted-foreground) 10%, transparent) 50%,
-    var(--color-muted) 75%
+    105deg,
+    transparent 20%,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 92%) 40%,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 88%) 50%,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 92%) 60%,
+    transparent 80%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s infinite linear;
 }
 
 @keyframes skeleton-sweep {
   0% {
-    transform: translateX(-100%);
-  }
-  60% {
-    transform: translateX(100%);
+    transform: translateX(-100%) skewX(-15deg);
   }
   100% {
-    transform: translateX(100%);
+    transform: translateX(100%) skewX(-15deg);
   }
 }
 
@@ -1293,14 +1292,14 @@ pre {
   inset: 0;
   background: linear-gradient(
     90deg,
-    transparent 10%,
-    var(--color-muted-foreground) / 0.12 35%,
-    var(--color-muted-foreground) / 0.25 50%,
-    var(--color-muted-foreground) / 0.12 65%,
-    transparent 90%
+    transparent,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 95%) 40%,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 90%) 50%,
+    color-mix(in srgb, var(--color-muted-foreground), transparent 95%) 60%,
+    transparent
   );
-  transform: translateX(-100%);
-  animation: skeleton-sweep 1.8s ease-in-out infinite;
+  transform: translateX(-100%) skewX(-15deg);
+  animation: skeleton-sweep 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   pointer-events: none;
   will-change: transform;
 }
