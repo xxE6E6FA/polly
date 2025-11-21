@@ -261,7 +261,7 @@ export const ConversationContextMenu = ({
               <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
               <ContextMenu.Item
-                onSelect={() => handleBulkAction("export-json")}
+                onClick={() => handleBulkAction("export-json")}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -274,7 +274,7 @@ export const ConversationContextMenu = ({
               <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
               <ContextMenu.Item
-                onSelect={() => handleBulkAction("archive")}
+                onClick={() => handleBulkAction("archive")}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -285,7 +285,7 @@ export const ConversationContextMenu = ({
               </ContextMenu.Item>
 
               <ContextMenu.Item
-                onSelect={() => handleBulkAction("delete")}
+                onClick={() => handleBulkAction("delete")}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
@@ -300,7 +300,7 @@ export const ConversationContextMenu = ({
             <>
               {/* Single conversation actions */}
               <ContextMenu.Item
-                onSelect={onPinToggle}
+                onClick={onPinToggle}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -314,7 +314,7 @@ export const ConversationContextMenu = ({
               </ContextMenu.Item>
 
               <ContextMenu.Item
-                onSelect={onStartEdit}
+                onClick={onStartEdit}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -327,7 +327,7 @@ export const ConversationContextMenu = ({
               <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
               <ContextMenu.Item
-                onSelect={onShare}
+                onClick={onShare}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -338,7 +338,7 @@ export const ConversationContextMenu = ({
               </ContextMenu.Item>
 
               <ContextMenu.Item
-                onSelect={() => onExport("md")}
+                onClick={() => onExport("md")}
                 disabled={exportingFormat === "md" || isDeleteJobInProgress}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
@@ -352,7 +352,7 @@ export const ConversationContextMenu = ({
               </ContextMenu.Item>
 
               <ContextMenu.Item
-                onSelect={() => onExport("json")}
+                onClick={() => onExport("json")}
                 disabled={exportingFormat === "json" || isDeleteJobInProgress}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
@@ -366,7 +366,7 @@ export const ConversationContextMenu = ({
               <ContextMenu.Separator className="-mx-1 my-1 h-px bg-border" />
 
               <ContextMenu.Item
-                onSelect={onArchive}
+                onClick={onArchive}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
@@ -377,7 +377,7 @@ export const ConversationContextMenu = ({
               </ContextMenu.Item>
 
               <ContextMenu.Item
-                onSelect={onDelete}
+                onClick={onDelete}
                 className={cn(
                   "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none",
                   "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
