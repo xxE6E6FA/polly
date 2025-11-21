@@ -193,8 +193,7 @@ export const ControlledShareConversationDialog = ({
         </DialogHeader>
 
         <div className="stack-xl">
-          {/* Cleanup policy notice */}
-          <Alert>
+          <Alert variant="warning">
             <AlertDescription>
               Shared conversations are automatically deleted after 90 days of
               inactivity.
@@ -264,13 +263,12 @@ export const ControlledShareConversationDialog = ({
                 </Alert>
               )}
 
-              {/* Action buttons */}
               <div className="flex gap-3">
                 <Button
                   className="flex-1"
                   size="lg"
                   disabled={isUpdating || !hasNewMessages}
-                  variant="outline"
+                  variant="secondary"
                   onClick={handleUpdate}
                 >
                   {isUpdating ? (
@@ -284,7 +282,7 @@ export const ControlledShareConversationDialog = ({
                   className="flex-1"
                   size="lg"
                   disabled={isUnsharing}
-                  variant="outline"
+                  variant="secondary"
                   onClick={handleUnshare}
                 >
                   {isUnsharing ? (
@@ -298,12 +296,7 @@ export const ControlledShareConversationDialog = ({
             </div>
           ) : (
             <div className="stack-lg">
-              <Button
-                size="full-lg"
-                variant="tropical"
-                disabled={isSharing}
-                onClick={handleShare}
-              >
+              <Button size="full-lg" disabled={isSharing} onClick={handleShare}>
                 {isSharing ? (
                   <>
                     <Spinner size="sm" className="mr-2 h-4 w-4" />
