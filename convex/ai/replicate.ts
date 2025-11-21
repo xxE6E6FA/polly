@@ -213,6 +213,9 @@ export const generateImage = action({
   
   handler: async (ctx, args) => {
     try {
+      // Generate random seed if not provided
+      const seed = args.params?.seed ?? Math.floor(Math.random() * 2147483647);
+
       // Check if this is a retry by looking for existing image generation data
       const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
         id: args.messageId,
@@ -453,9 +456,8 @@ export const generateImage = action({
           input.guidance_scale = args.params.guidanceScale;
         }
         
-        if (args.params.seed) {
-          input.seed = args.params.seed;
-        }
+        // Always include the seed (either user-provided or generated)
+        input.seed = seed;
         
         if (args.params.negativePrompt && args.params.negativePrompt.trim()) {
           input.negative_prompt = args.params.negativePrompt;
@@ -527,11 +529,24 @@ export const generateImage = action({
         webhook_events_filter: predictionBody.webhook_events_filter,
       });
       
-      // Store prediction ID for tracking
+      // Get existing metadata and update with the seed we're using
+      const existingMessageAfterCreate = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
+        id: args.messageId,
+      });
+      const existingMsgDoc = toMessageDoc(existingMessageAfterCreate);
+
+      // Store prediction ID and update metadata with the seed
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
         replicateId: prediction.id,
         status: prediction.status,
+        metadata: {
+          ...existingMsgDoc?.imageGeneration?.metadata,
+          params: {
+            ...existingMsgDoc?.imageGeneration?.metadata?.params,
+            seed,
+          },
+        },
       });
       
       // Start polling for completion (webhooks are preferred but polling is fallback)
@@ -639,15 +654,11 @@ export const pollPrediction = internalAction({
         if (prediction.output) {
           const imageUrls = Array.isArray(prediction.output) ? prediction.output : [prediction.output];
           if (imageUrls.length > 0) {
-            // Extract seed from prediction input
-            const seed = prediction.input?.seed as number | undefined;
-
             // Store images in background - don't block the polling response
             await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
               messageId: args.messageId,
               imageUrls,
               metadata: existingMessageDoc?.imageGeneration?.metadata,
-              seed,
             });
           }
         }
@@ -730,7 +741,6 @@ export const storeGeneratedImages = internalAction({
         negativePrompt: v.optional(v.string()),
       })),
     })),
-    seed: v.optional(v.number()),
   },
   
   handler: async (ctx, args) => {
@@ -807,7 +817,6 @@ export const storeGeneratedImages = internalAction({
               source: "replicate",
               model: args.metadata?.model,
               prompt: args.metadata?.prompt,
-              seed: args.seed,
             },
           };
           
@@ -856,7 +865,6 @@ export const handleWebhook = internalAction({
     output: v.optional(v.any()),
     error: v.optional(v.string()),
     metadata: v.optional(v.any()),
-    input: v.optional(v.any()),
   },
   
   handler: async (ctx, args) => {
@@ -908,15 +916,11 @@ export const handleWebhook = internalAction({
       if (args.status === "succeeded" && args.output) {
         const imageUrls = Array.isArray(args.output) ? args.output : [args.output];
         if (imageUrls.length > 0) {
-          // Extract seed from webhook input
-          const seed = args.input?.seed as number | undefined;
-
           // Store images in background - don't block webhook response
           await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
             messageId: messageDoc._id as Id<"messages">,
             imageUrls,
             metadata: existingMessageDoc?.imageGeneration?.metadata,
-            seed,
           });
         }
       }

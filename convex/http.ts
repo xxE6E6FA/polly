@@ -150,7 +150,6 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       output: body.output,
       error: typeof body.error === "string" ? body.error : undefined,
       metadata: body.metrics,
-      input: body.input,
     });
 
     return new Response("OK", { status: 200 });

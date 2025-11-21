@@ -17,22 +17,14 @@ export function useLastGeneratedImageSeed(conversationId?: ConversationId) {
       return undefined;
     }
 
-    // Iterate through messages in reverse to find the last generated image with a seed
+    // Iterate through messages in reverse to find the last image generation with a seed
     for (let i = messages.length - 1; i >= 0; i--) {
       const message = messages[i];
-      if (!message?.attachments) {
-        continue;
-      }
-
-      // Find generated images with seeds
-      for (const attachment of message.attachments) {
-        if (
-          attachment.type === "image" &&
-          attachment.generatedImage?.isGenerated &&
-          attachment.generatedImage.seed !== undefined
-        ) {
-          return attachment.generatedImage.seed;
-        }
+      if (
+        message?.imageGeneration?.status === "succeeded" &&
+        message.imageGeneration.metadata?.params?.seed !== undefined
+      ) {
+        return message.imageGeneration.metadata.params.seed;
       }
     }
 
