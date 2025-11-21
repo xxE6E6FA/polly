@@ -985,6 +985,17 @@ function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
   return <SpeakerHighIcon className="h-4 w-4 mr-2" />;
 }
 
+// Helper to render TTS icon for action button
+function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
+  if (ttsState === "loading") {
+    return <Spinner size="sm" className="h-3.5 w-3.5" />;
+  }
+  if (ttsState === "playing") {
+    return <SquareIcon className="h-3.5 w-3.5 text-red-500" weight="fill" />;
+  }
+  return <SpeakerHighIcon className="h-3.5 w-3.5" />;
+}
+
 type MessageActionsProps = {
   isUser: boolean;
   isStreaming: boolean;
@@ -1320,52 +1331,110 @@ export const MessageActions = memo(
         <div className="flex items-center gap-1">
           {/* Mobile: Overflow drawer */}
           {hasOverflowActions && (
-            <>
-              <div className="sm:hidden">
-                <Drawer
-                  open={isOverflowDrawerOpen}
-                  onOpenChange={setIsOverflowDrawerOpen}
-                >
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <DrawerTrigger>
-                        <Button
-                          className={cn(
-                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                            "motion-safe:hover:scale-105",
-                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                          )}
-                          disabled={isEditing}
-                          size="sm"
-                          variant="ghost"
-                          aria-label="More actions"
-                        >
-                          <DotsThreeIcon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        </Button>
-                      </DrawerTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>More actions</p>
-                    </TooltipContent>
-                  </Tooltip>
+            <div className="sm:hidden">
+              <Drawer
+                open={isOverflowDrawerOpen}
+                onOpenChange={setIsOverflowDrawerOpen}
+              >
+                <Tooltip>
+                  <TooltipTrigger>
+                    <DrawerTrigger>
+                      <Button
+                        className={cn(
+                          "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                          "motion-safe:hover:scale-105",
+                          "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                        )}
+                        disabled={isEditing}
+                        size="sm"
+                        variant="ghost"
+                        aria-label="More actions"
+                      >
+                        <DotsThreeIcon
+                          className="h-3.5 w-3.5"
+                          aria-hidden="true"
+                        />
+                      </Button>
+                    </DrawerTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>More actions</p>
+                  </TooltipContent>
+                </Tooltip>
 
-                  <DrawerContent>
-                    <DrawerHeader>
-                      <DrawerTitle>More actions</DrawerTitle>
-                    </DrawerHeader>
-                    <DrawerBody>
-                      <div className="flex flex-col">
-                        {renderOverflowDrawerItems()}
-                      </div>
-                    </DrawerBody>
-                  </DrawerContent>
-                </Drawer>
-              </div>
-            </>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>More actions</DrawerTitle>
+                  </DrawerHeader>
+                  <DrawerBody>
+                    <div className="flex flex-col">
+                      {renderOverflowDrawerItems()}
+                    </div>
+                  </DrawerBody>
+                </DrawerContent>
+              </Drawer>
+            </div>
           )}
+
+          {/* Desktop: Individual action buttons */}
+          <div className="hidden sm:flex sm:items-center sm:gap-1">
+            {onEditMessage && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip="Edit message"
+                ariaLabel="Edit this message"
+                icon={<NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                onClick={onEditMessage}
+              />
+            )}
+
+            {!isPrivateMode && messageId && conversationId && (
+              <BranchActionButton
+                conversationId={conversationId}
+                messageId={messageId}
+                isEditing={isEditing}
+                onSuccess={newConversationId => {
+                  navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+                }}
+              />
+            )}
+
+            {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip={isFavorited ? "Unfavorite" : "Favorite"}
+                ariaLabel={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                icon={
+                  <HeartIcon
+                    className={cn("h-3.5 w-3.5", isFavorited && "text-destructive")}
+                    weight={isFavorited ? "fill" : "regular"}
+                    aria-hidden="true"
+                  />
+                }
+                onClick={handleToggleFavorite}
+              />
+            )}
+
+            {!isUser && messageId && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip={getTTSTooltip(ttsState)}
+                ariaLabel={getTTSTooltip(ttsState)}
+                icon={getTTSIconForButton(ttsState)}
+                onClick={handleTTS}
+              />
+            )}
+
+            {!isUser && onOpenZenMode && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip="Zen mode"
+                ariaLabel="Open Zen mode"
+                icon={<TextAaIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                onClick={onOpenZenMode}
+              />
+            )}
+          </div>
 
           {/* Primary actions: Copy, Retry, Delete */}
           <ActionButton
@@ -1448,6 +1517,119 @@ export const MessageActions = memo(
 );
 
 MessageActions.displayName = "MessageActions";
+
+// Branch action as an action button (desktop)
+function BranchActionButton({
+  conversationId,
+  messageId,
+  isEditing,
+  onSuccess,
+}: {
+  conversationId: string;
+  messageId: string;
+  isEditing?: boolean;
+  onSuccess: (newConversationId: string, assistantMessageId?: string) => void;
+}) {
+  const createBranch = useAction(api.branches.createBranch);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const managedToast = useToast();
+  const setStreaming = useMutation(api.conversations.setStreaming);
+  const authToken = useAuthToken();
+  const authRef = useRef<string | null | undefined>(authToken);
+  useEffect(() => {
+    authRef.current = authToken;
+  }, [authToken]);
+
+  const handleConfirm = async () => {
+    try {
+      setLoading(true);
+      const res = await createBranch({
+        conversationId: conversationId as Id<"conversations">,
+        messageId: messageId as Id<"messages">,
+      });
+      // If we have an assistant placeholder, kick off HTTP streaming first
+      if (res.assistantMessageId) {
+        try {
+          // Wait briefly for auth token if not yet available
+          const start = Date.now();
+          let token = authRef.current;
+          while (!token && Date.now() - start < 2000) {
+            await new Promise(r => setTimeout(r, 50));
+            token = authRef.current;
+          }
+          if (import.meta.env.VITE_CONVEX_URL) {
+            await startAuthorStream({
+              convexUrl: import.meta.env.VITE_CONVEX_URL,
+              authToken: token || undefined,
+              conversationId: res.conversationId,
+              assistantMessageId: res.assistantMessageId as Id<"messages">,
+              onFinish: async () => {
+                try {
+                  await setStreaming({
+                    conversationId: res.conversationId,
+                    isStreaming: false,
+                  });
+                } catch {
+                  // best-effort only
+                }
+              },
+            });
+          } else {
+            console.warn("Missing VITE_CONVEX_URL; skipping stream start");
+          }
+        } catch {
+          // Ignore errors when starting stream
+        }
+      }
+      onSuccess(res.conversationId, res.assistantMessageId);
+      managedToast.success("Branched conversation");
+    } catch (_e) {
+      managedToast.error("Failed to create branch");
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <ActionButton
+        disabled={isEditing}
+        tooltip="Branch from here"
+        ariaLabel="Create a new conversation branch from this point"
+        icon={<GitBranchIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+        onClick={() => setOpen(true)}
+      />
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Branch</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground">
+            This will create a new conversation with all messages up to this
+            point. Continue in the new branch afterwards.
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" disabled={loading} onClick={handleConfirm}>
+              {loading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Spinner size="sm" variant="primary" />
+                  <span>Creating…</span>
+                </span>
+              ) : (
+                "Create branch"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 // Branch action as a dropdown menu item (desktop)
 function BranchActionMenuItem({
