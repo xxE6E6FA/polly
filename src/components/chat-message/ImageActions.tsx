@@ -1,10 +1,17 @@
 import {
   ArrowCounterClockwiseIcon,
+  CaretDownIcon,
   CopyIcon,
   DownloadIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -17,6 +24,7 @@ import { useToast } from "@/providers/toast-context";
 interface ImageActionsProps {
   imageUrl: string;
   prompt?: string;
+  seed?: number;
   onRetry?: () => void;
   className?: string;
 }
@@ -24,6 +32,7 @@ interface ImageActionsProps {
 export const ImageActions = ({
   imageUrl,
   prompt,
+  seed,
   onRetry,
   className = "",
 }: ImageActionsProps) => {
@@ -55,6 +64,32 @@ export const ImageActions = ({
       setIsCopying(false);
     }
   }, [prompt, isCopying, managedToast]);
+
+  const handleCopySeed = useCallback(async () => {
+    if (isCopying) {
+      return;
+    }
+
+    setIsCopying(true);
+    try {
+      if (seed === undefined) {
+        throw new Error("No seed available");
+      }
+
+      await navigator.clipboard.writeText(seed.toString());
+      managedToast.success("Seed copied to clipboard");
+    } catch (error) {
+      console.error("Failed to copy seed:", error);
+      managedToast.error("Failed to copy seed", {
+        description:
+          seed !== undefined
+            ? "Unable to copy seed to clipboard."
+            : "No seed available to copy.",
+      });
+    } finally {
+      setIsCopying(false);
+    }
+  }, [seed, isCopying, managedToast]);
 
   const handleDownloadImage = useCallback(async () => {
     if (isDownloading) {
@@ -93,22 +128,62 @@ export const ImageActions = ({
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      <Tooltip>
-        <TooltipTrigger>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopyPrompt}
-            disabled={isCopying || !prompt}
-            className="btn-action h-7 w-7 p-0"
-          >
-            <CopyIcon className="h-3.5 w-3.5" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          {prompt ? "Copy prompt to clipboard" : "No prompt available"}
-        </TooltipContent>
-      </Tooltip>
+      {/* Show dropdown menu when seed is available, otherwise show simple button */}
+      {seed !== undefined ? (
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger>
+              <DropdownMenuTrigger>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isCopying || (!prompt && seed === undefined)}
+                  className="btn-action h-7 px-1.5 gap-0.5"
+                >
+                  <CopyIcon className="h-3.5 w-3.5" />
+                  <CaretDownIcon className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Copy generation details</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem
+              onClick={handleCopyPrompt}
+              disabled={!prompt}
+              className="gap-2"
+            >
+              <CopyIcon className="h-4 w-4" />
+              <span>Copy prompt</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handleCopySeed}
+              disabled={seed === undefined}
+              className="gap-2"
+            >
+              <CopyIcon className="h-4 w-4" />
+              <span>Copy seed</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyPrompt}
+              disabled={isCopying || !prompt}
+              className="btn-action h-7 w-7 p-0"
+            >
+              <CopyIcon className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {prompt ? "Copy prompt to clipboard" : "No prompt available"}
+          </TooltipContent>
+        </Tooltip>
+      )}
 
       <Tooltip>
         <TooltipTrigger>

@@ -135,6 +135,7 @@ export const attachmentSchema = v.object({
       source: v.string(), // "replicate", etc.
       model: v.optional(v.string()),
       prompt: v.optional(v.string()),
+      seed: v.optional(v.number()),
     }),
   ),
 });

@@ -22,6 +22,7 @@ interface ImageSettingsDrawerProps {
     modelId: string;
     supportsMultipleImages: boolean;
   };
+  lastGeneratedImageSeed?: number;
   disabled?: boolean;
 }
 
@@ -29,6 +30,7 @@ export function ImageSettingsDrawer({
   params,
   onParamsChange,
   selectedModel,
+  lastGeneratedImageSeed,
   disabled = false,
 }: ImageSettingsDrawerProps) {
   const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
@@ -71,6 +73,7 @@ export function ImageSettingsDrawer({
             params={params}
             onParamsChange={onParamsChange}
             selectedModel={selectedModel}
+            lastGeneratedImageSeed={lastGeneratedImageSeed}
             disabled={disabled}
           />
         </DrawerBody>

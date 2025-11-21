@@ -26,6 +26,7 @@ interface ImageGenerationSettingsProps {
     modelId: string;
     supportsMultipleImages?: boolean;
   };
+  lastGeneratedImageSeed?: number;
   disabled?: boolean;
   className?: string;
 }
@@ -67,6 +68,7 @@ export function ImageGenerationSettingsContent({
   params,
   onParamsChange,
   selectedModel,
+  lastGeneratedImageSeed,
   disabled = false,
   className = "",
 }: ImageGenerationSettingsProps) {
@@ -79,6 +81,12 @@ export function ImageGenerationSettingsContent({
     },
     [onParamsChange]
   );
+
+  const handleReuseLastSeed = useCallback(() => {
+    if (lastGeneratedImageSeed !== undefined) {
+      handleChange("seed", lastGeneratedImageSeed);
+    }
+  }, [lastGeneratedImageSeed, handleChange]);
 
   return (
     <div className={cn("stack-lg", className)}>
@@ -175,7 +183,21 @@ export function ImageGenerationSettingsContent({
         </div>
 
         <div className="stack-sm">
-          <Label className="text-sm font-medium">Seed</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Seed</Label>
+            {lastGeneratedImageSeed !== undefined && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleReuseLastSeed}
+                disabled={disabled || params.seed === lastGeneratedImageSeed}
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Reuse last
+              </Button>
+            )}
+          </div>
           <Input
             type="number"
             value={params.seed || ""}
@@ -200,6 +222,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
     params,
     onParamsChange,
     selectedModel,
+    lastGeneratedImageSeed,
     disabled = false,
     className = "",
   }) => {
@@ -263,6 +286,7 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
               params={params}
               onParamsChange={onParamsChange}
               selectedModel={selectedModel}
+              lastGeneratedImageSeed={lastGeneratedImageSeed}
               disabled={disabled}
               className="pt-4 overflow-y-auto flex-1 min-h-0"
             />

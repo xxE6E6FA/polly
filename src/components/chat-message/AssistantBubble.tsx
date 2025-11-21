@@ -861,6 +861,7 @@ export const AssistantBubble = ({
               <ImageActions
                 imageUrl={message.imageGeneration?.output?.[0] || ""}
                 prompt={message.imageGeneration?.metadata?.prompt}
+                seed={message.imageGeneration?.metadata?.params?.seed}
                 onRetry={
                   onRetryImageGeneration
                     ? () => onRetryImageGeneration(message.id)
