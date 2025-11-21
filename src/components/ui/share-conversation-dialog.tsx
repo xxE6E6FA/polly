@@ -223,7 +223,7 @@ export const ControlledShareConversationDialog = ({
                           variant="ghost"
                           className={cn(
                             "h-8 w-8 p-0 transition-colors",
-                            isCopied && "text-[hsl(220_95%_55%)]"
+                            isCopied && "text-info"
                           )}
                           onClick={handleCopyUrl}
                         >
@@ -303,7 +303,8 @@ export const ControlledShareConversationDialog = ({
           ) : (
             <div className="stack-lg">
               <Button
-                className="h-11 w-full bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
+                className="h-11 w-full"
+                variant="tropical"
                 disabled={isSharing}
                 onClick={handleShare}
               >
