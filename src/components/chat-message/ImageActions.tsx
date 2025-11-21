@@ -81,9 +81,10 @@ export const ImageActions = ({
     } catch (error) {
       console.error("Failed to copy seed:", error);
       managedToast.error("Failed to copy seed", {
-        description: seed !== undefined
-          ? "Unable to copy seed to clipboard."
-          : "No seed available to copy.",
+        description:
+          seed !== undefined
+            ? "Unable to copy seed to clipboard."
+            : "No seed available to copy.",
       });
     } finally {
       setIsCopying(false);
@@ -131,8 +132,8 @@ export const ImageActions = ({
       {seed !== undefined ? (
         <DropdownMenu>
           <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
+            <TooltipTrigger>
+              <DropdownMenuTrigger>
                 <Button
                   variant="ghost"
                   size="sm"
