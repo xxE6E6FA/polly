@@ -6,7 +6,7 @@ import {
 } from "./use-dialog-management";
 
 describe("useConfirmationDialog", () => {
-  test("confirm triggers callbacks and closes", () => {
+  test("confirm triggers callbacks and closes", async () => {
     let confirmCount = 0;
     let cancelCount = 0;
     const onConfirm = () => {
@@ -18,12 +18,14 @@ describe("useConfirmationDialog", () => {
 
     const { result } = renderHook(() => useConfirmationDialog());
 
-    act(() => {
+    await act(async () => {
       result.current.confirm(
         { title: "Delete", description: "Are you sure?", confirmText: "Yes" },
         onConfirm,
         onCancel
       );
+      // Wait for setTimeout to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(result.current.state).toMatchObject({
@@ -40,12 +42,14 @@ describe("useConfirmationDialog", () => {
     expect(confirmCount).toBe(1);
     expect(result.current.state.isOpen).toBe(false);
 
-    act(() => {
+    await act(async () => {
       result.current.confirm(
         { title: "Again", description: "Confirm?" },
         onConfirm,
         onCancel
       );
+      // Wait for setTimeout to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     act(() => {
@@ -56,14 +60,14 @@ describe("useConfirmationDialog", () => {
     expect(result.current.state.isOpen).toBe(false);
   });
 
-  test("handleCancel invokes cancel callback", () => {
+  test("handleCancel invokes cancel callback", async () => {
     let cancelCount = 0;
     const onCancel = () => {
       cancelCount += 1;
     };
     const { result } = renderHook(() => useConfirmationDialog());
 
-    act(() => {
+    await act(async () => {
       result.current.confirm(
         { title: "Cancel", description: "?" },
         () => {
@@ -71,6 +75,8 @@ describe("useConfirmationDialog", () => {
         },
         onCancel
       );
+      // Wait for setTimeout to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     act(() => {
@@ -83,14 +89,14 @@ describe("useConfirmationDialog", () => {
 });
 
 describe("useNotificationDialog", () => {
-  test("notify stores options and action callback", () => {
+  test("notify stores options and action callback", async () => {
     let actionCount = 0;
     const onAction = () => {
       actionCount += 1;
     };
     const { result } = renderHook(() => useNotificationDialog());
 
-    act(() => {
+    await act(async () => {
       result.current.notify(
         {
           title: "Saved",
@@ -100,6 +106,8 @@ describe("useNotificationDialog", () => {
         },
         onAction
       );
+      // Wait for setTimeout to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     expect(result.current.state).toMatchObject({
