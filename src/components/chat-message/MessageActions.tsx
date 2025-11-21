@@ -58,7 +58,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-// Tooltip imports consolidated above
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
@@ -107,7 +106,6 @@ const RetryDropdown = memo(
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const [isRefineDialogOpen, setIsRefineDialogOpen] = useState(false);
     const [refineText, setRefineText] = useState("");
-    // no local ref needed; we move focus via element id
     const { modelGroups, userModels } = useModelCatalog();
     const enabledImageModels = useEnabledImageModels();
     const { selectModel } = useSelectModel();
@@ -222,7 +220,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -301,7 +299,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -451,7 +449,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -518,7 +516,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -664,7 +662,7 @@ const RetryDropdown = memo(
             </Tooltip>
             <DropdownMenuContent
               align="end"
-              className="w-auto min-w-[240px] max-w-[300px]"
+              className="w-auto min-w-60 max-w-[300px]"
             >
               {!isUser && (
                 <>
@@ -974,7 +972,6 @@ function getTTSTooltip(ttsState: TtsState): string {
   return "Listen";
 }
 
-// Helper to render TTS icon in dropdown menu item
 function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
     return <Spinner size="sm" className="h-4 w-4 mr-2" />;
@@ -985,7 +982,6 @@ function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
   return <SpeakerHighIcon className="h-4 w-4 mr-2" />;
 }
 
-// Helper to render TTS icon for action button
 function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
     return <Spinner size="sm" className="h-3.5 w-3.5" />;
@@ -1171,8 +1167,6 @@ export const MessageActions = memo(
       }
     }, [messageId, managedToast, ttsState, createTTSStreamUrl]);
 
-    // Server-side streaming is now the canonical path for TTS
-
     // Cleanup audio and abort controller on component unmount
     useEffect(() => {
       return () => {
@@ -1210,51 +1204,6 @@ export const MessageActions = memo(
       (!isUser && messageId) || // TTS action
       (!isUser && onOpenZenMode) || // Zen mode action
       onEditMessage; // Edit action
-
-    const renderOverflowMenuItems = () => (
-      <>
-        {onEditMessage && (
-          <DropdownMenuItem onClick={onEditMessage}>
-            <NotePencilIcon className="h-4 w-4 mr-2" />
-            Edit message
-          </DropdownMenuItem>
-        )}
-
-        {!isPrivateMode && messageId && conversationId && (
-          <BranchActionMenuItem
-            conversationId={conversationId}
-            messageId={messageId}
-            onSuccess={newConversationId => {
-              navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-            }}
-          />
-        )}
-
-        {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
-          <DropdownMenuItem onClick={handleToggleFavorite}>
-            <HeartIcon
-              className={cn("h-4 w-4 mr-2", isFavorited && "text-destructive")}
-              weight={isFavorited ? "fill" : "regular"}
-            />
-            {isFavorited ? "Unfavorite" : "Favorite"}
-          </DropdownMenuItem>
-        )}
-
-        {!isUser && messageId && (
-          <DropdownMenuItem onClick={handleTTS}>
-            {getTTSIconForDropdown(ttsState)}
-            {getTTSTooltip(ttsState)}
-          </DropdownMenuItem>
-        )}
-
-        {!isUser && onOpenZenMode && (
-          <DropdownMenuItem onClick={onOpenZenMode}>
-            <TextAaIcon className="h-4 w-4 mr-2" />
-            Zen mode
-          </DropdownMenuItem>
-        )}
-      </>
-    );
 
     const renderOverflowDrawerItems = () => (
       <>
@@ -1383,7 +1332,9 @@ export const MessageActions = memo(
                 disabled={isEditing}
                 tooltip="Edit message"
                 ariaLabel="Edit this message"
-                icon={<NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                icon={
+                  <NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                }
                 onClick={onEditMessage}
               />
             )}
@@ -1399,21 +1350,28 @@ export const MessageActions = memo(
               />
             )}
 
-            {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
-              <ActionButton
-                disabled={isEditing}
-                tooltip={isFavorited ? "Unfavorite" : "Favorite"}
-                ariaLabel={isFavorited ? "Remove from favorites" : "Add to favorites"}
-                icon={
-                  <HeartIcon
-                    className={cn("h-3.5 w-3.5", isFavorited && "text-destructive")}
-                    weight={isFavorited ? "fill" : "regular"}
-                    aria-hidden="true"
-                  />
-                }
-                onClick={handleToggleFavorite}
-              />
-            )}
+            {!isPrivateMode &&
+              messageId &&
+              !messageId.startsWith("private-") && (
+                <ActionButton
+                  disabled={isEditing}
+                  tooltip={isFavorited ? "Unfavorite" : "Favorite"}
+                  ariaLabel={
+                    isFavorited ? "Remove from favorites" : "Add to favorites"
+                  }
+                  icon={
+                    <HeartIcon
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        isFavorited && "text-destructive"
+                      )}
+                      weight={isFavorited ? "fill" : "regular"}
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={handleToggleFavorite}
+                />
+              )}
 
             {!isUser && messageId && (
               <ActionButton
@@ -1518,7 +1476,6 @@ export const MessageActions = memo(
 
 MessageActions.displayName = "MessageActions";
 
-// Branch action as an action button (desktop)
 function BranchActionButton({
   conversationId,
   messageId,
@@ -1631,115 +1588,6 @@ function BranchActionButton({
   );
 }
 
-// Branch action as a dropdown menu item (desktop)
-function BranchActionMenuItem({
-  conversationId,
-  messageId,
-  onSuccess,
-}: {
-  conversationId: string;
-  messageId: string;
-  onSuccess: (newConversationId: string, assistantMessageId?: string) => void;
-}) {
-  const createBranch = useAction(api.branches.createBranch);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const managedToast = useToast();
-  const setStreaming = useMutation(api.conversations.setStreaming);
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
-
-  const handleConfirm = async () => {
-    try {
-      setLoading(true);
-      const res = await createBranch({
-        conversationId: conversationId as Id<"conversations">,
-        messageId: messageId as Id<"messages">,
-      });
-      // If we have an assistant placeholder, kick off HTTP streaming first
-      if (res.assistantMessageId) {
-        try {
-          // Wait briefly for auth token if not yet available
-          const start = Date.now();
-          let token = authRef.current;
-          while (!token && Date.now() - start < 2000) {
-            await new Promise(r => setTimeout(r, 50));
-            token = authRef.current;
-          }
-          if (import.meta.env.VITE_CONVEX_URL) {
-            await startAuthorStream({
-              convexUrl: import.meta.env.VITE_CONVEX_URL,
-              authToken: token || undefined,
-              conversationId: res.conversationId,
-              assistantMessageId: res.assistantMessageId as Id<"messages">,
-              onFinish: async () => {
-                try {
-                  await setStreaming({
-                    conversationId: res.conversationId,
-                    isStreaming: false,
-                  });
-                } catch {
-                  // best-effort only
-                }
-              },
-            });
-          } else {
-            console.warn("Missing VITE_CONVEX_URL; skipping stream start");
-          }
-        } catch {
-          // Ignore errors when starting stream
-        }
-      }
-      onSuccess(res.conversationId, res.assistantMessageId);
-      managedToast.success("Branched conversation");
-    } catch (_e) {
-      managedToast.error("Failed to create branch");
-    } finally {
-      setLoading(false);
-      setOpen(false);
-    }
-  };
-
-  return (
-    <>
-      <DropdownMenuItem onClick={() => setOpen(true)}>
-        <GitBranchIcon className="h-4 w-4 mr-2" />
-        Branch from here
-      </DropdownMenuItem>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Branch</DialogTitle>
-          </DialogHeader>
-          <div className="text-sm text-muted-foreground">
-            This will create a new conversation with all messages up to this
-            point. Continue in the new branch afterwards.
-          </div>
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button size="sm" disabled={loading} onClick={handleConfirm}>
-              {loading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner size="sm" variant="primary" />
-                  <span>Creating…</span>
-                </span>
-              ) : (
-                "Create branch"
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-// Branch action as a drawer item (mobile)
 function BranchActionDrawerItem({
   conversationId,
   messageId,
