@@ -221,6 +221,19 @@ export const extendedMessageMetadataSchema = v.object({
       totalTokens: v.number(),
     }),
   ),
+  // AI SDK v5 rich metadata
+  tokenUsage: v.optional(
+    v.object({
+      inputTokens: v.number(),
+      outputTokens: v.number(),
+      totalTokens: v.number(),
+      reasoningTokens: v.optional(v.number()),
+      cachedInputTokens: v.optional(v.number()),
+    }),
+  ),
+  providerMessageId: v.optional(v.string()),
+  timestamp: v.optional(v.string()),
+  warnings: v.optional(v.array(v.string())),
 });
 
 export const ttsAudioCacheEntrySchema = v.object({

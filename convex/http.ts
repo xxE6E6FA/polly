@@ -1,7 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { generateText, smoothStream, streamText } from "ai";
+import { generateText, streamText } from "ai";
 import { httpRouter } from "convex/server";
 import type { Prediction } from "replicate";
+import {
+  createReasoningChunkHandler,
+  createSmoothStreamTransform,
+} from "../shared/streaming-utils";
 import { api, internal } from "./_generated/api.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { httpAction } from "./_generated/server";
@@ -94,7 +98,6 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
 
     // Validate request has a body
     if (!rawBody) {
-      console.warn("Received empty webhook body");
       return new Response("Bad Request", { status: 400 });
     }
 
@@ -104,19 +107,16 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
     };
     try {
       body = JSON.parse(rawBody);
-    } catch (parseError) {
-      console.warn("Invalid JSON in webhook body", { parseError });
+    } catch {
       return new Response("Bad Request", { status: 400 });
     }
 
     // Validate required fields per API spec
     if (!body.id) {
-      console.warn("Webhook missing prediction ID");
       return new Response("Bad Request", { status: 400 });
     }
 
     if (!body.status) {
-      console.warn("Webhook missing status", { predictionId: body.id });
       return new Response("Bad Request", { status: 400 });
     }
 
@@ -136,10 +136,6 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
       "canceled",
     ];
     if (!validStatuses.includes(body.status as Prediction["status"])) {
-      console.warn("Unknown webhook status", {
-        predictionId: body.id,
-        status: body.status,
-      });
       return new Response("Bad Request", { status: 400 });
     }
 
@@ -153,10 +149,7 @@ const replicateWebhook = httpAction(async (ctx, request): Promise<Response> => {
     });
 
     return new Response("OK", { status: 200 });
-  } catch (error) {
-    console.error("Webhook processing error", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+  } catch {
     return new Response("Internal Server Error", { status: 500 });
   }
 });
@@ -877,6 +870,67 @@ http.route({
 
         // Kick off LLM stream
         (async () => {
+          const handleStop = async () => {
+            // Server-side abort detected - save buffered content
+            // This is the single source of truth for stop handling
+            flush();
+            flushReasoning();
+
+            const metadata: {
+              finishReason?: string;
+              thinkingDurationMs?: number;
+              stopped?: boolean;
+            } = {
+              finishReason: "user_stopped",
+              stopped: true,
+            };
+
+            if (reasoningStartMs !== null) {
+              metadata.thinkingDurationMs = Date.now() - reasoningStartMs;
+            }
+
+            // Save server-side buffered content (what was actually streamed)
+            try {
+              await scheduleRunAfter(ctx, 0, internal.messages.updateContent, {
+                messageId,
+                content: fullContent,
+                reasoning: reasoningFull || undefined,
+                finishReason: "user_stopped",
+                usage: {
+                  promptTokens: 0,
+                  completionTokens: 0,
+                  totalTokens: 0,
+                },
+              });
+              await scheduleRunAfter(ctx, 0, internal.messages.internalUpdate, {
+                id: messageId,
+                metadata,
+              });
+              await scheduleRunAfter(
+                ctx,
+                0,
+                internal.messages.updateMessageStatus,
+                {
+                  messageId,
+                  status: "done",
+                }
+              );
+              await scheduleRunAfter(
+                ctx,
+                0,
+                internal.conversations.internalPatch,
+                {
+                  id: conversationId,
+                  updates: { isStreaming: false },
+                }
+              );
+            } catch {
+              // ignore scheduling failures
+            }
+
+            await writer.close();
+          };
+
           try {
             const result = streamText({
               model,
@@ -887,11 +941,12 @@ http.route({
               presencePenalty,
               ...(maxTokens && maxTokens > 0 ? { maxTokens } : {}),
               ...streamOpts,
-              experimental_transform: smoothStream({
-                delayInMs: 8,
-                chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/, // CJK-aware
-              }),
+              abortSignal: request.signal,
+              experimental_transform: createSmoothStreamTransform(),
               onChunk: async ({ chunk }) => {
+                if (request.signal.aborted) {
+                  return;
+                }
                 // Stream reasoning deltas to DB so UI can render traces live (v5 uses "reasoning-delta" type)
                 if (chunk.type === "reasoning-delta" && chunk.text) {
                   const delta = dedupeDelta(reasoningTail, chunk.text);
@@ -923,6 +978,9 @@ http.route({
             await writeFrame({ t: "status", status: "streaming" });
 
             for await (const chunk of result.textStream) {
+              if (request.signal.aborted) {
+                break;
+              }
               pending += chunk;
               // Stream content delta to author as NDJSON line: {"t":"content","d":"..."}\n
               await writeFrame({ t: "content", d: chunk });
@@ -934,30 +992,69 @@ http.route({
               }
             }
 
+            if (request.signal.aborted) {
+              await handleStop();
+              return;
+            }
+
             // Check result for errors even if stream completed
             const finishReason = await result.finishReason;
             if (finishReason === "error" || finishReason === "other") {
               throw new Error("Stream completed with error finish reason");
             }
 
+            // Get rich metadata from AI SDK v5
+            const usage = await result.usage;
+            const response = await result.response;
+            const warnings = await result.warnings;
+
             // Final flush and finalize
             flush();
             flushReasoning();
+
             const metadata: {
               finishReason?: string;
               thinkingDurationMs?: number;
-            } = { finishReason: "stop" };
+              providerMessageId?: string;
+              timestamp?: string;
+              warnings?: string[];
+            } = {
+              finishReason: finishReason || "stop",
+              providerMessageId: response?.id,
+              timestamp: response?.timestamp
+                ? new Date(response.timestamp).toISOString()
+                : undefined,
+              warnings: warnings?.map(w => {
+                if (w.type === "unsupported-setting") {
+                  return `Unsupported setting: ${w.setting}`;
+                }
+                if (w.type === "unsupported-tool") {
+                  // biome-ignore lint/suspicious/noExplicitAny: AI SDK v5 types are missing tool property on warning
+                  return `Unsupported tool: ${(w as any).tool?.name || "unknown"}`;
+                }
+                return "Unknown warning";
+              }),
+            };
+
             if (reasoningStartMs !== null) {
               metadata.thinkingDurationMs = Date.now() - reasoningStartMs;
             }
+
             // Defer DB finalization to a scheduled mutation to avoid dangling ops
             try {
               await scheduleRunAfter(ctx, 0, internal.messages.updateContent, {
                 messageId,
                 content: fullContent,
                 reasoning: reasoningFull || undefined,
-                finishReason: "stop",
-                usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                finishReason: finishReason || "stop",
+                usage: {
+                  // biome-ignore lint/suspicious/noExplicitAny: AI SDK v5 types are missing token usage properties
+                  promptTokens: (usage as any).promptTokens || 0,
+                  // biome-ignore lint/suspicious/noExplicitAny: AI SDK v5 types are missing token usage properties
+                  completionTokens: (usage as any).completionTokens || 0,
+                  // biome-ignore lint/suspicious/noExplicitAny: AI SDK v5 types are missing token usage properties
+                  totalTokens: (usage as any).totalTokens || 0,
+                },
               });
               await scheduleRunAfter(ctx, 0, internal.messages.internalUpdate, {
                 id: messageId,
@@ -989,7 +1086,13 @@ http.route({
             await writeFrame({ t: "finish", reason: "stop" });
             await writer.close();
           } catch (error: unknown) {
-            console.error("Stream error:", error);
+            if (
+              request.signal.aborted ||
+              (error instanceof Error && error.name === "AbortError")
+            ) {
+              await handleStop();
+              return;
+            }
             // Schedule error finalization updates
             try {
               const friendlyError = getUserFriendlyErrorMessage(error);

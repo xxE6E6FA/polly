@@ -7,7 +7,6 @@ import {
   isReasoningUIPart,
   isTextUIPart,
   type ReasoningUIPart,
-  smoothStream,
   streamText,
   type TextUIPart,
   type UIDataTypes,
@@ -17,6 +16,7 @@ import {
 } from "ai";
 import { MONTHLY_MESSAGE_LIMIT } from "../shared/constants";
 import { getProviderReasoningConfig } from "../shared/reasoning-config";
+import { createSmoothStreamTransform } from "../shared/streaming-utils";
 import { mergeSystemPrompts } from "../shared/system-prompts";
 import { api } from "./_generated/api";
 import { httpAction } from "./_generated/server";
@@ -484,10 +484,7 @@ export const chatStream = httpAction(
         // Start streaming
         const result = streamText({
           ...streamOptions,
-          experimental_transform: smoothStream({
-            delayInMs: CONFIG.PERF.SMOOTH_STREAM_DELAY_MS,
-            chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
-          }),
+          experimental_transform: createSmoothStreamTransform(),
         });
 
         // Return the proper text stream for AI SDK useChat with CORS headers

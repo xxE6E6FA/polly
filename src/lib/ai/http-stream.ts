@@ -112,9 +112,11 @@ export async function startAuthorStream(
 
     const overlays = useStreamOverlays.getState();
     const id = String(assistantMessageId);
-    overlays.set(id, "");
-    overlays.setReasoning(id, "");
-    overlays.setStatus(id, "thinking");
+    overlays.update(id, {
+      content: "",
+      reasoning: "",
+      status: "thinking",
+    });
 
     const reader = stream.getReader();
     const decoder = new TextDecoder();
@@ -151,29 +153,33 @@ export async function startAuthorStream(
                 error?: string;
               };
               if (evt.t === "content" && evt.d) {
-                overlays.append(id, evt.d);
+                overlays.update(id, { contentDelta: evt.d });
               } else if (evt.t === "reasoning" && evt.d) {
-                overlays.appendReasoning(id, evt.d);
+                overlays.update(id, { reasoningDelta: evt.d });
               } else if (evt.t === "status" && evt.status) {
-                overlays.setStatus(id, evt.status);
+                overlays.update(id, { status: evt.status });
               } else if (evt.t === "citations" && evt.citations) {
-                overlays.setCitations(id, evt.citations);
+                overlays.update(id, { citations: evt.citations });
               } else if (evt.t === "tool_call" && evt.name) {
-                overlays.pushToolEvent(id, {
-                  t: "tool_call",
-                  name: evt.name,
-                  args: evt.args,
+                overlays.update(id, {
+                  toolEvent: {
+                    t: "tool_call",
+                    name: evt.name,
+                    args: evt.args,
+                  },
                 });
               } else if (evt.t === "tool_result" && evt.name) {
-                overlays.pushToolEvent(id, {
-                  t: "tool_result",
-                  name: evt.name,
-                  ok: evt.ok,
-                  count: evt.count,
+                overlays.update(id, {
+                  toolEvent: {
+                    t: "tool_result",
+                    name: evt.name,
+                    ok: evt.ok,
+                    count: evt.count,
+                  },
                 });
               } else if (evt.t === "error" && evt.error) {
                 // Set error status immediately so UI can display it
-                overlays.setStatus(id, "error");
+                overlays.update(id, { status: "error" });
               } else if (evt.t === "finish") {
                 didFinish = true;
                 // Inform caller that the stream is finished
@@ -182,7 +188,7 @@ export async function startAuthorStream(
                 } catch {
                   // ignore callback errors
                 }
-                // Don't clear overlays immediately - keep them until DB updates arrive
+                // Don't clear overlays immediately - keep them until DB update arrives
                 // This prevents a visual flicker where the message briefly shows incomplete DB content
                 // Overlays will be cleared when the message transitions to "done" status via the effect below
               }
@@ -191,17 +197,18 @@ export async function startAuthorStream(
             }
           }
         }
-      } catch {
-        // Swallow read errors (abort, network)
+      } catch (error) {
+        // On abort, keep overlays until DB update arrives
+        // On other errors, clear overlays
+        if (error instanceof Error && error.name !== "AbortError") {
+          overlays.clearAll(String(assistantMessageId));
+        }
       } finally {
-        // If the stream ended without an explicit finish event (abort/error),
-        // clear overlays to avoid stale UI
-        if (!didFinish) {
-          overlays.clear(String(assistantMessageId));
-          overlays.clearReasoning(String(assistantMessageId));
-          overlays.clearStatus(String(assistantMessageId));
-          overlays.clearCitations(String(assistantMessageId));
-          overlays.clearTools(String(assistantMessageId));
+        // If the stream ended gracefully without an explicit finish event,
+        // this shouldn't happen but clear overlays as a safety measure
+        // Don't clear on abort - overlays will be cleared when DB update arrives
+        if (!(didFinish || abortController.signal.aborted)) {
+          overlays.clearAll(String(assistantMessageId));
         }
       }
     })();

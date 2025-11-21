@@ -15,7 +15,7 @@ import type {
   WebSearchCitation,
 } from "@/types";
 import { streamChat } from "./browser-streaming";
-import { startAuthorStream } from "./http-stream";
+import { StreamingCoordinator } from "./streaming-coordinator";
 
 // --- Type Definitions ---
 export interface SendMessageParams {
@@ -169,7 +169,6 @@ export const createServerChatHandlers = (
   modelOptions: ModelOptions,
   _getAuthToken?: () => string | null
 ): ChatHandlers => {
-  let httpAbortController: AbortController | null = null;
   // Use a safe default so specs don't require env vars; empty string yields same-origin path
   const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
   // Always attempt HTTP streaming; the underlying function will safely no-op on failure
@@ -209,10 +208,10 @@ export const createServerChatHandlers = (
       }
       const result = await actions.sendMessage(sendPayload);
 
-      // Start HTTP stream on send
+      // Start HTTP stream on send using StreamingCoordinator
       if (enableHttpForSend && canHttpStream) {
         const token = _getAuthToken?.() || null;
-        const handle = await startAuthorStream({
+        await StreamingCoordinator.start({
           convexUrl,
           authToken: token,
           conversationId,
@@ -228,7 +227,6 @@ export const createServerChatHandlers = (
           frequencyPenalty: modelOptions.frequencyPenalty,
           presencePenalty: modelOptions.presencePenalty,
         });
-        httpAbortController = handle?.abortController || null;
       }
 
       return {
@@ -247,25 +245,17 @@ export const createServerChatHandlers = (
       }
       const isImageProvider =
         mergedOptions.provider?.toLowerCase() === "replicate";
-      // Abort any ongoing HTTP stream to avoid interleaved outputs
-      if (httpAbortController) {
-        try {
-          httpAbortController.abort();
-        } catch (_e) {
-          // ignore
-        }
-        httpAbortController = null;
-      }
+
+      // Stop any ongoing HTTP stream to avoid interleaved outputs
+      StreamingCoordinator.stop();
 
       // Optimistically clear the retried message overlay immediately
       try {
         const overlays = useStreamOverlays.getState();
         const id = String(messageId);
-        overlays.set(id, "");
-        overlays.setReasoning(id, "");
-        overlays.setStatus(id, "thinking");
-        overlays.clearCitations(id);
-        overlays.clearTools(id);
+        // Clear all overlays and set to thinking status
+        overlays.clearAll(id);
+        overlays.update(id, { status: "thinking" });
       } catch (_e) {
         // ignore
       }
@@ -292,7 +282,7 @@ export const createServerChatHandlers = (
 
       // Start HTTP streaming into the returned assistantMessageId if possible
       if (canHttpStream && !isImageProvider) {
-        const handle = await startAuthorStream({
+        await StreamingCoordinator.start({
           convexUrl,
           authToken: _getAuthToken?.() || null,
           conversationId,
@@ -307,7 +297,6 @@ export const createServerChatHandlers = (
           frequencyPenalty: mergedOptions.frequencyPenalty,
           presencePenalty: mergedOptions.presencePenalty,
         });
-        httpAbortController = handle?.abortController || null;
       }
     },
 
@@ -341,7 +330,7 @@ export const createServerChatHandlers = (
         // For edit-and-resend, do NOT override model/provider in HTTP stream args.
         // The server should use the model recorded on the edited message to
         // preserve image-capable models.
-        const handle = await startAuthorStream({
+        await StreamingCoordinator.start({
           convexUrl,
           authToken: _getAuthToken?.() || null,
           conversationId,
@@ -353,7 +342,6 @@ export const createServerChatHandlers = (
           frequencyPenalty: mergedOptions.frequencyPenalty,
           presencePenalty: mergedOptions.presencePenalty,
         });
-        httpAbortController = handle?.abortController || null;
       }
     },
 
@@ -362,19 +350,11 @@ export const createServerChatHandlers = (
     },
 
     stopGeneration(): void {
-      // Abort author HTTP stream first
-      if (httpAbortController) {
-        try {
-          httpAbortController.abort();
-        } catch {
-          // Ignore errors when aborting controller
-        }
-        httpAbortController = null;
-      }
-      // Clear any overlay text immediately
-      // Overlay will be cleared when DB finalizes; nothing to do here
-      // Signal backend to stop
-      actions.stopGeneration({ conversationId });
+      // Stop the HTTP stream via StreamingCoordinator
+      // The server will detect the abort and save the buffered content to the DB
+      // Don't clear overlays - they will be cleared automatically when the DB update arrives
+      // and the message transitions to "done" status (handled by http-stream.ts)
+      StreamingCoordinator.stop();
     },
   };
 };
@@ -644,6 +624,23 @@ export const createPrivateChatHandlers = (
       if (currentAbortController) {
         currentAbortController.abort();
         currentAbortController = null;
+
+        // Mark the last assistant message as stopped by user
+        setMessages(prev => {
+          const lastMessage = prev[prev.length - 1];
+          if (lastMessage && lastMessage.role === "assistant") {
+            return prev.map((m, index) =>
+              index === prev.length - 1
+                ? {
+                    ...m,
+                    status: "done",
+                    metadata: { ...m.metadata, finishReason: "user_stopped" },
+                  }
+                : m
+            );
+          }
+          return prev;
+        });
       }
     },
 

@@ -14,7 +14,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { startAuthorStream } from "@/lib/ai/http-stream";
+import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -211,7 +211,7 @@ const ChatSection = () => {
                   );
                   return;
                 }
-                await startAuthorStream({
+                await StreamingCoordinator.start({
                   convexUrl: import.meta.env.VITE_CONVEX_URL,
                   authToken: authToken,
                   conversationId: result.conversationId,
@@ -221,16 +221,6 @@ const ChatSection = () => {
                   personaId: personaId ?? undefined,
                   reasoningConfig,
                   temperature,
-                  onFinish: async () => {
-                    try {
-                      await setStreaming({
-                        conversationId: result.conversationId,
-                        isStreaming: false,
-                      });
-                    } catch {
-                      // best-effort only
-                    }
-                  },
                 });
               } catch {
                 // Final fallback: do nothing

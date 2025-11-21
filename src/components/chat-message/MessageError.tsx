@@ -35,10 +35,10 @@ export function MessageError({
   }
 
   return (
-    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/30 dark:bg-red-950/20">
+    <div className="mt-4 rounded-lg border border-danger-border bg-danger-bg p-4">
       <div className="flex items-start gap-3">
         <svg
-          className="h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400"
+          className="h-5 w-5 flex-shrink-0 text-danger"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -52,17 +52,13 @@ export function MessageError({
           />
         </svg>
         <div className="flex-1">
-          <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
-            {errorTitle}
-          </h4>
-          <p className="mt-1 text-sm text-red-700 dark:text-red-300">
-            {errorMessage}
-          </p>
+          <h4 className="text-sm font-medium text-danger">{errorTitle}</h4>
+          <p className="mt-1 text-sm text-danger">{errorMessage}</p>
           {onRetry && (
             <div className="mt-3">
               <button
                 onClick={() => onRetry(messageId)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-200 dark:bg-red-800/20 dark:text-red-200 dark:hover:bg-red-800/30"
+                className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/20"
               >
                 <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
                 {hasImageError ? "Retry generation" : "Retry message"}

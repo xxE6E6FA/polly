@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
-import { startAuthorStream } from "@/lib/ai/http-stream";
+import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -130,23 +130,13 @@ export const ConversationStarterPopover = ({
                   return;
                 }
 
-                await startAuthorStream({
+                await StreamingCoordinator.start({
                   convexUrl,
                   authToken: token || undefined,
                   conversationId: result.conversationId,
                   assistantMessageId: result.assistantMessageId,
                   modelId: selectedModel?.modelId,
                   provider: selectedModel?.provider,
-                  onFinish: async () => {
-                    try {
-                      await setStreaming({
-                        conversationId: result.conversationId,
-                        isStreaming: false,
-                      });
-                    } catch {
-                      // ignore
-                    }
-                  },
                 });
               } catch {
                 // Ignore errors when starting stream

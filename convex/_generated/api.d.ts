@@ -64,6 +64,7 @@ import type * as messages from "../messages.js";
 import type * as migrations_addUserIdToMessages from "../migrations/addUserIdToMessages.js";
 import type * as migrations_populateUserFiles from "../migrations/populateUserFiles.js";
 import type * as migrations_seedBuiltInModels from "../migrations/seedBuiltInModels.js";
+import type * as migrations_updateStoppedMessages from "../migrations/updateStoppedMessages.js";
 import type * as migrations_updateUserFilesMetadata from "../migrations/updateUserFilesMetadata.js";
 import type * as models from "../models.js";
 import type * as personas from "../personas.js";
@@ -137,6 +138,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/addUserIdToMessages": typeof migrations_addUserIdToMessages;
   "migrations/populateUserFiles": typeof migrations_populateUserFiles;
   "migrations/seedBuiltInModels": typeof migrations_seedBuiltInModels;
+  "migrations/updateStoppedMessages": typeof migrations_updateStoppedMessages;
   "migrations/updateUserFilesMetadata": typeof migrations_updateUserFilesMetadata;
   models: typeof models;
   personas: typeof personas;

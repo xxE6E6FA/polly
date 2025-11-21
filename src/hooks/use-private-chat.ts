@@ -6,7 +6,8 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { createBasicLanguageModel } from "@shared/ai-provider-factory";
 import { getProviderReasoningConfig } from "@shared/reasoning-config";
-import { type ModelMessage, smoothStream, streamText } from "ai";
+import { createSmoothStreamTransform } from "@shared/streaming-utils";
+import { type ModelMessage, streamText } from "ai";
 import { useCallback, useRef, useState } from "react";
 import { usePrivateApiKeys } from "@/lib/ai/private-api-keys";
 import { convertChatMessagesToCoreMessages } from "@/lib/ai/private-message-utils";
@@ -181,10 +182,7 @@ export function usePrivateChat(options?: {
 
         const result = streamText({
           ...streamOptions,
-          experimental_transform: smoothStream({
-            delayInMs: 8,
-            chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
-          }),
+          experimental_transform: createSmoothStreamTransform(),
           onChunk: ({ chunk }) => {
             if (isReasoningDelta(chunk)) {
               reasoningRef.current += chunk.text;

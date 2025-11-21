@@ -44,6 +44,10 @@ const AVAILABLE_MIGRATIONS = [
     name: "updateUserFilesMetadata",
     path: "migrations.updateUserFilesMetadata.runMigration",
   },
+  {
+    name: "updateStoppedMessages",
+    path: "migrations.updateStoppedMessages.runMigration",
+  },
 ] as const;
 
 function printUsage() {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import type { ChatMessage } from "@/types";
@@ -189,55 +190,5 @@ describe("MessageError", () => {
     expect(screen.getByText("Image generation failed")).toBeTruthy();
     expect(screen.getByText("Image error")).toBeTruthy();
     expect(screen.queryByText("Text error")).toBeNull();
-  });
-
-  test("applies correct CSS classes for error styling", () => {
-    const message = createMockMessage({
-      status: "error",
-      error: "Test error",
-    });
-
-    render(<MessageError message={message} messageId="msg-1" />);
-
-    // Find the outermost error container div
-    const errorContainer = screen.getByText("Test error").closest(".mt-4");
-    expect(errorContainer?.className).toContain("mt-4");
-    expect(errorContainer?.className).toContain("rounded-lg");
-    expect(errorContainer?.className).toContain("border");
-    expect(errorContainer?.className).toContain("border-red-200");
-    expect(errorContainer?.className).toContain("bg-red-50");
-    expect(errorContainer?.className).toContain("p-4");
-    expect(errorContainer?.className).toContain("dark:border-red-800/30");
-    expect(errorContainer?.className).toContain("dark:bg-red-950/20");
-  });
-
-  test("applies correct title styling", () => {
-    const message = createMockMessage({
-      status: "error",
-      error: "Test error",
-    });
-
-    render(<MessageError message={message} messageId="msg-1" />);
-
-    const title = screen.getByText("Message failed");
-    expect(title.className).toContain("text-sm");
-    expect(title.className).toContain("font-medium");
-    expect(title.className).toContain("text-red-800");
-    expect(title.className).toContain("dark:text-red-200");
-  });
-
-  test("applies correct message styling", () => {
-    const message = createMockMessage({
-      status: "error",
-      error: "Test error",
-    });
-
-    render(<MessageError message={message} messageId="msg-1" />);
-
-    const errorText = screen.getByText("Test error");
-    expect(errorText.className).toContain("mt-1");
-    expect(errorText.className).toContain("text-sm");
-    expect(errorText.className).toContain("text-red-700");
-    expect(errorText.className).toContain("dark:text-red-300");
   });
 });

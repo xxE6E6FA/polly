@@ -1970,13 +1970,16 @@ export const editMessage = action({
 });
 
 export const stopGeneration = mutation({
-  args: { conversationId: v.id("conversations") },
+  args: {
+    conversationId: v.id("conversations"),
+    content: v.optional(v.string()),
+    reasoning: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
-    // Mark the conversation as not streaming to signal completion
-    await setConversationStreaming(ctx, args.conversationId, false);
-
-    // Also mark any streaming message as stopped
-    await stopConversationStreaming(ctx, args.conversationId);
+    // Deprecated: This mutation is kept for backward compatibility but does nothing.
+    // Stream interruption is now handled entirely by the HTTP abort handler in http.ts
+    // which detects request.signal.aborted and saves the server-side buffered content.
+    // The HTTP handler is the single source of truth for stop handling.
   },
 });
 

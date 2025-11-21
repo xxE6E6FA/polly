@@ -10,8 +10,8 @@ import { UnifiedChatView } from "@/components/unified-chat-view";
 import { mapServerMessageToChatMessage, useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
-import { startAuthorStream } from "@/lib/ai/http-stream";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
+import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { ROUTES } from "@/lib/routes";
 import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -144,7 +144,7 @@ function ConversationRouteContent({
   const convex = useConvex();
   const managedToast = useToast();
   const online = useOnline();
-  const setStreaming = useMutation(api.conversations.setStreaming);
+  const _setStreaming = useMutation(api.conversations.setStreaming);
   const authToken = useAuthToken();
   const authRef = useRef<string | null | undefined>(authToken);
   useEffect(() => {
@@ -209,23 +209,16 @@ function ConversationRouteContent({
                     );
                     return;
                   }
-                  await startAuthorStream({
+                  await StreamingCoordinator.start({
                     convexUrl,
                     authToken: token,
                     conversationId: result.conversationId,
                     assistantMessageId:
                       result.assistantMessageId as Id<"messages">,
-                    onFinish: async () => {
-                      try {
-                        await setStreaming({
-                          conversationId: result.conversationId,
-                          isStreaming: false,
-                        });
-                      } catch {
-                        // best-effort only
-                      }
-                    },
                   });
+
+                  // Note: onFinish callback removed - streaming state is now managed
+                  // by the server-side endpoint and Convex reactivity
                 } catch {
                   // Ignore errors when starting stream
                 }
@@ -240,7 +233,7 @@ function ConversationRouteContent({
       }
       return undefined;
     },
-    [createBranchingConversationAction, navigate, setStreaming]
+    [createBranchingConversationAction, navigate]
   );
 
   if (!conversationId) {

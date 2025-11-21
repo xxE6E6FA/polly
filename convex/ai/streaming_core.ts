@@ -1,4 +1,5 @@
-import { smoothStream, streamText, type ModelMessage } from "ai";
+import { streamText, type ModelMessage } from "ai";
+import { createSmoothStreamTransform } from "../../shared/streaming-utils";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx } from "../_generated/server";
@@ -111,19 +112,19 @@ export async function streamLLMToMessage({
       model,
       messages,
       // biome-ignore lint/style/useNamingConvention: AI SDK option
-      experimental_transform: smoothStream({
-        delayInMs: (CONFIG as any)?.PERF?.SMOOTH_STREAM_DELAY_MS ?? 12,
-        chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/, // words w/ unicode CJK support
-      }),
+      experimental_transform: createSmoothStreamTransform(),
       ...extraOptions,
     };
 
     if (abortController) genOpts.abortSignal = abortController.signal;
     if (temperature !== undefined) genOpts.temperature = temperature;
-    if (maxOutputTokens && maxOutputTokens > 0) genOpts.maxOutputTokens = maxOutputTokens;
+    if (maxOutputTokens && maxOutputTokens > 0)
+      genOpts.maxOutputTokens = maxOutputTokens;
     if (topP !== undefined) genOpts.topP = topP;
-    if (frequencyPenalty !== undefined) genOpts.frequencyPenalty = frequencyPenalty;
-    if (presencePenalty !== undefined) genOpts.presencePenalty = presencePenalty;
+    if (frequencyPenalty !== undefined)
+      genOpts.frequencyPenalty = frequencyPenalty;
+    if (presencePenalty !== undefined)
+      genOpts.presencePenalty = presencePenalty;
 
     // Start the generation immediately and proactively mark as streaming
     const result = streamText({
@@ -160,15 +161,53 @@ export async function streamLLMToMessage({
           }
         }
       },
-      onFinish: async ({ finishReason }) => {
+      onFinish: async ({
+        finishReason,
+        usage,
+        response,
+        warnings,
+        text,
+        reasoning,
+      }) => {
         if (stopped) return;
         await flushReasoning();
         await flushContent();
 
-        // Do not overwrite content; only set finishReason metadata
+        // Use AI SDK v5's rich metadata for comprehensive final state
         await ctx.runMutation(internal.messages.internalUpdate, {
           id: messageId,
-          metadata: { finishReason: finishReason || "stop" },
+          metadata: {
+            finishReason: finishReason || "stop",
+            tokenUsage:
+              usage &&
+              usage.totalTokens !== undefined &&
+              usage.inputTokens !== undefined &&
+              usage.outputTokens !== undefined
+                ? {
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens,
+                    totalTokens: usage.totalTokens,
+                    reasoningTokens: usage.reasoningTokens,
+                    cachedInputTokens: usage.cachedInputTokens,
+                  }
+                : undefined,
+            providerMessageId: response?.id,
+            timestamp: response?.timestamp
+              ? new Date(response.timestamp).toISOString()
+              : undefined,
+            warnings: warnings?.map((w) => {
+              if (w.type === "unsupported-setting") {
+                return `Unsupported setting: ${w.setting}${w.details ? ` - ${w.details}` : ""}`;
+              }
+              if (w.type === "unsupported-tool") {
+                return `Unsupported tool${w.details ? `: ${w.details}` : ""}`;
+              }
+              if (w.type === "other") {
+                return w.message;
+              }
+              return String(w);
+            }),
+          },
         });
         await ctx.runMutation(internal.messages.updateMessageStatus, {
           messageId,

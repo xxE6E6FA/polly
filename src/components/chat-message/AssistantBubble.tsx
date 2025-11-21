@@ -1,12 +1,13 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { TrashIcon } from "@phosphor-icons/react";
+import { StopCircle, TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { CitationsGallery } from "@/components/citations-gallery";
 import { Reasoning } from "@/components/reasoning";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { CitationProvider } from "@/components/ui/citation-context";
 import { SkeletonText } from "@/components/ui/skeleton-text";
@@ -345,8 +346,47 @@ export const AssistantBubble = ({
     [imageAttachments]
   );
 
-  const reasoning = message.reasoning;
-  const displayContent = message.content;
+  // Merge streaming overlay content with DB content
+  const overlayContent = useStreamOverlays(
+    useShallow(s => s.overlays[message.id] || "")
+  );
+  const overlayReasoning = useStreamOverlays(
+    useShallow(s => s.reasoning[message.id] || "")
+  );
+  const overlayCitations = useStreamOverlays(
+    useShallow(s => s.citations[message.id] || null)
+  );
+
+  // Clear overlays when message transitions to done status (DB update has arrived)
+  useEffect(() => {
+    if (
+      message.status === "done" &&
+      (overlayContent || overlayReasoning || overlayCitations)
+    ) {
+      const overlays = useStreamOverlays.getState();
+      overlays.clear(message.id);
+      overlays.clearReasoning(message.id);
+      overlays.clearCitations(message.id);
+      overlays.clearTools(message.id);
+      overlays.clearStatus(message.id);
+    }
+  }, [
+    message.status,
+    message.id,
+    overlayContent,
+    overlayReasoning,
+    overlayCitations,
+  ]);
+
+  // Use overlay content if present (streaming), otherwise use DB content
+  const displayContent = overlayContent || message.content;
+  const reasoning = overlayReasoning || message.reasoning;
+  const displayCitations = (overlayCitations || message.citations)?.map(c => ({
+    type: "url_citation" as const,
+    url: c.url,
+    title: c.title || "",
+  }));
+
   const hasTextContent = Boolean(
     displayContent && displayContent.trim().length > 0
   );
@@ -781,7 +821,7 @@ export const AssistantBubble = ({
                 )}
               >
                 <CitationProvider
-                  citations={message.citations || []}
+                  citations={displayCitations || []}
                   messageId={message.id}
                 >
                   <StreamingMarkdown
@@ -805,35 +845,23 @@ export const AssistantBubble = ({
           </div>
         )}
 
-        {message.metadata?.stopped && !isStreaming && (
-          <div className="mt-3 flex items-center gap-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-50 px-3 py-1.5 text-amber-700 dark:border-amber-400/30 dark:bg-amber-950/50 dark:text-amber-400">
-              <svg
-                className="h-3 w-3"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="text-xs font-medium">Stopped by user</span>
-            </div>
-          </div>
-        )}
+        {(message.metadata?.stopped ||
+          message.metadata?.finishReason === "user_stopped") &&
+          !isStreaming && (
+            <Alert variant="danger" className="my-2">
+              <AlertDescription>Stopped by user</AlertDescription>
+            </Alert>
+          )}
 
         {/* Defer citations until content has begun to reduce early reflow */}
-        {message.citations &&
-          message.citations.length > 0 &&
+        {displayCitations &&
+          displayCitations.length > 0 &&
           (phase === "streaming" || phase === "complete") && (
             <CitationsGallery
               key={`citations-${message.id}-${phase}`}
-              citations={message.citations}
+              citations={displayCitations}
               messageId={message.id}
-              content={message.content}
+              content={displayContent}
               isExpanded={citationsExpanded}
             />
           )}
@@ -930,9 +958,6 @@ export const AssistantBubble = ({
             </div>
           </div>
         )}
-
-        {/* Image preview dialog */}
-        {/* Image preview is handled by conversation-level gallery */}
       </div>
     </div>
   );

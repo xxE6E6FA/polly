@@ -10,12 +10,28 @@ type ToolEvent =
 type ToolMap = Record<string, ToolEvent[]>;
 type CitationsMap = Record<string, Array<{ url: string; title?: string }>>;
 
+export type StreamOverlayUpdates = {
+  content?: string;
+  contentDelta?: string;
+  reasoning?: string;
+  reasoningDelta?: string;
+  status?: string;
+  citations?: Array<{ url: string; title?: string }>;
+  toolEvent?: ToolEvent;
+};
+
 export type StreamOverlayState = {
   overlays: OverlayMap; // content overlays
   reasoning: OverlayMap; // reasoning overlays
   status: StatusMap; // ephemeral status per message
   tools: ToolMap; // tool events during stream
   citations: CitationsMap; // ephemeral citations overlay
+
+  // Simplified batch update API
+  update: (messageId: string, updates: StreamOverlayUpdates) => void;
+  clearAll: (messageId: string) => void;
+
+  // Original methods (kept for backward compatibility)
   set: (messageId: string, content: string) => void;
   append: (messageId: string, delta: string) => void;
   clear: (messageId: string) => void;
@@ -45,8 +61,95 @@ function createStreamOverlayState(
     status: {},
     tools: {},
     citations: {},
+
+    // Simplified batch update method
+    update: (messageId, updates) => {
+      set(state => {
+        const newState: Partial<StreamOverlayState> = {};
+
+        // Handle content updates
+        if (updates.content !== undefined) {
+          newState.overlays = {
+            ...state.overlays,
+            [messageId]: updates.content,
+          };
+        } else if (updates.contentDelta !== undefined) {
+          const currentContent = state.overlays[messageId] ?? "";
+          newState.overlays = {
+            ...state.overlays,
+            [messageId]: currentContent + updates.contentDelta,
+          };
+        }
+
+        // Handle reasoning updates
+        if (updates.reasoning !== undefined) {
+          newState.reasoning = {
+            ...state.reasoning,
+            [messageId]: updates.reasoning,
+          };
+        } else if (updates.reasoningDelta !== undefined) {
+          const currentReasoning = state.reasoning[messageId] ?? "";
+          newState.reasoning = {
+            ...state.reasoning,
+            [messageId]: currentReasoning + updates.reasoningDelta,
+          };
+        }
+
+        // Handle status update
+        if (updates.status !== undefined) {
+          newState.status = { ...state.status, [messageId]: updates.status };
+        }
+
+        // Handle citations update
+        if (updates.citations !== undefined) {
+          newState.citations = {
+            ...state.citations,
+            [messageId]: updates.citations,
+          };
+        }
+
+        // Handle tool event (push to array)
+        if (updates.toolEvent !== undefined) {
+          const currentTools = state.tools[messageId] || [];
+          newState.tools = {
+            ...state.tools,
+            [messageId]: [...currentTools, updates.toolEvent],
+          };
+        }
+
+        return newState as StreamOverlayState;
+      });
+    },
+
+    // Clear all overlays for a message at once
+    clearAll: messageId => {
+      set(state => {
+        const newOverlays = { ...state.overlays };
+        const newReasoning = { ...state.reasoning };
+        const newStatus = { ...state.status };
+        const newTools = { ...state.tools };
+        const newCitations = { ...state.citations };
+
+        delete newOverlays[messageId];
+        delete newReasoning[messageId];
+        delete newStatus[messageId];
+        delete newTools[messageId];
+        delete newCitations[messageId];
+
+        return {
+          overlays: newOverlays,
+          reasoning: newReasoning,
+          status: newStatus,
+          tools: newTools,
+          citations: newCitations,
+        } as StreamOverlayState;
+      });
+    },
+
     set: (messageId, content) =>
-      set(state => ({ overlays: { ...state.overlays, [messageId]: content } })),
+      set(state => ({
+        overlays: { ...state.overlays, [messageId]: content },
+      })),
     append: (messageId, delta) => {
       const current = get().overlays[messageId] ?? "";
       set(state => ({

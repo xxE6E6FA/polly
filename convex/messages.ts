@@ -1,7 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { smoothStream, streamText } from "ai";
+import { streamText } from "ai";
 import { ConvexError, type Infer, v } from "convex/values";
 import dedent from "dedent";
+import { createSmoothStreamTransform } from "../shared/streaming-utils";
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -1779,10 +1780,7 @@ export const refineAssistantMessage = action({
         model,
         prompt: basePrompt,
         temperature: targetTemperature,
-        experimental_transform: smoothStream({
-          delayInMs: CONFIG.PERF.SMOOTH_STREAM_DELAY_MS,
-          chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
-        }),
+        experimental_transform: createSmoothStreamTransform(),
       } as const;
       const result = streamText(baseOptions);
 

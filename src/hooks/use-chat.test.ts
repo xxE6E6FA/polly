@@ -5,6 +5,7 @@ import { setConvexMock, setUserDataMock } from "../../test/global-mocks";
 
 // Import after global mocks are set up
 const { mapServerMessageToChatMessage, useChat } = await import("./use-chat");
+const { StreamingCoordinator } = await import("@/lib/ai/streaming-coordinator");
 
 // Mock the useSelectedModel hook using spyOn instead of mock.module
 const mockUseSelectedModel = mock(() => [
@@ -94,6 +95,12 @@ describe("useChat", () => {
       mockUseSelectedModel()
     );
     spyOn(authModule, "useAuthToken").mockReturnValue(mockUseAuthToken());
+
+    // Mock StreamingCoordinator methods
+    spyOn(StreamingCoordinator, "start").mockResolvedValue(true);
+    spyOn(StreamingCoordinator, "stop").mockImplementation(() => {});
+    spyOn(StreamingCoordinator, "isStreaming").mockReturnValue(false);
+    spyOn(StreamingCoordinator, "getCurrentStreamId").mockReturnValue(null);
   });
 
   describe("initialization", () => {
@@ -477,7 +484,7 @@ describe("useChat", () => {
       expect(mockDeleteMutation).toHaveBeenCalledWith({ id: "msg-1" });
     });
 
-    test("stopGeneration calls mutation", () => {
+    test("stopGeneration calls StreamingCoordinator.stop", () => {
       const mockStopMutation = mock(async () => {
         /* no-op mock */
       });
@@ -493,9 +500,10 @@ describe("useChat", () => {
         result.current.stopGeneration();
       });
 
-      expect(mockStopMutation).toHaveBeenCalledWith({
-        conversationId: "conv-123",
-      });
+      // Should NOT call mutation anymore
+      expect(mockStopMutation).not.toHaveBeenCalled();
+      // Should call StreamingCoordinator.stop
+      expect(StreamingCoordinator.stop).toHaveBeenCalled();
     });
 
     test("saveConversation calls action and returns result", async () => {

@@ -5,15 +5,14 @@
 import { createBasicLanguageModel } from "@shared/ai-provider-factory";
 import { convertMessageForAI } from "@shared/message-conversion";
 import { getProviderReasoningConfig } from "@shared/reasoning-config";
-import { type ModelMessage, smoothStream, streamText } from "ai";
+import {
+  createReasoningChunkHandler,
+  createSmoothStreamTransform,
+  isAbortError,
+  normalizeStreamingOptions,
+} from "@shared/streaming-utils";
+import { type ModelMessage, streamText } from "ai";
 import type { APIKeys, ChatStreamRequest } from "@/types";
-
-function isReasoningDelta(chunk: {
-  type?: string;
-  text?: string;
-}): chunk is { type: "reasoning-delta"; text: string } {
-  return chunk.type === "reasoning-delta" && typeof chunk.text === "string";
-}
 
 export async function streamChat(
   request: ChatStreamRequest,
@@ -51,32 +50,26 @@ export async function streamChat(
       convertMessageForAI(msg)
     ) as ModelMessage[];
 
-    const streamOptions = {
-      model: languageModel,
-      messages: convertedMessages,
+    // Normalize streaming options using shared utility
+    const normalizedOptions = normalizeStreamingOptions({
       temperature: options?.temperature,
-      maxOutputTokens: options?.maxTokens || -1,
+      maxTokens: options?.maxTokens,
       topP: options?.topP,
       frequencyPenalty: options?.frequencyPenalty,
       presencePenalty: options?.presencePenalty,
       topK: (options as { topK?: number } | undefined)?.topK,
       repetitionPenalty: (options as { repetitionPenalty?: number } | undefined)
         ?.repetitionPenalty,
-      abortSignal: abortController.signal,
-      ...reasoningOptions,
-    };
+    });
 
     const result = streamText({
-      ...streamOptions,
-      experimental_transform: smoothStream({
-        delayInMs: 8,
-        chunking: /[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]|\S+\s+/,
-      }),
-      onChunk: ({ chunk }) => {
-        if (callbacks.onReasoning && isReasoningDelta(chunk)) {
-          callbacks.onReasoning(chunk.text);
-        }
-      },
+      model: languageModel,
+      messages: convertedMessages,
+      ...normalizedOptions,
+      ...reasoningOptions,
+      abortSignal: abortController.signal,
+      experimental_transform: createSmoothStreamTransform(),
+      onChunk: createReasoningChunkHandler(callbacks.onReasoning),
     });
 
     let wasAborted = false;
@@ -90,7 +83,8 @@ export async function streamChat(
 
     callbacks.onFinish(wasAborted ? "stop" : "stop");
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
+    // Use shared abort error check
+    if (isAbortError(error)) {
       callbacks.onFinish("stop");
       return;
     }

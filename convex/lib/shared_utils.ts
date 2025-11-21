@@ -359,6 +359,10 @@ export async function setConversationStreamingForAction(
 export async function stopConversationStreaming(
   ctx: MutationCtx,
   conversationId: Id<"conversations">,
+  options?: {
+    content?: string;
+    reasoning?: string;
+  },
 ): Promise<void> {
   await setConversationStreaming(ctx, conversationId, false);
 
@@ -377,14 +381,24 @@ export async function stopConversationStreaming(
       | undefined;
     // If the message doesn't have a finishReason, it's likely streaming
     if (!(metadata?.finishReason || metadata?.stopped)) {
-      await ctx.db.patch(recentAssistantMessage._id, {
+      const updates: any = {
         status: "done",
         metadata: {
           ...metadata,
-          finishReason: "stop",
+          finishReason: "user_stopped",
           stopped: true,
         },
-      });
+      };
+      
+      // Save client overlay content (what user saw when they clicked Stop)
+      if (options?.content !== undefined) {
+        updates.content = options.content;
+      }
+      if (options?.reasoning !== undefined) {
+        updates.reasoning = options.reasoning;
+      }
+      
+      await ctx.db.patch(recentAssistantMessage._id, updates);
     }
   }
 }
