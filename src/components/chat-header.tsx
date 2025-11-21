@@ -67,7 +67,7 @@ function getBranchLabel(
     b => b._id === (currentConversationId as unknown as string)
   );
   const pos = idx >= 0 ? idx + 1 : 1;
-  return `Branch ${pos} of ${branches.length}`;
+  return `${pos}/${branches.length}`;
 }
 
 function sortBranches(
@@ -116,6 +116,12 @@ const ChatHeaderComponent = ({
   const conversation = useQuery(
     api.conversations.get,
     conversationId ? { id: conversationId } : "skip"
+  );
+
+  // Check if conversation is shared
+  const sharedStatus = useQuery(
+    api.sharedConversations.getSharedStatus,
+    conversationId ? { conversationId } : "skip"
   );
 
   // Branch navigation: load all related branches using rootConversationId
@@ -270,93 +276,97 @@ const ChatHeaderComponent = ({
         "z-sidebar"
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2">
+      <div className="flex min-w-0 flex-1 items-center gap-1">
         {persona && (
-          <Tooltip>
-            <TooltipTrigger>
-              <Badge
-                className="flex-shrink-0 cursor-default gap-1.5"
-                variant="info"
-              >
-                {persona.icon && (
-                  <span className="text-sm">{persona.icon}</span>
-                )}
-                <span className="text-xxs">{persona.name}</span>
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent className="sm:hidden">
-              <p>{persona.name}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Badge size="sm">
+            <span>{persona.icon}</span>
+            <span>{persona.name}</span>
+          </Badge>
         )}
         {/* Branch selector */}
         {conversationId && Array.isArray(branches) && branches.length > 1 && (
-          <div>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="outline" size="sm" className="h-7">
-                  <span className="text-xxs">
-                    {getBranchLabel(
-                      branches,
-                      conversation?._id as unknown as string
-                    )}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                {sortBranches(
-                  branches,
-                  conversation?.rootConversationId || conversation?._id
-                ).map(b => {
-                  const rootId =
-                    conversation?.rootConversationId || conversation?._id;
-                  const isRoot = !b.parentConversationId || b._id === rootId;
-                  const isActive = b._id === conversation?._id;
-                  const created = formatDate(b.createdAt || 0);
-                  return (
-                    <DropdownMenuItem
-                      key={b._id}
-                      onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        {/* Active dot first (aligned) */}
-                        <span
-                          className={cn(
-                            "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
-                            isActive ? "bg-primary" : "bg-transparent"
-                          )}
-                          aria-label={isActive ? "Active" : undefined}
-                        />
-                        {/* Fixed icon slot for alignment */}
-                        <div className="w-4 flex items-center justify-center flex-shrink-0">
-                          {isRoot ? (
-                            <GitCommitIcon
-                              className="h-3.5 w-3.5 text-muted-foreground"
-                              aria-label="Root conversation"
-                            />
-                          ) : (
-                            <GitBranchIcon
-                              className="h-3.5 w-3.5 text-muted-foreground"
-                              aria-label="Branch"
-                            />
-                          )}
-                        </div>
-                        {/* Text */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm truncate">{b.title}</span>
-                            <span className="text-xxs text-muted-foreground whitespace-nowrap">
-                              {created}
-                            </span>
-                          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Button variant="ghost" size="pill" className="h-5 mt-0">
+                <GitBranchIcon />
+                <span className="text-xxs">
+                  {getBranchLabel(
+                    branches,
+                    conversation?._id as unknown as string
+                  )}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {sortBranches(
+                branches,
+                conversation?.rootConversationId || conversation?._id
+              ).map(b => {
+                const rootId =
+                  conversation?.rootConversationId || conversation?._id;
+                const isRoot = !b.parentConversationId || b._id === rootId;
+                const isActive = b._id === conversation?._id;
+                const created = formatDate(b.createdAt || 0);
+                return (
+                  <DropdownMenuItem
+                    key={b._id}
+                    onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      {/* Active dot first (aligned) */}
+                      <span
+                        className={cn(
+                          "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
+                          isActive ? "bg-primary" : "bg-transparent"
+                        )}
+                        aria-label={isActive ? "Active" : undefined}
+                      />
+                      {/* Fixed icon slot for alignment */}
+                      <div className="w-4 flex items-center justify-center flex-shrink-0">
+                        {isRoot ? (
+                          <GitCommitIcon
+                            className="h-3.5 w-3.5 text-muted-foreground"
+                            aria-label="Root conversation"
+                          />
+                        ) : (
+                          <GitBranchIcon
+                            className="h-3.5 w-3.5 text-muted-foreground"
+                            aria-label="Branch"
+                          />
+                        )}
+                      </div>
+                      {/* Text */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-sm truncate">{b.title}</span>
+                          <span className="text-xxs text-muted-foreground whitespace-nowrap">
+                            {created}
+                          </span>
                         </div>
                       </div>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+                    </div>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {sharedStatus && (
+          <Tooltip>
+            <TooltipTrigger>
+              <Button
+                variant="ghost"
+                size="pill"
+                className="h-6 mt-0 p-1"
+                onClick={() => setIsShareDialogOpen(true)}
+              >
+                <ShareNetworkIcon className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Shared - Click to manage</p>
+            </TooltipContent>
+          </Tooltip>
         )}
         {isArchived && (
           <Badge
