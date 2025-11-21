@@ -21,7 +21,8 @@ export const PrivateToggle = () => {
     togglePrivateMode();
   };
 
-  if (!isPrivateMode || location.pathname.startsWith("/chat")) {
+  // Only show on home page when private mode is OFF
+  if (isPrivateMode || location.pathname !== "/") {
     return null;
   }
 
