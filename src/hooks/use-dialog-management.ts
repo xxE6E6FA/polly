@@ -36,9 +36,13 @@ export function useConfirmationDialog() {
       onConfirm: () => void,
       onCancel?: () => void
     ) => {
-      setState({ ...options, isOpen: true });
-      onConfirmRef.current = onConfirm;
-      onCancelRef.current = onCancel || null;
+      // Defer dialog opening to next tick to allow any closing popovers/dropdowns
+      // to complete their focus restoration before this dialog captures focus
+      setTimeout(() => {
+        setState({ ...options, isOpen: true });
+        onConfirmRef.current = onConfirm;
+        onCancelRef.current = onCancel || null;
+      }, 0);
     },
     []
   );
@@ -83,8 +87,12 @@ export function useNotificationDialog() {
       options: Omit<NotificationDialogState, "isOpen">,
       onAction?: () => void
     ) => {
-      setState({ ...options, isOpen: true });
-      onActionRef.current = onAction || null;
+      // Defer dialog opening to next tick to allow any closing popovers/dropdowns
+      // to complete their focus restoration before this dialog captures focus
+      setTimeout(() => {
+        setState({ ...options, isOpen: true });
+        onActionRef.current = onAction || null;
+      }, 0);
     },
     []
   );
