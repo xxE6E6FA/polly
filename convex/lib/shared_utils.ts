@@ -262,6 +262,14 @@ export function createDefaultConversationFields(
     title?: string;
     personaId?: Id<"personas">;
     sourceConversationId?: Id<"conversations">;
+    comparisonMode?: {
+      enabled: boolean;
+      models: Array<{
+        modelId: string;
+        provider: string;
+      }>;
+      layout?: "split" | "tabs";
+    };
   } = {},
 ) {
   return {
@@ -269,6 +277,7 @@ export function createDefaultConversationFields(
     userId: userId,
     personaId: options.personaId,
     sourceConversationId: options.sourceConversationId,
+    comparisonMode: options.comparisonMode,
     isStreaming: false,
     isArchived: false,
     isPinned: false,

@@ -262,6 +262,18 @@ export const conversationCreationSchema = v.object({
   isStreaming: v.optional(v.boolean()),
   isPinned: v.optional(v.boolean()),
   isArchived: v.optional(v.boolean()),
+  comparisonMode: v.optional(
+    v.object({
+      enabled: v.boolean(),
+      models: v.array(
+        v.object({
+          modelId: v.string(),
+          provider: v.string(),
+        }),
+      ),
+      layout: v.optional(v.union(v.literal("split"), v.literal("tabs"))),
+    }),
+  ),
   createdAt: v.optional(v.number()),
   updatedAt: v.optional(v.number()),
 });
@@ -516,6 +528,19 @@ export const conversationSchema = v.object({
   branchId: v.optional(v.string()), // UUID for grouping related branches
   // Make optional for backward compatibility; new conversations should set this to self
   rootConversationId: v.optional(v.id("conversations")),
+  // Multi-model comparison mode
+  comparisonMode: v.optional(
+    v.object({
+      enabled: v.boolean(),
+      models: v.array(
+        v.object({
+          modelId: v.string(),
+          provider: v.string(),
+        }),
+      ),
+      layout: v.optional(v.union(v.literal("split"), v.literal("tabs"))),
+    }),
+  ),
   createdAt: v.number(),
   updatedAt: v.number(),
 });

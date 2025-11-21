@@ -209,31 +209,67 @@ export const createServerChatHandlers = (
       }
       const result = await actions.sendMessage(sendPayload);
 
-      // Start HTTP stream on send
+      // Start HTTP stream(s) on send
       if (enableHttpForSend && canHttpStream) {
         const token = _getAuthToken?.() || null;
-        const handle = await startAuthorStream({
-          convexUrl,
-          authToken: token,
-          conversationId,
-          assistantMessageId: result.assistantMessageId,
-          modelId: modelOptions.model || "",
-          provider: modelOptions.provider || "",
-          personaId: params.personaId ?? undefined,
-          reasoningConfig:
-            params.reasoningConfig || modelOptions.reasoningConfig,
-          temperature: params.temperature ?? modelOptions.temperature,
-          maxTokens: modelOptions.maxTokens,
-          topP: modelOptions.topP,
-          frequencyPenalty: modelOptions.frequencyPenalty,
-          presencePenalty: modelOptions.presencePenalty,
-        });
-        httpAbortController = handle?.abortController || null;
+
+        // Handle comparison mode with multiple assistant messages
+        if (result.assistantMessageIds && result.assistantMessageIds.length > 0) {
+          // For comparison mode, we need to get the conversation to know which models to use
+          const conversation = await queries.get({ id: conversationId });
+          if (conversation?.comparisonMode?.models) {
+            // Start a stream for each assistant message
+            const streamHandles = await Promise.all(
+              result.assistantMessageIds.map((assistantMessageId, index) => {
+                const modelConfig = conversation.comparisonMode!.models[index];
+                return startAuthorStream({
+                  convexUrl,
+                  authToken: token,
+                  conversationId,
+                  assistantMessageId,
+                  modelId: modelConfig.modelId,
+                  provider: modelConfig.provider,
+                  personaId: params.personaId ?? undefined,
+                  reasoningConfig:
+                    params.reasoningConfig || modelOptions.reasoningConfig,
+                  temperature: params.temperature ?? modelOptions.temperature,
+                  maxTokens: modelOptions.maxTokens,
+                  topP: modelOptions.topP,
+                  frequencyPenalty: modelOptions.frequencyPenalty,
+                  presencePenalty: modelOptions.presencePenalty,
+                });
+              })
+            );
+            // Store all abort controllers (we'll need to update httpAbortController to be an array)
+            // For now, store the first one for backwards compatibility
+            httpAbortController = streamHandles[0]?.abortController || null;
+          }
+        } else if (result.assistantMessageId) {
+          // Single assistant message (normal mode)
+          const handle = await startAuthorStream({
+            convexUrl,
+            authToken: token,
+            conversationId,
+            assistantMessageId: result.assistantMessageId,
+            modelId: modelOptions.model || "",
+            provider: modelOptions.provider || "",
+            personaId: params.personaId ?? undefined,
+            reasoningConfig:
+              params.reasoningConfig || modelOptions.reasoningConfig,
+            temperature: params.temperature ?? modelOptions.temperature,
+            maxTokens: modelOptions.maxTokens,
+            topP: modelOptions.topP,
+            frequencyPenalty: modelOptions.frequencyPenalty,
+            presencePenalty: modelOptions.presencePenalty,
+          });
+          httpAbortController = handle?.abortController || null;
+        }
       }
 
       return {
         userMessageId: result.userMessageId,
         assistantMessageId: result.assistantMessageId,
+        assistantMessageIds: result.assistantMessageIds,
       };
     },
 

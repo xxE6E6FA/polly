@@ -82,6 +82,14 @@ export async function createConversationHandler(
     }>;
     model?: string;
     provider?: string;
+    comparisonMode?: {
+      enabled: boolean;
+      models: Array<{
+        modelId: string;
+        provider: string;
+      }>;
+      layout?: "split" | "tabs";
+    };
     reasoningConfig?: {
       enabled: boolean;
       budgetTokens?: number;
@@ -117,6 +125,7 @@ export async function createConversationHandler(
       title: initialTitle,
       personaId: args.personaId,
       sourceConversationId: args.sourceConversationId,
+      comparisonMode: args.comparisonMode,
     })
   );
 
@@ -374,14 +383,16 @@ export const sendMessage = action({
   },
   returns: v.object({
     userMessageId: v.id("messages"),
-    assistantMessageId: v.id("messages"),
+    assistantMessageId: v.optional(v.id("messages")),
+    assistantMessageIds: v.optional(v.array(v.id("messages"))),
   }),
   handler: async (
     ctx,
     args
   ): Promise<{
     userMessageId: Id<"messages">;
-    assistantMessageId: Id<"messages">;
+    assistantMessageId?: Id<"messages">;
+    assistantMessageIds?: Id<"messages">[];
   }> => {
     // Validate user message size before any writes
     validateUserMessageLength(args.content);
@@ -393,6 +404,11 @@ export const sendMessage = action({
       ctx.runQuery(api.conversations.get, { id: args.conversationId }),
       getUserEffectiveModelWithCapabilities(ctx, args.model, args.provider),
     ]);
+
+    // Check if conversation is in comparison mode
+    const isComparisonMode =
+      conversation?.comparisonMode?.enabled &&
+      conversation.comparisonMode.models.length > 0;
 
     // Use provided personaId, or fall back to conversation's existing personaId
     const effectivePersonaId =
@@ -427,25 +443,56 @@ export const sendMessage = action({
       });
     }
 
-    // Then create assistant message and update streaming in parallel
-    const [assistantMessageId] = await Promise.all([
-      // Create assistant placeholder with thinking status
-      ctx.runMutation(api.messages.create, {
-        conversationId: args.conversationId,
-        role: "assistant",
-        content: "",
-        status: "thinking",
-        model: fullModel.modelId,
-        provider: fullModel.provider,
-      }),
+    // Then create assistant message(s) based on comparison mode
+    let assistantMessageId: Id<"messages"> | undefined;
+    let assistantMessageIds: Id<"messages">[] | undefined;
 
-      // Mark conversation as streaming and bump updatedAt so it jumps to top
-      ctx.runMutation(internal.conversations.internalPatch, {
-        id: args.conversationId,
-        updates: { isStreaming: true },
-        setUpdatedAt: true,
-      }),
-    ]);
+    if (isComparisonMode) {
+      // Create multiple assistant messages for comparison mode
+      const messageCreationPromises = conversation.comparisonMode!.models.map(
+        (modelConfig) =>
+          ctx.runMutation(api.messages.create, {
+            conversationId: args.conversationId,
+            role: "assistant",
+            content: "",
+            status: "thinking",
+            model: modelConfig.modelId,
+            provider: modelConfig.provider,
+          })
+      );
+
+      const [createdMessageIds] = await Promise.all([
+        Promise.all(messageCreationPromises),
+        // Mark conversation as streaming
+        ctx.runMutation(internal.conversations.internalPatch, {
+          id: args.conversationId,
+          updates: { isStreaming: true },
+          setUpdatedAt: true,
+        }),
+      ]);
+
+      assistantMessageIds = createdMessageIds;
+    } else {
+      // Create single assistant message for normal mode
+      const [createdMessageId] = await Promise.all([
+        ctx.runMutation(api.messages.create, {
+          conversationId: args.conversationId,
+          role: "assistant",
+          content: "",
+          status: "thinking",
+          model: fullModel.modelId,
+          provider: fullModel.provider,
+        }),
+        // Mark conversation as streaming
+        ctx.runMutation(internal.conversations.internalPatch, {
+          id: args.conversationId,
+          updates: { isStreaming: true },
+          setUpdatedAt: true,
+        }),
+      ]);
+
+      assistantMessageId = createdMessageId;
+    }
 
     // Load persona parameters if set and not explicitly overridden
     let personaParams: {
@@ -525,7 +572,11 @@ export const sendMessage = action({
       console.warn("Failed to schedule token-aware summaries:", e);
     }
 
-    return { userMessageId, assistantMessageId };
+    return {
+      userMessageId,
+      ...(assistantMessageId ? { assistantMessageId } : {}),
+      ...(assistantMessageIds ? { assistantMessageIds } : {}),
+    };
   },
 });
 
