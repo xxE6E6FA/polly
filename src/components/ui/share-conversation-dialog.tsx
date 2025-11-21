@@ -193,8 +193,7 @@ export const ControlledShareConversationDialog = ({
         </DialogHeader>
 
         <div className="stack-xl">
-          {/* Cleanup policy notice */}
-          <Alert>
+          <Alert variant="warning">
             <AlertDescription>
               Shared conversations are automatically deleted after 90 days of
               inactivity.
@@ -208,7 +207,7 @@ export const ControlledShareConversationDialog = ({
                 <div className="relative">
                   <Input
                     readOnly
-                    className="flex h-12 items-center pr-20 font-mono text-sm"
+                    className="h-12 pr-20 font-mono text-sm"
                     id="share-url"
                     value={
                       shareUrl || generateShareUrl(sharedStatus?.shareId || "")
@@ -219,12 +218,9 @@ export const ControlledShareConversationDialog = ({
                       <TooltipTrigger>
                         <Button
                           disabled={isCopied}
-                          size="sm"
+                          size="icon-sm"
                           variant="ghost"
-                          className={cn(
-                            "h-8 w-8 p-0 transition-colors",
-                            isCopied && "text-[hsl(220_95%_55%)]"
-                          )}
+                          className={cn(isCopied && "text-info")}
                           onClick={handleCopyUrl}
                         >
                           {isCopied ? (
@@ -234,25 +230,22 @@ export const ControlledShareConversationDialog = ({
                           )}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="px-2 py-1" side="bottom">
-                        <p className="text-xs">
-                          {isCopied ? "Copied!" : "Copy link"}
-                        </p>
+                      <TooltipContent side="bottom">
+                        {isCopied ? "Copied!" : "Copy link"}
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
                       <TooltipTrigger>
                         <Button
-                          className="h-8 w-8 p-0"
-                          size="sm"
+                          size="icon-sm"
                           variant="ghost"
                           onClick={handleOpenInNewTab}
                         >
                           <ArrowSquareOutIcon className="h-4 w-4" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent className="px-2 py-1" side="bottom">
-                        <p className="text-xs">Open in new tab</p>
+                      <TooltipContent side="bottom">
+                        Open in new tab
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -261,7 +254,7 @@ export const ControlledShareConversationDialog = ({
 
               {/* New messages alert */}
               {newMessagesCount > 0 && newMessagesCount < 100 && (
-                <Alert className="mb-4" variant="warning">
+                <Alert variant="warning">
                   <AlertIcon variant="warning" />
                   <AlertDescription>
                     {newMessagesCount} new message
@@ -270,12 +263,12 @@ export const ControlledShareConversationDialog = ({
                 </Alert>
               )}
 
-              {/* Action buttons */}
               <div className="flex gap-3">
                 <Button
-                  className="h-10 flex-1"
+                  className="flex-1"
+                  size="lg"
                   disabled={isUpdating || !hasNewMessages}
-                  variant="outline"
+                  variant="secondary"
                   onClick={handleUpdate}
                 >
                   {isUpdating ? (
@@ -286,9 +279,10 @@ export const ControlledShareConversationDialog = ({
                   Update share
                 </Button>
                 <Button
-                  className="h-10 flex-1"
+                  className="flex-1"
+                  size="lg"
                   disabled={isUnsharing}
-                  variant="outline"
+                  variant="secondary"
                   onClick={handleUnshare}
                 >
                   {isUnsharing ? (
@@ -302,11 +296,7 @@ export const ControlledShareConversationDialog = ({
             </div>
           ) : (
             <div className="stack-lg">
-              <Button
-                className="h-11 w-full bg-gradient-to-r from-[hsl(220_95%_55%)] to-[hsl(260_85%_60%)] hover:from-[hsl(220_95%_50%)] hover:to-[hsl(260_85%_55%)]"
-                disabled={isSharing}
-                onClick={handleShare}
-              >
+              <Button size="full-lg" disabled={isSharing} onClick={handleShare}>
                 {isSharing ? (
                   <>
                     <Spinner size="sm" className="mr-2 h-4 w-4" />
