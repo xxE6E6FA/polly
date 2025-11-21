@@ -2,6 +2,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useMemo } from "react";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
+import { useLastGeneratedImageSeed } from "@/hooks/use-last-generated-image-seed";
 import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
@@ -78,6 +79,7 @@ export function ChatInputBottomBar({
     isRecordingOrTranscribing;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
+  const lastGeneratedImageSeed = useLastGeneratedImageSeed(conversationId);
   const [generationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const { clearOnSend } = useChatFullscreenUI();
@@ -183,6 +185,7 @@ export function ChatInputBottomBar({
                     setImageParams(prev => ({ ...prev, ...updates }))
                   }
                   selectedModel={normalizedSelectedImageModel}
+                  lastGeneratedImageSeed={lastGeneratedImageSeed}
                   disabled={disabled}
                 />
               </>
@@ -226,6 +229,7 @@ export function ChatInputBottomBar({
                     setImageParams(prev => ({ ...prev, ...updates }))
                   }
                   selectedModel={normalizedSelectedImageModel}
+                  lastGeneratedImageSeed={lastGeneratedImageSeed}
                   disabled={disabled}
                 />
               </div>

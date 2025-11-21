@@ -634,16 +634,20 @@ export const pollPrediction = internalAction({
             duration: prediction.metrics?.predict_time,
           },
         });
-        
+
         // Store the generated images in Convex storage
         if (prediction.output) {
           const imageUrls = Array.isArray(prediction.output) ? prediction.output : [prediction.output];
           if (imageUrls.length > 0) {
+            // Extract seed from prediction input
+            const seed = prediction.input?.seed as number | undefined;
+
             // Store images in background - don't block the polling response
             await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
               messageId: args.messageId,
               imageUrls,
               metadata: existingMessageDoc?.imageGeneration?.metadata,
+              seed,
             });
           }
         }
@@ -726,6 +730,7 @@ export const storeGeneratedImages = internalAction({
         negativePrompt: v.optional(v.string()),
       })),
     })),
+    seed: v.optional(v.number()),
   },
   
   handler: async (ctx, args) => {
@@ -802,6 +807,7 @@ export const storeGeneratedImages = internalAction({
               source: "replicate",
               model: args.metadata?.model,
               prompt: args.metadata?.prompt,
+              seed: args.seed,
             },
           };
           
@@ -850,6 +856,7 @@ export const handleWebhook = internalAction({
     output: v.optional(v.any()),
     error: v.optional(v.string()),
     metadata: v.optional(v.any()),
+    input: v.optional(v.any()),
   },
   
   handler: async (ctx, args) => {
@@ -901,11 +908,15 @@ export const handleWebhook = internalAction({
       if (args.status === "succeeded" && args.output) {
         const imageUrls = Array.isArray(args.output) ? args.output : [args.output];
         if (imageUrls.length > 0) {
+          // Extract seed from webhook input
+          const seed = args.input?.seed as number | undefined;
+
           // Store images in background - don't block webhook response
           await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
             messageId: messageDoc._id as Id<"messages">,
             imageUrls,
             metadata: existingMessageDoc?.imageGeneration?.metadata,
+            seed,
           });
         }
       }
