@@ -1318,43 +1318,9 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
-          {/* Desktop: Overflow dropdown menu */}
+          {/* Mobile: Overflow drawer */}
           {hasOverflowActions && (
             <>
-              <div className="hidden sm:block">
-                <DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <DropdownMenuTrigger>
-                        <Button
-                          className={cn(
-                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                            "motion-safe:hover:scale-105",
-                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                          )}
-                          disabled={isEditing}
-                          size="sm"
-                          variant="ghost"
-                          aria-label="More actions"
-                        >
-                          <DotsThreeIcon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        </Button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>More actions</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <DropdownMenuContent align="end">
-                    {renderOverflowMenuItems()}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {/* Mobile: Overflow drawer */}
               <div className="sm:hidden">
                 <Drawer
                   open={isOverflowDrawerOpen}
