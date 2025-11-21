@@ -58,7 +58,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-// Tooltip imports consolidated above
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
@@ -107,7 +106,6 @@ const RetryDropdown = memo(
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     const [isRefineDialogOpen, setIsRefineDialogOpen] = useState(false);
     const [refineText, setRefineText] = useState("");
-    // no local ref needed; we move focus via element id
     const { modelGroups, userModels } = useModelCatalog();
     const enabledImageModels = useEnabledImageModels();
     const { selectModel } = useSelectModel();
@@ -222,7 +220,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -301,7 +299,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -451,7 +449,7 @@ const RetryDropdown = memo(
                     <div className="flex min-w-0 flex-1 items-center gap-2">
                       <span className="truncate">{model.name}</span>
                       {model.free && (
-                        <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                           Free
                         </span>
                       )}
@@ -518,7 +516,7 @@ const RetryDropdown = memo(
                         <div className="flex min-w-0 flex-1 items-center gap-2">
                           <span className="truncate">{model.name}</span>
                           {model.free && (
-                            <span className="text-xs text-muted-foreground bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">
                               Free
                             </span>
                           )}
@@ -664,7 +662,7 @@ const RetryDropdown = memo(
             </Tooltip>
             <DropdownMenuContent
               align="end"
-              className="w-auto min-w-[240px] max-w-[300px]"
+              className="w-auto min-w-60 max-w-[300px]"
             >
               {!isUser && (
                 <>
@@ -974,7 +972,6 @@ function getTTSTooltip(ttsState: TtsState): string {
   return "Listen";
 }
 
-// Helper to render TTS icon in dropdown menu item
 function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
     return <Spinner size="sm" className="h-4 w-4 mr-2" />;
@@ -983,6 +980,16 @@ function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
     return <SquareIcon className="h-4 w-4 mr-2 text-red-500" weight="fill" />;
   }
   return <SpeakerHighIcon className="h-4 w-4 mr-2" />;
+}
+
+function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
+  if (ttsState === "loading") {
+    return <Spinner size="sm" className="h-3.5 w-3.5" />;
+  }
+  if (ttsState === "playing") {
+    return <SquareIcon className="h-3.5 w-3.5 text-red-500" weight="fill" />;
+  }
+  return <SpeakerHighIcon className="h-3.5 w-3.5" />;
 }
 
 type MessageActionsProps = {
@@ -1160,8 +1167,6 @@ export const MessageActions = memo(
       }
     }, [messageId, managedToast, ttsState, createTTSStreamUrl]);
 
-    // Server-side streaming is now the canonical path for TTS
-
     // Cleanup audio and abort controller on component unmount
     useEffect(() => {
       return () => {
@@ -1199,51 +1204,6 @@ export const MessageActions = memo(
       (!isUser && messageId) || // TTS action
       (!isUser && onOpenZenMode) || // Zen mode action
       onEditMessage; // Edit action
-
-    const renderOverflowMenuItems = () => (
-      <>
-        {onEditMessage && (
-          <DropdownMenuItem onClick={onEditMessage}>
-            <NotePencilIcon className="h-4 w-4 mr-2" />
-            Edit message
-          </DropdownMenuItem>
-        )}
-
-        {!isPrivateMode && messageId && conversationId && (
-          <BranchActionMenuItem
-            conversationId={conversationId}
-            messageId={messageId}
-            onSuccess={newConversationId => {
-              navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
-            }}
-          />
-        )}
-
-        {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
-          <DropdownMenuItem onClick={handleToggleFavorite}>
-            <HeartIcon
-              className={cn("h-4 w-4 mr-2", isFavorited && "text-destructive")}
-              weight={isFavorited ? "fill" : "regular"}
-            />
-            {isFavorited ? "Unfavorite" : "Favorite"}
-          </DropdownMenuItem>
-        )}
-
-        {!isUser && messageId && (
-          <DropdownMenuItem onClick={handleTTS}>
-            {getTTSIconForDropdown(ttsState)}
-            {getTTSTooltip(ttsState)}
-          </DropdownMenuItem>
-        )}
-
-        {!isUser && onOpenZenMode && (
-          <DropdownMenuItem onClick={onOpenZenMode}>
-            <TextAaIcon className="h-4 w-4 mr-2" />
-            Zen mode
-          </DropdownMenuItem>
-        )}
-      </>
-    );
 
     const renderOverflowDrawerItems = () => (
       <>
@@ -1318,88 +1278,121 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
-          {/* Desktop: Overflow dropdown menu */}
+          {/* Mobile: Overflow drawer */}
           {hasOverflowActions && (
-            <>
-              <div className="hidden sm:block">
-                <DropdownMenu>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <DropdownMenuTrigger>
-                        <Button
-                          className={cn(
-                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                            "motion-safe:hover:scale-105",
-                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                          )}
-                          disabled={isEditing}
-                          size="sm"
-                          variant="ghost"
-                          aria-label="More actions"
-                        >
-                          <DotsThreeIcon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        </Button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>More actions</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <DropdownMenuContent align="end">
-                    {renderOverflowMenuItems()}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+            <div className="sm:hidden">
+              <Drawer
+                open={isOverflowDrawerOpen}
+                onOpenChange={setIsOverflowDrawerOpen}
+              >
+                <Tooltip>
+                  <TooltipTrigger>
+                    <DrawerTrigger>
+                      <Button
+                        className={cn(
+                          "btn-action h-7 w-7 transition-all duration-200 ease-out",
+                          "motion-safe:hover:scale-105",
+                          "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                        )}
+                        disabled={isEditing}
+                        size="sm"
+                        variant="ghost"
+                        aria-label="More actions"
+                      >
+                        <DotsThreeIcon
+                          className="h-3.5 w-3.5"
+                          aria-hidden="true"
+                        />
+                      </Button>
+                    </DrawerTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>More actions</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              {/* Mobile: Overflow drawer */}
-              <div className="sm:hidden">
-                <Drawer
-                  open={isOverflowDrawerOpen}
-                  onOpenChange={setIsOverflowDrawerOpen}
-                >
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <DrawerTrigger>
-                        <Button
-                          className={cn(
-                            "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                            "motion-safe:hover:scale-105",
-                            "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
-                          )}
-                          disabled={isEditing}
-                          size="sm"
-                          variant="ghost"
-                          aria-label="More actions"
-                        >
-                          <DotsThreeIcon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
-                        </Button>
-                      </DrawerTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>More actions</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DrawerContent>
-                    <DrawerHeader>
-                      <DrawerTitle>More actions</DrawerTitle>
-                    </DrawerHeader>
-                    <DrawerBody>
-                      <div className="flex flex-col">
-                        {renderOverflowDrawerItems()}
-                      </div>
-                    </DrawerBody>
-                  </DrawerContent>
-                </Drawer>
-              </div>
-            </>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>More actions</DrawerTitle>
+                  </DrawerHeader>
+                  <DrawerBody>
+                    <div className="flex flex-col">
+                      {renderOverflowDrawerItems()}
+                    </div>
+                  </DrawerBody>
+                </DrawerContent>
+              </Drawer>
+            </div>
           )}
+
+          {/* Desktop: Individual action buttons */}
+          <div className="hidden sm:flex sm:items-center sm:gap-1">
+            {onEditMessage && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip="Edit message"
+                ariaLabel="Edit this message"
+                icon={
+                  <NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                }
+                onClick={onEditMessage}
+              />
+            )}
+
+            {!isPrivateMode && messageId && conversationId && (
+              <BranchActionButton
+                conversationId={conversationId}
+                messageId={messageId}
+                isEditing={isEditing}
+                onSuccess={newConversationId => {
+                  navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
+                }}
+              />
+            )}
+
+            {!isPrivateMode &&
+              messageId &&
+              !messageId.startsWith("private-") && (
+                <ActionButton
+                  disabled={isEditing}
+                  tooltip={isFavorited ? "Unfavorite" : "Favorite"}
+                  ariaLabel={
+                    isFavorited ? "Remove from favorites" : "Add to favorites"
+                  }
+                  icon={
+                    <HeartIcon
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        isFavorited && "text-destructive"
+                      )}
+                      weight={isFavorited ? "fill" : "regular"}
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={handleToggleFavorite}
+                />
+              )}
+
+            {!isUser && messageId && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip={getTTSTooltip(ttsState)}
+                ariaLabel={getTTSTooltip(ttsState)}
+                icon={getTTSIconForButton(ttsState)}
+                onClick={handleTTS}
+              />
+            )}
+
+            {!isUser && onOpenZenMode && (
+              <ActionButton
+                disabled={isEditing}
+                tooltip="Zen mode"
+                ariaLabel="Open Zen mode"
+                icon={<TextAaIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+                onClick={onOpenZenMode}
+              />
+            )}
+          </div>
 
           {/* Primary actions: Copy, Retry, Delete */}
           <ActionButton
@@ -1483,14 +1476,15 @@ export const MessageActions = memo(
 
 MessageActions.displayName = "MessageActions";
 
-// Branch action as a dropdown menu item (desktop)
-function BranchActionMenuItem({
+function BranchActionButton({
   conversationId,
   messageId,
+  isEditing,
   onSuccess,
 }: {
   conversationId: string;
   messageId: string;
+  isEditing?: boolean;
   onSuccess: (newConversationId: string, assistantMessageId?: string) => void;
 }) {
   const createBranch = useAction(api.branches.createBranch);
@@ -1557,10 +1551,13 @@ function BranchActionMenuItem({
 
   return (
     <>
-      <DropdownMenuItem onClick={() => setOpen(true)}>
-        <GitBranchIcon className="h-4 w-4 mr-2" />
-        Branch from here
-      </DropdownMenuItem>
+      <ActionButton
+        disabled={isEditing}
+        tooltip="Branch from here"
+        ariaLabel="Create a new conversation branch from this point"
+        icon={<GitBranchIcon className="h-3.5 w-3.5" aria-hidden="true" />}
+        onClick={() => setOpen(true)}
+      />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1591,7 +1588,6 @@ function BranchActionMenuItem({
   );
 }
 
-// Branch action as a drawer item (mobile)
 function BranchActionDrawerItem({
   conversationId,
   messageId,
