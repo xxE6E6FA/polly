@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ChatMessage } from "@/types";
+import { ChatInput } from "@/components/chat-input";
+import type { ChatMessage, ReasoningConfig, Attachment } from "@/types";
+import type { Id } from "@convex/_generated/dataModel";
 import { ChatMessage as ChatMessageComponent } from "@/components/chat-message";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,6 +20,17 @@ interface ComparisonViewProps {
   onRetry?: (messageId: string, modelId?: string, provider?: string) => void;
   onDelete?: (messageId: string) => void;
   onCopy?: (content: string) => void;
+  onSendMessage?: (
+    content: string,
+    attachments?: Attachment[],
+    personaId?: Id<"personas"> | null,
+    reasoningConfig?: ReasoningConfig,
+    temperature?: number
+  ) => Promise<void>;
+  onStop?: () => void;
+  isStreaming?: boolean;
+  isLoading?: boolean;
+  currentPersonaId?: Id<"personas"> | null;
   className?: string;
 }
 
@@ -28,6 +41,11 @@ export function ComparisonView({
   onRetry,
   onDelete,
   onCopy,
+  onSendMessage,
+  onStop,
+  isStreaming = false,
+  isLoading = false,
+  currentPersonaId,
   className,
 }: ComparisonViewProps) {
   const [activeTab, setActiveTab] = useState(models[0]?.modelId || "");
@@ -69,122 +87,150 @@ export function ComparisonView({
   // Split view for 2 models
   if (layout === "split" && models.length === 2) {
     return (
-      <div className={cn("flex gap-4 h-full", className)}>
-        {models.map((model, index) => {
-          const modelMessages = messagesByModel.get(model.modelId) || [];
-          return (
-            <div
-              key={model.modelId}
-              className={cn(
-                "flex-1 flex flex-col border-border overflow-hidden",
-                index === 0 && "border-r"
-              )}
-            >
-              {/* Model header */}
-              <div className="sticky top-0 z-sticky bg-background border-b border-border p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
-                      {getModelName(model.modelId)}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {model.provider}
-                    </span>
+      <div className={cn("flex flex-col h-full", className)}>
+        <div className="flex gap-4 flex-1 min-h-0">
+          {models.map((model, index) => {
+            const modelMessages = messagesByModel.get(model.modelId) || [];
+            return (
+              <div
+                key={model.modelId}
+                className={cn(
+                  "flex-1 flex flex-col border-border overflow-hidden",
+                  index === 0 && "border-r"
+                )}
+              >
+                {/* Model header */}
+                <div className="sticky top-0 z-sticky bg-background border-b border-border p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {getModelName(model.modelId)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {model.provider}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {modelMessages.filter((m) => m.role === "assistant").length}{" "}
+                      responses
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-xs">
-                    {modelMessages.filter((m) => m.role === "assistant").length}{" "}
-                    responses
-                  </Badge>
                 </div>
-              </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4">
-                <div className="stack-md">
-                  {modelMessages.map((message) => (
-                    <ChatMessageComponent
-                      key={message.id}
-                      message={message}
-                      onRetry={
-                        onRetry
-                          ? () => onRetry(message.id, model.modelId, model.provider)
-                          : undefined
-                      }
-                      onDelete={onDelete ? () => onDelete(message.id) : undefined}
-                      onCopy={onCopy}
-                    />
-                  ))}
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-4">
+                  <div className="stack-md">
+                    {modelMessages.map((message) => (
+                      <ChatMessageComponent
+                        key={message.id}
+                        message={message}
+                        onRetry={
+                          onRetry
+                            ? () => onRetry(message.id, model.modelId, model.provider)
+                            : undefined
+                        }
+                        onDelete={onDelete ? () => onDelete(message.id) : undefined}
+                        onCopy={onCopy}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+        {/* Chat input at bottom */}
+        {onSendMessage && (
+          <div className="border-t border-border">
+            <ChatInput
+              hasExistingMessages={messages.length > 0}
+              isLoading={isLoading}
+              isStreaming={isStreaming}
+              onStop={onStop || (() => {})}
+              onSendMessage={onSendMessage}
+            />
+          </div>
+        )}
       </div>
     );
   }
 
   // Tabbed view for >2 models or when explicitly requested
   return (
-    <Tabs
-      value={activeTab}
-      onValueChange={setActiveTab}
-      className={cn("flex flex-col h-full", className)}
-    >
-      <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+    <div className={cn("flex flex-col h-full", className)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex flex-col flex-1 min-h-0"
+      >
+        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+          {models.map((model) => {
+            const modelMessages = messagesByModel.get(model.modelId) || [];
+            const responseCount = modelMessages.filter(
+              (m) => m.role === "assistant"
+            ).length;
+
+            return (
+              <TabsTrigger
+                key={model.modelId}
+                value={model.modelId}
+                className="flex items-center gap-2 rounded-none border-b-2 data-[state=active]:border-primary"
+              >
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-medium">
+                    {getModelName(model.modelId)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {model.provider}
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-xs ml-2">
+                  {responseCount}
+                </Badge>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+
         {models.map((model) => {
           const modelMessages = messagesByModel.get(model.modelId) || [];
-          const responseCount = modelMessages.filter(
-            (m) => m.role === "assistant"
-          ).length;
-
           return (
-            <TabsTrigger
+            <TabsContent
               key={model.modelId}
               value={model.modelId}
-              className="flex items-center gap-2 rounded-none border-b-2 data-[state=active]:border-primary"
+              className="flex-1 overflow-y-auto p-4 mt-0"
             >
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-medium">
-                  {getModelName(model.modelId)}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {model.provider}
-                </span>
+              <div className="stack-md">
+                {modelMessages.map((message) => (
+                  <ChatMessageComponent
+                    key={message.id}
+                    message={message}
+                    onRetry={
+                      onRetry
+                        ? () => onRetry(message.id, model.modelId, model.provider)
+                        : undefined
+                    }
+                    onDelete={onDelete ? () => onDelete(message.id) : undefined}
+                    onCopy={onCopy}
+                  />
+                ))}
               </div>
-              <Badge variant="outline" className="text-xs ml-2">
-                {responseCount}
-              </Badge>
-            </TabsTrigger>
+            </TabsContent>
           );
         })}
-      </TabsList>
-
-      {models.map((model) => {
-        const modelMessages = messagesByModel.get(model.modelId) || [];
-        return (
-          <TabsContent
-            key={model.modelId}
-            value={model.modelId}
-            className="flex-1 overflow-y-auto p-4 mt-0"
-          >
-            <div className="stack-md">
-              {modelMessages.map((message) => (
-                <ChatMessageComponent
-                  key={message.id}
-                  message={message}
-                  onRetry={
-                    onRetry
-                      ? () => onRetry(message.id, model.modelId, model.provider)
-                      : undefined
-                  }
-                  onDelete={onDelete ? () => onDelete(message.id) : undefined}
-                  onCopy={onCopy}
-                />
-              ))}
-            </div>
-          </TabsContent>
-        );
-      })}
-    </Tabs>
+      </Tabs>
+      {/* Chat input at bottom */}
+      {onSendMessage && (
+        <div className="border-t border-border">
+          <ChatInput
+            hasExistingMessages={messages.length > 0}
+            isLoading={isLoading}
+            isStreaming={isStreaming}
+            onStop={onStop || (() => {})}
+            onSendMessage={onSendMessage}
+          />
+        </div>
+      )}
+    </div>
   );
 }

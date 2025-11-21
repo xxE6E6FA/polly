@@ -7,6 +7,7 @@ import { useLoaderData, useNavigate, useParams } from "react-router-dom";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { UnifiedChatView } from "@/components/unified-chat-view";
+import { ComparisonView } from "@/components/chat/ComparisonView";
 import { mapServerMessageToChatMessage, useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
@@ -619,11 +620,55 @@ function ConversationRouteContent({
   const effectiveStreaming =
     messageIsStreaming || (isConversationLoading && initialStreaming);
 
+  // Check if this is a comparison mode conversation
+  const isComparisonMode =
+    conversation?.comparisonMode?.enabled &&
+    (conversation.comparisonMode.models?.length ?? 0) > 0;
+
   return (
     <>
       <title>{pageTitle}</title>
       <div className="relative flex h-full min-h-0 w-full">
-        <UnifiedChatView
+        {isComparisonMode ? (
+          <ComparisonView
+            models={conversation.comparisonMode!.models.map((m) => ({
+              modelId: m.modelId,
+              provider: m.provider,
+              name: undefined, // Model name will be looked up in ComparisonView
+            }))}
+            messages={messages}
+            layout={conversation.comparisonMode!.layout}
+            onRetry={async (messageId, modelId, provider) => {
+              if (modelId && provider) {
+                await retryFromMessage(messageId, {
+                  model: modelId,
+                  provider,
+                });
+              }
+            }}
+            onDelete={deleteMessage}
+            onSendMessage={async (
+              content: string,
+              attachments?: Attachment[],
+              personaId?: Id<"personas"> | null,
+              reasoningConfig?: ReasoningConfig,
+              temperature?: number
+            ) => {
+              await sendMessage({
+                content,
+                attachments,
+                personaId,
+                reasoningConfig,
+                temperature,
+              });
+            }}
+            onStop={stopGeneration}
+            isStreaming={effectiveStreaming}
+            isLoading={isLoading || hasApiKeys === undefined || isConversationLoading}
+            currentPersonaId={conversation?.personaId ?? null}
+          />
+        ) : (
+          <UnifiedChatView
           conversationId={conversationId as ConversationId}
           messages={messages}
           isLoading={
@@ -762,6 +807,7 @@ function ConversationRouteContent({
           }}
           onRetryImageGeneration={handleRetryImageGeneration}
         />
+        )}
 
         {shouldShowOfflineOverlay ? (
           <div className="pointer-events-auto absolute inset-0 z-40 flex items-center justify-center bg-background/95 backdrop-blur-sm">

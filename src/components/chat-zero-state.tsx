@@ -13,6 +13,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
+import { MultiModelSelector } from "@/components/model-picker/MultiModelSelector";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { startAuthorStream } from "@/lib/ai/http-stream";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
@@ -266,6 +267,58 @@ const ChatSection = () => {
     return showLimitWarning || showLimitReached;
   }, [hasMessageLimit, canSendMessage, hasUnlimitedCalls, monthlyUsage]);
 
+  const handleCompareModels = useCallback(
+    async (
+      models: Array<{
+        modelId: string;
+        provider: string;
+        name: string;
+      }>
+    ) => {
+      if (models.length < 2) {
+        return;
+      }
+
+      // Determine layout: 2 models = split, >2 = tabs
+      const layout = models.length === 2 ? ("split" as const) : ("tabs" as const);
+
+      // Navigate to private mode or create a comparison conversation
+      if (isPrivateMode) {
+        navigate(ROUTES.PRIVATE_CHAT, {
+          state: {
+            comparisonMode: {
+              enabled: true,
+              models: models.map((m) => ({
+                modelId: m.modelId,
+                provider: m.provider,
+              })),
+              layout,
+            },
+          },
+        });
+        return;
+      }
+
+      // Create a comparison conversation
+      const result = await createConversationAction({
+        firstMessage: "Compare models", // Placeholder, will be replaced by first actual message
+        comparisonMode: {
+          enabled: true,
+          models: models.map((m) => ({
+            modelId: m.modelId,
+            provider: m.provider,
+          })),
+          layout,
+        },
+      });
+
+      if (result?.conversationId) {
+        navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
+      }
+    },
+    [createConversationAction, navigate, isPrivateMode]
+  );
+
   const chatInputProps = {
     hasExistingMessages: false,
     isLoading: false,
@@ -284,7 +337,12 @@ const ChatSection = () => {
           userLoading={isLoading}
           onQuickPrompt={handleQuickPrompt}
         />
-        <ChatInput ref={chatInputRef} {...chatInputProps} autoFocus />
+        <div className="stack-sm">
+          <div className="flex justify-center">
+            <MultiModelSelector onCompare={handleCompareModels} />
+          </div>
+          <ChatInput ref={chatInputRef} {...chatInputProps} autoFocus />
+        </div>
       </div>
     </div>
   );
