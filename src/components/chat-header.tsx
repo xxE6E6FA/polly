@@ -400,7 +400,7 @@ const ChatHeaderComponent = ({
           size="icon-sm"
           title="Expand sidebar"
           variant="ghost"
-          className="fixed left-3 sm:left-6 z-sticky pointer-events-auto text-foreground/70 hover:text-foreground h-9 w-9"
+          className="fixed left-3 sm:left-5 z-sticky pointer-events-auto text-foreground/70 hover:text-foreground h-9 w-9"
           style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
           onClick={() => setSidebarVisible(true)}
         >
@@ -410,7 +410,7 @@ const ChatHeaderComponent = ({
       <div
         className={cn(
           "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
-          !isSidebarVisible && "pl-12 sm:pl-14",
+          !isSidebarVisible && "pl-12 sm:pl-10",
           isSidebarVisible && "transition-[padding] duration-300 ease-out",
           "z-sidebar"
         )}

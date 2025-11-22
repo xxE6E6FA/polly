@@ -523,7 +523,7 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 top-0">
               <header
                 ref={headerOverlayRef}
-                className="pointer-events-auto px-3 sm:px-6"
+                className="pointer-events-auto px-3 sm:px-5"
                 style={{
                   paddingTop: "env(safe-area-inset-top)",
                   right: overlayScrollbarOffset,
@@ -546,7 +546,7 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 bottom-0">
               <div
                 ref={footerOverlayRef}
-                className="pointer-events-auto px-3 py-3 sm:px-6"
+                className="pointer-events-auto px-3 py-3 sm:px-5"
                 style={{
                   right: overlayScrollbarOffset,
                   paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
