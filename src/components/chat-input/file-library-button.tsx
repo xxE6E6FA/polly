@@ -29,11 +29,6 @@ export function FileLibraryButton({
   const { isAuthenticated } = useUserIdentity();
   useChatScopedState(conversationId ?? undefined);
 
-  // Hide button for signed-out users since getUserFiles requires authentication
-  if (!isAuthenticated) {
-    return null;
-  }
-
   const handleSelectFiles = useCallback(
     async (attachments: Attachment[]) => {
       if (attachments.length > 0) {
@@ -56,6 +51,11 @@ export function FileLibraryButton({
 
   // Check if the selected model supports images
   const supportsImages = selectedModel?.supportsImages ?? true;
+
+  // Hide button for signed-out users since getUserFiles requires authentication
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
