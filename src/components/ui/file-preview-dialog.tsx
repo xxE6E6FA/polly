@@ -1,5 +1,4 @@
 import { XIcon } from "@phosphor-icons/react";
-import { Backdrop } from "@/components/ui/backdrop";
 import {
   Dialog as DialogComponent,
   DialogPortal,

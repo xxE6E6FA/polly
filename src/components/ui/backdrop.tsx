@@ -4,6 +4,11 @@ import { cn } from "@/lib/utils";
 
 interface BackdropProps extends React.HTMLAttributes<HTMLDivElement> {}
 
+/**
+ * Unified backdrop component for overlays.
+ * Supports both Base UI (data-[state=...]) and Vaul (data-[open/closed]) data attributes.
+ * Z-index should be applied by the caller using utility classes (z-modal, z-drawer, etc.).
+ */
 export const Backdrop = forwardRef<HTMLDivElement, BackdropProps>(
   ({ className, ...props }, ref) => {
     return (
