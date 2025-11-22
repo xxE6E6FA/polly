@@ -513,7 +513,7 @@ export const UnifiedChatView = memo(
               ref={handleMessagesContainerRef}
               className={cn(
                 "flex h-full w-full flex-col overflow-hidden",
-                "[&_[data-vlist-id]]:overscroll-contain md:[&_[data-vlist-id]]:overscroll-auto",
+                "**:data-vlist-id:overscroll-contain md:**:data-vlist-id:overscroll-auto",
                 "[&_[data-vlist-id]]:scrollbar-thin"
               )}
             >
@@ -523,13 +523,13 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 top-0">
               <header
                 ref={headerOverlayRef}
-                className="pointer-events-auto px-3 sm:px-5"
+                className="pointer-events-auto px-4 bg-background/50 sm:bg-transparent backdrop-blur-lg sm:backdrop-blur-none"
                 style={{
                   paddingTop: "env(safe-area-inset-top)",
                   right: overlayScrollbarOffset,
                 }}
               >
-                <div className="flex w-full min-h-12 items-center rounded-b-xl bg-background sm:bg-transparent">
+                <div className="flex w-full min-h-12 items-center">
                   <ChatHeader
                     conversationId={conversationId}
                     isPrivateMode={!conversationId}
@@ -546,10 +546,9 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 bottom-0">
               <div
                 ref={footerOverlayRef}
-                className="pointer-events-auto px-3 py-3 sm:px-5"
+                className="pointer-events-auto px-3 pt-3 sm:px-5"
                 style={{
                   right: overlayScrollbarOffset,
-                  paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
                 }}
               >
                 <div className="mx-auto w-full max-w-3xl space-y-3">

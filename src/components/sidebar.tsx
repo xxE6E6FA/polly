@@ -124,12 +124,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     };
   }, [handleScroll]);
 
-  const handleBackdropClick = useCallback(() => {
-    if (isMobile && isSidebarVisible) {
-      setSidebarVisible(false);
-    }
-  }, [isMobile, isSidebarVisible, setSidebarVisible]);
-
   useEffect(() => {
     if (!mounted) {
       return;
@@ -241,7 +235,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         {isSidebarVisible && (
           <div className="flex h-full flex-col">
             <div
-              className="flex-shrink-0 pt-4 px-3 pb-2"
+              className="shrink-0 py-4 px-3"
               style={
                 isMobile
                   ? { paddingTop: "calc(env(safe-area-inset-top) + 16px)" }
@@ -380,36 +374,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
           </div>
         )}
       </div>
-
-      {isMobile && (
-        <>
-          <Backdrop
-            className={cn(
-              "z-backdrop lg:hidden transition-opacity duration-300",
-              isSidebarVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-            )}
-            onClick={handleBackdropClick}
-          />
-
-          {!isSidebarVisible && (
-            <div
-              className="fixed left-1.5 z-[60]"
-              style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
-            >
-              <Button
-                size="icon-sm"
-                title={isSidebarVisible ? "Collapse sidebar" : "Expand sidebar"}
-                variant="ghost"
-                className="text-foreground/70 hover:text-foreground h-9 w-9"
-                style={{ cursor: isSidebarVisible ? "w-resize" : "e-resize" }}
-                onClick={toggleSidebarWithCheck}
-              >
-                <SidebarSimpleIcon className="h-5 w-5" />
-              </Button>
-            </div>
-          )}
-        </>
-      )}
     </>
   );
 };
