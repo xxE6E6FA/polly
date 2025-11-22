@@ -26,6 +26,81 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `bun run clear-db` - Clear entire database (development)
 - `bun run clear-auth` - Clear authentication tables only
 
+## Code Style & Quality (Biome)
+
+This project uses **Biome** for linting and formatting. Always run `bun run fix` before committing.
+
+### Key Formatting Rules
+
+- **Indentation**: 2 spaces (never tabs)
+- **Line Width**: 80 characters maximum
+- **Quotes**: Double quotes for strings and JSX
+- **Semicolons**: Always required
+- **Trailing Commas**: ES5 style
+- **Self-Closing Elements**: Always use for elements without children (`<Button />`)
+- **Fragment Syntax**: Use `<>...</>` not `<Fragment>...</Fragment>`
+
+### Important Biome Rules to Follow
+
+**TypeScript:**
+- **No `any`**: Always use proper types or `unknown` with type guards
+- **Type Imports**: Use `import type { Foo }` for types (auto-organized by Biome)
+- **No Non-Null Assertion**: Avoid `!` operator (warning only)
+- **Optional Chaining**: Prefer `a?.b` over `a && a.b`
+
+**React:**
+- **Exhaustive Dependencies**: All useEffect/useMemo/useCallback deps must be declared
+- **No Array Index Keys**: Never use array index as `key` in `map()`
+- **No Children Prop**: Use children composition, not explicit `children` prop
+
+**Control Flow:**
+- **No Nested Ternaries**: Forbidden - use if/else or helper functions instead
+- **No `==`**: Always use `===` (strict equality)
+- **Use Block Statements**: Always use `{}` for if/else/while bodies
+- **No Empty Blocks**: Empty `{}` blocks are not allowed
+
+**Common Pitfalls:**
+- **No Console**: Backend code must use `log.*` from `convex/lib/logger` (console blocked by lint)
+- **No Unused Variables**: All declared variables must be used
+- **No Debugger**: Remove all `debugger` statements
+- **No Parameter Reassign**: Don't reassign function parameters
+
+### Examples
+
+```typescript
+// ✅ Good
+import type { User } from "@/types";
+import { useState, useEffect } from "react";
+
+function UserProfile({ userId }: { userId: string }) {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }, [userId]); // ✅ Exhaustive dependencies
+
+  if (!user) {
+    return <div>Loading...</div>;
+  }
+
+  return <div>{user.name}</div>;
+}
+
+// ❌ Bad
+import { User } from "@/types"; // ❌ Should be type import
+import { useState, useEffect } from "react";
+
+function UserProfile({ userId }) { // ❌ Missing type annotation
+  const [user, setUser] = useState(null); // ❌ Should be useState<User | null>
+
+  useEffect(() => {
+    fetchUser(userId).then(setUser);
+  }); // ❌ Missing dependencies
+
+  return user ? <div>{user.name}</div> : <div>Loading...</div>; // ❌ Missing if/else blocks
+}
+```
+
 ## Architecture Overview
 
 **Stack:**
