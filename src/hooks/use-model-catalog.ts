@@ -137,3 +137,24 @@ export function useModelCatalog() {
     }))
   );
 }
+
+/**
+ * Hook to get the model title for a given model ID and provider.
+ * Returns the model's display name (title) if found in the catalog,
+ * otherwise falls back to the model ID.
+ */
+export function useModelTitle(modelId?: string, provider?: string): string {
+  const userModels = useModelCatalogStore(s => s.userModels);
+
+  if (!modelId) {
+    return "Assistant";
+  }
+
+  // Find the model in the catalog
+  const model = userModels.find(
+    m => m.modelId === modelId && m.provider === provider
+  );
+
+  // Return the model's name (title) if found, otherwise fall back to modelId
+  return model?.name || modelId;
+}
