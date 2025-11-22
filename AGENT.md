@@ -129,8 +129,8 @@
 - Typography: Default body uses Inter; prefer `leading-relaxed` or rely on base; use `text-balance`/`text-pretty` where appropriate.
 - Z-Index: Use predefined utility classes for consistent layering (bottom to top):
   - `z-content` (0): Default content, background elements
-  - `z-backdrop` (5): Mobile sidebar backdrop, overlay backdrops
-  - `z-sidebar` (10): Sidebar components, chat header, navigation
+  - `z-backdrop` (35): Mobile sidebar backdrop, overlay backdrops
+  - `z-sidebar` (40): Sidebar components, chat header, navigation
   - `z-chat-input` (20): Chat input container, send buttons, overlays
   - `z-sticky` (30): Sticky elements, floating controls, copy buttons
   - `z-select` (40): Select dropdowns, status indicators

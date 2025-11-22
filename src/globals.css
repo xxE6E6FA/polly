@@ -189,8 +189,8 @@
 
   /* Z-Index Scale - Layered from bottom to top */
   --z-content: 0;
-  --z-backdrop: 5;
-  --z-sidebar: 10;
+  --z-backdrop: 35;
+  --z-sidebar: 40;
   --z-chat-input: 20;
   --z-sticky: 30;
   --z-drawer: 75;

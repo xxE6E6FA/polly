@@ -395,7 +395,12 @@ const ChatHeaderComponent = ({
   // For chat pages, show full header with conversation title
   return (
     <>
-      <div className="relative flex w-full items-center justify-between gap-1.5 py-4 sm:gap-2 z-sidebar">
+      <div
+        className={cn(
+          "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
+          "z-sticky"
+        )}
+      >
         {!isSidebarVisible && (
           <Button
             size="icon-sm"
