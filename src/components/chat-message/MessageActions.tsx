@@ -81,7 +81,7 @@ type RetryDropdownProps = {
   onRefine?: (
     messageId: string,
     type: "custom" | "add_details" | "more_concise",
-    instruction?: string,
+    instruction?: string
   ) => void;
   onDropdownOpenChange?: (open: boolean) => void;
   currentModel?: string;
@@ -117,7 +117,7 @@ const RetryDropdown = memo(
         return [] as Doc<"userImageModels">[];
       }
       return [...enabledImageModels].sort((a, b) =>
-        a.name.localeCompare(b.name),
+        a.name.localeCompare(b.name)
       );
     }, [enabledImageModels]);
 
@@ -149,7 +149,7 @@ const RetryDropdown = memo(
 
         onRetry(modelId, provider);
       },
-      [userModels, onRetry, onDropdownOpenChange, selectModel],
+      [userModels, onRetry, onDropdownOpenChange, selectModel]
     );
 
     const handleRetrySame = () => {
@@ -165,7 +165,7 @@ const RetryDropdown = memo(
 
     const handleRefine = (
       type: "custom" | "add_details" | "more_concise",
-      instruction?: string,
+      instruction?: string
     ) => {
       if (!messageId) {
         return;
@@ -338,7 +338,7 @@ const RetryDropdown = memo(
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             );
-          },
+          }
         )}
       </>
     );
@@ -366,7 +366,7 @@ const RetryDropdown = memo(
               <span>Replicate</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
-              {imageModelOptions.map((model) => {
+              {imageModelOptions.map(model => {
                 const tags: string[] = [];
                 if (model.supportsMultipleImages) {
                   tags.push("Multi");
@@ -384,7 +384,7 @@ const RetryDropdown = memo(
                     onClick={() => handleRetry(model.modelId, model.provider)}
                     className={cn(
                       "flex items-center justify-between cursor-pointer",
-                      isSelected && "bg-primary/5 hover:bg-primary/10",
+                      isSelected && "bg-primary/5 hover:bg-primary/10"
                     )}
                   >
                     <div className="flex min-w-0 flex-col">
@@ -394,7 +394,7 @@ const RetryDropdown = memo(
                       </span>
                     </div>
                     <div className="ml-2 flex shrink-0 gap-1">
-                      {tags.map((tag) => (
+                      {tags.map(tag => (
                         <span
                           key={`${model.modelId}-${tag}`}
                           className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
@@ -542,7 +542,7 @@ const RetryDropdown = memo(
                   })}
                 </div>
               );
-            },
+            }
           )}
         </div>
       </>
@@ -561,7 +561,7 @@ const RetryDropdown = memo(
                 : "No image models enabled. Manage models in Settings → Image models."}
             </div>
           ) : (
-            imageModelOptions.map((model) => {
+            imageModelOptions.map(model => {
               const tags: string[] = [];
               if (model.supportsMultipleImages) {
                 tags.push("Multi");
@@ -581,7 +581,7 @@ const RetryDropdown = memo(
                     "flex items-center justify-between w-full px-3 py-2.5 text-left transition-colors",
                     "border-b border-border/30 last:border-b-0",
                     "hover:bg-muted/50",
-                    isSelected && "bg-primary/5 hover:bg-primary/10",
+                    isSelected && "bg-primary/5 hover:bg-primary/10"
                   )}
                 >
                   <div className="flex min-w-0 flex-col">
@@ -591,7 +591,7 @@ const RetryDropdown = memo(
                     </span>
                   </div>
                   <div className="ml-2 flex shrink-0 gap-1">
-                    {tags.map((tag) => (
+                    {tags.map(tag => (
                       <span
                         key={`${model.modelId}-${tag}`}
                         className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
@@ -628,7 +628,7 @@ const RetryDropdown = memo(
                     className={cn(
                       "btn-action h-7 w-7 transition-all duration-200 ease-out",
                       "motion-safe:hover:scale-105",
-                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
+                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
                     )}
                     disabled={isEditing || isRetrying || isStreaming}
                     size="sm"
@@ -646,7 +646,7 @@ const RetryDropdown = memo(
                       className={cn(
                         "h-3.5 w-3.5",
                         isRetrying && "motion-safe:animate-spin-reverse",
-                        "@media (prefers-reduced-motion: reduce) { animation: none }",
+                        "@media (prefers-reduced-motion: reduce) { animation: none }"
                       )}
                       aria-hidden="true"
                     />
@@ -675,10 +675,10 @@ const RetryDropdown = memo(
                           id="refine-input"
                           autoFocus
                           value={refineText}
-                          onChange={(e) => setRefineText(e.target.value)}
+                          onChange={e => setRefineText(e.target.value)}
                           placeholder="Type a change request…"
                           className="h-6 w-full border-none px-3 font-normal text-foreground placeholder:text-muted-foreground shadow-none outline-none focus:ring-0 focus-visible:ring-0"
-                          onKeyDown={(e) => {
+                          onKeyDown={e => {
                             if (
                               e.key === "Enter" &&
                               refineText.trim().length > 0
@@ -722,7 +722,7 @@ const RetryDropdown = memo(
                   <DropdownMenuItem
                     id="add-details-action"
                     onClick={() => handleRefine("add_details")}
-                    onKeyDown={(e) => {
+                    onKeyDown={e => {
                       if (e.key === "ArrowUp") {
                         e.preventDefault();
                         const inputEl = document.getElementById("refine-input");
@@ -775,7 +775,7 @@ const RetryDropdown = memo(
                     className={cn(
                       "btn-action h-7 w-7 transition-all duration-200 ease-out",
                       "motion-safe:hover:scale-105",
-                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
+                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
                     )}
                     disabled={isEditing || isRetrying || isStreaming}
                     size="sm"
@@ -793,7 +793,7 @@ const RetryDropdown = memo(
                       className={cn(
                         "h-3.5 w-3.5",
                         isRetrying && "motion-safe:animate-spin-reverse",
-                        "@media (prefers-reduced-motion: reduce) { animation: none }",
+                        "@media (prefers-reduced-motion: reduce) { animation: none }"
                       )}
                       aria-hidden="true"
                     />
@@ -873,7 +873,7 @@ const RetryDropdown = memo(
             <div className="stack-md">
               <Input
                 value={refineText}
-                onChange={(e) => setRefineText(e.target.value)}
+                onChange={e => setRefineText(e.target.value)}
                 placeholder="e.g., Use bullet points and clarify step 3"
               />
               <div className="flex justify-end gap-2">
@@ -904,7 +904,7 @@ const RetryDropdown = memo(
         </Dialog>
       </>
     );
-  },
+  }
 );
 
 RetryDropdown.displayName = "RetryDropdown";
@@ -937,7 +937,7 @@ const ActionButton = memo(
               "btn-action h-7 w-7 transition-all duration-200 ease-out",
               "motion-safe:hover:scale-105",
               "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
-              className,
+              className
             )}
             disabled={disabled}
             size="sm"
@@ -954,7 +954,7 @@ const ActionButton = memo(
         </TooltipContent>
       </Tooltip>
     );
-  },
+  }
 );
 
 ActionButton.displayName = "ActionButton";
@@ -1006,7 +1006,7 @@ type MessageActionsProps = {
   onRefineMessage?: (
     messageId: string,
     type: "custom" | "add_details" | "more_concise",
-    instruction?: string,
+    instruction?: string
   ) => void;
   onDeleteMessage?: () => void;
   onOpenZenMode?: () => void;
@@ -1052,7 +1052,7 @@ export const MessageActions = memo(
     const navigate = useNavigate();
 
     const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
-      "idle",
+      "idle"
     );
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const createTTSStreamUrl = useAction(api.ai.elevenlabs.createTTSStreamUrl);
@@ -1067,7 +1067,7 @@ export const MessageActions = memo(
         !messageId.startsWith("user-") &&
         !messageId.startsWith("assistant-")
         ? ({ messageId: messageId as Id<"messages"> } as const)
-        : ("skip" as const),
+        : ("skip" as const)
     );
 
     const handleToggleFavorite = useCallback(async () => {
@@ -1079,7 +1079,7 @@ export const MessageActions = memo(
           messageId: messageId as Id<"messages">,
         });
         managedToast.success(
-          result.favorited ? "Added to favorites" : "Removed from favorites",
+          result.favorited ? "Added to favorites" : "Removed from favorites"
         );
       } catch {
         managedToast.error("Failed to update favorite");
@@ -1192,7 +1192,7 @@ export const MessageActions = memo(
       isUser && isEditing && "opacity-0 pointer-events-none translate-y-2",
       isUser ? "justify-end mt-1.5" : "mt-1.5",
       (isDropdownOpen || forceVisible) && "sm:opacity-100 sm:translate-y-0",
-      className,
+      className
     );
 
     // Check if we have overflow actions
@@ -1222,7 +1222,7 @@ export const MessageActions = memo(
           <BranchActionDrawerItem
             conversationId={conversationId}
             messageId={messageId}
-            onSuccess={(newConversationId) => {
+            onSuccess={newConversationId => {
               setIsOverflowDrawerOpen(false);
               navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
             }}
@@ -1290,7 +1290,7 @@ export const MessageActions = memo(
                         className={cn(
                           "btn-action h-7 w-7 transition-all duration-200 ease-out",
                           "motion-safe:hover:scale-105",
-                          "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
+                          "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
                         )}
                         disabled={isEditing}
                         size="sm"
@@ -1342,7 +1342,7 @@ export const MessageActions = memo(
                 conversationId={conversationId}
                 messageId={messageId}
                 isEditing={isEditing}
-                onSuccess={(newConversationId) => {
+                onSuccess={newConversationId => {
                   navigate(ROUTES.CHAT_CONVERSATION(newConversationId));
                 }}
               />
@@ -1361,7 +1361,7 @@ export const MessageActions = memo(
                     <HeartIcon
                       className={cn(
                         "h-3.5 w-3.5",
-                        isFavorited && "text-destructive",
+                        isFavorited && "text-destructive"
                       )}
                       weight={isFavorited ? "fill" : "regular"}
                       aria-hidden="true"
@@ -1469,7 +1469,7 @@ export const MessageActions = memo(
           ))}
       </div>
     );
-  },
+  }
 );
 
 MessageActions.displayName = "MessageActions";
