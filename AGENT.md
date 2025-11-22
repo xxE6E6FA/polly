@@ -19,11 +19,66 @@
 
 ## Code Style (Biome enforced)
 
-- **Formatting**: 2 spaces, 80 char line width, double quotes, semicolons
-- **Imports**: Use `@/` for src imports, organize imports frequently
-- **Naming**: camelCase (functions/vars), PascalCase (React components/types), CONSTANT_CASE (constants)
-- **React**: PascalCase components, self-closing elements, fragment syntax `<>`, no array index keys
-- **TypeScript**: Strict types, no `any`, use `type` imports, optional chaining, exhaustive deps
+### Formatting Rules
+- **Indentation**: 2 spaces (never tabs)
+- **Line Width**: 80 characters maximum
+- **Quotes**: Double quotes for strings and JSX attributes
+- **Semicolons**: Always required
+- **Trailing Commas**: ES5 style (all except function parameters)
+- **Arrow Parentheses**: As needed (omit for single parameter)
+- **Bracket Spacing**: Always enabled `{ foo }` not `{foo}`
+
+### Import Organization
+- **Aliases**: Use `@/` for src imports
+- **Auto-organize**: Biome automatically organizes imports on save/fix
+- **Type Imports**: Use `import type` for type-only imports (`useImportType` rule)
+- **Export Types**: Use `export type` for type-only exports (`useExportType` rule)
+- Order: External packages → Internal aliases → Relative imports
+
+### Naming Conventions
+- **Functions/Variables**: camelCase (`getUserData`, `isLoading`)
+- **React Components**: PascalCase (`UserProfile`, `ChatHeader`)
+- **Types/Interfaces**: PascalCase (`User`, `ConversationId`)
+- **Constants**: CONSTANT_CASE (`API_BASE_URL`, `MAX_RETRIES`)
+- **Files**: kebab-case for components (`chat-header.tsx`), camelCase for utilities
+
+### React/JSX Rules
+- **Components**: Must be PascalCase
+- **Self-Closing**: Always use self-closing for elements without children (`<Button />`)
+- **Fragment Syntax**: Use `<>...</>` instead of `<Fragment>...</Fragment>`
+- **No Array Index Keys**: Never use array index as key in `map()`
+- **No Children Prop**: Use children composition, not `children` prop
+- **Exhaustive Dependencies**: All useEffect/useMemo/useCallback dependencies must be declared
+
+### TypeScript Rules
+- **No `any`**: Use proper typing or `unknown` with type guards (`noExplicitAny` enforced)
+- **Type Imports**: Use `import type { Foo }` for types (`useImportType` enforced)
+- **Optional Chaining**: Prefer `?.` over manual null checks (`useOptionalChain` enforced)
+- **Const Assertions**: Use `as const` for literal types (`useAsConstAssertion` enforced)
+- **No Non-Null Assertion**: Avoid `!` operator (warning only)
+- **No Namespace**: Use ES modules, not namespaces
+- **Array Literals**: Use `[]` not `new Array()` or `Array()`
+
+### Control Flow & Logic
+- **No Nested Ternaries**: Forbidden by `noNestedTernary` rule - use if/else or helper functions
+- **Use Block Statements**: Always use `{}` for if/else/while bodies (`useBlockStatements` enforced)
+- **No Useless Else**: Remove else after return/throw (`noUselessElse` enforced)
+- **Use Template Literals**: Prefer `` `${x}` `` over `"" + x` (`useTemplate` enforced)
+- **Use Optional Chain**: Prefer `a?.b?.c` over `a && a.b && a.b.c` (`useOptionalChain` enforced)
+
+### Common Pitfalls to Avoid
+- **No `==`**: Always use `===` (`noDoubleEquals` enforced)
+- **No Console**: Use `log.*` from `convex/lib/logger` in backend (console allowed in scripts only)
+- **No Unused Variables**: All declared variables must be used (`noUnusedVariables` enforced)
+- **No Empty Blocks**: Empty `{}` blocks are forbidden (`noEmptyBlock` enforced)
+- **No Debugger**: Remove `debugger` statements (`noDebugger` enforced)
+- **No Parameter Reassign**: Don't reassign function parameters (`noParameterAssign` enforced)
+
+### Running Biome
+- **Fix All**: `bun run fix` (auto-fixes formatting, linting, organizes imports)
+- **Check Only**: `bunx biome check <file>` (shows issues without fixing)
+- **Specific File**: `bunx biome check --write <file>` (fix specific file)
+- **CI/CD**: `bunx biome ci .` (strict check for CI, fails on errors)
 
 ## Error Handling
 

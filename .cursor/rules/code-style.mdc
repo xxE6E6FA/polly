@@ -31,14 +31,51 @@ alwaysApply: true
 - **Auto-organize**: Run `pnpm check:write` to auto-organize imports
 
 ## Code Quality
-- **No Console**: Use `log.*` from `convex/lib/logger` in backend (console blocked by lint)
-- **Error Handling**: Proper try/catch with meaningful error messages
-- **Comments**: Only for complex logic, not obvious code
-- **DRY Principle**: Avoid duplicate logic, extract reusable functions
-- **React Hooks Rules**: Follow Rules of Hooks (enforced by Biome ESLint plugin)
-- **Exhaustive Dependencies**: All useEffect dependencies must be declared (enforced by Biome)
-- **Avoid Nested Ternaries**: Use if-else statements or helper functions instead of nested ternary operators for readability
-- **Avoid IIFEs in JSX**: Never use Immediately Invoked Function Expressions `(() => { ... })()` inside JSX. Extract logic into helper functions or components instead for better readability and performance.
+
+### Biome Rules (Enforced)
+
+**Formatting:**
+- Indentation: 2 spaces (never tabs)
+- Line width: 80 characters max
+- Quotes: Double quotes for strings and JSX
+- Semicolons: Always required
+- Trailing commas: ES5 style
+- Arrow parentheses: As needed (omit for single param)
+- Bracket spacing: Always `{ foo }` not `{foo}`
+
+**React/JSX:**
+- Self-closing elements: Always use `<Button />` for no children
+- Fragment syntax: `<>...</>` not `<Fragment>...</Fragment>`
+- No array index keys: Never use `map((item, i) => <div key={i}>)`
+- No children prop: Use composition `<Button>Click</Button>` not `<Button children="Click" />`
+- Exhaustive dependencies: All useEffect/useMemo/useCallback deps must be declared
+
+**TypeScript:**
+- No `any` type: Use proper types or `unknown` with type guards
+- Type imports: `import type { Foo }` for types (auto-organized)
+- Export types: `export type { Bar }` for type exports
+- Optional chaining: Prefer `a?.b?.c` over `a && a.b && a.b.c`
+- Const assertions: Use `as const` for literal types
+- No non-null assertion: Avoid `!` operator (warning only)
+- Array literals: Use `[]` not `new Array()` or `Array()`
+
+**Control Flow:**
+- No nested ternaries: Use if/else or helper functions
+- Use block statements: Always `{}` for if/else/while bodies
+- No useless else: Remove else after return/throw
+- No double equals: Always use `===` not `==`
+
+**Best Practices:**
+- No console: Use `log.*` from `convex/lib/logger` in backend
+- No unused variables: All declared vars must be used
+- No empty blocks: Empty `{}` forbidden
+- No debugger: Remove all debugger statements
+- No parameter reassign: Don't reassign function params
+- Use template literals: `` `${x}` `` over `"" + x`
+- Error handling: Proper try/catch with meaningful messages
+- Comments: Only for complex logic, not obvious code
+- DRY principle: Extract reusable functions
+- No IIFEs in JSX: Extract to helper functions or components
 
 ## Examples
 
