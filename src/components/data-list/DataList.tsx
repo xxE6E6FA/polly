@@ -1,16 +1,14 @@
 import type React from "react";
-import {
-  ListBody,
-  ListCell,
-  ListContainer,
-  ListHeader,
-  ListHeaderCell,
-  ListRow,
-  SelectAllCheckbox,
-  SelectionCheckbox,
-  SortableHeader,
-} from "@/components/data-list";
-import { generateGridTemplate } from "@/components/data-list/gridUtils";
+import { ListBody } from "./ListBody";
+import { ListCell } from "./ListCell";
+import { ListContainer } from "./ListContainer";
+import { ListHeader } from "./ListHeader";
+import { ListHeaderCell } from "./ListHeaderCell";
+import { ListRow } from "./ListRow";
+import { SelectAllCheckbox } from "./SelectAllCheckbox";
+import { SelectionCheckbox } from "./SelectionCheckbox";
+import { SortableHeader } from "./SortableHeader";
+import { generateGridTemplate } from "./gridUtils";
 import type { SortDirection } from "@/hooks/use-list-sort";
 
 export interface DataListColumn<TItem, TField extends string = string> {
