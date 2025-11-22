@@ -343,7 +343,9 @@ const ChatHeaderComponent = ({
   ]);
 
   const handlePinToggle = async () => {
-    if (!conversationId || !conversation) return;
+    if (!(conversationId && conversation)) {
+      return;
+    }
     try {
       await patchConversation({
         id: conversationId as Id<"conversations">,
@@ -368,7 +370,7 @@ const ChatHeaderComponent = ({
   };
 
   const handleSaveTitle = async (newTitle: string) => {
-    if (!conversationId || !newTitle.trim()) {
+    if (!(conversationId && newTitle.trim())) {
       setIsEditingTitle(false);
       return;
     }
@@ -792,7 +794,9 @@ const ChatHeaderComponent = ({
               navigate(ROUTES.HOME);
               await new Promise(resolve => setTimeout(resolve, 100));
 
-              await deleteConversation({ id: conversationId as Id<"conversations"> });
+              await deleteConversation({
+                id: conversationId as Id<"conversations">,
+              });
 
               del(CACHE_KEYS.conversations);
               managedToast.success("Conversation deleted", {
@@ -801,8 +805,7 @@ const ChatHeaderComponent = ({
               });
             } catch (_err) {
               managedToast.error("Failed to delete conversation", {
-                description:
-                  "Unable to delete conversation. Please try again.",
+                description: "Unable to delete conversation. Please try again.",
                 id: `delete-error-${conversationId}`,
               });
             }
