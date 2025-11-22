@@ -193,7 +193,7 @@ const ChatOutlineComponent = ({
     <nav
       ref={containerRef}
       style={{
-        left: isSidebarVisible ? `${sidebarWidth + 12}px` : "12px",
+        left: isSidebarVisible ? `${sidebarWidth + 16}px` : "16px",
       }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}

@@ -395,26 +395,17 @@ const ChatHeaderComponent = ({
   // For chat pages, show full header with conversation title
   return (
     <>
-      {!isSidebarVisible && (
-        <Button
-          size="icon-sm"
-          title="Expand sidebar"
-          variant="ghost"
-          className="fixed left-3 sm:left-6 z-sticky pointer-events-auto text-foreground/70 hover:text-foreground h-9 w-9"
-          style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
-          onClick={() => setSidebarVisible(true)}
-        >
-          <SidebarSimpleIcon className="h-5 w-5" />
-        </Button>
-      )}
-      <div
-        className={cn(
-          "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
-          !isSidebarVisible && "pl-12 sm:pl-14",
-          isSidebarVisible && "transition-[padding] duration-300 ease-out",
-          "z-sidebar"
+      <div className="relative flex w-full items-center justify-between gap-1.5 py-4 sm:gap-2 z-sidebar">
+        {!isSidebarVisible && (
+          <Button
+            size="icon-sm"
+            title="Expand sidebar"
+            variant="ghost"
+            onClick={() => setSidebarVisible(true)}
+          >
+            <SidebarSimpleIcon className="h-5 w-5" />
+          </Button>
         )}
-      >
         <div className="flex min-w-0 flex-1 items-center gap-1">
           {persona && (
             <Badge size="sm">
