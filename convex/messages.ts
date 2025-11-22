@@ -559,12 +559,21 @@ export const updateContent = internalMutation({
     // Check if message exists before patching
     const message = await ctx.db.get(messageId);
     if (!message) {
-      return; // Return silently instead of throwing
+      return false; // Message not found
     }
 
-    // Don't overwrite error status - if message already has an error, skip this update
+    // Don't overwrite error status or if already stopped/done (unless we are setting finishReason ourselves)
+    // If we are setting finishReason, it's the final save, so we proceed (unless it's already error)
     if (message.status === "error") {
-      return;
+      return false;
+    }
+
+    // If message is already done/stopped and we are NOT just finishing it (i.e. we are still streaming content),
+    // then we should stop.
+    // If finishReason is provided in args, we are finishing it.
+    // If message.metadata?.finishReason is already set, it was stopped by user.
+    if (message.metadata?.finishReason && !finishReason) {
+      return false; // Stopped by user
     }
 
     // Build the update object
@@ -577,12 +586,9 @@ export const updateContent = internalMutation({
           finishReason,
           ...(usage && { usage }),
         },
+        status: "done" as const,
       }),
     };
-
-    if (finishReason) {
-      // Log finishReason setting for debugging
-    }
 
     await ctx.db.patch(messageId, updateData);
 
@@ -604,6 +610,8 @@ export const updateContent = internalMutation({
         25
       );
     }
+
+    return true;
   },
 });
 

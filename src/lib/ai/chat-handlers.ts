@@ -4,7 +4,7 @@ import {
   getChatKey,
   getSelectedPersonaIdFromStore,
 } from "@/stores/chat-input-store";
-import { useStreamOverlays } from "@/stores/stream-overlays";
+
 import type {
   APIKeys,
   Attachment,
@@ -15,7 +15,6 @@ import type {
   WebSearchCitation,
 } from "@/types";
 import { streamChat } from "./browser-streaming";
-import { StreamingCoordinator } from "./streaming-coordinator";
 
 // --- Type Definitions ---
 export interface SendMessageParams {
@@ -170,15 +169,7 @@ export const createServerChatHandlers = (
   _getAuthToken?: () => string | null
 ): ChatHandlers => {
   // Use a safe default so specs don't require env vars; empty string yields same-origin path
-  const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
-  // Always attempt HTTP streaming; the underlying function will safely no-op on failure
-  const canHttpStream = true;
-  // Enable HTTP streaming for the regular send flow
-  const enableHttpForSend = true;
-
-  if (enableHttpForSend && !convexUrl) {
-    console.warn("HTTP streaming enabled but VITE_CONVEX_URL not configured");
-  }
+  const _convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
 
   return {
     async sendMessage(
@@ -208,27 +199,6 @@ export const createServerChatHandlers = (
       }
       const result = await actions.sendMessage(sendPayload);
 
-      // Start HTTP stream on send using StreamingCoordinator
-      if (enableHttpForSend && canHttpStream) {
-        const token = _getAuthToken?.() || null;
-        await StreamingCoordinator.start({
-          convexUrl,
-          authToken: token,
-          conversationId,
-          assistantMessageId: result.assistantMessageId,
-          modelId: modelOptions.model || "",
-          provider: modelOptions.provider || "",
-          personaId: params.personaId ?? undefined,
-          reasoningConfig:
-            params.reasoningConfig || modelOptions.reasoningConfig,
-          temperature: params.temperature ?? modelOptions.temperature,
-          maxTokens: modelOptions.maxTokens,
-          topP: modelOptions.topP,
-          frequencyPenalty: modelOptions.frequencyPenalty,
-          presencePenalty: modelOptions.presencePenalty,
-        });
-      }
-
       return {
         userMessageId: result.userMessageId,
         assistantMessageId: result.assistantMessageId,
@@ -243,29 +213,15 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
-      const isImageProvider =
+      const _isImageProvider =
         mergedOptions.provider?.toLowerCase() === "replicate";
-
-      // Stop any ongoing HTTP stream to avoid interleaved outputs
-      StreamingCoordinator.stop();
-
-      // Optimistically clear the retried message overlay immediately
-      try {
-        const overlays = useStreamOverlays.getState();
-        const id = String(messageId);
-        // Clear all overlays and set to thinking status
-        overlays.clearAll(id);
-        overlays.update(id, { status: "thinking" });
-      } catch (_e) {
-        // ignore
-      }
 
       // Determine selected persona for this conversation (if set in UI)
       const chatKey = getChatKey(conversationId);
       const selectedPersonaId =
         getSelectedPersonaIdFromStore(chatKey) || undefined;
 
-      const result = await actions.retryFromMessage({
+      const _result = await actions.retryFromMessage({
         conversationId,
         messageId: messageId as Id<"messages">,
         model: mergedOptions.model,
@@ -279,25 +235,6 @@ export const createServerChatHandlers = (
         presencePenalty: mergedOptions.presencePenalty,
         webSearchMaxResults: mergedOptions.webSearchMaxResults,
       });
-
-      // Start HTTP streaming into the returned assistantMessageId if possible
-      if (canHttpStream && !isImageProvider) {
-        await StreamingCoordinator.start({
-          convexUrl,
-          authToken: _getAuthToken?.() || null,
-          conversationId,
-          assistantMessageId: result.assistantMessageId,
-          modelId: mergedOptions.model || "",
-          provider: mergedOptions.provider || "",
-          personaId: selectedPersonaId ?? null,
-          reasoningConfig: mergedOptions.reasoningConfig,
-          temperature: mergedOptions.temperature,
-          maxTokens: mergedOptions.maxTokens,
-          topP: mergedOptions.topP,
-          frequencyPenalty: mergedOptions.frequencyPenalty,
-          presencePenalty: mergedOptions.presencePenalty,
-        });
-      }
     },
 
     async editMessage(
@@ -309,9 +246,9 @@ export const createServerChatHandlers = (
       if (!(mergedOptions.model && mergedOptions.provider)) {
         throw new Error("Model and provider are required");
       }
-      const isImageProvider =
+      const _isImageProvider =
         mergedOptions.provider?.toLowerCase() === "replicate";
-      const result = await actions.editAndResend({
+      const _result = await actions.editAndResend({
         messageId: messageId as Id<"messages">,
         newContent,
         model: mergedOptions.model,
@@ -324,25 +261,6 @@ export const createServerChatHandlers = (
         presencePenalty: mergedOptions.presencePenalty,
         webSearchMaxResults: mergedOptions.webSearchMaxResults,
       });
-
-      // Start HTTP streaming into the returned assistantMessageId if possible
-      if (canHttpStream && !isImageProvider) {
-        // For edit-and-resend, do NOT override model/provider in HTTP stream args.
-        // The server should use the model recorded on the edited message to
-        // preserve image-capable models.
-        await StreamingCoordinator.start({
-          convexUrl,
-          authToken: _getAuthToken?.() || null,
-          conversationId,
-          assistantMessageId: result.assistantMessageId,
-          reasoningConfig: mergedOptions.reasoningConfig,
-          temperature: mergedOptions.temperature,
-          maxTokens: mergedOptions.maxTokens,
-          topP: mergedOptions.topP,
-          frequencyPenalty: mergedOptions.frequencyPenalty,
-          presencePenalty: mergedOptions.presencePenalty,
-        });
-      }
     },
 
     async deleteMessage(messageId: string): Promise<void> {
@@ -350,11 +268,7 @@ export const createServerChatHandlers = (
     },
 
     stopGeneration(): void {
-      // Stop the HTTP stream via StreamingCoordinator
-      // The server will detect the abort and save the buffered content to the DB
-      // Don't clear overlays - they will be cleared automatically when the DB update arrives
-      // and the message transitions to "done" status (handled by http-stream.ts)
-      StreamingCoordinator.stop();
+      actions.stopGeneration({ conversationId });
     },
   };
 };

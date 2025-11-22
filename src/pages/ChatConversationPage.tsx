@@ -1,6 +1,5 @@
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useConvex, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLoaderData, useNavigate, useParams } from "react-router-dom";
@@ -11,7 +10,6 @@ import { mapServerMessageToChatMessage, useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
-import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { ROUTES } from "@/lib/routes";
 import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -145,11 +143,7 @@ function ConversationRouteContent({
   const managedToast = useToast();
   const online = useOnline();
   const _setStreaming = useMutation(api.conversations.setStreaming);
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
+
   const createBranchingConversationAction = useAction(
     api.conversations.createBranchingConversation
   );
@@ -192,39 +186,7 @@ function ConversationRouteContent({
             navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
           }
 
-          if ("assistantMessageId" in result && result.assistantMessageId) {
-            setTimeout(() => {
-              (async () => {
-                try {
-                  const start = Date.now();
-                  let token = authRef.current;
-                  while (!token && Date.now() - start < 2000) {
-                    await new Promise(r => setTimeout(r, 50));
-                    token = authRef.current;
-                  }
-                  const convexUrl = import.meta.env.VITE_CONVEX_URL;
-                  if (!convexUrl) {
-                    console.warn(
-                      "Missing VITE_CONVEX_URL; skipping conversation stream start"
-                    );
-                    return;
-                  }
-                  await StreamingCoordinator.start({
-                    convexUrl,
-                    authToken: token,
-                    conversationId: result.conversationId,
-                    assistantMessageId:
-                      result.assistantMessageId as Id<"messages">,
-                  });
-
-                  // Note: onFinish callback removed - streaming state is now managed
-                  // by the server-side endpoint and Convex reactivity
-                } catch {
-                  // Ignore errors when starting stream
-                }
-              })();
-            }, 0);
-          }
+          // Server-side streaming is now handled automatically by the Convex action
 
           return result.conversationId;
         }

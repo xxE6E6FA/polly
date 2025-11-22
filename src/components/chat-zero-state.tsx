@@ -1,6 +1,5 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useAuthToken } from "@convex-dev/auth/react";
 import {
   CheckCircleIcon,
   CircleIcon,
@@ -14,7 +13,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChatInput, type ChatInputRef } from "@/components/chat-input";
 import { Button } from "@/components/ui/button";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -137,7 +135,6 @@ const ChatSection = () => {
     user,
   } = useUserDataContext();
   const [selectedModel] = useSelectedModel();
-  const authToken = useAuthToken();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
   const createConversationAction = useAction(
@@ -146,7 +143,6 @@ const ChatSection = () => {
   const setStreaming = useMutation(api.conversations.setStreaming);
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
-  // No token waiting; rely on cookie-based auth via credentials: 'include'
 
   const handleSendMessage = useCallback(
     async (
@@ -200,34 +196,7 @@ const ChatSection = () => {
           // best-effort only
         }
 
-        // Start the author stream in the background using cookie-based auth
-        if ("assistantMessageId" in result) {
-          setTimeout(() => {
-            (async () => {
-              try {
-                if (!import.meta.env.VITE_CONVEX_URL) {
-                  console.warn(
-                    "Missing VITE_CONVEX_URL; skipping zero-state stream"
-                  );
-                  return;
-                }
-                await StreamingCoordinator.start({
-                  convexUrl: import.meta.env.VITE_CONVEX_URL,
-                  authToken: authToken,
-                  conversationId: result.conversationId,
-                  assistantMessageId: result.assistantMessageId,
-                  modelId: selectedModel?.modelId,
-                  provider: selectedModel?.provider,
-                  personaId: personaId ?? undefined,
-                  reasoningConfig,
-                  temperature,
-                });
-              } catch {
-                // Final fallback: do nothing
-              }
-            })();
-          }, 0);
-        }
+        // Server-side streaming is now handled automatically by the Convex action
       }
     },
     [
@@ -235,7 +204,6 @@ const ChatSection = () => {
       isPrivateMode,
       createConversationAction,
       selectedModel,
-      authToken,
       setStreaming,
     ]
   );

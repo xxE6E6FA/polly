@@ -1,7 +1,6 @@
 import { api } from "@convex/_generated/api";
-import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useMutation } from "convex/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Spinner } from "@/components/spinner";
 import {
@@ -11,7 +10,6 @@ import {
 } from "@/components/ui/popover";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
-import { StreamingCoordinator } from "@/lib/ai/streaming-coordinator";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
@@ -77,21 +75,6 @@ export const ConversationStarterPopover = ({
       unlockSelection();
     }
   }, [open, lockSelection, unlockSelection]);
-
-  const authToken = useAuthToken();
-  const authRef = useRef<string | null | undefined>(authToken);
-  useEffect(() => {
-    authRef.current = authToken;
-  }, [authToken]);
-  const waitForToken = async (timeoutMs = 2000) => {
-    const start = Date.now();
-    let token = authRef.current;
-    while (!token && Date.now() - start < timeoutMs) {
-      await new Promise(r => setTimeout(r, 50));
-      token = authRef.current;
-    }
-    return token ?? null;
-  };
   const handleStartConversation = async (prompt: string) => {
     try {
       const result = await createConversationAction({
@@ -116,34 +99,7 @@ export const ConversationStarterPopover = ({
           // ignore
         }
 
-        // Start optimistic HTTP stream in the background; wait briefly for token
-        if ("assistantMessageId" in result) {
-          setTimeout(() => {
-            (async () => {
-              try {
-                const convexUrl = import.meta.env.VITE_CONVEX_URL;
-                const token = await waitForToken(2000);
-                if (!convexUrl) {
-                  console.warn(
-                    "Missing VITE_CONVEX_URL; skipping conversation starter stream"
-                  );
-                  return;
-                }
-
-                await StreamingCoordinator.start({
-                  convexUrl,
-                  authToken: token || undefined,
-                  conversationId: result.conversationId,
-                  assistantMessageId: result.assistantMessageId,
-                  modelId: selectedModel?.modelId,
-                  provider: selectedModel?.provider,
-                });
-              } catch {
-                // Ignore errors when starting stream
-              }
-            })();
-          }, 0);
-        }
+        // Server-side streaming is now handled automatically by the Convex action
       }
     } catch (_error) {
       managedToast.error("Failed to start conversation", {

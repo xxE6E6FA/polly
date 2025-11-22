@@ -9,6 +9,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   type ActionCtx,
   action,
+  internalAction,
   internalMutation,
   internalQuery,
   type MutationCtx,
@@ -29,6 +30,7 @@ import {
   executeStreamingActionForRetry,
   incrementUserMessageStats,
   processAttachmentsForStorage,
+  streamAndSaveMessage,
 } from "./lib/conversation_utils";
 import { getUserEffectiveModelWithCapabilities } from "./lib/model_resolution";
 import {
@@ -525,7 +527,49 @@ export const sendMessage = action({
       console.warn("Failed to schedule token-aware summaries:", e);
     }
 
+    // Build context messages
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId: args.conversationId,
+      personaId: effectivePersonaId,
+      modelCapabilities: {
+        supportsImages: fullModel.supportsImages ?? false,
+        supportsFiles: fullModel.supportsFiles ?? false,
+      },
+    });
+
+    // Schedule server-side streaming
+    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+      messageId: assistantMessageId,
+      conversationId: args.conversationId,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      messages: contextMessages,
+      personaId: effectivePersonaId,
+      reasoningConfig: args.reasoningConfig,
+    });
+
     return { userMessageId, assistantMessageId };
+  },
+});
+
+export const streamMessage = internalAction({
+  args: {
+    messageId: v.id("messages"),
+    conversationId: v.id("conversations"),
+    model: v.string(),
+    provider: v.string(),
+    messages: v.array(v.object({ role: v.string(), content: v.any() })),
+    personaId: v.optional(v.id("personas")),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+  },
+  handler: async (ctx, args) => {
+    await streamAndSaveMessage(ctx, {
+      ...args,
+      messages: args.messages as Array<{
+        role: "system" | "user" | "assistant";
+        content: string | unknown[];
+      }>,
+    });
   },
 });
 
@@ -1122,7 +1166,7 @@ export const createWithUserId = internalMutation({
       createdAt: Date.now(),
     });
 
-    // Schedule title generation in the background
+    // Schedule title generation and streaming in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {
       await scheduleRunAfter(
         ctx,
@@ -1133,6 +1177,34 @@ export const createWithUserId = internalMutation({
           message: args.firstMessage,
         }
       );
+
+      // Build context messages for streaming
+      const _userMessages = await ctx.db
+        .query("messages")
+        .withIndex("by_conversation", q =>
+          q.eq("conversationId", conversationId)
+        )
+        .filter(q => q.eq(q.field("role"), "user"))
+        .collect();
+
+      // Simple context: just the user message
+      const contextMessages = [
+        {
+          role: "user",
+          content: args.firstMessage,
+        },
+      ];
+
+      // Schedule server-side streaming
+      await scheduleRunAfter(ctx, 0, internal.conversations.streamMessage, {
+        messageId: assistantMessageId,
+        conversationId,
+        model: args.model || "unknown",
+        provider: args.provider || "unknown",
+        messages: contextMessages,
+        personaId: args.personaId,
+        reasoningConfig: args.reasoningConfig,
+      });
     }
 
     return {
@@ -1976,10 +2048,48 @@ export const stopGeneration = mutation({
     reasoning: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Deprecated: This mutation is kept for backward compatibility but does nothing.
-    // Stream interruption is now handled entirely by the HTTP abort handler in http.ts
-    // which detects request.signal.aborted and saves the server-side buffered content.
-    // The HTTP handler is the single source of truth for stop handling.
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    const conversation = await ctx.db.get(args.conversationId);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+
+    if (conversation.userId !== userId) {
+      throw new Error("Access denied");
+    }
+
+    // Find the streaming message
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", q =>
+        q.eq("conversationId", args.conversationId)
+      )
+      .order("desc")
+      .take(5);
+
+    const streamingMessage = messages.find(
+      m =>
+        m.role === "assistant" &&
+        (m.status === "streaming" || m.status === "thinking")
+    );
+
+    if (streamingMessage) {
+      await ctx.db.patch(streamingMessage._id, {
+        status: "done",
+        metadata: {
+          ...streamingMessage.metadata,
+          finishReason: "user_stopped",
+        },
+      });
+    }
+
+    await ctx.db.patch(args.conversationId, {
+      isStreaming: false,
+    });
   },
 });
 
