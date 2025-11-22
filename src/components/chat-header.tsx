@@ -9,7 +9,10 @@ import {
   GitBranchIcon,
   GitCommitIcon,
   NotePencilIcon,
+  PencilSimpleIcon,
+  PushPinIcon,
   ShareNetworkIcon,
+  TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useEffect, useState } from "react";
@@ -32,6 +35,14 @@ import { Badge } from "./ui/badge";
 import { Button, buttonVariants } from "./ui/button";
 import { ConfirmationDialog } from "./ui/confirmation-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import {
   Drawer,
   DrawerBody,
   DrawerContent,
@@ -46,6 +57,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Input } from "./ui/input";
 import { ControlledShareConversationDialog } from "./ui/share-conversation-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
@@ -58,6 +70,67 @@ type ChatHeaderProps = {
   privateMessages?: ChatMessage[];
   privatePersonaId?: Id<"personas">;
 };
+
+type EditTitleDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentTitle: string;
+  onSave: (newTitle: string) => void;
+};
+
+function EditTitleDialog({
+  open,
+  onOpenChange,
+  currentTitle,
+  onSave,
+}: EditTitleDialogProps) {
+  const [title, setTitle] = useState(currentTitle);
+
+  // Update title when dialog opens with new currentTitle
+  useEffect(() => {
+    if (open) {
+      setTitle(currentTitle);
+    }
+  }, [open, currentTitle]);
+
+  const handleSave = () => {
+    if (title.trim()) {
+      onSave(title);
+      onOpenChange(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Title</DialogTitle>
+          <DialogDescription>
+            Enter a new title for this conversation
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSave();
+            }
+          }}
+          placeholder="Conversation title"
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function getBranchLabel(
   branches: Array<{ _id: string }>,
@@ -112,6 +185,8 @@ const ChatHeaderComponent = ({
   const [shouldLoadExportData, setShouldLoadExportData] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const conversation = useQuery(
     api.conversations.get,
@@ -153,6 +228,7 @@ const ChatHeaderComponent = ({
   const persona = useQuery(api.personas.get, personaQueryArg);
 
   const patchConversation = useMutation(api.conversations.patch);
+  const deleteConversation = useMutation(api.conversations.remove);
 
   const handleExport = (format: "json" | "md") => {
     // Handle private chat export
@@ -265,6 +341,53 @@ const ChatHeaderComponent = ({
     managedToast,
     conversationId,
   ]);
+
+  const handlePinToggle = async () => {
+    if (!conversationId || !conversation) return;
+    try {
+      await patchConversation({
+        id: conversationId as Id<"conversations">,
+        updates: { isPinned: !conversation.isPinned },
+      });
+      managedToast.success(
+        conversation.isPinned ? "Conversation unpinned" : "Conversation pinned",
+        {
+          id: `pin-${conversationId}`,
+        }
+      );
+    } catch (_err) {
+      managedToast.error("Failed to update conversation", {
+        description: "Unable to pin/unpin conversation. Please try again.",
+        id: `pin-error-${conversationId}`,
+      });
+    }
+  };
+
+  const handleEditTitle = () => {
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async (newTitle: string) => {
+    if (!conversationId || !newTitle.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+    try {
+      await patchConversation({
+        id: conversationId as Id<"conversations">,
+        updates: { title: newTitle.trim() },
+      });
+      setIsEditingTitle(false);
+      managedToast.success("Title updated", {
+        id: `title-${conversationId}`,
+      });
+    } catch (_err) {
+      managedToast.error("Failed to update title", {
+        description: "Unable to update conversation title. Please try again.",
+        id: `title-error-${conversationId}`,
+      });
+    }
+  };
 
   // For chat pages, show full header with conversation title
   return (
@@ -396,14 +519,40 @@ const ChatHeaderComponent = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {!isPrivateMode && conversation && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={handlePinToggle}
+                      disabled={!online}
+                    >
+                      <PushPinIcon
+                        className="mr-2 h-4 w-4"
+                        weight={conversation.isPinned ? "fill" : "regular"}
+                      />
+                      {conversation.isPinned ? "Unpin" : "Pin"}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={handleEditTitle}
+                      disabled={!online}
+                    >
+                      <PencilSimpleIcon className="mr-2 h-4 w-4" />
+                      Edit Title
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+
                 {isPrivateMode && (
-                  <DropdownMenuItem
-                    onClick={onSavePrivateChat}
-                    disabled={!(online && canSavePrivateChat)}
-                  >
-                    <FloppyDiskIcon className="mr-2 h-4 w-4" />
-                    Save Private Chat
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuItem
+                      onClick={onSavePrivateChat}
+                      disabled={!(online && canSavePrivateChat)}
+                    >
+                      <FloppyDiskIcon className="mr-2 h-4 w-4" />
+                      Save Private Chat
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
                 )}
 
                 {!isPrivateMode && conversationId && (
@@ -416,7 +565,6 @@ const ChatHeaderComponent = ({
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleExport("json")}
                   disabled={!online || exportingFormat !== null}
@@ -444,6 +592,17 @@ const ChatHeaderComponent = ({
                     </DropdownMenuItem>
                   </>
                 )}
+
+                {!isPrivateMode && conversation && (
+                  <DropdownMenuItem
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    disabled={!online}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <TrashIcon className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -466,6 +625,34 @@ const ChatHeaderComponent = ({
                 </DrawerHeader>
                 <DrawerBody>
                   <div className="flex flex-col">
+                    {!isPrivateMode && conversation && (
+                      <>
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm"
+                          size="sm"
+                          variant="ghost"
+                          onClick={handlePinToggle}
+                          disabled={!online}
+                        >
+                          <PushPinIcon
+                            className="h-4 w-4"
+                            weight={conversation.isPinned ? "fill" : "regular"}
+                          />
+                          {conversation.isPinned ? "Unpin" : "Pin"}
+                        </Button>
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm"
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleEditTitle}
+                          disabled={!online}
+                        >
+                          <PencilSimpleIcon className="h-4 w-4" />
+                          Edit Title
+                        </Button>
+                      </>
+                    )}
+
                     {isPrivateMode && (
                       <Button
                         className="h-10 justify-start gap-2 px-3 text-sm"
@@ -525,6 +712,19 @@ const ChatHeaderComponent = ({
                         Archive Conversation
                       </Button>
                     )}
+
+                    {!isPrivateMode && conversation && (
+                      <Button
+                        className="h-10 justify-start gap-2 px-3 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setIsDeleteDialogOpen(true)}
+                        disabled={!online}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                        Delete
+                      </Button>
+                    )}
                   </div>
                 </DrawerBody>
               </DrawerContent>
@@ -574,6 +774,49 @@ const ChatHeaderComponent = ({
               });
             }
           }}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {!isPrivateMode && conversationId && (
+        <ConfirmationDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          title="Delete Conversation"
+          description={`Are you sure you want to permanently delete "${conversation?.title ?? "this conversation"}"? This action cannot be undone.`}
+          confirmText="Delete"
+          variant="destructive"
+          onConfirm={async () => {
+            try {
+              // Navigate away first if deleting the current conversation view
+              navigate(ROUTES.HOME);
+              await new Promise(resolve => setTimeout(resolve, 100));
+
+              await deleteConversation({ id: conversationId as Id<"conversations"> });
+
+              del(CACHE_KEYS.conversations);
+              managedToast.success("Conversation deleted", {
+                description: "The conversation has been permanently removed.",
+                id: `delete-${conversationId}`,
+              });
+            } catch (_err) {
+              managedToast.error("Failed to delete conversation", {
+                description:
+                  "Unable to delete conversation. Please try again.",
+                id: `delete-error-${conversationId}`,
+              });
+            }
+          }}
+        />
+      )}
+
+      {/* Edit title dialog */}
+      {!isPrivateMode && conversationId && isEditingTitle && (
+        <EditTitleDialog
+          open={isEditingTitle}
+          onOpenChange={setIsEditingTitle}
+          currentTitle={conversation?.title ?? ""}
+          onSave={handleSaveTitle}
         />
       )}
     </div>
