@@ -194,18 +194,27 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
   return (
     <>
+      {/* Backdrop for mobile sidebar */}
+      {isMobile && isSidebarVisible && !forceHidden && (
+        <Backdrop
+          className="z-backdrop"
+          data-state={isSidebarVisible ? "open" : "closed"}
+          onClick={() => setSidebarVisible(false)}
+        />
+      )}
+
       {!(isMobile || isSidebarVisible || forceHidden) && (
         <button
           type="button"
           aria-label="Expand sidebar"
-          className="fixed inset-y-0 left-0 z-40 w-5 cursor-e-resize bg-transparent transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring hover:bg-muted/40"
+          className="fixed inset-y-0 left-0 z-sidebar w-5 cursor-e-resize bg-transparent transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring hover:bg-muted/40"
           onClick={handleExpandZoneClick}
         />
       )}
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 bg-sidebar dark:bg-sidebar border-r border-border/40",
+          "fixed inset-y-0 left-0 z-sidebar bg-sidebar dark:bg-sidebar border-r border-border/40",
           !forceHidden &&
             (isMobile
               ? "transform transition-transform duration-300 ease-out rounded-r-xl"
