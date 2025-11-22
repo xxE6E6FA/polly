@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently -n vite,convex -c cyan,magenta \"vite\" \"NODE_ENV=development convex dev\"",
     "dev:convex": "NODE_ENV=development convex dev",
-    "build": "NODE_ENV=production sh -c \"convex deploy --verbose --typecheck disable && bun run scripts/build-frontend.ts\"",
+    "build": "NODE_ENV=production sh -c \"convex deploy --verbose --typecheck disable && vite build\"",
     "fix": "biome check --write .",
-    "check": "biome ci . && react-compiler-healthcheck && bun run scripts/build-frontend.ts",
+    "check": "biome ci . && react-compiler-healthcheck && vite build",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test bun test",
     "test:watch": "NODE_ENV=test bun test --watch",
