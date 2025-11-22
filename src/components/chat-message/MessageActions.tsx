@@ -1454,7 +1454,12 @@ export const MessageActions = memo(
 
         {!isUser && model && provider && (
           <div className="flex items-center gap-1.5">
-            <ProviderIcon provider={provider} className="h-3.5 w-3.5" />
+            {provider !== "replicate" && (
+              <ProviderIcon
+                provider={provider}
+                className="h-3.5 w-3.5 text-muted-foreground/70"
+              />
+            )}
             <span className="text-xs text-muted-foreground/70">
               {modelTitle}
             </span>
