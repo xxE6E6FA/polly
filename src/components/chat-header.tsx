@@ -12,6 +12,7 @@ import {
   PencilSimpleIcon,
   PushPinIcon,
   ShareNetworkIcon,
+  SidebarSimpleIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
@@ -175,7 +176,7 @@ const ChatHeaderComponent = ({
   privatePersonaId,
 }: ChatHeaderProps) => {
   const { user } = useUserDataContext();
-  const { isSidebarVisible } = useUI();
+  const { isSidebarVisible, setSidebarVisible } = useUI();
   const managedToast = useToast();
   const online = useOnline();
   const navigate = useNavigate();
@@ -393,347 +394,363 @@ const ChatHeaderComponent = ({
 
   // For chat pages, show full header with conversation title
   return (
-    <div
-      className={cn(
-        "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
-        !isSidebarVisible && "pl-12 sm:pl-14",
-        isSidebarVisible && "transition-[padding] duration-300 ease-out",
-        "z-sidebar"
+    <>
+      {!isSidebarVisible && (
+        <Button
+          size="icon-sm"
+          title="Expand sidebar"
+          variant="ghost"
+          className="fixed left-3 z-sidebar text-foreground/70 hover:text-foreground h-9 w-9"
+          style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+          onClick={() => setSidebarVisible(true)}
+        >
+          <SidebarSimpleIcon className="h-5 w-5" />
+        </Button>
       )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-1">
-        {persona && (
-          <Badge size="sm">
-            <span>{persona.icon}</span>
-            <span>{persona.name}</span>
-          </Badge>
+      <div
+        className={cn(
+          "relative flex w-full items-center justify-between gap-1.5 py-0 sm:gap-2",
+          !isSidebarVisible && "pl-12 sm:pl-14",
+          isSidebarVisible && "transition-[padding] duration-300 ease-out",
+          "z-sidebar"
         )}
-        {/* Branch selector */}
-        {conversationId && Array.isArray(branches) && branches.length > 1 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger>
-              <Button variant="ghost" size="pill" className="h-5 mt-0">
-                <GitBranchIcon />
-                <span className="text-xxs">
-                  {getBranchLabel(
-                    branches,
-                    conversation?._id as unknown as string
-                  )}
-                </span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {sortBranches(
-                branches,
-                conversation?.rootConversationId || conversation?._id
-              ).map(b => {
-                const rootId =
-                  conversation?.rootConversationId || conversation?._id;
-                const isRoot = !b.parentConversationId || b._id === rootId;
-                const isActive = b._id === conversation?._id;
-                const created = formatDate(b.createdAt || 0);
-                return (
-                  <DropdownMenuItem
-                    key={b._id}
-                    onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {/* Active dot first (aligned) */}
-                      <span
-                        className={cn(
-                          "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
-                          isActive ? "bg-primary" : "bg-transparent"
-                        )}
-                        aria-label={isActive ? "Active" : undefined}
-                      />
-                      {/* Fixed icon slot for alignment */}
-                      <div className="w-4 flex items-center justify-center flex-shrink-0">
-                        {isRoot ? (
-                          <GitCommitIcon
-                            className="h-3.5 w-3.5 text-muted-foreground"
-                            aria-label="Root conversation"
-                          />
-                        ) : (
-                          <GitBranchIcon
-                            className="h-3.5 w-3.5 text-muted-foreground"
-                            aria-label="Branch"
-                          />
-                        )}
-                      </div>
-                      {/* Text */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-sm truncate">{b.title}</span>
-                          <span className="text-xxs text-muted-foreground whitespace-nowrap">
-                            {created}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {sharedStatus && (
-          <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="ghost"
-                size="pill"
-                className="h-6 mt-0 p-1"
-                onClick={() => setIsShareDialogOpen(true)}
-              >
-                <ShareNetworkIcon className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Shared - Click to manage</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-        {isArchived && (
-          <Badge
-            variant="warning-subtle"
-            size="sm"
-            className="flex-shrink-0 gap-1"
-          >
-            <ArchiveIcon className="h-3.5 w-3.5" />
-            <span className="text-xxs">Archived</span>
-          </Badge>
-        )}
-      </div>
-
-      {/* Only show actions for authenticated users */}
-      {user && !user.isAnonymous && (
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          {/* Desktop menu */}
-          <div className="hidden sm:block">
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          {persona && (
+            <Badge size="sm">
+              <span>{persona.icon}</span>
+              <span>{persona.name}</span>
+            </Badge>
+          )}
+          {/* Branch selector */}
+          {conversationId && Array.isArray(branches) && branches.length > 1 && (
             <DropdownMenu>
               <DropdownMenuTrigger>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="More actions"
-                >
-                  <DotsThreeIcon weight="bold" />
+                <Button variant="ghost" size="pill" className="h-5 mt-0">
+                  <GitBranchIcon />
+                  <span className="text-xxs">
+                    {getBranchLabel(
+                      branches,
+                      conversation?._id as unknown as string
+                    )}
+                  </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {!isPrivateMode && conversation && (
-                  <>
+              <DropdownMenuContent align="start">
+                {sortBranches(
+                  branches,
+                  conversation?.rootConversationId || conversation?._id
+                ).map(b => {
+                  const rootId =
+                    conversation?.rootConversationId || conversation?._id;
+                  const isRoot = !b.parentConversationId || b._id === rootId;
+                  const isActive = b._id === conversation?._id;
+                  const created = formatDate(b.createdAt || 0);
+                  return (
                     <DropdownMenuItem
-                      onClick={handlePinToggle}
-                      disabled={!online}
+                      key={b._id}
+                      onClick={() => navigate(ROUTES.CHAT_CONVERSATION(b._id))}
                     >
-                      <PushPinIcon
-                        className="mr-2 h-4 w-4"
-                        weight={conversation.isPinned ? "fill" : "regular"}
-                      />
-                      {conversation.isPinned ? "Unpin" : "Pin"}
+                      <div className="flex min-w-0 items-center gap-2">
+                        {/* Active dot first (aligned) */}
+                        <span
+                          className={cn(
+                            "inline-block h-1.5 w-1.5 rounded-full flex-shrink-0",
+                            isActive ? "bg-primary" : "bg-transparent"
+                          )}
+                          aria-label={isActive ? "Active" : undefined}
+                        />
+                        {/* Fixed icon slot for alignment */}
+                        <div className="w-4 flex items-center justify-center flex-shrink-0">
+                          {isRoot ? (
+                            <GitCommitIcon
+                              className="h-3.5 w-3.5 text-muted-foreground"
+                              aria-label="Root conversation"
+                            />
+                          ) : (
+                            <GitBranchIcon
+                              className="h-3.5 w-3.5 text-muted-foreground"
+                              aria-label="Branch"
+                            />
+                          )}
+                        </div>
+                        {/* Text */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm truncate">{b.title}</span>
+                            <span className="text-xxs text-muted-foreground whitespace-nowrap">
+                              {created}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={handleEditTitle}
-                      disabled={!online}
-                    >
-                      <PencilSimpleIcon className="mr-2 h-4 w-4" />
-                      Edit Title
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-
-                {isPrivateMode && (
-                  <>
-                    <DropdownMenuItem
-                      onClick={onSavePrivateChat}
-                      disabled={!(online && canSavePrivateChat)}
-                    >
-                      <FloppyDiskIcon className="mr-2 h-4 w-4" />
-                      Save Private Chat
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-
-                {!isPrivateMode && conversationId && (
-                  <DropdownMenuItem
-                    onClick={() => setIsShareDialogOpen(true)}
-                    disabled={!online}
-                  >
-                    <ShareNetworkIcon className="mr-2 h-4 w-4" />
-                    Share Conversation
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuItem
-                  onClick={() => handleExport("json")}
-                  disabled={!online || exportingFormat !== null}
-                >
-                  <FileCodeIcon className="mr-2 h-4 w-4" />
-                  Export as JSON
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => handleExport("md")}
-                  disabled={!online || exportingFormat !== null}
-                >
-                  <DownloadIcon className="mr-2 h-4 w-4" />
-                  Export as Markdown
-                </DropdownMenuItem>
-
-                {!isPrivateMode && conversation && !isArchived && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => setIsArchiveDialogOpen(true)}
-                      disabled={!online}
-                    >
-                      <ArchiveIcon className="mr-2 h-4 w-4" />
-                      Archive Conversation
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                {!isPrivateMode && conversation && (
-                  <DropdownMenuItem
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                    disabled={!online}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <TrashIcon className="mr-2 h-4 w-4" />
-                    Delete
-                  </DropdownMenuItem>
-                )}
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-
-          {/* Mobile drawer */}
-          <div className="sm:hidden">
-            <Drawer>
-              <DrawerTrigger>
+          )}
+          {sharedStatus && (
+            <Tooltip>
+              <TooltipTrigger>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
-                  aria-label="More actions"
+                  size="pill"
+                  className="h-6 mt-0 p-1"
+                  onClick={() => setIsShareDialogOpen(true)}
                 >
-                  <DotsThreeIcon weight="bold" />
+                  <ShareNetworkIcon className="h-4 w-4" />
                 </Button>
-              </DrawerTrigger>
-              <DrawerContent>
-                <DrawerHeader>
-                  <DrawerTitle>Conversation actions</DrawerTitle>
-                </DrawerHeader>
-                <DrawerBody>
-                  <div className="flex flex-col">
-                    {!isPrivateMode && conversation && (
-                      <>
-                        <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm"
-                          size="sm"
-                          variant="ghost"
-                          onClick={handlePinToggle}
-                          disabled={!online}
-                        >
-                          <PushPinIcon
-                            className="h-4 w-4"
-                            weight={conversation.isPinned ? "fill" : "regular"}
-                          />
-                          {conversation.isPinned ? "Unpin" : "Pin"}
-                        </Button>
-                        <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm"
-                          size="sm"
-                          variant="ghost"
-                          onClick={handleEditTitle}
-                          disabled={!online}
-                        >
-                          <PencilSimpleIcon className="h-4 w-4" />
-                          Edit Title
-                        </Button>
-                      </>
-                    )}
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Shared - Click to manage</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {isArchived && (
+            <Badge
+              variant="warning-subtle"
+              size="sm"
+              className="flex-shrink-0 gap-1"
+            >
+              <ArchiveIcon className="h-3.5 w-3.5" />
+              <span className="text-xxs">Archived</span>
+            </Badge>
+          )}
+        </div>
 
-                    {isPrivateMode && (
-                      <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm"
-                        size="sm"
-                        variant="ghost"
+        {/* Only show actions for authenticated users */}
+        {user && !user.isAnonymous && (
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {/* Desktop menu */}
+            <div className="hidden sm:block">
+              <DropdownMenu>
+                <DropdownMenuTrigger>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="More actions"
+                  >
+                    <DotsThreeIcon weight="bold" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {!isPrivateMode && conversation && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={handlePinToggle}
+                        disabled={!online}
+                      >
+                        <PushPinIcon
+                          className="mr-2 h-4 w-4"
+                          weight={conversation.isPinned ? "fill" : "regular"}
+                        />
+                        {conversation.isPinned ? "Unpin" : "Pin"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleEditTitle}
+                        disabled={!online}
+                      >
+                        <PencilSimpleIcon className="mr-2 h-4 w-4" />
+                        Edit Title
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {isPrivateMode && (
+                    <>
+                      <DropdownMenuItem
                         onClick={onSavePrivateChat}
                         disabled={!(online && canSavePrivateChat)}
                       >
-                        <FloppyDiskIcon className="h-4 w-4" />
+                        <FloppyDiskIcon className="mr-2 h-4 w-4" />
                         Save Private Chat
-                      </Button>
-                    )}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
 
-                    {!isPrivateMode && conversationId && (
-                      <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setIsShareDialogOpen(true)}
-                        disabled={!online}
-                      >
-                        <ShareNetworkIcon className="h-4 w-4" />
-                        Share Conversation
-                      </Button>
-                    )}
-
-                    <Button
-                      className="h-10 justify-start gap-2 px-3 text-sm"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleExport("json")}
-                      disabled={!online || exportingFormat !== null}
+                  {!isPrivateMode && conversationId && (
+                    <DropdownMenuItem
+                      onClick={() => setIsShareDialogOpen(true)}
+                      disabled={!online}
                     >
-                      <FileCodeIcon className="h-4 w-4" />
-                      Export as JSON
-                    </Button>
-                    <Button
-                      className="h-10 justify-start gap-2 px-3 text-sm"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleExport("md")}
-                      disabled={!online || exportingFormat !== null}
-                    >
-                      <DownloadIcon className="h-4 w-4" />
-                      Export as Markdown
-                    </Button>
+                      <ShareNetworkIcon className="mr-2 h-4 w-4" />
+                      Share Conversation
+                    </DropdownMenuItem>
+                  )}
 
-                    {!isPrivateMode && conversation && !isArchived && (
-                      <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm"
-                        size="sm"
-                        variant="ghost"
+                  <DropdownMenuItem
+                    onClick={() => handleExport("json")}
+                    disabled={!online || exportingFormat !== null}
+                  >
+                    <FileCodeIcon className="mr-2 h-4 w-4" />
+                    Export as JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => handleExport("md")}
+                    disabled={!online || exportingFormat !== null}
+                  >
+                    <DownloadIcon className="mr-2 h-4 w-4" />
+                    Export as Markdown
+                  </DropdownMenuItem>
+
+                  {!isPrivateMode && conversation && !isArchived && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
                         onClick={() => setIsArchiveDialogOpen(true)}
                         disabled={!online}
                       >
-                        <ArchiveIcon className="h-4 w-4" />
+                        <ArchiveIcon className="mr-2 h-4 w-4" />
                         Archive Conversation
-                      </Button>
-                    )}
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
-                    {!isPrivateMode && conversation && (
+                  {!isPrivateMode && conversation && (
+                    <DropdownMenuItem
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                      disabled={!online}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <TrashIcon className="mr-2 h-4 w-4" />
+                      Delete
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Mobile drawer */}
+            <div className="sm:hidden">
+              <Drawer>
+                <DrawerTrigger>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="More actions"
+                  >
+                    <DotsThreeIcon weight="bold" />
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Conversation actions</DrawerTitle>
+                  </DrawerHeader>
+                  <DrawerBody>
+                    <div className="flex flex-col">
+                      {!isPrivateMode && conversation && (
+                        <>
+                          <Button
+                            className="h-10 justify-start gap-2 px-3 text-sm"
+                            size="sm"
+                            variant="ghost"
+                            onClick={handlePinToggle}
+                            disabled={!online}
+                          >
+                            <PushPinIcon
+                              className="h-4 w-4"
+                              weight={
+                                conversation.isPinned ? "fill" : "regular"
+                              }
+                            />
+                            {conversation.isPinned ? "Unpin" : "Pin"}
+                          </Button>
+                          <Button
+                            className="h-10 justify-start gap-2 px-3 text-sm"
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleEditTitle}
+                            disabled={!online}
+                          >
+                            <PencilSimpleIcon className="h-4 w-4" />
+                            Edit Title
+                          </Button>
+                        </>
+                      )}
+
+                      {isPrivateMode && (
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm"
+                          size="sm"
+                          variant="ghost"
+                          onClick={onSavePrivateChat}
+                          disabled={!(online && canSavePrivateChat)}
+                        >
+                          <FloppyDiskIcon className="h-4 w-4" />
+                          Save Private Chat
+                        </Button>
+                      )}
+
+                      {!isPrivateMode && conversationId && (
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsShareDialogOpen(true)}
+                          disabled={!online}
+                        >
+                          <ShareNetworkIcon className="h-4 w-4" />
+                          Share Conversation
+                        </Button>
+                      )}
+
                       <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                        className="h-10 justify-start gap-2 px-3 text-sm"
                         size="sm"
                         variant="ghost"
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                        disabled={!online}
+                        onClick={() => handleExport("json")}
+                        disabled={!online || exportingFormat !== null}
                       >
-                        <TrashIcon className="h-4 w-4" />
-                        Delete
+                        <FileCodeIcon className="h-4 w-4" />
+                        Export as JSON
                       </Button>
-                    )}
-                  </div>
-                </DrawerBody>
-              </DrawerContent>
-            </Drawer>
+                      <Button
+                        className="h-10 justify-start gap-2 px-3 text-sm"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleExport("md")}
+                        disabled={!online || exportingFormat !== null}
+                      >
+                        <DownloadIcon className="h-4 w-4" />
+                        Export as Markdown
+                      </Button>
+
+                      {!isPrivateMode && conversation && !isArchived && (
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsArchiveDialogOpen(true)}
+                          disabled={!online}
+                        >
+                          <ArchiveIcon className="h-4 w-4" />
+                          Archive Conversation
+                        </Button>
+                      )}
+
+                      {!isPrivateMode && conversation && (
+                        <Button
+                          className="h-10 justify-start gap-2 px-3 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                          disabled={!online}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  </DrawerBody>
+                </DrawerContent>
+              </Drawer>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Share dialog */}
       {conversationId && (
@@ -822,7 +839,7 @@ const ChatHeaderComponent = ({
           onSave={handleSaveTitle}
         />
       )}
-    </div>
+    </>
   );
 };
 
