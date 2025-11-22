@@ -434,13 +434,14 @@ const ConversationItemComponent = ({
                   </div>
                 </div>
               </div>
-
-              {conversation.isStreaming && (!isHovered || isMobile) && (
-                <div className="mr-1 flex items-center">
-                  <Spinner className="text-sidebar-muted" size="sm" />
-                </div>
-              )}
             </Link>
+
+            {/* Show spinner when streaming - positioned absolutely to align with actions */}
+            {conversation.isStreaming && (!isHovered || isMobile) && (
+              <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
+                <Spinner className="text-sidebar-muted" size="sm" />
+              </div>
+            )}
 
             {/* Position actions absolutely - now sibling to Link instead of nested */}
             <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
