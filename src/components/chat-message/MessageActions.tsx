@@ -59,7 +59,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
-import { useModelCatalog } from "@/hooks/use-model-catalog";
+import { useModelCatalog, useModelTitle } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
@@ -1050,6 +1050,7 @@ export const MessageActions = memo(
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
     const navigate = useNavigate();
+    const modelTitle = useModelTitle(model, provider);
 
     const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
       "idle"
@@ -1451,22 +1452,14 @@ export const MessageActions = memo(
             )}
         </div>
 
-        {!isUser &&
-          (model && provider === "openrouter" ? (
-            <a
-              className="text-xs text-muted-foreground/70 underline underline-offset-2 transition-colors hover:text-foreground focus:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 rounded"
-              href={`https://openrouter.ai/${model}`}
-              rel="noopener noreferrer"
-              target="_blank"
-              aria-label={`View ${model} model details on OpenRouter`}
-            >
-              {model}
-            </a>
-          ) : (
+        {!isUser && model && provider && (
+          <div className="flex items-center gap-1.5">
+            <ProviderIcon provider={provider} className="h-3.5 w-3.5" />
             <span className="text-xs text-muted-foreground/70">
-              {model || "Assistant"}
+              {modelTitle}
             </span>
-          ))}
+          </div>
+        )}
       </div>
     );
   }
