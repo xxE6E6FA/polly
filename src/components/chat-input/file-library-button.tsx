@@ -10,6 +10,7 @@ import {
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { cn } from "@/lib/utils";
+import { useUserIdentity } from "@/providers/user-data-context";
 import type { Attachment } from "@/types";
 
 interface FileLibraryButtonProps {
@@ -25,6 +26,7 @@ export function FileLibraryButton({
 }: FileLibraryButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedModel] = useSelectedModel();
+  const { isAuthenticated } = useUserIdentity();
   useChatScopedState(conversationId ?? undefined);
 
   const handleSelectFiles = useCallback(
@@ -49,6 +51,11 @@ export function FileLibraryButton({
 
   // Check if the selected model supports images
   const supportsImages = selectedModel?.supportsImages ?? true;
+
+  // Hide button for signed-out users since getUserFiles requires authentication
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
