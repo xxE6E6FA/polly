@@ -5,6 +5,7 @@ import {
   CircleIcon,
   KeyIcon,
   LightningIcon,
+  SidebarSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction, useMutation } from "convex/react";
@@ -17,6 +18,7 @@ import { CACHE_KEYS, get as getLS, set as setLS } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
 
 import type { Attachment, ReasoningConfig } from "@/types";
@@ -249,17 +251,38 @@ const ChatSection = () => {
 };
 
 export const ChatZeroState = () => {
-  return (
-    <div className="flex h-full w-full max-w-full flex-col justify-end overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
-      <div className="mx-auto flex w-full min-w-0 flex-col justify-end sm:block sm:h-auto">
-        <div className="hidden text-center sm:block stack-lg sm:stack-xl">
-          <ChatSection />
-          <SetupChecklist />
-        </div>
+  const { isSidebarVisible, setSidebarVisible } = useUI();
 
-        <div className="flex-shrink-0 stack-lg sm:hidden">
-          <SetupChecklist />
-          <ChatSection />
+  return (
+    <div className="flex h-full w-full max-w-full flex-col overflow-hidden">
+      {/* Header with sidebar toggle */}
+      <div className="px-3 sm:px-6">
+        <div className="relative flex w-full items-center justify-between gap-1.5 py-4 sm:gap-2 z-sidebar">
+          {!isSidebarVisible && (
+            <Button
+              size="icon-sm"
+              title="Expand sidebar"
+              variant="ghost"
+              onClick={() => setSidebarVisible(true)}
+            >
+              <SidebarSimpleIcon className="h-5 w-5" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-1 h-full w-full max-w-full flex-col justify-end overflow-hidden sm:flex sm:h-full sm:items-center sm:justify-center">
+        <div className="mx-auto flex w-full min-w-0 flex-col justify-end sm:block sm:h-auto">
+          <div className="hidden text-center sm:block stack-lg sm:stack-xl">
+            <ChatSection />
+            <SetupChecklist />
+          </div>
+
+          <div className="flex-shrink-0 stack-lg sm:hidden">
+            <SetupChecklist />
+            <ChatSection />
+          </div>
         </div>
       </div>
     </div>
