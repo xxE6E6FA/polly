@@ -317,7 +317,7 @@
             "noNonNullAssertion": "off"
           },
           "suspicious": {
-            "noEmptyBlockStatements": "warn",
+            "noEmptyBlockStatements": "error",
             "noExplicitAny": "off",
             "noDoubleEquals": "warn"
           },

@@ -98,7 +98,9 @@ describe("useChat", () => {
 
     // Mock StreamingCoordinator methods
     spyOn(StreamingCoordinator, "start").mockResolvedValue(true);
-    spyOn(StreamingCoordinator, "stop").mockImplementation(() => {});
+    spyOn(StreamingCoordinator, "stop").mockImplementation(() => {
+      // Mock implementation - no-op
+    });
     spyOn(StreamingCoordinator, "isStreaming").mockReturnValue(false);
     spyOn(StreamingCoordinator, "getCurrentStreamId").mockReturnValue(null);
   });
