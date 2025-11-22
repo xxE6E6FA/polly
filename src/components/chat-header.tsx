@@ -400,8 +400,8 @@ const ChatHeaderComponent = ({
           size="icon-sm"
           title="Expand sidebar"
           variant="ghost"
-          className="fixed left-3 z-sidebar text-foreground/70 hover:text-foreground h-9 w-9"
-          style={{ top: "calc(env(safe-area-inset-top) + 12px)" }}
+          className="fixed left-3 sm:left-6 z-sticky pointer-events-auto text-foreground/70 hover:text-foreground h-9 w-9"
+          style={{ top: "calc(env(safe-area-inset-top) + 6px)" }}
           onClick={() => setSidebarVisible(true)}
         >
           <SidebarSimpleIcon className="h-5 w-5" />
