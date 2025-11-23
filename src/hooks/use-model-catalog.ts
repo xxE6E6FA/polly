@@ -123,7 +123,19 @@ export function useModelCatalog() {
     const builtInList = Array.isArray(enabledBuiltIns)
       ? (enabledBuiltIns as AvailableModel[])
       : [];
-    const combined = [...userList, ...builtInList];
+
+    // Create a set of user model IDs to check for duplicates
+    const userModelIds = new Set(userList.map(m => m.modelId));
+
+    // Filter out free built-in models that match user-added models
+    const filteredBuiltIns = builtInList.filter(model => {
+      const isFree = "free" in model && (model.free as boolean) === true;
+      const isDuplicate = userModelIds.has(model.modelId);
+      // Exclude if it's both free AND duplicates a user model
+      return !(isFree && isDuplicate);
+    });
+
+    const combined = [...userList, ...filteredBuiltIns];
     if (enabledUserModels !== undefined || enabledBuiltIns !== undefined) {
       setCatalog(combined);
     }
