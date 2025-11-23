@@ -440,11 +440,13 @@ describe("fileStorage: getUserFiles", () => {
       },
     });
 
-    await expect(
-      getUserFilesHandler(ctx as QueryCtx, {
-        paginationOpts: { numItems: 50, cursor: null },
-      })
-    ).rejects.toThrow("Not authenticated");
+    const result = await getUserFilesHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 50, cursor: null },
+    });
+
+    expect(result.page).toEqual([]);
+    expect(result.isDone).toBe(true);
+    expect(result.continueCursor).toBe("");
   });
 
   test("returns user files with image attachments", async () => {
