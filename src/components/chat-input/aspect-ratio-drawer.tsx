@@ -15,11 +15,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import {
-  SelectableListItem,
-  SelectableListItemIcon,
-} from "@/components/ui/selectable-list-item";
-import { cn } from "@/lib/utils";
+import { DrawerItem } from "./drawer-item";
 
 interface AspectRatioDrawerProps {
   aspectRatio: string;
@@ -101,32 +97,19 @@ export function AspectRatioDrawer({
                 const isSelected = aspectRatio === ratio.value;
 
                 return (
-                  <SelectableListItem
+                  <DrawerItem
                     key={ratio.value}
-                    onClick={() => onAspectRatioChange(ratio.value)}
-                    selected={isSelected}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <SelectableListItemIcon
-                        className={cn(
-                          isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : undefined
-                        )}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </SelectableListItemIcon>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">{ratio.label}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {ratio.description}
-                        </div>
-                        <div className="text-xs font-mono text-primary mt-2">
-                          {ratio.dimensions}
-                        </div>
+                    icon={<Icon className="h-4 w-4" />}
+                    name={ratio.label}
+                    description={ratio.description}
+                    badges={
+                      <div className="text-xs font-mono text-primary">
+                        {ratio.dimensions}
                       </div>
-                    </div>
-                  </SelectableListItem>
+                    }
+                    selected={isSelected}
+                    onClick={() => onAspectRatioChange(ratio.value)}
+                  />
                 );
               })}
             </div>

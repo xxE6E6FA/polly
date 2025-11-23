@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { SelectableListItem } from "@/components/ui/selectable-list-item";
 import { ROUTES } from "@/lib/routes";
+import { DrawerItem } from "./drawer-item";
 
 interface ImageModelDrawerProps {
   model: string;
@@ -76,39 +76,30 @@ export function ImageModelDrawer({
             ) : (
               <div className="stack-sm">
                 {models.map(imageModel => (
-                  <SelectableListItem
+                  <DrawerItem
                     key={imageModel.modelId}
-                    onClick={() => handleModelSelect(imageModel.modelId)}
+                    icon={<Image className="h-4 w-4" />}
+                    name={imageModel.name}
+                    description={imageModel.description || imageModel.modelId}
+                    badges={
+                      <>
+                        {imageModel.supportsMultipleImages && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs">
+                            <Plus className="h-3 w-3" />
+                            Multi-image
+                          </span>
+                        )}
+                        {imageModel.supportsNegativePrompt && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs">
+                            <Image className="h-3 w-3" />
+                            Negative prompt
+                          </span>
+                        )}
+                      </>
+                    }
                     selected={model === imageModel.modelId}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-muted p-1.5">
-                        <Image className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">
-                          {imageModel.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {imageModel.description || imageModel.modelId}
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          {imageModel.supportsMultipleImages && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs">
-                              <Plus className="h-3 w-3" />
-                              Multi-image
-                            </span>
-                          )}
-                          {imageModel.supportsNegativePrompt && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs">
-                              <Image className="h-3 w-3" />
-                              Negative prompt
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </SelectableListItem>
+                    onClick={() => handleModelSelect(imageModel.modelId)}
+                  />
                 ))}
               </div>
             )}

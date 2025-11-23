@@ -11,12 +11,12 @@ import {
 } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 // unified tabs render handles items
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 // import { CACHE_KEYS, get } from "@/lib/local-storage";
 // capabilities handled in unified list component
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -32,9 +32,11 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [anonymousOpen, setAnonymousOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
+  const [isSearching, setIsSearching] = useState(false);
+
   const { user } = useUserDataContext();
+  const [selectedModelRaw] = useSelectedModel();
   const { modelGroups } = useModelCatalog();
-  // const [selectedModelRaw] = useSelectedModel();
   const enabledImageModels = useEnabledImageModels() || [];
   const [generationMode, setGenerationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
@@ -42,7 +44,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
   const { selectModel } = useSelectModel();
 
   // selectedModel available if needed later for UI affordances
-  // const selectedModel = selectedModelRaw;
+  const selectedModel = selectedModelRaw;
 
   const handleSelect = useCallback(
     async (modelId: string, provider: string) => {
@@ -69,7 +71,12 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
     setActiveTab(generationMode === "image" ? "image" : "text");
   }, [generationMode]);
 
-  // Selected model persistence is handled by useSelectModel and upstream hooks
+  // Reset search when drawer closes
+  useEffect(() => {
+    if (!open) {
+      setIsSearching(false);
+    }
+  }, [open]);
 
   if (user?.isAnonymous) {
     return (
@@ -117,26 +124,32 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
           <Robot className="h-4 w-4" />
         </Button>
       </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>Select Model</DrawerTitle>
+      <DrawerContent className="h-[85dvh] max-h-[85dvh]">
+        <DrawerHeader className="pb-2">
+          <DrawerTitle>Models</DrawerTitle>
         </DrawerHeader>
-        <DrawerBody>
+
+        <DrawerBody className="pt-0 flex flex-col overflow-hidden">
           <ModelPickerTabs
             activeTab={activeTab}
             onActiveTabChange={setActiveTab}
             modelGroups={modelGroups}
             onSelectTextModel={handleSelect}
             hasReachedPollyLimit={false}
+            selectedModelId={selectedModel?.modelId}
             imageModels={enabledImageModels}
             selectedImageModelId={imageParams.model || undefined}
             onSelectImageModel={handleSelectImage}
             size="md"
-            autoFocusSearch={open}
+            isSearching={isSearching}
+            setIsSearching={setIsSearching}
+            className="flex-1 min-h-0"
           />
-          {/* Custom image model input */}
-          {activeTab === "image" && (
-            <div>
+          {/* Custom image model input - only show if not searching or if searching image models specifically? 
+              For now, hide when searching to keep UI clean as per "search becomes this mode where we show all models" 
+          */}
+          {activeTab === "image" && !isSearching && (
+            <div className="mt-4">
               <Label className="text-sm font-medium">Custom Model ID</Label>
               <Input
                 value={
@@ -150,7 +163,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
                   setImageParams(prev => ({ ...prev, model: e.target.value }))
                 }
                 placeholder="e.g., user/model-name"
-                className="h-9"
+                className="h-9 mt-1.5"
               />
             </div>
           )}

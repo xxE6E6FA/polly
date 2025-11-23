@@ -1,16 +1,20 @@
 import type { Doc } from "@convex/_generated/dataModel";
-import { GearIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { Link } from "react-router-dom";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+  ChatCircle,
+  CheckCircle,
+  GearIcon,
+  Image as ImageIcon,
+  MagnifyingGlass,
+  X,
+} from "@phosphor-icons/react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { DrawerItem } from "../chat-input/drawer-item";
 import { ModelList } from "./ModelList";
 
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -27,6 +31,10 @@ export function ModelPickerTabs({
   selectedImageModelId,
   onSelectImageModel,
   size = "sm",
+  isSearching: isSearchingProp,
+  setIsSearching: setIsSearchingProp,
+  selectedModelId,
+  className,
   autoFocusSearch,
 }: {
   activeTab: "text" | "image";
@@ -37,106 +45,169 @@ export function ModelPickerTabs({
   };
   onSelectTextModel: (modelId: string, provider: string) => void;
   hasReachedPollyLimit: boolean;
+  selectedModelId?: string;
   imageModels: Array<{ modelId: string; name: string; description?: string }>;
   selectedImageModelId?: string;
   onSelectImageModel: (modelId: string) => void;
   size?: Size;
+  isSearching?: boolean;
+  setIsSearching?: (isSearching: boolean) => void;
+  className?: string;
   autoFocusSearch?: boolean;
 }) {
-  const h = size === "sm" ? "h-9" : "h-10";
-  const padX = size === "sm" ? "px-2.5" : "px-3";
-  const padY = size === "sm" ? "py-2" : "py-2.5";
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") {
-      return;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [internalIsSearching, setInternalIsSearching] =
+    useState(autoFocusSearch);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isSearching = isSearchingProp ?? internalIsSearching;
+  const setIsSearching = setIsSearchingProp ?? setInternalIsSearching;
+
+  // Focus input when entering search mode
+  useEffect(() => {
+    if (isSearching) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    } else {
+      setSearchQuery("");
     }
-    const target = e.target as HTMLElement | null;
-    const isInput = target?.tagName === "INPUT";
-    const isTextarea = target?.tagName === "TEXTAREA";
-    const isEditable = !!target?.isContentEditable;
+  }, [isSearching]);
 
-    const hasModifier = e.metaKey || e.ctrlKey || e.altKey;
-
-    if ((isInput || isTextarea || isEditable) && !hasModifier) {
-      // If search input focused and empty, allow arrow toggle; otherwise, keep caret movement.
-      if (isInput) {
-        const inputEl = target as HTMLInputElement;
-        const isEmpty = inputEl.value.trim().length === 0;
-        if (!isEmpty) {
-          return; // let caret move
-        }
-      } else {
-        return;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape" && isSearching) {
+        setIsSearching(false);
+        e.stopPropagation();
       }
-    }
+    },
+    [isSearching, setIsSearching]
+  );
 
-    e.preventDefault();
-    if (e.key === "ArrowLeft") {
-      onActiveTabChange(activeTab === "image" ? "text" : "image");
-    } else if (e.key === "ArrowRight") {
-      onActiveTabChange(activeTab === "text" ? "image" : "text");
-    }
-  };
+  // Filter image models based on search query
+  const filteredImageModels = searchQuery
+    ? imageModels.filter(
+        m =>
+          m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.modelId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          m.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : imageModels;
+
   return (
     <div
-      className="flex h-full w-full min-h-0 flex-col overflow-hidden"
+      className={cn(
+        "flex h-full w-full min-h-0 flex-col overflow-hidden",
+        className
+      )}
       onKeyDown={handleKeyDown}
     >
-      {/* Segmented control styled like Settings nav */}
-      <div className="flex w-full flex-col flex-shrink-0">
-        <div className="flex w-full border-b border-border/40">
-          <button
-            type="button"
-            className={cn(
-              "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
-              padX,
-              padY,
-              h,
-              activeTab === "text"
-                ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              activeTab === "text"
-                ? "hover:from-primary hover:to-primary/90"
-                : "",
-              "border-r border-border/40 last:border-r-0",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            )}
-            onClick={() => onActiveTabChange("text")}
-          >
-            Text
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "flex-1 whitespace-nowrap rounded-none text-xs font-medium transition-all duration-200",
-              padX,
-              padY,
-              h,
-              activeTab === "image"
-                ? "bg-gradient-to-r from-primary/80 to-primary text-primary-foreground shadow-sm"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-              activeTab === "image"
-                ? "hover:from-primary hover:to-primary/90"
-                : "",
-              "border-l border-border/40 first:border-l-0",
-              "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            )}
-            onClick={() => onActiveTabChange("image")}
-          >
-            Images
-          </button>
-        </div>
+      {/* Header: Tabs or Search Input */}
+      <div className="flex items-center justify-between px-4 pb-2 shrink-0 h-[52px]">
+        {isSearching ? (
+          <div className="flex w-full items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="relative flex-1">
+              <MagnifyingGlass className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={inputRef}
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search all models..."
+                className="h-9 pl-9 bg-muted/50 border-transparent focus-visible:bg-background focus-visible:border-input transition-colors"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0"
+              onClick={() => setIsSearching(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-lg h-9">
+              <button
+                onClick={() => onActiveTabChange("text")}
+                className={cn(
+                  "flex items-center gap-2 px-3 h-full text-sm font-medium rounded-md transition-all",
+                  activeTab === "text"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+              >
+                <ChatCircle className="h-4 w-4" />
+                Text
+              </button>
+              <button
+                onClick={() => onActiveTabChange("image")}
+                className={cn(
+                  "flex items-center gap-2 px-3 h-full text-sm font-medium rounded-md transition-all",
+                  activeTab === "image"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                )}
+              >
+                <ImageIcon className="h-4 w-4" />
+                Image
+              </button>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 text-muted-foreground hover:text-foreground"
+              onClick={() => setIsSearching(true)}
+            >
+              <MagnifyingGlass className="h-4 w-4" />
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Content */}
-      {activeTab === "text" ? (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <div className="flex-1 min-h-0 overflow-hidden">
+      {isSearching && (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Text Models
+          </div>
+          <ModelList
+            modelGroups={modelGroups}
+            handleSelect={onSelectTextModel}
+            hasReachedPollyLimit={hasReachedPollyLimit}
+            searchQuery={searchQuery}
+            selectedModelId={selectedModelId}
+          />
+
+          {filteredImageModels.length > 0 && (
+            <>
+              <div className="px-4 py-2 mt-2 text-xs font-medium text-muted-foreground uppercase tracking-wider border-t border-border/40">
+                Image Models
+              </div>
+              <div className="pb-4">
+                {filteredImageModels.map(model => (
+                  <DrawerItem
+                    key={model.modelId}
+                    icon={<ImageIcon className="h-5 w-5" />}
+                    name={model.name}
+                    description={model.description || "Image generation model"}
+                    selected={selectedImageModelId === model.modelId}
+                    onClick={() => onSelectImageModel(model.modelId)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {!isSearching && activeTab === "text" && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-y-auto">
             <ModelList
               modelGroups={modelGroups}
               handleSelect={onSelectTextModel}
               hasReachedPollyLimit={hasReachedPollyLimit}
-              autoFocusSearch={autoFocusSearch}
+              searchQuery=""
+              selectedModelId={selectedModelId}
             />
           </div>
           <div className="flex-shrink-0 border-t border-border/40 px-3 py-2">
@@ -152,80 +223,20 @@ export function ModelPickerTabs({
             </Link>
           </div>
         </div>
-      ) : (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <Command
-            className={cn(
-              "flex h-full min-h-0 flex-1 flex-col overflow-hidden",
-              // Style the input wrapper to look like Settings search
-              "[&_[cmdk-input-wrapper]]:sticky [&_[cmdk-input-wrapper]]:top-0 [&_[cmdk-input-wrapper]]:z-10 [&_[cmdk-input-wrapper]]:mx-0 [&_[cmdk-input-wrapper]]:mb-0 [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input-wrapper]]:rounded-none [&_[cmdk-input-wrapper]]:border-b [&_[cmdk-input-wrapper]]:border-border/40",
-              "[&_[cmdk-input-wrapper]]:bg-popover [&_[cmdk-input-wrapper]]:px-3 [&_[cmdk-input-wrapper]]:py-1.5 [&_[cmdk-input-wrapper]]:gap-2 [&_[cmdk-input-wrapper]]:shadow-sm dark:[&_[cmdk-input-wrapper]]:bg-muted/20",
-              // Tune the search icon and input sizing
-              "[&_[cmdk-input-wrapper]_svg]:h-3.5 [&_[cmdk-input-wrapper]_svg]:w-3.5 [&_[cmdk-input-wrapper]_svg]:text-muted-foreground",
-              "[&_[cmdk-input]]:h-8 [&_[cmdk-input]]:w-full [&_[cmdk-input]]:rounded-none [&_[cmdk-input]]:py-0 [&_[cmdk-input]]:text-xs"
-            )}
-          >
-            <CommandInput
-              className="h-8 w-full rounded-none text-xs"
-              placeholder="Search image models..."
-              autoFocus={autoFocusSearch}
+      )}
+
+      {!isSearching && activeTab === "image" && (
+        <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto">
+          {filteredImageModels.map(model => (
+            <DrawerItem
+              key={model.modelId}
+              icon={<ImageIcon className="h-5 w-5" />}
+              name={model.name}
+              description={model.description || "Image generation model"}
+              selected={selectedImageModelId === model.modelId}
+              onClick={() => onSelectImageModel(model.modelId)}
             />
-            <CommandList className="max-h-[min(calc(100dvh-14rem),260px)] overflow-y-auto">
-              <CommandEmpty>
-                <div className="p-4 text-center">
-                  <MagnifyingGlassIcon className="mx-auto mb-3 h-8 w-8 text-muted-foreground/50" />
-                  <p className="mb-1 text-sm text-muted-foreground">
-                    No models found
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Try adjusting your search terms
-                  </p>
-                </div>
-              </CommandEmpty>
-              {imageModels.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  No image models available
-                </div>
-              ) : (
-                <CommandGroup className="p-0">
-                  {imageModels.map(m => (
-                    <CommandItem
-                      key={m.modelId}
-                      value={`${m.name ?? m.modelId} ${m.modelId}`}
-                      onSelect={() => onSelectImageModel(m.modelId)}
-                      className={cn(
-                        "cursor-pointer rounded-none px-3 py-2.5 text-xs transition-colors hover:bg-muted",
-                        selectedImageModelId === m.modelId && "bg-muted"
-                      )}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-xs truncate">
-                          {m.name || m.modelId}
-                        </div>
-                        {m.description && (
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {m.description}
-                          </div>
-                        )}
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
-          <div className="flex-shrink-0 border-t border-border/40 px-3 py-2">
-            <Link
-              to={ROUTES.SETTINGS.MODELS}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              onClick={e => {
-                e.stopPropagation();
-              }}
-            >
-              <GearIcon className="h-3.5 w-3.5" />
-              <span>Manage models</span>
-            </Link>
-          </div>
+          ))}
         </div>
       )}
     </div>
