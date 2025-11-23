@@ -82,7 +82,7 @@ export const ConversationActions = ({
   return (
     <>
       {isMobile ? (
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 pointer-events-auto">
           <Drawer
             open={isMobilePopoverOpen}
             onOpenChange={onMobilePopoverChange}
