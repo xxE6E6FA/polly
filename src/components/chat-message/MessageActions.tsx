@@ -1059,15 +1059,12 @@ export const MessageActions = memo(
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
     const navigate = useNavigate();
-<<<<<<< HEAD
     const modelTitle = useModelTitle(model, provider);
-=======
     const userSettings = useUserSettings();
 
     const showMetadata =
       userSettings?.showMessageMetadata && metadata?.tokenUsage;
     const tokenUsage = metadata?.tokenUsage;
->>>>>>> fb5579f (refacor: Remove stream overlays and show message metadata stats)
 
     const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
       "idle"
