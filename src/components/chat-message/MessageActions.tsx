@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { CitationAvatarStack } from "@/components/citation-avatar-stack";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Spinner } from "@/components/spinner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1461,7 +1462,7 @@ export const MessageActions = memo(
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
+                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-primary sm:text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
                 >
                   {/* Desktop: Show full text */}
                   <span className="hidden sm:inline">
@@ -1560,28 +1561,14 @@ export const MessageActions = memo(
         </div>
 
         {!isUser && model && provider && (
-          <Tooltip>
-            <TooltipTrigger>
-              <div className="flex items-center gap-1.5">
-                {provider !== "replicate" && (
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted/50">
-                    <ProviderIcon
-                      provider={provider}
-                      className="h-3 w-3 text-muted-foreground/70"
-                    />
-                  </div>
-                )}
-                {/* Desktop: Show model title */}
-                <span className="hidden sm:inline text-xs text-muted-foreground/70">
-                  {modelTitle}
-                </span>
-              </div>
-            </TooltipTrigger>
-            {/* Mobile: Show model title in tooltip */}
-            <TooltipContent className="sm:hidden">
-              <p>{modelTitle}</p>
-            </TooltipContent>
-          </Tooltip>
+          <Badge variant="outline" size="sm" className="text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              {provider !== "replicate" && (
+                <ProviderIcon className="h-3 w-3" provider={provider} />
+              )}
+              <span className="hidden sm:inline">{modelTitle}</span>
+            </div>
+          </Badge>
         )}
       </div>
     );
