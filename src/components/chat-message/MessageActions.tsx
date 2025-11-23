@@ -1292,98 +1292,6 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
-          {/* Metadata Display */}
-          {showMetadata && tokenUsage && (
-            <Popover>
-              <PopoverTrigger>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
-                >
-                  {/* Desktop: Show full text */}
-                  <span className="hidden sm:inline">
-                    {tokenUsage.totalTokens} tokens
-                  </span>
-                  {metadata?.tokensPerSecond && (
-                    <span className="hidden sm:inline">
-                      <span className="text-muted-foreground/30">·</span>
-                      <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
-                    </span>
-                  )}
-                  {/* Mobile: Show only icon */}
-                  <ChartBarIcon
-                    className="h-3.5 w-3.5 sm:hidden"
-                    aria-hidden="true"
-                  />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 p-3" align="start" side="top">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <span className="text-xs font-semibold">
-                      Generation Stats
-                    </span>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      {metadata?.providerMessageId?.slice(0, 8)}
-                    </span>
-                  </div>
-
-                  <div className="grid gap-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">
-                        Input Tokens
-                      </span>
-                      <span className="font-mono">
-                        {tokenUsage.inputTokens.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">
-                        Output Tokens
-                      </span>
-                      <span className="font-mono">
-                        {tokenUsage.outputTokens.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center border-t pt-2 mt-1 font-medium">
-                      <span>Total Tokens</span>
-                      <span className="font-mono">
-                        {tokenUsage.totalTokens.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {(metadata?.timeToFirstTokenMs ||
-                    metadata?.tokensPerSecond) && (
-                    <div className="grid gap-2 text-xs border-t pt-2">
-                      {metadata.timeToFirstTokenMs && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            Time to First Token
-                          </span>
-                          <span className="font-mono">
-                            {metadata.timeToFirstTokenMs}ms
-                          </span>
-                        </div>
-                      )}
-                      {metadata.tokensPerSecond && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">
-                            Generation Speed
-                          </span>
-                          <span className="font-mono">
-                            {metadata.tokensPerSecond.toFixed(1)} t/s
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-
           {/* Mobile: Overflow drawer */}
           {hasOverflowActions && (
             <div className="sm:hidden">
@@ -1546,6 +1454,98 @@ export const MessageActions = memo(
             />
           )}
 
+          {/* Metadata Display */}
+          {showMetadata && tokenUsage && (
+            <Popover>
+              <PopoverTrigger>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
+                >
+                  {/* Desktop: Show full text */}
+                  <span className="hidden sm:inline">
+                    {tokenUsage.totalTokens} tokens
+                  </span>
+                  {metadata?.tokensPerSecond && (
+                    <span className="hidden sm:inline">
+                      <span className="text-muted-foreground/30">·</span>
+                      <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
+                    </span>
+                  )}
+                  {/* Mobile: Show only icon */}
+                  <ChartBarIcon
+                    className="h-3.5 w-3.5 sm:hidden"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" align="start" side="top">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-semibold">
+                      Generation Stats
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {metadata?.providerMessageId?.slice(0, 8)}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        Input Tokens
+                      </span>
+                      <span className="font-mono">
+                        {tokenUsage.inputTokens.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        Output Tokens
+                      </span>
+                      <span className="font-mono">
+                        {tokenUsage.outputTokens.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-2 mt-1 font-medium">
+                      <span>Total Tokens</span>
+                      <span className="font-mono">
+                        {tokenUsage.totalTokens.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(metadata?.timeToFirstTokenMs ||
+                    metadata?.tokensPerSecond) && (
+                    <div className="grid gap-2 text-xs border-t pt-2">
+                      {metadata.timeToFirstTokenMs && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">
+                            Time to First Token
+                          </span>
+                          <span className="font-mono">
+                            {metadata.timeToFirstTokenMs}ms
+                          </span>
+                        </div>
+                      )}
+                      {metadata.tokensPerSecond && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">
+                            Generation Speed
+                          </span>
+                          <span className="font-mono">
+                            {metadata.tokensPerSecond.toFixed(1)} t/s
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {/* Citations avatar stack */}
           {!isUser &&
             citations &&
@@ -1564,10 +1564,12 @@ export const MessageActions = memo(
             <TooltipTrigger>
               <div className="flex items-center gap-1.5">
                 {provider !== "replicate" && (
-                  <ProviderIcon
-                    provider={provider}
-                    className="h-3.5 w-3.5 text-muted-foreground/70"
-                  />
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-muted/50">
+                    <ProviderIcon
+                      provider={provider}
+                      className="h-3 w-3 text-muted-foreground/70"
+                    />
+                  </div>
                 )}
                 {/* Desktop: Show model title */}
                 <span className="hidden sm:inline text-xs text-muted-foreground/70">
