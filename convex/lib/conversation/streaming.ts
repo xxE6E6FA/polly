@@ -129,59 +129,97 @@ export async function streamAndSaveMessage(
 ) {
   const { messageId, conversationId, model: modelId, provider, messages, personaId, reasoningConfig } = config;
 
-  // 1. Prepare model and options
-  const apiKey = await getApiKey(ctx, provider as Exclude<ProviderType, "polly">, modelId, conversationId);
-  const languageModel = await createLanguageModel(ctx, provider as ProviderType, modelId, apiKey);
-  
-  // 2. Prepare system prompt and messages
-  const baseline = getBaselineInstructions(modelId);
-  const personaPrompt = await getPersonaPrompt(ctx, personaId);
-  const system = mergeSystemPrompts(baseline, personaPrompt);
-  
-  // Convert messages to AI SDK format
-  const convertedMessages = await convertMessages(ctx, messages, provider);
-  
-  // Add system message at the beginning
-  const finalMessages = [
-    { role: "system" as const, content: system },
-    ...convertedMessages
-  ];
-
-  // 3. Stream setup
-  let contentBuffer = "";
-  let reasoningBuffer = "";
-  
-  const streamOpts = await getProviderStreamOptions(
-    ctx,
-    provider as ProviderType,
-    modelId,
-    reasoningConfig?.enabled
-      ? {
-          effort: reasoningConfig.effort,
-          maxTokens: reasoningConfig.maxTokens,
-        }
-      : undefined
-  );
-
-  const result = streamText({
-    model: languageModel,
-    messages: finalMessages,
-    ...streamOpts,
-    experimental_transform: createSmoothStreamTransform(),
-    onChunk: ({ chunk }) => {
-      if (isReasoningDelta(chunk)) {
-        reasoningBuffer += chunk.text;
-      }
-    },
-  });
-
-  // 4. Stream and save loop
-  let lastSaveTime = Date.now();
-  let lastSaveLength = 0;
-  const BATCH_INTERVAL = 100; // ms
-  const BATCH_CHARS = 50;
-
   try {
+    // 1. Prepare model and options
+    const apiKey = await getApiKey(ctx, provider as Exclude<ProviderType, "polly">, modelId, conversationId);
+    const languageModel = await createLanguageModel(ctx, provider as ProviderType, modelId, apiKey);
+    
+    // 2. Prepare system prompt and messages
+    const baseline = getBaselineInstructions(modelId);
+    const personaPrompt = await getPersonaPrompt(ctx, personaId);
+    const system = mergeSystemPrompts(baseline, personaPrompt);
+    
+    // Convert messages to AI SDK format
+    const convertedMessages = await convertMessages(ctx, messages, provider);
+    
+    // Add system message at the beginning
+    const finalMessages = [
+      { role: "system" as const, content: system },
+      ...convertedMessages
+    ];
+
+    // 3. Stream setup
+    let contentBuffer = "";
+    let reasoningBuffer = "";
+    const startTime = Date.now();
+    let firstTokenTime: number | undefined;
+    
+    const streamOpts = await getProviderStreamOptions(
+      ctx,
+      provider as ProviderType,
+      modelId,
+      reasoningConfig?.enabled
+        ? {
+            effort: reasoningConfig.effort,
+            maxTokens: reasoningConfig.maxTokens,
+          }
+        : undefined
+    );
+
+    const result = streamText({
+      model: languageModel,
+      messages: finalMessages,
+      ...streamOpts,
+      experimental_transform: createSmoothStreamTransform(),
+      onChunk: ({ chunk }) => {
+        if (!firstTokenTime) {
+          firstTokenTime = Date.now();
+        }
+        if (isReasoningDelta(chunk)) {
+          reasoningBuffer += chunk.text;
+        }
+      },
+      onFinish: async ({ usage, response, warnings }) => {
+        // Capture final metadata
+        const tokenUsage = usage as any;
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        const timeToFirstTokenMs = firstTokenTime ? firstTokenTime - startTime : undefined;
+        const totalTokens = tokenUsage.totalTokens ?? 0;
+        const tokensPerSecond = duration > 0 ? (totalTokens / (duration / 1000)) : 0;
+
+        await ctx.runMutation(internal.messages.updateContent, {
+          messageId,
+          content: contentBuffer,
+          reasoning: reasoningBuffer,
+          finishReason: "stop",
+          tokenUsage: {
+            inputTokens: tokenUsage.promptTokens ?? tokenUsage.inputTokens ?? 0,
+            outputTokens: tokenUsage.completionTokens ?? tokenUsage.outputTokens ?? 0,
+            totalTokens: totalTokens,
+          },
+          providerMessageId: response.id,
+          timestamp: response.timestamp?.toString(),
+          warnings: warnings?.map(w => 
+            w.type === "unsupported-setting" 
+              ? `Unsupported setting: ${w.setting}${w.details ? ` (${w.details})` : ""}` 
+              : JSON.stringify(w)
+          ),
+          timeToFirstTokenMs,
+          tokensPerSecond,
+          // Sources from onFinish are currently documents (LanguageModelV2Source), not web citations.
+          // We'll skip mapping them for now until we have a way to get web citations.
+          // citations: sources?.map(s => ({ ... })),
+        });
+      },
+    });
+
+    // 4. Stream and save loop
+    let lastSaveTime = Date.now();
+    let lastSaveLength = 0;
+    const BATCH_INTERVAL = 100; // ms
+    const BATCH_CHARS = 50;
+
     for await (const chunk of result.textStream) {
       contentBuffer += chunk;
       
@@ -205,13 +243,7 @@ export async function streamAndSaveMessage(
       }
     }
 
-    // 5. Final save
-    await ctx.runMutation(internal.messages.updateContent, {
-      messageId,
-      content: contentBuffer,
-      reasoning: reasoningBuffer,
-      finishReason: "stop",
-    });
+    // Final save is handled by onFinish
   } catch (error) {
     console.error("Streaming failed:", error);
     await ctx.runMutation(internal.messages.updateMessageStatus, {

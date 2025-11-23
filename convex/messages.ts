@@ -545,6 +545,7 @@ export const updateContent = internalMutation({
     content: v.string(),
     reasoning: v.optional(v.string()),
     finishReason: v.optional(v.string()),
+    // Legacy usage field (keep for backward compatibility if needed, or map to new structure)
     usage: v.optional(
       v.object({
         promptTokens: v.number(),
@@ -552,9 +553,37 @@ export const updateContent = internalMutation({
         totalTokens: v.number(),
       })
     ),
+    // New rich metadata fields
+    tokenUsage: v.optional(
+      v.object({
+        inputTokens: v.number(),
+        outputTokens: v.number(),
+        totalTokens: v.number(),
+        reasoningTokens: v.optional(v.number()),
+        cachedInputTokens: v.optional(v.number()),
+      })
+    ),
+    providerMessageId: v.optional(v.string()),
+    timestamp: v.optional(v.string()),
+    warnings: v.optional(v.array(v.string())),
+    citations: v.optional(v.array(webCitationSchema)),
+    timeToFirstTokenMs: v.optional(v.number()),
+    tokensPerSecond: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const { messageId, usage, finishReason, ...updates } = args;
+    const {
+      messageId,
+      usage,
+      finishReason,
+      tokenUsage,
+      providerMessageId,
+      timestamp,
+      warnings,
+      citations,
+      timeToFirstTokenMs,
+      tokensPerSecond,
+      ...updates
+    } = args;
 
     // Check if message exists before patching
     const message = await ctx.db.get(messageId);
@@ -562,8 +591,7 @@ export const updateContent = internalMutation({
       return false; // Message not found
     }
 
-    // Don't overwrite error status or if already stopped/done (unless we are setting finishReason ourselves)
-    // If we are setting finishReason, it's the final save, so we proceed (unless it's already error)
+    // Don't overwrite error status - if message already has an error, skip metadata updates
     if (message.status === "error") {
       return false;
     }
@@ -577,18 +605,29 @@ export const updateContent = internalMutation({
     }
 
     // Build the update object
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       ...updates,
       completedAt: Date.now(),
-      ...(finishReason && {
-        metadata: {
-          ...(message.metadata || {}),
-          finishReason,
-          ...(usage && { usage }),
-        },
-        status: "done" as const,
-      }),
     };
+
+    if (citations) {
+      updateData.citations = citations;
+    }
+
+    if (finishReason) {
+      updateData.status = "done";
+      updateData.metadata = {
+        ...(message.metadata || {}),
+        finishReason,
+        ...(usage && { usage }),
+        ...(tokenUsage && { tokenUsage }),
+        ...(providerMessageId && { providerMessageId }),
+        ...(timestamp && { timestamp }),
+        ...(warnings && { warnings }),
+        ...(timeToFirstTokenMs && { timeToFirstTokenMs }),
+        ...(tokensPerSecond && { tokensPerSecond }),
+      };
+    }
 
     await ctx.db.patch(messageId, updateData);
 

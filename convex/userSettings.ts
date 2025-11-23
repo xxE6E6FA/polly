@@ -79,6 +79,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
       ttsStabilityMode: "creative" as const,
       ttsVoiceId: undefined,
       ttsModelId: "eleven_v3",
+      showMessageMetadata: false,
     };
   }
 
@@ -93,6 +94,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
     ttsStabilityMode: settings.ttsStabilityMode ?? ("creative" as const),
     ttsVoiceId: settings.ttsVoiceId,
     ttsModelId: settings.ttsModelId ?? "eleven_v3",
+    showMessageMetadata: settings.showMessageMetadata ?? false,
   };
 }
 
@@ -111,6 +113,7 @@ type UpdateUserSettingsArgs = {
   ttsModelId?: string;
   ttsUseAudioTags?: boolean;
   ttsStabilityMode?: "creative" | "natural" | "robust";
+  showMessageMetadata?: boolean;
 };
 
 export async function updateUserSettingsHandler(
@@ -146,6 +149,9 @@ export async function updateUserSettingsHandler(
     ...(args.ttsStabilityMode !== undefined && {
       ttsStabilityMode: args.ttsStabilityMode,
     }),
+    ...(args.showMessageMetadata !== undefined && {
+      showMessageMetadata: args.showMessageMetadata,
+    }),
   };
 
   // Add defaults for new settings creation if no settings exist
@@ -158,6 +164,7 @@ export async function updateUserSettingsHandler(
       autoArchiveDays: args.autoArchiveDays ?? 30,
       ttsUseAudioTags: args.ttsUseAudioTags ?? true,
       ttsStabilityMode: args.ttsStabilityMode ?? "creative",
+      showMessageMetadata: args.showMessageMetadata ?? false,
     });
   }
 
@@ -179,6 +186,7 @@ export const updateUserSettings = mutation({
     anonymizeForDemo: v.optional(v.boolean()),
     autoArchiveEnabled: v.optional(v.boolean()),
     autoArchiveDays: v.optional(v.number()),
+    showMessageMetadata: v.optional(v.boolean()),
     ttsVoiceId: v.optional(v.string()),
     ttsModelId: v.optional(v.string()),
     ttsUseAudioTags: v.optional(v.boolean()),

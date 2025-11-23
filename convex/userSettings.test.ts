@@ -85,6 +85,7 @@ describe("userSettings.getUserSettings", () => {
       ttsStabilityMode: "creative",
       ttsVoiceId: undefined,
       ttsModelId: "eleven_v3",
+      showMessageMetadata: false,
     });
   });
 

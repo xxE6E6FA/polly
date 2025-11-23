@@ -10,7 +10,7 @@ import {
 import { VList, type VListHandle } from "virtua";
 import { ChatMessage } from "@/components/chat-message";
 import { ContextMessage } from "@/components/context-message";
-import { useStreamOverlays } from "@/stores/stream-overlays";
+
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { ZenModeDialog } from "./chat-message/ZenModeDialog";
@@ -221,90 +221,11 @@ export const VirtualizedChatMessages = memo(
         return map;
       }, [messages]);
 
-      // Overlay map for optimistic author-side streaming
-      const overlays = useStreamOverlays(s => s.overlays);
-      const reasoningOverlays = useStreamOverlays(s => s.reasoning);
-      const statusOverlays = useStreamOverlays(s => s.status);
-      const citationOverlays = useStreamOverlays(s => s.citations);
-
-      // Clear overlays when message status becomes "done" to prevent flicker
-      useEffect(() => {
-        for (const message of messages) {
-          if (!message || message.role !== "assistant") {
-            continue;
-          }
-          const messageId = message.id;
-          const overlay = overlays[messageId];
-          const reasoningOverlay = reasoningOverlays[messageId];
-          const hasOverlay = overlay || reasoningOverlay;
-
-          if (!hasOverlay) {
-            continue;
-          }
-
-          const isDone = message.status === "done";
-          const isError = message.status === "error";
-          const dbContent = message.content || "";
-          const dbReasoning = message.reasoning || "";
-
-          // Only clear overlays if DB content EXACTLY matches the overlay
-          // This prevents flicker from content differences causing re-renders
-          // Never clear overlays for error messages - let them persist
-          const contentMatches = !overlay || dbContent === overlay;
-          const reasoningMatches =
-            !reasoningOverlay || dbReasoning === reasoningOverlay;
-
-          if (isDone && !isError && contentMatches && reasoningMatches) {
-            const store = useStreamOverlays.getState();
-            store.clear(messageId);
-            store.clearReasoning(messageId);
-            store.clearStatus(messageId);
-            store.clearCitations(messageId);
-            store.clearTools(messageId);
-          }
-        }
-      }, [messages, overlays, reasoningOverlays]);
-
       const messageSelector = useCallback(
         (messageId: string) => {
-          const base = messagesMap.get(messageId);
-          if (!base) {
-            return base;
-          }
-          const overlay = overlays[messageId];
-          const overlayReasoning = reasoningOverlays[messageId];
-          const overlayStatus = statusOverlays[messageId];
-          const overlayCitations = citationOverlays[messageId];
-
-          // Stop using overlays once message is done to prevent flicker
-          // This ensures stable object reference when overlays are cleared
-          // Keep using overlays for error messages to display error status
-          const isDone = base.status === "done";
-          const isError = base.status === "error";
-          const hasOverlay =
-            (!isDone || isError) &&
-            (overlay || overlayReasoning || overlayStatus || overlayCitations);
-
-          if (hasOverlay && base.role === "assistant") {
-            // Overlay rendered content for author while streaming via HTTP
-            return {
-              ...base,
-              content: overlay ?? base.content,
-              reasoning: overlayReasoning ?? base.reasoning,
-              citations: overlayCitations ?? base.citations,
-              // Ensure the message shows live status during overlay
-              status: overlayStatus || base.status || "streaming",
-            } as ChatMessageType;
-          }
-          return base;
+          return messagesMap.get(messageId);
         },
-        [
-          messagesMap,
-          overlays,
-          reasoningOverlays,
-          statusOverlays,
-          citationOverlays,
-        ]
+        [messagesMap]
       );
 
       // Generate a unique ID for this VList instance

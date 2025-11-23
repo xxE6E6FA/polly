@@ -234,6 +234,8 @@ export const extendedMessageMetadataSchema = v.object({
   providerMessageId: v.optional(v.string()),
   timestamp: v.optional(v.string()),
   warnings: v.optional(v.array(v.string())),
+  timeToFirstTokenMs: v.optional(v.number()),
+  tokensPerSecond: v.optional(v.number()),
 });
 
 export const ttsAudioCacheEntrySchema = v.object({
@@ -617,6 +619,7 @@ export const userSettingsSchema = v.object({
   ttsStabilityMode: v.optional(
     v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
+  showMessageMetadata: v.optional(v.boolean()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -637,6 +640,7 @@ export const userSettingsUpdateSchema = v.object({
   ttsStabilityMode: v.optional(
     v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
+  showMessageMetadata: v.optional(v.boolean()),
 });
 
 // Message status for production-grade AI chat

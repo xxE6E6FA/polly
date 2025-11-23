@@ -86,7 +86,8 @@ export async function createConversationHandler(
     provider?: string;
     reasoningConfig?: {
       enabled: boolean;
-      budgetTokens?: number;
+      effort: "low" | "medium" | "high";
+      maxTokens?: number;
     };
     temperature?: number;
     topP?: number;
@@ -222,6 +223,8 @@ export async function createConversationHandler(
   if (args.firstMessage && args.firstMessage.trim().length > 0) {
     // Always mark streaming
     await setConversationStreaming(ctx, conversationId, true);
+
+    // Schedule title generation
     await scheduleRunAfter(
       ctx,
       0,
@@ -231,6 +234,27 @@ export async function createConversationHandler(
         message: args.firstMessage,
       }
     );
+
+    // Schedule message streaming
+    const streamingMessages = [
+      {
+        role: "user",
+        content:
+          args.attachments && args.attachments.length > 0
+            ? [{ type: "text", text: args.firstMessage }, ...args.attachments]
+            : args.firstMessage,
+      },
+    ];
+
+    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+      messageId: assistantMessageId,
+      conversationId,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      messages: streamingMessages,
+      personaId: args.personaId,
+      reasoningConfig: args.reasoningConfig,
+    });
   }
   return {
     conversationId,
@@ -563,13 +587,20 @@ export const streamMessage = internalAction({
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
-    await streamAndSaveMessage(ctx, {
-      ...args,
-      messages: args.messages as Array<{
-        role: "system" | "user" | "assistant";
-        content: string | unknown[];
-      }>,
-    });
+    try {
+      await streamAndSaveMessage(ctx, {
+        ...args,
+        messages: args.messages as Array<{
+          role: "system" | "user" | "assistant";
+          content: string | unknown[];
+        }>,
+      });
+    } finally {
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: false },
+      });
+    }
   },
 });
 

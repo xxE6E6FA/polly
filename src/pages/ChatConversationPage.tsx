@@ -15,7 +15,7 @@ import type { ConversationLoaderResult } from "@/loaders/conversation-loader";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
 import { useChatInputStore } from "@/stores/chat-input-store";
-import { useStreamOverlays } from "@/stores/stream-overlays";
+
 import type {
   Attachment,
   ChatMessage,
@@ -631,29 +631,6 @@ function ConversationRouteContent({
             reasoningConfig,
             temperature
           ) => {
-            try {
-              const overlays = useStreamOverlays.getState();
-              const index = messages.findIndex(m => m.id === messageId);
-              if (index !== -1) {
-                for (let i = index + 1; i < messages.length; i++) {
-                  const m = messages[i];
-                  if (!m) {
-                    continue;
-                  }
-                  if (m.role === "assistant") {
-                    const id = String(m.id);
-                    overlays.set(id, "");
-                    overlays.setReasoning(id, "");
-                    overlays.setStatus(id, undefined);
-                    overlays.clearCitations(id);
-                    overlays.clearTools(id);
-                  }
-                }
-              }
-            } catch (_e) {
-              // ignore
-            }
-
             const options: Partial<{
               model: string;
               provider: string;
@@ -682,18 +659,6 @@ function ConversationRouteContent({
             reasoningConfig,
             temperature
           ) => {
-            try {
-              const overlays = useStreamOverlays.getState();
-              const id = String(messageId);
-              overlays.set(id, "");
-              overlays.setReasoning(id, "");
-              overlays.setStatus(id, "thinking");
-              overlays.clearCitations(id);
-              overlays.clearTools(id);
-            } catch {
-              // non-fatal
-            }
-
             const options: Partial<{
               model: string;
               provider: string;

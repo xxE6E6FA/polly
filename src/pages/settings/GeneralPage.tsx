@@ -214,13 +214,36 @@ export default function GeneralPage() {
               <h2 className="text-lg font-semibold mb-2">Preferences</h2>
 
               <div className="stack-6">
-                {/* Anonymize for demos */}
+                {/* Show message metadata */}
+                <label
+                  htmlFor="metadata-toggle"
+                  className="flex items-center justify-between gap-8 cursor-pointer"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium mb-1">
+                      Show message metadata
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Display token usage, latency, and other technical details
+                    </p>
+                  </div>
+                  <Switch
+                    id="metadata-toggle"
+                    checked={userSettings.showMessageMetadata ?? false}
+                    onCheckedChange={async checked => {
+                      await updateUserSettings({
+                        showMessageMetadata: checked,
+                      });
+                    }}
+                  />
+                </label>
+
                 <label
                   htmlFor="anonymize-toggle"
                   className="flex items-center justify-between gap-8 cursor-pointer"
                 >
                   <div className="flex-1">
-                    <div className="font-medium mb-1">Anonymize for demos</div>
+                    <div className="font-medium mb-1">Hide personal info</div>
                     <p className="text-sm text-muted-foreground">
                       Hide your name, email, and avatar from the UI
                     </p>

@@ -54,6 +54,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -61,6 +66,7 @@ import {
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useModelCatalog, useModelTitle } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
@@ -1044,13 +1050,24 @@ export const MessageActions = memo(
     citations,
     citationsExpanded = false,
     onToggleCitations,
-  }: MessageActionsProps) => {
+    metadata,
+  }: MessageActionsProps & {
+    metadata?: Doc<"messages">["metadata"];
+  }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isOverflowDrawerOpen, setIsOverflowDrawerOpen] = useState(false);
     const { isPrivateMode } = usePrivateMode();
     const managedToast = useToast();
     const navigate = useNavigate();
+<<<<<<< HEAD
     const modelTitle = useModelTitle(model, provider);
+=======
+    const userSettings = useUserSettings();
+
+    const showMetadata =
+      userSettings?.showMessageMetadata && metadata?.tokenUsage;
+    const tokenUsage = metadata?.tokenUsage;
+>>>>>>> fb5579f (refacor: Remove stream overlays and show message metadata stats)
 
     const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">(
       "idle"
@@ -1277,6 +1294,90 @@ export const MessageActions = memo(
     return (
       <div className={containerClassName}>
         <div className="flex items-center gap-1">
+          {/* Metadata Display */}
+          {showMetadata && tokenUsage && (
+            <Popover>
+              <PopoverTrigger>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
+                >
+                  <span>{tokenUsage.totalTokens} tokens</span>
+                  {metadata?.tokensPerSecond && (
+                    <>
+                      <span className="text-muted-foreground/30">·</span>
+                      <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
+                    </>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3" align="start" side="top">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <span className="text-xs font-semibold">
+                      Generation Stats
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {metadata?.providerMessageId?.slice(0, 8)}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        Input Tokens
+                      </span>
+                      <span className="font-mono">
+                        {tokenUsage.inputTokens.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">
+                        Output Tokens
+                      </span>
+                      <span className="font-mono">
+                        {tokenUsage.outputTokens.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center border-t pt-2 mt-1 font-medium">
+                      <span>Total Tokens</span>
+                      <span className="font-mono">
+                        {tokenUsage.totalTokens.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {(metadata?.timeToFirstTokenMs ||
+                    metadata?.tokensPerSecond) && (
+                    <div className="grid gap-2 text-xs border-t pt-2">
+                      {metadata.timeToFirstTokenMs && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">
+                            Time to First Token
+                          </span>
+                          <span className="font-mono">
+                            {metadata.timeToFirstTokenMs}ms
+                          </span>
+                        </div>
+                      )}
+                      {metadata.tokensPerSecond && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">
+                            Generation Speed
+                          </span>
+                          <span className="font-mono">
+                            {metadata.tokensPerSecond.toFixed(1)} t/s
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           {/* Mobile: Overflow drawer */}
           {hasOverflowActions && (
             <div className="sm:hidden">

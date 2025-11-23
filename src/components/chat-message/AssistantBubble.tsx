@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
-import { useStreamOverlays } from "@/stores/stream-overlays";
+
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { Spinner } from "../spinner";
@@ -255,9 +255,7 @@ export const AssistantBubble = ({
   // Use global conversation-level preview via onPreviewFile passed from parent
   const [showReasoning, setShowReasoning] = useState(false);
   const [citationsExpanded, setCitationsExpanded] = useState(false);
-  const overlayTools = useStreamOverlays(
-    useShallow(s => s.tools[message.id] || [])
-  );
+
   const conversationTitle = useQuery(
     api.conversations.getWithAccessInfo,
     conversationId ? { id: conversationId as Id<"conversations"> } : "skip"
@@ -346,42 +344,10 @@ export const AssistantBubble = ({
     [imageAttachments]
   );
 
-  // Merge streaming overlay content with DB content
-  const overlayContent = useStreamOverlays(
-    useShallow(s => s.overlays[message.id] || "")
-  );
-  const overlayReasoning = useStreamOverlays(
-    useShallow(s => s.reasoning[message.id] || "")
-  );
-  const overlayCitations = useStreamOverlays(
-    useShallow(s => s.citations[message.id] || null)
-  );
-
-  // Clear overlays when message transitions to done status (DB update has arrived)
-  useEffect(() => {
-    if (
-      message.status === "done" &&
-      (overlayContent || overlayReasoning || overlayCitations)
-    ) {
-      const overlays = useStreamOverlays.getState();
-      overlays.clear(message.id);
-      overlays.clearReasoning(message.id);
-      overlays.clearCitations(message.id);
-      overlays.clearTools(message.id);
-      overlays.clearStatus(message.id);
-    }
-  }, [
-    message.status,
-    message.id,
-    overlayContent,
-    overlayReasoning,
-    overlayCitations,
-  ]);
-
-  // Use overlay content if present (streaming), otherwise use DB content
-  const displayContent = overlayContent || message.content;
-  const reasoning = overlayReasoning || message.reasoning;
-  const displayCitations = (overlayCitations || message.citations)?.map(c => ({
+  // Use DB content directly
+  const displayContent = message.content;
+  const reasoning = message.reasoning;
+  const displayCitations = message.citations?.map(c => ({
     type: "url_citation" as const,
     url: c.url,
     title: c.title || "",
@@ -460,86 +426,6 @@ export const AssistantBubble = ({
         return "replicate";
       }
       return MODEL_DISPLAY_NAMES[modelId] || modelId;
-    },
-    []
-  );
-
-  const renderToolActivitySummary = useCallback(
-    (
-      overlayTools: Array<{
-        t: string;
-        name: string;
-        args?: unknown;
-        ok?: boolean;
-        count?: number;
-      }>
-    ): ReactNode => {
-      const last = overlayTools[overlayTools.length - 1];
-      if (!last) {
-        return null;
-      }
-      if (last.t === "tool_call") {
-        if (last.name === "exa.search") {
-          const args = last.args as
-            | { query?: string; searchType?: string; searchMode?: string }
-            | undefined;
-          const searchType = args?.searchType || "search";
-          const searchMode = args?.searchMode;
-
-          if (searchType === "answer") {
-            return <span>Looking for a direct answer…</span>;
-          }
-          if (searchType === "similar") {
-            return <span>Discovering similar pages…</span>;
-          }
-          if (searchMode === "deep") {
-            return <span>Performing deep research search…</span>;
-          }
-          return <span>Searching the web for relevant information…</span>;
-        }
-        return <span>Calling {last.name}…</span>;
-      }
-      if (last.name === "exa.search") {
-        const previousCall = overlayTools.find(
-          tool => tool.t === "tool_call" && tool.name === "exa.search"
-        );
-        const args = previousCall?.args as
-          | { query?: string; searchType?: string; searchMode?: string }
-          | undefined;
-        const searchType = args?.searchType || "search";
-        const count = typeof last.count === "number" ? last.count : 0;
-
-        if (last.ok === false) {
-          return <span>Search failed</span>;
-        }
-
-        if (searchType === "answer") {
-          return (
-            <span>
-              Found answer
-              {count > 0 ? ` (${count} source${count !== 1 ? "s" : ""})` : ""}
-            </span>
-          );
-        }
-        if (searchType === "similar") {
-          return (
-            <span>
-              Found {count} similar {count === 1 ? "page" : "pages"}
-            </span>
-          );
-        }
-        return (
-          <span>
-            Found {count} {count === 1 ? "source" : "sources"}
-          </span>
-        );
-      }
-      return (
-        <span>
-          {last.ok === false ? "Failed" : "Finished"} {last.name}
-          {typeof last.count === "number" ? ` (${last.count} results)` : null}
-        </span>
-      );
     },
     []
   );
@@ -763,13 +649,6 @@ export const AssistantBubble = ({
                 <span className="opacity-80">{statusLabel}</span>
               </div>
             </div>
-
-            {/* Tool activity summary (non-intrusive, single line) */}
-            {overlayTools.length > 0 && (
-              <div className="mt-1 text-xs text-muted-foreground">
-                {renderToolActivitySummary(overlayTools)}
-              </div>
-            )}
           </div>
         )}
 
@@ -954,6 +833,7 @@ export const AssistantBubble = ({
                 onToggleCitations={() =>
                   setCitationsExpanded(!citationsExpanded)
                 }
+                metadata={message.metadata}
               />
             </div>
           </div>
