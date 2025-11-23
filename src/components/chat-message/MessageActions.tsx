@@ -6,6 +6,7 @@ import {
   ArrowsInSimpleIcon,
   ArrowsOutSimpleIcon,
   ArrowUpIcon,
+  ChartBarIcon,
   CheckIcon,
   CopyIcon,
   DotsThreeIcon,
@@ -1300,13 +1301,21 @@ export const MessageActions = memo(
                   size="sm"
                   className="h-6 gap-1.5 px-2 text-[10px] font-medium text-muted-foreground/60 hover:text-foreground/80 hover:bg-muted/50"
                 >
-                  <span>{tokenUsage.totalTokens} tokens</span>
+                  {/* Desktop: Show full text */}
+                  <span className="hidden sm:inline">
+                    {tokenUsage.totalTokens} tokens
+                  </span>
                   {metadata?.tokensPerSecond && (
-                    <>
+                    <span className="hidden sm:inline">
                       <span className="text-muted-foreground/30">·</span>
                       <span>{Math.round(metadata.tokensPerSecond)} t/s</span>
-                    </>
+                    </span>
                   )}
+                  {/* Mobile: Show only icon */}
+                  <ChartBarIcon
+                    className="h-3.5 w-3.5 sm:hidden"
+                    aria-hidden="true"
+                  />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-3" align="start" side="top">
@@ -1551,17 +1560,26 @@ export const MessageActions = memo(
         </div>
 
         {!isUser && model && provider && (
-          <div className="flex items-center gap-1.5">
-            {provider !== "replicate" && (
-              <ProviderIcon
-                provider={provider}
-                className="h-3.5 w-3.5 text-muted-foreground/70"
-              />
-            )}
-            <span className="text-xs text-muted-foreground/70">
-              {modelTitle}
-            </span>
-          </div>
+          <Tooltip>
+            <TooltipTrigger>
+              <div className="flex items-center gap-1.5">
+                {provider !== "replicate" && (
+                  <ProviderIcon
+                    provider={provider}
+                    className="h-3.5 w-3.5 text-muted-foreground/70"
+                  />
+                )}
+                {/* Desktop: Show model title */}
+                <span className="hidden sm:inline text-xs text-muted-foreground/70">
+                  {modelTitle}
+                </span>
+              </div>
+            </TooltipTrigger>
+            {/* Mobile: Show model title in tooltip */}
+            <TooltipContent className="sm:hidden">
+              <p>{modelTitle}</p>
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     );
