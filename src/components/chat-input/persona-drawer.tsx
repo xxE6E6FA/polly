@@ -3,6 +3,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { useMemo } from "react";
+import { PersonaAvatar } from "@/components/persona-avatar";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -135,7 +136,17 @@ export function PersonaDrawer({
                   <DrawerItem
                     key={persona._id}
                     icon={
-                      <span className="text-sm">{persona.icon || "🤖"}</span>
+                      <PersonaAvatar
+                        icon={persona.icon}
+                        pictureStorageId={
+                          (
+                            persona as unknown as {
+                              pictureStorageId?: Id<"_storage">;
+                            }
+                          ).pictureStorageId
+                        }
+                        size="sm"
+                      />
                     }
                     name={persona.name}
                     description={persona.description}
@@ -156,7 +167,17 @@ export function PersonaDrawer({
                   <DrawerItem
                     key={persona._id}
                     icon={
-                      <span className="text-sm">{persona.icon || "🤖"}</span>
+                      <PersonaAvatar
+                        icon={persona.icon}
+                        pictureStorageId={
+                          (
+                            persona as unknown as {
+                              pictureStorageId?: Id<"_storage">;
+                            }
+                          ).pictureStorageId
+                        }
+                        size="sm"
+                      />
                     }
                     name={persona.name}
                     description={persona.description}

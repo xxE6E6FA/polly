@@ -105,6 +105,7 @@ export const create = mutation({
     description: v.string(),
     prompt: v.string(),
     icon: v.optional(v.string()),
+    pictureStorageId: v.optional(v.id("_storage")),
     // TTS override
     ttsVoiceId: v.optional(v.string()),
     // Advanced sampling params (all optional)
@@ -128,6 +129,7 @@ export const create = mutation({
       description: args.description,
       prompt: args.prompt,
       icon: args.icon,
+      pictureStorageId: args.pictureStorageId,
       ttsVoiceId: args.ttsVoiceId,
       temperature: args.temperature,
       topP: args.topP,
@@ -151,6 +153,7 @@ export const update = mutation({
     description: v.optional(v.string()),
     prompt: v.optional(v.string()),
     icon: v.optional(v.string()),
+    pictureStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     // TTS override
     ttsVoiceId: v.optional(v.string()),
     temperature: v.optional(v.number()),
@@ -166,7 +169,15 @@ export const update = mutation({
     const userId = await handleGetAuthenticatedUser(ctx);
     await handleValidatePersonaOwnership(ctx, args.id, userId);
 
-    await ctx.db.patch(args.id, {
+    // If pictureStorageId is being removed (set to null), delete the old file
+    if (args.pictureStorageId === null) {
+      const persona = await ctx.db.get(args.id);
+      if (persona?.pictureStorageId) {
+        await ctx.storage.delete(persona.pictureStorageId);
+      }
+    }
+
+    const patchData: Record<string, unknown> = {
       ...(args.name !== undefined && { name: args.name }),
       ...(args.description !== undefined && { description: args.description }),
       ...(args.prompt !== undefined && { prompt: args.prompt }),
@@ -188,7 +199,14 @@ export const update = mutation({
         advancedSamplingEnabled: args.advancedSamplingEnabled,
       }),
       updatedAt: Date.now(),
-    });
+    };
+
+    // Handle pictureStorageId separately to support null
+    if (args.pictureStorageId !== undefined) {
+      patchData.pictureStorageId = args.pictureStorageId;
+    }
+
+    await ctx.db.patch(args.id, patchData);
   },
 });
 
@@ -197,6 +215,12 @@ export const remove = mutation({
   handler: async (ctx, args) => {
     const userId = await handleGetAuthenticatedUser(ctx);
     await handleValidatePersonaOwnership(ctx, args.id, userId);
+
+    // Delete the associated picture file if it exists
+    const persona = await ctx.db.get(args.id);
+    if (persona?.pictureStorageId) {
+      await ctx.storage.delete(persona.pictureStorageId);
+    }
 
     await ctx.db.delete(args.id);
   },

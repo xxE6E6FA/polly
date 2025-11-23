@@ -19,6 +19,7 @@ import {
   ListEmptyState,
   ListLoadingState,
 } from "@/components/data-list";
+import { PersonaAvatar } from "@/components/persona-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -54,6 +55,7 @@ interface EnrichedPersona {
   description: string;
   prompt: string;
   icon?: string;
+  pictureStorageId?: Id<"_storage">;
   ttsVoiceId?: string;
   isBuiltIn: boolean;
   isActive: boolean;
@@ -215,11 +217,13 @@ export const PersonasTab = () => {
           persona.type === "built-in" ? persona.isDisabled : !persona.isActive;
         return (
           <div className="flex items-center gap-3 min-w-0">
-            <span
-              className={`text-xl flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
-            >
-              {persona.icon || "🤖"}
-            </span>
+            <div className={`flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}>
+              <PersonaAvatar
+                icon={persona.icon}
+                pictureStorageId={persona.pictureStorageId}
+                size="md"
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <div
                 className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}

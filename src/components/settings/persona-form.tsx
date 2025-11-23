@@ -1,14 +1,17 @@
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import {
   ArrowClockwiseIcon,
   ArrowCounterClockwiseIcon,
   ArrowsOutIcon,
+  ImageIcon,
   SmileyIcon,
   SparkleIcon,
+  TrashIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
@@ -19,6 +22,7 @@ import {
   EmojiPickerSearch,
 } from "@/components/ui/emoji-picker";
 import { EmojiPickerDrawer } from "@/components/ui/emoji-picker-drawer";
+import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,6 +33,7 @@ import {
 import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -40,6 +45,8 @@ export type PersonaFormData = {
   description: string;
   prompt: string;
   icon: string;
+  pictureStorageId?: string;
+  pictureUrl?: string;
   ttsVoiceId?: string;
   // Advanced sampling parameters (optional)
   temperature?: number;
@@ -105,6 +112,13 @@ export const PersonaForm = ({
       formData.repetitionPenalty !== undefined
     );
   });
+
+  // Picture upload state
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [isUploadingPicture, setIsUploadingPicture] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile } = useConvexFileUpload();
 
   // Sync the UI state with the form data
   useEffect(() => {
@@ -274,6 +288,70 @@ export const PersonaForm = ({
     managedToast.success,
   ]);
 
+  // Picture upload handlers
+  const handleFileSelect = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        managedToast.error("Invalid file type", {
+          description: "Please select an image file",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+        setIsCropDialogOpen(true);
+      };
+      reader.readAsDataURL(file);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    },
+    [managedToast.error]
+  );
+
+  const handleCropComplete = useCallback(
+    async (croppedBlob: Blob) => {
+      setIsUploadingPicture(true);
+      try {
+        const croppedFile = new File([croppedBlob], "persona-picture.jpg", {
+          type: "image/jpeg",
+        });
+
+        const attachment = await uploadFile(croppedFile);
+
+        updateFormField("pictureStorageId", attachment.storageId);
+        updateFormField("pictureUrl", attachment.thumbnail || "");
+
+        managedToast.success("Picture uploaded successfully!");
+      } catch (error) {
+        managedToast.error("Failed to upload picture", {
+          description:
+            error instanceof Error ? error.message : "Please try again",
+        });
+      } finally {
+        setIsUploadingPicture(false);
+      }
+    },
+    [uploadFile, updateFormField, managedToast.error, managedToast.success]
+  );
+
+  const handleRemovePicture = useCallback(() => {
+    updateFormField("pictureStorageId", undefined);
+    updateFormField("pictureUrl", undefined);
+  }, [updateFormField]);
+
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
   return (
     <div className="stack-xl">
       {/* Basic Information + Icon (responsive grid) */}
@@ -314,55 +392,115 @@ export const PersonaForm = ({
 
           <div className="flex items-center gap-4 rounded-lg bg-muted/30 p-4 ring-1 ring-border/30 shadow-sm">
             <div className="relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-background shadow-sm">
-              <span
-                className="absolute select-none text-3xl"
-                style={{
-                  top: "50%",
-                  left: "50%",
-                  transform: "translate(-50%, -50%)",
-                  lineHeight: 1,
-                  fontFamily:
-                    "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",
-                }}
-              >
-                {formData.icon}
-              </span>
+              {formData.pictureStorageId && formData.pictureUrl ? (
+                <img
+                  src={formData.pictureUrl}
+                  alt="Persona"
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span
+                  className="absolute select-none text-3xl"
+                  style={{
+                    top: "50%",
+                    left: "50%",
+                    transform: "translate(-50%, -50%)",
+                    lineHeight: 1,
+                    fontFamily:
+                      "Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif",
+                  }}
+                >
+                  {formData.icon}
+                </span>
+              )}
             </div>
-            <div className="flex-1">
-              <p className="mb-3 text-sm text-muted-foreground">
-                Choose an emoji to represent your persona
+            <div className="flex-1 stack-sm">
+              <p className="text-sm text-muted-foreground">
+                Choose an emoji or upload a picture
               </p>
 
-              {/* Desktop/Tablet: Popover */}
-              <div className="hidden sm:block">
-                <Popover
-                  open={isEmojiPickerOpen}
-                  onOpenChange={setIsEmojiPickerOpen}
-                >
-                  <PopoverTrigger>
-                    <Button size="default" variant="outline">
+              <div className="flex flex-wrap gap-2">
+                {/* Desktop/Tablet: Emoji Popover */}
+                <div className="hidden sm:block">
+                  <Popover
+                    open={isEmojiPickerOpen}
+                    onOpenChange={setIsEmojiPickerOpen}
+                  >
+                    <PopoverTrigger>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isUploadingPicture}
+                      >
+                        <SmileyIcon className="mr-2 h-4 w-4" />
+                        Emoji
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0">
+                      <SimpleEmojiPicker
+                        onEmojiSelect={handleEmojiClick}
+                        onClose={() => setIsEmojiPickerOpen(false)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Mobile: Emoji Drawer */}
+                <div className="block sm:hidden">
+                  <EmojiPickerDrawer onEmojiSelect={handleEmojiClick}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isUploadingPicture}
+                    >
                       <SmileyIcon className="mr-2 h-4 w-4" />
-                      Choose Emoji
+                      Emoji
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-0">
-                    <SimpleEmojiPicker
-                      onEmojiSelect={handleEmojiClick}
-                      onClose={() => setIsEmojiPickerOpen(false)}
-                    />
-                  </PopoverContent>
-                </Popover>
+                  </EmojiPickerDrawer>
+                </div>
+
+                {/* Picture Upload */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleUploadClick}
+                  disabled={isUploadingPicture}
+                >
+                  {isUploadingPicture ? (
+                    <>
+                      <Spinner size="sm" className="mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ImageIcon className="mr-2 h-4 w-4" />
+                      Picture
+                    </>
+                  )}
+                </Button>
+
+                {/* Remove Picture Button */}
+                {formData.pictureStorageId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRemovePicture}
+                    disabled={isUploadingPicture}
+                  >
+                    <TrashIcon className="mr-2 h-4 w-4" />
+                    Remove
+                  </Button>
+                )}
               </div>
 
-              {/* Mobile: Drawer */}
-              <div className="block sm:hidden">
-                <EmojiPickerDrawer onEmojiSelect={handleEmojiClick}>
-                  <Button size="default" variant="outline">
-                    <SmileyIcon className="mr-2 h-4 w-4" />
-                    Choose Emoji
-                  </Button>
-                </EmojiPickerDrawer>
-              </div>
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
             </div>
           </div>
         </div>
@@ -793,6 +931,17 @@ export const PersonaForm = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Image Crop Dialog */}
+      {imageToCrop && (
+        <ImageCropDialog
+          open={isCropDialogOpen}
+          onOpenChange={setIsCropDialogOpen}
+          imageSrc={imageToCrop}
+          onCropComplete={handleCropComplete}
+          aspectRatio={1}
+        />
       )}
     </div>
   );

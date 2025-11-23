@@ -36,6 +36,11 @@ export default function EditPersonaPage() {
   const persona = isPersona(personaRaw) ? personaRaw : null;
   const isLoading = isUpdating || isDeleting;
 
+  const pictureUrl = useQuery(
+    api.fileStorage.getFileUrl,
+    persona?.pictureStorageId ? { storageId: persona.pictureStorageId } : "skip"
+  );
+
   useEffect(() => {
     if (persona) {
       const data = {
@@ -43,6 +48,9 @@ export default function EditPersonaPage() {
         description: persona.description || "",
         prompt: persona.prompt,
         icon: persona.icon || "🤖",
+        pictureStorageId: (persona as unknown as { pictureStorageId?: string })
+          .pictureStorageId,
+        pictureUrl: pictureUrl || undefined,
         ttsVoiceId: (persona as unknown as { ttsVoiceId?: string }).ttsVoiceId,
         temperature: (persona as unknown as { temperature?: number })
           .temperature,
@@ -61,7 +69,7 @@ export default function EditPersonaPage() {
       };
       setFormData(data);
     }
-  }, [persona]);
+  }, [persona, pictureUrl]);
 
   if (!personaId) {
     return <NotFoundPage />;
@@ -80,6 +88,9 @@ export default function EditPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        pictureStorageId: formData.pictureStorageId
+          ? (formData.pictureStorageId as Id<"_storage">)
+          : null,
         ttsVoiceId: formData.ttsVoiceId || undefined,
         temperature: formData.temperature,
         topP: formData.topP,
@@ -122,7 +133,16 @@ export default function EditPersonaPage() {
   };
 
   const handleEmojiClick = (emoji: string) => {
-    setFormData(prev => (prev ? { ...prev, icon: emoji } : null));
+    setFormData(prev =>
+      prev
+        ? {
+            ...prev,
+            icon: emoji,
+            pictureStorageId: undefined,
+            pictureUrl: undefined,
+          }
+        : null
+    );
     setIsEmojiPickerOpen(false);
   };
 

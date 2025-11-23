@@ -1,3 +1,4 @@
+import type { Id } from "@convex/_generated/dataModel";
 import { api } from "convex/_generated/api";
 import { useMutation } from "convex/react";
 import { useState } from "react";
@@ -40,6 +41,9 @@ export default function NewPersonaPage() {
         description: formData.description,
         prompt: formData.prompt,
         icon: formData.icon,
+        pictureStorageId: formData.pictureStorageId as
+          | Id<"_storage">
+          | undefined,
         ttsVoiceId: formData.ttsVoiceId || undefined,
         temperature: formData.temperature,
         topP: formData.topP,
@@ -58,7 +62,12 @@ export default function NewPersonaPage() {
   };
 
   const handleEmojiClick = (emoji: string) => {
-    setFormData(prev => ({ ...prev, icon: emoji }));
+    setFormData(prev => ({
+      ...prev,
+      icon: emoji,
+      pictureStorageId: undefined,
+      pictureUrl: undefined,
+    }));
     setIsEmojiPickerOpen(false);
   };
 
