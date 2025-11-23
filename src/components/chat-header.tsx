@@ -408,7 +408,7 @@ const ChatHeaderComponent = ({
             variant="ghost"
             onClick={() => setSidebarVisible(true)}
           >
-            <SidebarSimpleIcon className="h-5 w-5" />
+            <SidebarSimpleIcon />
           </Button>
         )}
         <div className="flex min-w-0 flex-1 items-center gap-1">

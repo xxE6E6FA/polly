@@ -523,13 +523,9 @@ export const UnifiedChatView = memo(
             <div className="pointer-events-none absolute inset-x-0 top-0">
               <header
                 ref={headerOverlayRef}
-                className="pointer-events-auto px-4 bg-background/50 sm:bg-transparent backdrop-blur-lg sm:backdrop-blur-none"
-                style={{
-                  paddingTop: "env(safe-area-inset-top)",
-                  right: overlayScrollbarOffset,
-                }}
+                className="pointer-events-auto p-4 bg-background/50 sm:bg-transparent backdrop-blur-lg sm:backdrop-blur-none"
               >
-                <div className="flex w-full min-h-12 items-center">
+                <div className="flex w-full items-center">
                   <ChatHeader
                     conversationId={conversationId}
                     isPrivateMode={!conversationId}
