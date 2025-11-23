@@ -247,7 +247,13 @@ export async function getUserFilesHandler(
 ) {
   const userId = await getAuthUserId(ctx);
   if (!userId) {
-    throw new Error("Not authenticated");
+    // Return empty result instead of throwing error
+    // This prevents console errors when the dialog is mounted but user is not authenticated
+    return {
+      page: [],
+      isDone: true,
+      continueCursor: "",
+    };
   }
 
   const fileType = args.fileType ?? "all";

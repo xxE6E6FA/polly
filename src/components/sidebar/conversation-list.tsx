@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
-import { useEffect, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import {
   getCachedConversations,
   setCachedConversations,
@@ -12,69 +12,77 @@ import { ConversationListContent } from "./conversation-list-content";
 type ConversationListProps = {
   searchQuery: string;
   currentConversationId?: ConversationId;
+  isMobile: boolean;
+  onCloseSidebar: () => void;
 };
 
-export const ConversationList = ({
-  searchQuery,
-  currentConversationId,
-}: ConversationListProps) => {
-  const { user } = useUserDataContext();
-  const userId = user?._id ? String(user._id) : undefined;
+export const ConversationList = memo(
+  ({
+    searchQuery,
+    currentConversationId,
+    isMobile,
+    onCloseSidebar,
+  }: ConversationListProps) => {
+    const { user } = useUserDataContext();
+    const userId = user?._id ? String(user._id) : undefined;
 
-  const conversationQueryArg = (() => {
-    if (!user) {
-      return "skip";
-    }
-    if (searchQuery.trim()) {
+    const conversationQueryArg = (() => {
+      if (!user) {
+        return "skip";
+      }
+      if (searchQuery.trim()) {
+        return {
+          searchQuery,
+          includeArchived: false,
+          limit: 100,
+        };
+      }
       return {
-        searchQuery,
         includeArchived: false,
-        limit: 100,
       };
-    }
-    return {
-      includeArchived: false,
-    };
-  })();
+    })();
 
-  const conversationDataRaw = useQuery(
-    searchQuery.trim() ? api.conversations.search : api.conversations.list,
-    conversationQueryArg
-  );
+    const conversationDataRaw = useQuery(
+      searchQuery.trim() ? api.conversations.search : api.conversations.list,
+      conversationQueryArg
+    );
 
-  const conversations = useMemo(() => {
-    if (Array.isArray(conversationDataRaw)) {
-      return conversationDataRaw;
-    }
+    const conversations = useMemo(() => {
+      if (Array.isArray(conversationDataRaw)) {
+        return conversationDataRaw;
+      }
 
-    return getCachedConversations(userId);
-  }, [conversationDataRaw, userId]);
+      return getCachedConversations(userId);
+    }, [conversationDataRaw, userId]);
 
-  const isLoading = useMemo(() => {
-    if (!userId) {
-      return false;
-    }
-    const hasConversations = conversations && conversations.length > 0;
-    return conversationDataRaw === undefined && !hasConversations;
-  }, [conversationDataRaw, conversations, userId]);
+    const isLoading = useMemo(() => {
+      if (!userId) {
+        return false;
+      }
+      const hasConversations = conversations && conversations.length > 0;
+      return conversationDataRaw === undefined && !hasConversations;
+    }, [conversationDataRaw, conversations, userId]);
 
-  useEffect(() => {
-    if (
-      userId &&
-      conversations &&
-      conversations.length > 0 &&
-      !searchQuery.trim()
-    ) {
-      setCachedConversations(userId, conversations);
-    }
-  }, [conversations, searchQuery, userId]);
+    useEffect(() => {
+      if (
+        userId &&
+        conversations &&
+        conversations.length > 0 &&
+        !searchQuery.trim()
+      ) {
+        setCachedConversations(userId, conversations);
+      }
+    }, [conversations, searchQuery, userId]);
 
-  return (
-    <ConversationListContent
-      conversations={conversations}
-      currentConversationId={currentConversationId}
-      isLoading={isLoading}
-      searchQuery={searchQuery}
-    />
-  );
-};
+    return (
+      <ConversationListContent
+        conversations={conversations}
+        currentConversationId={currentConversationId}
+        isLoading={isLoading}
+        searchQuery={searchQuery}
+        isMobile={isMobile}
+        onCloseSidebar={onCloseSidebar}
+      />
+    );
+  }
+);

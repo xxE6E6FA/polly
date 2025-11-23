@@ -2,6 +2,14 @@ import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -32,6 +40,7 @@ const ModelPickerComponent = ({
   disabled = false,
 }: ModelPickerProps) => {
   const [open, setOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { modelGroups } = useModelCatalog();
   const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
@@ -64,6 +73,7 @@ const ModelPickerComponent = ({
   const handleSelect = useCallback(
     async (modelId: string, provider: string) => {
       setOpen(false);
+      setDrawerOpen(false);
       setGenerationMode("text");
       await selectModel(modelId, provider, [
         ...modelGroups.freeModels,
@@ -78,6 +88,7 @@ const ModelPickerComponent = ({
       setImageParams(prev => ({ ...prev, model: modelId }));
       setGenerationMode("image");
       setOpen(false);
+      setDrawerOpen(false);
     },
     [setImageParams, setGenerationMode]
   );
@@ -125,52 +136,88 @@ const ModelPickerComponent = ({
     );
   }
 
+  const modelPickerContent = (
+    <ModelPickerTabs
+      activeTab={activeTab}
+      onActiveTabChange={setActiveTab}
+      modelGroups={modelGroups}
+      onSelectTextModel={handleSelect}
+      hasReachedPollyLimit={hasReachedPollyLimit}
+      imageModels={enabledImageModels}
+      selectedImageModelId={imageParams.model || undefined}
+      onSelectImageModel={handleSelectImageModel}
+      size="sm"
+      autoFocusSearch={open || drawerOpen}
+    />
+  );
+
   return (
-    <Popover
-      open={disabled ? false : open}
-      onOpenChange={disabled ? undefined : setOpen}
-    >
-      <div className={className}>
-        <label id="model-picker-label" className="sr-only">
-          Select a model
-        </label>
-        <Tooltip>
-          <TooltipTrigger>
-            <PopoverTrigger disabled={disabled}>
-              <ModelPickerTrigger
-                open={open}
-                selectedModel={displayModel}
-                displayLabel={triggerDisplayLabel}
-                displayProvider={triggerDisplayProvider}
-                disabled={disabled}
-              />
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent>
-            <div className="text-xs">Select model</div>
-          </TooltipContent>
-        </Tooltip>
-      </div>
-      <PopoverContent
-        className="flex w-[min(calc(100vw-2rem),380px)] max-h-[min(calc(100dvh-8rem),360px)] min-h-0 flex-col overflow-hidden border border-border/50 bg-popover shadow-lg [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input]]:w-full"
-        side="top"
-        sideOffset={4}
-        rounded
+    <>
+      {/* Mobile Drawer */}
+      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <DrawerTrigger asChild>
+          <div className="sm:hidden">
+            <ModelPickerTrigger
+              open={drawerOpen}
+              selectedModel={displayModel}
+              displayLabel={triggerDisplayLabel}
+              displayProvider={triggerDisplayProvider}
+              disabled={disabled}
+            />
+          </div>
+        </DrawerTrigger>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Select Model</DrawerTitle>
+          </DrawerHeader>
+          <DrawerBody className="p-0">{modelPickerContent}</DrawerBody>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Desktop Popover */}
+      <Popover
+        open={disabled ? false : open}
+        onOpenChange={disabled ? undefined : setOpen}
       >
-        <ModelPickerTabs
-          activeTab={activeTab}
-          onActiveTabChange={setActiveTab}
-          modelGroups={modelGroups}
-          onSelectTextModel={handleSelect}
-          hasReachedPollyLimit={hasReachedPollyLimit}
-          imageModels={enabledImageModels}
-          selectedImageModelId={imageParams.model || undefined}
-          onSelectImageModel={handleSelectImageModel}
-          size="sm"
-          autoFocusSearch={open}
-        />
-      </PopoverContent>
-    </Popover>
+        <div className={className}>
+          <label id="model-picker-label" className="sr-only">
+            Select a model
+          </label>
+          <Tooltip>
+            <TooltipTrigger
+              className="hidden sm:inline-flex"
+              render={props => (
+                <PopoverTrigger
+                  {...props}
+                  disabled={disabled}
+                  render={popoverProps => (
+                    <ModelPickerTrigger
+                      {...popoverProps}
+                      open={open}
+                      selectedModel={displayModel}
+                      displayLabel={triggerDisplayLabel}
+                      displayProvider={triggerDisplayProvider}
+                      disabled={disabled}
+                    />
+                  )}
+                />
+              )}
+            />
+            <TooltipContent>
+              <div className="text-xs">Select model</div>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+        <PopoverContent
+          className="flex w-[min(calc(100vw-2rem),380px)] max-h-[min(calc(100dvh-8rem),360px)] min-h-0 flex-col overflow-hidden border border-border/50 bg-popover shadow-lg [&_[cmdk-input-wrapper]]:w-full [&_[cmdk-input]]:w-full"
+          side="top"
+          sideOffset={4}
+          rounded
+        >
+          {modelPickerContent}
+        </PopoverContent>
+      </Popover>
+    </>
   );
 };
 

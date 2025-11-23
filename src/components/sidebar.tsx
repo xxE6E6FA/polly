@@ -5,6 +5,15 @@ import {
   SidebarSimpleIcon,
 } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
+import {
+  AnimatePresence,
+  motion,
+  type PanInfo,
+  useAnimation,
+  useDragControls,
+  useMotionValue,
+  useTransform,
+} from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BatchActions } from "@/components/sidebar/batch-actions";
@@ -26,6 +35,8 @@ import type { ConversationId } from "@/types";
 
 const SCROLL_THRESHOLD = 6;
 const SHADOW_HEIGHT = 6;
+const DRAG_CLOSE_THRESHOLD = 50; // px
+const DRAG_VELOCITY_THRESHOLD = 100; // px/s
 
 export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,7 +58,101 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();
   const { isSelectionMode, hasSelection } = useBatchSelection();
-  const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Framer Motion for gestures
+  const dragControls = useDragControls();
+  const x = useMotionValue(0);
+  const controls = useAnimation();
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState(280); // Default fallback
+
+  // Map x position to backdrop opacity.
+  // We assume a typical mobile sidebar width range for the mapping.
+  // When x is 0 (open), opacity is 1. When x is -width (closed), opacity is 0.
+  const backdropOpacity = useTransform(x, [-measuredWidth, 0], [0, 1]);
+
+  useEffect(() => {
+    if (sidebarRef.current) {
+      let frameId: number;
+      const observer = new ResizeObserver(entries => {
+        // Debounce with requestAnimationFrame to avoid "ResizeObserver loop limit exceeded"
+        // and reduce main thread work during rapid resizing
+        if (frameId) {
+          cancelAnimationFrame(frameId);
+        }
+        frameId = requestAnimationFrame(() => {
+          for (const entry of entries) {
+            setMeasuredWidth(entry.contentRect.width);
+          }
+        });
+      });
+      observer.observe(sidebarRef.current);
+      return () => {
+        observer.disconnect();
+        if (frameId) {
+          cancelAnimationFrame(frameId);
+        }
+      };
+    }
+  }, []);
+
+  // Sync animation state with isSidebarVisible
+  useEffect(() => {
+    if (!mounted) {
+      // Don't animate on initial mount
+      return;
+    }
+
+    if (isMobile) {
+      const targetX = isSidebarVisible ? 0 : -measuredWidth;
+      controls.start({
+        x: targetX,
+        transition: { type: "spring", stiffness: 400, damping: 40 },
+      });
+    } else {
+      // Reset on desktop
+      controls.set({ x: 0 });
+    }
+  }, [isMobile, isSidebarVisible, controls, measuredWidth, mounted]);
+
+  // Set initial position on mobile without animation
+  useEffect(() => {
+    if (isMobile && !isSidebarVisible) {
+      controls.set({ x: -measuredWidth });
+    }
+  }, [isMobile, measuredWidth, controls, isSidebarVisible]);
+
+  const handleDragEnd = useCallback(
+    (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+      const offset = info.offset.x;
+      const velocity = info.velocity.x;
+
+      // If dragging to close (negative offset)
+      if (
+        offset < -DRAG_CLOSE_THRESHOLD ||
+        velocity < -DRAG_VELOCITY_THRESHOLD
+      ) {
+        setSidebarVisible(false);
+      } else if (
+        offset > DRAG_CLOSE_THRESHOLD ||
+        velocity > DRAG_VELOCITY_THRESHOLD
+      ) {
+        setSidebarVisible(true);
+      } else if (isSidebarVisible) {
+        // Snap back to current state
+        controls.start({
+          x: 0,
+          transition: { type: "spring", stiffness: 400, damping: 40 },
+        });
+      } else {
+        controls.start({
+          x: -measuredWidth,
+          transition: { type: "spring", stiffness: 400, damping: 40 },
+        });
+      }
+    },
+    [controls, measuredWidth, setSidebarVisible, isSidebarVisible]
+  );
 
   const toggleSidebarWithCheck = useCallback(() => {
     if (!isSelectionMode) {
@@ -58,12 +163,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     api.messages.listFavorites,
     user && !user.isAnonymous ? { limit: 1 } : "skip"
   );
-
-  useEffect(() => {
-    if (mounted && !hasInitialized) {
-      setHasInitialized(true);
-    }
-  }, [mounted, hasInitialized]);
 
   useEffect(() => {
     if (currentConversationId && isMobile) {
@@ -192,13 +291,35 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     } as React.CSSProperties;
   }, [topShadow, bottomShadow]);
 
+  const onCloseSidebar = useCallback(() => {
+    setSidebarVisible(false);
+  }, [setSidebarVisible]);
+
+  // Don't render sidebar on mobile until mounted to avoid initial animation
+  if (isMobile && !mounted) {
+    return null;
+  }
+
   return (
     <>
+      {/* Touch target for gestures - only when mobile and closed */}
+      {isMobile && !isSidebarVisible && !forceHidden && (
+        <div
+          className="fixed bottom-40 left-0 top-14 z-[15] w-12 touch-pan-y"
+          onPointerDown={e => {
+            dragControls.start(e);
+          }}
+        />
+      )}
+
       {/* Backdrop for mobile sidebar */}
-      {isMobile && isSidebarVisible && !forceHidden && (
-        <Backdrop
-          className="z-backdrop"
-          data-state={isSidebarVisible ? "open" : "closed"}
+      {isMobile && !forceHidden && (
+        <motion.div
+          style={{
+            opacity: backdropOpacity,
+            pointerEvents: isSidebarVisible ? "auto" : "none",
+          }}
+          className="fixed inset-0 z-backdrop bg-background/80 backdrop-blur-sm"
           onClick={() => setSidebarVisible(false)}
         />
       )}
@@ -212,15 +333,9 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         />
       )}
 
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-sidebar bg-sidebar dark:bg-sidebar border-r border-border/40",
-          !forceHidden &&
-            (isMobile
-              ? "transform transition-transform duration-300 ease-out rounded-r-xl"
-              : "transition-[width,transform] duration-300 ease-out"),
-          isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : "")
-        )}
+      <motion.div
+        ref={sidebarRef}
+        animate={controls}
         style={{
           ...sidebarStyle,
           width: (() => {
@@ -232,16 +347,51 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
             }
             return "0";
           })(),
-          transform:
-            (isMobile && !isSidebarVisible) || forceHidden
-              ? "translateX(-100%)"
-              : "translateX(0)",
+          x, // Bind motion value
+          visibility:
+            isMobile && !isSidebarVisible && mounted ? "hidden" : "visible",
         }}
+        drag={isMobile ? "x" : false}
+        dragControls={dragControls}
+        dragDirectionLock
+        dragConstraints={{
+          left: -measuredWidth, // Allow dragging fully closed
+          right: 0, // Don't allow dragging past open
+        }}
+        dragElastic={{
+          left: 0.1, // Little resistance when closing
+          right: 0.05, // Hard stop when opening
+        }}
+        onDragStart={() => {
+          // Make sidebar visible when dragging starts
+          if (isMobile && !isSidebarVisible && sidebarRef.current) {
+            sidebarRef.current.style.setProperty("visibility", "visible");
+          }
+        }}
+        onDragEnd={handleDragEnd}
+        onAnimationComplete={() => {
+          // Hide sidebar after close animation completes
+          if (isMobile && !isSidebarVisible && sidebarRef.current) {
+            sidebarRef.current.style.setProperty("visibility", "hidden");
+          }
+        }}
+        initial={false}
+        className={cn(
+          "fixed inset-y-0 left-0 z-sidebar bg-sidebar dark:bg-sidebar border-r border-border/40",
+          !forceHidden &&
+            (isMobile
+              ? "rounded-r-xl shadow-2xl will-change-transform"
+              : "transition-[width,transform] duration-300 ease-out"),
+          isSidebarVisible && (isMobile ? "mobile-sidebar-elevation" : ""),
+          // Ensure sidebar is completely out of view and non-interactive when closed on mobile
+          isMobile && !isSidebarVisible && "pointer-events-none"
+        )}
         role={isMobile ? "dialog" : undefined}
         aria-modal={isMobile ? true : undefined}
         aria-hidden={!isSidebarVisible}
       >
-        {isSidebarVisible && (
+        {/* Only render content if visible or if we need it for layout/animations */}
+        {(isSidebarVisible || isMobile) && (
           <div className="flex h-full flex-col">
             <div
               className="shrink-0 py-4 px-3"
@@ -356,6 +506,8 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
               <ConversationList
                 currentConversationId={currentConversationId}
                 searchQuery={searchQuery}
+                isMobile={isMobile}
+                onCloseSidebar={onCloseSidebar}
               />
             </div>
 
@@ -382,7 +534,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
             <div className="absolute right-0 top-0 bottom-0 w-[1px] bg-transparent group-hover:bg-border/50 transition-colors" />
           </div>
         )}
-      </div>
+      </motion.div>
     </>
   );
 };

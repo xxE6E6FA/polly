@@ -30,6 +30,7 @@ interface ModelDrawerProps {
 
 const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
   const [open, setOpen] = useState(false);
+  const [anonymousOpen, setAnonymousOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"text" | "image">("text");
   const { user } = useUserDataContext();
   const { modelGroups } = useModelCatalog();
@@ -72,8 +73,8 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
 
   if (user?.isAnonymous) {
     return (
-      <Drawer>
-        <DrawerTrigger>
+      <Drawer open={anonymousOpen} onOpenChange={setAnonymousOpen}>
+        <DrawerTrigger asChild>
           <Button
             variant="ghost"
             size="sm"
@@ -105,7 +106,7 @@ const ModelDrawerComponent = ({ disabled = false }: ModelDrawerProps) => {
 
   return (
     <Drawer open={open} onOpenChange={setOpen}>
-      <DrawerTrigger>
+      <DrawerTrigger asChild>
         <Button
           variant="ghost"
           size="sm"

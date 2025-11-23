@@ -29,32 +29,34 @@ export const PrivateToggle = () => {
   return (
     <div className="absolute top-4 right-4 z-sticky">
       <Tooltip>
-        <TooltipTrigger>
-          <Button
-            onClick={handleToggle}
-            variant={isPrivateMode ? "default" : "ghost"}
-            size="sm"
-            className={cn(
-              "rounded-full px-3 py-1.5 text-xs backdrop-blur-sm",
-              isPrivateMode
-                ? "shadow-lg"
-                : "border border-border/40 bg-background/80 shadow-sm"
-            )}
-            type="button"
-            aria-label={
-              isPrivateMode ? "Disable private mode" : "Enable private mode"
-            }
-          >
-            <GhostIcon
+        <TooltipTrigger
+          render={
+            <Button
+              onClick={handleToggle}
+              variant={isPrivateMode ? "default" : "ghost"}
+              size="sm"
               className={cn(
-                "h-3.5 w-3.5 transition-colors",
-                isPrivateMode ? "text-white" : "text-muted-foreground"
+                "rounded-full px-3 py-1.5 text-xs backdrop-blur-sm",
+                isPrivateMode
+                  ? "shadow-lg"
+                  : "border border-border/40 bg-background/80 shadow-sm"
               )}
-              weight={isPrivateMode ? "fill" : "regular"}
-            />
-            <span className={cn(isPrivateMode && "text-white")}>Private</span>
-          </Button>
-        </TooltipTrigger>
+              type="button"
+              aria-label={
+                isPrivateMode ? "Disable private mode" : "Enable private mode"
+              }
+            >
+              <GhostIcon
+                className={cn(
+                  "h-3.5 w-3.5 transition-colors",
+                  isPrivateMode ? "text-white" : "text-muted-foreground"
+                )}
+                weight={isPrivateMode ? "fill" : "regular"}
+              />
+              <span className={cn(isPrivateMode && "text-white")}>Private</span>
+            </Button>
+          }
+        />
         <TooltipContent side="bottom" sideOffset={8}>
           <p className="text-xs">
             {isPrivateMode ? "Private mode active" : "Enable private mode"}

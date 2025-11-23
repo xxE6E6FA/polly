@@ -1,211 +1,183 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckIcon, XIcon } from "@phosphor-icons/react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useBatchSelection } from "@/providers/batch-selection-context";
+import type { Conversation } from "@/types";
 
 type EditableConversationTitleProps = {
-  title: string;
+  conversation: Conversation;
   isEditing: boolean;
-  isCurrentConversation: boolean;
   isMobile: boolean;
-  hasActionsVisible?: boolean;
+  isCurrentConversation: boolean;
   onStartEdit: () => void;
-  onSaveEdit: (newTitle: string) => void;
-  onCancelEdit: () => void;
+  onSave: (newTitle: string) => void;
+  onCancel: () => void;
 };
 
-// Custom hook for handling click outside
-const useClickOutside = (
-  ref: React.RefObject<HTMLElement | null>,
-  callback: () => void
-) => {
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        callback();
+export const EditableConversationTitle = memo(
+  ({
+    conversation,
+    isEditing,
+    isMobile,
+    isCurrentConversation,
+    onStartEdit,
+    onSave,
+    onCancel,
+  }: EditableConversationTitleProps) => {
+    const [editingTitle, setEditingTitle] = useState(conversation.title || "");
+    const inputRef = useRef<HTMLInputElement>(null);
+    const { isSelectionMode, toggleSelection } = useBatchSelection();
+
+    // Reset editing title when entering edit mode
+    useEffect(() => {
+      if (isEditing) {
+        setEditingTitle(conversation.title || "");
+        // Focus input on next frame to ensure it's rendered
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+          inputRef.current?.select();
+        });
       }
-    };
+    }, [isEditing, conversation.title]);
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [ref, callback]);
-};
-
-export const EditableConversationTitle = ({
-  title,
-  isEditing,
-  isCurrentConversation,
-  isMobile,
-  hasActionsVisible = false,
-  onStartEdit,
-  onSaveEdit,
-  onCancelEdit,
-}: EditableConversationTitleProps) => {
-  const [editingTitle, setEditingTitle] = useState("");
-  const [originalTitle, setOriginalTitle] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
-  const wasInputFocusedRef = useRef(false);
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (isEditing) {
-      setEditingTitle(title);
-      setOriginalTitle(title);
-      wasInputFocusedRef.current = false;
-    }
-  }, [isEditing, title]);
-
-  useEffect(() => {
-    if (isEditing) {
-      requestAnimationFrame(() => {
-        if (editInputRef.current) {
-          editInputRef.current.focus();
-          editInputRef.current.select();
+    const handleSave = useCallback(
+      (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.stopPropagation();
+        e?.preventDefault();
+        if (editingTitle.trim()) {
+          onSave(editingTitle.trim());
+        } else {
+          onCancel();
         }
-      });
-    }
-  }, [isEditing]);
+      },
+      [editingTitle, onSave, onCancel]
+    );
 
-  const handleSave = useCallback(() => {
-    if (editingTitle.trim() && editingTitle !== originalTitle) {
-      onSaveEdit(editingTitle.trim());
-    } else {
-      onCancelEdit();
-    }
-  }, [editingTitle, originalTitle, onSaveEdit, onCancelEdit]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.nativeEvent.isComposing) {
-        return;
-      }
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        handleSave();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onCancelEdit();
-      }
-    },
-    [handleSave, onCancelEdit]
-  );
-
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
-    if (wasInputFocusedRef.current) {
-      handleSave();
-    }
-  }, [handleSave]);
-
-  const handleFocus = useCallback(() => {
-    wasInputFocusedRef.current = true;
-    setIsFocused(true);
-  }, []);
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent) => {
-      // Only the selected conversation becomes editable; others remain links
-      if (!isMobile && isCurrentConversation && !isEditing) {
+    const handleCancel = useCallback(
+      (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
-        onStartEdit();
-      }
-    },
-    [isMobile, isCurrentConversation, isEditing, onStartEdit]
-  );
+        onCancel();
+      },
+      [onCancel]
+    );
 
-  // Handle click outside to exit edit mode
-  const handleClickOutside = useCallback(() => {
-    if (isEditing && wasInputFocusedRef.current && editInputRef.current) {
-      // Clear text selection
-      if (window.getSelection) {
-        window.getSelection()?.removeAllRanges();
-      }
+    const handleKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          handleSave(e);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      },
+      [handleSave, onCancel]
+    );
 
-      // Blur the input to remove focus state
-      editInputRef.current.blur();
+    const handleClick = useCallback(
+      (e: React.MouseEvent) => {
+        if (isSelectionMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleSelection(conversation._id);
+          return;
+        }
 
-      // Then handle save/cancel logic
-      handleSave();
+        // Only the selected conversation becomes editable; others remain links (handled by parent)
+        if (!isMobile && isCurrentConversation && !isEditing) {
+          e.stopPropagation();
+          e.preventDefault();
+          onStartEdit();
+        }
+      },
+      [
+        isSelectionMode,
+        toggleSelection,
+        conversation._id,
+        isMobile,
+        isCurrentConversation,
+        isEditing,
+        onStartEdit,
+      ]
+    );
+
+    const handleKeyPress = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (isSelectionMode) {
+            toggleSelection(conversation._id);
+            return;
+          }
+
+          if (!isMobile && isCurrentConversation && !isEditing) {
+            onStartEdit();
+          }
+        }
+      },
+      [
+        isSelectionMode,
+        toggleSelection,
+        conversation._id,
+        isMobile,
+        isCurrentConversation,
+        isEditing,
+        onStartEdit,
+      ]
+    );
+
+    if (isEditing) {
+      return (
+        <div className="flex w-full items-center gap-1">
+          <Input
+            ref={inputRef}
+            value={editingTitle}
+            onChange={e => setEditingTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="h-7 px-2 text-sm"
+            onClick={e => e.preventDefault()}
+          />
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="h-7 w-7 text-green-500 hover:bg-green-500/10 hover:text-green-600"
+            onClick={handleSave}
+          >
+            <CheckIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            onClick={handleCancel}
+          >
+            <XIcon className="h-4 w-4" />
+          </Button>
+        </div>
+      );
     }
-  }, [isEditing, handleSave]);
 
-  useClickOutside(editInputRef, handleClickOutside);
-
-  return (
-    <div
-      className="relative w-full"
-      style={
-        hasActionsVisible && !(isEditing || isFocused)
-          ? ({
-              maskImage:
-                "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
-              WebkitMaskImage:
-                "linear-gradient(to right, black 0%, black calc(100% - 64px), transparent 100%)",
-            } as React.CSSProperties)
-          : ({
-              maskImage: "none",
-              WebkitMaskImage: "none",
-            } as React.CSSProperties)
-      }
-    >
-      {isEditing ? (
-        <Input
-          ref={editInputRef}
-          value={editingTitle}
+    return (
+      <div className="relative flex-1 min-w-0 flex items-center gap-2">
+        <button
+          type="button"
           className={cn(
-            // Ultra-minimal: caret only (no bg/border/radius/ring)
-            "h-auto w-full font-medium bg-transparent p-0 text-left",
-            "border-0 rounded-none",
-            // Kill default input effects from the base component
-            "shadow-none outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0",
-            "hover:bg-transparent focus-visible:bg-transparent focus-visible:border-0",
-            isMobile ? "text-xs" : "text-xs",
-            "selectable-auto"
+            "flex-1 truncate text-sm cursor-pointer text-left bg-transparent border-none p-0",
+            isMobile ? "py-3" : "py-0"
           )}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
-          onChange={e => setEditingTitle(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onClick={e => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
-          onMouseDown={e => {
-            e.stopPropagation();
-          }}
-        />
-      ) : (
-        <span
-          className={cn(
-            "block truncate text-left font-medium",
-            isMobile ? "text-xs" : "text-xs",
-            // Suggest edit affordance only on the current conversation
-            isCurrentConversation && !isMobile
-              ? "cursor-text hover:opacity-80"
-              : "cursor-default"
-          )}
+          title={conversation.title || "New Conversation"}
           onClick={handleClick}
-          onKeyDown={e => {
-            if (
-              (e.key === "Enter" || e.key === " ") &&
-              !isMobile &&
-              isCurrentConversation &&
-              !isEditing
-            ) {
-              e.preventDefault();
-              onStartEdit();
-            }
-          }}
-          tabIndex={isCurrentConversation && !isMobile ? 0 : -1}
+          onKeyDown={handleKeyPress}
         >
-          {title}
-        </span>
-      )}
-    </div>
-  );
-};
+          {conversation.title || "New Conversation"}
+        </button>
+      </div>
+    );
+  }
+);

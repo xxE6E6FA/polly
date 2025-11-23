@@ -51,7 +51,7 @@ export function ImageModelDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger>
+      <DrawerTrigger asChild>
         <Button
           variant="chat-input"
           size="sm"

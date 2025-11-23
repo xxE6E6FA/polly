@@ -54,7 +54,6 @@ function PersonaPickerComponent({
 
   // Control popover state to ensure proper focus restoration on close
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Use type guards to ensure we have proper arrays
   const personas = Array.isArray(personasRaw) ? personasRaw : [];
@@ -112,25 +111,31 @@ function PersonaPickerComponent({
         onOpenChange={disabled ? undefined : setOpen}
       >
         <Tooltip>
-          <TooltipTrigger>
-            <PopoverTrigger disabled={disabled}>
-              <Button
-                ref={triggerRef}
-                type="button"
-                variant="ghost"
-                size="pill"
+          <TooltipTrigger
+            render={props => (
+              <PopoverTrigger
+                {...props}
                 disabled={disabled}
-                className={cn(
-                  "border border-border",
-                  "bg-muted text-foreground hover:bg-muted/80",
-                  "transition-all duration-200",
-                  className
+                render={popoverProps => (
+                  <Button
+                    {...popoverProps}
+                    type="button"
+                    variant="ghost"
+                    size="pill"
+                    disabled={disabled}
+                    className={cn(
+                      "border border-border",
+                      "bg-muted text-foreground hover:bg-muted/80",
+                      "transition-all duration-200",
+                      className
+                    )}
+                  >
+                    {compactTriggerInner}
+                  </Button>
                 )}
-              >
-                {compactTriggerInner}
-              </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
+              />
+            )}
+          />
           <TooltipContent>
             <div className="text-xs">{tooltipText}</div>
           </TooltipContent>

@@ -55,7 +55,12 @@ export const UIProvider = ({
     if (typeof window === "undefined") {
       return serverSidebarVisible;
     }
-    // On client, always read from localStorage
+    // On mobile, always start collapsed
+    const isMobileView = window.innerWidth < 768;
+    if (isMobileView) {
+      return false;
+    }
+    // On desktop, read from localStorage
     return getSidebarVisibility();
   });
   const [isMobile, setIsMobile] = useState(() => {

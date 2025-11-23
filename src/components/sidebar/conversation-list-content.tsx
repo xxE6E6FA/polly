@@ -10,6 +10,8 @@ type ConversationListContentProps = {
   searchQuery: string;
   currentConversationId?: ConversationId;
   isLoading?: boolean;
+  isMobile: boolean;
+  onCloseSidebar: () => void;
 };
 
 export const ConversationListContent = ({
@@ -17,6 +19,8 @@ export const ConversationListContent = ({
   searchQuery,
   currentConversationId,
   isLoading = false,
+  isMobile,
+  onCloseSidebar,
 }: ConversationListContentProps) => {
   const groupedConversations = useMemo(() => {
     if (!conversations) {
@@ -138,6 +142,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>
@@ -151,6 +157,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>
@@ -164,6 +172,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>
@@ -177,6 +187,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>
@@ -190,6 +202,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>
@@ -203,6 +217,8 @@ export const ConversationListContent = ({
               conversation={conversation}
               currentConversationId={currentConversationId}
               allVisibleIds={allVisibleIds}
+              isMobile={isMobile}
+              onCloseSidebar={onCloseSidebar}
             />
           ))}
         </ConversationGroup>

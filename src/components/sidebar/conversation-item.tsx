@@ -32,12 +32,16 @@ type ConversationItemProps = {
   conversation: Conversation;
   currentConversationId?: ConversationId;
   allVisibleIds: ConversationId[];
+  isMobile: boolean;
+  onCloseSidebar: () => void;
 };
 
 const ConversationItemComponent = ({
   conversation,
   currentConversationId,
   allVisibleIds,
+  isMobile,
+  onCloseSidebar,
 }: ConversationItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -48,7 +52,6 @@ const ConversationItemComponent = ({
     null
   );
 
-  const { isMobile, setSidebarVisible } = useUI();
   const {
     isSelectionMode,
     isSelected,
@@ -323,12 +326,12 @@ const ConversationItemComponent = ({
       }
 
       if (isMobile) {
-        setSidebarVisible(false);
+        onCloseSidebar();
       }
     },
     [
       isMobile,
-      setSidebarVisible,
+      onCloseSidebar,
       isSelectionMode,
       hasSelection,
       isShiftPressed,
@@ -422,14 +425,13 @@ const ConversationItemComponent = ({
                   )}
                   <div className="min-w-0 flex-1">
                     <EditableConversationTitle
-                      title={conversation.title}
+                      conversation={conversation}
                       isEditing={isEditing}
-                      isCurrentConversation={isCurrentConversation}
                       isMobile={isMobile}
-                      hasActionsVisible={shouldShowActions}
+                      isCurrentConversation={isCurrentConversation}
                       onStartEdit={handleStartEdit}
-                      onSaveEdit={handleSaveEdit}
-                      onCancelEdit={handleCancelEdit}
+                      onSave={handleSaveEdit}
+                      onCancel={handleCancelEdit}
                     />
                   </div>
                 </div>
@@ -524,6 +526,11 @@ export const ConversationItem = memo(
     const prevWasCurrent = prevProps.currentConversationId === prev._id;
     const nextIsCurrent = nextProps.currentConversationId === next._id;
     if (prevWasCurrent !== nextIsCurrent) {
+      return false;
+    }
+
+    // Check if isMobile changed
+    if (prevProps.isMobile !== nextProps.isMobile) {
       return false;
     }
 

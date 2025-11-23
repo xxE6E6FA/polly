@@ -96,7 +96,7 @@ export function PersonaDrawer({
 
   return (
     <Drawer>
-      <DrawerTrigger>
+      <DrawerTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
