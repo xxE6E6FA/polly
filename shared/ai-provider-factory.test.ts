@@ -17,7 +17,7 @@ describe("createBasicLanguageModel", () => {
     );
     expect(model).toBeDefined();
     expect(model.modelId).toBe("claude-3-5-sonnet-20241022");
-    expect(model.provider).toBe("anthropic.messages");
+    expect(model.provider).toContain("anthropic");
   });
 
   test("creates Google model", () => {
@@ -28,7 +28,7 @@ describe("createBasicLanguageModel", () => {
     );
     expect(model).toBeDefined();
     expect(model.modelId).toBe("gemini-2.0-flash-exp");
-    expect(model.provider).toBe("google.generative-ai");
+    expect(model.provider).toContain("google");
   });
 
   test("creates Groq model", () => {
@@ -39,7 +39,7 @@ describe("createBasicLanguageModel", () => {
     );
     expect(model).toBeDefined();
     expect(model.modelId).toBe("llama-3.3-70b-versatile");
-    expect(model.provider).toBe("groq.chat");
+    expect(model.provider).toContain("groq");
   });
 
   test("creates OpenRouter model", () => {

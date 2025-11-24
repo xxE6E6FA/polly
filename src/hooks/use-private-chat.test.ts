@@ -16,10 +16,9 @@ mock.module("ai", () => ({
   streamText: mockStreamText,
 }));
 
+import * as AIProviderFactory from "@shared/ai-provider-factory";
+
 // Mock shared utils
-mock.module("@shared/ai-provider-factory", () => ({
-  createBasicLanguageModel: mock(() => ({})),
-}));
 
 mock.module("@shared/streaming-utils", () => ({
   createSmoothStreamTransform: mock(() => ({})),
@@ -33,6 +32,9 @@ describe("usePrivateChat", () => {
   beforeEach(() => {
     mockGetApiKey.mockClear();
     mockStreamText.mockClear();
+    spyOn(AIProviderFactory, "createBasicLanguageModel").mockImplementation(
+      () => ({}) as any
+    );
   });
 
   test("stop() aborts the stream without crashing", async () => {
