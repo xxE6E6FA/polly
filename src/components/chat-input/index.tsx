@@ -10,14 +10,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { useChatAttachments } from "@/hooks/use-chat-attachments";
-import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
+import {
+  useChatInputDragDrop,
+  useChatInputImageGeneration,
+  useChatInputState,
+  useChatInputSubmission,
+  useSpeechInput,
+} from "@/hooks/chat-ui";
 import { useNotificationDialog } from "@/hooks/use-dialog-management";
-import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useOnline } from "@/hooks/use-online";
-import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
-import { useSelectedModel } from "@/hooks/use-selected-model";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -28,16 +30,9 @@ import type {
   ConversationId,
   ReasoningConfig,
 } from "@/types";
-import { ChatInputBottomBar } from "./components/chat-input-bottom-bar";
-import { ChatInputContainer } from "./components/chat-input-container";
-import {
-  useChatInputDragDrop,
-  useChatInputImageGeneration,
-  useChatInputSubmission,
-} from "./hooks";
-import { useSpeechInput } from "./hooks/use-speech-input";
-import { TextInputSection } from "./sections/text-input-section";
+import { ChatInputBottomBar } from "./chat-input-bottom-bar";
 import { SpeechInputProvider } from "./speech-input-context";
+import { TextInputSection } from "./text-input-section";
 
 interface ChatInputProps {
   onSendMessage: (
@@ -96,23 +91,30 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     },
     ref
   ) => {
-    const { canSendMessage } = useUserDataContext();
-    const { hasReplicateApiKey } = useReplicateApiKey();
-    const { isPrivateMode } = usePrivateMode();
-    const { attachments, setAttachments, clearAttachments } =
-      useChatAttachments(conversationId);
-    const { selectedPersonaId, temperature } =
-      useChatScopedState(conversationId);
+    // Unified state management
+    const {
+      attachments,
+      setAttachments,
+      clearAttachments,
+      selectedPersonaId,
+      temperature,
+      reasoningConfig,
+      generationMode,
+      setGenerationMode,
+      imageParams,
+      selectedModel,
+      canSendMessage,
+    } = useChatInputState(conversationId);
+
+    // Component-local state (not in store)
     const [input, setInput] = useState<string>("");
-    const [reasoningConfig] = useReasoningConfig();
-    const [generationMode, setGenerationMode] = useGenerationMode();
-    const { params: imageParams } = useImageParams();
+    const [activeQuote, setActiveQuote] = useState<string | null>(null);
 
     const inlineTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const [selectedModel] = useSelectedModel();
+    const { hasReplicateApiKey } = useReplicateApiKey();
+    const { isPrivateMode } = usePrivateMode();
     const online = useOnline();
     const notificationDialog = useNotificationDialog();
-    const [activeQuote, setActiveQuote] = useState<string | null>(null);
 
     const {
       selectedImageModel,
@@ -183,9 +185,10 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       }
     }, [isPrivateMode, hasReplicateApiKey, generationMode, setGenerationMode]);
 
-    // If this conversation clearly involves image generation, default to image mode
-    // to ensure follow-ups trigger Replicate instead of text chat. Only apply once
-    // per conversation so subsequent manual user switches are respected.
+    // Auto-switch to image mode for image generation conversations
+    // WHY: When users continue an image generation conversation, we want to keep them
+    // in image mode so follow-ups trigger Replicate instead of switching to text chat.
+    // We only do this once per conversation to respect manual user mode changes.
     const autoAppliedForConversationRef = useRef<ConversationId | null>(null);
     useEffect(() => {
       // Reset tracker when navigating between conversations (including undefined -> id)
@@ -217,6 +220,9 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       setGenerationMode,
     ]);
 
+    // Extract user messages for history navigation
+    // WHY: Users can use arrow keys to navigate through their previous messages.
+    // We extract just the user messages (not assistant) in reverse chronological order.
     const userMessages = useMemo(() => {
       if (userMessageContents) {
         return userMessageContents;
@@ -240,6 +246,11 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return userMessages;
     }, [userMessageContents, messages]);
 
+    // Hydrate history with existing messages for arrow key navigation
+    // WHY: When a user opens an existing conversation, we populate the history stack
+    // with their previous messages so they can use arrow keys to cycle through them.
+    // We only do this once per conversation (tracked by refs) to avoid resetting
+    // the user's navigation position when new messages arrive.
     const history = useChatHistory(conversationId);
     const lastHydratedIdRef = useRef<ConversationId>(null);
     const lastHydratedCountRef = useRef<number>(0);
@@ -251,6 +262,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       if (count === 0) {
         return;
       }
+      // Skip if already hydrated with same conversation and message count
       if (
         lastHydratedIdRef.current === conversationId &&
         lastHydratedCountRef.current === count
@@ -386,56 +398,83 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
 
     return (
       <SpeechInputProvider value={speechInput}>
-        <ChatInputContainer
-          className={chatInputStateClass}
-          isDragOver={isDragOver}
-          canSend={canSendMessage}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          <TextInputSection
-            onSubmit={handleSubmit}
-            textareaRef={inlineTextareaRef}
-            placeholder={dynamicPlaceholder}
-            disabled={
-              isLoading ||
-              isStreaming ||
-              isProcessing ||
-              !canSendMessage ||
-              !online ||
-              speechInput.isRecording ||
-              speechInput.isTranscribing
-            }
-            autoFocus={autoFocus}
-            value={input}
-            onValueChange={setInput}
-            hasExistingMessages={hasExistingMessages}
-            conversationId={conversationId}
-            canSend={canSendMessage && online}
-            generationMode={generationMode}
-            hasReplicateApiKey={hasReplicateApiKey}
-            selectedImageModel={selectedImageModel}
-            quote={activeQuote ?? undefined}
-            onClearQuote={() => setActiveQuote(null)}
-          />
+        <div className="mx-auto w-full max-w-3xl chat-input-footer-backdrop">
+          <div
+            className={cn(
+              "relative chat-input-container outline-none",
+              chatInputStateClass,
+              isDragOver &&
+                canSendMessage &&
+                "ring-2 ring-primary/50 bg-primary/5"
+            )}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            {isDragOver && canSendMessage && (
+              <div className="absolute inset-0 z-chat-input flex items-center justify-center bg-primary/10 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2 text-primary">
+                  <svg
+                    className="h-8 w-8"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="text-sm font-medium">Drop files to upload</p>
+                </div>
+              </div>
+            )}
 
-          <ChatInputBottomBar
-            canSend={canSendMessage && online}
-            isStreaming={isStreaming}
-            isLoading={isLoading}
-            isProcessing={isProcessing}
-            hasExistingMessages={hasExistingMessages}
-            conversationId={conversationId}
-            hasInputText={deferredInputHasText}
-            onSend={handleSubmit}
-            onStop={onStop}
-            onSendAsNewConversation={handleSendAsNew}
-            hasReplicateApiKey={hasReplicateApiKey}
-            isPrivateMode={isPrivateMode}
-            selectedImageModel={selectedImageModel}
-          />
-        </ChatInputContainer>
+            <TextInputSection
+              onSubmit={handleSubmit}
+              textareaRef={inlineTextareaRef}
+              placeholder={dynamicPlaceholder}
+              disabled={
+                isLoading ||
+                isStreaming ||
+                isProcessing ||
+                !canSendMessage ||
+                !online ||
+                speechInput.isRecording ||
+                speechInput.isTranscribing
+              }
+              autoFocus={autoFocus}
+              value={input}
+              onValueChange={setInput}
+              hasExistingMessages={hasExistingMessages}
+              conversationId={conversationId}
+              canSend={canSendMessage && online}
+              generationMode={generationMode}
+              hasReplicateApiKey={hasReplicateApiKey}
+              selectedImageModel={selectedImageModel}
+              quote={activeQuote ?? undefined}
+              onClearQuote={() => setActiveQuote(null)}
+            />
+
+            <ChatInputBottomBar
+              canSend={canSendMessage && online}
+              isStreaming={isStreaming}
+              isLoading={isLoading}
+              isProcessing={isProcessing}
+              hasExistingMessages={hasExistingMessages}
+              conversationId={conversationId}
+              hasInputText={deferredInputHasText}
+              onSend={handleSubmit}
+              onStop={onStop}
+              onSendAsNewConversation={handleSendAsNew}
+              hasReplicateApiKey={hasReplicateApiKey}
+              isPrivateMode={isPrivateMode}
+              selectedImageModel={selectedImageModel}
+            />
+          </div>
+        </div>
         <div
           className={cn(
             "mx-auto w-full max-w-3xl px-4 overflow-hidden transition-all duration-300 ease-in-out",

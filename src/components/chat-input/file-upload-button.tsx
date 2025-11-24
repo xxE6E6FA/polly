@@ -1,6 +1,6 @@
 import { PaperclipIcon } from "@phosphor-icons/react";
 import { useCallback, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { ChatInputIconButton } from "@/components/ui/chat-input-icon-button";
 import {
   Tooltip,
   TooltipContent,
@@ -70,21 +70,14 @@ export function FileUploadButton({
       />
       <Tooltip>
         <TooltipTrigger>
-          <Button
+          <ChatInputIconButton
             aria-label="Upload files"
-            className={cn(
-              "shrink-0 transition-all duration-200",
-              "hover:scale-105 active:scale-95",
-              disabled && "cursor-not-allowed opacity-50 hover:scale-100"
-            )}
             disabled={disabled || isSubmitting}
-            size="icon-pill"
             type="button"
-            variant="default"
             onClick={handleClick}
           >
             <PaperclipIcon className="h-3.5 w-3.5" />
-          </Button>
+          </ChatInputIconButton>
         </TooltipTrigger>
         <TooltipContent>
           <div className="text-xs">Upload files</div>

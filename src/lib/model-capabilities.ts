@@ -36,7 +36,7 @@ export const CAPABILITY_REGISTRY: Record<CapabilityKey, CapabilityDefinition> =
   {
     supportsReasoning: {
       key: "supportsReasoning",
-      label: "Advanced Reasoning",
+      label: "Reasoning",
       description: "Chain-of-thought and complex reasoning",
       icon: BrainIcon,
       checkCapability: createCapabilityChecker("supportsReasoning"),

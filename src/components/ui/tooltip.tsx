@@ -46,12 +46,13 @@ const TooltipContent = React.forwardRef<
     <TooltipPrimitive.Tooltip.Positioner
       side={side}
       sideOffset={sideOffset}
+      className="z-tooltip"
       {...props}
     >
       <TooltipPrimitive.Tooltip.Popup
         ref={ref}
         className={cn(
-          "z-tooltip overflow-hidden rounded-md border bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-md",
+          "overflow-hidden rounded-md border bg-popover px-2.5 py-1.5 text-xs text-foreground shadow-md",
           "data-[starting-style]:opacity-0 data-[starting-style]:scale-95",
           "data-[ending-style]:opacity-0 data-[ending-style]:scale-95",
           "transition-[opacity,transform] duration-200 origin-[var(--transform-origin)]",

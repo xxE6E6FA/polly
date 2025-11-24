@@ -192,12 +192,12 @@
   --z-chat-input: 20;
   --z-sticky: 30;
   --z-drawer: 75;
-  --z-modal: 80;
   --z-command-palette: 90;
   --z-popover: 100;
   --z-context-menu: 100;
   --z-select: 105;
-  --z-tooltip: 120;
+  --z-modal: 110;
+  --z-tooltip: 150;
 
   /* Colors - Light Mode Defaults (Are.na-inspired) */
   --color-border: hsl(0 0% 90%);

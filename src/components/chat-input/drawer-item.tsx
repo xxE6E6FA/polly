@@ -3,7 +3,7 @@ import type React from "react";
 import { cn } from "@/lib/utils";
 
 interface DrawerItemProps {
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   name: string;
   description?: string;
   badges?: React.ReactNode;
@@ -11,6 +11,7 @@ interface DrawerItemProps {
   onClick: () => void;
   disabled?: boolean;
   className?: string;
+  iconWrapper?: boolean;
 }
 
 export function DrawerItem({
@@ -22,6 +23,7 @@ export function DrawerItem({
   onClick,
   disabled = false,
   className,
+  iconWrapper = true,
 }: DrawerItemProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) {
@@ -34,23 +36,30 @@ export function DrawerItem({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={disabled ? -1 : 0}
+    <button
+      type="button"
+      disabled={disabled}
       className={cn(
-        "cursor-pointer px-4 py-3 text-sm transition-colors hover:bg-muted/50 border-b border-border/40 last:border-0",
+        "w-full cursor-pointer text-sm transition-colors hover:bg-muted/50 border-b border-border/40 last:border-0 text-left",
         disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
         selected && "bg-muted/50",
         className
       )}
-      onClick={disabled ? undefined : onClick}
+      onClick={onClick}
       onKeyDown={handleKeyDown}
     >
-      <div className="flex w-full items-center justify-between gap-3">
+      <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground border border-border/50">
-            {icon}
-          </div>
+          {icon &&
+            (iconWrapper ? (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/50 text-muted-foreground border border-border/50">
+                {icon}
+              </div>
+            ) : (
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center">
+                {icon}
+              </div>
+            ))}
           <div className="min-w-0 flex-1">
             <div className="font-medium text-sm truncate leading-none mb-1.5">
               {name}
@@ -76,6 +85,6 @@ export function DrawerItem({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

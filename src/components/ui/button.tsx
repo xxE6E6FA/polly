@@ -36,6 +36,8 @@ const buttonVariants = cva(
           "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg",
         "chat-input":
           "dark:border-border dark:bg-muted dark:text-foreground dark:hover:bg-muted",
+        "chat-trigger":
+          "bg-muted/60 text-foreground hover:bg-muted focus-visible:bg-muted",
       },
       size: {
         default: "h-9 px-4 py-2 rounded-md",

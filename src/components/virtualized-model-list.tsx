@@ -13,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatContextLength } from "@/lib/format-context";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -87,22 +88,9 @@ const ModelCard = memo(
     const capabilities = useMemo(() => getModelCapabilities(model), [model]);
     const isUnavailable = model.isAvailable === false;
 
-    // Simple context display calculation
-    const contextLength = model.contextLength || model.contextWindow || 0;
-    const contextDisplay =
-      contextLength >= 1000000
-        ? (() => {
-            const value = contextLength / 1000000;
-            const formatted = value.toFixed(1).replace(/\.0$/, "");
-            return {
-              short: `${formatted}M`,
-              long: `${formatted}M tokens`,
-            };
-          })()
-        : {
-            short: `${(contextLength / 1000).toFixed(0)}K`,
-            long: `${(contextLength / 1000).toFixed(0)}K tokens`,
-          };
+    // Format context length using utility
+    const contextLength = model.contextLength || model.contextWindow;
+    const contextDisplay = formatContextLength(contextLength);
 
     const handleSwitchChange = useCallback(
       (checked: boolean) => {
@@ -248,7 +236,7 @@ const ModelCard = memo(
               </Tooltip>
             );
           })}
-          {(model.contextLength || model.contextWindow) && (
+          {contextDisplay && (
             <Tooltip>
               <TooltipTrigger>
                 <div

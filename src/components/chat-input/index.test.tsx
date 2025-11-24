@@ -132,7 +132,7 @@ const submissionSendAsNew = createStub(
 );
 const submissionState = { isProcessing: false };
 
-mock.module("./hooks/use-chat-input-submission", () => ({
+mock.module("../../hooks/chat-ui/use-chat-input-submission.ts", () => ({
   useChatInputSubmission: () => ({
     isProcessing: submissionState.isProcessing,
     submit: submissionSubmit,
@@ -154,7 +154,7 @@ const imageGenerationSendAsNew = createStub(async () => {
   // No-op stub for testing
 });
 
-mock.module("./hooks/use-chat-input-image-generation", () => ({
+mock.module("../../hooks/chat-ui/use-chat-input-image-generation.ts", () => ({
   useChatInputImageGeneration: () => ({
     selectedImageModel: imageGenerationState.selectedImageModel,
     handleImageGenerationSubmit: imageGenerationSubmit,
@@ -175,7 +175,7 @@ const dragState = {
   }),
 };
 
-mock.module("./hooks/use-chat-input-drag-drop", () => ({
+mock.module("../../hooks/chat-ui/use-chat-input-drag-drop.ts", () => ({
   useChatInputDragDrop: () => ({
     isDragOver: dragState.isDragOver,
     handleDragOver: dragState.handleDragOver,
@@ -200,7 +200,7 @@ const speechState = {
   }),
 };
 
-mock.module("./hooks/use-speech-input", () => ({
+mock.module("../../hooks/chat-ui/use-speech-input.tsx", () => ({
   useSpeechInput: () => speechState,
 }));
 
@@ -236,7 +236,7 @@ mock.module("@/stores/chat-ui-store", () => ({
 }));
 
 let lastBottomBarProps: ChatInputBottomBarProps | null = null;
-mock.module("./components/chat-input-bottom-bar", () => ({
+mock.module("./chat-input-bottom-bar.tsx", () => ({
   ChatInputBottomBar: (props: ChatInputBottomBarProps) => {
     lastBottomBarProps = props;
     return (
@@ -263,7 +263,7 @@ mock.module("./components/chat-input-bottom-bar", () => ({
 }));
 
 let _latestTextInputProps: TextInputSectionProps | null = null;
-mock.module("./sections/text-input-section", () => ({
+mock.module("./text-input-section.tsx", () => ({
   TextInputSection: (props: TextInputSectionProps) => {
     _latestTextInputProps = props;
     return (
@@ -284,15 +284,6 @@ mock.module("./sections/text-input-section", () => ({
       </div>
     );
   },
-}));
-
-mock.module("./components/chat-input-container", () => ({
-  ChatInputContainer: ({
-    children,
-  }: {
-    children: React.ReactNode;
-    className?: string;
-  }) => <div data-testid="chat-input-container">{children}</div>,
 }));
 
 const { renderWithProviders } = await import("../../../test/test-utils");

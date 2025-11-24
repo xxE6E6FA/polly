@@ -1,21 +1,20 @@
 import type { Id } from "@convex/_generated/dataModel";
 import {
   CaretDownIcon,
-  ChatCircleIcon,
   CheckIcon,
-  GitBranchIcon,
   MicrophoneIcon,
   PaperPlaneTiltIcon,
   SquareIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { RecordingWaveform } from "@/components/chat-input/recording-waveform";
+import { SendOptionsMenu } from "@/components/chat-input/send-options-menu";
 import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
+import { ChatInputIconButton } from "@/components/ui/chat-input-icon-button";
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -28,70 +27,6 @@ import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
 
 const ICON_CLASS = "h-4 w-4 shrink-0";
-
-type RecordingWaveformProps = {
-  data: number[];
-};
-
-const RecordingWaveform = ({ data }: RecordingWaveformProps) => {
-  const hasSamples = data.length > 0;
-  const barCount = 12;
-
-  const bars = Array.from({ length: barCount }, (_, index) => {
-    if (!hasSamples) {
-      const progress = index / Math.max(1, barCount - 1);
-      const wave = Math.sin(Math.PI * progress);
-      const normalized = (wave + 1) / 2;
-      const smoothed = normalized ** 0.8;
-      return 0.28 + smoothed * 0.24;
-    }
-
-    const segmentSize = data.length / barCount;
-    const start = Math.floor(index * segmentSize);
-    const end = Math.max(start + 1, Math.floor((index + 1) * segmentSize));
-
-    let peak = 0;
-    for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
-      const sample = Math.abs(data[sampleIndex] ?? 0);
-      if (sample > peak) {
-        peak = sample;
-      }
-    }
-
-    if (peak < 0.025) {
-      return 0.15;
-    }
-
-    const amplified = Math.min(1.1, peak * 4.0);
-    const curved = amplified ** 0.55;
-    return Math.min(1, Math.max(0.15, curved));
-  });
-
-  return (
-    <div
-      className="flex h-8 items-center justify-end gap-0.5 px-2 py-1.5"
-      aria-hidden="true"
-    >
-      {bars.map((value, index) => {
-        const height = `${Math.min(1, value) * 100}%`;
-        const opacity = 0.5 + value * 0.5;
-        const barId = `bar-${index}-${Math.floor(value * 1000)}`;
-
-        return (
-          <div
-            key={barId}
-            className="flex h-full w-0.5 items-center justify-center transition-all duration-500 ease-in-out"
-          >
-            <div
-              className="w-full rounded-full bg-primary-foreground transition-all duration-500 ease-in-out"
-              style={{ height, opacity }}
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-};
 
 type SendButtonGroupProps = {
   canSend: boolean;
@@ -148,6 +83,9 @@ export const SendButtonGroup = ({
   const [hasBeenEnabled, setHasBeenEnabled] = useState(false);
   const [isCollapsing, setIsCollapsing] = useState(false);
 
+  // Show dropdown for "send as new conversation" option
+  // WHY: When in an existing conversation with input text, users can branch
+  // into a new conversation or send to current one via the dropdown.
   const shouldShowDropdown =
     hasExistingMessages &&
     conversationId &&
@@ -155,6 +93,7 @@ export const SendButtonGroup = ({
     !isStreaming &&
     hasInputText;
 
+  // Track which segment of the button is hovered for visual feedback
   const [hoveredSegment, setHoveredSegment] = useState<
     "dropdown" | "send" | null
   >(null);
@@ -221,6 +160,10 @@ export const SendButtonGroup = ({
     return "Start voice input";
   };
 
+  // Manage button expansion/collapse animation
+  // WHY: The send button expands from a circle to a pill when the dropdown appears.
+  // We use isCollapsing state to trigger a smooth exit animation before actually
+  // collapsing, preventing jarring visual jumps.
   useEffect(() => {
     const shouldExpand = canSend && shouldShowDropdown;
 
@@ -420,11 +363,10 @@ export const SendButtonGroup = ({
             <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pr-0.5 z-10">
               <Tooltip>
                 <TooltipTrigger>
-                  <Button
+                  <ChatInputIconButton
                     type="button"
-                    size="icon-sm"
-                    variant="ghost"
-                    className="h-7 w-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    size="sm"
+                    variant="default"
                     onClick={() => onAcceptTranscribe?.()}
                     aria-label="Use transcript"
                   >
@@ -433,7 +375,7 @@ export const SendButtonGroup = ({
                       weight="bold"
                       aria-hidden="true"
                     />
-                  </Button>
+                  </ChatInputIconButton>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="text-xs">Use transcript</div>
@@ -441,11 +383,10 @@ export const SendButtonGroup = ({
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger>
-                  <Button
+                  <ChatInputIconButton
                     type="button"
-                    size="icon-sm"
+                    size="sm"
                     variant="ghost"
-                    className="h-7 w-7 rounded-full text-primary-foreground hover:bg-primary-foreground/15"
                     onClick={() => onCancelTranscribe?.()}
                     aria-label="Discard recording"
                   >
@@ -454,7 +395,7 @@ export const SendButtonGroup = ({
                       weight="bold"
                       aria-hidden="true"
                     />
-                  </Button>
+                  </ChatInputIconButton>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="text-xs">Discard recording</div>
@@ -541,63 +482,13 @@ export const SendButtonGroup = ({
                 <div className="text-xs">More send options</div>
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className={cn("w-64 p-1")}
-            >
-              <DropdownMenuItem
-                disabled={isLoading || isSummarizing}
-                className={cn(
-                  "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
-                  "hover:bg-primary/10 dark:hover:bg-primary/20",
-                  "focus:bg-primary/10 dark:focus:bg-primary/20",
-                  "transition-all duration-200",
-                  "hover:translate-x-0.5"
-                )}
-                onClick={() =>
-                  onSendAsNewConversation?.(true, personaId, reasoningConfig)
-                }
-              >
-                <div className="mt-0.5 flex-shrink-0">
-                  <ChatCircleIcon className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 stack-sm">
-                  <p className="text-sm font-medium leading-none">
-                    Send & open new chat
-                  </p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Create a new conversation with this message and switch to it
-                  </p>
-                </div>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                disabled={isLoading || isSummarizing}
-                className={cn(
-                  "flex items-start gap-3 cursor-pointer p-2.5 rounded-md",
-                  "hover:bg-primary/10 dark:hover:bg-primary/20",
-                  "focus:bg-primary/10 dark:focus:bg-primary/20",
-                  "transition-all duration-200",
-                  "hover:translate-x-0.5"
-                )}
-                onClick={() =>
-                  onSendAsNewConversation?.(false, personaId, reasoningConfig)
-                }
-              >
-                <div className="mt-0.5 flex-shrink-0">
-                  <GitBranchIcon className="h-4 w-4 text-primary" />
-                </div>
-                <div className="flex-1 stack-sm">
-                  <p className="text-sm font-medium leading-none">
-                    Branch conversation
-                  </p>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Create a new conversation but stay in the current one
-                  </p>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+            <SendOptionsMenu
+              isLoading={isLoading}
+              isSummarizing={isSummarizing}
+              onSendAsNewConversation={onSendAsNewConversation}
+              personaId={personaId}
+              reasoningConfig={reasoningConfig}
+            />
           </DropdownMenu>
         )}
 
