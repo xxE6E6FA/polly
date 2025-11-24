@@ -1546,6 +1546,12 @@ pre {
   opacity: 1;
 }
 
+/* Chat Input Button Sizes */
+:root {
+  --chat-input-button-size-default: 2rem;
+  --chat-input-button-size-sm: 1.75rem;
+}
+
 /* Chat Input Container States - Base styles first */
 .chat-input-container {
   position: relative;
