@@ -54,9 +54,9 @@ export function FileUploadButton({
     input.value = "";
   }, [selectedModel, notificationDialog, conversationId]);
 
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     fileInputRef.current?.click();
-  }, []);
+  };
 
   return (
     <>

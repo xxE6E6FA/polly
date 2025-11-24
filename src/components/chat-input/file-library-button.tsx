@@ -45,9 +45,9 @@ export function FileLibraryButton({
     [conversationId]
   );
 
-  const handleClick = useCallback(() => {
+  const handleClick = () => {
     setDialogOpen(true);
-  }, []);
+  };
 
   // Check if the selected model supports images
   const supportsImages = selectedModel?.supportsImages ?? true;

@@ -15,7 +15,8 @@ export const NegativePrompt = memo<NegativePromptProps>(
   ({ value, onValueChange, disabled = false, textareaRef, onSubmit }) => {
     const fallbackRef = useRef<HTMLTextAreaElement | null>(null);
 
-    const autoresizeValue = useMemo(() => `${value || ""}\u200b`, [value]);
+    // Simple string template - React Compiler will optimize if needed
+    const autoresizeValue = `${value || ""}\u200b`;
 
     useEffect(() => {
       const textarea = (textareaRef ?? fallbackRef).current;

@@ -78,17 +78,14 @@ export function ChatInputBottomBar({
   const [generationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const { clearOnSend } = useChatFullscreenUI();
-  const normalizedSelectedImageModel = useMemo(() => {
-    if (!selectedImageModel) {
-      return undefined;
-    }
-
-    return {
-      modelId: selectedImageModel.modelId,
-      supportsMultipleImages:
-        selectedImageModel.supportsMultipleImages ?? false,
-    };
-  }, [selectedImageModel]);
+  // Simple object creation - React Compiler will optimize if needed
+  const normalizedSelectedImageModel = selectedImageModel
+    ? {
+        modelId: selectedImageModel.modelId,
+        supportsMultipleImages:
+          selectedImageModel.supportsMultipleImages ?? false,
+      }
+    : undefined;
 
   const {
     showModelPicker,

@@ -59,29 +59,28 @@ export function useChatInputImageGeneration({
   const { setParams: setImageParams, setNegativePromptEnabled } =
     useImageParams();
 
-  const selectedImageModel = (() => {
-    if (!imageParams.model) {
-      return null;
-    }
+  // Simple conditional logic - React Compiler will optimize if needed
+  const selectedImageModel = imageParams.model
+    ? (() => {
+        const matchingModel = enabledImageModels?.find(
+          model => model.modelId === imageParams.model
+        );
 
-    const matchingModel = enabledImageModels?.find(
-      model => model.modelId === imageParams.model
-    );
+        if (!matchingModel) {
+          return {
+            modelId: imageParams.model,
+            supportsMultipleImages: false,
+            supportsNegativePrompt: false,
+          };
+        }
 
-    if (!matchingModel) {
-      return {
-        modelId: imageParams.model,
-        supportsMultipleImages: false,
-        supportsNegativePrompt: false,
-      };
-    }
-
-    return {
-      modelId: matchingModel.modelId,
-      supportsMultipleImages: matchingModel.supportsMultipleImages ?? false,
-      supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
-    };
-  })();
+        return {
+          modelId: matchingModel.modelId,
+          supportsMultipleImages: matchingModel.supportsMultipleImages ?? false,
+          supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
+        };
+      })()
+    : null;
 
   // Keep memoized because it's used in useCallback dependencies
   const sanitizedImageParams = useMemo(

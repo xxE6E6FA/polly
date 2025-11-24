@@ -67,13 +67,14 @@ export function useImageGeneration({
     };
   }, [enabledImageModels, imageParams.model]);
 
-  const sanitizedImageParams = useMemo((): ImageGenerationParams => {
-    const trimmedModel = imageParams.model?.trim() ?? "";
-    return {
+  // Keep memoized because it's used in useCallback dependencies
+  const sanitizedImageParams = useMemo(
+    (): ImageGenerationParams => ({
       ...imageParams,
-      model: trimmedModel,
-    };
-  }, [imageParams]);
+      model: imageParams.model?.trim() ?? "",
+    }),
+    [imageParams]
+  );
 
   const prepareAttachments = useCallback(
     async (attachments: readonly Attachment[]) => {

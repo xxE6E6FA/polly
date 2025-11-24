@@ -358,12 +358,9 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       return "Ask anything...";
     })();
 
-    const chatInputStateClass = useMemo(() => {
-      if (!(canSendMessage && online)) {
-        return "chat-input-disabled";
-      }
-      return "";
-    }, [canSendMessage, online]);
+    // Simple conditional - React Compiler will optimize if needed
+    const chatInputStateClass =
+      canSendMessage && online ? "" : "chat-input-disabled";
 
     const immediateHasText = input.trim().length > 0 || attachments.length > 0;
     const deferredInputHasText = useDeferredValue(immediateHasText);

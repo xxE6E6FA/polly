@@ -52,28 +52,22 @@ export const ChatInputField = memo(function ChatInputField({
 
   const shouldAutoResize = !disableAutoResize;
 
-  const wrapperClassName = useMemo(
-    () =>
-      cn(
-        "relative w-full",
-        shouldAutoResize &&
-          "auto-resize-textarea px-2.5 py-1.5 overflow-y-auto max-h-60 sm:max-h-72",
-        disabled && "cursor-not-allowed opacity-50",
-        className
-      ),
-    [shouldAutoResize, disabled, className]
+  // Simple className concatenation - React Compiler will optimize if needed
+  const wrapperClassName = cn(
+    "relative w-full",
+    shouldAutoResize &&
+      "auto-resize-textarea px-2.5 py-1.5 overflow-y-auto max-h-60 sm:max-h-72",
+    disabled && "cursor-not-allowed opacity-50",
+    className
   );
 
-  const textareaClassName = useMemo(
-    () =>
-      cn(
-        "w-full bg-transparent border-0 outline-none ring-0 text-base leading-relaxed",
-        "transition-colors duration-200 focus:bg-transparent focus:outline-none",
-        "touch-action-manipulation md:scrollbar-thin resize-none overflow-y-auto",
-        "placeholder:text-muted-foreground/60",
-        "p-0"
-      ),
-    []
+  // Static className - no need for memoization
+  const textareaClassName = cn(
+    "w-full bg-transparent border-0 outline-none ring-0 text-base leading-relaxed",
+    "transition-colors duration-200 focus:bg-transparent focus:outline-none",
+    "touch-action-manipulation md:scrollbar-thin resize-none overflow-y-auto",
+    "placeholder:text-muted-foreground/60",
+    "p-0"
   );
 
   const textareaStyle = useMemo(
