@@ -78,12 +78,10 @@ const ChatMessageComponent = ({
     }
   }, [onRetryImageGeneration, message.id]);
 
-  const handlePreviewFile = useCallback(
-    (attachment: Attachment) => {
-      onPreviewAttachment?.(attachment);
-    },
-    [onPreviewAttachment]
-  );
+  // Simple prop forwarding - React Compiler will optimize if needed
+  const handlePreviewFile = (attachment: Attachment) => {
+    onPreviewAttachment?.(attachment);
+  };
 
   const hasImageGallery = useMemo(() => {
     if (
