@@ -9,6 +9,7 @@ interface UseVisibleControlsProps {
   hasReplicateApiKey: boolean;
   canSend: boolean;
   selectedModel?: Model | null;
+  selectedImageModelSupportsInput?: boolean;
 }
 
 interface VisibleControls {
@@ -18,6 +19,7 @@ interface VisibleControls {
   showReasoningPicker: boolean;
   showAspectRatioPicker: boolean;
   showImageSettings: boolean;
+  showFileUpload: boolean;
 }
 
 export function useVisibleControls({
@@ -26,6 +28,7 @@ export function useVisibleControls({
   hasReplicateApiKey,
   canSend,
   selectedModel,
+  selectedImageModelSupportsInput = false,
 }: UseVisibleControlsProps): VisibleControls {
   const isImageMode = generationMode === "image";
   const isTextMode = generationMode === "text";
@@ -38,6 +41,11 @@ export function useVisibleControls({
   const canGenerateImages =
     canSend && isImageMode && !isPrivateMode && hasReplicateApiKey;
 
+  // File Upload Controls
+  // Show in text mode (for multimodal models) OR in image mode when model supports image input
+  const showFileUpload =
+    canSend && (isTextMode || (isImageMode && selectedImageModelSupportsInput));
+
   return {
     showModelPicker: showTextControls || canGenerateImages,
     showPersonaSelector: showTextControls,
@@ -46,5 +54,6 @@ export function useVisibleControls({
       showTextControls && !!selectedModel && isUserModel(selectedModel),
     showAspectRatioPicker: canGenerateImages,
     showImageSettings: canGenerateImages,
+    showFileUpload,
   };
 }

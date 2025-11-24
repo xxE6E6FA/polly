@@ -44,6 +44,8 @@ interface ChatInputBottomBarProps {
     modelId: string;
     supportsMultipleImages: boolean;
     supportsNegativePrompt: boolean;
+    supportsImageToImage?: boolean;
+    supportsImages?: boolean;
   } | null;
 }
 
@@ -94,13 +96,21 @@ export function ChatInputBottomBar({
     showReasoningPicker,
     showAspectRatioPicker,
     showImageSettings,
+    showFileUpload,
   } = useVisibleControls({
     generationMode,
     isPrivateMode,
     hasReplicateApiKey,
     canSend,
     selectedModel,
+    selectedImageModelSupportsInput: selectedImageModel?.supportsImageToImage,
   });
+
+  // Determine which model to use for file upload/library checks
+  // If in image mode, use the selected image model (with fresh schema capabilities)
+  // If in text mode, use the selected LLM
+  const activeModel =
+    generationMode === "image" ? selectedImageModel : selectedModel;
 
   const handlePersonaSelect = useCallback(
     async (id: Id<"personas"> | null) => {
@@ -205,17 +215,19 @@ export function ChatInputBottomBar({
           )}
         </div>
         <div className="flex items-center gap-0.5 sm:gap-2">
-          {canSend && (
+          {showFileUpload && (
             <>
               <FileUploadButton
                 disabled={disabled}
                 isSubmitting={isProcessing}
                 conversationId={conversationId}
+                selectedModel={activeModel ?? undefined}
               />
               <FileLibraryButton
                 disabled={disabled}
                 isSubmitting={isProcessing}
                 conversationId={conversationId}
+                selectedModel={activeModel ?? undefined}
               />
             </>
           )}

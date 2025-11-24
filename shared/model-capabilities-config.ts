@@ -58,6 +58,7 @@ export function isFileTypeSupported(
     if (hasImageCapability) {
       return { supported: true, category: "image" };
     }
+    return { supported: false, category: "unsupported" };
   }
 
   // Check PDF support - universally supported via multiple strategies

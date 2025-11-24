@@ -4,6 +4,7 @@ import Replicate from "replicate";
 import { api, internal } from "./_generated/api";
 import { action, internalMutation, mutation, query } from "./_generated/server";
 import { imageModelDefinitionSchema } from "./lib/schemas";
+import { sanitizeSchema } from "./lib/shared_utils";
 
 // Helper function to determine if a model supports aspect_ratio parameter
 function determineAspectRatioSupport(
@@ -94,6 +95,100 @@ function determineNegativePromptSupport(
   if (negativePromptProperty) {
     const paramType = negativePromptProperty.type;
     return paramType === "string";
+  }
+
+  return false;
+}
+
+// Helper function to determine if a model accepts image input (for image-to-image / editing)
+// Based on Replicate's OpenAPI schema documentation: https://replicate.com/docs/reference/openapi#model-schemas
+function determineImageInputSupport(
+  _model: ReplicateSearchModel,
+  latestVersion?: Record<string, unknown>
+): boolean {
+  const openAPISchema = latestVersion?.openapi_schema as
+    | Record<string, unknown>
+    | undefined;
+  const components = openAPISchema?.components as
+    | Record<string, unknown>
+    | undefined;
+  const schemas = components?.schemas as Record<string, unknown> | undefined;
+  const inputSchema = schemas?.Input as Record<string, unknown> | undefined;
+  const inputProperties = inputSchema?.properties as
+    | Record<string, unknown>
+    | undefined;
+
+  if (!inputProperties || typeof inputProperties !== "object") {
+    return false;
+  }
+
+  // Look for common image input parameter names
+  const imageParamNames = [
+    "image_input",
+    "image_inputs",
+    "image",
+    "input_image",
+    "init_image",
+    "reference_image",
+    "conditioning_image",
+  ];
+
+  // Check for messages parameter (common in VLMs)
+  if (inputProperties.messages) {
+    const messagesParam = inputProperties.messages as Record<string, unknown>;
+    if (messagesParam.type === "array") {
+      return true;
+    }
+  }
+
+  for (const paramName of imageParamNames) {
+    const param = inputProperties[paramName] as
+      | Record<string, unknown>
+      | undefined;
+    if (!param) {
+      continue;
+    }
+
+    const paramType = param.type;
+
+    // Check for string/uri parameters (single image)
+    if (paramType === "string" || param.format === "uri") {
+      return true;
+    }
+
+    // Check for array of strings/uris (multiple images)
+    // We are more permissive here: if it's an array and the name looks like an image input,
+    // we assume it accepts images even if the items schema is complex or missing.
+    if (paramType === "array") {
+      return true;
+    }
+  }
+
+  // Also check any parameter with "image" in name or description
+  for (const [key, raw] of Object.entries(inputProperties)) {
+    const param = raw as Record<string, unknown>;
+    const k = key.toLowerCase();
+    const desc = String(param.description || "").toLowerCase();
+
+    const looksImagey =
+      k.includes("image") ||
+      desc.includes("image") ||
+      desc.includes("img") ||
+      desc.includes("photo");
+
+    if (!looksImagey) {
+      continue;
+    }
+
+    const paramType = param.type;
+
+    if (
+      paramType === "string" ||
+      param.format === "uri" ||
+      paramType === "array"
+    ) {
+      return true;
+    }
   }
 
   return false;
@@ -508,6 +603,12 @@ export const fetchReplicateImageModels = action({
             latestVersion
           );
 
+          // Determine image input support (for image-to-image / editing)
+          const supportsImageToImage = determineImageInputSupport(
+            model,
+            latestVersion
+          );
+
           return {
             modelId: `${model.owner}/${model.name}`,
             name: model.name,
@@ -520,7 +621,7 @@ export const fetchReplicateImageModels = action({
             supportsUpscaling: false,
             supportsInpainting: false,
             supportsOutpainting: false,
-            supportsImageToImage: false,
+            supportsImageToImage,
             supportsMultipleImages,
             supportsNegativePrompt,
             coverImageUrl: coverImageUrl || undefined,
@@ -669,6 +770,12 @@ export const searchReplicateModels = action({
             latestVersion
           );
 
+          // Determine image input support (for image-to-image / editing)
+          const supportsImageToImage = determineImageInputSupport(
+            model,
+            latestVersion
+          );
+
           return {
             modelId: `${model.owner}/${model.name}`,
             name: model.name,
@@ -681,7 +788,7 @@ export const searchReplicateModels = action({
             supportsUpscaling: false,
             supportsInpainting: false,
             supportsOutpainting: false,
-            supportsImageToImage: false,
+            supportsImageToImage,
             supportsMultipleImages,
             supportsNegativePrompt,
             coverImageUrl: coverImageUrl || undefined,
@@ -878,6 +985,77 @@ export const refreshModelCapabilities = action({
 });
 
 // Add a custom model by fetching its details from Replicate
+// Fetch the OpenAPI schema for a specific model
+export const fetchModelSchema = action({
+  args: {
+    modelId: v.string(),
+  },
+  handler: async (ctx, { modelId }) => {
+    const apiKeys = await ctx.runQuery(api.apiKeys.getUserApiKeys);
+
+    const replicateKey = apiKeys.find(
+      (key: { provider: string; hasKey?: boolean }) =>
+        key.provider === "replicate"
+    );
+
+    if (!replicateKey?.hasKey) {
+      return { success: false, error: "Replicate API key not found" };
+    }
+
+    try {
+      const decryptedKey: string | null = await ctx.runAction(
+        api.apiKeys.getDecryptedApiKey,
+        {
+          provider: "replicate" as const,
+        }
+      );
+
+      if (!decryptedKey) {
+        return {
+          success: false,
+          error: "Failed to decrypt Replicate API key",
+        };
+      }
+
+      const replicate = new Replicate({
+        auth: decryptedKey,
+      });
+
+      const [owner, name] = modelId.split("/");
+      if (!(owner && name)) {
+        return {
+          success: false,
+          error: "Invalid model ID format. Use 'owner/name' format.",
+        };
+      }
+
+      const model = await replicate.models.get(owner, name);
+
+      if (!model) {
+        return { success: false, error: "Model not found" };
+      }
+
+      const rawModel = model as unknown as Record<string, unknown>;
+      const latestVersion = rawModel.latest_version as
+        | Record<string, unknown>
+        | undefined;
+
+      return {
+        success: true,
+        schema: sanitizeSchema(latestVersion?.openapi_schema) || null,
+        modelVersion: latestVersion?.id || null,
+      };
+    } catch (error) {
+      console.error("Error fetching model schema:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Failed to fetch schema",
+      };
+    }
+  },
+});
+
 export const addCustomImageModel = action({
   args: {
     modelId: v.string(),
@@ -1007,6 +1185,16 @@ export const addCustomImageModel = action({
         latestVersion
       );
 
+      // Determine image input support (for image-to-image / editing)
+      const supportsImageToImage = determineImageInputSupport(
+        {
+          owner: model.owner,
+          name: model.name,
+          description: model.description,
+        },
+        latestVersion
+      );
+
       const imageModel: ImageModelResult = {
         modelId: sanitizedModelId,
         name: model.name,
@@ -1019,7 +1207,7 @@ export const addCustomImageModel = action({
         supportsUpscaling: false,
         supportsInpainting: false,
         supportsOutpainting: false,
-        supportsImageToImage: false,
+        supportsImageToImage,
         supportsMultipleImages,
         supportsNegativePrompt,
         coverImageUrl: coverImageUrl || undefined,

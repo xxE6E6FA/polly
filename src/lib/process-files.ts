@@ -22,10 +22,15 @@ export async function processFilesForAttachments(
   const newAttachments: Attachment[] = [];
 
   const validModel =
-    isUserModel(selectedModel) &&
-    selectedModel.provider &&
-    selectedModel.modelId
-      ? selectedModel
+    selectedModel &&
+    typeof selectedModel === "object" &&
+    "provider" in selectedModel &&
+    "modelId" in selectedModel
+      ? (selectedModel as {
+          provider: string;
+          modelId: string;
+          supportsImages?: boolean;
+        })
       : null;
 
   for (const file of Array.from(files)) {

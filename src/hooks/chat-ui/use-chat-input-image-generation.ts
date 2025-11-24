@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useConvexFileUpload } from "@/hooks/use-convex-file-upload";
 import { useEnabledImageModels } from "@/hooks/use-enabled-image-models";
 import { useImageParams } from "@/hooks/use-generation";
+import { useReplicateSchema } from "@/hooks/use-replicate-schema";
 import { handleImageGeneration } from "@/lib/ai/image-generation-handlers";
 import { ROUTES } from "@/lib/routes";
 import { usePrivateMode } from "@/providers/private-mode-context";
@@ -59,9 +60,26 @@ export function useChatInputImageGeneration({
   const { setParams: setImageParams, setNegativePromptEnabled } =
     useImageParams();
 
+  // Fetch fresh schema capabilities to ensure UI reflects latest detection logic
+  // This overrides potentially stale data in the database
+  const { schema, capabilities } = useReplicateSchema(imageParams.model);
+
   // Simple conditional logic - React Compiler will optimize if needed
   const selectedImageModel = imageParams.model
     ? (() => {
+        // If we have a fresh schema, prefer its capabilities
+        if (schema) {
+          return {
+            modelId: imageParams.model,
+            provider: "replicate",
+            supportsMultipleImages: capabilities.supportsMultipleImages,
+            supportsNegativePrompt: capabilities.supportsNegativePrompt,
+            supportsImageToImage: capabilities.supportsImageInput,
+            supportsImages: capabilities.supportsImageInput,
+          };
+        }
+
+        // Fallback to database values if schema not yet loaded
         const matchingModel = enabledImageModels?.find(
           model => model.modelId === imageParams.model
         );
@@ -69,15 +87,21 @@ export function useChatInputImageGeneration({
         if (!matchingModel) {
           return {
             modelId: imageParams.model,
+            provider: "replicate",
             supportsMultipleImages: false,
             supportsNegativePrompt: false,
+            supportsImageToImage: false,
+            supportsImages: false,
           };
         }
 
         return {
           modelId: matchingModel.modelId,
+          provider: "replicate",
           supportsMultipleImages: matchingModel.supportsMultipleImages ?? false,
           supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
+          supportsImageToImage: matchingModel.supportsImageToImage ?? false,
+          supportsImages: matchingModel.supportsImageToImage ?? false,
         };
       })()
     : null;
