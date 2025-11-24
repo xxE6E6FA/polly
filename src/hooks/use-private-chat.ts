@@ -54,7 +54,8 @@ export function usePrivateChat(options?: {
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+      // Do not nullify the controller here, as the stream loop might still access it
+      // abortControllerRef.current = null;
     }
     setStatus("idle");
   }, []);

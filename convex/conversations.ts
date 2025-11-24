@@ -2072,56 +2072,65 @@ export const editMessage = action({
   },
 });
 
+export const stopGenerationHandler = async (
+  ctx: MutationCtx,
+  args: {
+    conversationId: Id<"conversations">;
+    content?: string;
+    reasoning?: string;
+  }
+) => {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Not authenticated");
+  }
+
+  const conversation = await ctx.db.get(args.conversationId);
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  if (conversation.userId !== userId) {
+    throw new Error("Access denied");
+  }
+
+  // Find the streaming message
+  // We look for any message that is not in a terminal state (done/error)
+  // We increase the limit to 20 to be safe, though usually it's the very last message
+  const messages = await ctx.db
+    .query("messages")
+    .withIndex("by_conversation", q =>
+      q.eq("conversationId", args.conversationId)
+    )
+    .order("desc")
+    .take(20);
+
+  const streamingMessage = messages.find(
+    m => m.role === "assistant" && m.status !== "done" && m.status !== "error"
+  );
+
+  if (streamingMessage) {
+    await ctx.db.patch(streamingMessage._id, {
+      status: "done",
+      metadata: {
+        ...streamingMessage.metadata,
+        finishReason: "user_stopped",
+      },
+    });
+  }
+
+  await ctx.db.patch(args.conversationId, {
+    isStreaming: false,
+  });
+};
+
 export const stopGeneration = mutation({
   args: {
     conversationId: v.id("conversations"),
     content: v.optional(v.string()),
     reasoning: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Not authenticated");
-    }
-
-    const conversation = await ctx.db.get(args.conversationId);
-    if (!conversation) {
-      throw new Error("Conversation not found");
-    }
-
-    if (conversation.userId !== userId) {
-      throw new Error("Access denied");
-    }
-
-    // Find the streaming message
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_conversation", q =>
-        q.eq("conversationId", args.conversationId)
-      )
-      .order("desc")
-      .take(5);
-
-    const streamingMessage = messages.find(
-      m =>
-        m.role === "assistant" &&
-        (m.status === "streaming" || m.status === "thinking")
-    );
-
-    if (streamingMessage) {
-      await ctx.db.patch(streamingMessage._id, {
-        status: "done",
-        metadata: {
-          ...streamingMessage.metadata,
-          finishReason: "user_stopped",
-        },
-      });
-    }
-
-    await ctx.db.patch(args.conversationId, {
-      isStreaming: false,
-    });
-  },
+  handler: stopGenerationHandler,
 });
 
 export const createBranchingConversation = action({
