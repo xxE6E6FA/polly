@@ -223,7 +223,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     // Extract user messages for history navigation
     // WHY: Users can use arrow keys to navigate through their previous messages.
     // We extract just the user messages (not assistant) in reverse chronological order.
-    const userMessages = useMemo(() => {
+    const userMessages = (() => {
       if (userMessageContents) {
         return userMessageContents;
       }
@@ -233,18 +233,18 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         return [];
       }
 
-      const userMessages: string[] = [];
+      const result: string[] = [];
       for (let i = sourceMessages.length - 1; i >= 0; i--) {
         const msg = sourceMessages[i];
         if (!msg || msg.role !== "user") {
           continue;
         }
         const content = typeof msg.content === "string" ? msg.content : "";
-        userMessages.push(content);
+        result.push(content);
       }
 
-      return userMessages;
-    }, [userMessageContents, messages]);
+      return result;
+    })();
 
     // Hydrate history with existing messages for arrow key navigation
     // WHY: When a user opens an existing conversation, we populate the history stack
@@ -342,7 +342,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       ]
     );
 
-    const dynamicPlaceholder = useMemo(() => {
+    const dynamicPlaceholder = (() => {
       if (!online) {
         return "Offline — reconnect to send";
       }
@@ -356,7 +356,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         return "Archived conversation";
       }
       return "Ask anything...";
-    }, [generationMode, isPrivateMode, isArchived, online]);
+    })();
 
     const chatInputStateClass = useMemo(() => {
       if (!(canSendMessage && online)) {
@@ -384,13 +384,13 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
       [reasoningConfig]
     );
 
-    const handleTranscriptionInsert = useCallback((raw: string) => {
+    const handleTranscriptionInsert = (raw: string) => {
       const trimmed = raw.trim();
       if (trimmed.length === 0 || trimmed === "Silence.") {
         return;
       }
       setInput(trimmed);
-    }, []);
+    };
 
     const speechInput = useSpeechInput({
       onTranscription: handleTranscriptionInsert,

@@ -235,7 +235,7 @@ export const SendButtonGroup = ({
     isRecording,
   ]);
 
-  const dropdownMenuTriggerAnimationClasses = useMemo(() => {
+  const dropdownMenuTriggerAnimationClasses = (() => {
     if (isExpanded && !isCollapsing) {
       return "opacity-100 scale-100 duration-500 delay-100 ease-bounce";
     }
@@ -243,7 +243,7 @@ export const SendButtonGroup = ({
       return "opacity-0 scale-90 duration-200 ease-out";
     }
     return "opacity-0 scale-75 duration-300 ease-out";
-  }, [isExpanded, isCollapsing]);
+  })();
 
   const isButtonDisabled = useMemo(() => {
     if (isStreaming) {

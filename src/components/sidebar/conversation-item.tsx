@@ -195,9 +195,9 @@ const ConversationItemComponent = ({
     [conversation, patchConversation]
   );
 
-  const handleCancelEdit = useCallback(() => {
+  const handleCancelEdit = () => {
     setIsEditing(false);
-  }, []);
+  };
 
   const handleArchiveClick = useCallback(() => {
     setIsMobilePopoverOpen(false);

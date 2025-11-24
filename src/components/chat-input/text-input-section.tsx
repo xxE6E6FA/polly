@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useEvent } from "@/hooks/chat-ui/use-event";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useImageParams } from "@/hooks/use-generation";
@@ -64,20 +64,11 @@ export function TextInputSection({
   );
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const history = useChatHistory(conversationId);
-  const shouldRenderNegativePrompt = useMemo(
-    () =>
-      Boolean(
-        canSend &&
-          generationMode === "image" &&
-          hasReplicateApiKey &&
-          selectedImageModel?.supportsNegativePrompt
-      ),
-    [
-      canSend,
-      generationMode,
-      hasReplicateApiKey,
-      selectedImageModel?.supportsNegativePrompt,
-    ]
+  const shouldRenderNegativePrompt = Boolean(
+    canSend &&
+      generationMode === "image" &&
+      hasReplicateApiKey &&
+      selectedImageModel?.supportsNegativePrompt
   );
 
   const handleInputChangeWithHistory = useEvent((next: string) => {

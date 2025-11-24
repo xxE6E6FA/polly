@@ -59,7 +59,7 @@ export function useChatInputImageGeneration({
   const { setParams: setImageParams, setNegativePromptEnabled } =
     useImageParams();
 
-  const selectedImageModel = useMemo(() => {
+  const selectedImageModel = (() => {
     if (!imageParams.model) {
       return null;
     }
@@ -81,15 +81,16 @@ export function useChatInputImageGeneration({
       supportsMultipleImages: matchingModel.supportsMultipleImages ?? false,
       supportsNegativePrompt: matchingModel.supportsNegativePrompt ?? false,
     };
-  }, [enabledImageModels, imageParams.model]);
+  })();
 
-  const sanitizedImageParams = useMemo((): ImageGenerationParams => {
-    const trimmedModel = imageParams.model?.trim() ?? "";
-    return {
+  // Keep memoized because it's used in useCallback dependencies
+  const sanitizedImageParams = useMemo(
+    (): ImageGenerationParams => ({
       ...imageParams,
-      model: trimmedModel,
-    };
-  }, [imageParams]);
+      model: imageParams.model?.trim() ?? "",
+    }),
+    [imageParams]
+  );
 
   const handleImageGenerationSubmit = useCallback(async () => {
     if (!sanitizedImageParams.model) {
