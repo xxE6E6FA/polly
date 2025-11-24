@@ -153,16 +153,7 @@ export function generateThumbnail(
 }
 
 export function readFileAsText(file: File): Promise<string> {
-  if (typeof file.text === "function") {
-    return file.text();
-  }
-
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
+  return file.text();
 }
 
 export function readFileAsBase64(file: File): Promise<string> {
