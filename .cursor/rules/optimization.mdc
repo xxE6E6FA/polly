@@ -4,13 +4,105 @@ description: Performance optimization guidelines and best practices
 
 # Performance & Optimization Guidelines
 
+## React Compiler & Memoization Best Practices
+
+### React Compiler Status
+- **Enabled**: React Compiler is active and compiles 353/353 components
+- **Automatic Optimization**: Let React Compiler handle most optimization
+- **Trust the Compiler**: Default to no manual memoization for new code
+
+### Manual Memoization Guidelines
+
+#### ✅ Keep Memoization For
+- **useEvent implementations** - Stable event handler pattern
+- **Public hook APIs** - Consumer stability contracts
+- **Virtualized components** - Performance-critical rendering (custom memo comparators)
+- **Provider contexts** - App-wide re-render prevention
+- **Expensive computations** - Profiler-verified optimizations (>10ms)
+- **Set/Map creation** - O(1) lookup optimizations for large datasets
+- **Functions used in other hook dependencies** - Prevents infinite re-renders
+
+#### ❌ Avoid Memoization For
+- Simple boolean logic (`isEnabled = status === "active"`)
+- Simple string operations (`displayName = user?.name || "Anonymous"`)
+- Simple array operations (`items.filter(item => item.visible)`)
+- Zero-dependency callbacks (`const handleClick = () => setOpen(true)`)
+- Trivial object creation (`{ id, name }`)
+- Simple className concatenation
+
+#### 🔍 Before Adding Memoization
+1. **Profile first** - Use React DevTools Profiler to identify actual performance issues
+2. **Document reasoning** - Explain why memoization is needed with performance data
+3. **Check dependencies** - Ensure the memoized value isn't used in other hook dependencies
+
+### Examples
+
+#### ✅ Good - Let React Compiler Handle It
+```tsx
+function UserProfile({ user, onEdit }: { user: User; onEdit: (id: string) => void }) {
+  // ✅ Simple computations - no memoization needed
+  const displayName = user?.name || "Anonymous";
+  const isEnabled = user.status === "active" && user.hasPermission;
+
+  // ✅ Simple event handler - no memoization needed
+  const handleEdit = () => {
+    onEdit(user.id);
+  };
+
+  return (
+    <div className={cn("user-card", isEnabled && "user-card--enabled")}>
+      <h3>{displayName}</h3>
+      <button onClick={handleEdit}>Edit</button>
+    </div>
+  );
+}
+```
+
+#### ✅ Good - Legitimate Memoization
+```tsx
+function VirtualizedModelList({ models }: { models: Model[] }) {
+  // ✅ Expensive computation for virtualization
+  const rows = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < models.length; i += columnsPerRow) {
+      result.push(models.slice(i, i + columnsPerRow));
+    }
+    return result;
+  }, [models, columnsPerRow]);
+
+  // ✅ Set creation for O(1) lookups in large list
+  const enabledModelsLookup = useMemo(
+    () => new Set(enabledModels.map(m => m.modelId)),
+    [enabledModels]
+  );
+
+  return <VirtualizedList rows={rows} lookup={enabledModelsLookup} />;
+}
+```
+
+#### ❌ Bad - Over-Memoization
+```tsx
+function UserCard({ user }: { user: User }) {
+  // ❌ Unnecessary memoization for simple operations
+  const displayName = useMemo(() => user?.name || "Anonymous", [user?.name]);
+
+  const isActive = useMemo(() => user.status === "active", [user.status]);
+
+  const handleClick = useCallback(() => {
+    console.log("Clicked");
+  }, []);
+
+  return <div onClick={handleClick}>{displayName}</div>;
+}
+```
+
 ## React Performance
 
 ### Component Optimization
-- **Avoid Functions in Components**: Don't define functions inside components that cause re-renders
-- **Memoization**: Use `useMemo` and `useCallback` only when necessary (avoid premature optimization)
+- **Trust React Compiler**: Let it handle most optimization automatically
 - **Component Splitting**: Break down large components (>200 lines) into smaller, focused ones
 - **Key Props**: Use stable, unique keys for list items (never array indices)
+- **Avoid Functions in JSX**: Don't define functions inside JSX that cause re-renders
 
 ### State Management
 - **Local State First**: Use `useState` for component-local state
@@ -21,8 +113,9 @@ description: Performance optimization guidelines and best practices
 ### Custom Hooks
 - **Single Responsibility**: One hook per concern
 - **Reusability**: Only create custom hooks when logic is reused in multiple places
-- **Performance**: Avoid expensive operations in custom hooks
+- **Public API Stability**: Memoize callbacks returned from custom hooks to maintain stable references
 - **Dependencies**: Properly declare all dependencies in useEffect
+- **useEvent Pattern**: Use `useEvent` for stable event handlers in hook APIs
 
 ## Bundle Optimization
 
@@ -118,13 +211,20 @@ description: Performance optimization guidelines and best practices
 
 ### Good Performance Patterns
 ```tsx
-// ✅ Stable references
+// ✅ Legitimate memoization for virtualization
 const UserList = ({ users }: { users: User[] }) => {
-  const stableUsers = useMemo(() => users, [users]);
-  
+  // Only memoize expensive chunking for virtual scrolling
+  const chunks = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < users.length; i += CHUNK_SIZE) {
+      result.push(users.slice(i, i + CHUNK_SIZE));
+    }
+    return result;
+  }, [users]);
+
   return (
     <VirtualizedList
-      items={stableUsers}
+      chunks={chunks}
       renderItem={({ item }) => <UserCard user={item} />}
     />
   );
@@ -134,7 +234,7 @@ const UserList = ({ users }: { users: User[] }) => {
 const useWebSocket = (url: string) => {
   useEffect(() => {
     const ws = new WebSocket(url);
-    
+
     return () => {
       ws.close(); // Cleanup
     };
@@ -144,30 +244,45 @@ const useWebSocket = (url: string) => {
 // ✅ Debounced search
 const useSearch = (query: string) => {
   const [results, setResults] = useState([]);
-  
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (query) {
         searchUsers(query).then(setResults);
       }
     }, 300);
-    
+
     return () => clearTimeout(timeoutId);
   }, [query]);
-  
+
   return results;
 };
 ```
 
 ### Performance Anti-Patterns
 ```tsx
-// ❌ Function in component causing re-renders
+// ❌ Unnecessary memoization (React Compiler handles this)
 const BadComponent = ({ items }) => {
-  const processItems = () => { // This recreates on every render
-    return items.map(item => item.value * 2);
+  const processedItems = useMemo(() => {
+    return items.map(item => item.value * 2); // Simple operation
+  }, [items]);
+
+  const handleClick = useCallback(() => {
+    console.log('clicked'); // Zero dependencies
+  }, []);
+
+  return <div onClick={handleClick}>{processedItems.join(', ')}</div>;
+};
+
+// ✅ Better - let React Compiler optimize
+const GoodComponent = ({ items }) => {
+  const processedItems = items.map(item => item.value * 2);
+
+  const handleClick = () => {
+    console.log('clicked');
   };
-  
-  return <div>{processItems().join(', ')}</div>;
+
+  return <div onClick={handleClick}>{processedItems.join(', ')}</div>;
 };
 
 // ❌ Missing cleanup

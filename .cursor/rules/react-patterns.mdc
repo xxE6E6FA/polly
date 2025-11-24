@@ -5,6 +5,36 @@ globs: ["src/components/**/*.tsx", "src/pages/**/*.tsx", "src/hooks/**/*.ts"]
 
 # React Patterns & Best Practices
 
+## React Compiler & Memoization
+
+**React Compiler Status**: ✅ Enabled - 353/353 components successfully compiled
+
+### Default Approach
+- **Trust the Compiler**: Let React Compiler handle optimization automatically
+- **Avoid Manual Memoization**: Don't use `useMemo`/`useCallback` for trivial operations
+- **Profile First**: Use React DevTools Profiler before adding manual optimizations
+
+### When NOT to Memoize
+```tsx
+// ❌ Don't memoize - React Compiler handles these automatically
+const displayName = useMemo(() => user?.name || "Anonymous", [user?.name]);
+const isActive = useMemo(() => status === "active", [status]);
+const handleClick = useCallback(() => setOpen(true), []);
+
+// ✅ Better - let React Compiler optimize
+const displayName = user?.name || "Anonymous";
+const isActive = status === "active";
+const handleClick = () => setOpen(true);
+```
+
+### When TO Keep Memoization
+- **useEvent implementations** - Stable event handler pattern
+- **Public hook APIs** - Consumer stability contracts
+- **Expensive computations** - Profiler-verified >10ms operations
+- **Virtualized components** - Performance-critical rendering
+- **Provider contexts** - App-wide re-render prevention
+- **Set/Map creation** - O(1) lookups for large datasets
+
 ## Component Structure
 - **Functional Components**: Always use function components with hooks
 - **PascalCase Names**: Component names must be PascalCase
@@ -18,8 +48,9 @@ globs: ["src/components/**/*.tsx", "src/pages/**/*.tsx", "src/hooks/**/*.ts"]
 - **Single Responsibility**: One hook per concern
 
 ## Performance Patterns
-- **Avoid Functions in Components**: Don't define functions inside components that cause re-renders
+- **Trust React Compiler**: Let it handle most optimization automatically
 - **No Premature Optimization**: Only optimize when there's a clear performance issue
+- **Profile Before Optimizing**: Use React DevTools Profiler to identify real bottlenecks
 - **Avoid Prop Drilling**: Use context or state management for deep prop passing
 - **Component Splitting**: Break down large components into smaller, focused ones
 
@@ -53,13 +84,13 @@ globs: ["src/components/**/*.tsx", "src/pages/**/*.tsx", "src/hooks/**/*.ts"]
 function Form() {
   const [firstName, setFirstName] = useState('Taylor');
   const [lastName, setLastName] = useState('Swift');
-  
+
   // 🔴 Avoid: redundant state and unnecessary Effect
   const [fullName, setFullName] = useState('');
   useEffect(() => {
     setFullName(firstName + ' ' + lastName);
   }, [firstName, lastName]);
-  
+
   return <div>{fullName}</div>;
 }
 
@@ -67,10 +98,10 @@ function Form() {
 function Form() {
   const [firstName, setFirstName] = useState('Taylor');
   const [lastName, setLastName] = useState('Swift');
-  
+
   // ✅ Good: calculated during rendering
   const fullName = firstName + ' ' + lastName;
-  
+
   return <div>{fullName}</div>;
 }
 ```
@@ -81,11 +112,11 @@ function Form() {
 // ❌ Bad: Using Effect for expensive calculations
 function TodoList({ todos, filter }) {
   const [visibleTodos, setVisibleTodos] = useState([]);
-  
+
   useEffect(() => {
     setVisibleTodos(getFilteredTodos(todos, filter));
   }, [todos, filter]);
-  
+
   return <ul>{visibleTodos.map(todo => <li key={todo.id}>{todo.text}</li>)}</ul>;
 }
 
@@ -94,7 +125,7 @@ function TodoList({ todos, filter }) {
   const visibleTodos = useMemo(() => {
     return getFilteredTodos(todos, filter);
   }, [todos, filter]);
-  
+
   return <ul>{visibleTodos.map(todo => <li key={todo.id}>{todo.text}</li>)}</ul>;
 }
 ```
@@ -106,21 +137,21 @@ function TodoList({ todos, filter }) {
 function SearchResults({ query }) {
   const [results, setResults] = useState([]);
   const [page, setPage] = useState(1);
-  
+
   useEffect(() => {
     let ignore = false;
-    
+
     fetchResults(query, page).then(json => {
       if (!ignore) {
         setResults(json);
       }
     });
-    
+
     return () => {
       ignore = true; // Cleanup to avoid race conditions
     };
   }, [query, page]);
-  
+
   return <div>{results.map(result => <div key={result.id}>{result.title}</div>)}</div>;
 }
 ```
@@ -153,13 +184,13 @@ function BadComponent({ shouldFetch }) {
 // ✅ Good: Always call hooks at top level
 function GoodComponent({ shouldFetch }) {
   const [data, setData] = useState(null);
-  
+
   useEffect(() => {
     if (shouldFetch) {
       fetchData().then(setData);
     }
   }, [shouldFetch]);
-  
+
   return <div>Content</div>;
 }
 ```
@@ -173,22 +204,22 @@ function GoodComponent({ shouldFetch }) {
 // ❌ Bad: Missing dependencies
 function BadComponent({ userId }) {
   const [user, setUser] = useState(null);
-  
+
   useEffect(() => {
     fetchUser(userId).then(setUser); // Missing userId dependency
   }, []); // Empty dependency array
-  
+
   return <div>{user?.name}</div>;
 }
 
 // ✅ Good: Complete dependencies
 function GoodComponent({ userId }) {
   const [user, setUser] = useState(null);
-  
+
   useEffect(() => {
     fetchUser(userId).then(setUser);
   }, [userId]); // Include all dependencies
-  
+
   return <div>{user?.name}</div>;
 }
 ```
@@ -202,19 +233,19 @@ function GoodComponent({ userId }) {
 // ❌ Bad: Side effects during render
 function BadComponent({ data }) {
   const processedData = processData(data); // Expensive calculation every render
-  
+
   // Side effect during render
   if (data.length > 100) {
     console.log('Large dataset'); // Side effect!
   }
-  
+
   return <div>{processedData}</div>;
 }
 
 // ✅ Good: Pure component with memoization
 function GoodComponent({ data }) {
   const processedData = useMemo(() => processData(data), [data]);
-  
+
   return <div>{processedData}</div>;
 }
 ```
@@ -228,23 +259,23 @@ function GoodComponent({ data }) {
 // ❌ Bad: Mutating props/state
 function BadComponent({ items }) {
   const [list, setList] = useState(items);
-  
+
   const addItem = (item) => {
     list.push(item); // Mutating state!
     setList(list);
   };
-  
+
   return <div>{list.map(item => <div key={item.id}>{item.name}</div>)}</div>;
 }
 
 // ✅ Good: Immutable updates
 function GoodComponent({ items }) {
   const [list, setList] = useState(items);
-  
+
   const addItem = (item) => {
     setList(prev => [...prev, item]); // Immutable update
   };
-  
+
   return <div>{list.map(item => <div key={item.id}>{item.name}</div>)}</div>;
 }
 ```
@@ -258,18 +289,18 @@ function GoodComponent({ items }) {
 // ❌ Bad: State update during render
 function BadComponent({ data }) {
   const [processed, setProcessed] = useState(null);
-  
+
   if (data && !processed) {
     setProcessed(processData(data)); // State update during render!
   }
-  
+
   return <div>{processed}</div>;
 }
 
 // ✅ Good: Calculate during render or use Effect properly
 function GoodComponent({ data }) {
   const processed = useMemo(() => data ? processData(data) : null, [data]);
-  
+
   return <div>{processed}</div>;
 }
 ```
@@ -282,12 +313,12 @@ function GoodComponent({ data }) {
 // ❌ Bad: Component defined inside render
 function BadParent() {
   const [count, setCount] = useState(0);
-  
+
   // Component recreated every render
   function ChildComponent() {
     return <div>Count: {count}</div>;
   }
-  
+
   return <ChildComponent />;
 }
 
@@ -389,12 +420,12 @@ export const UserProfile = memo(({ userId, onUpdate }: UserProfileProps) => {
 // ❌ Bad patterns
 export function BadComponent({ userId }) { // Missing types
   const [user, setUser] = useState(null);
-  
+
   // ❌ Function defined inside component
   const fetchUser = async () => {
     // ...
   };
-  
+
   // ❌ Nested ternary
   return user ? user.name ? <div>{user.name}</div> : <div>No name</div> : <div>Loading</div>;
 }

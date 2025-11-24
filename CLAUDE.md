@@ -30,6 +30,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This project uses **Biome** for linting and formatting. Always run `bun run fix` before committing.
 
+## React Compiler & Performance
+
+**Default Approach:**
+
+- Trust React Compiler for automatic optimization
+- Avoid manual `useMemo`/`useCallback` for simple operations
+- Profile first before adding memoization
+
+**Keep Memoization For:**
+
+- useEvent implementations (stable event handlers)
+- Public hook API callbacks (consumer stability)
+- Virtualized components (performance-critical)
+- Provider contexts (prevent app-wide re-renders)
+- Expensive computations (>10ms, profiler-verified)
+- Set/Map creation for O(1) lookups in large datasets
+
+**Avoid Memoization For:**
+
+- Simple boolean logic (`isActive = status === "active"`)
+- Simple string operations (`displayName = user?.name || "Anonymous"`)
+- Simple array operations (`items.filter(item => item.visible)`)
+- Zero-dependency callbacks (`() => setOpen(true)`)
+- Trivial object creation (`{ id, name }`)
+
+### Examples
+
+```typescript
+// ✅ Good - Let React Compiler optimize
+function UserProfile({ user, onEdit }) {
+  const displayName = user?.name || "Anonymous";
+  const isActive = user.status === "active";
+
+  const handleEdit = () => onEdit(user.id);
+
+  return <button onClick={handleEdit}>{displayName}</button>;
+}
+
+// ✅ Good - Legitimate expensive computation
+function ModelList({ models }) {
+  const rows = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < models.length; i += columnsPerRow) {
+      result.push(models.slice(i, i + columnsPerRow));
+    }
+    return result;
+  }, [models, columnsPerRow]);
+
+  return <VirtualizedList rows={rows} />;
+}
+
+// ❌ Bad - Unnecessary memoization
+function UserCard({ user }) {
+  const displayName = useMemo(() => user?.name || "Anonymous", [user?.name]);
+  const handleClick = useCallback(() => console.log("clicked"), []);
+
+  return <div onClick={handleClick}>{displayName}</div>;
+}
+```
+
 ### Key Formatting Rules
 
 - **Indentation**: 2 spaces (never tabs)
@@ -43,23 +103,27 @@ This project uses **Biome** for linting and formatting. Always run `bun run fix`
 ### Important Biome Rules to Follow
 
 **TypeScript:**
+
 - **No `any`**: Always use proper types or `unknown` with type guards
 - **Type Imports**: Use `import type { Foo }` for types (auto-organized by Biome)
 - **No Non-Null Assertion**: Avoid `!` operator (warning only)
 - **Optional Chaining**: Prefer `a?.b` over `a && a.b`
 
 **React:**
+
 - **Exhaustive Dependencies**: All useEffect/useMemo/useCallback deps must be declared
 - **No Array Index Keys**: Never use array index as `key` in `map()`
 - **No Children Prop**: Use children composition, not explicit `children` prop
 
 **Control Flow:**
+
 - **No Nested Ternaries**: Forbidden - use if/else or helper functions instead
 - **No `==`**: Always use `===` (strict equality)
 - **Use Block Statements**: Always use `{}` for if/else/while bodies
 - **No Empty Blocks**: Empty `{}` blocks are not allowed
 
 **Common Pitfalls:**
+
 - **No Console**: Backend code must use `log.*` from `convex/lib/logger` (console blocked by lint)
 - **No Unused Variables**: All declared variables must be used
 - **No Debugger**: Remove all `debugger` statements

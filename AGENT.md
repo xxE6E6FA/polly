@@ -20,6 +20,7 @@
 ## Code Style (Biome enforced)
 
 ### Formatting Rules
+
 - **Indentation**: 2 spaces (never tabs)
 - **Line Width**: 80 characters maximum
 - **Quotes**: Double quotes for strings and JSX attributes
@@ -29,6 +30,7 @@
 - **Bracket Spacing**: Always enabled `{ foo }` not `{foo}`
 
 ### Import Organization
+
 - **Aliases**: Use `@/` for src imports
 - **Auto-organize**: Biome automatically organizes imports on save/fix
 - **Type Imports**: Use `import type` for type-only imports (`useImportType` rule)
@@ -36,6 +38,7 @@
 - Order: External packages → Internal aliases → Relative imports
 
 ### Naming Conventions
+
 - **Functions/Variables**: camelCase (`getUserData`, `isLoading`)
 - **React Components**: PascalCase (`UserProfile`, `ChatHeader`)
 - **Types/Interfaces**: PascalCase (`User`, `ConversationId`)
@@ -43,6 +46,7 @@
 - **Files**: kebab-case for components (`chat-header.tsx`), camelCase for utilities
 
 ### React/JSX Rules
+
 - **Components**: Must be PascalCase
 - **Self-Closing**: Always use self-closing for elements without children (`<Button />`)
 - **Fragment Syntax**: Use `<>...</>` instead of `<Fragment>...</Fragment>`
@@ -50,7 +54,16 @@
 - **No Children Prop**: Use children composition, not `children` prop
 - **Exhaustive Dependencies**: All useEffect/useMemo/useCallback dependencies must be declared
 
+### React Compiler & Memoization
+
+- **React Compiler Enabled**: 353/353 components successfully compiled
+- **Default to No Memoization**: Let React Compiler handle optimization automatically
+- **Avoid Over-Memoization**: Don't use `useMemo`/`useCallback` for trivial operations
+- **Profile First**: Use React DevTools Profiler before adding manual optimizations
+- **Keep Legitimate Optimizations**: Preserve memoization for expensive computations, virtualization, provider contexts, and public hook APIs
+
 ### TypeScript Rules
+
 - **No `any`**: Use proper typing or `unknown` with type guards (`noExplicitAny` enforced)
 - **Type Imports**: Use `import type { Foo }` for types (`useImportType` enforced)
 - **Optional Chaining**: Prefer `?.` over manual null checks (`useOptionalChain` enforced)
@@ -60,6 +73,7 @@
 - **Array Literals**: Use `[]` not `new Array()` or `Array()`
 
 ### Control Flow & Logic
+
 - **No Nested Ternaries**: Forbidden by `noNestedTernary` rule - use if/else or helper functions
 - **Use Block Statements**: Always use `{}` for if/else/while bodies (`useBlockStatements` enforced)
 - **No Useless Else**: Remove else after return/throw (`noUselessElse` enforced)
@@ -67,6 +81,7 @@
 - **Use Optional Chain**: Prefer `a?.b?.c` over `a && a.b && a.b.c` (`useOptionalChain` enforced)
 
 ### Common Pitfalls to Avoid
+
 - **No `==`**: Always use `===` (`noDoubleEquals` enforced)
 - **No Console**: Use `log.*` from `convex/lib/logger` in backend (console allowed in scripts only)
 - **No Unused Variables**: All declared variables must be used (`noUnusedVariables` enforced)
@@ -75,10 +90,77 @@
 - **No Parameter Reassign**: Don't reassign function parameters (`noParameterAssign` enforced)
 
 ### Running Biome
+
 - **Fix All**: `bun run fix` (auto-fixes formatting, linting, organizes imports)
 - **Check Only**: `bunx biome check <file>` (shows issues without fixing)
 - **Specific File**: `bunx biome check --write <file>` (fix specific file)
 - **CI/CD**: `bunx biome ci .` (strict check for CI, fails on errors)
+
+## React Compiler & Performance Best Practices
+
+### Memoization Guidelines
+
+**✅ Keep Memoization For:**
+
+- useEvent implementations (stable event handler pattern)
+- Public hook API callbacks (consumer stability contracts)
+- Virtualized components (performance-critical rendering)
+- Provider contexts (app-wide re-render prevention)
+- Expensive computations (profiler-verified >10ms operations)
+- Set/Map creation for O(1) lookups in large datasets
+- Functions used in other hook dependencies (prevents infinite re-renders)
+
+**❌ Avoid Memoization For:**
+
+- Simple boolean logic (`isEnabled = status === "active"`)
+- Simple string operations (`displayName = user?.name || "Anonymous"`)
+- Simple array operations (`items.filter(item => item.visible)`)
+- Zero-dependency callbacks (`const handleClick = () => setOpen(true)`)
+- Trivial object creation (`{ id, name }`)
+- Simple className concatenation
+
+**🔍 Before Adding Memoization:**
+
+1. Profile with React DevTools Profiler to identify actual performance issues
+2. Document reasoning with performance data
+3. Verify the memoized value isn't used in other hook dependencies
+
+### Examples
+
+```typescript
+// ✅ Good - Let React Compiler handle it
+function UserCard({ user, onEdit }) {
+  const displayName = user?.name || "Anonymous";
+  const isActive = user.status === "active";
+
+  const handleEdit = () => {
+    onEdit(user.id);
+  };
+
+  return <button onClick={handleEdit}>{displayName}</button>;
+}
+
+// ✅ Good - Legitimate memoization for virtualization
+function ModelList({ models }) {
+  const rows = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < models.length; i += columnsPerRow) {
+      result.push(models.slice(i, i + columnsPerRow));
+    }
+    return result;
+  }, [models, columnsPerRow]);
+
+  return <VirtualizedList rows={rows} />;
+}
+
+// ❌ Bad - Unnecessary memoization
+function UserCard({ user }) {
+  const displayName = useMemo(() => user?.name || "Anonymous", [user?.name]);
+  const handleClick = useCallback(() => console.log("clicked"), []);
+
+  return <div onClick={handleClick}>{displayName}</div>;
+}
+```
 
 ## Error Handling
 
