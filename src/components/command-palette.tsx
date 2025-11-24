@@ -938,9 +938,8 @@ export function CommandPalette({
     normalizedDeferredSearch,
   ]);
 
-  const conversationBrowserList = useMemo(() => {
-    return Object.values(conversationsByCategory).flat();
-  }, [conversationsByCategory]);
+  // Simple array operation - React Compiler will optimize if needed
+  const conversationBrowserList = Object.values(conversationsByCategory).flat();
 
   const getConversationById = useCallback(
     (conversationId: string) => {

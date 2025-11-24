@@ -60,10 +60,9 @@ export function ModelPicker({
     };
   }, [fetchAllTTSData]);
 
-  const nameForValue = useMemo(() => {
-    const found = models.find(m => m.id === value);
-    return found?.name || value || "";
-  }, [models, value]);
+  // Simple array find - React Compiler will optimize if needed
+  const found = models.find(m => m.id === value);
+  const nameForValue = found?.name || value || "";
 
   // Scroll the currently selected item into view on first load or when items arrive
   const scrollToCurrent = useCallback(() => {

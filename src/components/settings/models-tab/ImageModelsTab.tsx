@@ -226,10 +226,8 @@ export const ImageModelsTab = () => {
     return apiKeys.filter(hasKey).some(key => key.provider === "replicate");
   }, [apiKeys]);
 
-  const enabledImageModelIds = useMemo(
-    () => enabledImageModels.map(model => model.modelId),
-    [enabledImageModels]
-  );
+  // Simple array map - React Compiler will optimize if needed
+  const enabledImageModelIds = enabledImageModels.map(model => model.modelId);
 
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
