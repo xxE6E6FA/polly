@@ -2396,10 +2396,17 @@ export const setStreaming = mutation({
   },
   handler: async (ctx, args) => {
     // When starting streaming (i.e., a new user message), bump updatedAt
-    await ctx.db.patch(args.conversationId, {
-      isStreaming: args.isStreaming,
-      ...(args.isStreaming ? { updatedAt: Date.now() } : {}),
-    });
+    // Use retry logic to handle concurrent updates to the conversation (e.g., tokenEstimate updates)
+    await withRetry(
+      async () => {
+        await ctx.db.patch(args.conversationId, {
+          isStreaming: args.isStreaming,
+          ...(args.isStreaming ? { updatedAt: Date.now() } : {}),
+        });
+      },
+      5,
+      25
+    );
   },
 });
 

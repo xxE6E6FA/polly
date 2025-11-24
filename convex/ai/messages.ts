@@ -106,6 +106,11 @@ export const convertMessagePart = async (
         }
       }
     }
+    if (part.attachment?.type === "text") {
+      if (part.attachment.content) {
+        return { type: "text" as const, text: part.attachment.content };
+      }
+    }
     return {
       type: "text" as const,
       text: `File: ${part.file?.filename || "Unknown"}\n${part.file?.file_data || ""}`,
