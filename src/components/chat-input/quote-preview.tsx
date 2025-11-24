@@ -14,11 +14,8 @@ type QuotePreviewProps = {
  * displays a cleaned, single block with dismiss action.
  */
 export function QuotePreview({ quote, onClear, className }: QuotePreviewProps) {
-  const displayText = useMemo(() => {
-    // Strip leading ">" markers while preserving inner markdown like **bold**.
-    const stripped = quote.replace(/(^|\n)>\s?/g, "$1").trim();
-    return stripped;
-  }, [quote]);
+  // Simple string operation - React Compiler will optimize if needed
+  const displayText = quote.replace(/(^|\n)>\s?/g, "$1").trim();
 
   return (
     <div

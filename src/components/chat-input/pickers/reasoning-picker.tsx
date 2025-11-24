@@ -132,12 +132,8 @@ const ReasoningPickerComponent = ({
 }: ReasoningPickerProps) => {
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
-  const provider = useMemo(() => {
-    if (!model) {
-      return null;
-    }
-    return model.provider;
-  }, [model]);
+  // Simple property access - React Compiler will optimize if needed
+  const provider = model?.provider ?? null;
 
   // Handle mandatory reasoning and provider-specific defaults when model changes
   useEffect(() => {

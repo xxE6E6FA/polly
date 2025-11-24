@@ -75,12 +75,8 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
   }) => {
     const isDesktop = useMediaQuery("(min-width: 640px)");
 
-    const handleRatioSelect = useCallback(
-      (ratio: string) => {
-        onAspectRatioChange(ratio);
-      },
-      [onAspectRatioChange]
-    );
+    // Direct prop usage - React Compiler will optimize if needed
+    const handleRatioSelect = onAspectRatioChange;
 
     const selectedRatio = ASPECT_RATIOS_DESKTOP.find(
       r => r.value === aspectRatio

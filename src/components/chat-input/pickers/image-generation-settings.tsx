@@ -75,21 +75,19 @@ const ImageGenerationControlsDesktop = ({
   disabled = false,
   onReset,
 }: ImageGenerationControlsProps) => {
-  const handleChange = useCallback(
-    (
-      field: keyof ImageGenerationParams,
-      value: string | number | undefined
-    ) => {
-      onParamsChange({ [field]: value });
-    },
-    [onParamsChange]
-  );
+  // Simple wrapper function - React Compiler will optimize if needed
+  const handleChange = (
+    field: keyof ImageGenerationParams,
+    value: string | number | undefined
+  ) => {
+    onParamsChange({ [field]: value });
+  };
 
-  const handleReuseLastSeed = useCallback(() => {
+  const handleReuseLastSeed = () => {
     if (lastGeneratedImageSeed !== undefined) {
       handleChange("seed", lastGeneratedImageSeed);
     }
-  }, [lastGeneratedImageSeed, handleChange]);
+  };
 
   const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
 
@@ -247,21 +245,19 @@ const ImageGenerationControlsMobile = ({
   disabled = false,
   onReset,
 }: ImageGenerationControlsProps) => {
-  const handleChange = useCallback(
-    (
-      field: keyof ImageGenerationParams,
-      value: string | number | undefined
-    ) => {
-      onParamsChange({ [field]: value });
-    },
-    [onParamsChange]
-  );
+  // Simple wrapper function - React Compiler will optimize if needed
+  const handleChange = (
+    field: keyof ImageGenerationParams,
+    value: string | number | undefined
+  ) => {
+    onParamsChange({ [field]: value });
+  };
 
-  const handleReuseLastSeed = useCallback(() => {
+  const handleReuseLastSeed = () => {
     if (lastGeneratedImageSeed !== undefined) {
       handleChange("seed", lastGeneratedImageSeed);
     }
-  }, [lastGeneratedImageSeed, handleChange]);
+  };
 
   const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
 
@@ -429,9 +425,10 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
     const isDesktop = useMediaQuery("(min-width: 640px)");
     const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
 
-    const handleReset = useCallback(() => {
+    // Simple wrapper function - React Compiler will optimize if needed
+    const handleReset = () => {
       onParamsChange(getImageSettingsResetParams(selectedModel));
-    }, [onParamsChange, selectedModel]);
+    };
 
     const triggerContent = (
       <>
