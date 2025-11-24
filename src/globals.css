@@ -10,9 +10,7 @@
   --container-screen-2xl: 1400px;
 
   /* Font Families */
-  --font-family-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  --font-family-sans: Arial, sans-serif;
   --font-family-serif: "Source Serif 4", "Source Serif Pro", serif;
   --font-family-mono:
     "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Monaco, Consolas,
@@ -201,50 +199,50 @@
   --z-select: 105;
   --z-tooltip: 120;
 
-  /* Colors - Light Mode Defaults (Grok Minimal) */
-  --color-border: hsl(0 0% 75%);
+  /* Colors - Light Mode Defaults (Are.na-inspired) */
+  --color-border: hsl(0 0% 90%);
   --color-input: hsl(0 0% 100%);
-  --color-input-hover: hsl(0 0% 98%);
-  --color-input-focus: hsl(0 0% 97%);
-  --color-input-border: hsl(0 0% 80%);
-  --color-ring: hsl(0 0% 52%);
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(0 0% 4%);
-  --color-foreground-focus: hsl(0 0% 2%);
-  --color-highlight: hsl(0 0% 16%);
+  --color-input-hover: hsl(0 0% 99%);
+  --color-input-focus: hsl(0 0% 98%);
+  --color-input-border: hsl(0 0% 85%);
+  --color-ring: hsl(0 0% 60%);
+  --color-background: hsl(0 0% 99%);
+  --color-foreground: hsl(0 0% 5%);
+  --color-foreground-focus: hsl(0 0% 0%);
+  --color-highlight: hsl(0 0% 20%);
   --color-highlight-foreground: hsl(0 0% 100%);
-  --color-card: hsl(0 0% 98%);
-  --color-card-foreground: hsl(0 0% 4%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(0 0% 10%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(0 0% 4%);
-  --color-sidebar-foreground: hsl(0 0% 20%);
-  --color-sidebar-muted: hsl(0 0% 40%);
-  --color-sidebar-hover: hsl(0 0% 92%);
-  --color-sidebar-tinted: hsl(0 0% 97%);
-  --color-active-element-tint: hsl(0 0% 96.1%);
-  --color-active-element-tint: hsl(0 0% 96.1%);
-  --color-active-element-border: hsl(0 0% 75%);
-  --color-sidebar: hsl(0 0% 98%);
+  --color-popover-foreground: hsl(0 0% 10%);
+  --color-sidebar-foreground: hsl(0 0% 5%);
+  --color-sidebar-muted: hsl(0 0% 25%);
+  --color-sidebar-hover: hsl(0 0% 96%);
+  --color-sidebar-tinted: hsl(0 0% 98%);
+  --color-active-element-tint: hsl(0 0% 97%);
+  --color-active-element-tint: hsl(0 0% 97%);
+  --color-active-element-border: hsl(0 0% 85%);
+  --color-sidebar: hsl(0 0% 97%);
 
-  /* Primary Colors (Minimal Black) */
-  --color-primary: hsl(0 0% 4%);
+  /* Primary Colors (Are.na Black) */
+  --color-primary: hsl(0 0% 10%);
   --color-primary-foreground: hsl(0 0% 100%);
-  --color-primary-hover: hsl(0 0% 16%);
-  --color-primary-active: hsl(0 0% 20%);
+  --color-primary-hover: hsl(0 0% 20%);
+  --color-primary-active: hsl(0 0% 30%);
 
-  /* Secondary Colors (Subtle Gray) */
-  --color-secondary: hsl(0 0% 96.1%);
-  --color-secondary-foreground: hsl(0 0% 9%);
-  --color-secondary-hover: hsl(40 18% 97%);
-  --color-secondary-active: hsl(0 0% 95%);
+  /* Secondary Colors (Are.na Gray) */
+  --color-secondary: hsl(0 0% 97%);
+  --color-secondary-foreground: hsl(0 0% 15%);
+  --color-secondary-hover: hsl(0 0% 95%);
+  --color-secondary-active: hsl(0 0% 93%);
 
   /* Muted Colors */
-  --color-muted: hsl(0 0% 96.1%);
-  --color-muted-foreground: hsl(0 0% 45.1%);
+  --color-muted: hsl(0 0% 97%);
+  --color-muted-foreground: hsl(0 0% 45%);
 
   /* Accent Colors (Use Sparingly) */
-  --color-accent: hsl(0 0% 96.1%);
-  --color-accent-foreground: hsl(0 0% 9%);
+  --color-accent: hsl(0 0% 97%);
+  --color-accent-foreground: hsl(0 0% 15%);
   --color-accent-coral: hsl(22 100% 51.6%);
   --color-accent-orange: hsl(22 100% 51.6%);
   --color-accent-purple: hsl(263 70% 50.4%);
@@ -478,39 +476,39 @@
   }
 
   .dark {
-    /* Dark Mode Color Overrides (Grok Minimal) */
-    --color-background: hsl(228 8% 7%);
-    --color-foreground: hsl(0 0% 100%);
+    /* Dark Mode Color Overrides (Are.na-inspired Dark) */
+    --color-background: hsl(0 0% 8%);
+    --color-foreground: hsl(0 0% 98%);
     --color-foreground-focus: hsl(0 0% 100%);
-    --color-highlight: hsl(214.6 79.1% 62.5%);
+    --color-highlight: hsl(0 0% 25%);
     --color-highlight-foreground: hsl(0 0% 100%);
-    --color-card: hsl(228 5% 11%);
-    --color-card-foreground: hsl(0 0% 98%);
-    --color-popover: hsl(228 8% 7%);
-    --color-popover-foreground: hsl(0 0% 95%);
-    --color-sidebar: hsl(228 5% 8%);
-    --color-sidebar-foreground: hsl(228 5% 90%);
-    --color-sidebar-muted: hsl(228 5% 60%);
-    --color-sidebar-hover: hsl(228 5% 14%);
-    /* Primary button: white background with dark text in dark mode (Grok style) */
-    --color-primary: hsl(0 0% 98%);
-    --color-primary-foreground: hsl(0 0% 4%);
-    --color-primary-hover: hsl(0 0% 95%);
-    --color-primary-active: hsl(0 0% 90%);
-    --color-secondary: hsl(0 0% 14.9%);
-    --color-secondary-foreground: hsl(0 0% 98%);
-    --color-secondary-hover: hsl(240 4% 16%);
-    --color-secondary-active: hsl(0 0% 21%);
-    --color-muted: hsl(0 0% 14.9%);
-    --color-muted-foreground: hsl(0 0% 63.9%);
-    --color-accent: hsl(240 4% 16%);
-    --color-accent-foreground: hsl(0 0% 98%);
-    --color-input: hsl(0 0% 16%);
-    --color-input-hover: hsl(0 0% 16%);
+    --color-card: hsl(0 0% 10%);
+    --color-card-foreground: hsl(0 0% 95%);
+    --color-popover: hsl(0 0% 8%);
+    --color-popover-foreground: hsl(0 0% 90%);
+    --color-sidebar: hsl(0 0% 9%);
+    --color-sidebar-foreground: hsl(0 0% 90%);
+    --color-sidebar-muted: hsl(0 0% 65%);
+    --color-sidebar-hover: hsl(0 0% 12%);
+    /* Primary button: light background with dark text in dark mode (Are.na style) */
+    --color-primary: hsl(0 0% 95%);
+    --color-primary-foreground: hsl(0 0% 8%);
+    --color-primary-hover: hsl(0 0% 90%);
+    --color-primary-active: hsl(0 0% 85%);
+    --color-secondary: hsl(0 0% 15%);
+    --color-secondary-foreground: hsl(0 0% 95%);
+    --color-secondary-hover: hsl(0 0% 18%);
+    --color-secondary-active: hsl(0 0% 22%);
+    --color-muted: hsl(0 0% 15%);
+    --color-muted-foreground: hsl(0 0% 75%);
+    --color-accent: hsl(0 0% 18%);
+    --color-accent-foreground: hsl(0 0% 95%);
+    --color-input: hsl(0 0% 12%);
+    --color-input-hover: hsl(0 0% 14%);
     --color-input-focus: hsl(0 0% 16%);
-    --color-border: hsl(0 0% 25%);
-    --color-ring: hsl(0 0% 52%);
-    --color-input-border: hsl(0 0% 25%);
+    --color-border: hsl(0 0% 20%);
+    --color-ring: hsl(0 0% 45%);
+    --color-input-border: hsl(0 0% 20%);
     /* Destructive/Danger: brighter red for better contrast with white text */
     --color-destructive: hsl(0 72% 45%);
     --color-destructive-foreground: hsl(0 0% 100%);
@@ -593,9 +591,7 @@
 }
 
 body {
-  font-family:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
+  font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
   line-height: 1.55;
 }
 
@@ -1909,17 +1905,41 @@ pre {
 .prose blockquote {
   border-left-width: 4px;
   border-left-color: var(--color-border);
-  color: var(--color-muted-foreground);
+  color: var(--color-foreground);
+  opacity: 0.8;
 }
 
 .prose em,
 .prose i {
-  color: var(--color-muted-foreground) / 0.85;
+  color: var(--color-foreground);
+  opacity: 0.9;
 }
 
 .dark .prose em,
 .dark .prose i {
-  color: var(--color-muted-foreground) / 0.9;
+  color: var(--color-foreground);
+  opacity: 0.95;
+}
+
+/* Message Text Enhancements */
+.prose p {
+  color: var(--color-foreground);
+}
+
+.prose :where(h1, h2, h3, h4, h5, h6) {
+  color: var(--color-foreground);
+}
+
+.prose li {
+  color: var(--color-foreground);
+}
+
+.prose code {
+  color: var(--color-foreground);
+}
+
+.prose a {
+  color: var(--color-foreground);
 }
 
 /* Temperature Slider Styling */
