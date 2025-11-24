@@ -179,7 +179,6 @@ const ModelPickerComponent = ({
           selectedImageModelId={imageParams.model || undefined}
           onSelectImageModel={handleSelectImageModel}
           size="md"
-          className="flex-1 min-h-0"
         />
       )}
       {activeTab === "image" && (
@@ -230,7 +229,7 @@ const ModelPickerComponent = ({
       contentClassName={
         isDesktop
           ? "flex flex-col overflow-hidden p-0"
-          : "h-[85dvh] max-h-[85dvh] pt-0 flex flex-col overflow-hidden"
+          : "p-0 flex flex-col overflow-hidden"
       }
     >
       {modelPickerContent}

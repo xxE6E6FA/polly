@@ -92,10 +92,7 @@ export function ModelDrawerTabs({
 
   return (
     <div
-      className={cn(
-        "flex h-full w-full min-h-0 flex-col overflow-hidden",
-        className
-      )}
+      className={cn("flex w-full flex-1 flex-col overflow-hidden", className)}
       onKeyDown={handleKeyDown}
     >
       {/* Header: Tabs or Search Input */}
@@ -163,7 +160,7 @@ export function ModelDrawerTabs({
 
       {/* Content */}
       {isSearching && (
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto">
           <div className="px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Text Models
           </div>
@@ -213,7 +210,7 @@ export function ModelDrawerTabs({
       )}
 
       {!isSearching && activeTab === "image" && (
-        <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto">
+        <div className="flex w-full flex-1 flex-col overflow-y-auto">
           {filteredImageModels.map(model => (
             <DrawerItem
               key={model.modelId}
