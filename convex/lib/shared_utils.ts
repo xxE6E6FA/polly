@@ -431,3 +431,24 @@ export function createEmptyPaginationResult() {
     continueCursor: null,
   };
 }
+
+/**
+ * Shared schema utilities
+ */
+
+// Sanitize schema keys for Convex (replaces $ with _)
+// This is used to sanitize external schemas (like OpenAPI) that may contain reserved characters
+export function sanitizeSchema(schema: any): any {
+  if (Array.isArray(schema)) {
+    return schema.map(sanitizeSchema);
+  }
+  if (schema !== null && typeof schema === "object") {
+    const newObj: Record<string, any> = {};
+    for (const [key, value] of Object.entries(schema)) {
+      const newKey = key.startsWith("$") ? key.replace("$", "_") : key;
+      newObj[newKey] = sanitizeSchema(value);
+    }
+    return newObj;
+  }
+  return schema;
+}

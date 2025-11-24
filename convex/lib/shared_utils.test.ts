@@ -13,6 +13,9 @@ import {
   validateConversationAccess,
   validateMonthlyMessageLimit,
   validateOwnership,
+  sanitizeSchema,
+  getConversationMessages,
+  stopConversationStreaming,
 } from "./shared_utils";
 import { makeConvexCtx } from "../../test/convex-ctx";
 
@@ -433,3 +436,174 @@ describe("createDefaultConversationFields", () => {
     expect(fields.sourceConversationId).toBe(sourceConversationId);
   });
 });
+
+describe("sanitizeSchema", () => {
+  test("replaces $ref with _ref in simple object", () => {
+    const input = { $ref: "#/definitions/Foo", type: "object" };
+    const expected = { _ref: "#/definitions/Foo", type: "object" };
+    expect(sanitizeSchema(input)).toEqual(expected);
+  });
+
+  test("replaces $ref in nested object", () => {
+    const input = { properties: { foo: { $ref: "#/definitions/Foo" } } };
+    const expected = { properties: { foo: { _ref: "#/definitions/Foo" } } };
+    expect(sanitizeSchema(input)).toEqual(expected);
+  });
+
+  test("replaces $ref in array", () => {
+    const input = [{ $ref: "#/definitions/Foo" }];
+    const expected = [{ _ref: "#/definitions/Foo" }];
+    expect(sanitizeSchema(input)).toEqual(expected);
+  });
+
+  test("replaces multiple $ keys", () => {
+    const input = {
+      $schema: "http://json-schema.org/draft-07/schema#",
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        meta: { $ref: "#/definitions/Meta" },
+      },
+    };
+    const expected = {
+      _schema: "http://json-schema.org/draft-07/schema#",
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        meta: { _ref: "#/definitions/Meta" },
+      },
+    };
+    expect(sanitizeSchema(input)).toEqual(expected);
+  });
+
+  test("handles null and non-object values", () => {
+    expect(sanitizeSchema(null)).toBeNull();
+    expect(sanitizeSchema("string")).toBe("string");
+    expect(sanitizeSchema(123)).toBe(123);
+  });
+});
+
+describe("getConversationMessages", () => {
+  test("returns all messages when includeMainBranchOnly is false", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const mockMessages = [{ _id: "msg-1" }, { _id: "msg-2" }];
+
+    const mockQuery = {
+      withIndex: mock(function() { return this; }),
+      order: mock(function() { return this; }),
+      collect: mock(() => Promise.resolve(mockMessages)),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => mockQuery),
+      },
+    });
+
+    const result = await getConversationMessages(ctx as any, conversationId, false);
+    expect(result).toEqual(mockMessages);
+  });
+
+  test("filters main branch messages when includeMainBranchOnly is true", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const mockMessages = [{ _id: "msg-1" }];
+
+    const mockQuery = {
+      withIndex: mock(function() { return this; }),
+      order: mock(function() { return this; }),
+      filter: mock(function() { return this; }),
+      collect: mock(() => Promise.resolve(mockMessages)),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        query: mock(() => mockQuery),
+      },
+    });
+
+    const result = await getConversationMessages(ctx as any, conversationId, true);
+    expect(result).toEqual(mockMessages);
+    expect(mockQuery.filter).toHaveBeenCalled();
+  });
+});
+
+describe("stopConversationStreaming", () => {
+  test("updates conversation and stops assistant message", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+
+    const mockMessage = {
+      _id: messageId,
+      role: "assistant",
+      metadata: {},
+    };
+
+    const mockQuery = {
+      withIndex: mock(function() { return this; }),
+      filter: mock(function() { return this; }),
+      order: mock(function() { return this; }),
+      first: mock(() => Promise.resolve(mockMessage)),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        patch: mock(() => Promise.resolve()),
+        query: mock(() => mockQuery),
+      },
+    });
+
+    await stopConversationStreaming(ctx as any, conversationId);
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(conversationId, {
+      isStreaming: false,
+    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+      status: "done",
+      metadata: {
+        finishReason: "user_stopped",
+        stopped: true,
+      },
+    });
+  });
+
+  test("updates content and reasoning when provided", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+
+    const mockMessage = {
+      _id: messageId,
+      role: "assistant",
+      metadata: {},
+    };
+
+    const mockQuery = {
+      withIndex: mock(function() { return this; }),
+      filter: mock(function() { return this; }),
+      order: mock(function() { return this; }),
+      first: mock(() => Promise.resolve(mockMessage)),
+    };
+
+    const ctx = makeConvexCtx({
+      db: {
+        patch: mock(() => Promise.resolve()),
+        query: mock(() => mockQuery),
+      },
+    });
+
+    await stopConversationStreaming(ctx as any, conversationId, {
+      content: "Stopped content",
+      reasoning: "Stopped reasoning",
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
+      status: "done",
+      content: "Stopped content",
+      reasoning: "Stopped reasoning",
+      metadata: {
+        finishReason: "user_stopped",
+        stopped: true,
+      },
+    });
+  });
+});
+

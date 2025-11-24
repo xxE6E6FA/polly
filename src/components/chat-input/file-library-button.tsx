@@ -17,15 +17,18 @@ interface FileLibraryButtonProps {
   disabled?: boolean;
   isSubmitting: boolean;
   conversationId?: string | null;
+  selectedModel?: { supportsImages?: boolean };
 }
 
 export function FileLibraryButton({
   disabled = false,
   isSubmitting,
   conversationId,
+  selectedModel: propsSelectedModel,
 }: FileLibraryButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedModel] = useSelectedModel();
+  const [hookSelectedModel] = useSelectedModel();
+  const selectedModel = propsSelectedModel ?? hookSelectedModel;
   const { isAuthenticated } = useUserIdentity();
   useChatScopedState(conversationId ?? undefined);
 

@@ -16,16 +16,19 @@ interface FileUploadButtonProps {
   disabled?: boolean;
   isSubmitting: boolean;
   conversationId?: string | null;
+  selectedModel?: unknown;
 }
 
 export function FileUploadButton({
   disabled = false,
   isSubmitting,
   conversationId,
+  selectedModel: propsSelectedModel,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notificationDialog = useNotificationDialog();
-  const [selectedModel] = useSelectedModel();
+  const [hookSelectedModel] = useSelectedModel();
+  const selectedModel = propsSelectedModel ?? hookSelectedModel;
   useChatScopedState(conversationId ?? undefined);
 
   const handleFileSelect = useCallback(async () => {

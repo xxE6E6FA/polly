@@ -18,11 +18,11 @@ function isImageEditingModel(modelName: string): boolean {
   const editingModels = [
     "google/nano-banana",
     "qwen/qwen2-vl",
-    "ideogram/ideogram", 
+    "ideogram/ideogram",
     "ideogram/ideogram-v2",
     "ideogram/ideogram-v3",
     "black-forest-labs/flux-depth-pro",
-    "black-forest-labs/flux-canny-pro", 
+    "black-forest-labs/flux-canny-pro",
     "black-forest-labs/flux-kontext-pro",
     "black-forest-labs/flux-kontext-max",
     "xinntao/gpt-image-1",
@@ -32,17 +32,26 @@ function isImageEditingModel(modelName: string): boolean {
     "cjwbw/controlnet",
     "rossjillian/controlnet",
   ];
-  
-  return editingModels.some(editModel => modelName.includes(editModel));
+
+  return editingModels.some((editModel) => modelName.includes(editModel));
 }
 
 // Try to detect an image input parameter from the model's OpenAPI input schema
-function detectImageInputFromSchema(modelData: any): { paramName: string; isArray: boolean } | null {
+function detectImageInputFromSchema(
+  modelData: any,
+): { paramName: string; isArray: boolean; isMessage?: boolean } | null {
   try {
-    const inputProps = modelData?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties;
+    const inputProps =
+      modelData?.latest_version?.openapi_schema?.components?.schemas?.Input
+        ?.properties;
     if (!inputProps || typeof inputProps !== "object") return null;
 
-    type Candidate = { key: string; isArray: boolean; score: number };
+    type Candidate = {
+      key: string;
+      isArray: boolean;
+      isMessage: boolean;
+      score: number;
+    };
     const candidates: Candidate[] = [];
 
     const prioritize = (key: string): number => {
@@ -54,8 +63,9 @@ function detectImageInputFromSchema(modelData: any): { paramName: string; isArra
         "init_image",
         "reference_image",
         "conditioning_image",
+        "messages",
       ];
-      const idx = order.findIndex(k => key.includes(k));
+      const idx = order.findIndex((k) => key.includes(k));
       return idx === -1 ? 999 : idx;
     };
 
@@ -63,7 +73,18 @@ function detectImageInputFromSchema(modelData: any): { paramName: string; isArra
       const k = key.toLowerCase();
       const desc = String(raw?.description || "").toLowerCase();
       const type = raw?.type;
-      const items = raw?.items;
+
+      // Special handling for "messages" parameter (common in VLMs like Qwen)
+      if (k === "messages" && type === "array") {
+        candidates.push({
+          key,
+          isArray: false,
+          isMessage: true,
+          score: prioritize(k),
+        });
+        continue;
+      }
+
       const looksImagey =
         k.includes("image") ||
         desc.includes("image") ||
@@ -71,10 +92,24 @@ function detectImageInputFromSchema(modelData: any): { paramName: string; isArra
         desc.includes("photo");
       if (!looksImagey) continue;
 
-      if (type === "array" && items && (items.type === "string" || items.format === "uri" || items.format === "binary")) {
-        candidates.push({ key, isArray: true, score: prioritize(k) });
-      } else if (type === "string" || raw?.format === "uri" || raw?.format === "binary") {
-        candidates.push({ key, isArray: false, score: prioritize(k) });
+      if (type === "array") {
+        candidates.push({
+          key,
+          isArray: true,
+          isMessage: false,
+          score: prioritize(k),
+        });
+      } else if (
+        type === "string" ||
+        raw?.format === "uri" ||
+        raw?.format === "binary"
+      ) {
+        candidates.push({
+          key,
+          isArray: false,
+          isMessage: false,
+          score: prioritize(k),
+        });
       }
     }
 
@@ -82,29 +117,46 @@ function detectImageInputFromSchema(modelData: any): { paramName: string; isArra
     candidates.sort((a, b) => a.score - b.score);
     const bestCandidate = candidates[0];
     if (!bestCandidate) return null;
-    return { paramName: bestCandidate.key, isArray: bestCandidate.isArray };
+    return {
+      paramName: bestCandidate.key,
+      isArray: bestCandidate.isArray,
+      isMessage: bestCandidate.isMessage,
+    };
   } catch {
     return null;
   }
 }
 
 // Helper function to get the appropriate image input parameter name and format for editing models
-function getImageInputConfig(modelName: string): { paramName: string; isArray: boolean } {
+function getImageInputConfig(modelName: string): {
+  paramName: string;
+  isArray: boolean;
+  isMessage: boolean;
+} {
   // Different models use different parameter names and formats for input images
-  if (modelName.includes("nano-banana")) return { paramName: "image_input", isArray: true };
-  if (modelName.includes("qwen")) return { paramName: "image", isArray: false }; 
-  if (modelName.includes("ideogram")) return { paramName: "image", isArray: false };
-  if (modelName.includes("flux")) return { paramName: "image", isArray: false };
-  if (modelName.includes("gpt-image")) return { paramName: "image", isArray: false };
-  if (modelName.toLowerCase().includes("seedream")) return { paramName: "image_input", isArray: true };
-  
+  if (modelName.includes("nano-banana"))
+    return { paramName: "image_input", isArray: true, isMessage: false };
+  if (modelName.includes("qwen"))
+    return { paramName: "image", isArray: false, isMessage: false };
+  if (modelName.includes("ideogram"))
+    return { paramName: "image", isArray: false, isMessage: false };
+  if (modelName.includes("flux"))
+    return { paramName: "image", isArray: false, isMessage: false };
+  if (modelName.includes("gpt-image"))
+    return { paramName: "image", isArray: false, isMessage: false };
+  if (modelName.toLowerCase().includes("seedream"))
+    return { paramName: "image_input", isArray: true, isMessage: false };
+
   // Default fallback
-  return { paramName: "image", isArray: false };
+  return { paramName: "image", isArray: false, isMessage: false };
 }
 
 // Helper function to convert aspect ratio to width/height dimensions
 // Ensures all dimensions are divisible by 8 (required by most AI models)
-function convertAspectRatioToDimensions(aspectRatio: string): { width: number; height: number } {
+function convertAspectRatioToDimensions(aspectRatio: string): {
+  width: number;
+  height: number;
+} {
   const baseSize = 1024; // Standard size for most models (already divisible by 8)
 
   // Helper to round to nearest multiple of 8
@@ -117,16 +169,28 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
       return { width: baseSize, height: baseSize }; // 1024x1024
     case "16:9":
       // 16:9 ratio from 1024 height = 1820x1024, round to 1824x1024
-      return { width: roundToMultipleOf8(baseSize * (16 / 9)), height: baseSize };
+      return {
+        width: roundToMultipleOf8(baseSize * (16 / 9)),
+        height: baseSize,
+      };
     case "9:16":
       // 9:16 ratio from 1024 width = 1024x1820, round to 1024x1824
-      return { width: baseSize, height: roundToMultipleOf8(baseSize * (16 / 9)) };
+      return {
+        width: baseSize,
+        height: roundToMultipleOf8(baseSize * (16 / 9)),
+      };
     case "4:3":
       // 4:3 ratio from 1024 height = 1365x1024, round to 1368x1024
-      return { width: roundToMultipleOf8(baseSize * (4 / 3)), height: baseSize };
+      return {
+        width: roundToMultipleOf8(baseSize * (4 / 3)),
+        height: baseSize,
+      };
     case "3:4":
       // 3:4 ratio from 1024 width = 1024x1365, round to 1024x1368
-      return { width: baseSize, height: roundToMultipleOf8(baseSize * (4 / 3)) };
+      return {
+        width: baseSize,
+        height: roundToMultipleOf8(baseSize * (4 / 3)),
+      };
     default: {
       // Parse custom ratio like "3:2"
       const [widthRatio, heightRatio] = aspectRatio.split(":").map(Number);
@@ -134,10 +198,16 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
         const ratio = widthRatio / heightRatio;
         if (ratio > 1) {
           // Landscape: fix height, calculate width
-          return { width: roundToMultipleOf8(baseSize * ratio), height: baseSize };
+          return {
+            width: roundToMultipleOf8(baseSize * ratio),
+            height: baseSize,
+          };
         } else {
           // Portrait: fix width, calculate height
-          return { width: baseSize, height: roundToMultipleOf8(baseSize / ratio) };
+          return {
+            width: baseSize,
+            height: roundToMultipleOf8(baseSize / ratio),
+          };
         }
       }
       // Fallback to square
@@ -147,9 +217,13 @@ function convertAspectRatioToDimensions(aspectRatio: string): { width: number; h
 }
 
 // Helper function to detect aspect ratio support from OpenAPI schema
-function detectAspectRatioSupportFromSchema(modelData: any): "aspect_ratio" | "dimensions" | "none" {
+function detectAspectRatioSupportFromSchema(
+  modelData: any,
+): "aspect_ratio" | "dimensions" | "none" {
   try {
-    const inputProps = modelData?.latest_version?.openapi_schema?.components?.schemas?.Input?.properties;
+    const inputProps =
+      modelData?.latest_version?.openapi_schema?.components?.schemas?.Input
+        ?.properties;
     if (!inputProps || typeof inputProps !== "object") return "none";
 
     // Check if model has aspect_ratio parameter
@@ -196,46 +270,52 @@ function detectAspectRatioSupportFromSchema(modelData: any): "aspect_ratio" | "d
 export const generateImage = action({
   args: {
     conversationId: v.id("conversations"),
-    messageId: v.id("messages"), 
+    messageId: v.id("messages"),
     prompt: v.string(),
     model: v.string(),
-    params: v.optional(v.object({
-      width: v.optional(v.number()),
-      height: v.optional(v.number()),
-      aspectRatio: v.optional(v.string()),
-      steps: v.optional(v.number()),
-      guidanceScale: v.optional(v.number()),
-      seed: v.optional(v.number()),
-      negativePrompt: v.optional(v.string()),
-      count: v.optional(v.number()),
-    })),
+    params: v.optional(
+      v.object({
+        width: v.optional(v.number()),
+        height: v.optional(v.number()),
+        aspectRatio: v.optional(v.string()),
+        steps: v.optional(v.number()),
+        guidanceScale: v.optional(v.number()),
+        seed: v.optional(v.number()),
+        negativePrompt: v.optional(v.string()),
+        count: v.optional(v.number()),
+      }),
+    ),
   },
-  
+
   handler: async (ctx, args) => {
     try {
       // Generate random seed if not provided
       const seed = args.params?.seed ?? Math.floor(Math.random() * 2147483647);
 
       // Check if this is a retry by looking for existing image generation data
-      const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: args.messageId,
-      });
+      const existingMessage = await ctx.runQuery(
+        internal.messages.internalGetByIdQuery,
+        {
+          id: args.messageId,
+        },
+      );
       const existingMessageDoc = toMessageDoc(existingMessage);
 
       const isRetry = Boolean(
         existingMessageDoc?.imageGeneration?.replicateId ||
           existingMessageDoc?.imageGeneration?.status === "failed" ||
-          existingMessageDoc?.imageGeneration?.status === "canceled"
+          existingMessageDoc?.imageGeneration?.status === "canceled",
       );
-      
 
-      
       if (isRetry) {
         // Clear previous image generation attachments
-        await ctx.runMutation(internal.messages.clearImageGenerationAttachments, {
-          messageId: args.messageId,
-        });
-        
+        await ctx.runMutation(
+          internal.messages.clearImageGenerationAttachments,
+          {
+            messageId: args.messageId,
+          },
+        );
+
         // Reset image generation status
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
@@ -245,12 +325,19 @@ export const generateImage = action({
         });
       }
       // Get Replicate API key
-      const apiKey = await getApiKey(ctx, "replicate", undefined, args.conversationId);
-      
+      const apiKey = await getApiKey(
+        ctx,
+        "replicate",
+        undefined,
+        args.conversationId,
+      );
+
       if (!apiKey) {
-        throw new Error("No Replicate API key found. Please add one in Settings.");
+        throw new Error(
+          "No Replicate API key found. Please add one in Settings.",
+        );
       }
-      
+
       // Initialize Replicate client
       const replicate = new Replicate({
         auth: apiKey,
@@ -258,8 +345,13 @@ export const generateImage = action({
 
       // Determine if the model accepts an image input and prepare input image(s)
       let inputImageUrls: string[] = [];
-      let imageInputConfig: { paramName: string; isArray: boolean } | null = null;
+      let imageInputConfig: {
+        paramName: string;
+        isArray: boolean;
+        isMessage?: boolean;
+      } | null = null;
       let aspectRatioMode: "aspect_ratio" | "dimensions" | "none" = "none";
+      let modelData: any = null;
 
       // Resolve model version and introspect schema to detect image input param and aspect ratio support
       try {
@@ -267,7 +359,7 @@ export const generateImage = action({
         if (!owner || !name) {
           throw new Error("Model must be specified as 'owner/name'");
         }
-        const modelData = await replicate.models.get(owner, name);
+        modelData = await replicate.models.get(owner, name);
 
         // Detect image input parameter
         const schemaConfig = detectImageInputFromSchema(modelData);
@@ -294,7 +386,11 @@ export const generateImage = action({
           "stability-ai/stable-diffusion-xl-base-1.0",
           "lucataco/sdxl",
         ];
-        if (aspectRatioSupportedModels.some(supported => args.model.includes(supported))) {
+        if (
+          aspectRatioSupportedModels.some((supported) =>
+            args.model.includes(supported),
+          )
+        ) {
           aspectRatioMode = "aspect_ratio";
         } else {
           aspectRatioMode = "dimensions";
@@ -310,7 +406,7 @@ export const generateImage = action({
         urls.slice(0, 3).map(redactUrlForLog);
 
       const resolveImageUrlsFromAttachments = async (
-        attachments: any[] | undefined
+        attachments: any[] | undefined,
       ): Promise<string[]> => {
         if (!Array.isArray(attachments) || attachments.length === 0) {
           return [];
@@ -342,11 +438,11 @@ export const generateImage = action({
           internal.messages.getAllInConversationInternal,
           {
             conversationId: args.conversationId,
-          }
+          },
         );
 
         const assistantMessageIndex = messages.findIndex(
-          (msg: any) => msg._id === args.messageId
+          (msg: any) => msg._id === args.messageId,
         );
 
         // 1) Prefer the most recent user message (typically the one that triggered this generation)
@@ -357,7 +453,9 @@ export const generateImage = action({
               continue;
             }
 
-            const urls = await resolveImageUrlsFromAttachments(candidate.attachments);
+            const urls = await resolveImageUrlsFromAttachments(
+              candidate.attachments,
+            );
             if (urls.length > 0) {
               inputImageUrls = urls;
               break;
@@ -391,10 +489,10 @@ export const generateImage = action({
             }
 
             const generatedFirst = attachments.filter(
-              (att: any) => att.generatedImage?.isGenerated
+              (att: any) => att.generatedImage?.isGenerated,
             );
             const others = attachments.filter(
-              (att: any) => !att.generatedImage?.isGenerated
+              (att: any) => !att.generatedImage?.isGenerated,
             );
             const prioritized = generatedFirst.concat(others);
 
@@ -411,16 +509,55 @@ export const generateImage = action({
         }
       }
 
-      // Prepare input parameters - let each model define its own schema  
+      // Get the model's input schema to map parameter names correctly
+      const inputProps =
+        modelData?.latest_version?.openapi_schema?.components?.schemas?.Input
+          ?.properties;
+      const schemaHasParam = (paramNames: string[]): string | null => {
+        if (!inputProps || typeof inputProps !== "object") {
+          return null;
+        }
+        for (const name of paramNames) {
+          if (name in inputProps) {
+            return name;
+          }
+        }
+        return null;
+      };
+
+      // Prepare input parameters - let each model define its own schema
       const input: Record<string, unknown> = {
         prompt: args.prompt,
       };
-      
+
       // Add input image when the model accepts an image input
       if (imageInputConfig && inputImageUrls.length > 0) {
-        input[imageInputConfig.paramName] = imageInputConfig.isArray
-          ? inputImageUrls
-          : inputImageUrls[0];
+        if (imageInputConfig.isMessage) {
+          // Handle message-based input (e.g. Qwen)
+          // Construct a ChatML-style message list
+          input[imageInputConfig.paramName] = [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: args.prompt,
+                },
+                ...inputImageUrls.map((url) => ({
+                  type: "image_url",
+                  image_url: {
+                    url,
+                  },
+                })),
+              ],
+            },
+          ];
+        } else {
+          // Handle standard image input
+          input[imageInputConfig.paramName] = imageInputConfig.isArray
+            ? inputImageUrls
+            : inputImageUrls[0];
+        }
       }
 
       // Add optional parameters if provided
@@ -432,7 +569,9 @@ export const generateImage = action({
             input.aspect_ratio = args.params.aspectRatio;
           } else if (aspectRatioMode === "dimensions") {
             // Model uses width/height parameters, convert aspect ratio to dimensions
-            const dimensions = convertAspectRatioToDimensions(args.params.aspectRatio);
+            const dimensions = convertAspectRatioToDimensions(
+              args.params.aspectRatio,
+            );
             input.width = dimensions.width;
             input.height = dimensions.height;
           } else {
@@ -447,79 +586,117 @@ export const generateImage = action({
         if (args.params.height && !args.params.aspectRatio) {
           input.height = args.params.height;
         }
-        
+
+        // Map steps parameter to the actual schema parameter name
         if (args.params.steps) {
-          input.num_inference_steps = args.params.steps;
+          const stepsParam = schemaHasParam([
+            "num_inference_steps",
+            "steps",
+            "num_steps",
+            "inference_steps",
+            "sampling_steps",
+          ]);
+          if (stepsParam) {
+            input[stepsParam] = args.params.steps;
+          }
         }
-        
+
+        // Map guidance parameter to the actual schema parameter name
         if (args.params.guidanceScale) {
-          input.guidance_scale = args.params.guidanceScale;
+          const guidanceParam = schemaHasParam([
+            "guidance_scale",
+            "guidance",
+            "cfg_scale",
+            "classifier_free_guidance",
+          ]);
+          if (guidanceParam) {
+            input[guidanceParam] = args.params.guidanceScale;
+          }
         }
-        
+
         // Always include the seed (either user-provided or generated)
         input.seed = seed;
-        
+
+        // Map negative prompt parameter to the actual schema parameter name
         if (args.params.negativePrompt && args.params.negativePrompt.trim()) {
-          input.negative_prompt = args.params.negativePrompt;
+          const negativePromptParam = schemaHasParam([
+            "negative_prompt",
+            "negative",
+            "neg_prompt",
+          ]);
+          if (negativePromptParam) {
+            input[negativePromptParam] = args.params.negativePrompt;
+          }
         }
-        
-        if (args.params.count && args.params.count >= 1 && args.params.count <= 4) {
-          // Try both num_outputs and batch_size parameters
-          // Some models use num_outputs, others use batch_size
-          input.num_outputs = args.params.count;
-          input.batch_size = args.params.count;
+
+        // Map count parameter to the actual schema parameter name
+        if (
+          args.params.count &&
+          args.params.count >= 1 &&
+          args.params.count <= 4
+        ) {
+          const countParam = schemaHasParam([
+            "num_outputs",
+            "batch_size",
+            "num_images",
+          ]);
+          if (countParam) {
+            input[countParam] = args.params.count;
+          }
         }
-        
-        // Disable safety checker for faster generation and to avoid false positives
+      }
+
+      // Always disable safety checker for faster generation and to avoid false positives
+      // Check if the model has this parameter before setting it
+      if (inputProps && "disable_safety_checker" in inputProps) {
         input.disable_safety_checker = true;
       }
-      
+
       // Prepare prediction body according to API spec
       const predictionBody: Partial<Prediction> = {
         input,
-        webhook: process.env.CONVEX_SITE_URL ? 
-          `${process.env.CONVEX_SITE_URL}/webhooks/replicate` : undefined,
+        webhook: process.env.CONVEX_SITE_URL
+          ? `${process.env.CONVEX_SITE_URL}/webhooks/replicate`
+          : undefined,
         webhook_events_filter: ["start", "completed"],
       };
-
-
 
       // Handle model vs version field according to API spec
       if (args.model.length === 64 && /^[a-f0-9]+$/.test(args.model)) {
         // This is a 64-character version ID
         predictionBody.version = args.model;
-
       } else {
         // For model names (owner/name format), resolve to latest version
         try {
           const [owner, name] = args.model.split("/");
           if (!owner || !name) {
-            throw new Error(`Invalid model format: ${args.model}. Use 'owner/name' format.`);
+            throw new Error(
+              `Invalid model format: ${args.model}. Use 'owner/name' format.`,
+            );
           }
-          
+
           const modelData = await replicate.models.get(owner, name);
           const latestVersion = modelData.latest_version?.id;
-          
+
           if (!latestVersion) {
             throw new Error(`No version available for model: ${args.model}`);
           }
-          
-          predictionBody.version = latestVersion;
 
+          predictionBody.version = latestVersion;
         } catch (error) {
           console.error("Failed to resolve model version", {
             model: args.model,
             error: error instanceof Error ? error.message : String(error),
           });
-          throw new Error(`Failed to resolve model: ${args.model}. Please check the model name or provide a version ID.`);
+          throw new Error(
+            `Failed to resolve model: ${args.model}. Please check the model name or provide a version ID.`,
+          );
         }
       }
 
       if (!predictionBody.version) {
         throw new Error("Model version is required");
       }
-      
-
 
       // Create prediction using Replicate client
       const prediction = await replicate.predictions.create({
@@ -528,11 +705,14 @@ export const generateImage = action({
         webhook: predictionBody.webhook,
         webhook_events_filter: predictionBody.webhook_events_filter,
       });
-      
+
       // Get existing metadata and update with the seed we're using
-      const existingMessageAfterCreate = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: args.messageId,
-      });
+      const existingMessageAfterCreate = await ctx.runQuery(
+        internal.messages.internalGetByIdQuery,
+        {
+          id: args.messageId,
+        },
+      );
       const existingMsgDoc = toMessageDoc(existingMessageAfterCreate);
 
       // Store prediction ID and update metadata with the seed
@@ -548,7 +728,7 @@ export const generateImage = action({
           },
         },
       });
-      
+
       // Start polling for completion (webhooks are preferred but polling is fallback)
       // Polling will automatically stop if webhook completes the prediction first
       await scheduleRunAfter(ctx, 2000, internal.ai.replicate.pollPrediction, {
@@ -557,21 +737,21 @@ export const generateImage = action({
         maxAttempts: 60, // 5 minutes max (5s * 60 = 300s)
         attempt: 1,
       });
-      
+
       return {
         replicateId: prediction.id,
         status: prediction.status,
       };
     } catch (error) {
       console.error("Image generation failed", { error });
-      
+
       const friendlyError = getUserFriendlyErrorMessage(error);
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
         status: "failed",
         error: friendlyError,
       });
-      
+
       throw error;
     }
   },
@@ -584,14 +764,14 @@ export const pollPrediction = internalAction({
     maxAttempts: v.number(),
     attempt: v.number(),
   },
-  
+
   handler: async (ctx, args) => {
     if (args.attempt > args.maxAttempts) {
       console.warn("Polling timeout reached", {
         predictionId: args.predictionId,
         maxAttempts: args.maxAttempts,
       });
-      
+
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: args.messageId,
         status: "failed",
@@ -599,51 +779,61 @@ export const pollPrediction = internalAction({
       });
       return;
     }
-    
+
     try {
       // Get the message to access conversationId and check if already completed
-      const messageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: args.messageId,
-      });
+      const messageResult = await ctx.runQuery(
+        internal.messages.internalGetByIdQuery,
+        {
+          id: args.messageId,
+        },
+      );
       const messageDoc = toMessageDoc(messageResult);
-      
+
       // Check if webhook has already completed this prediction
-      if (messageDoc?.imageGeneration?.status === "succeeded" ||
-          messageDoc?.imageGeneration?.status === "failed" ||
-          messageDoc?.imageGeneration?.status === "canceled") {
+      if (
+        messageDoc?.imageGeneration?.status === "succeeded" ||
+        messageDoc?.imageGeneration?.status === "failed" ||
+        messageDoc?.imageGeneration?.status === "canceled"
+      ) {
         return;
       }
-      
+
       const apiKey = await getApiKey(
-        ctx, 
+        ctx,
         "replicate",
         undefined, // modelId is not available here
-        messageDoc?.conversationId
+        messageDoc?.conversationId,
       );
-      
+
       if (!apiKey) {
         throw new Error("No Replicate API key found");
       }
-      
+
       // Initialize Replicate client
       const replicate = new Replicate({
         auth: apiKey,
       });
-      
+
       const prediction = await replicate.predictions.get(args.predictionId);
-      
+
       // Handle terminal states
       if (prediction.status === "succeeded") {
         // Get the existing message to preserve original metadata
-        const existingMessageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-          id: args.messageId,
-        });
+        const existingMessageResult = await ctx.runQuery(
+          internal.messages.internalGetByIdQuery,
+          {
+            id: args.messageId,
+          },
+        );
         const existingMessageDoc = toMessageDoc(existingMessageResult);
 
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "succeeded",
-          output: Array.isArray(prediction.output) ? prediction.output : [prediction.output],
+          output: Array.isArray(prediction.output)
+            ? prediction.output
+            : [prediction.output],
           metadata: {
             ...existingMessageDoc?.imageGeneration?.metadata,
             duration: prediction.metrics?.predict_time,
@@ -652,30 +842,37 @@ export const pollPrediction = internalAction({
 
         // Store the generated images in Convex storage
         if (prediction.output) {
-          const imageUrls = Array.isArray(prediction.output) ? prediction.output : [prediction.output];
+          const imageUrls = Array.isArray(prediction.output)
+            ? prediction.output
+            : [prediction.output];
           if (imageUrls.length > 0) {
             // Store images in background - don't block the polling response
-            await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
-              messageId: args.messageId,
-              imageUrls,
-              metadata: existingMessageDoc?.imageGeneration?.metadata,
-            });
+            await scheduleRunAfter(
+              ctx,
+              0,
+              internal.ai.replicate.storeGeneratedImages,
+              {
+                messageId: args.messageId,
+                imageUrls,
+                metadata: existingMessageDoc?.imageGeneration?.metadata,
+              },
+            );
           }
         }
-        
+
         return;
       }
-      
+
       if (prediction.status === "failed") {
         console.warn("Image generation failed", {
           predictionId: args.predictionId,
           error: prediction.error,
         });
-        
+
         const errorMessage = prediction.error
           ? getUserFriendlyErrorMessage(new Error(String(prediction.error)))
           : "Generation failed";
-        
+
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "failed",
@@ -683,7 +880,7 @@ export const pollPrediction = internalAction({
         });
         return;
       }
-      
+
       if (prediction.status === "canceled") {
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
@@ -691,33 +888,44 @@ export const pollPrediction = internalAction({
         });
         return;
       }
-      
+
       // Continue polling for non-terminal states (starting, processing)
       const nextPollDelay = args.attempt <= 3 ? 2000 : 5000; // Faster polling initially
-      await scheduleRunAfter(ctx, nextPollDelay, internal.ai.replicate.pollPrediction, {
-        ...args,
-        attempt: args.attempt + 1,
-      });
-      
+      await scheduleRunAfter(
+        ctx,
+        nextPollDelay,
+        internal.ai.replicate.pollPrediction,
+        {
+          ...args,
+          attempt: args.attempt + 1,
+        },
+      );
     } catch (error) {
-      console.error("Error during prediction polling", { 
+      console.error("Error during prediction polling", {
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
         attempt: args.attempt,
       });
-      
+
       // Retry with exponential backoff
       if (args.attempt < args.maxAttempts) {
         const retryDelay = Math.min(10000, 2000 * 2 ** (args.attempt - 1));
-        await scheduleRunAfter(ctx, retryDelay, internal.ai.replicate.pollPrediction, {
-          ...args,
-          attempt: args.attempt + 1,
-        });
+        await scheduleRunAfter(
+          ctx,
+          retryDelay,
+          internal.ai.replicate.pollPrediction,
+          {
+            ...args,
+            attempt: args.attempt + 1,
+          },
+        );
       } else {
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "failed",
-          error: getUserFriendlyErrorMessage(new Error("Failed to check generation status")),
+          error: getUserFriendlyErrorMessage(
+            new Error("Failed to check generation status"),
+          ),
         });
       }
     }
@@ -728,81 +936,94 @@ export const storeGeneratedImages = internalAction({
   args: {
     messageId: v.id("messages"),
     imageUrls: v.array(v.string()),
-    metadata: v.optional(v.object({
-      model: v.optional(v.string()),
-      prompt: v.optional(v.string()),
-      duration: v.optional(v.float64()),
-      params: v.optional(v.object({
-        aspectRatio: v.optional(v.string()),
-        count: v.optional(v.float64()),
-        guidanceScale: v.optional(v.float64()),
-        steps: v.optional(v.float64()),
-        seed: v.optional(v.float64()),
-        negativePrompt: v.optional(v.string()),
-      })),
-    })),
+    metadata: v.optional(
+      v.object({
+        model: v.optional(v.string()),
+        prompt: v.optional(v.string()),
+        duration: v.optional(v.float64()),
+        params: v.optional(
+          v.object({
+            aspectRatio: v.optional(v.string()),
+            count: v.optional(v.float64()),
+            guidanceScale: v.optional(v.float64()),
+            steps: v.optional(v.float64()),
+            seed: v.optional(v.float64()),
+            negativePrompt: v.optional(v.string()),
+          }),
+        ),
+      }),
+    ),
   },
-  
+
   handler: async (ctx, args) => {
-    
     // Check if images are already stored to prevent duplicates from webhook/polling race conditions
-    const existingMessageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-      id: args.messageId,
-    });
+    const existingMessageResult = await ctx.runQuery(
+      internal.messages.internalGetByIdQuery,
+      {
+        id: args.messageId,
+      },
+    );
     const existingMessageDoc = toMessageDoc(existingMessageResult);
 
-    if (existingMessageDoc?.attachments && existingMessageDoc.attachments.length > 0) {
+    if (
+      existingMessageDoc?.attachments &&
+      existingMessageDoc.attachments.length > 0
+    ) {
       const existingGeneratedImages = existingMessageDoc.attachments.filter(
-        (att: any) => att.type === "image" && att.generatedImage?.isGenerated
+        (att: any) => att.type === "image" && att.generatedImage?.isGenerated,
       );
 
       // Also check if any existing generated images have URLs that match what we're about to store
       const urlsToStore = new Set(args.imageUrls);
       const existingUrls = existingGeneratedImages.map((att: any) => att.url);
-      const hasMatchingUrls = existingUrls.some((url: any) => urlsToStore.has(url));
-      
+      const hasMatchingUrls = existingUrls.some((url: any) =>
+        urlsToStore.has(url),
+      );
+
       if (existingGeneratedImages.length > 0 || hasMatchingUrls) {
         return { storedCount: 0, skipped: true };
       }
     }
-    
+
     try {
       const attachments = [];
-      
+
       for (let i = 0; i < args.imageUrls.length; i++) {
         const imageUrl = args.imageUrls[i];
         if (!imageUrl) {
           continue;
         }
-        
+
         try {
           // Download the image from Replicate
           const response = await fetch(imageUrl);
-          
+
           if (!response.ok) {
             throw new Error(`Failed to download image: ${response.statusText}`);
           }
-          
+
           // Get the image data
           const imageBuffer = await response.arrayBuffer();
-          
+
           // Create a blob for storage
-          const contentType = response.headers.get("content-type") || "image/jpeg";
-          const imageBlob = new globalThis.Blob([imageBuffer], { 
-            type: contentType
+          const contentType =
+            response.headers.get("content-type") || "image/jpeg";
+          const imageBlob = new globalThis.Blob([imageBuffer], {
+            type: contentType,
           });
-          
+
           // Store in Convex storage
           const storageId = await ctx.storage.store(imageBlob);
-          
+
           // Generate a name based on metadata
-          const baseName = args.metadata?.model ? 
-            `${args.metadata.model.replace(/[^a-zA-Z0-9]/g, '_')}_generated` : 
-            "generated_image";
-          const fileName = args.imageUrls.length > 1 ? 
-            `${baseName}_${i + 1}.jpg` : 
-            `${baseName}.jpg`;
-          
+          const baseName = args.metadata?.model
+            ? `${args.metadata.model.replace(/[^a-zA-Z0-9]/g, "_")}_generated`
+            : "generated_image";
+          const fileName =
+            args.imageUrls.length > 1
+              ? `${baseName}_${i + 1}.jpg`
+              : `${baseName}.jpg`;
+
           // Create attachment object with generation metadata
           const attachment = {
             type: "image" as const,
@@ -819,35 +1040,35 @@ export const storeGeneratedImages = internalAction({
               prompt: args.metadata?.prompt,
             },
           };
-          
+
           attachments.push(attachment);
-          
         } catch (imageError) {
           console.error("Failed to store individual image", {
             imageUrl,
             index: i,
-            error: imageError instanceof Error ? imageError.message : String(imageError),
+            error:
+              imageError instanceof Error
+                ? imageError.message
+                : String(imageError),
           });
           // Continue with other images even if one fails
         }
       }
-      
+
       if (attachments.length > 0) {
         // Update the message with the stored attachments in the main attachments field
         await ctx.runMutation(internal.messages.addAttachments, {
           messageId: args.messageId,
           attachments,
         });
-        
       } else {
         console.warn("No images were successfully stored", {
           messageId: args.messageId,
           totalCount: args.imageUrls.length,
         });
       }
-      
+
       return { storedCount: attachments.length };
-      
     } catch (error) {
       console.error("Error storing generated images", {
         messageId: args.messageId,
@@ -866,11 +1087,17 @@ export const handleWebhook = internalAction({
     error: v.optional(v.string()),
     metadata: v.optional(v.any()),
   },
-  
+
   handler: async (ctx, args) => {
     try {
       // Validate status is one of the expected values from API spec
-      const validStatuses: Prediction["status"][] = ["starting", "processing", "succeeded", "failed", "canceled"];
+      const validStatuses: Prediction["status"][] = [
+        "starting",
+        "processing",
+        "succeeded",
+        "failed",
+        "canceled",
+      ];
       if (!validStatuses.includes(args.status as Prediction["status"])) {
         console.warn("Received webhook with invalid status", {
           predictionId: args.predictionId,
@@ -878,7 +1105,7 @@ export const handleWebhook = internalAction({
         });
         return;
       }
-      
+
       // Find message by Replicate prediction ID
       const message = await ctx.runQuery(internal.messages.getByReplicateId, {
         replicateId: args.predictionId,
@@ -891,42 +1118,57 @@ export const handleWebhook = internalAction({
         });
         return;
       }
-      
+
       // Update message with webhook data - preserve existing metadata and only update duration
-      const existingMessage = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: messageDoc._id as Id<"messages">,
-      });
+      const existingMessage = await ctx.runQuery(
+        internal.messages.internalGetByIdQuery,
+        {
+          id: messageDoc._id as Id<"messages">,
+        },
+      );
       const existingMessageDoc = toMessageDoc(existingMessage);
 
-      const transformedMetadata = args.metadata ? {
-        ...existingMessageDoc?.imageGeneration?.metadata,
-        duration: args.metadata.predict_time || args.metadata.duration,
-        // Only include fields that match our validator schema
-      } : undefined;
+      const transformedMetadata = args.metadata
+        ? {
+            ...existingMessageDoc?.imageGeneration?.metadata,
+            duration: args.metadata.predict_time || args.metadata.duration,
+            // Only include fields that match our validator schema
+          }
+        : undefined;
 
       await ctx.runMutation(internal.messages.updateImageGeneration, {
         messageId: messageDoc._id as Id<"messages">,
         status: args.status,
-        output: args.output ? (Array.isArray(args.output) ? args.output : [args.output]) : undefined,
+        output: args.output
+          ? Array.isArray(args.output)
+            ? args.output
+            : [args.output]
+          : undefined,
         error: args.error,
         metadata: transformedMetadata,
       });
-      
+
       // If the generation succeeded and we have output URLs, store the images
       if (args.status === "succeeded" && args.output) {
-        const imageUrls = Array.isArray(args.output) ? args.output : [args.output];
+        const imageUrls = Array.isArray(args.output)
+          ? args.output
+          : [args.output];
         if (imageUrls.length > 0) {
           // Store images in background - don't block webhook response
-          await scheduleRunAfter(ctx, 0, internal.ai.replicate.storeGeneratedImages, {
-            messageId: messageDoc._id as Id<"messages">,
-            imageUrls,
-            metadata: existingMessageDoc?.imageGeneration?.metadata,
-          });
+          await scheduleRunAfter(
+            ctx,
+            0,
+            internal.ai.replicate.storeGeneratedImages,
+            {
+              messageId: messageDoc._id as Id<"messages">,
+              imageUrls,
+              metadata: existingMessageDoc?.imageGeneration?.metadata,
+            },
+          );
         }
       }
-      
     } catch (error) {
-      console.error("Error handling webhook", { 
+      console.error("Error handling webhook", {
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
       });
@@ -939,44 +1181,54 @@ export const cancelPrediction = internalAction({
     predictionId: v.string(),
     messageId: v.id("messages"),
   },
-  
+
   handler: async (ctx, args) => {
     try {
       // Get the message to access conversationId
-      const messageResult = await ctx.runQuery(internal.messages.internalGetByIdQuery, {
-        id: args.messageId,
-      });
+      const messageResult = await ctx.runQuery(
+        internal.messages.internalGetByIdQuery,
+        {
+          id: args.messageId,
+        },
+      );
       const messageDoc = toMessageDoc(messageResult);
 
-      const apiKey = await getApiKey(ctx, "replicate", undefined, messageDoc?.conversationId);
-      
+      const apiKey = await getApiKey(
+        ctx,
+        "replicate",
+        undefined,
+        messageDoc?.conversationId,
+      );
+
       if (!apiKey) {
         throw new Error("No Replicate API key found");
       }
-      
+
       // Initialize Replicate client
       const replicate = new Replicate({
         auth: apiKey,
       });
-      
+
       try {
         await replicate.predictions.cancel(args.predictionId);
-        
+
         await ctx.runMutation(internal.messages.updateImageGeneration, {
           messageId: args.messageId,
           status: "canceled",
         });
-        
       } catch (cancelError) {
         console.warn("Failed to cancel prediction", {
           predictionId: args.predictionId,
-          error: cancelError instanceof Error ? cancelError.message : String(cancelError),
+          error:
+            cancelError instanceof Error
+              ? cancelError.message
+              : String(cancelError),
         });
-        
+
         // Don't throw error - cancellation failures shouldn't break the UI
       }
     } catch (error) {
-      console.error("Error during cancellation", { 
+      console.error("Error during cancellation", {
         error: error instanceof Error ? error.message : String(error),
         predictionId: args.predictionId,
       });

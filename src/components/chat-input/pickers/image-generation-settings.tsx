@@ -1,13 +1,13 @@
 import { ArrowCounterClockwise, Gear } from "@phosphor-icons/react";
 import { IMAGE_GENERATION_DEFAULTS } from "@shared/constants";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { cn } from "@/lib/utils";
+import { useReplicateSchema } from "@/hooks/use-replicate-schema";
 import type { ImageGenerationParams } from "@/types";
 
 interface ImageGenerationSettingsProps {
@@ -24,32 +24,44 @@ interface ImageGenerationSettingsProps {
 
 export function hasAdvancedImageSettings(
   params: ImageGenerationParams,
-  selectedModel?: { supportsMultipleImages?: boolean }
+  supportsMultipleImages: boolean,
+  supportsSteps: boolean,
+  supportsGuidance: boolean
 ) {
   return (
-    (selectedModel?.supportsMultipleImages &&
+    (supportsMultipleImages &&
       params.count !== undefined &&
       params.count !== IMAGE_GENERATION_DEFAULTS.COUNT) ||
-    (params.steps !== undefined &&
+    (supportsSteps &&
+      params.steps !== undefined &&
       params.steps !== IMAGE_GENERATION_DEFAULTS.STEPS) ||
-    (params.guidanceScale !== undefined &&
+    (supportsGuidance &&
+      params.guidanceScale !== undefined &&
       params.guidanceScale !== IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE) ||
     params.seed !== undefined
   );
 }
 
-export function getImageSettingsResetParams(selectedModel?: {
-  supportsMultipleImages?: boolean;
-}) {
+export function getImageSettingsResetParams(
+  supportsMultipleImages: boolean,
+  supportsSteps: boolean,
+  supportsGuidance: boolean
+) {
   const resetParams: Partial<ImageGenerationParams> = {
-    steps: IMAGE_GENERATION_DEFAULTS.STEPS,
-    guidanceScale: IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE,
     seed: undefined,
     negativePrompt: IMAGE_GENERATION_DEFAULTS.NEGATIVE_PROMPT,
   };
 
-  if (selectedModel?.supportsMultipleImages) {
+  if (supportsMultipleImages) {
     resetParams.count = IMAGE_GENERATION_DEFAULTS.COUNT;
+  }
+
+  if (supportsSteps) {
+    resetParams.steps = IMAGE_GENERATION_DEFAULTS.STEPS;
+  }
+
+  if (supportsGuidance) {
+    resetParams.guidanceScale = IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE;
   }
 
   return resetParams;
@@ -75,6 +87,9 @@ const ImageGenerationControlsDesktop = ({
   disabled = false,
   onReset,
 }: ImageGenerationControlsProps) => {
+  // Fetch the model schema to get dynamic capabilities
+  const { capabilities } = useReplicateSchema(selectedModel?.modelId);
+
   // Simple wrapper function - React Compiler will optimize if needed
   const handleChange = (
     field: keyof ImageGenerationParams,
@@ -89,7 +104,29 @@ const ImageGenerationControlsDesktop = ({
     }
   };
 
-  const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
+  const hasAdvancedSettings = hasAdvancedImageSettings(
+    params,
+    capabilities.supportsMultipleImages,
+    capabilities.supportsSteps,
+    capabilities.supportsGuidance
+  );
+
+  // Use schema-derived configs or fall back to defaults
+  const stepsConfig = capabilities.stepsConfig || {
+    name: "num_inference_steps",
+    min: 1,
+    max: 50,
+    default: IMAGE_GENERATION_DEFAULTS.STEPS,
+    step: 1,
+  };
+
+  const guidanceConfig = capabilities.guidanceConfig || {
+    name: "guidance_scale",
+    min: 1,
+    max: 20,
+    default: IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE,
+    step: 0.5,
+  };
 
   return (
     <div className="p-4">
@@ -109,7 +146,7 @@ const ImageGenerationControlsDesktop = ({
       </div>
 
       <div className="stack-lg pt-4">
-        {selectedModel?.supportsMultipleImages && (
+        {capabilities.supportsMultipleImages && (
           <div className="stack-md">
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Output
@@ -138,9 +175,14 @@ const ImageGenerationControlsDesktop = ({
                   variant="outline"
                   size="sm"
                   className="h-7 w-7 p-0"
-                  disabled={disabled || (params.count || 1) >= 4}
+                  disabled={
+                    disabled || (params.count || 1) >= capabilities.maxOutputs
+                  }
                   onClick={() =>
-                    handleChange("count", Math.min(4, (params.count || 1) + 1))
+                    handleChange(
+                      "count",
+                      Math.min(capabilities.maxOutputs, (params.count || 1) + 1)
+                    )
                   }
                 >
                   +
@@ -150,88 +192,98 @@ const ImageGenerationControlsDesktop = ({
           </div>
         )}
 
-        {selectedModel?.supportsMultipleImages && (
+        {capabilities.supportsMultipleImages && (
           <div className="border-t border-border" />
         )}
 
-        <div className="stack-md">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Quality
-          </div>
-
-          <EnhancedSlider
-            label="Steps"
-            value={params.steps}
-            defaultValue={IMAGE_GENERATION_DEFAULTS.STEPS}
-            min={1}
-            max={50}
-            step={1}
-            onValueChange={value => handleChange("steps", value)}
-            disabled={disabled}
-            formatValue={value =>
-              value === IMAGE_GENERATION_DEFAULTS.STEPS ? "auto" : String(value)
-            }
-            showSpinners={true}
-            className="stack-sm"
-          />
-
-          <EnhancedSlider
-            label="Guidance"
-            value={params.guidanceScale}
-            defaultValue={IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE}
-            min={1}
-            max={20}
-            step={0.5}
-            onValueChange={value => handleChange("guidanceScale", value)}
-            disabled={disabled}
-            formatValue={value =>
-              value === IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE
-                ? "auto"
-                : String(value)
-            }
-            showSpinners={true}
-            className="stack-sm"
-          />
-        </div>
-
-        <div className="border-t border-border" />
-
-        <div className="stack-md">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Control
-          </div>
-
-          <div className="stack-sm">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Seed</Label>
-              {lastGeneratedImageSeed !== undefined && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReuseLastSeed}
-                  disabled={disabled || params.seed === lastGeneratedImageSeed}
-                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Reuse last
-                </Button>
-              )}
+        {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
+          <div className="stack-md">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Quality
             </div>
-            <Input
-              type="number"
-              value={params.seed || ""}
-              onChange={e =>
-                handleChange(
-                  "seed",
-                  e.target.value ? Number(e.target.value) : undefined
-                )
-              }
-              placeholder="Random"
-              className="h-8 text-sm"
-              disabled={disabled}
-            />
+
+            {capabilities.supportsSteps && (
+              <EnhancedSlider
+                label="Steps"
+                value={params.steps}
+                defaultValue={stepsConfig.default}
+                min={stepsConfig.min}
+                max={stepsConfig.max}
+                step={stepsConfig.step}
+                onValueChange={value => handleChange("steps", value)}
+                disabled={disabled}
+                formatValue={value =>
+                  value === stepsConfig.default ? "auto" : String(value)
+                }
+                showSpinners={true}
+                className="stack-sm"
+              />
+            )}
+
+            {capabilities.supportsGuidance && (
+              <EnhancedSlider
+                label="Guidance"
+                value={params.guidanceScale}
+                defaultValue={guidanceConfig.default}
+                min={guidanceConfig.min}
+                max={guidanceConfig.max}
+                step={guidanceConfig.step}
+                onValueChange={value => handleChange("guidanceScale", value)}
+                disabled={disabled}
+                formatValue={value =>
+                  value === guidanceConfig.default ? "auto" : String(value)
+                }
+                showSpinners={true}
+                className="stack-sm"
+              />
+            )}
           </div>
-        </div>
+        )}
+
+        {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
+          <div className="border-t border-border" />
+        )}
+
+        {capabilities.supportsSeed && (
+          <div className="stack-md">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Control
+            </div>
+
+            <div className="stack-sm">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Seed</Label>
+                {lastGeneratedImageSeed !== undefined && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReuseLastSeed}
+                    disabled={
+                      disabled || params.seed === lastGeneratedImageSeed
+                    }
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Reuse last
+                  </Button>
+                )}
+              </div>
+              <Input
+                type="number"
+                value={params.seed || ""}
+                onChange={e =>
+                  handleChange(
+                    "seed",
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                placeholder="Random"
+                className="h-8 text-sm"
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -245,6 +297,9 @@ const ImageGenerationControlsMobile = ({
   disabled = false,
   onReset,
 }: ImageGenerationControlsProps) => {
+  // Fetch the model schema to get dynamic capabilities
+  const { capabilities } = useReplicateSchema(selectedModel?.modelId);
+
   // Simple wrapper function - React Compiler will optimize if needed
   const handleChange = (
     field: keyof ImageGenerationParams,
@@ -259,7 +314,29 @@ const ImageGenerationControlsMobile = ({
     }
   };
 
-  const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
+  const hasAdvancedSettings = hasAdvancedImageSettings(
+    params,
+    capabilities.supportsMultipleImages,
+    capabilities.supportsSteps,
+    capabilities.supportsGuidance
+  );
+
+  // Use schema-derived configs or fall back to defaults
+  const stepsConfig = capabilities.stepsConfig || {
+    name: "num_inference_steps",
+    min: 1,
+    max: 50,
+    default: IMAGE_GENERATION_DEFAULTS.STEPS,
+    step: 1,
+  };
+
+  const guidanceConfig = capabilities.guidanceConfig || {
+    name: "guidance_scale",
+    min: 1,
+    max: 20,
+    default: IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE,
+    step: 0.5,
+  };
 
   return (
     <>
@@ -279,7 +356,7 @@ const ImageGenerationControlsMobile = ({
       )}
 
       <div className="stack-lg">
-        {selectedModel?.supportsMultipleImages && (
+        {capabilities.supportsMultipleImages && (
           <>
             <div className="stack-md">
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -312,11 +389,16 @@ const ImageGenerationControlsMobile = ({
                     variant="outline"
                     size="sm"
                     className="h-8 w-8 p-0"
-                    disabled={disabled || (params.count || 1) >= 4}
+                    disabled={
+                      disabled || (params.count || 1) >= capabilities.maxOutputs
+                    }
                     onClick={() =>
                       handleChange(
                         "count",
-                        Math.min(4, (params.count || 1) + 1)
+                        Math.min(
+                          capabilities.maxOutputs,
+                          (params.count || 1) + 1
+                        )
                       )
                     }
                   >
@@ -330,84 +412,94 @@ const ImageGenerationControlsMobile = ({
           </>
         )}
 
-        <div className="stack-md">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Quality
-          </div>
-
-          <EnhancedSlider
-            label="Steps"
-            value={params.steps}
-            defaultValue={IMAGE_GENERATION_DEFAULTS.STEPS}
-            min={1}
-            max={50}
-            step={1}
-            onValueChange={value => handleChange("steps", value)}
-            disabled={disabled}
-            formatValue={value =>
-              value === IMAGE_GENERATION_DEFAULTS.STEPS ? "auto" : String(value)
-            }
-            showSpinners={true}
-            className="stack-sm"
-          />
-
-          <EnhancedSlider
-            label="Guidance"
-            value={params.guidanceScale}
-            defaultValue={IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE}
-            min={1}
-            max={20}
-            step={0.5}
-            onValueChange={value => handleChange("guidanceScale", value)}
-            disabled={disabled}
-            formatValue={value =>
-              value === IMAGE_GENERATION_DEFAULTS.GUIDANCE_SCALE
-                ? "auto"
-                : String(value)
-            }
-            showSpinners={true}
-            className="stack-sm"
-          />
-        </div>
-
-        <div className="border-t border-border" />
-
-        <div className="stack-md">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Control
-          </div>
-
-          <div className="stack-sm">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Seed</Label>
-              {lastGeneratedImageSeed !== undefined && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleReuseLastSeed}
-                  disabled={disabled || params.seed === lastGeneratedImageSeed}
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Reuse last
-                </Button>
-              )}
+        {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
+          <div className="stack-md">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Quality
             </div>
-            <Input
-              type="number"
-              value={params.seed || ""}
-              onChange={e =>
-                handleChange(
-                  "seed",
-                  e.target.value ? Number(e.target.value) : undefined
-                )
-              }
-              placeholder="Random"
-              className="h-9 text-sm"
-              disabled={disabled}
-            />
+
+            {capabilities.supportsSteps && (
+              <EnhancedSlider
+                label="Steps"
+                value={params.steps}
+                defaultValue={stepsConfig.default}
+                min={stepsConfig.min}
+                max={stepsConfig.max}
+                step={stepsConfig.step}
+                onValueChange={value => handleChange("steps", value)}
+                disabled={disabled}
+                formatValue={value =>
+                  value === stepsConfig.default ? "auto" : String(value)
+                }
+                showSpinners={true}
+                className="stack-sm"
+              />
+            )}
+
+            {capabilities.supportsGuidance && (
+              <EnhancedSlider
+                label="Guidance"
+                value={params.guidanceScale}
+                defaultValue={guidanceConfig.default}
+                min={guidanceConfig.min}
+                max={guidanceConfig.max}
+                step={guidanceConfig.step}
+                onValueChange={value => handleChange("guidanceScale", value)}
+                disabled={disabled}
+                formatValue={value =>
+                  value === guidanceConfig.default ? "auto" : String(value)
+                }
+                showSpinners={true}
+                className="stack-sm"
+              />
+            )}
           </div>
-        </div>
+        )}
+
+        {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
+          <div className="border-t border-border" />
+        )}
+
+        {capabilities.supportsSeed && (
+          <div className="stack-md">
+            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Control
+            </div>
+
+            <div className="stack-sm">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Seed</Label>
+                {lastGeneratedImageSeed !== undefined && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleReuseLastSeed}
+                    disabled={
+                      disabled || params.seed === lastGeneratedImageSeed
+                    }
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Reuse last
+                  </Button>
+                )}
+              </div>
+              <Input
+                type="number"
+                value={params.seed || ""}
+                onChange={e =>
+                  handleChange(
+                    "seed",
+                    e.target.value ? Number(e.target.value) : undefined
+                  )
+                }
+                placeholder="Random"
+                className="h-9 text-sm"
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -423,12 +515,41 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
     className = "",
   }) => {
     const isDesktop = useMediaQuery("(min-width: 640px)");
-    const hasAdvancedSettings = hasAdvancedImageSettings(params, selectedModel);
+
+    // Fetch the model schema to determine capabilities
+    const { capabilities } = useReplicateSchema(selectedModel?.modelId);
+
+    const hasAdvancedSettings = useMemo(
+      () =>
+        hasAdvancedImageSettings(
+          params,
+          capabilities.supportsMultipleImages,
+          capabilities.supportsSteps,
+          capabilities.supportsGuidance
+        ),
+      [
+        params,
+        capabilities.supportsMultipleImages,
+        capabilities.supportsSteps,
+        capabilities.supportsGuidance,
+      ]
+    );
 
     // Simple wrapper function - React Compiler will optimize if needed
-    const handleReset = () => {
-      onParamsChange(getImageSettingsResetParams(selectedModel));
-    };
+    const handleReset = useCallback(() => {
+      onParamsChange(
+        getImageSettingsResetParams(
+          capabilities.supportsMultipleImages,
+          capabilities.supportsSteps,
+          capabilities.supportsGuidance
+        )
+      );
+    }, [
+      onParamsChange,
+      capabilities.supportsMultipleImages,
+      capabilities.supportsSteps,
+      capabilities.supportsGuidance,
+    ]);
 
     const triggerContent = (
       <>
