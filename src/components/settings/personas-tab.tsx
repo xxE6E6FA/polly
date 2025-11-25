@@ -389,19 +389,19 @@ export const PersonasTab = () => {
     const isDisabled =
       persona.type === "built-in" ? persona.isDisabled : !persona.isActive;
     return (
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-start gap-3">
         <span
           className={`text-xl flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
         >
           {persona.icon || "🤖"}
         </span>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <div
             className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}
           >
             {persona.name}
           </div>
-          <div className="text-sm text-muted-foreground line-clamp-1">
+          <div className="text-sm text-muted-foreground break-words">
             {persona.description}
           </div>
         </div>
@@ -409,18 +409,12 @@ export const PersonasTab = () => {
     );
   };
 
-  // Mobile metadata renderer - shows type badge and status
+  // Mobile metadata renderer - shows type badge
   const mobileMetadataRender = (persona: EnrichedPersona) => {
-    const isActive =
-      persona.type === "built-in" ? !persona.isDisabled : persona.isActive;
     return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Badge variant={persona.type === "built-in" ? "secondary" : "default"}>
-          {persona.type === "built-in" ? "Built-in" : "Custom"}
-        </Badge>
-        <span>•</span>
-        <span>{isActive ? "Enabled" : "Disabled"}</span>
-      </div>
+      <Badge variant={persona.type === "built-in" ? "secondary" : "default"}>
+        {persona.type === "built-in" ? "Built-in" : "Custom"}
+      </Badge>
     );
   };
 

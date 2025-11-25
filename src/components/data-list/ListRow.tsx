@@ -41,8 +41,9 @@ export function ListRow({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
     >
+      {/* On mobile (< lg), use block layout. On desktop, use grid with template */}
       <div
-        className="grid items-center gap-4 p-4"
+        className="p-4 lg:grid lg:items-center lg:gap-4"
         style={gridTemplate ? { gridTemplateColumns: gridTemplate } : undefined}
       >
         {children}
