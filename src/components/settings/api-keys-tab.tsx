@@ -1,18 +1,9 @@
 import { api } from "@convex/_generated/api";
-
-type ApiKeyInfo = {
-  provider: string;
-  isValid: boolean;
-  hasKey: boolean;
-  partialKey: string;
-  createdAt: number;
-  encryptionType: string;
-};
-
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,13 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { CACHE_KEYS, get } from "@/lib/local-storage";
 import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
 import { useToast } from "@/providers/toast-context";
-import { Badge } from "../ui/badge";
 import { SettingsHeader } from "./settings-header";
+import { SettingsPageLayout } from "./ui/SettingsPageLayout";
+
+type ApiKeyInfo = {
+  provider: string;
+  isValid: boolean;
+  hasKey: boolean;
+  partialKey: string;
+  createdAt: number;
+  encryptionType: string;
+};
 
 type ApiProvider =
   | "openai"
@@ -78,16 +79,6 @@ const API_KEY_INFO = {
   },
 };
 
-function getProviderCardStyle(isConnected: boolean) {
-  const baseStyle = "p-4 rounded-lg transition-all duration-200 shadow-sm";
-
-  if (isConnected) {
-    return `${baseStyle} ring-1 ring-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 hover:from-primary/15 hover:to-primary/10`;
-  }
-
-  return `${baseStyle} ring-1 ring-border/30 bg-card hover:bg-muted/70`;
-}
-
 // Helper to detect stored key
 const hasStoredKey = (k: unknown): boolean => {
   if (k && typeof k === "object") {
@@ -117,6 +108,8 @@ export const ApiKeysTab = () => {
 
   // Apply type guard to ensure proper typing
   const userSettings = isUserSettings(userSettingsRaw) ? userSettingsRaw : null;
+
+  const isLoading = apiKeysRaw === undefined;
 
   const apiKeys = useMemo(() => {
     if (apiKeysRaw) {
@@ -188,42 +181,14 @@ export const ApiKeysTab = () => {
     }
   };
 
-  if (apiKeys === undefined) {
-    return (
-      <div className="mx-auto max-w-4xl stack-xl">
-        <SettingsHeader
-          title="API Keys"
-          description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
-        />
-
-        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
-          {(
-            Object.entries(API_KEY_INFO) as [
-              ApiProvider,
-              (typeof API_KEY_INFO)[ApiProvider],
-            ][]
-          ).map(([provider]) => (
-            <div
-              key={provider}
-              className="animate-pulse rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30"
-            >
-              <div className="mb-4 h-20 rounded bg-muted/20" />
-              <div className="h-10 rounded bg-muted/20" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-4xl stack-xl">
+    <SettingsPageLayout>
       <SettingsHeader
         title="API Keys"
-        description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored across all your devices."
+        description="Configure your API keys to use different AI providers. Keys are securely encrypted and stored."
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {(
           Object.entries(API_KEY_INFO) as [
             ApiProvider,
@@ -235,18 +200,33 @@ export const ApiKeysTab = () => {
           );
           const isConnected = hasStoredKey(keyInfo);
 
+          if (isLoading) {
+            return (
+              <div
+                key={provider}
+                className="flex h-full flex-col justify-between rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30"
+              >
+                <div className="mb-4 flex items-start gap-3">
+                  <Skeleton className="h-8 w-8 rounded" />
+                  <Skeleton className="h-6 w-24" />
+                </div>
+                <Skeleton className="h-9 w-full" />
+              </div>
+            );
+          }
+
           return (
             <div
               key={provider}
-              className={`${getProviderCardStyle(isConnected)} flex h-full flex-col justify-between`}
+              className="flex h-full flex-col justify-between rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30"
             >
-              <div className="mb-4 flex flex-shrink-0 items-start justify-between">
-                <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex items-start gap-3">
                   <ProviderIcon
                     provider={provider}
                     className="h-8 w-8 shrink-0"
                   />
-                  <div className="min-w-0 flex-1">
+                  <div>
                     <div className="flex items-center gap-2">
                       <Label
                         htmlFor={provider}
@@ -255,11 +235,7 @@ export const ApiKeysTab = () => {
                         {info.name}
                       </Label>
                       {isConnected && (
-                        <Badge
-                          variant="secondary"
-                          size="sm"
-                          className="border border-primary/20 bg-gradient-to-r from-primary/10 to-primary/5"
-                        >
+                        <Badge variant="secondary" size="sm">
                           <CheckCircleIcon className="mr-1 h-3 w-3" /> Connected
                         </Badge>
                       )}
@@ -268,35 +244,31 @@ export const ApiKeysTab = () => {
                 </div>
                 {!isConnected && (
                   <Button
+                    as="a"
                     size="sm"
                     variant="ghost"
-                    className="ml-3 h-8 shrink-0 px-3 text-xs"
+                    href={info.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
-                    <a
-                      href={info.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-                    >
-                      Get API key <ArrowSquareOutIcon className="h-3 w-3" />
-                    </a>
+                    Get key <ArrowSquareOutIcon className="ml-1 h-3 w-3" />
                   </Button>
                 )}
               </div>
 
               <div className="mt-auto">
-                {isConnected ? (
-                  <div className="flex flex-shrink-0 gap-2">
+                {isConnected && (
+                  <div className="flex gap-2">
                     <Input
                       disabled
                       id={provider}
                       type="text"
-                      className="flex-1 h-9 border-primary/20 bg-primary/5 font-mono text-sm"
-                      placeholder={`Current: ${keyInfo?.partialKey || info.placeholder.replace(/\./g, "•")}`}
+                      className="h-9 flex-1 font-mono text-sm"
+                      placeholder={keyInfo?.partialKey || info.placeholder}
                     />
                     <Button
                       variant="destructive"
-                      className="px-4 h-9"
+                      className="h-9"
                       onClick={() =>
                         handleApiKeyRemove(provider as ApiProvider)
                       }
@@ -304,9 +276,10 @@ export const ApiKeysTab = () => {
                       Remove
                     </Button>
                   </div>
-                ) : (
+                )}
+                {!isConnected && (
                   <form
-                    className="flex flex-shrink-0 gap-2"
+                    className="flex gap-2"
                     action={formData =>
                       handleApiKeySubmit(provider as ApiProvider, formData)
                     }
@@ -317,7 +290,7 @@ export const ApiKeysTab = () => {
                       name={`${provider}-key`}
                       type="password"
                       placeholder={info.placeholder}
-                      className="flex-1 h-9 font-mono text-sm"
+                      className="h-9 flex-1 font-mono text-sm"
                     />
                     <Button type="submit" className="h-9">
                       Save
@@ -331,49 +304,47 @@ export const ApiKeysTab = () => {
       </div>
 
       {hasOpenRouterKey && (
-        <div className="rounded-lg bg-card p-4 shadow-sm ring-1 ring-border/30">
-          <div className="mb-3 flex items-center gap-3">
-            <ProviderIcon provider="openrouter" className="h-6 w-6 shrink-0" />
-            <h3 className="text-sm font-medium">OpenRouter Provider Sorting</h3>
-          </div>
-
-          <div className="stack-md">
-            <p className="text-sm text-muted-foreground">
-              Choose how OpenRouter routes your requests across providers.{" "}
-              <a
-                href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-              >
-                View documentation <ArrowSquareOutIcon className="h-3 w-3" />
-              </a>
-            </p>
-
-            <div className="stack-sm">
-              <Label htmlFor="openrouter-sorting" className="text-sm">
-                Sorting Strategy
-              </Label>
-              <Select
-                value={userSettings?.openRouterSorting || "default"}
-                onValueChange={handleOpenRouterSortingChange}
-              >
-                <SelectTrigger id="openrouter-sorting" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="default">
-                    Default Load Balancing
-                  </SelectItem>
-                  <SelectItem value="price">Lowest Price</SelectItem>
-                  <SelectItem value="throughput">Highest Throughput</SelectItem>
-                  <SelectItem value="latency">Lowest Latency</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="rounded-lg bg-muted/20 p-4 shadow-sm ring-1 ring-border/30">
+          <div className="flex items-start justify-between gap-4">
+            <div className="stack-sm flex-1">
+              <div className="flex items-center gap-3">
+                <ProviderIcon
+                  provider="openrouter"
+                  className="h-6 w-6 shrink-0"
+                />
+                <h3 className="text-base font-semibold">
+                  OpenRouter Provider Sorting
+                </h3>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose how OpenRouter routes your requests across providers.{" "}
+                <a
+                  href="https://openrouter.ai/docs/features/provider-routing#provider-sorting"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Learn more
+                </a>
+              </p>
             </div>
+            <Select
+              value={userSettings?.openRouterSorting || "default"}
+              onValueChange={handleOpenRouterSortingChange}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Default</SelectItem>
+                <SelectItem value="price">Lowest Price</SelectItem>
+                <SelectItem value="throughput">Highest Throughput</SelectItem>
+                <SelectItem value="latency">Lowest Latency</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       )}
-    </div>
+    </SettingsPageLayout>
   );
 };

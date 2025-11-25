@@ -1,12 +1,12 @@
 import * as React from "react";
-import { Button, type ButtonProps } from "@/components/ui/button";
+import { Button, type ButtonAsButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ChatInputIconButtonSize = "sm" | "default";
 type ChatInputIconButtonVariant = "default" | "ghost";
 
-interface ChatInputIconButtonProps
-  extends Omit<ButtonProps, "size" | "variant"> {
+export interface ChatInputIconButtonProps
+  extends Omit<ButtonAsButtonProps, "size" | "variant" | "as"> {
   /**
    * Size variant for the button
    * - "default": h-8 w-8 (standard chat input size)

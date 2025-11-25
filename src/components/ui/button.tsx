@@ -63,20 +63,66 @@ const buttonVariants = cva(
   }
 );
 
-export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
-  VariantProps<typeof buttonVariants>;
+type VariantOptions = VariantProps<typeof buttonVariants>;
 
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, ...props }, ref) => {
+// Base props shared between button and anchor
+type ButtonBaseProps = VariantOptions & {
+  className?: string;
+};
+
+// Button-specific props (default behavior)
+export type ButtonAsButtonProps = ButtonBaseProps &
+  Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonBaseProps> & {
+    as?: "button";
+  };
+
+// Anchor-specific props
+export type ButtonAsAnchorProps = ButtonBaseProps &
+  Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof ButtonBaseProps> & {
+    as: "a";
+  };
+
+// Union type for external use
+export type ButtonProps = ButtonAsButtonProps | ButtonAsAnchorProps;
+
+// Overloaded component signatures for proper type inference
+interface ButtonComponent {
+  (
+    props: ButtonAsAnchorProps & React.RefAttributes<HTMLAnchorElement>
+  ): React.ReactElement;
+  (
+    props: ButtonAsButtonProps & React.RefAttributes<HTMLButtonElement>
+  ): React.ReactElement;
+  displayName?: string;
+}
+
+const Button = React.forwardRef<
+  HTMLButtonElement | HTMLAnchorElement,
+  ButtonProps
+>((props, ref) => {
+  const { className, variant, size, rounded, ...rest } = props;
+  const classes = cn(buttonVariants({ variant, size, rounded, className }));
+
+  if (rest.as === "a") {
+    const { as: _as, ...anchorProps } = rest;
     return (
-      <button
-        ref={ref}
-        className={cn(buttonVariants({ variant, size, className }))}
-        {...props}
+      <a
+        ref={ref as React.Ref<HTMLAnchorElement>}
+        className={classes}
+        {...anchorProps}
       />
     );
   }
-);
+
+  const { as: _as, ...buttonProps } = rest;
+  return (
+    <button
+      ref={ref as React.Ref<HTMLButtonElement>}
+      className={classes}
+      {...buttonProps}
+    />
+  );
+}) as ButtonComponent;
 Button.displayName = "Button";
 
 export { Button, buttonVariants };
