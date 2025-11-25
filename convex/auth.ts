@@ -118,12 +118,15 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
           throw new ConvexError("User account is in an invalid state");
         }
 
-        // Update user with latest auth data
+        // Only update fields that the user hasn't customized
+        // On subsequent sign-ins, preserve user's custom name/image
         await typedCtx.db.patch(existingUserDocId, {
-          name: profileName || existingUser.name,
+          // Only set name/image if they don't exist yet (first sign-in)
+          name: existingUser.name || profileName,
+          image: existingUser.image || profileImage,
+          // Always update email and verification status
           email: profileEmail || existingUser.email,
           emailVerified: profileEmailVerified || existingUser.emailVerified,
-          image: profileImage || existingUser.image,
           isAnonymous: false,
         });
 
@@ -139,13 +142,16 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
 
         if (existingEmailUser) {
           const existingEmailUserId = existingEmailUser._id as Id<"users">;
-          // Update existing user with latest auth data
+          // Only update fields that the user hasn't customized
+          // On subsequent sign-ins, preserve user's custom name/image
           await typedCtx.db.patch(existingEmailUserId, {
-            name: profileName || existingEmailUser.name,
+            // Only set name/image if they don't exist yet (first sign-in)
+            name: existingEmailUser.name || profileName,
+            image: existingEmailUser.image || profileImage,
+            // Always update email and verification status
             email: profileEmail || existingEmailUser.email,
             emailVerified:
               profileEmailVerified || existingEmailUser.emailVerified,
-            image: profileImage || existingEmailUser.image,
             isAnonymous: false,
           });
 

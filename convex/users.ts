@@ -256,6 +256,47 @@ async function deleteMessagesInBatches(
   }
 }
 
+export const updateProfile = mutation({
+  args: {
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
+
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const updates: { name?: string; image?: string } = {};
+
+    if (args.name !== undefined) {
+      const trimmedName = args.name.trim();
+      if (trimmedName.length === 0) {
+        throw new Error("Name cannot be empty");
+      }
+      if (trimmedName.length > 100) {
+        throw new Error("Name cannot exceed 100 characters");
+      }
+      updates.name = trimmedName;
+    }
+
+    if (args.image !== undefined) {
+      updates.image = args.image;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(userId, updates);
+    }
+
+    return { success: true };
+  },
+});
+
 export const deleteAccount = mutation({
   args: {},
   handler: async ctx => {

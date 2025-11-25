@@ -245,7 +245,7 @@ export default function GeneralPage() {
                   <div className="flex-1">
                     <div className="font-medium mb-1">Hide personal info</div>
                     <p className="text-sm text-muted-foreground">
-                      Hide your name, email, and avatar from the UI
+                      Obfuscate your name and avatar in the UI
                     </p>
                   </div>
                   <Switch
