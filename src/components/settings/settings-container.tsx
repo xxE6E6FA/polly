@@ -11,17 +11,12 @@ import {
   SpeakerHighIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { useUI } from "@/providers/ui-provider";
+import { MobileSettingsNav } from "./mobile/MobileSettingsNav";
 
 type SettingsContainerProps = {
   children: React.ReactNode;
@@ -93,48 +88,22 @@ export const SettingsContainer = ({
   className = "",
 }: SettingsContainerProps) => {
   const location = useLocation();
-  const navigate = useNavigate();
+  const { isMobile } = useUI();
 
-  const currentItem = settingsNavItems.find(
-    item => location.pathname === item.href
-  );
+  // On mobile, use the swipeable carousel navigation
+  if (isMobile) {
+    return (
+      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
+        <MobileSettingsNav />
+      </div>
+    );
+  }
 
+  // Desktop: Use horizontal tabs with React Router children
   return (
     <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
-      {/* Mobile Navigation */}
-      <div className="mb-6 sm:hidden">
-        <Select
-          value={location.pathname}
-          onValueChange={(value: string) => navigate(value)}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue>
-              {currentItem && (
-                <div className="flex items-center gap-2">
-                  <currentItem.icon className="h-4 w-4" />
-                  <span>{currentItem.label}</span>
-                </div>
-              )}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {settingsNavItems.map(item => {
-              const Icon = item.icon;
-              return (
-                <SelectItem key={item.href} value={item.href}>
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </div>
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Desktop Horizontal Tabs */}
-      <div className="hidden sm:block">
+      <div>
         <nav className="mb-6">
           <div className="w-fit">
             <div className="bg-muted/60 rounded-lg p-2 shadow-sm ring-1 ring-border/30">
@@ -210,9 +179,6 @@ export const SettingsContainer = ({
         {/* Desktop Content */}
         <div className={cn("w-full", className)}>{children}</div>
       </div>
-
-      {/* Mobile Content */}
-      <div className={cn("sm:hidden", className)}>{children}</div>
     </div>
   );
 };
