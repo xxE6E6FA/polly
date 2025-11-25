@@ -11,76 +11,53 @@ import {
   SpeakerHighIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
-import { Link, useLocation } from "react-router-dom";
+import { useMemo } from "react";
+import { useLocation } from "react-router-dom";
 
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
 import { MobileSettingsNav } from "./mobile/MobileSettingsNav";
+import { type SettingsTabItem, SettingsTabs } from "./SettingsTabs";
 
 type SettingsContainerProps = {
   children: React.ReactNode;
   className?: string;
 };
 
-const settingsNavItems = [
+// Main navigation tabs (shared structure)
+const mainTabs: SettingsTabItem[] = [
+  { path: ROUTES.SETTINGS.GENERAL, label: "General", icon: GearIcon },
+  { path: ROUTES.SETTINGS.API_KEYS, label: "API Keys", icon: KeyIcon },
+  { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Models", icon: RobotIcon },
+  { path: ROUTES.SETTINGS.PERSONAS, label: "Personas", icon: UsersIcon },
   {
-    href: ROUTES.SETTINGS.GENERAL,
-    label: "General",
-    icon: GearIcon,
-  },
-  {
-    href: ROUTES.SETTINGS.API_KEYS,
-    label: "API Keys",
-    icon: KeyIcon,
-  },
-  {
-    href: ROUTES.SETTINGS.TEXT_MODELS,
-    label: "Models",
-    icon: RobotIcon,
-    subItems: [
-      {
-        href: ROUTES.SETTINGS.TEXT_MODELS,
-        label: "Text",
-        icon: ChatTextIcon,
-      },
-      {
-        href: ROUTES.SETTINGS.IMAGE_MODELS,
-        label: "Image",
-        icon: ImageIcon,
-      },
-      {
-        href: ROUTES.SETTINGS.TTS_MODELS,
-        label: "TTS",
-        icon: SpeakerHighIcon,
-      },
-    ],
-  },
-  {
-    href: ROUTES.SETTINGS.PERSONAS,
-    label: "Personas",
-    icon: UsersIcon,
-  },
-  {
-    href: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
+    path: ROUTES.SETTINGS.SHARED_CONVERSATIONS,
     label: "Shares",
     icon: ShareNetworkIcon,
   },
   {
-    href: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
+    path: ROUTES.SETTINGS.ARCHIVED_CONVERSATIONS,
     label: "Archive",
     icon: ArchiveIcon,
   },
   {
-    href: ROUTES.SETTINGS.CHAT_HISTORY,
-    label: "Chat History",
+    path: ROUTES.SETTINGS.CHAT_HISTORY,
+    label: "History",
     icon: CloudArrowDownIcon,
   },
   {
-    href: ROUTES.SETTINGS.ATTACHMENTS,
-    label: "Attachments",
+    path: ROUTES.SETTINGS.ATTACHMENTS,
+    label: "Files",
     icon: PaperclipIcon,
   },
+];
+
+// Sub-navigation for Models section
+const modelSubTabs: SettingsTabItem[] = [
+  { path: ROUTES.SETTINGS.TEXT_MODELS, label: "Text", icon: ChatTextIcon },
+  { path: ROUTES.SETTINGS.IMAGE_MODELS, label: "Image", icon: ImageIcon },
+  { path: ROUTES.SETTINGS.TTS_MODELS, label: "TTS", icon: SpeakerHighIcon },
 ];
 
 export const SettingsContainer = ({
@@ -90,94 +67,84 @@ export const SettingsContainer = ({
   const location = useLocation();
   const { isMobile } = useUI();
 
+  // Determine active tab index
+  const activeMainIndex = useMemo(() => {
+    // Check for models sub-routes first
+    const isModelsRoute = modelSubTabs.some(tab =>
+      location.pathname.startsWith(tab.path)
+    );
+    if (isModelsRoute) {
+      return mainTabs.findIndex(
+        tab => tab.path === ROUTES.SETTINGS.TEXT_MODELS
+      );
+    }
+
+    // Find exact match
+    const exactMatch = mainTabs.findIndex(
+      tab => location.pathname === tab.path
+    );
+    if (exactMatch !== -1) {
+      return exactMatch;
+    }
+
+    // Fall back to first tab
+    return 0;
+  }, [location.pathname]);
+
+  // Determine if we're in models section and which sub-tab is active
+  const isModelsSection = modelSubTabs.some(tab =>
+    location.pathname.startsWith(tab.path)
+  );
+  const activeSubIndex = useMemo(() => {
+    if (!isModelsSection) {
+      return 0;
+    }
+    const index = modelSubTabs.findIndex(tab => location.pathname === tab.path);
+    return index !== -1 ? index : 0;
+  }, [isModelsSection, location.pathname]);
+
   // On mobile, use the swipeable carousel navigation
   if (isMobile) {
     return (
-      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
+      <div className="mx-auto w-full max-w-4xl flex-1 min-h-0 px-4 pt-6 flex flex-col">
         <MobileSettingsNav />
       </div>
     );
   }
 
   // Desktop: Use horizontal tabs with React Router children
+  // Outer container handles scrolling (scrollbar flush with viewport)
+  // Inner container handles max-width and centering
   return (
-    <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
-      {/* Desktop Horizontal Tabs */}
-      <div>
-        <nav className="mb-6">
-          <div className="w-fit">
-            <div className="bg-muted/60 rounded-lg p-2 shadow-sm ring-1 ring-border/30">
-              {/* Main navigation row */}
-              <div className="flex space-x-2 overflow-visible">
-                {settingsNavItems.map((item, index) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.href;
-                  const isParentActive = item.subItems?.some(sub =>
-                    location.pathname.startsWith(sub.href)
-                  );
+    <div
+      className="flex-1 overflow-y-auto"
+      style={{ scrollbarGutter: "stable" }}
+    >
+      <div className="mx-auto w-full max-w-4xl px-4 py-3">
+        <div className="stack-md">
+          {/* Main Navigation Tabs */}
+          <nav>
+            <SettingsTabs
+              tabs={mainTabs}
+              activeIndex={activeMainIndex}
+              layoutId="settings-main-tab"
+            />
+          </nav>
 
-                  return (
-                    <div key={item.href} className="relative">
-                      <Link
-                        to={item.href}
-                        className={cn(
-                          "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                          isActive || isParentActive
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                        )}
-                      >
-                        <Icon className="h-3.5 w-3.5" />
-                        {item.label}
-                      </Link>
+          {/* Sub-navigation for Models section */}
+          {isModelsSection && (
+            <nav>
+              <SettingsTabs
+                tabs={modelSubTabs}
+                activeIndex={activeSubIndex}
+                layoutId="settings-sub-tab"
+              />
+            </nav>
+          )}
 
-                      {/* Sub-navigation directly below this item */}
-                      {item.subItems?.some(sub =>
-                        location.pathname.startsWith(sub.href)
-                      ) && (
-                        <div className="absolute top-full left-0 mt-4 z-10">
-                          <div className="bg-muted/60 rounded-lg p-2 shadow-sm ring-1 ring-border/30">
-                            <div className="flex space-x-2">
-                              {item.subItems.map(subItem => {
-                                const SubIcon = subItem.icon;
-                                const isActive =
-                                  location.pathname === subItem.href;
-
-                                return (
-                                  <Link
-                                    key={subItem.href}
-                                    to={subItem.href}
-                                    className={cn(
-                                      "flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                                      isActive
-                                        ? "bg-primary text-primary-foreground shadow-sm"
-                                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                                    )}
-                                  >
-                                    <SubIcon className="h-3.5 w-3.5" />
-                                    {subItem.label}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Spacer to push content down when sub-nav is visible */}
-            {settingsNavItems.some(item =>
-              item.subItems?.some(sub => location.pathname.startsWith(sub.href))
-            ) && <div className="h-12" />}
-          </div>
-        </nav>
-
-        {/* Desktop Content */}
-        <div className={cn("w-full", className)}>{children}</div>
+          {/* Desktop Content */}
+          <div className={cn("w-full", className)}>{children}</div>
+        </div>
       </div>
     </div>
   );

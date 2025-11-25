@@ -1,5 +1,7 @@
 import type React from "react";
 import type { SortDirection } from "@/hooks/use-list-sort";
+import type { MobileDrawerConfig } from "./DataListMobileDrawer";
+import { DataListMobileRow } from "./DataListMobileRow";
 import { generateGridTemplate } from "./gridUtils";
 import { ListBody } from "./ListBody";
 import { ListCell } from "./ListCell";
@@ -42,6 +44,7 @@ interface DataListProps<TItem, TField extends string = string> {
   items: TItem[];
   getItemKey: (item: TItem) => string;
   columns: DataListColumn<TItem, TField>[];
+  /** Selection state - only shown on desktop, disabled on mobile */
   selection?: DataListSelection<TItem>;
   sort?: DataListSort<TField>;
   onRowClick?: (item: TItem) => void;
@@ -50,13 +53,17 @@ interface DataListProps<TItem, TField extends string = string> {
     desc: React.ComponentType<{ className?: string }>;
   };
   mobileTitleRender?: (item: TItem) => React.ReactNode;
-  mobileActionsRender?: (item: TItem) => React.ReactNode;
   /**
    * Custom metadata renderer for mobile view.
    * When provided, replaces the default column-based mobile content rendering.
    * Use this for compact, inline metadata display (e.g., "Conversation • Date").
    */
   mobileMetadataRender?: (item: TItem) => React.ReactNode;
+  /**
+   * Configuration for mobile drawer actions.
+   * When provided, shows a drawer with actions instead of inline buttons.
+   */
+  mobileDrawerConfig?: MobileDrawerConfig<TItem>;
 }
 
 export function DataList<TItem, TField extends string = string>({
@@ -68,8 +75,8 @@ export function DataList<TItem, TField extends string = string>({
   onRowClick,
   sortIcons,
   mobileTitleRender,
-  mobileActionsRender,
   mobileMetadataRender,
+  mobileDrawerConfig,
 }: DataListProps<TItem, TField>) {
   const hasSelection = !!selection;
 
@@ -144,71 +151,14 @@ export function DataList<TItem, TField extends string = string>({
               </div>
 
               {/* Mobile Card Layout */}
-              <div className="lg:hidden flex flex-col gap-2 w-full">
-                {/* Mobile Header with Selection, Title, and Actions (sm+) */}
-                <div className="flex items-start gap-3">
-                  {hasSelection && (
-                    <SelectionCheckbox
-                      checked={isSelected}
-                      onToggle={() => selection.toggleItem(item)}
-                      label={`Select ${key}`}
-                      className="mt-1"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    {mobileTitleRender
-                      ? mobileTitleRender(item)
-                      : columns[0]?.render(item)}
-                  </div>
-                  {mobileActionsRender && (
-                    <div className="hidden sm:flex flex-shrink-0 items-center gap-1">
-                      {mobileActionsRender(item)}
-                    </div>
-                  )}
-                </div>
-
-                {/* Mobile Metadata (optional inline display without labels) */}
-                {mobileMetadataRender && (
-                  <div className={hasSelection ? "ml-11" : ""}>
-                    {mobileMetadataRender(item)}
-                  </div>
-                )}
-
-                {/* Mobile Actions (below content on xs) */}
-                {mobileActionsRender && (
-                  <div
-                    className={`flex sm:hidden items-center gap-1 ${hasSelection ? "ml-11" : ""}`}
-                  >
-                    {mobileActionsRender(item)}
-                  </div>
-                )}
-
-                {/* Mobile Content (columns with optional labels) */}
-                {!mobileMetadataRender && (
-                  <div className="stack-2 ml-11">
-                    {columns.slice(1).map(column => {
-                      if (column.hideOnMobile) {
-                        return null;
-                      }
-
-                      const content = column.mobileRender
-                        ? column.mobileRender(item)
-                        : column.render(item);
-
-                      return (
-                        <div key={column.key} className="flex flex-col gap-0.5">
-                          {!column.hideLabelOnMobile && (
-                            <span className="text-xs text-muted-foreground font-medium">
-                              {column.label}
-                            </span>
-                          )}
-                          <div>{content}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <DataListMobileRow
+                item={item}
+                columns={columns}
+                mobileTitleRender={mobileTitleRender}
+                mobileMetadataRender={mobileMetadataRender}
+                mobileDrawerConfig={mobileDrawerConfig}
+                onRowClick={onRowClick}
+              />
             </ListRow>
           );
         })}

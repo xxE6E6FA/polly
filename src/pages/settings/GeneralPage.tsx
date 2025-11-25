@@ -208,7 +208,7 @@ export default function GeneralPage() {
             <UserIdCard />
           </aside>
 
-          <main className="max-w-3xl">
+          <main>
             {/* Preferences */}
             <section className="mb-12">
               <h2 className="text-lg font-semibold mb-2">Preferences</h2>

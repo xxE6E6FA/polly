@@ -7,17 +7,19 @@ import {
   FileTextIcon,
   PencilSimpleLineIcon,
   PlusIcon,
+  ToggleLeftIcon,
   TrashIcon,
   UserIcon,
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   DataList,
   type DataListColumn,
   ListEmptyState,
   ListLoadingState,
+  type MobileDrawerConfig,
 } from "@/components/data-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +64,7 @@ interface EnrichedPersona {
 }
 
 export const PersonasTab = () => {
+  const navigate = useNavigate();
   const { user } = useUserDataContext();
   const personasRaw = useQuery(
     api.personas.listAllForSettings,
@@ -327,6 +330,100 @@ export const PersonasTab = () => {
     },
   ];
 
+  // Mobile drawer configuration
+  const mobileDrawerConfig: MobileDrawerConfig<EnrichedPersona> = {
+    title: persona => persona.name,
+    subtitle: persona =>
+      persona.type === "built-in" ? "Built-in persona" : "Custom persona",
+    actions: [
+      {
+        key: "status",
+        icon: ToggleLeftIcon,
+        label: persona => {
+          const isActive =
+            persona.type === "built-in"
+              ? !persona.isDisabled
+              : persona.isActive;
+          return isActive ? "Enabled" : "Disabled";
+        },
+        onClick: () => {
+          // onClick is required but unused for toggle actions
+        },
+        toggle: {
+          checked: persona =>
+            persona.type === "built-in"
+              ? !persona.isDisabled
+              : persona.isActive,
+          onCheckedChange: handleTogglePersona,
+        },
+      },
+      {
+        key: "view-prompt",
+        icon: FileTextIcon,
+        label: "View system prompt",
+        onClick: persona => setViewingPersona(persona),
+        hidden: persona => persona.type !== "custom",
+      },
+      {
+        key: "edit",
+        icon: PencilSimpleLineIcon,
+        label: "Edit persona",
+        onClick: persona =>
+          navigate(ROUTES.SETTINGS.PERSONAS_EDIT(persona._id)),
+        hidden: persona => persona.type !== "custom",
+      },
+      {
+        key: "delete",
+        icon: TrashIcon,
+        label: "Delete persona",
+        onClick: persona => setDeletingPersona(persona._id),
+        hidden: persona => persona.type !== "custom",
+        className:
+          "text-destructive hover:bg-destructive/10 hover:text-destructive",
+      },
+    ],
+  };
+
+  // Mobile title renderer
+  const mobileTitleRender = (persona: EnrichedPersona) => {
+    const isDisabled =
+      persona.type === "built-in" ? persona.isDisabled : !persona.isActive;
+    return (
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className={`text-xl flex-shrink-0 ${isDisabled ? "opacity-50" : ""}`}
+        >
+          {persona.icon || "🤖"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div
+            className={`font-medium truncate ${isDisabled ? "text-muted-foreground" : ""}`}
+          >
+            {persona.name}
+          </div>
+          <div className="text-sm text-muted-foreground line-clamp-1">
+            {persona.description}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Mobile metadata renderer - shows type badge and status
+  const mobileMetadataRender = (persona: EnrichedPersona) => {
+    const isActive =
+      persona.type === "built-in" ? !persona.isDisabled : persona.isActive;
+    return (
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant={persona.type === "built-in" ? "secondary" : "default"}>
+          {persona.type === "built-in" ? "Built-in" : "Custom"}
+        </Badge>
+        <span>•</span>
+        <span>{isActive ? "Enabled" : "Disabled"}</span>
+      </div>
+    );
+  };
+
   return (
     <SettingsPageLayout>
       <SettingsHeader
@@ -402,6 +499,9 @@ export const PersonasTab = () => {
                 asc: CaretUpIcon,
                 desc: CaretDownIcon,
               }}
+              mobileTitleRender={mobileTitleRender}
+              mobileMetadataRender={mobileMetadataRender}
+              mobileDrawerConfig={mobileDrawerConfig}
             />
           )}
         </div>

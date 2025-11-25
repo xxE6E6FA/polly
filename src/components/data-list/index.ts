@@ -4,6 +4,10 @@ export type {
   DataListSort,
 } from "./DataList";
 export { DataList } from "./DataList";
+export type {
+  MobileDrawerAction,
+  MobileDrawerConfig,
+} from "./DataListMobileDrawer";
 export { ListBody } from "./ListBody";
 export { ListCell } from "./ListCell";
 export { ListContainer } from "./ListContainer";

@@ -144,7 +144,7 @@ export function MobileSettingsNav() {
   );
 
   return (
-    <div className="stack-sm">
+    <div className="flex-1 min-h-0 flex flex-col gap-3">
       {/* Scrollable Tab Bar */}
       <MobileSettingsTabs
         tabs={tabItems}
@@ -153,8 +153,8 @@ export function MobileSettingsNav() {
       />
 
       {/* Swipeable Content */}
-      <div ref={emblaRef} className="-mx-4 overflow-hidden px-4">
-        <div className="flex gap-6">
+      <div ref={emblaRef} className="-mx-4 overflow-hidden flex-1 min-h-0">
+        <div className="flex gap-6 h-full">
           {settingsRoutes.map((route, index) => {
             const PageComponent = route.component;
             const shouldMount = shouldMountPage(index);
@@ -162,7 +162,7 @@ export function MobileSettingsNav() {
             return (
               <div
                 key={route.path}
-                className="min-w-0 shrink-0 grow-0 basis-full"
+                className="min-w-0 shrink-0 grow-0 basis-full h-full overflow-y-auto px-4"
               >
                 {shouldMount ? (
                   <Suspense fallback={<PageLoader />}>

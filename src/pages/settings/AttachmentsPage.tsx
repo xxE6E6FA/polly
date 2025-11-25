@@ -22,6 +22,7 @@ import {
   type DataListColumn,
   ListEmptyState,
   ListLoadingState,
+  type MobileDrawerConfig,
 } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
@@ -458,7 +459,11 @@ export default function AttachmentsPage() {
             onSort: toggleSort,
           }}
           sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-          onRowClick={file => selection.toggleItem(file)}
+          onRowClick={file => {
+            // On mobile, this won't trigger since mobileDrawerConfig handles row taps
+            // On desktop, toggle selection
+            selection.toggleItem(file);
+          }}
           mobileTitleRender={file => (
             <div className="flex items-center gap-2">
               <div className="flex-shrink-0">
@@ -482,7 +487,7 @@ export default function AttachmentsPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="truncate font-medium"
                     title={file.attachment.name}
@@ -502,65 +507,46 @@ export default function AttachmentsPage() {
               </div>
             </div>
           )}
-          mobileActionsRender={file => (
-            <>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={e => {
-                  e.stopPropagation();
-                  setPreviewFile(file);
-                }}
-                className="h-9 w-9 p-0"
-                title="Preview file"
-              >
-                <EyeIcon className="h-5 w-5" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={e => {
-                  e.stopPropagation();
-                  navigate(`/chat/${file.conversationId}`);
-                }}
-                className="h-9 w-9 p-0"
-                title="Go to conversation"
-              >
-                <LinkIcon className="h-5 w-5" />
-              </Button>
-              {file.url && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={e => {
-                    e.stopPropagation();
-                    handleDownloadFile(file);
-                  }}
-                  className="h-9 w-9 p-0"
-                  title="Download file"
-                >
-                  <DownloadIcon className="h-5 w-5" />
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={e => {
-                  e.stopPropagation();
-                  setDeleteTarget(getFileKey(file));
-                  setShowDeleteDialog(true);
-                }}
-                className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                title={
-                  file.storageId
-                    ? "Delete file"
-                    : "Remove text attachment from message"
-                }
-              >
-                <TrashIcon className="h-5 w-5" />
-              </Button>
-            </>
-          )}
+          mobileDrawerConfig={
+            {
+              title: file => file.attachment.name,
+              subtitle: file =>
+                `${file.conversationName} • ${formatDate(file.createdAt)}`,
+              actions: [
+                {
+                  key: "preview",
+                  icon: EyeIcon,
+                  label: "Preview file",
+                  onClick: file => setPreviewFile(file),
+                },
+                {
+                  key: "conversation",
+                  icon: LinkIcon,
+                  label: "Go to conversation",
+                  onClick: file => navigate(`/chat/${file.conversationId}`),
+                },
+                {
+                  key: "download",
+                  icon: DownloadIcon,
+                  label: "Download file",
+                  onClick: file => handleDownloadFile(file),
+                  hidden: file => !file.url,
+                },
+                {
+                  key: "delete",
+                  icon: TrashIcon,
+                  label: file =>
+                    file.storageId ? "Delete file" : "Remove attachment",
+                  onClick: file => {
+                    setDeleteTarget(getFileKey(file));
+                    setShowDeleteDialog(true);
+                  },
+                  className:
+                    "text-destructive hover:bg-destructive/10 hover:text-destructive",
+                },
+              ],
+            } as MobileDrawerConfig<UserFile>
+          }
           mobileMetadataRender={file => (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="truncate" title={file.conversationName}>

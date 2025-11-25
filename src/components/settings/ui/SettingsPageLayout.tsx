@@ -9,9 +9,7 @@ export const SettingsPageLayout = ({
   children,
   className,
 }: SettingsPageLayoutProps) => {
-  return (
-    <div className={cn("mx-auto max-w-4xl stack-xl", className)}>
-      {children}
-    </div>
-  );
+  // Width is handled by parent container (settings-container.tsx)
+  // This component only handles vertical spacing
+  return <div className={cn("w-full stack-xl", className)}>{children}</div>;
 };
