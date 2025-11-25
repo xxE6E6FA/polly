@@ -1,23 +1,23 @@
 import { describe, expect, it, mock } from "bun:test";
 import { FILE_LIMITS } from "../../shared/file-constants";
-import { processFilesForAttachments } from "./process-files";
+import {
+  type ProcessFilesDeps,
+  processFilesForAttachments,
+} from "./process-files";
 
-// Mock dependencies with proper relative paths
-mock.module("../lib/file-utils", () => ({
+// Mock dependencies passed via dependency injection (not mock.module)
+const mockDeps: ProcessFilesDeps = {
   readFileAsText: () => Promise.resolve("mock text content"),
   readFileAsBase64: () => Promise.resolve("mock base64 content"),
   convertImageToWebP: () =>
     Promise.resolve({ base64: "mock webp content", mimeType: "image/webp" }),
-}));
-
-mock.module("../../shared/model-capabilities-config", () => ({
-  isFileTypeSupported: (fileType: string, model: any) => {
+  isFileTypeSupported: (fileType: string, model) => {
     if (fileType === "application/x-unsupported") {
       return { supported: false, category: "unsupported" };
     }
     if (fileType.startsWith("image/")) {
       // Check if model supports images
-      if (model?.supportsImages) {
+      if ((model as { supportsImages?: boolean })?.supportsImages) {
         return { supported: true, category: "image" };
       }
       return { supported: false, category: "unsupported" };
@@ -38,29 +38,7 @@ mock.module("../../shared/model-capabilities-config", () => ({
     }
     return { supported: false, category: "unsupported" };
   },
-  // Include other exports to avoid breaking other functionality
-  isImageType: (fileType: string) => fileType.startsWith("image/"),
-  isTextType: (fileType: string) => {
-    if (!fileType || fileType === "application/octet-stream") {
-      return true;
-    }
-    return (
-      fileType.startsWith("text/") ||
-      fileType === "application/json" ||
-      fileType === "application/xml" ||
-      fileType === "application/javascript" ||
-      fileType === "application/typescript" ||
-      fileType === "application/yaml" ||
-      fileType === "application/x-yaml"
-    );
-  },
-  checkModelCapability: (capability: string, model: any) => {
-    if (!model) {
-      return false;
-    }
-    return model[capability] ?? false;
-  },
-}));
+};
 
 describe("processFilesForAttachments", () => {
   const mockModel = {
@@ -82,11 +60,18 @@ describe("processFilesForAttachments", () => {
       createMockFile("test.txt", "text/plain", 100),
     ] as unknown as FileList;
     // Mock Array.from for FileList
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
-    const result = await processFilesForAttachments(files, mockModel);
+    const result = await processFilesForAttachments(
+      files,
+      mockModel,
+      undefined,
+      mockDeps
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -102,11 +87,18 @@ describe("processFilesForAttachments", () => {
     const files = [
       createMockFile("test.png", "image/png", 100),
     ] as unknown as FileList;
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
-    const result = await processFilesForAttachments(files, mockModel);
+    const result = await processFilesForAttachments(
+      files,
+      mockModel,
+      undefined,
+      mockDeps
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -123,11 +115,18 @@ describe("processFilesForAttachments", () => {
     const files = [
       createMockFile("test.pdf", "application/pdf", 100),
     ] as unknown as FileList;
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
-    const result = await processFilesForAttachments(files, mockModel);
+    const result = await processFilesForAttachments(
+      files,
+      mockModel,
+      undefined,
+      mockDeps
+    );
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
@@ -144,12 +143,19 @@ describe("processFilesForAttachments", () => {
     const files = [
       createMockFile("large.txt", "text/plain", FILE_LIMITS.MAX_SIZE_BYTES + 1),
     ] as unknown as FileList;
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
     const notify = mock();
-    const result = await processFilesForAttachments(files, mockModel, notify);
+    const result = await processFilesForAttachments(
+      files,
+      mockModel,
+      notify,
+      mockDeps
+    );
 
     expect(result).toHaveLength(0);
     expect(notify).toHaveBeenCalled();
@@ -160,12 +166,19 @@ describe("processFilesForAttachments", () => {
     const files = [
       createMockFile("test.txt", "text/plain", 100),
     ] as unknown as FileList;
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
     const notify = mock();
-    const result = await processFilesForAttachments(files, null, notify);
+    const result = await processFilesForAttachments(
+      files,
+      null,
+      notify,
+      mockDeps
+    );
 
     expect(result).toHaveLength(0);
     expect(notify).toHaveBeenCalled();
@@ -176,12 +189,19 @@ describe("processFilesForAttachments", () => {
     const files = [
       createMockFile("test.xyz", "application/x-unsupported", 100),
     ] as unknown as FileList;
-    (files as any)[Symbol.iterator] = function* () {
+    (files as unknown as { [Symbol.iterator]: () => Generator<File> })[
+      Symbol.iterator
+    ] = function* () {
       yield files[0];
     };
 
     const notify = mock();
-    const result = await processFilesForAttachments(files, mockModel, notify);
+    const result = await processFilesForAttachments(
+      files,
+      mockModel,
+      notify,
+      mockDeps
+    );
 
     expect(result).toHaveLength(0);
     expect(notify).toHaveBeenCalled();

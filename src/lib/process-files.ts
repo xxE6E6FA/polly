@@ -1,11 +1,10 @@
 import { FILE_LIMITS } from "@shared/file-constants";
-import { isFileTypeSupported } from "@shared/model-capabilities-config";
+import { isFileTypeSupported as defaultIsFileTypeSupported } from "@shared/model-capabilities-config";
 import {
-  convertImageToWebP,
-  readFileAsBase64,
-  readFileAsText,
+  convertImageToWebP as defaultConvertImageToWebP,
+  readFileAsBase64 as defaultReadFileAsBase64,
+  readFileAsText as defaultReadFileAsText,
 } from "@/lib/file-utils";
-import { isUserModel } from "@/lib/type-guards";
 import type { Attachment } from "@/types";
 
 export type Notifier = (args: {
@@ -14,11 +13,35 @@ export type Notifier = (args: {
   type?: "error" | "success" | "info";
 }) => void;
 
+type FileSupport = {
+  supported: boolean;
+  category: "image" | "pdf" | "text" | "unsupported";
+};
+
+export type ProcessFilesDeps = {
+  readFileAsText?: (file: File) => Promise<string>;
+  readFileAsBase64?: (file: File) => Promise<string>;
+  convertImageToWebP?: (
+    file: File
+  ) => Promise<{ base64: string; mimeType: string }>;
+  isFileTypeSupported?: (
+    fileType: string,
+    model: { provider: string; modelId: string }
+  ) => FileSupport;
+};
+
 export async function processFilesForAttachments(
   files: FileList,
   selectedModel: unknown,
-  notify?: Notifier
+  notify?: Notifier,
+  deps: ProcessFilesDeps = {}
 ): Promise<Attachment[]> {
+  const readFileAsText = deps.readFileAsText ?? defaultReadFileAsText;
+  const readFileAsBase64 = deps.readFileAsBase64 ?? defaultReadFileAsBase64;
+  const convertImageToWebP =
+    deps.convertImageToWebP ?? defaultConvertImageToWebP;
+  const isFileTypeSupported =
+    deps.isFileTypeSupported ?? defaultIsFileTypeSupported;
   const newAttachments: Attachment[] = [];
 
   const validModel =

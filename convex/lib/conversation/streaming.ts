@@ -133,14 +133,26 @@ export async function streamAndSaveMessage(
     // 1. Prepare model and options
     const apiKey = await getApiKey(ctx, provider as Exclude<ProviderType, "polly">, modelId, conversationId);
     const languageModel = await createLanguageModel(ctx, provider as ProviderType, modelId, apiKey);
-    
+
+    // Get model capabilities for PDF processing
+    let supportsFiles = false;
+    try {
+      const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
+        modelId,
+        provider,
+      });
+      supportsFiles = modelInfo?.supportsFiles ?? false;
+    } catch {
+      // Default to false if we can't get model info
+    }
+
     // 2. Prepare system prompt and messages
     const baseline = getBaselineInstructions(modelId);
     const personaPrompt = await getPersonaPrompt(ctx, personaId);
     const system = mergeSystemPrompts(baseline, personaPrompt);
-    
-    // Convert messages to AI SDK format
-    const convertedMessages = await convertMessages(ctx, messages, provider);
+
+    // Convert messages to AI SDK format (handles PDF extraction if needed)
+    const convertedMessages = await convertMessages(ctx, messages, provider, modelId, supportsFiles);
     
     // Add system message at the beginning
     const finalMessages = [

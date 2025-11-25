@@ -559,6 +559,8 @@ export const sendMessage = action({
         supportsImages: fullModel.supportsImages ?? false,
         supportsFiles: fullModel.supportsFiles ?? false,
       },
+      provider: fullModel.provider,
+      modelId: fullModel.modelId,
     });
 
     // Schedule server-side streaming
@@ -1655,6 +1657,8 @@ export const editAndResendMessage = action({
         supportsImages: fullModel.supportsImages ?? false,
         supportsFiles: fullModel.supportsFiles ?? false,
       },
+      provider: fullModel.provider,
+      modelId: fullModel.modelId,
     });
 
     // Create new assistant message for streaming
@@ -1816,6 +1820,8 @@ export const retryFromMessage = action({
           supportsImages: fullModel.supportsImages ?? false,
           supportsFiles: fullModel.supportsFiles ?? false,
         },
+        provider: fullModel.provider,
+        modelId: fullModel.modelId,
       });
 
       return { assistantMessageId: targetMessage._id };
@@ -1955,6 +1961,8 @@ export const retryFromMessage = action({
         supportsImages: fullModel.supportsImages ?? false,
         supportsFiles: fullModel.supportsFiles ?? false,
       },
+      provider: fullModel.provider,
+      modelId: fullModel.modelId,
     });
 
     // Execute streaming action for retry (creates a NEW assistant message)
@@ -2053,6 +2061,8 @@ export const editMessage = action({
         supportsImages: fullModel.supportsImages ?? false,
         supportsFiles: fullModel.supportsFiles ?? false,
       },
+      provider: fullModel.provider,
+      modelId: fullModel.modelId,
     });
 
     // Execute streaming action for retry

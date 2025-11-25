@@ -16,6 +16,7 @@ import {
   mergeSystemPrompts,
 } from "../conversation/message_handling";
 import { getBaselineInstructions } from "../../constants";
+import { processAttachmentsForLLM } from "../process_attachments";
 
 export const buildHierarchicalContextMessages = async (
   ctx: ActionCtx,
@@ -264,6 +265,8 @@ export const buildContextMessages = async (
       supportsImages: boolean;
       supportsFiles: boolean;
     };
+    provider?: string;
+    modelId?: string;
   },
 ): Promise<{
   contextMessages: Array<{
@@ -316,11 +319,25 @@ export const buildContextMessages = async (
     });
 
     // Convert included messages to the expected format
-    const conversationMessages = messagesToInclude
+    // Process attachments in parallel for all messages
+    const conversationMessagesPromises = messagesToInclude
       .filter((msg: any) => msg.role !== "system" && msg.role !== "context")
-      .map((msg: any) => {
+      .map(async (msg: any) => {
         // If message has attachments, format content as array of parts
         if (msg.attachments && msg.attachments.length > 0) {
+          // Process attachments for LLM (handles PDF extraction if needed)
+          let processedAttachments = msg.attachments;
+          if (args.provider && args.modelId) {
+            processedAttachments = await processAttachmentsForLLM(
+              ctx,
+              msg.attachments,
+              args.provider,
+              args.modelId,
+              args.modelCapabilities?.supportsFiles ?? false,
+              undefined, // messageId not needed for context building
+            );
+          }
+
           const parts: any[] = [];
 
           // Add text content as first part if present
@@ -329,7 +346,7 @@ export const buildContextMessages = async (
           }
 
           // Add attachment parts
-          for (const attachment of msg.attachments) {
+          for (const attachment of processedAttachments || []) {
             if (attachment.type === "image") {
               parts.push({
                 type: "image_url",
@@ -360,6 +377,10 @@ export const buildContextMessages = async (
           content: msg.content,
         };
       });
+
+    const conversationMessages = await Promise.all(
+      conversationMessagesPromises,
+    );
 
     // Combine all messages: system + context + conversation
     const contextMessages = [

@@ -19,8 +19,11 @@ import { getProviderReasoningConfig } from "../shared/reasoning-config";
 import { createSmoothStreamTransform } from "../shared/streaming-utils";
 import { mergeSystemPrompts } from "../shared/system-prompts";
 import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import type { ActionCtx } from "./_generated/server";
 import { httpAction } from "./_generated/server";
 import { CONFIG } from "./ai/config";
+import { modelSupportsPdfNatively, shouldExtractPdfText } from "./ai/pdf";
 import { createLanguageModel } from "./ai/server_streaming";
 import { getBaselineInstructions } from "./constants";
 import { incrementUserMessageStats } from "./lib/conversation_utils";
@@ -56,7 +59,13 @@ const extractSystemText = (
     .join("");
 };
 
-const convertFilePartForModel = (part: IncomingFilePart) => {
+const convertFilePartForModel = async (
+  ctx: ActionCtx,
+  part: IncomingFilePart,
+  provider: string,
+  modelId: string,
+  modelSupportsFiles: boolean
+): Promise<Record<string, unknown> | null> => {
   const filePart = part as FileUIPart & { data?: unknown; url?: string };
   const dataSource =
     typeof filePart.url === "string"
@@ -67,10 +76,58 @@ const convertFilePartForModel = (part: IncomingFilePart) => {
     return null;
   }
 
+  const mediaType = "mediaType" in part ? part.mediaType : undefined;
+  const filename = "filename" in filePart ? filePart.filename : undefined;
+
+  // Handle PDF extraction for models that don't support PDF natively
+  if (mediaType === "application/pdf" && typeof dataSource === "string") {
+    const needsExtraction = shouldExtractPdfText(
+      provider,
+      modelId,
+      modelSupportsFiles
+    );
+
+    if (needsExtraction) {
+      try {
+        // Extract the storage ID from data URL if present
+        // Data URLs for PDFs stored in Convex have format: "convex://storageId"
+        let storageId: string | null = null;
+
+        if (dataSource.startsWith("convex://")) {
+          storageId = dataSource.replace("convex://", "");
+        }
+
+        if (storageId) {
+          // Extract PDF text using the server-side action
+          const extractionResult = await ctx.runAction(
+            api.ai.pdf.extractPdfText,
+            {
+              storageId: storageId as Id<"_storage">,
+              filename: filename || "document.pdf",
+            }
+          );
+
+          // Return as text part instead of file part
+          return {
+            type: "text",
+            text: extractionResult.text,
+          };
+        }
+      } catch (error) {
+        console.error("[chatStream] PDF extraction failed:", error);
+        // Fall through to return the file as-is or an error message
+        return {
+          type: "text",
+          text: `[PDF extraction failed for ${filename || "document.pdf"}: ${error instanceof Error ? error.message : "Unknown error"}]`,
+        };
+      }
+    }
+  }
+
   const converted: Record<string, unknown> = {
     type: "file",
-    mediaType: "mediaType" in part ? part.mediaType : undefined,
-    filename: "filename" in filePart ? filePart.filename : undefined,
+    mediaType,
+    filename,
   };
 
   if (
@@ -84,9 +141,13 @@ const convertFilePartForModel = (part: IncomingFilePart) => {
   return converted;
 };
 
-const coerceUiMessageContent = (
-  message: IncomingUIMessage
-): IncomingUIMessage => {
+const coerceUiMessageContent = async (
+  ctx: ActionCtx,
+  message: IncomingUIMessage,
+  provider: string,
+  modelId: string,
+  modelSupportsFiles: boolean
+): Promise<IncomingUIMessage> => {
   if (message.content !== undefined) {
     return message;
   }
@@ -100,8 +161,8 @@ const coerceUiMessageContent = (
     };
   }
 
-  const convertedParts = parts
-    .map(part => {
+  const convertedParts = await Promise.all(
+    parts.map(async part => {
       if (isTextUIPart(part)) {
         return {
           type: "text",
@@ -117,16 +178,26 @@ const coerceUiMessageContent = (
       }
 
       if (isFileUIPart(part)) {
-        return convertFilePartForModel(part as IncomingFilePart);
+        return await convertFilePartForModel(
+          ctx,
+          part as IncomingFilePart,
+          provider,
+          modelId,
+          modelSupportsFiles
+        );
       }
 
       return null;
     })
-    .filter((part): part is Record<string, unknown> => part !== null);
+  );
+
+  const filteredParts = convertedParts.filter(
+    (part): part is Record<string, unknown> => part !== null
+  );
 
   return {
     ...message,
-    content: convertedParts,
+    content: filteredParts,
   };
 };
 
@@ -227,7 +298,31 @@ export const chatStream = httpAction(
         ? (rawMessages as IncomingUIMessage[])
         : [];
 
-      const messagesWithContent = uiMessages.map(coerceUiMessageContent);
+      // Get model capabilities to determine if we need PDF extraction
+      let modelSupportsFiles = false;
+      try {
+        const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
+          modelId,
+          provider,
+        });
+        modelSupportsFiles = modelInfo?.supportsFiles ?? false;
+      } catch (error) {
+        console.warn("[chatStream] Failed to get model capabilities:", error);
+        // Default to false if we can't get model info
+      }
+
+      // Process messages with PDF extraction if needed
+      const messagesWithContent = await Promise.all(
+        uiMessages.map(msg =>
+          coerceUiMessageContent(
+            ctx,
+            msg,
+            provider,
+            modelId,
+            modelSupportsFiles
+          )
+        )
+      );
 
       let coreMessages: CoreMessage[];
       try {
