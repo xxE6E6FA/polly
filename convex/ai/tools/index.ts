@@ -11,4 +11,4 @@ export {
   WEB_SEARCH_TOOL_NAME,
   type WebSearchToolParams,
   type WebSearchToolResult,
-} from "./web-search";
+} from "./web_search";
