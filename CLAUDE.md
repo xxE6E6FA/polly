@@ -291,3 +291,78 @@ Use predefined utility classes for consistent layering (bottom to top):
 
 - Use `density-compact` wrapper to reduce vertical rhythm by one step; `density-spacious` to increase by one.
 - Prefer section/page scope rather than global changes unless specified.
+
+## VirtualizedDataList Component
+
+The `VirtualizedDataList` component provides server-side paginated, virtualized lists with window scrolling. Located at `src/components/data-list/VirtualizedDataList.tsx`.
+
+### Key Features
+
+- **Window Virtualization**: Uses `WindowVirtualizer` from virtua for smooth scrolling
+- **Server-side Pagination**: Works with Convex `usePaginatedQuery` for infinite scroll
+- **Sticky Headers**: Column headers stay visible while scrolling
+- **Server-side Sorting**: Pass sort params in `queryArgs`, headers show sort indicators
+- **Selection Support**: Built-in checkbox selection for bulk operations
+- **Mobile Responsive**: Separate mobile row rendering with drawer actions
+
+### Basic Usage
+
+```tsx
+<VirtualizedDataList<ItemType, SortField>
+  query={api.items.list}
+  queryArgs={{ sortField, sortDirection }}
+  columns={columns}
+  getItemKey={item => item._id}
+  selection={selectionAdapter}
+  sort={{
+    field: sortField,
+    direction: sortDirection,
+    onSort: handleSort,
+  }}
+  variant="flush"
+  stickyHeader
+  stickyOffset={68}
+/>
+```
+
+### Server-side Sorting Pattern
+
+1. **Backend**: Add sort parameters to Convex query args and use `.order(sortDirection)`
+2. **Frontend**: Maintain sort state with `useState`, pass to `queryArgs` and `sort` prop
+3. **Columns**: Mark sortable columns with `sortable: true` and `sortField`
+
+```tsx
+// Sort state
+const [sortField] = useState<SortField>("created");
+const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+const handleSort = useCallback((field: SortField) => {
+  if (sortField === field) {
+    setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+  }
+}, [sortField]);
+
+// Column definition
+{
+  key: "created",
+  label: "Created",
+  sortable: true,
+  sortField: "created" as SortField,
+  render: item => formatDate(item.createdAt),
+}
+```
+
+### Props Reference
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `query` | `FunctionReference` | Convex paginated query |
+| `queryArgs` | `Record<string, unknown>` | Query arguments including sort params |
+| `columns` | `VirtualizedDataListColumn[]` | Column definitions |
+| `getItemKey` | `(item) => string` | Unique key extractor |
+| `selection` | `VirtualizedDataListSelection` | Selection state adapter |
+| `sort` | `{ field, direction, onSort }` | Sort state for header indicators |
+| `variant` | `"contained" \| "flush"` | Visual style (default: "contained") |
+| `stickyHeader` | `boolean` | Enable sticky column headers |
+| `stickyOffset` | `number` | Offset from top for sticky header (px) |
+| `emptyState` | `ReactNode` | Custom empty state component |

@@ -2,9 +2,10 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useListSelection } from "@/hooks/use-list-selection";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
-type ConversationSummary = {
+export type ConversationSummary = {
   _id: Id<"conversations">;
   _creationTime: number;
   title: string;
@@ -19,15 +20,14 @@ export function getInitialConversations(): ConversationSummary[] {
   return get(CACHE_KEYS.conversations, []);
 }
 
+/**
+ * Hook for managing conversation selection with data fetching
+ * Uses useListSelection internally for selection state management
+ */
 export function useConversationSelection() {
-  const [selectedConversations, setSelectedConversations] = useState<
-    Set<Id<"conversations">>
-  >(new Set());
-  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(
-    null
-  );
   const [includeAttachments, setIncludeAttachments] = useState(true);
 
+  // Data fetching
   const conversationSummaryRaw = useQuery(api.conversations.list, {
     includeArchived: true,
   });
@@ -54,55 +54,40 @@ export function useConversationSelection() {
     }
   }, [conversations]);
 
+  // Use the generic list selection hook with shift+click support
+  const listSelection = useListSelection<ConversationSummary>(
+    conv => conv._id,
+    { enableShiftSelect: true }
+  );
+
+  // Convert Set<string> to Set<Id<"conversations">> for type compatibility
+  const selectedConversations = useMemo(() => {
+    return listSelection.selectedKeys as Set<Id<"conversations">>;
+  }, [listSelection.selectedKeys]);
+
+  // Wrap toggleItemWithShift to match the existing API signature
   const handleConversationSelect = useCallback(
     (
       conversationId: Id<"conversations">,
       index: number,
       isShiftKey: boolean
     ) => {
-      setSelectedConversations(prev => {
-        const newSelected = new Set(prev);
-
-        if (
-          isShiftKey &&
-          lastSelectedIndex !== null &&
-          conversations.length > 0
-        ) {
-          const start = Math.min(lastSelectedIndex, index);
-          const end = Math.max(lastSelectedIndex, index);
-
-          for (let i = start; i <= end; i++) {
-            if (i < conversations.length) {
-              const id = conversations[i]?._id;
-              if (id) {
-                newSelected.add(id);
-              }
-            }
-          }
-        } else if (newSelected.has(conversationId)) {
-          newSelected.delete(conversationId);
-        } else {
-          newSelected.add(conversationId);
-        }
-
-        return newSelected;
-      });
-
-      setLastSelectedIndex(index);
+      const conversation = conversations.find(c => c._id === conversationId);
+      if (conversation) {
+        listSelection.toggleItemWithShift(
+          conversation,
+          index,
+          isShiftKey,
+          conversations
+        );
+      }
     },
-    [lastSelectedIndex, conversations]
+    [conversations, listSelection]
   );
 
-  const clearSelection = useCallback(() => {
-    setSelectedConversations(new Set());
-    setLastSelectedIndex(null);
-  }, []);
-
   const onSelectAll = useCallback(() => {
-    const allIds = new Set(conversations.map(conv => conv._id));
-    setSelectedConversations(allIds);
-    setLastSelectedIndex(conversations.length - 1);
-  }, [conversations]);
+    listSelection.toggleAll(conversations);
+  }, [conversations, listSelection]);
 
   const onIncludeAttachmentsChange = useCallback((include: boolean) => {
     setIncludeAttachments(include);
@@ -110,27 +95,26 @@ export function useConversationSelection() {
 
   const totalConversations = conversations.length;
   const visibleConversations = conversations.length;
-
-  const allSelected = useMemo(() => {
-    return (
-      conversations.length > 0 &&
-      conversations.every(conv => selectedConversations.has(conv._id))
-    );
-  }, [conversations, selectedConversations]);
-
-  const someSelected = selectedConversations.size > 0;
+  const allSelected = listSelection.isAllSelected(conversations);
+  const someSelected = listSelection.selectedCount > 0;
 
   return {
+    // Selection state
     selectedConversations,
     handleConversationSelect,
-    clearSelection,
+    clearSelection: listSelection.clearSelection,
     onSelectAll,
+    // Attachment options
     includeAttachments,
     onIncludeAttachmentsChange,
+    // Data
     conversations,
     totalConversations,
     visibleConversations,
+    // Selection status
     allSelected,
     someSelected,
+    // Expose listSelection for DataList integration
+    listSelection,
   };
 }

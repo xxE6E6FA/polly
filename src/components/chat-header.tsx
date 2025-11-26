@@ -503,16 +503,6 @@ const ChatHeaderComponent = ({
               </TooltipContent>
             </Tooltip>
           )}
-          {isArchived && (
-            <Badge
-              variant="warning-subtle"
-              size="sm"
-              className="flex-shrink-0 gap-1"
-            >
-              <ArchiveIcon className="h-3.5 w-3.5" />
-              <span className="text-xxs">Archived</span>
-            </Badge>
-          )}
         </div>
 
         {/* Only show actions for authenticated users */}

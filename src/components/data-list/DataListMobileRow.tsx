@@ -3,15 +3,15 @@ import type * as React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import type { DataListColumn } from "./DataList";
 import {
   DataListMobileDrawer,
   type MobileDrawerConfig,
 } from "./DataListMobileDrawer";
+import type { VirtualizedDataListColumn } from "./VirtualizedDataList";
 
 interface DataListMobileRowProps<TItem, TField extends string> {
   item: TItem;
-  columns: DataListColumn<TItem, TField>[];
+  columns: VirtualizedDataListColumn<TItem, TField>[];
   mobileTitleRender?: (item: TItem) => React.ReactNode;
   mobileMetadataRender?: (item: TItem) => React.ReactNode;
   mobileDrawerConfig?: MobileDrawerConfig<TItem>;

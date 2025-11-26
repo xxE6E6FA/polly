@@ -15,12 +15,20 @@ import { useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  DataList,
-  type DataListColumn,
+  ListBody,
+  ListCell,
+  ListContainer,
   ListEmptyState,
+  ListHeader,
+  ListHeaderCell,
   ListLoadingState,
+  ListRow,
   type MobileDrawerConfig,
+  SortableHeader,
+  type VirtualizedDataListColumn,
 } from "@/components/data-list";
+import { DataListMobileRow } from "@/components/data-list/DataListMobileRow";
+import { generateGridTemplate } from "@/components/data-list/gridUtils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -205,8 +213,8 @@ export const PersonasTab = () => {
     allBuiltInPersonasRaw === undefined ||
     userSettingsRaw === undefined;
 
-  // Define DataList columns
-  const columns: DataListColumn<EnrichedPersona, SortField>[] = [
+  // Define columns
+  const columns: VirtualizedDataListColumn<EnrichedPersona, SortField>[] = [
     {
       key: "persona",
       label: "Persona",
@@ -480,23 +488,81 @@ export const PersonasTab = () => {
             />
           )}
           {!isLoading && sortedPersonas.length > 0 && (
-            <DataList
-              items={sortedPersonas}
-              columns={columns}
-              sort={{
-                field: sortField,
-                direction: sortDirection,
-                onSort: toggleSort,
-              }}
-              getItemKey={(persona: EnrichedPersona) => persona._id}
-              sortIcons={{
-                asc: CaretUpIcon,
-                desc: CaretDownIcon,
-              }}
-              mobileTitleRender={mobileTitleRender}
-              mobileMetadataRender={mobileMetadataRender}
-              mobileDrawerConfig={mobileDrawerConfig}
-            />
+            <ListContainer>
+              {/* Desktop Table Header */}
+              <ListHeader
+                className="hidden lg:block"
+                gridTemplate={generateGridTemplate(
+                  columns.map(col => col.width)
+                )}
+              >
+                {columns.map(column => {
+                  if (column.sortable && column.sortField) {
+                    return (
+                      <SortableHeader
+                        key={column.key}
+                        field={column.sortField}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSort={toggleSort}
+                        className={column.className}
+                        icons={{
+                          asc: CaretUpIcon,
+                          desc: CaretDownIcon,
+                        }}
+                      >
+                        {column.label}
+                      </SortableHeader>
+                    );
+                  }
+
+                  return (
+                    <ListHeaderCell
+                      key={column.key}
+                      className={column.className}
+                    >
+                      {column.label}
+                    </ListHeaderCell>
+                  );
+                })}
+              </ListHeader>
+
+              <ListBody>
+                {sortedPersonas.map(persona => {
+                  const key = persona._id;
+
+                  return (
+                    <ListRow
+                      key={key}
+                      gridTemplate={generateGridTemplate(
+                        columns.map(col => col.width)
+                      )}
+                    >
+                      {/* Desktop Table Layout */}
+                      <div className="hidden lg:contents">
+                        {columns.map(column => (
+                          <ListCell
+                            key={column.key}
+                            className={column.className}
+                          >
+                            {column.render(persona)}
+                          </ListCell>
+                        ))}
+                      </div>
+
+                      {/* Mobile Card Layout */}
+                      <DataListMobileRow
+                        item={persona}
+                        columns={columns}
+                        mobileTitleRender={mobileTitleRender}
+                        mobileMetadataRender={mobileMetadataRender}
+                        mobileDrawerConfig={mobileDrawerConfig}
+                      />
+                    </ListRow>
+                  );
+                })}
+              </ListBody>
+            </ListContainer>
           )}
         </div>
       )}

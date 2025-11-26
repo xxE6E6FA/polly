@@ -243,6 +243,8 @@ export async function getUserFilesHandler(
     fileType?: "image" | "pdf" | "text" | "all";
     includeGenerated?: boolean;
     searchQuery?: string;
+    sortField?: "name" | "created";
+    sortDirection?: "asc" | "desc";
   }
 ) {
   const userId = await getAuthUserId(ctx);
@@ -259,11 +261,13 @@ export async function getUserFilesHandler(
   const fileType = args.fileType ?? "all";
   const includeGenerated = args.includeGenerated ?? true;
   const searchQuery = args.searchQuery?.trim();
+  const sortField = args.sortField ?? "created";
+  const sortDirection = args.sortDirection ?? "desc";
 
   // Build the query based on filters - all filtering at database level
   let query;
 
-  // If search query is provided, use search index
+  // If search query is provided, use search index (sorting by relevance, not customizable)
   if (searchQuery) {
     query = ctx.db
       .query("userFiles")
@@ -282,6 +286,23 @@ export async function getUserFilesHandler(
     } else if (fileType === "all" && !includeGenerated) {
       query = query.filter(q => q.eq(q.field("isGenerated"), false));
     }
+  } else if (sortField === "name") {
+    // Sort by name - use by_user_name index
+    // Note: type filtering with name sorting requires post-filter
+    query = ctx.db
+      .query("userFiles")
+      .withIndex("by_user_name", q => q.eq("userId", userId))
+      .order(sortDirection);
+
+    // Apply type filter if specified
+    if (fileType !== "all") {
+      query = query.filter(q => q.eq(q.field("type"), fileType));
+    }
+
+    // Apply isGenerated filter
+    if (!includeGenerated) {
+      query = query.filter(q => q.eq(q.field("isGenerated"), false));
+    }
   } else if (fileType === "image" && !includeGenerated) {
     // Special case: images only, exclude generated
     // Use by_user_type_created for images and filter before ordering
@@ -291,7 +312,7 @@ export async function getUserFilesHandler(
         q.eq("userId", userId).eq("type", "image")
       )
       .filter(q => q.eq(q.field("isGenerated"), false))
-      .order("desc");
+      .order(sortDirection);
   } else if (fileType === "pdf" || fileType === "text") {
     // PDF or text files (these are never generated, so includeGenerated doesn't matter)
     query = ctx.db
@@ -299,7 +320,7 @@ export async function getUserFilesHandler(
       .withIndex("by_user_type_created", q =>
         q.eq("userId", userId).eq("type", fileType)
       )
-      .order("desc");
+      .order(sortDirection);
   } else if (fileType === "image" && includeGenerated) {
     // All images including generated
     query = ctx.db
@@ -307,13 +328,13 @@ export async function getUserFilesHandler(
       .withIndex("by_user_type_created", q =>
         q.eq("userId", userId).eq("type", "image")
       )
-      .order("desc");
+      .order(sortDirection);
   } else if (fileType === "all" && includeGenerated) {
     // All files including generated
     query = ctx.db
       .query("userFiles")
       .withIndex("by_user_created", q => q.eq("userId", userId))
-      .order("desc");
+      .order(sortDirection);
   } else {
     // fileType === "all" && !includeGenerated
     // All files excluding generated images
@@ -322,7 +343,7 @@ export async function getUserFilesHandler(
       .withIndex("by_user_generated", q =>
         q.eq("userId", userId).eq("isGenerated", false)
       )
-      .order("desc");
+      .order(sortDirection);
   }
 
   // Apply pagination - no post-pagination filtering needed
@@ -394,6 +415,8 @@ export const getUserFiles = query({
     ),
     includeGenerated: v.optional(v.boolean()),
     searchQuery: v.optional(v.string()),
+    sortField: v.optional(v.union(v.literal("name"), v.literal("created"))),
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
   },
   handler: getUserFilesHandler,
 });

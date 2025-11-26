@@ -1,8 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
-  CaretDownIcon,
-  CaretUpIcon,
   DownloadIcon,
   EyeIcon,
   FileCodeIcon,
@@ -14,24 +12,23 @@ import {
   MagicWandIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useMutation, usePaginatedQuery } from "convex/react";
-import { useCallback, useMemo, useState } from "react";
+import { useMutation } from "convex/react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  DataList,
-  type DataListColumn,
   ListEmptyState,
   ListLoadingState,
   type MobileDrawerConfig,
+  VirtualizedDataList,
+  type VirtualizedDataListColumn,
 } from "@/components/data-list";
 import { ImageThumbnail } from "@/components/file-display";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
+import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
-import { FilePreviewDialog } from "@/components/ui/file-preview-dialog";
-import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import {
   Select,
@@ -42,12 +39,13 @@ import {
 } from "@/components/ui/select";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useListSelection } from "@/hooks/use-list-selection";
-import { useListSort } from "@/hooks/use-list-sort";
+import type { SortDirection } from "@/hooks/use-list-sort";
 import { useToast } from "@/providers/toast-context";
 import type { Attachment } from "@/types";
 
-type FileType = "all" | "image" | "pdf" | "text";
 type SortField = "name" | "created";
+
+type FileType = "all" | "image" | "pdf" | "text";
 
 interface UserFile {
   storageId: Id<"_storage"> | null; // null for content-based text attachments
@@ -123,19 +121,32 @@ export default function AttachmentsPage() {
   // Debounce search query to avoid excessive queries (300ms delay)
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
-  // Query user files with server-side filtering, search, and pagination
-  const {
-    results: filesData,
-    status,
-    loadMore,
-  } = usePaginatedQuery(
-    api.fileStorage.getUserFiles,
-    {
+  // Sort state for server-side sorting
+  const [sortField, setSortField] = useState<SortField>("created");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+
+  const handleSort = useCallback(
+    (field: SortField) => {
+      if (sortField === field) {
+        setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+      } else {
+        setSortField(field);
+        setSortDirection("asc");
+      }
+    },
+    [sortField]
+  );
+
+  // Query args for VirtualizedDataList
+  const queryArgs = useMemo(
+    () => ({
       fileType: fileType === "all" ? undefined : fileType,
       includeGenerated,
       searchQuery: debouncedSearchQuery || undefined,
-    },
-    { initialNumItems: 50 }
+      sortField,
+      sortDirection,
+    }),
+    [fileType, includeGenerated, debouncedSearchQuery, sortField, sortDirection]
   );
 
   // Mutations
@@ -143,39 +154,45 @@ export default function AttachmentsPage() {
   const deleteMultipleFiles = useMutation(api.fileStorage.deleteMultipleFiles);
   const removeAttachment = useMutation(api.messages.removeAttachment);
 
-  // Filter out null entries
-  const validFiles = useMemo(() => {
-    if (!filesData) {
-      return [];
-    }
-    return filesData.filter(
-      (file: UserFile | null) => file !== null
-    ) as UserFile[];
-  }, [filesData]);
-
   // File key generation for selection
   const getFileKey = useCallback((file: UserFile) => {
     return file.storageId || `${file.messageId}-${file.attachment.name}`;
   }, []);
 
-  // Sorting hook
-  const { sortField, sortDirection, toggleSort, sortItems } = useListSort<
-    SortField,
-    UserFile
-  >("created", "desc", (file, field) => {
-    if (field === "name") {
-      return file.attachment.name.toLowerCase();
-    }
-    return file.createdAt;
-  });
-
   // Selection hook
   const selection = useListSelection<UserFile>(getFileKey);
 
-  // Apply sorting
-  const sortedFiles = useMemo(
-    () => sortItems(validFiles),
-    [sortItems, validFiles]
+  // Track selected file objects for bulk operations
+  const selectedFilesRef = useRef<Map<string, UserFile>>(new Map());
+
+  // Selection adapter that tracks full file objects
+  const selectionAdapter = useMemo(
+    () => ({
+      selectedKeys: selection.selectedKeys,
+      isSelected: (file: UserFile) => selection.isSelected(file),
+      isAllSelected: (items: UserFile[]) => selection.isAllSelected(items),
+      toggleItem: (file: UserFile) => {
+        const key = getFileKey(file);
+        if (selection.isSelected(file)) {
+          selectedFilesRef.current.delete(key);
+        } else {
+          selectedFilesRef.current.set(key, file);
+        }
+        selection.toggleItem(file);
+      },
+      toggleAll: (items: UserFile[]) => {
+        const allSelected = selection.isAllSelected(items);
+        if (allSelected) {
+          selectedFilesRef.current.clear();
+        } else {
+          for (const file of items) {
+            selectedFilesRef.current.set(getFileKey(file), file);
+          }
+        }
+        selection.toggleAll(items);
+      },
+    }),
+    [selection, getFileKey]
   );
 
   // File operations
@@ -241,28 +258,21 @@ export default function AttachmentsPage() {
       return;
     }
 
-    // Get selected files and separate by type
+    // Get selected files from ref and separate by type
     const storageIds: Id<"_storage">[] = [];
     const textAttachments: Array<{
       messageId: Id<"messages">;
       attachmentName: string;
     }> = [];
 
-    for (const key of selection.selectedKeys) {
-      const file = sortedFiles.find(f => {
-        const fileKey = getFileKey(f);
-        return fileKey === key;
-      });
-
-      if (file) {
-        if (file.storageId) {
-          storageIds.push(file.storageId);
-        } else {
-          textAttachments.push({
-            messageId: file.messageId,
-            attachmentName: file.attachment.name,
-          });
-        }
+    for (const file of selectedFilesRef.current.values()) {
+      if (file.storageId) {
+        storageIds.push(file.storageId);
+      } else {
+        textAttachments.push({
+          messageId: file.messageId,
+          attachmentName: file.attachment.name,
+        });
       }
     }
 
@@ -296,6 +306,7 @@ export default function AttachmentsPage() {
       }
 
       selection.clearSelection();
+      selectedFilesRef.current.clear();
 
       const storageMessage =
         storageIds.length > 0
@@ -317,14 +328,7 @@ export default function AttachmentsPage() {
           error instanceof Error ? error.message : "Failed to remove files.",
       });
     }
-  }, [
-    selection,
-    sortedFiles,
-    deleteMultipleFiles,
-    removeAttachment,
-    managedToast,
-    getFileKey,
-  ]);
+  }, [selection, deleteMultipleFiles, removeAttachment, managedToast]);
 
   const handleDownloadFile = useCallback((file: UserFile) => {
     if (!file.url) {
@@ -343,26 +347,16 @@ export default function AttachmentsPage() {
     if (deleteTarget === "selected") {
       handleDeleteSelected();
     } else if (deleteTarget) {
-      // Find the file object by key
-      const file = sortedFiles.find(f => {
-        const fileKey = getFileKey(f);
-        return fileKey === deleteTarget;
-      });
+      // Find the file object by key from the selection ref
+      const file = selectedFilesRef.current.get(deleteTarget);
       if (file) {
         handleDeleteFile(file);
+        selectedFilesRef.current.delete(deleteTarget);
       }
     }
     setShowDeleteDialog(false);
     setDeleteTarget(null);
-  }, [
-    deleteTarget,
-    sortedFiles,
-    handleDeleteSelected,
-    handleDeleteFile,
-    getFileKey,
-  ]);
-
-  const isLoading = status === "LoadingFirstPage";
+  }, [deleteTarget, handleDeleteSelected, handleDeleteFile]);
 
   return (
     <SettingsPageLayout>
@@ -433,297 +427,274 @@ export default function AttachmentsPage() {
         </div>
       </div>
 
-      {/* Files Table */}
-      {isLoading && <ListLoadingState count={6} height="h-16" />}
-
-      {!isLoading && sortedFiles.length === 0 && (
-        <ListEmptyState
-          icon={<FolderIcon className="h-12 w-12" />}
-          title="No files found"
-          description={
-            searchQuery
-              ? "Try adjusting your search or filter settings"
-              : "Upload files in your conversations to see them here"
-          }
-        />
-      )}
-
-      {!isLoading && sortedFiles.length > 0 && (
-        <DataList
-          items={sortedFiles}
-          getItemKey={getFileKey}
-          selection={selection}
-          sort={{
-            field: sortField,
-            direction: sortDirection,
-            onSort: toggleSort,
-          }}
-          sortIcons={{ asc: CaretUpIcon, desc: CaretDownIcon }}
-          onRowClick={file => {
-            // On mobile, this won't trigger since mobileDrawerConfig handles row taps
-            // On desktop, toggle selection
-            selection.toggleItem(file);
-          }}
-          mobileTitleRender={file => (
-            <div className="flex items-center gap-2">
-              <div className="flex-shrink-0">
-                {file.attachment.type === "image" ? (
-                  <ImageThumbnail
-                    attachment={file.attachment}
-                    className="h-10 w-10 rounded border bg-muted/20 object-cover"
-                    onClick={() => setPreviewFile(file)}
-                  />
-                ) : (
-                  <button
+      {/* VirtualizedDataList */}
+      <VirtualizedDataList<UserFile, SortField>
+        query={api.fileStorage.getUserFiles}
+        queryArgs={queryArgs}
+        getItemKey={getFileKey}
+        selection={selectionAdapter}
+        sort={{
+          field: sortField,
+          direction: sortDirection,
+          onSort: handleSort,
+        }}
+        onRowClick={file => selectionAdapter.toggleItem(file)}
+        variant="flush"
+        stickyHeader
+        stickyOffset={68}
+        initialNumItems={50}
+        loadingState={<ListLoadingState count={6} height="h-16" />}
+        emptyState={
+          <ListEmptyState
+            icon={<FolderIcon className="h-12 w-12" />}
+            title="No files found"
+            description={
+              searchQuery
+                ? "Try adjusting your search or filter settings"
+                : "Upload files in your conversations to see them here"
+            }
+          />
+        }
+        mobileTitleRender={file => (
+          <div className="flex items-center gap-2">
+            <div className="flex-shrink-0">
+              {file.attachment.type === "image" ? (
+                <ImageThumbnail
+                  attachment={file.attachment}
+                  className="h-10 w-10 rounded border bg-muted/20 object-cover"
+                  onClick={() => setPreviewFile(file)}
+                />
+              ) : (
+                <button
+                  onClick={e => {
+                    e.stopPropagation();
+                    setPreviewFile(file);
+                  }}
+                  className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
+                  type="button"
+                >
+                  {getFileAttachmentIcon(file.attachment)}
+                </button>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className="truncate font-medium"
+                  title={file.attachment.name}
+                >
+                  {file.attachment.name}
+                </div>
+                {(file.attachment.generatedImage?.isGenerated ?? false) && (
+                  <Badge
+                    className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
+                    title="Generated image"
+                  >
+                    <MagicWandIcon className="h-3 w-3" />
+                    <span className="ml-1 hidden sm:inline">Generated</span>
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        mobileDrawerConfig={
+          {
+            title: file => file.attachment.name,
+            subtitle: file =>
+              `${file.conversationName} • ${formatDate(file.createdAt)}`,
+            actions: [
+              {
+                key: "preview",
+                icon: EyeIcon,
+                label: "Preview file",
+                onClick: file => setPreviewFile(file),
+              },
+              {
+                key: "conversation",
+                icon: LinkIcon,
+                label: "Go to conversation",
+                onClick: file => navigate(`/chat/${file.conversationId}`),
+              },
+              {
+                key: "download",
+                icon: DownloadIcon,
+                label: "Download file",
+                onClick: file => handleDownloadFile(file),
+                hidden: file => !file.url,
+              },
+              {
+                key: "delete",
+                icon: TrashIcon,
+                label: file =>
+                  file.storageId ? "Delete file" : "Remove attachment",
+                onClick: file => {
+                  // Store in ref for confirmDelete to access
+                  selectedFilesRef.current.set(getFileKey(file), file);
+                  setDeleteTarget(getFileKey(file));
+                  setShowDeleteDialog(true);
+                },
+                className:
+                  "text-destructive hover:bg-destructive/10 hover:text-destructive",
+              },
+            ],
+          } as MobileDrawerConfig<UserFile>
+        }
+        mobileMetadataRender={file => (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate" title={file.conversationName}>
+              {file.conversationName}
+            </span>
+            <span>•</span>
+            <span className="flex-shrink-0">{formatDate(file.createdAt)}</span>
+          </div>
+        )}
+        columns={
+          [
+            {
+              key: "name",
+              label: "Name",
+              sortable: true,
+              sortField: "name" as SortField,
+              hideOnMobile: true,
+              render: file => (
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex-shrink-0">
+                    <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
+                      {file.attachment.type === "image" ? (
+                        <ImageThumbnail
+                          attachment={file.attachment}
+                          className="h-full w-full rounded object-cover"
+                          onClick={() => setPreviewFile(file)}
+                        />
+                      ) : (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPreviewFile(file);
+                          }}
+                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                          type="button"
+                        >
+                          {getFileAttachmentIcon(file.attachment)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className="truncate font-medium"
+                        title={file.attachment.name}
+                      >
+                        {file.attachment.name}
+                      </div>
+                      {(file.attachment.generatedImage?.isGenerated ??
+                        false) && (
+                        <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
+                          <MagicWandIcon className="h-3 w-3 mr-1" />
+                          Generated
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground min-w-0">
+                      <span className="truncate" title={file.conversationName}>
+                        {file.conversationName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              key: "created",
+              label: "Created",
+              sortable: true,
+              sortField: "created" as SortField,
+              width: "w-32",
+              className: "text-sm text-muted-foreground",
+              hideOnMobile: true,
+              render: file => formatDate(file.createdAt),
+            },
+            {
+              key: "actions",
+              label: "",
+              width: "w-40",
+              className: "text-right",
+              hideOnMobile: true,
+              render: file => (
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     onClick={e => {
                       e.stopPropagation();
                       setPreviewFile(file);
                     }}
-                    className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
-                    type="button"
+                    className="h-8 px-2"
+                    title="Preview file"
                   >
-                    {getFileAttachmentIcon(file.attachment)}
-                  </button>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="truncate font-medium"
-                    title={file.attachment.name}
+                    <EyeIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      navigate(`/chat/${file.conversationId}`);
+                    }}
+                    className="h-8 px-2"
+                    title="Go to conversation"
                   >
-                    {file.attachment.name}
-                  </div>
-                  {(file.attachment.generatedImage?.isGenerated ?? false) && (
-                    <Badge
-                      className="bg-purple-500/90 text-white text-xs flex-shrink-0 px-1"
-                      title="Generated image"
+                    <LinkIcon className="h-4 w-4" />
+                  </Button>
+                  {file.url && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleDownloadFile(file);
+                      }}
+                      className="h-8 px-2"
+                      title="Download file"
                     >
-                      <MagicWandIcon className="h-3 w-3" />
-                      <span className="ml-1 hidden sm:inline">Generated</span>
-                    </Badge>
+                      <DownloadIcon className="h-4 w-4" />
+                    </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={e => {
+                      e.stopPropagation();
+                      // Store in ref for confirmDelete to access
+                      selectedFilesRef.current.set(getFileKey(file), file);
+                      setDeleteTarget(getFileKey(file));
+                      setShowDeleteDialog(true);
+                    }}
+                    className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    title={
+                      file.storageId
+                        ? "Delete file"
+                        : "Remove text attachment from message"
+                    }
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-              </div>
-            </div>
-          )}
-          mobileDrawerConfig={
-            {
-              title: file => file.attachment.name,
-              subtitle: file =>
-                `${file.conversationName} • ${formatDate(file.createdAt)}`,
-              actions: [
-                {
-                  key: "preview",
-                  icon: EyeIcon,
-                  label: "Preview file",
-                  onClick: file => setPreviewFile(file),
-                },
-                {
-                  key: "conversation",
-                  icon: LinkIcon,
-                  label: "Go to conversation",
-                  onClick: file => navigate(`/chat/${file.conversationId}`),
-                },
-                {
-                  key: "download",
-                  icon: DownloadIcon,
-                  label: "Download file",
-                  onClick: file => handleDownloadFile(file),
-                  hidden: file => !file.url,
-                },
-                {
-                  key: "delete",
-                  icon: TrashIcon,
-                  label: file =>
-                    file.storageId ? "Delete file" : "Remove attachment",
-                  onClick: file => {
-                    setDeleteTarget(getFileKey(file));
-                    setShowDeleteDialog(true);
-                  },
-                  className:
-                    "text-destructive hover:bg-destructive/10 hover:text-destructive",
-                },
-              ],
-            } as MobileDrawerConfig<UserFile>
-          }
-          mobileMetadataRender={file => (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="truncate" title={file.conversationName}>
-                {file.conversationName}
-              </span>
-              <span>•</span>
-              <span className="flex-shrink-0">
-                {formatDate(file.createdAt)}
-              </span>
-            </div>
-          )}
-          columns={
-            [
-              {
-                key: "name",
-                label: "Name",
-                sortable: true,
-                sortField: "name",
-                hideOnMobile: true, // Title is rendered via mobileTitleRender
-                render: file => (
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0">
-                      <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
-                        {file.attachment.type === "image" ? (
-                          <ImageThumbnail
-                            attachment={file.attachment}
-                            className="h-full w-full rounded object-cover"
-                            onClick={() => setPreviewFile(file)}
-                          />
-                        ) : (
-                          <button
-                            onClick={e => {
-                              e.stopPropagation();
-                              setPreviewFile(file);
-                            }}
-                            className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
-                            type="button"
-                          >
-                            {getFileAttachmentIcon(file.attachment)}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div
-                          className="truncate font-medium"
-                          title={file.attachment.name}
-                        >
-                          {file.attachment.name}
-                        </div>
-                        {(file.attachment.generatedImage?.isGenerated ??
-                          false) && (
-                          <Badge className="bg-purple-500/90 text-white text-xs flex-shrink-0">
-                            <MagicWandIcon className="h-3 w-3 mr-1" />
-                            Generated
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground min-w-0">
-                        <span
-                          className="truncate"
-                          title={file.conversationName}
-                        >
-                          {file.conversationName}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              },
-              {
-                key: "created",
-                label: "Created",
-                sortable: true,
-                sortField: "created",
-                width: "w-32",
-                className: "text-sm text-muted-foreground",
-                hideOnMobile: true, // Date is rendered via mobileMetadataRender
-                render: file => formatDate(file.createdAt),
-              },
-              {
-                key: "actions",
-                label: "Actions",
-                width: "w-40",
-                className: "text-right",
-                hideOnMobile: true, // Actions are rendered via mobileActionsRender
-                render: file => (
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setPreviewFile(file);
-                      }}
-                      className="h-8 px-2"
-                      title="Preview file"
-                    >
-                      <EyeIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={e => {
-                        e.stopPropagation();
-                        navigate(`/chat/${file.conversationId}`);
-                      }}
-                      className="h-8 px-2"
-                      title="Go to conversation"
-                    >
-                      <LinkIcon className="h-4 w-4" />
-                    </Button>
-                    {file.url && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={e => {
-                          e.stopPropagation();
-                          handleDownloadFile(file);
-                        }}
-                        className="h-8 px-2"
-                        title="Download file"
-                      >
-                        <DownloadIcon className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={e => {
-                        e.stopPropagation();
-                        setDeleteTarget(getFileKey(file));
-                        setShowDeleteDialog(true);
-                      }}
-                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      title={
-                        file.storageId
-                          ? "Delete file"
-                          : "Remove text attachment from message"
-                      }
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ),
-              },
-            ] as DataListColumn<UserFile, SortField>[]
-          }
-        />
-      )}
-
-      {/* Load More Button */}
-      {status === "CanLoadMore" && (
-        <div className="flex justify-center py-4">
-          <Button onClick={() => loadMore(50)} variant="outline">
-            Load More
-          </Button>
-        </div>
-      )}
-
-      {status === "LoadingMore" && (
-        <div className="flex justify-center py-4">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            <span>Loading more files...</span>
-          </div>
-        </div>
-      )}
+              ),
+            },
+          ] as VirtualizedDataListColumn<UserFile, SortField>[]
+        }
+      />
 
       {/* File Preview Dialog */}
       {previewFile && (
-        <FilePreviewDialog
-          attachment={previewFile.attachment}
+        <AttachmentGalleryDialog
+          attachments={[previewFile.attachment]}
+          currentAttachment={previewFile.attachment}
           open={!!previewFile}
           onOpenChange={open => !open && setPreviewFile(null)}
-          imageUrl={previewFile.url || undefined}
         />
       )}
 

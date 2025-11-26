@@ -1,10 +1,4 @@
 export type {
-  DataListColumn,
-  DataListSelection,
-  DataListSort,
-} from "./DataList";
-export { DataList } from "./DataList";
-export type {
   MobileDrawerAction,
   MobileDrawerConfig,
 } from "./DataListMobileDrawer";
@@ -19,3 +13,9 @@ export { ListRow } from "./ListRow";
 export { SelectAllCheckbox } from "./SelectAllCheckbox";
 export { SelectionCheckbox } from "./SelectionCheckbox";
 export { SortableHeader } from "./SortableHeader";
+export type {
+  VirtualizedDataListColumn,
+  VirtualizedDataListSelection,
+  VirtualizedDataListSort,
+} from "./VirtualizedDataList";
+export { VirtualizedDataList } from "./VirtualizedDataList";

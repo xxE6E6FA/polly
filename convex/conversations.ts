@@ -809,6 +809,7 @@ export async function listHandler(
       | undefined;
     includeArchived?: boolean;
     archivedOnly?: boolean;
+    sortDirection?: "asc" | "desc";
   }
 ) {
   // Use getAuthUserId to properly handle both anonymous and authenticated users
@@ -819,12 +820,13 @@ export async function listHandler(
   }
 
   const userDocId = userId as Id<"users">;
+  const sortDirection = args.sortDirection ?? "desc";
 
   // Start with the base query for all conversations
   let query = ctx.db
     .query("conversations")
     .withIndex("by_user_recent", q => q.eq("userId", userDocId))
-    .order("desc");
+    .order(sortDirection);
 
   // Apply specific filters first
   if (args.archivedOnly === true) {
@@ -851,6 +853,8 @@ export const list = query({
     includeArchived: v.optional(v.boolean()),
     // Specific filter options
     archivedOnly: v.optional(v.boolean()),
+    // Sort options
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
   },
   handler: listHandler,
 });

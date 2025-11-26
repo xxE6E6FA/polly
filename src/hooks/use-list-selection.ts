@@ -1,11 +1,22 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+
+interface UseListSelectionOptions {
+  /** Enable shift+click range selection */
+  enableShiftSelect?: boolean;
+}
 
 /**
  * Hook for managing multi-select list state
- * Supports individual item selection, select all/none, and custom key extraction
+ * Supports individual item selection, select all/none, custom key extraction,
+ * and optional shift+click range selection
  */
-export function useListSelection<T>(getItemKey: (item: T) => string) {
+export function useListSelection<T>(
+  getItemKey: (item: T) => string,
+  options?: UseListSelectionOptions
+) {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const lastSelectedIndexRef = useRef<number | null>(null);
+  const enableShiftSelect = options?.enableShiftSelect ?? false;
 
   const toggleItem = useCallback(
     (item: T) => {
@@ -21,6 +32,52 @@ export function useListSelection<T>(getItemKey: (item: T) => string) {
       });
     },
     [getItemKey]
+  );
+
+  /**
+   * Toggle item with shift+click range selection support
+   * @param item - The item being clicked
+   * @param index - The index of the item in the list
+   * @param isShiftKey - Whether shift key is held
+   * @param items - The full list of items (needed for range selection)
+   */
+  const toggleItemWithShift = useCallback(
+    (item: T, index: number, isShiftKey: boolean, items: T[]) => {
+      if (!enableShiftSelect) {
+        toggleItem(item);
+        lastSelectedIndexRef.current = index;
+        return;
+      }
+
+      setSelectedKeys(prev => {
+        const newSet = new Set(prev);
+        const key = getItemKey(item);
+
+        if (isShiftKey && lastSelectedIndexRef.current !== null) {
+          // Range selection: select all items between last selected and current
+          const start = Math.min(lastSelectedIndexRef.current, index);
+          const end = Math.max(lastSelectedIndexRef.current, index);
+
+          for (let i = start; i <= end; i++) {
+            const rangeItem = items[i];
+            if (rangeItem) {
+              newSet.add(getItemKey(rangeItem));
+            }
+          }
+        } else if (newSet.has(key)) {
+          // Normal toggle - deselect
+          newSet.delete(key);
+        } else {
+          // Normal toggle - select
+          newSet.add(key);
+        }
+
+        return newSet;
+      });
+
+      lastSelectedIndexRef.current = index;
+    },
+    [enableShiftSelect, getItemKey, toggleItem]
   );
 
   const toggleAll = useCallback(
@@ -42,12 +99,16 @@ export function useListSelection<T>(getItemKey: (item: T) => string) {
         allKeys.forEach(key => newSet.add(key));
         return newSet;
       });
+
+      // Update last selected index to end of list
+      lastSelectedIndexRef.current = items.length - 1;
     },
     [getItemKey]
   );
 
   const clearSelection = useCallback(() => {
     setSelectedKeys(new Set());
+    lastSelectedIndexRef.current = null;
   }, []);
 
   const isSelected = useCallback(
@@ -72,6 +133,7 @@ export function useListSelection<T>(getItemKey: (item: T) => string) {
     selectedKeys,
     selectedCount: selectedKeys.size,
     toggleItem,
+    toggleItemWithShift,
     toggleAll,
     clearSelection,
     isSelected,

@@ -5,12 +5,14 @@ interface SelectAllCheckboxProps {
   checked: boolean;
   onToggle: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export function SelectAllCheckbox({
   checked,
   onToggle,
   className,
+  disabled,
 }: SelectAllCheckboxProps) {
   return (
     <div className={cn(className)}>
@@ -18,13 +20,20 @@ export function SelectAllCheckbox({
       <button
         onClick={e => {
           e.stopPropagation();
-          onToggle();
+          if (!disabled) {
+            onToggle();
+          }
         }}
-        className="flex h-4 w-4 items-center justify-center rounded border"
+        className={cn(
+          "flex h-4 w-4 items-center justify-center rounded border",
+          disabled && "opacity-50 cursor-not-allowed"
+        )}
         type="button"
         role="checkbox"
         aria-checked={checked}
         aria-label={checked ? "Deselect all" : "Select all"}
+        aria-disabled={disabled}
+        disabled={disabled}
       >
         {checked && <CheckIcon className="h-3 w-3" />}
       </button>

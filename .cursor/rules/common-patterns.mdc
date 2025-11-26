@@ -106,9 +106,37 @@ const buttonVariants = cva(
 ## Performance Patterns
 
 ### Virtualization
-- **Large Lists**: Use virtual scrolling for large datasets
-- **Window Scrolling**: Implement window-based rendering
-- **Dynamic Heights**: Handle variable height items properly
+
+Use `VirtualizedDataList` (`src/components/data-list/VirtualizedDataList.tsx`) for paginated lists:
+
+```tsx
+<VirtualizedDataList<ItemType, SortField>
+  query={api.items.list}
+  queryArgs={{ sortField, sortDirection }}
+  columns={[
+    { key: "name", label: "Name", sortable: true, sortField: "name", render: item => item.name },
+    { key: "date", label: "Date", sortable: true, sortField: "date", render: item => formatDate(item.date) },
+  ]}
+  getItemKey={item => item._id}
+  sort={{ field: sortField, direction: sortDirection, onSort: handleSort }}
+  variant="flush"
+  stickyHeader
+  stickyOffset={68}
+/>
+```
+
+**Key Features:**
+- Window virtualization via `WindowVirtualizer` from virtua
+- Server-side pagination with Convex `usePaginatedQuery`
+- Sticky column headers with sort indicators (caret up/down)
+- Headers visible during loading (skeleton rows in body)
+- Mobile-responsive with `mobileDrawerConfig` for touch actions
+
+**Server-side Sorting Pattern:**
+1. Add `sortField`/`sortDirection` to Convex query args
+2. Use `.order(sortDirection)` in query handler
+3. Pass sort state to both `queryArgs` and `sort` prop
+4. Mark columns as `sortable: true` with `sortField`
 
 ### Lazy Loading
 - **Route Components**: Use `React.lazy()` for route-based code splitting

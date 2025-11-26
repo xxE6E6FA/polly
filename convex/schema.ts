@@ -146,6 +146,7 @@ export default defineSchema({
 
   userFiles: defineTable(userFileSchema)
     .index("by_user_created", ["userId", "createdAt"])
+    .index("by_user_name", ["userId", "name"])
     .index("by_user_type_created", ["userId", "type", "createdAt"])
     .index("by_user_generated", ["userId", "isGenerated", "createdAt"])
     .index("by_storage_id", ["userId", "storageId"])

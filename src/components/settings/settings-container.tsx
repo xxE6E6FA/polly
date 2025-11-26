@@ -113,15 +113,12 @@ export const SettingsContainer = ({
   }
 
   // Desktop: Use horizontal tabs with React Router children
-  // Outer container handles scrolling (scrollbar flush with viewport)
-  // Inner container handles max-width and centering
+  // Window handles scrolling, nav is sticky at top
   return (
-    <div
-      className="flex-1 overflow-y-auto"
-      style={{ scrollbarGutter: "stable" }}
-    >
-      <div className="mx-auto w-full max-w-4xl px-4 py-3">
-        <div className="stack-md">
+    <div className="flex-1" style={{ scrollbarGutter: "stable" }}>
+      {/* Sticky navigation container */}
+      <div className="sticky top-0 z-sticky bg-background pb-3">
+        <div className="mx-auto w-full max-w-4xl px-4 pt-3 stack-sm">
           {/* Main Navigation Tabs */}
           <nav>
             <SettingsTabs
@@ -141,10 +138,12 @@ export const SettingsContainer = ({
               />
             </nav>
           )}
-
-          {/* Desktop Content */}
-          <div className={cn("w-full", className)}>{children}</div>
         </div>
+      </div>
+
+      {/* Content area - scrolls with window */}
+      <div className="mx-auto w-full max-w-4xl px-4 pb-6">
+        <div className={cn("w-full", className)}>{children}</div>
       </div>
     </div>
   );

@@ -230,3 +230,48 @@ function UserCard({ user }) {
 - Wrap any container with `density-compact` to reduce vertical rhythm one step (e.g., `stack-lg` acts like `stack-md`).
 - Wrap with `density-spacious` to increase rhythm one step (e.g., `stack-md` acts like `stack-lg`).
 - Apply at page or section level depending on desired feel; leave default for general pages.
+
+## VirtualizedDataList Component
+
+Server-side paginated, virtualized list component at `src/components/data-list/VirtualizedDataList.tsx`.
+
+### Key Props
+
+- `query`: Convex paginated query reference
+- `queryArgs`: Query args including `sortField`/`sortDirection` for server-side sorting
+- `columns`: Column definitions with optional `sortable: true` and `sortField`
+- `sort`: `{ field, direction, onSort }` for header sort indicators
+- `variant`: `"contained"` (bordered) or `"flush"` (edge-to-edge)
+- `stickyHeader`: Enable sticky column headers
+- `stickyOffset`: Pixel offset for sticky header (e.g., 68 for settings nav)
+
+### Server-side Sorting Pattern
+
+```tsx
+// 1. Add to Convex query handler
+.order(args.sortDirection ?? "desc")
+
+// 2. Add to query args schema
+sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc")))
+
+// 3. Frontend sort state
+const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+const handleSort = (field: SortField) => {
+  setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+};
+
+// 4. Pass to VirtualizedDataList
+<VirtualizedDataList
+  queryArgs={{ sortDirection }}
+  sort={{ field: sortField, direction: sortDirection, onSort: handleSort }}
+  columns={[{ key: "date", sortable: true, sortField: "date", ... }]}
+/>
+```
+
+### Features
+
+- Window virtualization via `WindowVirtualizer` from virtua
+- Headers always visible during loading (skeleton rows in body)
+- Sort indicators (caret up/down) on sortable column headers
+- Mobile-responsive with drawer actions via `mobileDrawerConfig`
+- Selection support for bulk operations

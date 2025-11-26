@@ -1,3 +1,4 @@
+import { CaretDown, CaretUp } from "@phosphor-icons/react";
 import type { SortDirection } from "@/hooks/use-list-sort";
 import { cn } from "@/lib/utils";
 
@@ -28,8 +29,8 @@ export function SortableHeader<TField extends string>({
   icons,
 }: SortableHeaderProps<TField>) {
   const isActive = sortField === field;
-  const AscIcon = icons?.asc;
-  const DescIcon = icons?.desc;
+  const AscIcon = icons?.asc ?? CaretUp;
+  const DescIcon = icons?.desc ?? CaretDown;
 
   return (
     <div className={cn(className)}>
@@ -41,12 +42,8 @@ export function SortableHeader<TField extends string>({
         {children}
         {isActive && (
           <>
-            {sortDirection === "asc" && AscIcon && (
-              <AscIcon className="h-3 w-3" />
-            )}
-            {sortDirection === "desc" && DescIcon && (
-              <DescIcon className="h-3 w-3" />
-            )}
+            {sortDirection === "asc" && <AscIcon className="h-3 w-3" />}
+            {sortDirection === "desc" && <DescIcon className="h-3 w-3" />}
           </>
         )}
       </button>
