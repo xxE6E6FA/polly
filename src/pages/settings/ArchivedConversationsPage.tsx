@@ -5,9 +5,12 @@ import {
   EyeIcon,
   TrashIcon,
 } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
-import { useCallback, useState } from "react";
-import { Link } from "react-router-dom";
+import { useMutation } from "convex/react";
+import { useCallback, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import type { MobileDrawerConfig } from "@/components/data-list/DataListMobileDrawer";
+import type { VirtualizedDataListColumn } from "@/components/data-list/VirtualizedDataList";
+import { VirtualizedDataList } from "@/components/data-list/VirtualizedDataList";
 import { SettingsHeader } from "@/components/settings/settings-header";
 import { SettingsPageLayout } from "@/components/settings/ui/SettingsPageLayout";
 import { SettingsZeroState } from "@/components/settings/ui/SettingsZeroState";
@@ -20,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
+import type { SortDirection } from "@/hooks/use-list-sort";
 import { CACHE_KEYS, del } from "@/lib/local-storage";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
@@ -33,17 +37,20 @@ type ArchivedConversation = {
   isArchived?: boolean;
 };
 
+type SortField = "archivedAt";
+
 export const ArchivedConversationsPage = () => {
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
+  const navigate = useNavigate();
 
   const [isUnarchiving, setIsUnarchiving] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  // Query all archived conversations
-  const archivedConversations = useQuery(api.conversations.list, {
-    archivedOnly: true,
-  });
+  const handleSort = useCallback(() => {
+    setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+  }, []);
 
   const unarchiveMutation = useMutation(api.conversations.patch);
   const deleteConversationMutation = useMutation(api.conversations.remove);
@@ -61,7 +68,6 @@ export const ArchivedConversationsPage = () => {
           description:
             "The conversation has been moved back to your main list.",
         });
-        // Invalidate conversations cache to reflect unarchived conversation
         del(CACHE_KEYS.conversations);
       } catch (_error) {
         managedToast.error("Failed to restore conversation", {
@@ -91,7 +97,6 @@ export const ArchivedConversationsPage = () => {
             managedToast.success("Conversation deleted", {
               description: "The conversation has been permanently removed.",
             });
-            // Invalidate conversations cache to reflect deleted conversation
             del(CACHE_KEYS.conversations);
           } catch (_error) {
             managedToast.error("Failed to delete conversation", {
@@ -111,130 +116,177 @@ export const ArchivedConversationsPage = () => {
     ]
   );
 
-  // Render function for each archived conversation
-  const renderArchivedConversation = useCallback(
+  const handleRowClick = useCallback(
     (conversation: ArchivedConversation) => {
-      const isRestoring = isUnarchiving === conversation._id;
-      const isDeletingConversation = isDeleting === conversation._id;
-
-      return (
-        <div className="flex items-center p-3 hover:bg-muted/30 transition-all">
-          {/* Title and metadata */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="truncate font-medium" title={conversation.title}>
-                {conversation.title}
-              </div>
-            </div>
-
-            {/* Metadata */}
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-              <span className="flex-shrink-0">
-                Archived {new Date(conversation.updatedAt).toLocaleDateString()}
-              </span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="w-32 flex-shrink-0 ml-4 flex items-center justify-end gap-1">
-            <Tooltip>
-              <TooltipTrigger>
-                <Link
-                  to={ROUTES.CHAT_CONVERSATION(conversation._id)}
-                  className={buttonVariants({
-                    size: "sm",
-                    variant: "ghost",
-                    className: "h-8 px-2",
-                  })}
-                >
-                  <EyeIcon className="h-4 w-4" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>View conversation</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2"
-                  onClick={() => handleRestore(conversation._id)}
-                  disabled={isRestoring}
-                >
-                  {isRestoring ? (
-                    <Spinner size="sm" className="h-4 w-4" />
-                  ) : (
-                    <ArrowsClockwiseIcon className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isRestoring ? "Restoring..." : "Restore conversation"}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() =>
-                    handlePermanentDelete(conversation._id, conversation.title)
-                  }
-                  disabled={isDeletingConversation}
-                >
-                  {isDeletingConversation ? (
-                    <Spinner size="sm" className="h-4 w-4" />
-                  ) : (
-                    <TrashIcon className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>
-                  {isDeletingConversation
-                    ? "Deleting..."
-                    : "Delete permanently"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      );
+      navigate(ROUTES.CHAT_CONVERSATION(conversation._id));
     },
-    [handleRestore, handlePermanentDelete, isUnarchiving, isDeleting]
+    [navigate]
   );
 
-  if (!archivedConversations) {
-    return (
-      <SettingsPageLayout>
-        <SettingsHeader
-          title="Archived Conversations"
-          description="Manage your archived conversations"
-        />
-        <div className="border rounded-lg overflow-hidden divide-y">
-          {Array.from({ length: 3 }, (_, i) => (
-            <div
-              key={`archived-skeleton-${Date.now()}-${i}`}
-              className="flex items-center p-3"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="h-4 bg-muted/30 rounded animate-pulse mb-2" />
-                <div className="h-3 bg-muted/20 rounded animate-pulse" />
-              </div>
-              <div className="w-32 flex-shrink-0 ml-4 flex gap-1">
-                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
-                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
-                <div className="h-8 w-8 bg-muted/30 rounded animate-pulse" />
-              </div>
+  const columns: VirtualizedDataListColumn<ArchivedConversation, SortField>[] =
+    useMemo(
+      () => [
+        {
+          key: "title",
+          label: "Conversation",
+          render: conversation => (
+            <div className="truncate font-medium" title={conversation.title}>
+              {conversation.title}
             </div>
-          ))}
-        </div>
-      </SettingsPageLayout>
+          ),
+        },
+        {
+          key: "archivedAt",
+          label: "Archived",
+          width: "w-32",
+          hideOnMobile: true,
+          sortable: true,
+          sortField: "archivedAt" as SortField,
+          render: conversation => (
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              {new Date(conversation.updatedAt).toLocaleDateString()}
+            </span>
+          ),
+        },
+        {
+          key: "actions",
+          label: "",
+          width: "w-40",
+          className: "text-right",
+          render: conversation => {
+            const isRestoring = isUnarchiving === conversation._id;
+            const isDeletingConversation = isDeleting === conversation._id;
+
+            return (
+              <div
+                className="flex items-center justify-end gap-1"
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => e.stopPropagation()}
+              >
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Link
+                      to={ROUTES.CHAT_CONVERSATION(conversation._id)}
+                      className={buttonVariants({
+                        size: "sm",
+                        variant: "ghost",
+                        className: "h-8 px-2",
+                      })}
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>View conversation</p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2"
+                      onClick={() => handleRestore(conversation._id)}
+                      disabled={isRestoring}
+                    >
+                      {isRestoring ? (
+                        <Spinner size="sm" className="h-4 w-4" />
+                      ) : (
+                        <ArrowsClockwiseIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isRestoring ? "Restoring..." : "Restore conversation"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() =>
+                        handlePermanentDelete(
+                          conversation._id,
+                          conversation.title
+                        )
+                      }
+                      disabled={isDeletingConversation}
+                    >
+                      {isDeletingConversation ? (
+                        <Spinner size="sm" className="h-4 w-4" />
+                      ) : (
+                        <TrashIcon className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {isDeletingConversation
+                        ? "Deleting..."
+                        : "Delete permanently"}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            );
+          },
+        },
+      ],
+      [handleRestore, handlePermanentDelete, isUnarchiving, isDeleting]
     );
-  }
+
+  const mobileDrawerConfig: MobileDrawerConfig<ArchivedConversation> = useMemo(
+    () => ({
+      title: conversation => conversation.title,
+      subtitle: conversation =>
+        `Archived ${new Date(conversation.updatedAt).toLocaleDateString()}`,
+      actions: [
+        {
+          key: "view",
+          label: "View conversation",
+          icon: EyeIcon,
+          onClick: conversation =>
+            navigate(ROUTES.CHAT_CONVERSATION(conversation._id)),
+        },
+        {
+          key: "restore",
+          label: conversation =>
+            isUnarchiving === conversation._id
+              ? "Restoring..."
+              : "Restore conversation",
+          icon: ArrowsClockwiseIcon,
+          onClick: conversation => handleRestore(conversation._id),
+          disabled: conversation => isUnarchiving === conversation._id,
+        },
+        {
+          key: "delete",
+          label: conversation =>
+            isDeleting === conversation._id
+              ? "Deleting..."
+              : "Delete permanently",
+          icon: TrashIcon,
+          onClick: conversation =>
+            handlePermanentDelete(conversation._id, conversation.title),
+          className:
+            "text-destructive hover:bg-destructive/10 hover:text-destructive",
+          disabled: conversation => isDeleting === conversation._id,
+        },
+      ],
+    }),
+    [navigate, handleRestore, handlePermanentDelete, isUnarchiving, isDeleting]
+  );
+
+  const emptyState = (
+    <SettingsZeroState
+      icon={<ArchiveIcon className="h-12 w-12" />}
+      title="No archived conversations"
+      description="Conversations you archive will appear here"
+    />
+  );
 
   return (
     <SettingsPageLayout>
@@ -243,19 +295,28 @@ export const ArchivedConversationsPage = () => {
         description="Manage your archived conversations"
       />
 
-      {Array.isArray(archivedConversations) &&
-      archivedConversations.length === 0 ? (
-        <SettingsZeroState
-          icon={<ArchiveIcon className="h-12 w-12" />}
-          title="No archived conversations"
-          description="Conversations you archive will appear here"
-        />
-      ) : (
-        <div className="border rounded-lg overflow-hidden divide-y">
-          {Array.isArray(archivedConversations) &&
-            archivedConversations.map(renderArchivedConversation)}
-        </div>
-      )}
+      <VirtualizedDataList<ArchivedConversation, SortField>
+        query={api.conversations.list}
+        queryArgs={{ archivedOnly: true, sortDirection }}
+        getItemKey={conversation => conversation._id}
+        columns={columns}
+        sort={{
+          field: "archivedAt",
+          direction: sortDirection,
+          onSort: handleSort,
+        }}
+        onRowClick={handleRowClick}
+        mobileTitleRender={conversation => conversation.title}
+        mobileMetadataRender={conversation => (
+          <span className="text-xs text-muted-foreground">
+            Archived {new Date(conversation.updatedAt).toLocaleDateString()}
+          </span>
+        )}
+        mobileDrawerConfig={mobileDrawerConfig}
+        emptyState={emptyState}
+        initialNumItems={20}
+        loadMoreCount={20}
+      />
 
       <ConfirmationDialog
         open={confirmationDialog.state.isOpen}
