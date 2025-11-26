@@ -69,11 +69,7 @@ export function ChatInputBottomBar({
   const speech = useSpeechInputContext();
   const isRecordingOrTranscribing = speech.isRecording || speech.isTranscribing;
   const disabled =
-    isLoading ||
-    isStreaming ||
-    isProcessing ||
-    !online ||
-    isRecordingOrTranscribing;
+    isLoading || isProcessing || !online || isRecordingOrTranscribing;
   const [reasoningConfig, setReasoningConfig] = useReasoningConfig();
   const { selectedPersonaId, temperature } = useChatScopedState(conversationId);
   const lastGeneratedImageSeed = useLastGeneratedImageSeed(conversationId);

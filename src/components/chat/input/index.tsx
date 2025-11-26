@@ -435,7 +435,6 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
               placeholder={dynamicPlaceholder}
               disabled={
                 isLoading ||
-                isStreaming ||
                 isProcessing ||
                 !canSendMessage ||
                 !online ||
