@@ -14,6 +14,7 @@ import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { ImageActions } from "./image-actions";
+import { ImageCardStack } from "./image-card-stack";
 import { ImageGenerationSkeleton } from "./image-generation-skeleton";
 import { ImageLoadingSkeleton } from "./image-loading-skeleton";
 import { ImageViewToggle } from "./image-view-toggle";
@@ -365,6 +366,7 @@ export const ImageGenerationBubble = ({
       aspectRatio: string | undefined,
       interrupted = false
     ): ReactNode => {
+      // Single image: use the simple skeleton
       if (count === 1) {
         const maxWidthClass = getSingleImageMaxWidth(aspectRatio || "1:1");
         return (
@@ -387,38 +389,18 @@ export const ImageGenerationBubble = ({
         );
       }
 
+      // Multiple images: use the card stack
       return (
-        <div
-          className={cn(
-            "grid gap-3",
-            count === 2 && "grid-cols-1 sm:grid-cols-2",
-            count === 3 && "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
-            count >= 4 && "grid-cols-1 sm:grid-cols-2"
-          )}
-        >
-          {Array.from({ length: count }).map((_, index) => (
-            <div
-              key={`skeleton-${message.id}-${index}`}
-              className="w-full max-w-sm"
-            >
-              <ImageGenerationSkeleton
-                aspectRatio={
-                  aspectRatio as
-                    | "1:1"
-                    | "16:9"
-                    | "9:16"
-                    | "4:3"
-                    | "3:4"
-                    | undefined
-                }
-                interrupted={interrupted}
-              />
-            </div>
-          ))}
-        </div>
+        <ImageCardStack
+          count={count}
+          aspectRatio={
+            aspectRatio as "1:1" | "16:9" | "9:16" | "4:3" | "3:4" | undefined
+          }
+          interrupted={interrupted}
+        />
       );
     },
-    [message.id]
+    []
   );
 
   const renderImageGrid = useCallback((): ReactNode => {
