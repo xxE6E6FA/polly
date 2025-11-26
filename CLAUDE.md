@@ -319,11 +319,10 @@ The `VirtualizedDataList` component provides server-side paginated, virtualized 
     direction: sortDirection,
     onSort: handleSort,
   }}
-  variant="flush"
-  stickyHeader
-  stickyOffset={68}
 />
 ```
+
+The component uses a minimal style with sticky headers at 68px offset (matching settings nav height).
 
 ### Server-side Sorting Pattern
 
@@ -362,7 +361,6 @@ const handleSort = useCallback((field: SortField) => {
 | `getItemKey` | `(item) => string` | Unique key extractor |
 | `selection` | `VirtualizedDataListSelection` | Selection state adapter |
 | `sort` | `{ field, direction, onSort }` | Sort state for header indicators |
-| `variant` | `"contained" \| "flush"` | Visual style (default: "contained") |
-| `stickyHeader` | `boolean` | Enable sticky column headers |
-| `stickyOffset` | `number` | Offset from top for sticky header (px) |
 | `emptyState` | `ReactNode` | Custom empty state component |
+| `loadingState` | `ReactNode` | Custom loading state component |
+| `initialNumItems` | `number` | Initial page size (default: 20) |

@@ -579,10 +579,6 @@ export default function ChatHistoryPage() {
           mobileTitleRender={mobileTitleRender}
           mobileMetadataRender={mobileMetadataRender}
           mobileDrawerConfig={mobileDrawerConfig}
-          initialNumItems={20}
-          variant="flush"
-          stickyHeader
-          stickyOffset={68}
           emptyState={
             <ListEmptyState
               icon={<ChatCircleIcon className="h-12 w-12" />}

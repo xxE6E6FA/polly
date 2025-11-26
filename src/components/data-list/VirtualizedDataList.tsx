@@ -80,24 +80,6 @@ interface VirtualizedDataListProps<TItem, TField extends string = string> {
 
   // Container styling
   className?: string;
-
-  /**
-   * Visual variant for the list container
-   * - "contained": Border + rounded corners (default)
-   * - "flush": No border, rows extend to edges
-   */
-  variant?: "contained" | "flush";
-
-  /**
-   * Make column headers sticky when scrolling
-   */
-  stickyHeader?: boolean;
-
-  /**
-   * Offset from top for sticky header (in pixels)
-   * Use to position below other sticky elements like nav
-   */
-  stickyOffset?: number;
 }
 
 export function VirtualizedDataList<TItem, TField extends string = string>({
@@ -119,9 +101,6 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   loadingState,
   emptyState,
   className,
-  variant = "contained",
-  stickyHeader = false,
-  stickyOffset = 0,
 }: VirtualizedDataListProps<TItem, TField>) {
   const virtualizerRef = useRef<WindowVirtualizerHandle>(null);
   const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -309,14 +288,9 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   };
 
   return (
-    <ListContainer className={className} variant={variant}>
+    <ListContainer className={className}>
       {/* Desktop Table Header - always visible */}
-      <ListHeader
-        className="hidden lg:block"
-        gridTemplate={gridTemplate}
-        sticky={stickyHeader}
-        stickyOffset={stickyOffset}
-      >
+      <ListHeader className="hidden lg:block" gridTemplate={gridTemplate}>
         {hasSelection && (
           <SelectAllCheckbox
             checked={

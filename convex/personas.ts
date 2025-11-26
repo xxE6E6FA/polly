@@ -9,6 +9,11 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import {
+  createEmptyPaginationResult,
+  paginationOptsSchema,
+  validatePaginationOpts,
+} from "./lib/pagination";
 
 // Shared handler for user authentication and validation
 async function handleGetAuthenticatedUser(
@@ -451,6 +456,159 @@ export const listAllBuiltInForSettings = query({
       .query("personas")
       .withIndex("by_built_in", q => q.eq("isBuiltIn", true))
       .collect();
+  },
+});
+
+type PersonaType = "built-in" | "custom";
+type PersonaSortField = "name" | "type";
+
+export interface EnrichedPersona {
+  _id: Id<"personas">;
+  _creationTime: number;
+  name: string;
+  description: string;
+  prompt: string;
+  icon?: string;
+  ttsVoiceId?: string;
+  isBuiltIn: boolean;
+  isActive: boolean;
+  type: PersonaType;
+  isDisabled: boolean;
+}
+
+// Paginated list of all personas (built-in + custom) for settings page
+export const listForSettingsPaginated = query({
+  args: {
+    paginationOpts: paginationOptsSchema,
+    sortField: v.optional(v.union(v.literal("name"), v.literal("type"))),
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    if (!userId) {
+      return createEmptyPaginationResult<EnrichedPersona>();
+    }
+
+    const sortField: PersonaSortField = args.sortField ?? "type";
+    const sortDirection = args.sortDirection ?? "asc";
+
+    // Fetch all built-in personas
+    const builtInPersonas = await ctx.db
+      .query("personas")
+      .withIndex("by_built_in", q => q.eq("isBuiltIn", true))
+      .collect();
+
+    // Fetch all user personas (both active and inactive)
+    const activeUserPersonas = await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .collect();
+
+    const inactiveUserPersonas = await ctx.db
+      .query("personas")
+      .withIndex("by_user_active", q =>
+        q.eq("userId", userId).eq("isActive", false)
+      )
+      .collect();
+
+    const userPersonas = [...activeUserPersonas, ...inactiveUserPersonas];
+
+    // Fetch user persona settings to determine disabled state for built-in personas
+    const userPersonaSettings = await ctx.db
+      .query("userPersonaSettings")
+      .withIndex("by_user_persona", q => q.eq("userId", userId))
+      .collect();
+
+    const disabledPersonaIds = new Set(
+      userPersonaSettings
+        .filter(setting => setting.isDisabled)
+        .map(setting => setting.personaId)
+    );
+
+    // Enrich built-in personas
+    const enrichedBuiltIn: EnrichedPersona[] = builtInPersonas.map(p => ({
+      _id: p._id,
+      _creationTime: p._creationTime,
+      name: p.name,
+      description: p.description,
+      prompt: p.prompt,
+      icon: p.icon,
+      ttsVoiceId: p.ttsVoiceId,
+      isBuiltIn: true,
+      isActive: p.isActive,
+      type: "built-in" as PersonaType,
+      isDisabled: disabledPersonaIds.has(p._id),
+    }));
+
+    // Enrich custom personas
+    const enrichedCustom: EnrichedPersona[] = userPersonas.map(p => ({
+      _id: p._id,
+      _creationTime: p._creationTime,
+      name: p.name,
+      description: p.description,
+      prompt: p.prompt,
+      icon: p.icon,
+      ttsVoiceId: p.ttsVoiceId,
+      isBuiltIn: false,
+      isActive: p.isActive,
+      type: "custom" as PersonaType,
+      isDisabled: false,
+    }));
+
+    // Combine all personas
+    const allPersonas = [...enrichedBuiltIn, ...enrichedCustom];
+
+    // Sort personas
+    allPersonas.sort((a, b) => {
+      let comparison = 0;
+
+      if (sortField === "name") {
+        comparison = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      } else if (sortField === "type") {
+        // Built-in first (0), then custom (1)
+        const typeA = a.type === "built-in" ? 0 : 1;
+        const typeB = b.type === "built-in" ? 0 : 1;
+        comparison = typeA - typeB;
+      }
+
+      // Secondary sort by creation time for stable ordering
+      if (comparison === 0) {
+        comparison = a._creationTime - b._creationTime;
+      }
+
+      return sortDirection === "desc" ? -comparison : comparison;
+    });
+
+    // Handle pagination manually since we're combining multiple sources
+    const validatedOpts = validatePaginationOpts(args.paginationOpts);
+
+    if (!validatedOpts) {
+      // No pagination requested, return all items
+      return {
+        page: allPersonas,
+        isDone: true,
+        continueCursor: null as string | null,
+      };
+    }
+
+    const { numItems, cursor } = validatedOpts;
+
+    // Parse cursor to get starting index
+    const startIndex = cursor ? Number.parseInt(cursor, 10) : 0;
+    const endIndex = startIndex + numItems;
+
+    const page = allPersonas.slice(startIndex, endIndex);
+    const isDone = endIndex >= allPersonas.length;
+    const continueCursor = isDone ? null : String(endIndex);
+
+    return {
+      page,
+      isDone,
+      continueCursor,
+    };
   },
 });
 

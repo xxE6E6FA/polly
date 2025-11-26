@@ -439,9 +439,6 @@ export default function AttachmentsPage() {
           onSort: handleSort,
         }}
         onRowClick={file => selectionAdapter.toggleItem(file)}
-        variant="flush"
-        stickyHeader
-        stickyOffset={68}
         initialNumItems={50}
         loadingState={<ListLoadingState count={6} height="h-16" />}
         emptyState={
