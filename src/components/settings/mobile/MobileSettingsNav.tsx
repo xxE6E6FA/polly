@@ -1,6 +1,5 @@
 import {
   ArchiveIcon,
-  ChatTextIcon,
   CloudArrowDownIcon,
   GearIcon,
   KeyIcon,
@@ -10,9 +9,13 @@ import {
   UsersIcon,
 } from "@phosphor-icons/react";
 import useEmblaCarousel from "embla-carousel-react";
-import { lazy, Suspense, useCallback, useMemo } from "react";
+import { lazy, Suspense, useCallback } from "react";
 import { Spinner } from "@/components/spinner";
 import { ROUTES } from "@/lib/routes";
+import {
+  ScrollContainerProvider,
+  useSetScrollContainer,
+} from "@/providers/scroll-container-context";
 import { MobileSettingsTabs, type SettingsTabItem } from "./MobileSettingsTabs";
 import { useSettingsCarouselSync } from "./useSettingsCarouselSync";
 
@@ -114,6 +117,39 @@ function PageLoader() {
   );
 }
 
+// Slide wrapper that provides scroll container context
+function SlideWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <ScrollContainerProvider>
+      <SlideContent>{children}</SlideContent>
+    </ScrollContainerProvider>
+  );
+}
+
+// Inner container that registers itself as the scroll container
+function SlideContent({ children }: { children: React.ReactNode }) {
+  const setScrollContainer = useSetScrollContainer();
+
+  // Use callback ref to set scroll container synchronously on mount
+  const callbackRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (setScrollContainer) {
+        setScrollContainer(element);
+      }
+    },
+    [setScrollContainer]
+  );
+
+  return (
+    <div
+      ref={callbackRef}
+      className="min-w-0 shrink-0 grow-0 basis-full h-full overflow-y-auto px-4"
+    >
+      {children}
+    </div>
+  );
+}
+
 export function MobileSettingsNav() {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -160,10 +196,7 @@ export function MobileSettingsNav() {
             const shouldMount = shouldMountPage(index);
 
             return (
-              <div
-                key={route.path}
-                className="min-w-0 shrink-0 grow-0 basis-full h-full overflow-y-auto px-4"
-              >
+              <SlideWrapper key={route.path}>
                 {shouldMount ? (
                   <Suspense fallback={<PageLoader />}>
                     <PageComponent />
@@ -171,7 +204,7 @@ export function MobileSettingsNav() {
                 ) : (
                   <PageLoader />
                 )}
-              </div>
+              </SlideWrapper>
             );
           })}
         </div>
