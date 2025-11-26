@@ -26,6 +26,11 @@ export const AttachmentGalleryDialog = ({
   onAttachmentChange,
 }: AttachmentGalleryDialogProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const dialogRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      node.focus();
+    }
+  }, []);
 
   // Find the current attachment index
   const currentAttachmentIndex = useMemo(() => {
@@ -258,8 +263,10 @@ export const AttachmentGalleryDialog = ({
 
         {/* Full-screen popup container */}
         <Dialog.Popup
+          ref={dialogRef}
           className="fixed inset-0 z-modal flex items-center justify-center focus:outline-none"
           aria-label={`Preview: ${currentDisplayAttachment.name}`}
+          tabIndex={-1}
         >
           {/* Close button */}
           <Button
