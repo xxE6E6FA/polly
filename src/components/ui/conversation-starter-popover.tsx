@@ -2,12 +2,12 @@ import { api } from "@convex/_generated/api";
 import { useAction, useMutation } from "convex/react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Spinner } from "@/components/spinner";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { ROUTES } from "@/lib/routes";

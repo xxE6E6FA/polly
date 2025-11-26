@@ -49,7 +49,14 @@
       "Bash(NODE_ENV=production bun build:*)",
       "WebFetch(domain:biomejs.dev)",
       "Bash(xargs ls:*)",
-      "WebFetch(domain:buildui.com)"
+      "WebFetch(domain:buildui.com)",
+      "Bash(xargs:*)",
+      "Bash(done)",
+      "Bash(fi)",
+      "Bash(bash:*)",
+      "Bash(for i in 1 2 3)",
+      "Bash(do echo \"=== Run $i ===\")",
+      "Bash(git mv:*)"
     ],
     "deny": []
   },

@@ -1,31 +1,33 @@
 import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router-dom";
-import { ProtectedSuspense } from "./components/auth/ProtectedRoute";
-import ChatLayout from "./components/layouts/ChatLayout";
-import PersistentChatLayout from "./components/layouts/PersistentChatLayout";
-import RootLayout from "./components/layouts/RootLayout";
-import { Spinner } from "./components/spinner";
+import { ProtectedSuspense } from "./components/auth/protected-route";
+import ChatLayout from "./components/layouts/chat-layout";
+import PersistentChatLayout from "./components/layouts/persistent-chat-layout";
+import RootLayout from "./components/layouts/root-layout";
+import { Spinner } from "./components/ui/spinner";
 
-import HomePage from "./pages/HomePage";
-import PrivateChatPage from "./pages/PrivateChatPage";
+import HomePage from "./pages/home-page";
+import PrivateChatPage from "./pages/private-chat-page";
 
-const ChatConversationPage = lazy(() => import("./pages/ChatConversationPage"));
+const ChatConversationPage = lazy(
+  () => import("./pages/chat-conversation-page")
+);
 
-const FavoritesPage = lazy(() => import("./pages/FavoritesPage"));
+const FavoritesPage = lazy(() => import("./pages/favorites-page"));
 
-const AuthPage = lazy(() => import("./pages/AuthPage"));
+const AuthPage = lazy(() => import("./pages/auth-page"));
 
-import { RouteErrorBoundary } from "./components/layouts/RouteErrorBoundary";
+import { RouteErrorBoundary } from "./components/layouts/route-error-boundary";
 // Prefer eager import for critical error/404 UI so offline navigation has a guard
 import { NotFoundPage } from "./components/ui/not-found-page";
 import { conversationLoader } from "./loaders/conversation-loader";
 
-const SharePage = lazy(() => import("./pages/SharedConversationPage"));
+const SharePage = lazy(() => import("./pages/shared-conversation-page"));
 const SettingsLayout = lazy(
-  () => import("./components/layouts/SettingsMainLayout")
+  () => import("./components/layouts/settings-main-layout")
 );
 const SettingsStandaloneLayout = lazy(
-  () => import("./components/layouts/SettingsStandaloneLayout")
+  () => import("./components/layouts/settings-standalone-layout")
 );
 const SettingsApiKeysPage = lazy(() =>
   import("./components/settings/api-keys-tab").then(m => ({
@@ -43,25 +45,25 @@ const SettingsPersonasPage = lazy(() =>
   }))
 );
 const SettingsSharedConversationsPage = lazy(
-  () => import("./pages/settings/SharedConversationsPage")
+  () => import("./pages/settings/shared-conversations-page")
 );
 const SettingsArchivedConversationsPage = lazy(
-  () => import("./pages/settings/ArchivedConversationsPage")
+  () => import("./pages/settings/archived-conversations-page")
 );
 const SettingsAttachmentsPage = lazy(
-  () => import("./pages/settings/AttachmentsPage")
+  () => import("./pages/settings/attachments-page")
 );
 const SettingsChatHistoryPage = lazy(
-  () => import("./pages/settings/ChatHistoryPage")
+  () => import("./pages/settings/chat-history-page")
 );
-const SettingsGeneralPage = lazy(() => import("./pages/settings/GeneralPage"));
+const SettingsGeneralPage = lazy(() => import("./pages/settings/general-page"));
 const SettingsNewPersonaPage = lazy(
-  () => import("./pages/settings/NewPersonaPage")
+  () => import("./pages/settings/new-persona-page")
 );
 const SettingsEditPersonaPage = lazy(
-  () => import("./pages/settings/EditPersonaPage")
+  () => import("./pages/settings/edit-persona-page")
 );
-const SignOutPage = lazy(() => import("./pages/SignOutPage"));
+const SignOutPage = lazy(() => import("./pages/sign-out-page"));
 
 const PageLoader = ({
   size = "full",
@@ -81,11 +83,11 @@ const PageLoader = ({
 };
 
 export const preloadSettings = () => {
-  import("./components/layouts/SettingsMainLayout");
-  import("./pages/settings/GeneralPage");
+  import("./components/layouts/settings-main-layout");
+  import("./pages/settings/general-page");
 };
 export const preloadAuth = () => {
-  import("./pages/AuthPage");
+  import("./pages/auth-page");
 };
 export const routes: RouteObject[] = [
   {

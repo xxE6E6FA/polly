@@ -9,8 +9,6 @@ import {
 } from "@phosphor-icons/react";
 import { useAction, useQuery } from "convex/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   EmojiPicker,
@@ -27,12 +25,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { SkeletonText } from "@/components/ui/skeleton-text";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
-import { VoicePicker } from "./models-tab/VoicePicker";
+import { VoicePicker } from "./models-tab/voice-picker";
 import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {

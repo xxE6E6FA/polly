@@ -42,7 +42,7 @@ import { ROUTES } from "@/lib/routes";
 import { isUserSettings } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 import { SettingsHeader } from "./settings-header";
-import { SettingsPageLayout } from "./ui/SettingsPageLayout";
+import { SettingsPageLayout } from "./ui/settings-page-layout";
 
 type SortField = "name" | "type";
 

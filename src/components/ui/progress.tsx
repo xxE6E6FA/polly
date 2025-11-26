@@ -8,7 +8,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import * as React from "react";
-import { Spinner } from "@/components/spinner";
+import { Spinner } from "@/components/ui/spinner";
 import type { BackgroundJob } from "@/hooks/use-background-jobs";
 import { cn } from "@/lib/utils";
 

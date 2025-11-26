@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ConfirmationDialogProps {
   open: boolean;

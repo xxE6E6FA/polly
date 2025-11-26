@@ -5,7 +5,6 @@ import {
 import { useCallback, useState } from "react";
 import type { Area } from "react-easy-crop";
 import Cropper from "react-easy-crop";
-import { Spinner } from "@/components/spinner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
+import { Spinner } from "@/components/ui/spinner";
 
 type ProfileImageCropperProps = {
   open: boolean;

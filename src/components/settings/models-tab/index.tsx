@@ -1,8 +1,8 @@
 import { useLocation } from "react-router-dom";
-import { SettingsPageLayout } from "../ui/SettingsPageLayout";
-import { ImageModelsTab } from "./ImageModelsTab";
-import { TextModelsTab } from "./TextModelsTab";
-import { TTSTab } from "./TTSTab";
+import { SettingsPageLayout } from "../ui/settings-page-layout";
+import { ImageModelsTab } from "./image-models-tab";
+import { TextModelsTab } from "./text-models-tab";
+import { TTSTab } from "./tts-tab";
 
 export const ModelsTab = () => {
   const location = useLocation();

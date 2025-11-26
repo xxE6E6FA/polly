@@ -7,7 +7,7 @@ import {
 } from "frimousse";
 import type * as React from "react";
 import { useEffect } from "react";
-import { Spinner } from "@/components/spinner";
+import { Spinner } from "@/components/ui/spinner";
 
 import { cn } from "@/lib/utils";
 

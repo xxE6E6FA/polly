@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import { ArrowSquareOutIcon, CheckCircleIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { useMemo } from "react";
-import { ProviderIcon } from "@/components/provider-icons";
+import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,7 @@ import { isUserSettings } from "@/lib/type-guards";
 import { validateApiKey } from "@/lib/validation";
 import { useToast } from "@/providers/toast-context";
 import { SettingsHeader } from "./settings-header";
-import { SettingsPageLayout } from "./ui/SettingsPageLayout";
+import { SettingsPageLayout } from "./ui/settings-page-layout";
 
 type ApiKeyInfo = {
   provider: string;

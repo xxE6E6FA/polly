@@ -17,8 +17,8 @@ import { useLocation } from "react-router-dom";
 import { ROUTES } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { useUI } from "@/providers/ui-provider";
-import { MobileSettingsNav } from "./mobile/MobileSettingsNav";
-import { type SettingsTabItem, SettingsTabs } from "./SettingsTabs";
+import { MobileSettingsNav } from "./mobile/mobile-settings-nav";
+import { type SettingsTabItem, SettingsTabs } from "./settings-tabs";
 
 type SettingsContainerProps = {
   children: React.ReactNode;

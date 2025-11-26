@@ -1,9 +1,6 @@
 import type { LLMOutputComponent } from "@llm-ui/react";
 import Markdown, { RuleType } from "markdown-to-jsx";
 import React, { useMemo } from "react";
-import { generateHeadingId } from "@/lib/utils";
-import { CitationGroup } from "./citation-group";
-import { CitationLink } from "./citation-link";
 import {
   applyHardLineBreaks,
   bufferIncompleteEntities,
@@ -14,7 +11,10 @@ import {
   normalizeLatexDelimiters,
   removeParenthesesAroundItalics,
   renderTextWithMathAndCitations,
-} from "./markdown-utils";
+} from "@/lib/markdown-utils";
+import { generateHeadingId } from "@/lib/utils";
+import { CitationGroup } from "./citation-group";
+import { CitationLink } from "./citation-link";
 import { useMessageId } from "./streaming-markdown";
 
 // Whitespace characters pattern (excluding zero width joiner which can't be in character classes)
