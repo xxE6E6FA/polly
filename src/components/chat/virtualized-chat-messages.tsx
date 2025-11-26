@@ -597,7 +597,8 @@ export const VirtualizedChatMessages = memo(
             style={{
               height: "100%",
               width: "100%",
-              overflow: "auto",
+              overflowX: "clip",
+              overflowY: "auto",
               contain: "layout style size",
               paddingTop: resolvedTopInset,
               paddingBottom: resolvedBottomInset,
