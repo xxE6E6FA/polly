@@ -1,8 +1,14 @@
 import { api } from "@convex/_generated/api";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { WindowVirtualizer } from "virtua";
+import type React from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Virtualizer,
+  type VirtualizerHandle,
+  WindowVirtualizer,
+  type WindowVirtualizerHandle,
+} from "virtua";
 import { ProviderIcon } from "@/components/models/provider-icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +21,7 @@ import {
 } from "@/components/ui/tooltip";
 import { formatContextLength } from "@/lib/format-context";
 import { getModelCapabilities } from "@/lib/model-capabilities";
+import { useScrollContainer } from "@/providers/scroll-container-context";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import type { ToggleModelResult } from "@/types";
@@ -38,6 +45,8 @@ type BaseModel = {
 
 interface VirtualizedModelListProps {
   models: BaseModel[];
+  // Optional scroll container for non-window scroll contexts (e.g., mobile carousels)
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
 function getModelCardClassName(
@@ -290,7 +299,9 @@ const ModelCard = memo(
 ModelCard.displayName = "ModelCard";
 
 export const VirtualizedModelList = memo(
-  ({ models }: VirtualizedModelListProps) => {
+  ({ models, scrollContainerRef }: VirtualizedModelListProps) => {
+    const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
+    const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
     const [columnsPerRow, setColumnsPerRow] = useState(4);
     const [conflictDialog, setConflictDialog] = useState<{
       isOpen: boolean;
@@ -301,6 +312,19 @@ export const VirtualizedModelList = memo(
       model: null,
       conflictInfo: null,
     });
+
+    // Use explicit scrollContainerRef prop or fall back to context (for mobile carousel slides)
+    const scrollContainerContext = useScrollContainer();
+
+    // Determine if we should use container-based virtualization
+    // Check based on prop or context presence, not ref.current value (which may not be set yet)
+    const useContainerScroll =
+      !!scrollContainerRef ||
+      scrollContainerContext?.isInScrollContainerContext;
+
+    // Get the effective scroll ref for the Virtualizer
+    const effectiveScrollContainerRef =
+      scrollContainerRef ?? scrollContainerContext?.ref;
 
     const { user } = useUserDataContext();
     const managedToast = useToast();
@@ -528,30 +552,44 @@ export const VirtualizedModelList = memo(
       );
     }
 
+    // Helper function to render model rows for virtualization
+    const renderRows = () =>
+      rows.map((rowModels, rowIndex) => (
+        <div
+          key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
+          className="pb-3"
+        >
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {rowModels
+              .filter(model => model)
+              .map(model => (
+                <ModelCard
+                  key={`${model.provider}-${model.modelId}`}
+                  isEnabled={enabledModelsLookup.has(model.modelId)}
+                  model={model}
+                  onToggle={onToggleModel}
+                  onRemove={handleRemoveModel}
+                />
+              ))}
+          </div>
+        </div>
+      ));
+
     return (
       <>
-        <WindowVirtualizer>
-          {rows.map((rowModels, rowIndex) => (
-            <div
-              key={`row-${rowIndex}-${rowModels[0]?.modelId || "empty"}`}
-              className="pb-3"
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {rowModels
-                  .filter(model => model)
-                  .map(model => (
-                    <ModelCard
-                      key={`${model.provider}-${model.modelId}`}
-                      isEnabled={enabledModelsLookup.has(model.modelId)}
-                      model={model}
-                      onToggle={onToggleModel}
-                      onRemove={handleRemoveModel}
-                    />
-                  ))}
-              </div>
-            </div>
-          ))}
-        </WindowVirtualizer>
+        {useContainerScroll ? (
+          <Virtualizer
+            ref={containerVirtualizerRef}
+            overscan={4}
+            scrollRef={effectiveScrollContainerRef}
+          >
+            {renderRows()}
+          </Virtualizer>
+        ) : (
+          <WindowVirtualizer ref={windowVirtualizerRef} overscan={4}>
+            {renderRows()}
+          </WindowVirtualizer>
+        )}
         <ConfirmationDialog
           open={conflictDialog.isOpen}
           onOpenChange={open => {
