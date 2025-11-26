@@ -39,13 +39,13 @@ const getStackMaxWidth = (aspectRatio: string) => {
 // Static card positions for the stack (avoids array index keys)
 const CARD_POSITIONS = ["bottom", "lower", "upper", "top"] as const;
 
-// Card offset and rotation configurations for stacking effect
+// Card styles - background cards offset behind the top card
 const getCardStyles = (index: number, total: number) => {
-  // Cards further back have more offset and rotation
   const reverseIndex = total - 1 - index;
-  const offsetX = reverseIndex * 8;
-  const offsetY = reverseIndex * -6;
-  const rotation = reverseIndex * 3;
+  // Offset right and down so cards peek from behind top card
+  const offsetX = reverseIndex * 4;
+  const offsetY = reverseIndex * 4;
+  const rotation = reverseIndex * -2;
 
   return {
     offsetX,
@@ -66,83 +66,68 @@ export const ImageCardStack = memo<ImageCardStackProps>(
 
     return (
       <div className={cn("flex flex-col items-start", className)}>
-        {/* Stack container with padding for card overflow */}
         <div className={cn("relative w-full", maxWidthClass)}>
-          {/* Extra padding to account for card offsets */}
-          <div className="relative pt-6 pl-6">
-            {/* Background cards (stacked behind) */}
-            {Array.from({ length: visualCardCount }).map((_, index) => {
-              const isTopCard = index === visualCardCount - 1;
-              const { offsetX, offsetY, rotation, zIndex, position } =
-                getCardStyles(index, visualCardCount);
+          {/* Cards stack - top card is last, rendered on top */}
+          {Array.from({ length: visualCardCount }).map((_, index) => {
+            const isTopCard = index === visualCardCount - 1;
+            const { offsetX, offsetY, rotation, zIndex, position } =
+              getCardStyles(index, visualCardCount);
 
-              return (
+            return (
+              <div
+                key={position}
+                className={cn(isTopCard ? "relative" : "absolute inset-0")}
+                style={{
+                  zIndex,
+                  transform: isTopCard
+                    ? undefined
+                    : `translate(${offsetX}px, ${offsetY}px) rotate(${rotation}deg)`,
+                }}
+              >
                 <div
-                  key={position}
-                  className={cn(isTopCard ? "relative" : "absolute inset-0")}
-                  style={{
-                    zIndex,
-                    // Position offset for stacking effect
-                    ...(!isTopCard && {
-                      left: -offsetX,
-                      top: -offsetY,
-                    }),
-                  }}
+                  className={cn(
+                    !(isTopCard || interrupted) && "animate-card-stack-float"
+                  )}
+                  style={{ animationDelay: `${index * 150}ms` }}
                 >
-                  {/* Wrapper for animation (animates without affecting position) */}
                   <div
                     className={cn(
-                      !(isTopCard || interrupted) && "animate-card-stack-float"
+                      aspectClass,
+                      "rounded-lg",
+                      isTopCard ? "shadow-md" : "shadow-sm",
+                      interrupted
+                        ? "bg-muted/50 border border-dashed border-muted-foreground/30"
+                        : "skeleton-surface"
                     )}
-                    style={{
-                      animationDelay: `${index * 200}ms`,
-                      // Apply rotation here so animation only affects Y
-                      transform: isTopCard
-                        ? undefined
-                        : `rotate(${rotation}deg)`,
-                    }}
-                  >
-                    <div
-                      className={cn(
-                        aspectClass,
-                        "rounded-lg shadow-md",
-                        interrupted
-                          ? "bg-muted/50 border border-dashed border-muted-foreground/30"
-                          : "skeleton-surface"
-                      )}
-                    />
-                  </div>
+                  />
                 </div>
-              );
-            })}
+              </div>
+            );
+          })}
 
-            {/* Center content on top card */}
+          {/* Center content on top card */}
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            style={{ zIndex: visualCardCount + 1 }}
+          >
             <div
               className={cn(
-                "absolute inset-0 flex items-center justify-center",
-                "pointer-events-none"
+                "flex flex-col items-center gap-1.5",
+                interrupted
+                  ? "text-muted-foreground/60"
+                  : "text-muted-foreground"
               )}
-              style={{ zIndex: visualCardCount + 1 }}
             >
-              <div
-                className={cn(
-                  "flex flex-col items-center gap-1.5",
-                  interrupted
-                    ? "text-muted-foreground/60"
-                    : "text-muted-foreground"
-                )}
-              >
-                {interrupted ? (
-                  <>
-                    <StopCircleIcon className="h-5 w-5" />
-                    <span className="text-xs font-medium">Stopped</span>
-                  </>
-                ) : (
-                  <span className="text-xs font-medium">
-                    Generating {count} images…
-                  </span>
-                )}
-              </div>
+              {interrupted ? (
+                <>
+                  <StopCircleIcon className="h-5 w-5" />
+                  <span className="text-xs font-medium">Stopped</span>
+                </>
+              ) : (
+                <span className="text-xs font-medium">
+                  Generating {count} images…
+                </span>
+              )}
             </div>
           </div>
         </div>
