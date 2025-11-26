@@ -6,6 +6,7 @@ import {
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
+  GearIcon,
   GitBranchIcon,
   GitCommitIcon,
   NotePencilIcon,
@@ -612,6 +613,13 @@ const ChatHeaderComponent = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+
+            {/* Mobile settings shortcut - direct access without sidebar */}
+            <Link to={ROUTES.SETTINGS.ROOT} className="sm:hidden">
+              <Button variant="ghost" size="icon-sm" aria-label="Settings">
+                <GearIcon />
+              </Button>
+            </Link>
 
             {/* Mobile drawer */}
             <div className="sm:hidden">
