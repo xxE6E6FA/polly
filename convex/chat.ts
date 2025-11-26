@@ -3,10 +3,12 @@ import {
   type CoreMessage,
   convertToCoreMessages,
   type FileUIPart,
+  generateText,
   isFileUIPart,
   isReasoningUIPart,
   isTextUIPart,
   type ReasoningUIPart,
+  stepCountIs,
   streamText,
   type TextUIPart,
   type UIDataTypes,
@@ -23,13 +25,21 @@ import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { httpAction } from "./_generated/server";
 import { CONFIG } from "./ai/config";
+import { performWebSearch } from "./ai/exa";
 import {
   convertLegacyPartToAISDK,
   type LegacyMessagePart,
   type StoredAttachment,
 } from "./ai/message_converter";
 import { modelSupportsPdfNatively, shouldExtractPdfText } from "./ai/pdf";
+import {
+  generateSearchNeedAssessment,
+  generateSearchStrategy,
+  parseSearchNeedAssessment,
+  parseSearchStrategy,
+} from "./ai/search_detection";
 import { createLanguageModel } from "./ai/server_streaming";
+import { createWebSearchTool } from "./ai/tools";
 import { getBaselineInstructions } from "./constants";
 import { incrementUserMessageStats } from "./lib/conversation_utils";
 
@@ -321,14 +331,16 @@ export const chatStream = httpAction(
         ? (rawMessages as IncomingUIMessage[])
         : [];
 
-      // Get model capabilities to determine if we need PDF extraction
+      // Get model capabilities to determine PDF extraction and tool support
       let modelSupportsFiles = false;
+      let modelSupportsTools = false;
       try {
         const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
           modelId,
           provider,
         });
         modelSupportsFiles = modelInfo?.supportsFiles ?? false;
+        modelSupportsTools = modelInfo?.supportsTools ?? false;
       } catch (error) {
         console.warn("[chatStream] Failed to get model capabilities:", error);
         // Default to false if we can't get model info
@@ -594,16 +606,120 @@ export const chatStream = httpAction(
         };
 
         // Add maxOutputTokens conditionally
-        const streamOptions =
+        const streamOptionsBase =
           resolvedMaxTokens && resolvedMaxTokens > 0
             ? { ...baseOptions, maxOutputTokens: resolvedMaxTokens }
             : baseOptions;
 
-        // Start streaming
-        const result = streamText({
-          ...streamOptions,
-          experimental_transform: createSmoothStreamTransform(),
-        });
+        // Check for Exa API key availability
+        const exaApiKey = process.env.EXA_API_KEY;
+
+        // Determine if we need to use pre-check fallback for models without tool support
+        let finalMessages = processedMessages;
+        if (exaApiKey && !modelSupportsTools) {
+          // Fallback approach: Use pre-check for models without tool support
+          // This adds search context to messages if the pre-check determines search is needed
+          try {
+            const lastUserMessage = processedMessages
+              .filter(m => m.role === "user")
+              .pop();
+            const userQuery =
+              typeof lastUserMessage?.content === "string"
+                ? lastUserMessage.content
+                : "";
+
+            if (userQuery) {
+              // Step 1: Check if search is needed using a fast LLM call
+              const assessmentPrompt = generateSearchNeedAssessment({
+                userQuery,
+              });
+
+              const assessmentResult = await generateText({
+                model: languageModel,
+                messages: [{ role: "user", content: assessmentPrompt }],
+                maxOutputTokens: 10,
+              });
+
+              const assessment = parseSearchNeedAssessment(
+                assessmentResult.text
+              );
+
+              if (!assessment.canAnswerConfidently) {
+                // Step 2: Determine search strategy
+                const strategyPrompt = generateSearchStrategy({ userQuery });
+                const strategyResult = await generateText({
+                  model: languageModel,
+                  messages: [{ role: "user", content: strategyPrompt }],
+                  maxOutputTokens: 200,
+                });
+
+                const strategy = parseSearchStrategy(
+                  strategyResult.text,
+                  userQuery
+                );
+
+                // Step 3: Perform search
+                const searchResult = await performWebSearch(exaApiKey, {
+                  query: strategy.suggestedQuery || userQuery,
+                  searchType: strategy.searchType,
+                  searchMode: strategy.searchMode,
+                  category: strategy.category,
+                  maxResults: strategy.suggestedSources || 8,
+                });
+
+                // Step 4: Inject search context into the conversation
+                if (searchResult.context) {
+                  const searchContextMessage: CoreMessage = {
+                    role: "system",
+                    content: `The following web search results may help answer the user's question:\n\n${searchResult.context}\n\nUse this information to provide an accurate, up-to-date response. Cite sources when appropriate.`,
+                  };
+
+                  // Insert search context after the system message
+                  const systemMsgIndex = processedMessages.findIndex(
+                    m => m.role === "system"
+                  );
+                  finalMessages = [...processedMessages];
+                  if (systemMsgIndex !== -1) {
+                    finalMessages.splice(
+                      systemMsgIndex + 1,
+                      0,
+                      searchContextMessage
+                    );
+                  } else {
+                    finalMessages.unshift(searchContextMessage);
+                  }
+                }
+              }
+            }
+          } catch (searchError) {
+            // Don't fail the request if search pre-check fails
+            console.warn(
+              "[chatStream] Search pre-check failed, continuing without search:",
+              searchError
+            );
+          }
+        }
+
+        // Start streaming with appropriate configuration
+        const result =
+          modelSupportsTools && exaApiKey
+            ? // Primary approach: Use tool calling for models that support it
+              streamText({
+                ...streamOptionsBase,
+                messages: finalMessages,
+                tools: {
+                  webSearch: createWebSearchTool(exaApiKey),
+                },
+                // Allow up to 3 steps for tool calls (default is 1)
+                stopWhen: stepCountIs(3),
+                experimental_transform: createSmoothStreamTransform(),
+              })
+            : // Fallback: No tool calling
+              streamText({
+                ...streamOptionsBase,
+                messages: finalMessages,
+                experimental_transform: createSmoothStreamTransform(),
+              });
 
         // Return the proper text stream for AI SDK useChat with CORS headers
         // TextStreamChatTransport expects text stream format, so use toTextStreamResponse
