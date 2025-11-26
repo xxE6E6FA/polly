@@ -351,74 +351,97 @@ const RetryDropdown = memo(
       </>
     );
 
-    const renderImageModelList = () => (
-      <>
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="text-xs text-muted-foreground">
-            Try a different image model
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        {imageModelOptions.length === 0 ? (
+    const renderImageModelItem = (
+      model: (typeof imageModelOptions)[number]
+    ) => {
+      const tags: string[] = [];
+      if (model.supportsMultipleImages) {
+        tags.push("Multi");
+      }
+      if (model.supportsNegativePrompt) {
+        tags.push("Negative");
+      }
+      if (model.supportsImageToImage) {
+        tags.push("Img2Img");
+      }
+      const isSelected = currentModel === model.modelId;
+      return (
+        <DropdownMenuItem
+          key={model.modelId}
+          onClick={() => handleRetry(model.modelId, model.provider)}
+          className={cn(
+            "flex items-center justify-between cursor-pointer",
+            isSelected && "bg-primary/5 hover:bg-primary/10"
+          )}
+        >
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{model.name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {model.modelId}
+            </span>
+          </div>
+          <div className="ml-2 flex shrink-0 gap-1">
+            {tags.map(tag => (
+              <span
+                key={`${model.modelId}-${tag}`}
+                className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </DropdownMenuItem>
+      );
+    };
+
+    const renderImageModelList = () => {
+      // Count unique providers to decide flat list vs submenus
+      const uniqueProviders = new Set(imageModelOptions.map(m => m.provider));
+      const hasSingleProvider = uniqueProviders.size <= 1;
+
+      if (imageModelOptions.length === 0) {
+        return (
           <div className="px-2 py-2 text-sm text-muted-foreground">
             {enabledImageModels === undefined
               ? "Loading image models..."
               : "No image models enabled. Manage models in Settings → Image models."}
           </div>
-        ) : (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger className="flex items-center gap-2">
-              <ProviderIcon
-                provider="replicate"
-                className="h-4 w-4 text-foreground"
-              />
-              <span>Replicate</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-[400px] overflow-y-auto">
-              {imageModelOptions.map(model => {
-                const tags: string[] = [];
-                if (model.supportsMultipleImages) {
-                  tags.push("Multi");
-                }
-                if (model.supportsNegativePrompt) {
-                  tags.push("Negative");
-                }
-                if (model.supportsImageToImage) {
-                  tags.push("Img2Img");
-                }
-                const isSelected = currentModel === model.modelId;
-                return (
-                  <DropdownMenuItem
-                    key={model.modelId}
-                    onClick={() => handleRetry(model.modelId, model.provider)}
-                    className={cn(
-                      "flex items-center justify-between cursor-pointer",
-                      isSelected && "bg-primary/5 hover:bg-primary/10"
-                    )}
-                  >
-                    <div className="flex min-w-0 flex-col">
-                      <span className="truncate font-medium">{model.name}</span>
-                      <span className="truncate text-xs text-muted-foreground">
-                        {model.modelId}
-                      </span>
-                    </div>
-                    <div className="ml-2 flex shrink-0 gap-1">
-                      {tags.map(tag => (
-                        <span
-                          key={`${model.modelId}-${tag}`}
-                          className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </DropdownMenuItem>
-                );
-              })}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
-      </>
-    );
+        );
+      }
+
+      // Single provider: flat list directly in dropdown
+      if (hasSingleProvider) {
+        return (
+          <div className="max-h-[min(400px,50vh)] overflow-y-auto">
+            {imageModelOptions.map(renderImageModelItem)}
+          </div>
+        );
+      }
+
+      // Multiple providers: group into submenus
+      const providerGroups = Map.groupBy(imageModelOptions, m => m.provider);
+      return (
+        <>
+          {Array.from(providerGroups.entries()).map(([providerId, models]) => (
+            <DropdownMenuSub key={providerId}>
+              <DropdownMenuSubTrigger className="flex items-center gap-2">
+                <ProviderIcon
+                  provider={providerId}
+                  className="h-4 w-4 text-foreground"
+                />
+                <span>
+                  {PROVIDER_CONFIG[providerId as keyof typeof PROVIDER_CONFIG]
+                    ?.title || providerId}
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-[min(400px,50vh)] overflow-y-auto">
+                {models.map(renderImageModelItem)}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          ))}
+        </>
+      );
+    };
 
     const renderTextModelListMobile = () => (
       <>
@@ -556,65 +579,113 @@ const RetryDropdown = memo(
       </>
     );
 
-    const renderImageModelListMobile = () => (
-      <>
-        <div className="text-xs font-medium text-muted-foreground px-2 py-2">
-          Try a different image model
-        </div>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {imageModelOptions.length === 0 ? (
-            <div className="px-2 py-2 text-sm text-muted-foreground">
-              {enabledImageModels === undefined
-                ? "Loading image models..."
-                : "No image models enabled. Manage models in Settings → Image models."}
+    const renderImageModelItemMobile = (
+      model: (typeof imageModelOptions)[number]
+    ) => {
+      const tags: string[] = [];
+      if (model.supportsMultipleImages) {
+        tags.push("Multi");
+      }
+      if (model.supportsNegativePrompt) {
+        tags.push("Negative");
+      }
+      if (model.supportsImageToImage) {
+        tags.push("Img2Img");
+      }
+      const isSelected = currentModel === model.modelId;
+      return (
+        <button
+          key={model.modelId}
+          onClick={() => handleRetry(model.modelId, model.provider)}
+          className={cn(
+            "flex items-center justify-between w-full px-3 py-2.5 text-left transition-colors",
+            "border-b border-border/30 last:border-b-0",
+            "hover:bg-muted/50",
+            isSelected && "bg-primary/5 hover:bg-primary/10"
+          )}
+        >
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate font-medium">{model.name}</span>
+            <span className="truncate text-xs text-muted-foreground">
+              {model.modelId}
+            </span>
+          </div>
+          <div className="ml-2 flex shrink-0 gap-1">
+            {tags.map(tag => (
+              <span
+                key={`${model.modelId}-${tag}`}
+                className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        </button>
+      );
+    };
+
+    const renderImageModelListMobile = () => {
+      // Count unique providers to decide flat list vs grouped
+      const uniqueProviders = new Set(imageModelOptions.map(m => m.provider));
+      const hasSingleProvider = uniqueProviders.size <= 1;
+
+      if (imageModelOptions.length === 0) {
+        return (
+          <div className="px-2 py-2 text-sm text-muted-foreground">
+            {enabledImageModels === undefined
+              ? "Loading image models..."
+              : "No image models enabled. Manage models in Settings → Image models."}
+          </div>
+        );
+      }
+
+      // Single provider: flat list
+      if (hasSingleProvider) {
+        return (
+          <>
+            <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+              Try a different image model
             </div>
-          ) : (
-            imageModelOptions.map(model => {
-              const tags: string[] = [];
-              if (model.supportsMultipleImages) {
-                tags.push("Multi");
-              }
-              if (model.supportsNegativePrompt) {
-                tags.push("Negative");
-              }
-              if (model.supportsImageToImage) {
-                tags.push("Img2Img");
-              }
-              const isSelected = currentModel === model.modelId;
-              return (
-                <button
-                  key={model.modelId}
-                  onClick={() => handleRetry(model.modelId, model.provider)}
-                  className={cn(
-                    "flex items-center justify-between w-full px-3 py-2.5 text-left transition-colors",
-                    "border-b border-border/30 last:border-b-0",
-                    "hover:bg-muted/50",
-                    isSelected && "bg-primary/5 hover:bg-primary/10"
-                  )}
+            <div className="max-h-[50vh] overflow-y-auto">
+              {imageModelOptions.map(renderImageModelItemMobile)}
+            </div>
+          </>
+        );
+      }
+
+      // Multiple providers: grouped list
+      const providerGroups = Map.groupBy(imageModelOptions, m => m.provider);
+      return (
+        <>
+          <div className="text-xs font-medium text-muted-foreground px-2 py-2">
+            Try a different image model
+          </div>
+          <div className="max-h-[50vh] overflow-y-auto">
+            {Array.from(providerGroups.entries()).map(
+              ([providerId, models]) => (
+                <div
+                  key={providerId}
+                  className="border-b border-border/30 last:border-b-0"
                 >
-                  <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium">{model.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {model.modelId}
+                  <div className="flex items-center gap-2 px-2 py-1.5 bg-muted/30">
+                    <ProviderIcon
+                      provider={providerId}
+                      className="h-4 w-4 text-foreground"
+                    />
+                    <span className="font-medium text-sm">
+                      {PROVIDER_CONFIG[
+                        providerId as keyof typeof PROVIDER_CONFIG
+                      ]?.title || providerId}
                     </span>
                   </div>
-                  <div className="ml-2 flex shrink-0 gap-1">
-                    {tags.map(tag => (
-                      <span
-                        key={`${model.modelId}-${tag}`}
-                        className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </>
-    );
+                  {models.map(renderImageModelItemMobile)}
+                </div>
+              )
+            )}
+          </div>
+        </>
+      );
+    };
 
     const renderModelList = () =>
       isImageProvider ? renderImageModelList() : renderTextModelList();
