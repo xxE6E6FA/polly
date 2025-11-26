@@ -180,11 +180,12 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     userRecord && !userRecord.isAnonymous ? {} : "skip"
   );
 
-  const cachedValue = get(
-    CACHE_KEYS.userData,
-    null
-  ) as UserDataProviderValue | null;
-  const hasCachedData = cachedValue && !cachedValue.isLoading;
+  // Read cached value once on mount using useState initializer for stability
+  // This prevents re-reading from localStorage on every render
+  const [initialCachedValue] = useState(() => {
+    return get(CACHE_KEYS.userData, null) as UserDataProviderValue | null;
+  });
+  const hasCachedData = initialCachedValue && !initialCachedValue.isLoading;
 
   const isLoading =
     !hasCachedData &&
@@ -195,8 +196,8 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const apiKeysData = isApiKeysArray(apiKeysRaw) ? apiKeysRaw : [];
   const hasUserApiKeysRaw = apiKeysData.length > 0;
 
-  const hasUserApiKeysFromCache = cachedValue?.hasUserApiKeys ?? false;
-  const hasUserModelsFromCache = cachedValue?.hasUserModels ?? false;
+  const hasUserApiKeysFromCache = initialCachedValue?.hasUserApiKeys ?? false;
+  const hasUserModelsFromCache = initialCachedValue?.hasUserModels ?? false;
 
   const hasUserApiKeys = useMemo(
     () => hasUserApiKeysRaw || hasUserApiKeysFromCache,
@@ -335,6 +336,33 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [authState, isOAuthCallback]);
 
   const combinedValue = useMemo(() => {
+    // Priority 1: Use fresh data from Convex query
+    if (userRecord) {
+      const monthlyMessagesSent = userRecord.monthlyMessagesSent ?? 0;
+      return {
+        ...buildUserData(
+          userRecord,
+          hasUserApiKeys,
+          hasUserModels,
+          monthlyMessagesSent
+        ),
+        capabilitiesReady,
+        user: userRecord,
+        apiKeys: apiKeysData,
+      };
+    }
+
+    // Priority 2: Use cached data while waiting for query (instant UI)
+    if (initialCachedValue?.user) {
+      return {
+        ...initialCachedValue,
+        user: initialCachedValue.user,
+        apiKeys: initialCachedValue.apiKeys ?? [],
+        isLoading: false,
+      };
+    }
+
+    // Priority 3: Show loading state (no cache, waiting for query)
     if (isLoading) {
       return {
         ...DEFAULT_USER_DATA,
@@ -344,36 +372,15 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
       };
     }
 
-    if (!userRecord) {
-      // Ensure apiKeys is always present (may be missing in stale cache)
-      const cached = get(CACHE_KEYS.userData, {
-        ...DEFAULT_USER_DATA,
-        user: null,
-        apiKeys: [],
-      });
-      return {
-        ...cached,
-        apiKeys: cached.apiKeys ?? [],
-      };
-    }
-
-    // Read monthlyMessagesSent directly from userRecord to avoid separate query
-    const monthlyMessagesSent = userRecord.monthlyMessagesSent ?? 0;
-
-    const computedValue = {
-      ...buildUserData(
-        userRecord,
-        hasUserApiKeys,
-        hasUserModels,
-        monthlyMessagesSent
-      ),
-      capabilitiesReady,
-      user: userRecord,
-      apiKeys: apiKeysData,
+    // Priority 4: No data available
+    return {
+      ...DEFAULT_USER_DATA,
+      user: null,
+      apiKeys: [],
     };
-    return computedValue;
   }, [
     userRecord,
+    initialCachedValue,
     hasUserApiKeys,
     hasUserModels,
     isLoading,
