@@ -1,10 +1,8 @@
-import { api } from "@convex/_generated/api";
 import {
   HeartIcon,
   NotePencilIcon,
   SidebarSimpleIcon,
 } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
 import {
   AnimatePresence,
   motion,
@@ -15,7 +13,7 @@ import {
   useTransform,
 } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { BatchActions } from "@/components/navigation/sidebar/batch-actions";
 import { ConversationList } from "@/components/navigation/sidebar/conversation-list";
 import { SidebarSearch } from "@/components/navigation/sidebar/search";
@@ -58,6 +56,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const currentConversationId = params.conversationId as ConversationId;
   const { user } = useUserDataContext();
   const { isSelectionMode, hasSelection } = useBatchSelection();
+  const location = useLocation();
 
   // Framer Motion for gestures
   const dragControls = useDragControls();
@@ -159,10 +158,6 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
       toggleSidebar();
     }
   }, [toggleSidebar, isSelectionMode]);
-  const favorites = useQuery(
-    api.messages.listFavorites,
-    user && !user.isAnonymous ? { limit: 1 } : "skip"
-  );
 
   useEffect(() => {
     if (currentConversationId && isMobile) {
@@ -427,28 +422,25 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  {user &&
-                    !user.isAnonymous &&
-                    favorites &&
-                    favorites.total > 0 && (
-                      <Link to={ROUTES.FAVORITES}>
-                        <Button
-                          size="icon-sm"
-                          title="New chat"
-                          variant="ghost"
-                          className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
-                        >
-                          <HeartIcon
-                            className="h-4.5 w-4.5"
-                            weight={
-                              location.pathname === ROUTES.FAVORITES
-                                ? "fill"
-                                : "regular"
-                            }
-                          />
-                        </Button>
-                      </Link>
-                    )}
+                  {user && !user.isAnonymous && (
+                    <Link to={ROUTES.FAVORITES}>
+                      <Button
+                        size="icon-sm"
+                        title="Favorites"
+                        variant="ghost"
+                        className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                      >
+                        <HeartIcon
+                          className="h-4.5 w-4.5"
+                          weight={
+                            location.pathname === ROUTES.FAVORITES
+                              ? "fill"
+                              : "regular"
+                          }
+                        />
+                      </Button>
+                    </Link>
+                  )}
 
                   <Link to={ROUTES.HOME}>
                     <Button

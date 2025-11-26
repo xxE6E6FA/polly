@@ -143,8 +143,19 @@ export default function FavoritesPage() {
         </div>
 
         {items.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-12 text-center">
-            No favorites yet.
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div className="mb-4 rounded-full bg-muted/40 p-4">
+              <HeartIcon
+                className="h-8 w-8 text-muted-foreground"
+                weight="regular"
+              />
+            </div>
+            <h2 className="text-base font-medium mb-2">No favorites yet</h2>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              {search.trim()
+                ? "No favorites match your search. Try a different search term."
+                : "Save important messages by clicking the heart icon on any message in your conversations."}
+            </p>
           </div>
         ) : (
           <div className="grid gap-3">
