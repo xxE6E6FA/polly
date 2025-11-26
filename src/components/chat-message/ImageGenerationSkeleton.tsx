@@ -1,9 +1,12 @@
+import { StopCircleIcon } from "@phosphor-icons/react";
 import { memo } from "react";
 import { cn } from "@/lib/utils";
 
 interface ImageGenerationSkeletonProps {
   aspectRatio?: "1:1" | "16:9" | "9:16" | "4:3" | "3:4";
   className?: string;
+  /** Whether the generation was interrupted/stopped */
+  interrupted?: boolean;
 }
 
 const aspectRatioClasses: Record<string, string> = {
@@ -15,19 +18,34 @@ const aspectRatioClasses: Record<string, string> = {
 };
 
 export const ImageGenerationSkeleton = memo<ImageGenerationSkeletonProps>(
-  ({ aspectRatio = "1:1", className = "" }) => {
+  ({ aspectRatio = "1:1", className = "", interrupted = false }) => {
     const aspectClass = aspectRatioClasses[aspectRatio] || "aspect-square";
 
     return (
       <div
         className={cn(
           aspectClass,
-          "skeleton-surface rounded-lg flex items-center justify-center",
+          "rounded-lg flex items-center justify-center",
+          interrupted
+            ? "bg-muted/50 border border-dashed border-muted-foreground/30"
+            : "skeleton-surface",
           className
         )}
       >
-        <div className="relative text-xs font-medium text-muted-foreground">
-          Generating image…
+        <div
+          className={cn(
+            "relative flex flex-col items-center gap-1.5",
+            interrupted ? "text-muted-foreground/60" : "text-muted-foreground"
+          )}
+        >
+          {interrupted ? (
+            <>
+              <StopCircleIcon className="h-5 w-5" />
+              <span className="text-xs font-medium">Stopped</span>
+            </>
+          ) : (
+            <span className="text-xs font-medium">Generating image…</span>
+          )}
         </div>
       </div>
     );

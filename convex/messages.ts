@@ -2143,7 +2143,7 @@ export const updateImageGeneration = internalMutation({
       // Update the message with new imageGeneration data
       const updateData: {
         imageGeneration: typeof updatedImageGeneration;
-        status?: "done" | "error";
+        status?: "done" | "error" | "streaming";
         metadata?: Record<string, unknown>;
       } = {
         imageGeneration: updatedImageGeneration,
@@ -2163,6 +2163,15 @@ export const updateImageGeneration = internalMutation({
         updateData.metadata = {
           ...message.metadata,
           finishReason: "error",
+        };
+      } else if (args.status === "starting" || args.status === "processing") {
+        // For retry: set message status back to streaming and clear previous finish state
+        updateData.status = "streaming";
+        // Clear any previous finishReason to allow isStreaming to return true
+        updateData.metadata = {
+          ...message.metadata,
+          finishReason: undefined,
+          stopped: undefined,
         };
       }
 

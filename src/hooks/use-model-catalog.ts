@@ -148,9 +148,29 @@ export function useModelCatalog() {
 }
 
 /**
+ * Formats a model ID into a human-readable display name.
+ * e.g., "owner/my-model-name" -> "My Model Name"
+ */
+function formatModelDisplayName(modelId: string): string {
+  // Extract the model name part (after the slash, or the whole thing if no slash)
+  const parts = modelId.split("/");
+  const modelName = parts[parts.length - 1] || modelId;
+
+  // Replace hyphens/underscores with spaces and capitalize each word
+  return modelName
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, char => char.toUpperCase())
+    .replace(/\bSdxl\b/gi, "SDXL")
+    .replace(/\bSd\b/g, "SD")
+    .replace(/\bFlux\b/gi, "FLUX")
+    .replace(/\bV(\d)/gi, "V$1")
+    .trim();
+}
+
+/**
  * Hook to get the model title for a given model ID and provider.
  * Returns the model's display name (title) if found in the catalog,
- * otherwise falls back to the model ID.
+ * otherwise formats the model ID into a readable name.
  */
 export function useModelTitle(modelId?: string, provider?: string): string {
   const userModels = useModelCatalogStore(s => s.userModels);
@@ -164,6 +184,11 @@ export function useModelTitle(modelId?: string, provider?: string): string {
     m => m.modelId === modelId && m.provider === provider
   );
 
-  // Return the model's name (title) if found, otherwise fall back to modelId
-  return model?.name || modelId;
+  // Return the model's name (title) if found
+  if (model?.name) {
+    return model.name;
+  }
+
+  // For Replicate image models or unknown models, format the ID nicely
+  return formatModelDisplayName(modelId);
 }

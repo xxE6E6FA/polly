@@ -2137,13 +2137,31 @@ export const stopGenerationHandler = async (
   );
 
   if (streamingMessage) {
-    await ctx.db.patch(streamingMessage._id, {
-      status: "done",
-      metadata: {
-        ...streamingMessage.metadata,
-        finishReason: "user_stopped",
-      },
-    });
+    // Check if this is an image generation message with an active Replicate prediction
+    const imageGen = streamingMessage.imageGeneration;
+    const replicateId = imageGen?.replicateId;
+    const isActiveImageGeneration =
+      replicateId &&
+      imageGen.status !== "succeeded" &&
+      imageGen.status !== "failed" &&
+      imageGen.status !== "canceled";
+
+    if (isActiveImageGeneration) {
+      // Cancel the Replicate prediction
+      await ctx.scheduler.runAfter(0, internal.ai.replicate.cancelPrediction, {
+        predictionId: replicateId,
+        messageId: streamingMessage._id,
+      });
+    } else {
+      // For text generation, just update the message status
+      await ctx.db.patch(streamingMessage._id, {
+        status: "done",
+        metadata: {
+          ...streamingMessage.metadata,
+          finishReason: "user_stopped",
+        },
+      });
+    }
   }
 
   await ctx.db.patch(args.conversationId, {

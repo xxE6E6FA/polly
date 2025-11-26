@@ -27,6 +27,8 @@ interface ImageActionsProps {
   seed?: number;
   onRetry?: () => void;
   className?: string;
+  /** When true, only shows retry + copy prompt buttons (for canceled/failed states) */
+  minimal?: boolean;
 }
 
 export const ImageActions = ({
@@ -35,6 +37,7 @@ export const ImageActions = ({
   seed,
   onRetry,
   className = "",
+  minimal = false,
 }: ImageActionsProps) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
@@ -125,6 +128,48 @@ export const ImageActions = ({
       setIsDownloading(false);
     }
   }, [imageUrl, prompt, isDownloading, managedToast]);
+
+  // In minimal mode, show only copy prompt + retry
+  if (minimal) {
+    return (
+      <div className={cn("flex items-center gap-1", className)}>
+        <Tooltip>
+          <TooltipTrigger>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCopyPrompt}
+              disabled={isCopying || !prompt}
+              className="btn-action h-7 w-7 p-0"
+            >
+              <CopyIcon className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {prompt ? "Copy prompt to clipboard" : "No prompt available"}
+          </TooltipContent>
+        </Tooltip>
+
+        {onRetry && (
+          <Tooltip>
+            <TooltipTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRetry}
+                className="btn-action h-7 w-7 p-0"
+              >
+                <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Retry generation with same parameters
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
