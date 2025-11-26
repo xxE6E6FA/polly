@@ -7,6 +7,7 @@ export const LOCAL_STORAGE_VERSION = 1;
 export const CACHE_KEYS = {
   apiKeys: "api-keys",
   userModels: "user-models",
+  modelCatalog: "model-catalog",
   selectedModel: "selected-model",
   conversations: "conversations",
   sidebar: "sidebar",

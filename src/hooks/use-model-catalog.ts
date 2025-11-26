@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { shallow, useShallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { createStore, type StoreApi } from "zustand/vanilla";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 type UserModel = Doc<"userModels">;
 type BuiltInModel = Doc<"builtInModels">;
@@ -109,37 +110,33 @@ export const resetModelCatalogStoreApi = () => {
 };
 
 export function useModelCatalog() {
-  // Fetch enabled models (both user + built-in) reactively
-  // Use existing queries observed in the app
-  const enabledUserModels = useQuery(api.userModels.getUserModels, {});
-  const enabledBuiltIns = useQuery(api.userModels.getBuiltInModels, {});
+  // Use single consolidated query instead of two separate ones
+  const availableModels = useQuery(api.userModels.getAvailableModels, {});
 
   const setCatalog = useModelCatalogStore(s => s.setCatalog);
+  const initialized = useModelCatalogStore(s => s.initialized);
 
+  // Initialize from localStorage cache on first render for instant display
   useEffect(() => {
-    const userList = Array.isArray(enabledUserModels)
-      ? (enabledUserModels as AvailableModel[])
-      : [];
-    const builtInList = Array.isArray(enabledBuiltIns)
-      ? (enabledBuiltIns as AvailableModel[])
-      : [];
-
-    // Create a set of user model IDs to check for duplicates
-    const userModelIds = new Set(userList.map(m => m.modelId));
-
-    // Filter out free built-in models that match user-added models
-    const filteredBuiltIns = builtInList.filter(model => {
-      const isFree = "free" in model && (model.free as boolean) === true;
-      const isDuplicate = userModelIds.has(model.modelId);
-      // Exclude if it's both free AND duplicates a user model
-      return !(isFree && isDuplicate);
-    });
-
-    const combined = [...userList, ...filteredBuiltIns];
-    if (enabledUserModels !== undefined || enabledBuiltIns !== undefined) {
-      setCatalog(combined);
+    if (!initialized) {
+      const cached = get<AvailableModel[] | null>(
+        CACHE_KEYS.modelCatalog,
+        null
+      );
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        setCatalog(cached);
+      }
     }
-  }, [enabledUserModels, enabledBuiltIns, setCatalog]);
+  }, [initialized, setCatalog]);
+
+  // Update store and cache when fresh data arrives
+  useEffect(() => {
+    if (Array.isArray(availableModels)) {
+      setCatalog(availableModels);
+      // Cache for instant display on next visit
+      set(CACHE_KEYS.modelCatalog, availableModels);
+    }
+  }, [availableModels, setCatalog]);
 
   return useModelCatalogStore(
     useShallow(s => ({

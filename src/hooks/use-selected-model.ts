@@ -2,7 +2,7 @@ import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
 import { useEffect } from "react";
-import { CACHE_KEYS, get } from "@/lib/local-storage";
+import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { useChatInputStore } from "@/stores/chat-input-store";
 
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -19,25 +19,27 @@ export function useSelectedModel() {
     m: AvailableModel | null
   ) => void;
 
-  // Hydrate from server or local cache
+  // Initialize from cache immediately for instant display
+  useEffect(() => {
+    if (selectedModel == null) {
+      const cached = get<AvailableModel | null>(CACHE_KEYS.selectedModel, null);
+      if (cached) {
+        setSelectedModel(cached);
+      }
+    }
+  }, [selectedModel, setSelectedModel]);
+
+  // Update store and cache when server data arrives
   useEffect(() => {
     if (
       selectedModelFromServer !== undefined &&
       selectedModelFromServer !== null
     ) {
       setSelectedModel(selectedModelFromServer);
-      return;
+      // Cache for instant display on next visit
+      set(CACHE_KEYS.selectedModel, selectedModelFromServer);
     }
-    if (selectedModel == null) {
-      const cached = get(
-        CACHE_KEYS.selectedModel,
-        null
-      ) as AvailableModel | null;
-      if (cached) {
-        setSelectedModel(cached);
-      }
-    }
-  }, [selectedModelFromServer, selectedModel, setSelectedModel]);
+  }, [selectedModelFromServer, setSelectedModel]);
 
   return [selectedModel, setSelectedModel] as const;
 }

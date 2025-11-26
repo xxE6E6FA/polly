@@ -16,7 +16,6 @@ import {
   useState,
 } from "react";
 import { useLocation } from "react-router-dom";
-import { useMessageSentCount } from "@/hooks/use-message-sent-count";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
@@ -48,6 +47,7 @@ interface UserData {
 
 type UserDataProviderValue = UserData & {
   user: Doc<"users"> | null;
+  apiKeys: Doc<"userApiKeys">[];
 };
 
 const UserDataContext = createContext<UserDataProviderValue | undefined>(
@@ -156,7 +156,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [authState, setAuthState] = useState<AuthState>("initializing");
   const [isGraduating, setIsGraduating] = useState(false);
   const graduateAnonymousUser = useMutation(api.users.graduateAnonymousUser);
-  const { monthlyMessagesSent } = useMessageSentCount();
   const managedToast = useToast();
 
   const userRecordRaw = useQuery(api.users.current);
@@ -341,15 +340,25 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...DEFAULT_USER_DATA,
         isLoading: true,
         user: null,
+        apiKeys: [],
       };
     }
 
     if (!userRecord) {
-      return get(CACHE_KEYS.userData, {
+      // Ensure apiKeys is always present (may be missing in stale cache)
+      const cached = get(CACHE_KEYS.userData, {
         ...DEFAULT_USER_DATA,
         user: null,
+        apiKeys: [],
       });
+      return {
+        ...cached,
+        apiKeys: cached.apiKeys ?? [],
+      };
     }
+
+    // Read monthlyMessagesSent directly from userRecord to avoid separate query
+    const monthlyMessagesSent = userRecord.monthlyMessagesSent ?? 0;
 
     const computedValue = {
       ...buildUserData(
@@ -360,6 +369,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
       ),
       capabilitiesReady,
       user: userRecord,
+      apiKeys: apiKeysData,
     };
     return computedValue;
   }, [
@@ -367,8 +377,8 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({
     hasUserApiKeys,
     hasUserModels,
     isLoading,
-    monthlyMessagesSent,
     capabilitiesReady,
+    apiKeysData,
   ]);
 
   // Debounce cache write to avoid synchronous storage churn

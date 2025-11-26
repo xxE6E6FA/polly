@@ -1,11 +1,14 @@
-import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
+import { useUserDataContext } from "@/providers/user-data-context";
 
+/**
+ * Hook to get message sent counts.
+ * Reads directly from user document via context to avoid separate query.
+ */
 export function useMessageSentCount() {
-  const data = useQuery(api.users.getMessageSentCount);
+  const { user } = useUserDataContext();
 
   return {
-    messagesSent: data?.messagesSent ?? 0,
-    monthlyMessagesSent: data?.monthlyMessagesSent ?? 0,
+    messagesSent: user?.messagesSent ?? 0,
+    monthlyMessagesSent: user?.monthlyMessagesSent ?? 0,
   };
 }

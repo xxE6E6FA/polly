@@ -1,5 +1,3 @@
-import { api } from "@convex/_generated/api";
-import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { useUserDataContext } from "@/providers/user-data-context";
 
@@ -22,35 +20,34 @@ function hasStoredKey(k: unknown): k is ApiKeyInfo {
 }
 
 /**
- * Hook to check if the user has a Replicate API key available
+ * Hook to check if the user has a Replicate API key available.
+ * Consumes apiKeys from UserDataContext to avoid duplicate queries.
  */
 export function useReplicateApiKey() {
-  const { user } = useUserDataContext();
-
-  const apiKeysRaw = useQuery(
-    api.apiKeys.getUserApiKeys,
-    user && !user.isAnonymous ? {} : "skip"
-  );
+  const { apiKeys, user } = useUserDataContext();
 
   const hasReplicateApiKey = useMemo(() => {
-    if (!apiKeysRaw) {
+    // Anonymous users can't have API keys
+    if (!user || user.isAnonymous) {
       return false;
     }
 
-    if (!Array.isArray(apiKeysRaw)) {
+    // Defensive check - apiKeys may be undefined from stale cache
+    if (!(apiKeys && Array.isArray(apiKeys))) {
       return false;
     }
 
-    return apiKeysRaw.some((key: unknown) => {
+    return apiKeys.some((key: unknown) => {
       if (!hasStoredKey(key)) {
         return false;
       }
       return (key as ApiKeyInfo).provider === "replicate";
     });
-  }, [apiKeysRaw]);
+  }, [apiKeys, user]);
 
   return {
     hasReplicateApiKey,
-    isLoading: apiKeysRaw === undefined,
+    // No longer loading since we consume from context which handles loading state
+    isLoading: false,
   };
 }

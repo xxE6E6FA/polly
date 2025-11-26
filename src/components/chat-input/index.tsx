@@ -498,7 +498,16 @@ export const ChatInput = forwardRef(
     const { user } = useUserDataContext();
 
     if (user === undefined) {
-      return null;
+      // Return skeleton placeholder to prevent layout shift while loading
+      return (
+        <div className="mx-auto w-full max-w-3xl chat-input-footer-backdrop">
+          <div className="chat-input-container chat-input-disabled opacity-50">
+            <div className="min-h-[52px] px-4 py-3">
+              <div className="h-6 w-32 animate-pulse rounded bg-muted" />
+            </div>
+          </div>
+        </div>
+      );
     }
 
     return <ChatInputInner {...props} ref={ref} />;

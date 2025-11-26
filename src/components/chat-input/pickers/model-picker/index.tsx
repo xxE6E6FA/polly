@@ -1,6 +1,4 @@
-import { api } from "@convex/_generated/api";
 import { CaretDown } from "@phosphor-icons/react";
-import { useQuery } from "convex/react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { ProviderIcon } from "@/components/provider-icons";
 import { Input } from "@/components/ui/input";
@@ -11,7 +9,7 @@ import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useModelCatalog } from "@/hooks/use-model-catalog";
 import { useSelectModel } from "@/hooks/use-select-model";
-import { CACHE_KEYS, get } from "@/lib/local-storage";
+import { useSelectedModel } from "@/hooks/use-selected-model";
 import { cn } from "@/lib/utils";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { ModelDrawerTabs } from "./DrawerTabs";
@@ -29,7 +27,8 @@ const ModelPickerComponent = ({
   const [open, setOpen] = useState(false);
   const { monthlyUsage, hasUnlimitedCalls, user } = useUserDataContext();
   const { modelGroups } = useModelCatalog();
-  const selectedModelRaw = useQuery(api.userModels.getUserSelectedModel, {});
+  // Use shared hook instead of direct query - provides caching for instant display
+  const [selectedModel] = useSelectedModel();
   const { selectModel } = useSelectModel();
   const isDesktop = useMediaQuery("(min-width: 640px)");
 
@@ -42,8 +41,6 @@ const ModelPickerComponent = ({
   useEffect(() => {
     setActiveTab(generationMode === "image" ? "image" : "text");
   }, [generationMode]);
-
-  const selectedModel = selectedModelRaw;
 
   const hasReachedPollyLimit = useMemo(
     () =>
@@ -78,14 +75,8 @@ const ModelPickerComponent = ({
     [setImageParams, setGenerationMode]
   );
 
-  const fallbackModel = useMemo(() => {
-    if (selectedModel || user?.isAnonymous) {
-      return null;
-    }
-    return get(CACHE_KEYS.selectedModel, null);
-  }, [selectedModel, user?.isAnonymous]);
-
-  const displayModel = selectedModel || fallbackModel;
+  // selectedModel already includes cached fallback from useSelectedModel hook
+  const displayModel = selectedModel;
   const selectedImageModel = enabledImageModels.find(
     m => m.modelId === (imageParams.model || "")
   );

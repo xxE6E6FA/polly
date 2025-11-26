@@ -11,6 +11,7 @@ import {
   patchHandler,
   savePrivateConversationHandler,
   searchHandler,
+  stopGenerationHandler,
 } from "./conversations";
 
 describe("conversations.list", () => {
@@ -114,8 +115,11 @@ describe("conversations.list", () => {
       archivedOnly: true,
     });
 
-    // Verify filter was called for archived conversations
-    expect(mockQuery.filter).toHaveBeenCalled();
+    // Verify the by_user_archived index was used for filtering
+    expect(mockQuery.withIndex).toHaveBeenCalledWith(
+      "by_user_archived",
+      expect.any(Function)
+    );
   });
 
   test("excludes archived conversations when includeArchived is false", async () => {
@@ -151,8 +155,11 @@ describe("conversations.list", () => {
       includeArchived: false,
     });
 
-    // Verify filter was called to exclude archived
-    expect(mockQuery.filter).toHaveBeenCalled();
+    // Verify the by_user_archived index was used for filtering
+    expect(mockQuery.withIndex).toHaveBeenCalledWith(
+      "by_user_archived",
+      expect.any(Function)
+    );
   });
 
   test("uses pagination when paginationOpts provided", async () => {
@@ -998,5 +1005,840 @@ describe("conversations.savePrivateConversation", () => {
         ],
       })
     ).rejects.toThrow("Anonymous users cannot save private conversations");
+  });
+});
+
+describe("conversations.stopGeneration", () => {
+  test("throws error for unauthenticated user", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    await expect(
+      stopGenerationHandler(ctx as MutationCtx, {
+        conversationId,
+      })
+    ).rejects.toThrow("Not authenticated");
+  });
+
+  test("throws error when conversation not found", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    await expect(
+      stopGenerationHandler(ctx as MutationCtx, {
+        conversationId,
+      })
+    ).rejects.toThrow("Conversation not found");
+  });
+
+  test("throws error when user does not own conversation", async () => {
+    const userId = "user-123" as Id<"users">;
+    const ownerId = "user-owner" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId: ownerId,
+      title: "Test Conversation",
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+      },
+    });
+
+    await expect(
+      stopGenerationHandler(ctx as MutationCtx, {
+        conversationId,
+      })
+    ).rejects.toThrow("Access denied");
+  });
+
+  test("stops streaming message and updates conversation", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+      isStreaming: true,
+    };
+
+    const mockStreamingMessage = {
+      _id: messageId,
+      conversationId,
+      role: "assistant",
+      content: "Partial content",
+      status: "streaming",
+      metadata: {},
+    };
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([mockStreamingMessage])),
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+        patch: patchMock,
+      },
+    });
+
+    await stopGenerationHandler(ctx as MutationCtx, {
+      conversationId,
+    });
+
+    // Should patch the streaming message to done
+    expect(patchMock).toHaveBeenCalledWith(messageId, {
+      status: "done",
+      metadata: {
+        finishReason: "user_stopped",
+      },
+    });
+
+    // Should patch the conversation to stop streaming
+    expect(patchMock).toHaveBeenCalledWith(conversationId, {
+      isStreaming: false,
+    });
+  });
+
+  test("handles case with no streaming message", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+      isStreaming: true,
+    };
+
+    const mockDoneMessage = {
+      _id: "msg-123" as Id<"messages">,
+      conversationId,
+      role: "assistant",
+      content: "Complete content",
+      status: "done",
+      metadata: {},
+    };
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([mockDoneMessage])),
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+        patch: patchMock,
+      },
+    });
+
+    await stopGenerationHandler(ctx as MutationCtx, {
+      conversationId,
+    });
+
+    // Should only patch the conversation (no streaming message found)
+    expect(patchMock).toHaveBeenCalledTimes(1);
+    expect(patchMock).toHaveBeenCalledWith(conversationId, {
+      isStreaming: false,
+    });
+  });
+
+  test("finds streaming message in thinking status", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+    const messageId = "msg-123" as Id<"messages">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+      isStreaming: true,
+    };
+
+    const mockThinkingMessage = {
+      _id: messageId,
+      conversationId,
+      role: "assistant",
+      content: "",
+      status: "thinking",
+      metadata: {},
+    };
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([mockThinkingMessage])),
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+        patch: patchMock,
+      },
+    });
+
+    await stopGenerationHandler(ctx as MutationCtx, {
+      conversationId,
+    });
+
+    // Should patch the thinking message to done
+    expect(patchMock).toHaveBeenCalledWith(messageId, {
+      status: "done",
+      metadata: {
+        finishReason: "user_stopped",
+      },
+    });
+  });
+
+  test("ignores user messages when looking for streaming message", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+      isStreaming: true,
+    };
+
+    const mockUserMessage = {
+      _id: "msg-123" as Id<"messages">,
+      conversationId,
+      role: "user",
+      content: "User message",
+      status: "streaming", // Even if status is streaming, user messages should be ignored
+    };
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([mockUserMessage])),
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+        patch: patchMock,
+      },
+    });
+
+    await stopGenerationHandler(ctx as MutationCtx, {
+      conversationId,
+    });
+
+    // Should only patch the conversation (user message ignored)
+    expect(patchMock).toHaveBeenCalledTimes(1);
+    expect(patchMock).toHaveBeenCalledWith(conversationId, {
+      isStreaming: false,
+    });
+  });
+});
+
+describe("conversations.getForExport - extended", () => {
+  test("returns conversation with messages for owner", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+      isArchived: false,
+    };
+
+    const mockMessages = [
+      {
+        _id: "msg-1" as Id<"messages">,
+        _creationTime: 1000,
+        conversationId,
+        role: "user",
+        content: "Hello",
+        isMainBranch: true,
+        createdAt: 1000,
+      },
+      {
+        _id: "msg-2" as Id<"messages">,
+        _creationTime: 2000,
+        conversationId,
+        role: "assistant",
+        content: "Hi there!",
+        model: "gpt-4",
+        provider: "openai",
+        isMainBranch: true,
+        createdAt: 2000,
+      },
+    ];
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      filter: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      collect: mock(() => Promise.resolve(mockMessages)),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+      },
+    });
+
+    const result = await getForExportHandler(ctx as QueryCtx, {
+      id: conversationId,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?.conversation).toEqual(mockConversation);
+    expect(result?.messages).toHaveLength(2);
+    expect(result?.messages[0].content).toBe("Hello");
+    expect(result?.messages[1].content).toBe("Hi there!");
+  });
+
+  test("respects limit parameter", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+    };
+
+    const mockMessages = [
+      {
+        _id: "msg-1" as Id<"messages">,
+        _creationTime: 1000,
+        conversationId,
+        role: "user",
+        content: "Message 1",
+        isMainBranch: true,
+        createdAt: 1000,
+      },
+    ];
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      filter: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        take: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      take: mock(() => Promise.resolve(mockMessages)),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+      },
+    });
+
+    const result = await getForExportHandler(ctx as QueryCtx, {
+      id: conversationId,
+      limit: 10,
+    });
+
+    expect(result).not.toBeNull();
+    expect(mockQuery.take).toHaveBeenCalledWith(10);
+  });
+
+  test("strips heavy fields from messages for export", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Test Conversation",
+    };
+
+    const mockMessages = [
+      {
+        _id: "msg-1" as Id<"messages">,
+        _creationTime: 1000,
+        conversationId,
+        role: "assistant",
+        content: "Response with attachments",
+        model: "gpt-4",
+        provider: "openai",
+        isMainBranch: true,
+        createdAt: 1000,
+        // Heavy fields that should be stripped
+        attachments: [{ type: "image", url: "data:base64..." }],
+        metadata: { tokenCount: 100, duration: 500 },
+        // Citations should be preserved
+        citations: [{ title: "Source", url: "https://example.com" }],
+      },
+    ];
+
+    const mockQuery = {
+      withIndex: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      filter: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      order: mock(function (this: {
+        withIndex: ReturnType<typeof mock>;
+        filter: ReturnType<typeof mock>;
+        order: ReturnType<typeof mock>;
+        collect: ReturnType<typeof mock>;
+      }) {
+        return this;
+      }),
+      collect: mock(() => Promise.resolve(mockMessages)),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        query: mock(() => mockQuery),
+      },
+    });
+
+    const result = await getForExportHandler(ctx as QueryCtx, {
+      id: conversationId,
+    });
+
+    expect(result).not.toBeNull();
+    const exportedMessage = result?.messages[0];
+    // Should have basic fields
+    expect(exportedMessage?._id).toBe("msg-1");
+    expect(exportedMessage?.content).toBe("Response with attachments");
+    expect(exportedMessage?.model).toBe("gpt-4");
+    // Should have citations
+    expect(exportedMessage?.citations).toEqual([
+      { title: "Source", url: "https://example.com" },
+    ]);
+    // Should NOT have attachments or metadata (stripped for bandwidth)
+    expect(
+      (exportedMessage as Record<string, unknown>)?.attachments
+    ).toBeUndefined();
+    expect(
+      (exportedMessage as Record<string, unknown>)?.metadata
+    ).toBeUndefined();
+  });
+
+  test("returns null for invalid conversation ID", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() =>
+          Promise.resolve({ subject: "user-123" as Id<"users"> })
+        ),
+      },
+      db: {
+        get: mock(() => {
+          throw new Error("Invalid ID");
+        }),
+      },
+    });
+
+    const result = await getForExportHandler(ctx as QueryCtx, {
+      id: "invalid-id",
+    });
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("conversations.list - extended", () => {
+  test("returns empty pagination result for unauthenticated user with pagination", async () => {
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    const result = await listHandler(ctx as QueryCtx, {
+      paginationOpts: { numItems: 10 },
+    });
+
+    expect(result).toEqual({
+      page: [],
+      isDone: true,
+      continueCursor: null,
+    });
+  });
+
+  test("uses by_user_recent index when includeArchived is not set", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockQuery = {
+      withIndex: mock(function () {
+        return this;
+      }),
+      order: mock(function () {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([])),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => mockQuery),
+      },
+    });
+
+    await listHandler(ctx as QueryCtx, {
+      paginationOpts: null,
+    });
+
+    // Should use by_user_recent when not filtering by archived status
+    expect(mockQuery.withIndex).toHaveBeenCalledWith(
+      "by_user_recent",
+      expect.any(Function)
+    );
+  });
+
+  test("supports ascending sort direction", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockQuery = {
+      withIndex: mock(function () {
+        return this;
+      }),
+      order: mock(function () {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([])),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => mockQuery),
+      },
+    });
+
+    await listHandler(ctx as QueryCtx, {
+      paginationOpts: null,
+      sortDirection: "asc",
+    });
+
+    expect(mockQuery.order).toHaveBeenCalledWith("asc");
+  });
+
+  test("defaults to descending sort direction", async () => {
+    const userId = "user-123" as Id<"users">;
+
+    const mockQuery = {
+      withIndex: mock(function () {
+        return this;
+      }),
+      order: mock(function () {
+        return this;
+      }),
+      take: mock(() => Promise.resolve([])),
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        query: mock(() => mockQuery),
+      },
+    });
+
+    await listHandler(ctx as QueryCtx, {
+      paginationOpts: null,
+    });
+
+    expect(mockQuery.order).toHaveBeenCalledWith("desc");
+  });
+});
+
+describe("conversations.get - extended", () => {
+  test("returns null when conversation does not exist", async () => {
+    const conversationId = "conv-nonexistent" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    const result = await getHandler(ctx as QueryCtx, { id: conversationId });
+
+    expect(result).toBeNull();
+  });
+
+  test("returns null when user does not own conversation", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const ownerId = "user-owner" as Id<"users">;
+    const userId = "user-other" as Id<"users">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId: ownerId,
+      title: "Test Conversation",
+    };
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+      },
+    });
+
+    const result = await getHandler(ctx as QueryCtx, { id: conversationId });
+
+    expect(result).toBeNull();
+  });
+});
+
+describe("conversations.patch - extended", () => {
+  test("does not set updatedAt when setUpdatedAt is false", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Old Title",
+      updatedAt: 1000,
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        patch: patchMock,
+      },
+    });
+
+    await patchHandler(ctx as MutationCtx, {
+      id: conversationId,
+      updates: { title: "New Title" },
+      setUpdatedAt: false,
+    });
+
+    // Should not include updatedAt in patch
+    expect(patchMock).toHaveBeenCalledWith(conversationId, {
+      title: "New Title",
+    });
+  });
+
+  test("ensures monotonic updatedAt when setUpdatedAt is true", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+    const userId = "user-123" as Id<"users">;
+    const existingUpdatedAt = Date.now() + 100000; // Future timestamp
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      title: "Old Title",
+      updatedAt: existingUpdatedAt,
+    };
+
+    const patchMock = mock(() => Promise.resolve());
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        patch: patchMock,
+      },
+    });
+
+    await patchHandler(ctx as MutationCtx, {
+      id: conversationId,
+      updates: { title: "New Title" },
+      setUpdatedAt: true,
+    });
+
+    // updatedAt should be at least existingUpdatedAt + 1
+    const patchCall = patchMock.mock.calls[0];
+    const patchedData = patchCall[1] as { updatedAt: number };
+    expect(patchedData.updatedAt).toBeGreaterThan(existingUpdatedAt);
+  });
+
+  test("throws error for unauthenticated user", async () => {
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve(null)),
+      },
+    });
+
+    await expect(
+      patchHandler(ctx as MutationCtx, {
+        id: conversationId,
+        updates: { title: "New Title" },
+      })
+    ).rejects.toThrow();
   });
 });

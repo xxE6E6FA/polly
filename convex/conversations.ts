@@ -822,20 +822,33 @@ export async function listHandler(
   const userDocId = userId as Id<"users">;
   const sortDirection = args.sortDirection ?? "desc";
 
-  // Start with the base query for all conversations
-  let query = ctx.db
-    .query("conversations")
-    .withIndex("by_user_recent", q => q.eq("userId", userDocId))
-    .order(sortDirection);
+  // Use the appropriate index based on filter type for better performance:
+  // - by_user_archived: ["userId", "isArchived", "updatedAt"] - use when filtering by archived status
+  // - by_user_recent: ["userId", "updatedAt"] - use when fetching all conversations
+  let query;
 
-  // Apply specific filters first
   if (args.archivedOnly === true) {
-    query = query.filter(q => q.eq(q.field("isArchived"), true));
-  }
-
-  // Apply include/exclude filters
-  if (args.includeArchived === false) {
-    query = query.filter(q => q.eq(q.field("isArchived"), false));
+    // Use by_user_archived index with isArchived=true
+    query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userDocId).eq("isArchived", true)
+      )
+      .order(sortDirection);
+  } else if (args.includeArchived === false) {
+    // Use by_user_archived index with isArchived=false (most common case for sidebar)
+    query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_archived", q =>
+        q.eq("userId", userDocId).eq("isArchived", false)
+      )
+      .order(sortDirection);
+  } else {
+    // Fetch all conversations (archived and non-archived) using by_user_recent
+    query = ctx.db
+      .query("conversations")
+      .withIndex("by_user_recent", q => q.eq("userId", userDocId))
+      .order(sortDirection);
   }
 
   const validatedOpts = validatePaginationOpts(

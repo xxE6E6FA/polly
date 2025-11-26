@@ -1,10 +1,4 @@
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import { CACHE_KEYS, get, set } from "@/lib/local-storage";
 
 const MIN_SIDEBAR_WIDTH = 320;
@@ -20,15 +14,15 @@ interface SidebarWidthContextType {
 const SidebarWidthContext = createContext<SidebarWidthContextType | null>(null);
 
 export function SidebarWidthProvider({ children }: { children: ReactNode }) {
-  const [sidebarWidth, setSidebarWidthState] = useState(MIN_SIDEBAR_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
-
-  useEffect(() => {
+  // Initialize from localStorage synchronously to prevent animation on first render
+  const [sidebarWidth, setSidebarWidthState] = useState(() => {
+    if (typeof window === "undefined") {
+      return MIN_SIDEBAR_WIDTH;
+    }
     const savedWidth = get(CACHE_KEYS.sidebarWidth, MIN_SIDEBAR_WIDTH);
-    setSidebarWidthState(
-      Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, savedWidth))
-    );
-  }, []);
+    return Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, savedWidth));
+  });
+  const [isResizing, setIsResizing] = useState(false);
 
   const setSidebarWidth = (width: number) => {
     const constrainedWidth = Math.max(
