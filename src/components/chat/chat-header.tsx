@@ -6,7 +6,6 @@ import {
   DownloadIcon,
   FileCodeIcon,
   FloppyDiskIcon,
-  GearIcon,
   GitBranchIcon,
   GitCommitIcon,
   NotePencilIcon,
@@ -18,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import { memo, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -613,13 +612,6 @@ const ChatHeaderComponent = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-
-            {/* Mobile settings shortcut - direct access without sidebar */}
-            <Link to={ROUTES.SETTINGS.ROOT} className="sm:hidden">
-              <Button variant="ghost" size="icon-sm" aria-label="Settings">
-                <GearIcon />
-              </Button>
-            </Link>
 
             {/* Mobile drawer */}
             <div className="sm:hidden">
