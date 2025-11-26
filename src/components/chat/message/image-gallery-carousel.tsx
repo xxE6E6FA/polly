@@ -33,6 +33,19 @@ export const ImageGalleryCarousel: React.FC<ImageGalleryCarouselProps> = ({
     emblaApi?.scrollNext();
   }, [emblaApi]);
 
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        scrollPrev();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        scrollNext();
+      }
+    },
+    [scrollPrev, scrollNext]
+  );
+
   React.useEffect(() => {
     if (!emblaApi) {
       return;
@@ -54,7 +67,13 @@ export const ImageGalleryCarousel: React.FC<ImageGalleryCarouselProps> = ({
   }, [emblaApi]);
 
   return (
-    <div className={cn("relative", className)}>
+    <div
+      className={cn("relative", className)}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="region"
+      aria-label="Image gallery carousel"
+    >
       {/* Custom carousel viewport that allows overflow */}
       <div className="overflow-visible">
         <div ref={emblaRef} className="overflow-visible">
