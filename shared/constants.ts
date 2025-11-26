@@ -30,3 +30,6 @@ export const IMAGE_GENERATION_DEFAULTS = {
   COUNT: 1,
   NEGATIVE_PROMPT: "",
 } as const;
+
+// Shared Conversations
+export const SHARED_CONVERSATION_EXPIRY_DAYS = 90;

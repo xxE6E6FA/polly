@@ -293,14 +293,33 @@ export const listUserSharedConversations = query({
 export const listUserSharedConversationsPaginated = query({
   args: {
     paginationOpts: paginationOptsValidator,
+    sortField: v.optional(
+      v.union(v.literal("title"), v.literal("sharedAt"), v.literal("expiresAt"))
+    ),
+    sortDirection: v.optional(v.union(v.literal("asc"), v.literal("desc"))),
   },
   handler: async (ctx, args) => {
     const userId = await handleGetAuthenticatedUser(ctx);
+    const sortField = args.sortField ?? "sharedAt";
+    const sortDirection = args.sortDirection ?? "desc";
+
+    // Choose the appropriate index based on sort field
+    // expiresAt sorts by lastUpdated since expiry is calculated from it
+    const getIndexName = () => {
+      if (sortField === "title") {
+        return "by_user_title";
+      }
+      if (sortField === "expiresAt") {
+        return "by_user_last_updated";
+      }
+      return "by_user_shared_at";
+    };
+    const indexName = getIndexName();
 
     const query = ctx.db
       .query("sharedConversations")
-      .withIndex("by_user", q => q.eq("userId", userId))
-      .order("desc");
+      .withIndex(indexName, q => q.eq("userId", userId))
+      .order(sortDirection);
 
     return await query.paginate(args.paginationOpts);
   },

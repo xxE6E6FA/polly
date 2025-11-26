@@ -54,7 +54,10 @@ export default defineSchema({
     .index("by_share_id", ["shareId"])
     .index("by_original_conversation", ["originalConversationId"])
     .index("by_user", ["userId"])
-    .index("by_last_updated", ["lastUpdated"]),
+    .index("by_last_updated", ["lastUpdated"])
+    .index("by_user_shared_at", ["userId", "sharedAt"])
+    .index("by_user_title", ["userId", "title"])
+    .index("by_user_last_updated", ["userId", "lastUpdated"]),
 
   messages: defineTable(messageSchema)
     .index("by_conversation", ["conversationId", "createdAt"])

@@ -1,3 +1,4 @@
+import { SHARED_CONVERSATION_EXPIRY_DAYS } from "@shared/constants";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -316,7 +317,7 @@ export const cleanupOldSharedConversations = internalMutation({
     batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const daysOld = args.daysOld || 90;
+    const daysOld = args.daysOld || SHARED_CONVERSATION_EXPIRY_DAYS;
     const batchSize = args.batchSize || 100;
     const cutoffDate = Date.now() - daysOld * 24 * 60 * 60 * 1000;
 

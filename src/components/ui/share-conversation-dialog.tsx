@@ -7,6 +7,7 @@ import {
   ShareNetworkIcon,
   XIcon,
 } from "@phosphor-icons/react";
+import { SHARED_CONVERSATION_EXPIRY_DAYS } from "@shared/constants";
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -195,8 +196,8 @@ export const ControlledShareConversationDialog = ({
         <div className="stack-xl">
           <Alert variant="warning">
             <AlertDescription>
-              Shared conversations are automatically deleted after 90 days of
-              inactivity.
+              Shared conversations are automatically deleted after{" "}
+              {SHARED_CONVERSATION_EXPIRY_DAYS} days of inactivity.
             </AlertDescription>
           </Alert>
 

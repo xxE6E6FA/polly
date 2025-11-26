@@ -149,14 +149,14 @@ export function DataListMobileRow<TItem, TField extends string>({
   return (
     <>
       <div
-        className="lg:hidden flex flex-col gap-2 w-full"
+        className="lg:hidden flex flex-col w-full"
         onClick={mobileDrawerConfig ? handleRowClick : undefined}
         onKeyDown={mobileDrawerConfig ? handleRowKeyDown : undefined}
         role={mobileDrawerConfig ? "button" : undefined}
         tabIndex={mobileDrawerConfig ? 0 : undefined}
       >
         {/* Mobile Header with Title and Actions */}
-        <div className="grid grid-cols-[1fr_auto] items-start gap-3">
+        <div className="grid grid-cols-[1fr_auto] items-center gap-3">
           <div className="min-w-0 overflow-hidden">
             {mobileTitleRender
               ? mobileTitleRender(item)

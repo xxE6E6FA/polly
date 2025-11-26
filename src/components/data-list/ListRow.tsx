@@ -22,7 +22,7 @@ export function ListRow({
   return (
     <div
       className={cn(
-        "group transition-all hover:bg-muted/30",
+        "group border-b border-border/50 transition-all hover:bg-muted/30",
         selected && "bg-primary/5",
         onClick && "cursor-pointer",
         className
