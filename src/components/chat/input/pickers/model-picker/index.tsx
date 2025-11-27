@@ -130,13 +130,8 @@ const ModelPickerComponent = ({
         title="Select Model"
         tooltip="Select model"
         disabled={disabled}
-        triggerClassName={cn(
-          isDesktop &&
-            "border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-foreground/90 hover:from-primary/15 hover:to-primary/10 focus-visible:ring-2 focus-visible:ring-primary/50",
-          className
-        )}
-        variant="ghost"
-        size={isDesktop ? "pill" : "icon"}
+        triggerClassName={className}
+        pickerVariant="accent"
         ariaLabel="Select model"
         contentClassName={
           isDesktop ? "p-0" : "h-[85dvh] max-h-[85dvh] pt-0 flex flex-col"
@@ -216,13 +211,8 @@ const ModelPickerComponent = ({
       title="Models"
       tooltip="Select model"
       disabled={disabled}
-      triggerClassName={cn(
-        isDesktop &&
-          "border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-foreground/90 hover:from-primary/15 hover:to-primary/10 focus-visible:ring-2 focus-visible:ring-primary/50",
-        className
-      )}
-      variant="ghost"
-      size={isDesktop ? "pill" : "icon"}
+      triggerClassName={className}
+      pickerVariant="accent"
       ariaLabel="Select model"
       contentClassName={
         isDesktop

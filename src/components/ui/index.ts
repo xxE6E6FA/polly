@@ -209,6 +209,17 @@ export { CitationPreviewPopup } from "./citation-popover";
 
 export { EmojiPicker, EmojiPickerContent } from "./emoji-picker";
 export { EmojiPickerDrawer } from "./emoji-picker-drawer";
+export {
+  PickerBody,
+  PickerDescription,
+  PickerDivider,
+  PickerFooter,
+  PickerHeader,
+  PickerOption,
+  PickerOptionCompact,
+  PickerSection,
+} from "./picker-content";
+export { PickerTrigger, pickerTriggerVariants } from "./picker-trigger";
 export { ResponsivePicker } from "./responsive-picker";
 export {
   SelectableListItem,

@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CheckIcon, UserIcon } from "@phosphor-icons/react";
+import { CheckCircle, UserIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import { memo, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,7 @@ function PersonaPickerComponent({
 
   if (compact) {
     const tooltipText = tooltip || "Select persona";
+    const hasPersona = currentPersona !== null;
     return (
       <ResponsivePicker
         trigger={compactTriggerInner}
@@ -99,6 +100,7 @@ function PersonaPickerComponent({
         tooltip={tooltipText}
         disabled={disabled}
         triggerClassName={className}
+        pickerVariant={hasPersona ? "active" : "default"}
         ariaLabel="Select persona"
       >
         {isDesktop ? (
@@ -147,7 +149,12 @@ function PersonaPickerComponent({
               Standard AI assistant
             </div>
           </div>
-          {!selectedPersonaId && <CheckIcon className="h-4 w-4 text-primary" />}
+          {!selectedPersonaId && (
+            <CheckCircle
+              className="h-5 w-5 fill-primary text-primary-foreground"
+              weight="fill"
+            />
+          )}
         </button>
 
         {/* Available personas */}
@@ -171,7 +178,10 @@ function PersonaPickerComponent({
               </div>
             </div>
             {selectedPersonaId === persona._id && (
-              <CheckIcon className="h-4 w-4 text-primary" />
+              <CheckCircle
+                className="h-5 w-5 fill-primary text-primary-foreground"
+                weight="fill"
+              />
             )}
           </button>
         ))}
@@ -242,7 +252,12 @@ const PersonaListDesktop = ({
               </div>
               <span>Default</span>
             </div>
-            {!currentPersona && <CheckIcon className="h-4 w-4" />}
+            {!currentPersona && (
+              <CheckCircle
+                className="h-5 w-5 fill-primary text-primary-foreground"
+                weight="fill"
+              />
+            )}
           </CommandItem>
         </CommandGroup>
 
@@ -271,7 +286,10 @@ const PersonaListDesktop = ({
                   </div>
                 </div>
                 {currentPersona?._id === persona._id && (
-                  <CheckIcon className="h-4 w-4" />
+                  <CheckCircle
+                    className="h-5 w-5 fill-primary text-primary-foreground"
+                    weight="fill"
+                  />
                 )}
               </CommandItem>
             ))}
@@ -303,7 +321,10 @@ const PersonaListDesktop = ({
                   </div>
                 </div>
                 {currentPersona?._id === persona._id && (
-                  <CheckIcon className="h-4 w-4" />
+                  <CheckCircle
+                    className="h-5 w-5 fill-primary text-primary-foreground"
+                    weight="fill"
+                  />
                 )}
               </CommandItem>
             ))}

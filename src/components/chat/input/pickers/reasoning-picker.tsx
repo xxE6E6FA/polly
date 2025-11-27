@@ -10,9 +10,9 @@ import {
   getProviderReasoningRequirements,
   hasMandatoryReasoning,
 } from "@shared/reasoning-model-detection";
-import { memo, useCallback, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import { memo, useCallback, useEffect } from "react";
 import { Label } from "@/components/ui/label";
+import { PickerOption, PickerSection } from "@/components/ui/picker-content";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import {
   SelectableListItem,
@@ -323,14 +323,13 @@ const ReasoningPickerComponent = ({
       title="Reasoning Configuration"
       tooltip="Configure thinking"
       disabled={disabled}
+      pickerVariant={currentValue !== "off" ? "active" : "default"}
       triggerClassName={cn(
-        "transition-all duration-200",
-        currentValue !== "off"
-          ? cn(theme.bgColor, theme.hoverBgColor, theme.color)
-          : "bg-muted text-foreground hover:bg-muted/80",
+        currentValue !== "off" &&
+          cn(theme.bgColor, theme.hoverBgColor, theme.color),
         className
       )}
-      contentClassName={isDesktop ? "w-[160px] p-1" : ""}
+      contentClassName={isDesktop ? "w-[200px] p-0" : ""}
       align="end"
       ariaLabel="Reasoning settings"
     >
@@ -369,37 +368,28 @@ const ReasoningControlDesktop = ({
   onSelect,
 }: ReasoningControlDesktopProps) => {
   return (
-    <div className="flex flex-col gap-0.5">
+    <PickerSection>
       {availableOptions.map(option => {
         const OptionIcon = option.icon;
         const isSelected = option.value === currentValue;
         return (
-          <Button
+          <PickerOption
             key={option.value}
-            type="button"
-            variant="ghost"
-            size="sm"
+            label={option.label}
+            description={option.description}
+            icon={
+              OptionIcon ? (
+                <OptionIcon className="h-3.5 w-3.5" weight="bold" />
+              ) : (
+                <SparkleIcon className="h-3.5 w-3.5 opacity-40" />
+              )
+            }
+            selected={isSelected}
             onClick={() => onSelect(option.value)}
-            className={cn(
-              "h-auto w-full justify-start gap-2 px-2 py-1.5 text-xs font-normal",
-              isSelected && "bg-muted"
-            )}
-          >
-            {OptionIcon ? (
-              <OptionIcon className="h-4 w-4 shrink-0" weight="bold" />
-            ) : (
-              <div className="h-4 w-4 shrink-0" />
-            )}
-            <div className="flex flex-col items-start gap-0.5">
-              <span className="font-medium">{option.label}</span>
-              <span className="text-[10px] text-muted-foreground">
-                {option.description}
-              </span>
-            </div>
-          </Button>
+          />
         );
       })}
-    </div>
+    </PickerSection>
   );
 };
 

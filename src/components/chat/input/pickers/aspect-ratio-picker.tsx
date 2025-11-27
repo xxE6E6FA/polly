@@ -6,11 +6,13 @@ import {
   MonitorPlay,
   Square,
 } from "@phosphor-icons/react";
-import { memo, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { memo } from "react";
+import {
+  PickerOptionCompact,
+  PickerSection,
+} from "@/components/ui/picker-content";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { cn } from "@/lib/utils";
 import { DrawerItem } from "../drawer-item";
 
 interface AspectRatioPickerProps {
@@ -106,7 +108,8 @@ export const AspectRatioPicker = memo<AspectRatioPickerProps>(
           title="Aspect Ratio Selection"
           tooltip="Select aspect ratio"
           disabled={disabled}
-          contentClassName={isDesktop ? "w-56 p-3" : "stack-xl"}
+          pickerVariant="default"
+          contentClassName={isDesktop ? "w-52 p-0" : "stack-xl"}
           align="start"
           ariaLabel="Select aspect ratio"
         >
@@ -139,30 +142,18 @@ const AspectRatioListDesktop = ({
   onSelect,
 }: AspectRatioListDesktopProps) => {
   return (
-    <div className="stack-sm">
-      <div className="grid gap-0.5">
-        {ASPECT_RATIOS_DESKTOP.map(ratio => (
-          <button
-            key={ratio.value}
-            type="button"
-            onClick={() => onSelect(ratio.value)}
-            className={cn(
-              "flex items-center justify-between p-1.5 rounded-md text-xs transition-colors",
-              "hover:bg-muted",
-              aspectRatio === ratio.value && "bg-muted"
-            )}
-          >
-            <div className="flex items-center gap-2">
-              <ratio.icon size={16} />
-              <span className="font-medium">{ratio.label}</span>
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">
-              {ratio.value}
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
+    <PickerSection>
+      {ASPECT_RATIOS_DESKTOP.map(ratio => (
+        <PickerOptionCompact
+          key={ratio.value}
+          label={ratio.label}
+          icon={<ratio.icon size={14} />}
+          suffix={ratio.value}
+          selected={aspectRatio === ratio.value}
+          onClick={() => onSelect(ratio.value)}
+        />
+      ))}
+    </PickerSection>
   );
 };
 

@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  PickerBody,
+  PickerDivider,
+  PickerHeader,
+} from "@/components/ui/picker-content";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useReplicateSchema } from "@/hooks/use-replicate-schema";
@@ -129,37 +134,39 @@ const ImageGenerationControlsDesktop = ({
   };
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between pb-4 border-b border-border">
-        <h3 className="text-sm font-medium">Generation Settings</h3>
-        {hasAdvancedSettings && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onReset}
-            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ArrowCounterClockwise size={12} className="mr-1.5" />
-            Reset
-          </Button>
-        )}
-      </div>
+    <>
+      <PickerHeader
+        title="Generation Settings"
+        action={
+          hasAdvancedSettings ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onReset}
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground"
+            >
+              <ArrowCounterClockwise size={10} className="mr-1" />
+              Reset
+            </Button>
+          ) : undefined
+        }
+      />
 
-      <div className="stack-lg pt-4">
+      <PickerBody className="stack-lg">
         {capabilities.supportsMultipleImages && (
-          <div className="stack-md">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="stack-sm">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Output
             </div>
 
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Images</Label>
-              <div className="flex items-center gap-2">
+              <Label className="text-xs font-medium">Images</Label>
+              <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  className="h-6 w-6 p-0 text-xs"
                   disabled={disabled || (params.count || 1) <= 1}
                   onClick={() =>
                     handleChange("count", Math.max(1, (params.count || 1) - 1))
@@ -167,14 +174,14 @@ const ImageGenerationControlsDesktop = ({
                 >
                   −
                 </Button>
-                <span className="min-w-[2ch] text-center text-sm font-medium">
+                <span className="min-w-[2ch] text-center text-xs font-medium tabular-nums">
                   {params.count || 1}
                 </span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0"
+                  className="h-6 w-6 p-0 text-xs"
                   disabled={
                     disabled || (params.count || 1) >= capabilities.maxOutputs
                   }
@@ -192,13 +199,11 @@ const ImageGenerationControlsDesktop = ({
           </div>
         )}
 
-        {capabilities.supportsMultipleImages && (
-          <div className="border-t border-border" />
-        )}
+        {capabilities.supportsMultipleImages && <PickerDivider />}
 
         {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
-          <div className="stack-md">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="stack-sm">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Quality
             </div>
 
@@ -216,7 +221,7 @@ const ImageGenerationControlsDesktop = ({
                   value === stepsConfig.default ? "auto" : String(value)
                 }
                 showSpinners={true}
-                className="stack-sm"
+                className="stack-xs"
               />
             )}
 
@@ -234,25 +239,25 @@ const ImageGenerationControlsDesktop = ({
                   value === guidanceConfig.default ? "auto" : String(value)
                 }
                 showSpinners={true}
-                className="stack-sm"
+                className="stack-xs"
               />
             )}
           </div>
         )}
 
         {(capabilities.supportsSteps || capabilities.supportsGuidance) && (
-          <div className="border-t border-border" />
+          <PickerDivider />
         )}
 
         {capabilities.supportsSeed && (
-          <div className="stack-md">
-            <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <div className="stack-sm">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               Control
             </div>
 
-            <div className="stack-sm">
+            <div className="stack-xs">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Seed</Label>
+                <Label className="text-xs font-medium">Seed</Label>
                 {lastGeneratedImageSeed !== undefined && (
                   <Button
                     type="button"
@@ -262,7 +267,7 @@ const ImageGenerationControlsDesktop = ({
                     disabled={
                       disabled || params.seed === lastGeneratedImageSeed
                     }
-                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
                   >
                     Reuse last
                   </Button>
@@ -278,14 +283,14 @@ const ImageGenerationControlsDesktop = ({
                   )
                 }
                 placeholder="Random"
-                className="h-8 text-sm"
+                className="h-7 text-xs"
                 disabled={disabled}
               />
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </PickerBody>
+    </>
   );
 };
 
@@ -555,9 +560,6 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
       <>
         <Gear className="h-4 w-4 text-current" />
         {isDesktop && <span className="hidden sm:inline">Settings</span>}
-        {hasAdvancedSettings && (
-          <div className="absolute -top-1 -right-1 h-2 w-2 bg-primary rounded-full" />
-        )}
       </>
     );
 
@@ -569,7 +571,8 @@ export const ImageGenerationSettings = memo<ImageGenerationSettingsProps>(
           tooltip="Open image generation settings"
           disabled={disabled}
           ariaLabel="Image generation settings"
-          triggerClassName="relative"
+          pickerVariant={hasAdvancedSettings ? "active" : "default"}
+          showIndicator={hasAdvancedSettings}
           contentClassName={isDesktop ? "w-80 p-0" : ""}
           align="end"
           sideOffset={8}

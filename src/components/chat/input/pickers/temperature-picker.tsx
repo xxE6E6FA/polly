@@ -3,6 +3,11 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { EnhancedSlider } from "@/components/ui/enhanced-slider";
 import { Label } from "@/components/ui/label";
+import {
+  PickerBody,
+  PickerDescription,
+  PickerFooter,
+} from "@/components/ui/picker-content";
 import { ResponsivePicker } from "@/components/ui/responsive-picker";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -61,7 +66,8 @@ const TemperaturePickerComponent = ({
       tooltip="Adjust temperature"
       disabled={disabled}
       ariaLabel="Temperature"
-      contentClassName={isDesktop ? "w-64 p-4" : ""}
+      pickerVariant={isActive ? "active" : "default"}
+      contentClassName={isDesktop ? "w-64 p-0" : ""}
     >
       {isDesktop ? (
         <TemperatureControlDesktop
@@ -103,41 +109,44 @@ const TemperatureControlDesktop = ({
   getTemperatureLabel,
 }: TemperatureControlDesktopProps) => {
   return (
-    <div className="stack-lg">
-      <div className="stack-sm">
-        <Label className="text-xs font-medium">Temperature</Label>
-        <div className="text-xs text-muted-foreground">
-          Controls response randomness. Higher = more varied and creative.
+    <>
+      <PickerBody>
+        <div className="stack-xs">
+          <Label className="text-xs font-semibold">Temperature</Label>
+          <PickerDescription className="px-0">
+            Controls response randomness. Higher = more varied and creative.
+          </PickerDescription>
         </div>
-      </div>
 
-      <EnhancedSlider
-        label="Temperature"
-        value={currentValue}
-        defaultValue={0.7}
-        min={0}
-        max={2}
-        step={0.1}
-        onValueChange={onSliderChange}
-        disabled={disabled}
-        formatValue={value =>
-          `${value.toFixed(1)} (${getTemperatureLabel(value)})`
-        }
-        showSpinners={true}
-        className="stack-sm"
-      />
+        <EnhancedSlider
+          label="Temperature"
+          value={currentValue}
+          defaultValue={0.7}
+          min={0}
+          max={2}
+          step={0.1}
+          onValueChange={onSliderChange}
+          disabled={disabled}
+          formatValue={value =>
+            `${value.toFixed(1)} (${getTemperatureLabel(value)})`
+          }
+          showSpinners={true}
+          className="stack-sm"
+        />
+      </PickerBody>
 
-      <div className="flex justify-center pt-2">
+      <PickerFooter>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onReset}
-          className="text-xs h-7"
+          className="text-xs h-7 text-muted-foreground hover:text-foreground"
         >
+          <ArrowClockwiseIcon className="h-3 w-3 mr-1.5" />
           Reset to Default
         </Button>
-      </div>
-    </div>
+      </PickerFooter>
+    </>
   );
 };
 

@@ -1,7 +1,5 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { ChatInputIconButton } from "@/components/ui/chat-input-icon-button";
 import {
   Drawer,
   DrawerBody,
@@ -10,6 +8,10 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import {
+  PickerTrigger,
+  type PickerTriggerProps,
+} from "@/components/ui/picker-trigger";
 import {
   Popover,
   PopoverContent,
@@ -36,10 +38,12 @@ interface ResponsivePickerProps {
   disabled?: boolean;
   /** Additional className for trigger button */
   triggerClassName?: string;
-  /** Button variant for trigger */
-  variant?: "ghost" | "outline" | "default" | "secondary";
-  /** Button size for trigger */
-  size?: "default" | "sm" | "lg" | "icon" | "pill";
+  /** Picker trigger variant - controls visual style */
+  pickerVariant?: PickerTriggerProps["variant"];
+  /** Show indicator dot for active/modified state */
+  showIndicator?: boolean;
+  /** Button size for trigger - "pill" for desktop with text, "icon" for mobile/icon-only */
+  size?: "pill" | "icon" | "sm";
   /** Popover alignment (desktop only) */
   align?: "start" | "center" | "end";
   /** Popover side (desktop only) */
@@ -54,6 +58,8 @@ interface ResponsivePickerProps {
   open?: boolean;
   /** aria-label for trigger button */
   ariaLabel?: string;
+  /** @deprecated Use pickerVariant instead */
+  variant?: "ghost" | "outline" | "default" | "secondary";
 }
 
 /**
@@ -67,7 +73,8 @@ export function ResponsivePicker({
   tooltip,
   disabled = false,
   triggerClassName,
-  variant = "ghost",
+  pickerVariant = "default",
+  showIndicator = false,
   size = "pill",
   align = "start",
   side = "top",
@@ -89,29 +96,21 @@ export function ResponsivePicker({
     onOpenChange?.(open);
   };
 
-  const triggerButton =
-    !isDesktop || size === "icon" ? (
-      <ChatInputIconButton
-        disabled={disabled}
-        aria-label={ariaLabel}
-        variant="default"
-      >
-        {trigger}
-      </ChatInputIconButton>
-    ) : (
-      <Button
-        variant={variant}
-        size={size}
-        disabled={disabled}
-        className={cn(
-          "border border-border bg-muted text-foreground hover:bg-muted/80 transition-all duration-200",
-          triggerClassName
-        )}
-        aria-label={ariaLabel}
-      >
-        {trigger}
-      </Button>
-    );
+  // Determine the size based on desktop/mobile and explicit size prop
+  const triggerSize = isDesktop ? size : "icon";
+
+  const triggerButton = (
+    <PickerTrigger
+      variant={pickerVariant}
+      size={triggerSize}
+      disabled={disabled}
+      showIndicator={showIndicator}
+      className={triggerClassName}
+      aria-label={ariaLabel}
+    >
+      {trigger}
+    </PickerTrigger>
+  );
 
   if (isDesktop) {
     return (
