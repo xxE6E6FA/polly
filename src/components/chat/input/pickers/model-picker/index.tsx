@@ -90,10 +90,17 @@ const ModelPickerComponent = ({
       : displayModel?.name || "Select model";
 
   // Determine provider for the icon
+  // Show "polly" icon for free built-in models, otherwise show actual provider
+  const getTextModelProvider = () => {
+    if (displayModel && "free" in displayModel && displayModel.free) {
+      return "polly";
+    }
+    return displayModel?.provider;
+  };
   const triggerProvider =
     generationMode === "image"
       ? selectedImageModel?.provider || "replicate" // Image models are from Replicate
-      : displayModel?.provider;
+      : getTextModelProvider();
 
   // Desktop trigger content (icon + label with caret)
   const desktopTriggerContent = (

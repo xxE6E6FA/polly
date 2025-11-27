@@ -8,6 +8,7 @@ import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { isUserModel } from "@/lib/type-guards";
+import { useUserDataContext } from "@/providers/user-data-context";
 import { useChatFullscreenUI } from "@/stores/chat-ui-store";
 // Fullscreen overlay toggle is handled inside the input section now
 import type { ConversationId, ReasoningConfig } from "@/types";
@@ -65,6 +66,7 @@ export function ChatInputBottomBar({
   selectedImageModel,
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
+  const { user } = useUserDataContext();
   const online = useOnline();
   const speech = useSpeechInputContext();
   const isRecordingOrTranscribing = speech.isRecording || speech.isTranscribing;
@@ -100,6 +102,7 @@ export function ChatInputBottomBar({
     canSend,
     selectedModel,
     selectedImageModelSupportsInput: selectedImageModel?.supportsImageToImage,
+    isAnonymous: user?.isAnonymous,
   });
 
   // Determine which model to use for file upload/library checks

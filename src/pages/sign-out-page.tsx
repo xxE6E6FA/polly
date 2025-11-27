@@ -2,6 +2,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { clearUserData } from "@/lib/local-storage";
+import { resetChatInputStoreApi } from "@/stores/chat-input-store";
 
 export default function SignOutPage() {
   const { signOut } = useAuthActions();
@@ -11,6 +12,8 @@ export default function SignOutPage() {
     try {
       // Clear user data from local storage before signing out
       clearUserData();
+      // Reset the chat input store to clear cached selected model
+      resetChatInputStoreApi();
       await signOut();
     } catch (_error) {
       // Sign out failed, but we'll navigate anyway

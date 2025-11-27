@@ -110,12 +110,14 @@ export function clearUserData() {
   const userSpecificKeys: CacheKey[] = [
     CACHE_KEYS.apiKeys,
     CACHE_KEYS.userModels,
+    CACHE_KEYS.modelCatalog,
     CACHE_KEYS.selectedModel,
     CACHE_KEYS.conversations,
     CACHE_KEYS.userSettings,
     CACHE_KEYS.setupChecklistDismissed,
     CACHE_KEYS.userData,
     CACHE_KEYS.anonymousUserGraduation,
+    CACHE_KEYS.recentModels,
   ];
 
   userSpecificKeys.forEach(key => {
