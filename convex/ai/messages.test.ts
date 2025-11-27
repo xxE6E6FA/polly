@@ -64,10 +64,36 @@ describe("convertMessagePart", () => {
   });
 
   describe("raw image attachments (from createConversation)", () => {
-    test("converts image with storageId", async () => {
+    test("converts image with storageId using storage URL", async () => {
+      const ctx = makeConvexCtx({
+        storage: {
+          getUrl: mock(() => Promise.resolve("https://storage.convex.cloud/image.png")),
+        },
+      });
+
+      const part = {
+        type: "image",
+        storageId: "storage-123" as Id<"_storage">,
+        name: "test.png",
+      };
+
+      const result = await convertMessagePart(
+        ctx as unknown as ActionCtx,
+        part,
+        "openai",
+        "gpt-4",
+        false
+      );
+
+      expect(result.type).toBe("image");
+      expect(result.image).toBe("https://storage.convex.cloud/image.png");
+    });
+
+    test("falls back to data URL when getUrl returns null", async () => {
       const mockBlob = new Blob(["image data"], { type: "image/png" });
       const ctx = makeConvexCtx({
         storage: {
+          getUrl: mock(() => Promise.resolve(null)),
           get: mock(() => Promise.resolve(mockBlob)),
         },
       });
@@ -312,11 +338,10 @@ describe("convertMessagePart", () => {
   });
 
   describe("image_url parts (from buildContextMessages)", () => {
-    test("converts image_url with attachment storageId", async () => {
-      const mockBlob = new Blob(["image data"], { type: "image/png" });
+    test("converts image_url with attachment storageId using storage URL", async () => {
       const ctx = makeConvexCtx({
         storage: {
-          get: mock(() => Promise.resolve(mockBlob)),
+          getUrl: mock(() => Promise.resolve("https://storage.convex.cloud/image.png")),
         },
       });
 
@@ -338,12 +363,13 @@ describe("convertMessagePart", () => {
       );
 
       expect(result.type).toBe("image");
-      expect(result.image).toContain("data:");
+      expect(result.image).toBe("https://storage.convex.cloud/image.png");
     });
 
-    test("falls back to url when storageId fails", async () => {
+    test("falls back to url when getUrl and get both fail", async () => {
       const ctx = makeConvexCtx({
         storage: {
+          getUrl: mock(() => Promise.resolve(null)),
           get: mock(() => Promise.reject(new Error("Storage error"))),
         },
       });

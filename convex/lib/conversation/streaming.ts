@@ -153,7 +153,7 @@ export async function streamAndSaveMessage(
 
     // Convert messages to AI SDK format (handles PDF extraction if needed)
     const convertedMessages = await convertMessages(ctx, messages, provider, modelId, supportsFiles);
-    
+
     // Add system message at the beginning
     const finalMessages = [
       { role: "system" as const, content: system },

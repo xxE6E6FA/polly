@@ -236,6 +236,8 @@ export async function createConversationHandler(
     );
 
     // Schedule message streaming
+    // Note: File attachments use retry-with-backoff in convertStorageToData
+    // to handle potential storage consistency delays
     const streamingMessages = [
       {
         role: "user",

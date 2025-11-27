@@ -4,6 +4,48 @@ import { api } from "../_generated/api";
 import { CONFIG } from "./config";
 import { shouldExtractPdfText } from "./pdf";
 
+/**
+ * Retry fetching a file from storage with exponential backoff.
+ * This handles the case where a file was just uploaded and may not be
+ * immediately available due to storage consistency.
+ */
+const fetchStorageWithRetry = async (
+  ctx: ActionCtx,
+  storageId: Id<"_storage">,
+  maxRetries = 5,
+  initialDelayMs = 100,
+): Promise<Blob> => {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const blob = await ctx.storage.get(storageId);
+    if (blob) {
+      if (attempt > 0) {
+        console.log(
+          `[fetchStorageWithRetry] File available after ${attempt + 1} attempts`,
+        );
+      }
+      return blob;
+    }
+
+    // File not found - might be eventual consistency, retry with backoff
+    lastError = new Error("File not found in storage");
+    const delayMs = initialDelayMs * Math.pow(2, attempt);
+
+    if (attempt < maxRetries - 1) {
+      console.log(
+        `[fetchStorageWithRetry] File not available yet, retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`,
+      );
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  console.error(
+    `[fetchStorageWithRetry] File not available after ${maxRetries} attempts`,
+  );
+  throw lastError ?? new Error("File not found in storage");
+};
+
 export const convertStorageToData = async (
   ctx: ActionCtx,
   storageId: Id<"_storage">,
@@ -14,10 +56,7 @@ export const convertStorageToData = async (
   base64: string;
   mimeType: string;
 }> => {
-  const blob = await ctx.storage.get(storageId);
-  if (!blob) {
-    throw new Error("File not found in storage");
-  }
+  const blob = await fetchStorageWithRetry(ctx, storageId);
   const arrayBuffer = await blob.arrayBuffer();
   const base64 = Buffer.from(new Uint8Array(arrayBuffer)).toString("base64");
   const mimeType =
@@ -157,7 +196,14 @@ export const convertMessagePart = async (
 
   // Handle raw image attachment (from createConversation path)
   if (part.type === "image") {
+    // Prefer using storage URL directly - it's immediately available and avoids
+    // potential consistency issues with storage.get()
     if (part.storageId) {
+      const storageUrl = await ctx.storage.getUrl(part.storageId);
+      if (storageUrl) {
+        return { type: "image" as const, image: storageUrl };
+      }
+      // If getUrl fails, try fetching the blob as fallback
       try {
         const dataUrl = (await convertAttachment(
           ctx,
@@ -165,13 +211,15 @@ export const convertMessagePart = async (
           "dataUrl",
         )) as string;
         return { type: "image" as const, image: dataUrl };
-      } catch {
-        // fallthrough
+      } catch (error) {
+        console.error("[convertMessagePart] Failed to convert image from storage:", error);
+        // fallthrough to URL
       }
     }
     if (part.url) {
       return { type: "image" as const, image: part.url };
     }
+    console.warn("[convertMessagePart] Image attachment has no storageId or url:", part.name);
     return { type: "text" as const, text: "" };
   }
 
@@ -199,7 +247,13 @@ export const convertMessagePart = async (
   }
 
   if (part.type === "image_url") {
+    // Prefer using storage URL directly - it's immediately available
     if (part.attachment?.storageId) {
+      const storageUrl = await ctx.storage.getUrl(part.attachment.storageId);
+      if (storageUrl) {
+        return { type: "image" as const, image: storageUrl };
+      }
+      // If getUrl fails, try fetching the blob as fallback
       try {
         const dataUrl = (await convertAttachment(
           ctx,

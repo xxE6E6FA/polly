@@ -11,7 +11,10 @@ import {
   query,
 } from "./_generated/server";
 import { createUserFileEntriesHandler } from "./fileStorage";
-import { executeStreamingActionForRetry } from "./lib/conversation_utils";
+import {
+  buildContextMessages,
+  executeStreamingActionForRetry,
+} from "./lib/conversation_utils";
 import {
   attachmentSchema,
   extendedMessageMetadataSchema,
@@ -321,12 +324,30 @@ export async function createBranchHandler(
       provider = selected?.provider as string | undefined;
     }
     if (modelId && provider) {
+      // Get model capabilities for proper attachment processing
+      const modelInfo = await ctx.runQuery(api.userModels.getModelByID, {
+        modelId,
+        provider,
+      });
+
+      // Build context messages from the cloned conversation (includes attachments)
+      const { contextMessages } = await buildContextMessages(ctx, {
+        conversationId: newConversationId,
+        personaId: conversation.personaId,
+        modelCapabilities: {
+          supportsImages: modelInfo?.supportsImages ?? false,
+          supportsFiles: modelInfo?.supportsFiles ?? false,
+        },
+        provider,
+        modelId,
+      });
+
       const result = await executeStreamingActionForRetry(ctx, {
         conversationId: newConversationId,
         model: modelId,
         provider,
         conversation: { personaId: conversation.personaId },
-        contextMessages: [],
+        contextMessages,
         useWebSearch: true,
       });
       assistantMessageId = result.assistantMessageId as Id<"messages">;
