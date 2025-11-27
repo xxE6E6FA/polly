@@ -148,7 +148,21 @@ function SlideContent({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={callbackRef}
-      className="min-w-0 shrink-0 grow-0 basis-full h-full overflow-y-auto px-4"
+      data-scroll-container="true"
+      className="relative min-w-0 shrink-0 grow-0 basis-full h-full overflow-y-auto px-4"
+      style={{
+        // Isolate from carousel transforms to prevent virtualization offset issues
+        contain: "layout style",
+        overflowAnchor: "none",
+        // Ensure vertical scrolling works correctly within carousel
+        touchAction: "pan-y",
+        // Smooth iOS scrolling
+        WebkitOverflowScrolling: "touch",
+        // Force own compositing layer to isolate from parent transforms
+        willChange: "scroll-position",
+        // Ensure transform isolation
+        transform: "translateZ(0)",
+      }}
     >
       {children}
     </div>
@@ -157,6 +171,7 @@ function SlideContent({ children }: { children: React.ReactNode }) {
 
 export function MobileSettingsNav() {
   const [emblaRef, emblaApi] = useEmblaCarousel({
+    axis: "x", // Explicitly set horizontal axis to avoid vertical scroll interference
     align: "start",
     loop: false,
     skipSnaps: false,

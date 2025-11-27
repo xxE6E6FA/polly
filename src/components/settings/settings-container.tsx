@@ -112,8 +112,8 @@ export const SettingsContainer = ({
     );
   }
 
-  // Desktop: Use horizontal tabs with React Router children
-  // Window handles scrolling, nav is sticky at top
+  // Desktop: Window handles scrolling, nav is sticky at top
+  // This allows WindowVirtualizer to work correctly with window scroll
   return (
     <div className="flex-1" style={{ scrollbarGutter: "stable" }}>
       {/* Sticky navigation container */}

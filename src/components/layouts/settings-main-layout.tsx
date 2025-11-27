@@ -5,7 +5,7 @@ import { SettingsHeader } from "@/components/settings/settings-header";
 
 export default function SettingsMainLayout() {
   return (
-    <div className="flex flex-col h-[100dvh]">
+    <div className="flex h-[100dvh] flex-col">
       <SettingsHeader backLink="/" backText="Back to Chat" />
       <SettingsContainer>
         <Outlet />

@@ -1,7 +1,7 @@
 import { usePaginatedQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import type React from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Virtualizer,
   type VirtualizerHandle,
@@ -79,6 +79,18 @@ interface VirtualizedDataListProps<TItem, TField extends string = string> {
   loadMoreCount?: number;
   overscan?: number;
   loadMoreThreshold?: number;
+  /**
+   * Offset from the top for sticky header positioning.
+   * @default 68 (matches the settings nav header height)
+   */
+  headerOffset?: number;
+  /**
+   * Offset from the top of the scroll container to account for content above the virtualizer.
+   * This tells the virtualizer that content exists before it in the scroll container.
+   * When not provided, the component auto-measures its offset from the scroll container.
+   * Pass an explicit value to override auto-detection.
+   */
+  startMargin?: number;
 
   // Loading/empty states
   loadingState?: React.ReactNode;
@@ -107,6 +119,8 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   loadMoreCount = 20,
   overscan = 4,
   loadMoreThreshold = 400,
+  headerOffset = 68,
+  startMargin: startMarginProp,
   loadingState,
   emptyState,
   className,
@@ -115,6 +129,8 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
   const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
   const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const [measuredStartMargin, setMeasuredStartMargin] = useState(0);
 
   // Use explicit scrollContainerRef prop or fall back to context (for mobile carousel slides)
   const scrollContainerContext = useScrollContainer();
@@ -127,6 +143,55 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   // Get the effective scroll ref for the Virtualizer
   const effectiveScrollContainerRef =
     scrollContainerRef ?? scrollContainerContext?.ref;
+
+  // Auto-measure startMargin for container-based scroll when not explicitly provided
+  useLayoutEffect(() => {
+    // Skip if startMargin is explicitly provided or not using container scroll
+    if (startMarginProp !== undefined || !useContainerScroll) {
+      return;
+    }
+
+    const listContainer = listContainerRef.current;
+    if (!listContainer) {
+      return;
+    }
+
+    const measureOffset = () => {
+      const scrollContainer = effectiveScrollContainerRef?.current;
+      if (!scrollContainer) {
+        return;
+      }
+
+      // Measure offset from scroll container top to list container top
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const listRect = listContainer.getBoundingClientRect();
+      const offset =
+        listRect.top - containerRect.top + scrollContainer.scrollTop;
+      setMeasuredStartMargin(Math.max(0, Math.round(offset)));
+    };
+
+    // Measure immediately
+    measureOffset();
+
+    // Re-measure on resize
+    const resizeObserver = new ResizeObserver(() => {
+      measureOffset();
+    });
+
+    resizeObserver.observe(listContainer);
+
+    const scrollContainer = effectiveScrollContainerRef?.current;
+    if (scrollContainer) {
+      resizeObserver.observe(scrollContainer);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [startMarginProp, useContainerScroll, effectiveScrollContainerRef]);
+
+  // Use explicit prop if provided, otherwise use measured value
+  const startMargin = startMarginProp ?? measuredStartMargin;
 
   // biome-ignore lint/suspicious/noExplicitAny: Required to bypass Convex's strict PaginatedQueryReference type
   const paginatedResult = usePaginatedQuery(query as any, queryArgs, {
@@ -321,6 +386,7 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
             ref={containerVirtualizerRef}
             overscan={overscan}
             scrollRef={effectiveScrollContainerRef}
+            startMargin={startMargin}
           >
             {renderItems()}
           </Virtualizer>
@@ -337,9 +403,13 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   };
 
   return (
-    <ListContainer className={className}>
+    <ListContainer ref={listContainerRef} className={className}>
       {/* Desktop Table Header - always visible */}
-      <ListHeader className="hidden lg:block" gridTemplate={gridTemplate}>
+      <ListHeader
+        className="hidden lg:block"
+        gridTemplate={gridTemplate}
+        stickyTop={headerOffset}
+      >
         {hasSelection && (
           <SelectAllCheckbox
             checked={
