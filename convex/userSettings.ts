@@ -80,6 +80,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
       ttsVoiceId: undefined,
       ttsModelId: "eleven_v3",
       showMessageMetadata: false,
+      showTemperaturePicker: true, // Default to enabled
     };
   }
 
@@ -95,6 +96,7 @@ export async function getUserSettingsHandler(ctx: QueryCtx) {
     ttsVoiceId: settings.ttsVoiceId,
     ttsModelId: settings.ttsModelId ?? "eleven_v3",
     showMessageMetadata: settings.showMessageMetadata ?? false,
+    showTemperaturePicker: settings.showTemperaturePicker ?? true, // Default to enabled
   };
 }
 
@@ -114,6 +116,7 @@ type UpdateUserSettingsArgs = {
   ttsUseAudioTags?: boolean;
   ttsStabilityMode?: "creative" | "natural" | "robust";
   showMessageMetadata?: boolean;
+  showTemperaturePicker?: boolean;
 };
 
 export async function updateUserSettingsHandler(
@@ -152,6 +155,9 @@ export async function updateUserSettingsHandler(
     ...(args.showMessageMetadata !== undefined && {
       showMessageMetadata: args.showMessageMetadata,
     }),
+    ...(args.showTemperaturePicker !== undefined && {
+      showTemperaturePicker: args.showTemperaturePicker,
+    }),
   };
 
   // Add defaults for new settings creation if no settings exist
@@ -187,6 +193,7 @@ export const updateUserSettings = mutation({
     autoArchiveEnabled: v.optional(v.boolean()),
     autoArchiveDays: v.optional(v.number()),
     showMessageMetadata: v.optional(v.boolean()),
+    showTemperaturePicker: v.optional(v.boolean()),
     ttsVoiceId: v.optional(v.string()),
     ttsModelId: v.optional(v.string()),
     ttsUseAudioTags: v.optional(v.boolean()),

@@ -620,6 +620,7 @@ export const userSettingsSchema = v.object({
     v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
   showMessageMetadata: v.optional(v.boolean()),
+  showTemperaturePicker: v.optional(v.boolean()),
   createdAt: v.number(),
   updatedAt: v.number(),
 });
@@ -641,6 +642,7 @@ export const userSettingsUpdateSchema = v.object({
     v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
   ),
   showMessageMetadata: v.optional(v.boolean()),
+  showTemperaturePicker: v.optional(v.boolean()),
 });
 
 // Message status for production-grade AI chat

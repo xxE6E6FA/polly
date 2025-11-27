@@ -255,6 +255,30 @@ export default function GeneralPage() {
                   />
                 </label>
 
+                {/* Show temperature picker */}
+                <label
+                  htmlFor="temperature-picker-toggle"
+                  className="flex items-center justify-between gap-8 cursor-pointer"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium mb-1">
+                      Show temperature picker
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Display temperature control in the chat input toolbar
+                    </p>
+                  </div>
+                  <Switch
+                    id="temperature-picker-toggle"
+                    checked={userSettings.showTemperaturePicker ?? true}
+                    onCheckedChange={async checked => {
+                      await updateUserSettings({
+                        showTemperaturePicker: checked,
+                      });
+                    }}
+                  />
+                </label>
+
                 {/* Auto-archive conversations */}
                 <div>
                   <label

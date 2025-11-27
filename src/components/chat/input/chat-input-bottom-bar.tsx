@@ -7,6 +7,7 @@ import { useLastGeneratedImageSeed } from "@/hooks/use-last-generated-image-seed
 import { useOnline } from "@/hooks/use-online";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { isUserModel } from "@/lib/type-guards";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useChatFullscreenUI } from "@/stores/chat-ui-store";
@@ -67,6 +68,7 @@ export function ChatInputBottomBar({
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const { user } = useUserDataContext();
+  const userSettings = useUserSettings();
   const online = useOnline();
   const speech = useSpeechInputContext();
   const isRecordingOrTranscribing = speech.isRecording || speech.isTranscribing;
@@ -103,6 +105,7 @@ export function ChatInputBottomBar({
     selectedModel,
     selectedImageModelSupportsInput: selectedImageModel?.supportsImageToImage,
     isAnonymous: user?.isAnonymous,
+    hideTemperaturePicker: userSettings?.showTemperaturePicker === false,
   });
 
   // Determine which model to use for file upload/library checks

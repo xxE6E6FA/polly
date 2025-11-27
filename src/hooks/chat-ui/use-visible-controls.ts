@@ -11,6 +11,7 @@ interface UseVisibleControlsProps {
   selectedModel?: Model | null;
   selectedImageModelSupportsInput?: boolean;
   isAnonymous?: boolean;
+  hideTemperaturePicker?: boolean;
 }
 
 interface VisibleControls {
@@ -31,6 +32,7 @@ export function useVisibleControls({
   selectedModel,
   selectedImageModelSupportsInput = false,
   isAnonymous = false,
+  hideTemperaturePicker = false,
 }: UseVisibleControlsProps): VisibleControls {
   const isImageMode = generationMode === "image";
   const isTextMode = generationMode === "text";
@@ -51,8 +53,9 @@ export function useVisibleControls({
   return {
     showModelPicker: showTextControls || canGenerateImages,
     showPersonaSelector: showTextControls,
-    // Hide temperature picker for anonymous users (simplified experience)
-    showTemperaturePicker: showTextControls && !isAnonymous,
+    // Hide temperature picker for anonymous users (simplified experience) or if user disabled it
+    showTemperaturePicker:
+      showTextControls && !isAnonymous && !hideTemperaturePicker,
     showReasoningPicker:
       showTextControls && !!selectedModel && isUserModel(selectedModel),
     showAspectRatioPicker: canGenerateImages,

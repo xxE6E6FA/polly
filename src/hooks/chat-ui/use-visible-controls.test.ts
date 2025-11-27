@@ -119,4 +119,44 @@ describe("useVisibleControls", () => {
 
     expect(result.showReasoningPicker).toBe(true);
   });
+
+  it("should hide temperature picker for anonymous users", () => {
+    const result = useVisibleControls({
+      generationMode: "text",
+      isPrivateMode: false,
+      hasReplicateApiKey: false,
+      canSend: true,
+      selectedModel: null,
+      isAnonymous: true,
+    });
+
+    expect(result.showTemperaturePicker).toBe(false);
+  });
+
+  it("should hide temperature picker when user setting is disabled", () => {
+    const result = useVisibleControls({
+      generationMode: "text",
+      isPrivateMode: false,
+      hasReplicateApiKey: false,
+      canSend: true,
+      selectedModel: null,
+      hideTemperaturePicker: true,
+    });
+
+    expect(result.showTemperaturePicker).toBe(false);
+  });
+
+  it("should show temperature picker when user setting is enabled and not anonymous", () => {
+    const result = useVisibleControls({
+      generationMode: "text",
+      isPrivateMode: false,
+      hasReplicateApiKey: false,
+      canSend: true,
+      selectedModel: null,
+      isAnonymous: false,
+      hideTemperaturePicker: false,
+    });
+
+    expect(result.showTemperaturePicker).toBe(true);
+  });
 });
