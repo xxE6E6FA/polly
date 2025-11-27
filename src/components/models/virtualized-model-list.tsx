@@ -2,7 +2,15 @@ import { api } from "@convex/_generated/api";
 import { TrashIcon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "convex/react";
 import type React from "react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Virtualizer,
   type VirtualizerHandle,
@@ -47,6 +55,13 @@ interface VirtualizedModelListProps {
   models: BaseModel[];
   // Optional scroll container for non-window scroll contexts (e.g., mobile carousels)
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * Offset from the top of the scroll container to account for content above the virtualizer.
+   * This tells the virtualizer that content exists before it in the scroll container.
+   * When not provided, the component auto-measures its offset from the scroll container.
+   * Pass an explicit value to override auto-detection.
+   */
+  startMargin?: number;
 }
 
 function getModelCardClassName(
@@ -299,9 +314,15 @@ const ModelCard = memo(
 ModelCard.displayName = "ModelCard";
 
 export const VirtualizedModelList = memo(
-  ({ models, scrollContainerRef }: VirtualizedModelListProps) => {
+  ({
+    models,
+    scrollContainerRef,
+    startMargin: startMarginProp,
+  }: VirtualizedModelListProps) => {
     const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
     const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
+    const listContainerRef = useRef<HTMLDivElement>(null);
+    const [measuredStartMargin, setMeasuredStartMargin] = useState(0);
     const [columnsPerRow, setColumnsPerRow] = useState(4);
     const [conflictDialog, setConflictDialog] = useState<{
       isOpen: boolean;
@@ -325,6 +346,55 @@ export const VirtualizedModelList = memo(
     // Get the effective scroll ref for the Virtualizer
     const effectiveScrollContainerRef =
       scrollContainerRef ?? scrollContainerContext?.ref;
+
+    // Auto-measure startMargin for container-based scroll when not explicitly provided
+    useLayoutEffect(() => {
+      // Skip if startMargin is explicitly provided or not using container scroll
+      if (startMarginProp !== undefined || !useContainerScroll) {
+        return;
+      }
+
+      const listContainer = listContainerRef.current;
+      if (!listContainer) {
+        return;
+      }
+
+      const measureOffset = () => {
+        const scrollContainer = effectiveScrollContainerRef?.current;
+        if (!scrollContainer) {
+          return;
+        }
+
+        // Measure offset from scroll container top to list container top
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const listRect = listContainer.getBoundingClientRect();
+        const offset =
+          listRect.top - containerRect.top + scrollContainer.scrollTop;
+        setMeasuredStartMargin(Math.max(0, Math.round(offset)));
+      };
+
+      // Measure immediately
+      measureOffset();
+
+      // Re-measure on resize
+      const resizeObserver = new ResizeObserver(() => {
+        measureOffset();
+      });
+
+      resizeObserver.observe(listContainer);
+
+      const scrollContainer = effectiveScrollContainerRef?.current;
+      if (scrollContainer) {
+        resizeObserver.observe(scrollContainer);
+      }
+
+      return () => {
+        resizeObserver.disconnect();
+      };
+    }, [startMarginProp, useContainerScroll, effectiveScrollContainerRef]);
+
+    // Use explicit prop if provided, otherwise use measured value
+    const startMargin = startMarginProp ?? measuredStartMargin;
 
     const { user } = useUserDataContext();
     const managedToast = useToast();
@@ -575,18 +645,27 @@ export const VirtualizedModelList = memo(
         </div>
       ));
 
+    // Each row is approximately 172px (card height 160px + pb-3 12px)
+    const estimatedRowHeight = 172;
+
     return (
-      <>
+      <div ref={listContainerRef}>
         {useContainerScroll ? (
           <Virtualizer
             ref={containerVirtualizerRef}
             overscan={4}
+            itemSize={estimatedRowHeight}
             scrollRef={effectiveScrollContainerRef}
+            startMargin={startMargin}
           >
             {renderRows()}
           </Virtualizer>
         ) : (
-          <WindowVirtualizer ref={windowVirtualizerRef} overscan={4}>
+          <WindowVirtualizer
+            ref={windowVirtualizerRef}
+            overscan={4}
+            itemSize={estimatedRowHeight}
+          >
             {renderRows()}
           </WindowVirtualizer>
         )}
@@ -611,7 +690,7 @@ export const VirtualizedModelList = memo(
           confirmText="Use My API Key"
           cancelText="Keep Free Model"
         />
-      </>
+      </div>
     );
   }
 );
