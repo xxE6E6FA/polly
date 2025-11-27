@@ -63,6 +63,7 @@ import {
 } from "@/lib/export";
 import { getModelCapabilities } from "@/lib/model-capabilities";
 import { ROUTES } from "@/lib/routes";
+import { useUserIdentity } from "@/providers/user-data-context";
 import type { ModelForCapabilities } from "@/types";
 
 type CommandPaletteProps = {
@@ -144,6 +145,7 @@ export function CommandPalette({
   const location = useLocation();
   const params = useParams();
   const { theme, toggleTheme } = useTheme();
+  const { isAuthenticated } = useUserIdentity();
 
   const currentConversationId = params.conversationId;
   const isConversationPage = location.pathname.startsWith("/chat/");
@@ -578,8 +580,13 @@ export function CommandPalette({
   const showSearchResults = hasRemoteSearchQuery && Boolean(searchResults);
   const isSearching = search.trim().length > 0 && search !== debouncedSearch;
 
-  const settingsActions = useMemo(
-    (): Action[] => [
+  const settingsActions = useMemo((): Action[] => {
+    // Settings are only available to authenticated users
+    if (!isAuthenticated) {
+      return [];
+    }
+
+    return [
       {
         id: "settings-general",
         label: "General",
@@ -638,12 +645,11 @@ export function CommandPalette({
         handler: () => handleNavigateToSettings(ROUTES.SETTINGS.ATTACHMENTS),
         disabled: !online,
       },
-    ],
-    [handleNavigateToSettings, online]
-  );
+    ];
+  }, [handleNavigateToSettings, online, isAuthenticated]);
 
-  const globalActions = useMemo(
-    (): Action[] => [
+  const globalActions = useMemo((): Action[] => {
+    const actions: Action[] = [
       {
         id: "new-conversation",
         label: "New Conversation",
@@ -658,47 +664,55 @@ export function CommandPalette({
         handler: handlePrivateMode,
         disabled: false,
       },
-      {
-        id: "browse-conversations",
-        label: "Browse All Conversations",
-        icon: ChatCircleIcon,
-        handler: () =>
-          navigateToMenu(
-            "conversation-browser",
-            undefined,
-            "All Conversations"
-          ),
-        disabled: !online,
-      },
-      {
-        id: "browse-models",
-        label: "Browse All Models",
-        icon: MagnifyingGlassIcon,
-        handler: () =>
-          navigateToMenu("model-categories", undefined, "All Models"),
-        disabled: !online,
-      },
-      {
-        id: "toggle-theme",
-        label:
-          theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
-        icon: theme === "dark" ? SunIcon : MoonIcon,
-        handler: handleToggleTheme,
-        disabled: false,
-      },
-    ],
-    [
-      theme,
-      handleNewConversation,
-      handlePrivateMode,
-      handleToggleTheme,
-      navigateToMenu,
-      online,
-    ]
-  );
+    ];
 
-  const conversationActions = useMemo(
-    () => [
+    // Browse actions require authentication
+    if (isAuthenticated) {
+      actions.push(
+        {
+          id: "browse-conversations",
+          label: "Browse All Conversations",
+          icon: ChatCircleIcon,
+          handler: () =>
+            navigateToMenu(
+              "conversation-browser",
+              undefined,
+              "All Conversations"
+            ),
+          disabled: !online,
+        },
+        {
+          id: "browse-models",
+          label: "Browse All Models",
+          icon: MagnifyingGlassIcon,
+          handler: () =>
+            navigateToMenu("model-categories", undefined, "All Models"),
+          disabled: !online,
+        }
+      );
+    }
+
+    actions.push({
+      id: "toggle-theme",
+      label: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
+      icon: theme === "dark" ? SunIcon : MoonIcon,
+      handler: handleToggleTheme,
+      disabled: false,
+    });
+
+    return actions;
+  }, [
+    theme,
+    handleNewConversation,
+    handlePrivateMode,
+    handleToggleTheme,
+    navigateToMenu,
+    online,
+    isAuthenticated,
+  ]);
+
+  const conversationActions = useMemo(() => {
+    const actions: Action[] = [
       {
         id: "toggle-pin",
         label: currentConversation?.conversation?.isPinned ? "Unpin" : "Pin",
@@ -713,13 +727,20 @@ export function CommandPalette({
         handler: handleRenameConversation,
         disabled: !online,
       },
-      {
+    ];
+
+    // Share and archive require authentication (archive needs settings access to unarchive)
+    if (isAuthenticated) {
+      actions.push({
         id: "share-conversation",
         label: "Share",
         icon: ShareNetworkIcon,
         handler: handleShareConversation,
         disabled: !online,
-      },
+      });
+    }
+
+    actions.push(
       {
         id: "export-markdown",
         label: "Export as Markdown",
@@ -733,33 +754,39 @@ export function CommandPalette({
         icon: FileCodeIcon,
         handler: () => handleExportConversation("json"),
         disabled: !online,
-      },
-      {
+      }
+    );
+
+    if (isAuthenticated) {
+      actions.push({
         id: "archive-conversation",
         label: "Archive",
         icon: ArchiveIcon,
         handler: handleToggleArchive,
         disabled: !online,
-      },
-      {
-        id: "delete-conversation",
-        label: "Delete",
-        icon: TrashIcon,
-        handler: handleDeleteConversation,
-        disabled: !online,
-      },
-    ],
-    [
-      currentConversation?.conversation?.isPinned,
-      handleToggleFavorite,
-      handleRenameConversation,
-      handleShareConversation,
-      handleExportConversation,
-      handleToggleArchive,
-      handleDeleteConversation,
-      online,
-    ]
-  );
+      });
+    }
+
+    actions.push({
+      id: "delete-conversation",
+      label: "Delete",
+      icon: TrashIcon,
+      handler: handleDeleteConversation,
+      disabled: !online,
+    });
+
+    return actions;
+  }, [
+    currentConversation?.conversation?.isPinned,
+    handleToggleFavorite,
+    handleRenameConversation,
+    handleShareConversation,
+    handleExportConversation,
+    handleToggleArchive,
+    handleDeleteConversation,
+    online,
+    isAuthenticated,
+  ]);
 
   const filteredGlobalActions = useMemo(() => {
     if (!hasSearchQuery) {
