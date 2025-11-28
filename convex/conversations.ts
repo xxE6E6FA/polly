@@ -2444,52 +2444,21 @@ export const stopGenerationHandler = async (
     throw new Error("Access denied");
   }
 
-  // Find the streaming message
-  // We look for any message that is not in a terminal state (done/error)
-  // We increase the limit to 20 to be safe, though usually it's the very last message
-  const messages = await ctx.db
-    .query("messages")
-    .withIndex("by_conversation", q =>
-      q.eq("conversationId", args.conversationId)
-    )
-    .order("desc")
-    .take(20);
-
-  const streamingMessage = messages.find(
-    m => m.role === "assistant" && m.status !== "done" && m.status !== "error"
-  );
-
-  if (streamingMessage) {
-    // Check if this is an image generation message with an active Replicate prediction
-    const imageGen = streamingMessage.imageGeneration;
-    const replicateId = imageGen?.replicateId;
-    const isActiveImageGeneration =
-      replicateId &&
-      imageGen.status !== "succeeded" &&
-      imageGen.status !== "failed" &&
-      imageGen.status !== "canceled";
-
-    if (isActiveImageGeneration) {
-      // Cancel the Replicate prediction
-      await ctx.scheduler.runAfter(0, internal.ai.replicate.cancelPrediction, {
-        predictionId: replicateId,
-        messageId: streamingMessage._id,
-      });
-    } else {
-      // For text generation, just update the message status
-      await ctx.db.patch(streamingMessage._id, {
-        status: "done",
-        metadata: {
-          ...streamingMessage.metadata,
-          finishReason: "user_stopped",
-        },
-      });
-    }
-  }
-
+  // Set stopRequested signal - this is ALL we do.
+  // NO message reads to avoid OCC conflicts with streaming updates.
+  // The streaming action checks stopRequested and finalizes the message.
   await ctx.db.patch(args.conversationId, {
     isStreaming: false,
+    stopRequested: Date.now(),
   });
+
+  // For image generation: check conversation-level tracking (no message query needed)
+  if (conversation.activeImageGeneration?.replicateId) {
+    await ctx.scheduler.runAfter(0, internal.ai.replicate.cancelPrediction, {
+      predictionId: conversation.activeImageGeneration.replicateId,
+      messageId: conversation.activeImageGeneration.messageId,
+    });
+  }
 };
 
 export const stopGeneration = mutation({

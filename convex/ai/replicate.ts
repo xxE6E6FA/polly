@@ -729,6 +729,17 @@ export const generateImage = action({
         },
       });
 
+      // Track on conversation for OCC-free stop detection
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: {
+          activeImageGeneration: {
+            replicateId: prediction.id,
+            messageId: args.messageId,
+          },
+        },
+      });
+
       // Start polling for completion (webhooks are preferred but polling is fallback)
       // Polling will automatically stop if webhook completes the prediction first
       await scheduleRunAfter(ctx, 2000, internal.ai.replicate.pollPrediction, {

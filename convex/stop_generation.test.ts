@@ -4,36 +4,24 @@ import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
 import { stopGenerationHandler } from "./conversations";
 
+/**
+ * stopGeneration tests
+ *
+ * The stopGeneration mutation uses a pure signal-based approach to avoid OCC conflicts:
+ * 1. It sets `isStreaming: false` and `stopRequested: <timestamp>` on the conversation
+ * 2. It does NOT read from the messages table (eliminates OCC conflicts)
+ * 3. For image generation, it checks `activeImageGeneration` on the conversation
+ * 4. The streaming action is responsible for finalizing the message
+ */
 describe("stopGeneration", () => {
-  test("stops streaming message and updates conversation state", async () => {
+  test("sets stop signal on conversation without reading messages", async () => {
     const userId = "user-123" as Id<"users">;
     const conversationId = "conv-123" as Id<"conversations">;
-    const messageId = "msg-123" as Id<"messages">;
 
     const mockConversation = {
       _id: conversationId,
       userId,
       isStreaming: true,
-    };
-
-    const mockStreamingMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "streaming",
-      metadata: {},
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockStreamingMessage])),
     };
 
     const ctx = makeConvexCtx({
@@ -42,8 +30,8 @@ describe("stopGeneration", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
         patch: mock(() => Promise.resolve()),
+        // NOTE: No query mock - we don't query messages anymore
       },
     });
 
@@ -51,18 +39,13 @@ describe("stopGeneration", () => {
       conversationId,
     });
 
-    // Verify message was updated
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: {
-        finishReason: "user_stopped",
-      },
-    });
-
-    // Verify conversation was updated
-    expect(ctx.db.patch).toHaveBeenCalledWith(conversationId, {
-      isStreaming: false,
-    });
+    // Verify conversation was updated with stop signal
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+    const patchCall = (ctx.db.patch as ReturnType<typeof mock>).mock.calls[0];
+    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[1].isStreaming).toBe(false);
+    expect(typeof patchCall[1].stopRequested).toBe("number");
+    expect(patchCall[1].stopRequested).toBeGreaterThan(0);
   });
 
   test("throws if user not authenticated", async () => {
@@ -122,37 +105,60 @@ describe("stopGeneration", () => {
     ).rejects.toThrow("Access denied");
   });
 
-  test("stops 'thinking' message", async () => {
+  test("does not query messages for text streaming", async () => {
+    const userId = "user-123" as Id<"users">;
+    const conversationId = "conv-123" as Id<"conversations">;
+
+    const mockConversation = {
+      _id: conversationId,
+      userId,
+      isStreaming: true,
+    };
+
+    const dbQuery = mock(() => {
+      throw new Error("Should not query messages");
+    });
+
+    const ctx = makeConvexCtx({
+      auth: {
+        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
+      },
+      db: {
+        get: mock(() => Promise.resolve(mockConversation)),
+        patch: mock(() => Promise.resolve()),
+        query: dbQuery,
+      },
+    });
+
+    await stopGenerationHandler(ctx as MutationCtx, { conversationId });
+
+    // Should NOT query messages - that's the whole point of this fix
+    expect(dbQuery).not.toHaveBeenCalled();
+
+    // Should only patch conversation
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+    const patchCall = (ctx.db.patch as ReturnType<typeof mock>).mock.calls[0];
+    expect(patchCall[0]).toBe(conversationId);
+  });
+
+  test("cancels active image generation via conversation tracking", async () => {
     const userId = "user-123" as Id<"users">;
     const conversationId = "conv-123" as Id<"conversations">;
     const messageId = "msg-123" as Id<"messages">;
+    const replicateId = "replicate-pred-123";
 
+    // Image generation is tracked on conversation, not via message query
     const mockConversation = {
       _id: conversationId,
       userId,
       isStreaming: true,
+      activeImageGeneration: {
+        replicateId,
+        messageId,
+      },
     };
 
-    const mockMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "thinking",
-      metadata: {},
-      conversationId,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockMessage])),
-    };
+    const schedulerRunAfter = mock(() => Promise.resolve());
 
     const ctx = makeConvexCtx({
       auth: {
@@ -160,50 +166,40 @@ describe("stopGeneration", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
         patch: mock(() => Promise.resolve()),
+        // NOTE: No query mock - we use activeImageGeneration from conversation
+      },
+      scheduler: {
+        runAfter: schedulerRunAfter,
       },
     });
 
     await stopGenerationHandler(ctx as MutationCtx, { conversationId });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: { finishReason: "user_stopped" },
+    // Should set stop signal on conversation
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+
+    // Should schedule cancel prediction using conversation-level tracking
+    expect(schedulerRunAfter).toHaveBeenCalledTimes(1);
+    const schedulerCall = schedulerRunAfter.mock.calls[0];
+    expect(schedulerCall[2]).toEqual({
+      predictionId: replicateId,
+      messageId,
     });
   });
 
-  test("stops 'pending' message (retry case)", async () => {
+  test("does not cancel when no active image generation", async () => {
     const userId = "user-123" as Id<"users">;
     const conversationId = "conv-123" as Id<"conversations">;
-    const messageId = "msg-123" as Id<"messages">;
 
+    // No activeImageGeneration on conversation
     const mockConversation = {
       _id: conversationId,
       userId,
       isStreaming: true,
     };
 
-    const mockMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "pending",
-      metadata: {},
-      conversationId,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockMessage])),
-    };
+    const schedulerRunAfter = mock(() => Promise.resolve());
 
     const ctx = makeConvexCtx({
       auth: {
@@ -211,207 +207,33 @@ describe("stopGeneration", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
         patch: mock(() => Promise.resolve()),
+      },
+      scheduler: {
+        runAfter: schedulerRunAfter,
       },
     });
 
     await stopGenerationHandler(ctx as MutationCtx, { conversationId });
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: { finishReason: "user_stopped" },
-    });
+    // Should set stop signal but NOT schedule cancellation
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+    expect(schedulerRunAfter).not.toHaveBeenCalled();
   });
 
-  test("stops 'searching' message (web search case)", async () => {
-    const userId = "user-123" as Id<"users">;
-    const conversationId = "conv-123" as Id<"conversations">;
-    const messageId = "msg-123" as Id<"messages">;
-
-    const mockConversation = {
-      _id: conversationId,
-      userId,
-      isStreaming: true,
-    };
-
-    const mockMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "searching",
-      metadata: {},
-      conversationId,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockMessage])),
-    };
-
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
-      },
-      db: {
-        get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
-        patch: mock(() => Promise.resolve()),
-      },
-    });
-
-    await stopGenerationHandler(ctx as MutationCtx, { conversationId });
-
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: { finishReason: "user_stopped" },
-    });
-  });
-
-  test("stops 'reading_pdf' message (PDF processing case)", async () => {
-    const userId = "user-123" as Id<"users">;
-    const conversationId = "conv-123" as Id<"conversations">;
-    const messageId = "msg-123" as Id<"messages">;
-
-    const mockConversation = {
-      _id: conversationId,
-      userId,
-      isStreaming: true,
-    };
-
-    const mockMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "reading_pdf",
-      metadata: {},
-      conversationId,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockMessage])),
-    };
-
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
-      },
-      db: {
-        get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
-        patch: mock(() => Promise.resolve()),
-      },
-    });
-
-    await stopGenerationHandler(ctx as MutationCtx, { conversationId });
-
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: { finishReason: "user_stopped" },
-    });
-  });
-
-  test("handles no streaming message found gracefully", async () => {
+  test("does not cancel when activeImageGeneration is cleared (already completed)", async () => {
     const userId = "user-123" as Id<"users">;
     const conversationId = "conv-123" as Id<"conversations">;
 
+    // activeImageGeneration was cleared when image completed
     const mockConversation = {
       _id: conversationId,
       userId,
-      isStreaming: true,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([])),
-    };
-
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
-      },
-      db: {
-        get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
-        patch: mock(() => Promise.resolve()),
-      },
-    });
-
-    await stopGenerationHandler(ctx as MutationCtx, { conversationId });
-
-    // Should still clear conversation streaming state
-    expect(ctx.db.patch).toHaveBeenCalledWith(conversationId, {
       isStreaming: false,
-    });
-  });
-
-  test("finds correct message when multiple messages exist", async () => {
-    const userId = "user-123" as Id<"users">;
-    const conversationId = "conv-123" as Id<"conversations">;
-    const streamingMessageId = "msg-streaming" as Id<"messages">;
-
-    const mockConversation = {
-      _id: conversationId,
-      userId,
-      isStreaming: true,
+      activeImageGeneration: undefined,
     };
 
-    const mockMessages = [
-      {
-        _id: streamingMessageId,
-        role: "assistant",
-        status: "streaming",
-        metadata: {},
-      },
-      {
-        _id: "msg-done" as Id<"messages">,
-        role: "assistant",
-        status: "done",
-        metadata: {},
-      },
-      {
-        _id: "msg-user" as Id<"messages">,
-        role: "user",
-        status: undefined,
-        metadata: {},
-      },
-    ];
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve(mockMessages)),
-    };
+    const schedulerRunAfter = mock(() => Promise.resolve());
 
     const ctx = makeConvexCtx({
       auth: {
@@ -419,76 +241,17 @@ describe("stopGeneration", () => {
       },
       db: {
         get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
         patch: mock(() => Promise.resolve()),
+      },
+      scheduler: {
+        runAfter: schedulerRunAfter,
       },
     });
 
     await stopGenerationHandler(ctx as MutationCtx, { conversationId });
 
-    // Should only stop the streaming message, not the done one
-    expect(ctx.db.patch).toHaveBeenCalledWith(streamingMessageId, {
-      status: "done",
-      metadata: { finishReason: "user_stopped" },
-    });
-  });
-
-  test("preserves existing metadata when stopping", async () => {
-    const userId = "user-123" as Id<"users">;
-    const conversationId = "conv-123" as Id<"conversations">;
-    const messageId = "msg-123" as Id<"messages">;
-
-    const existingMetadata = {
-      tokenCount: 100,
-      temperature: 0.7,
-    };
-
-    const mockConversation = {
-      _id: conversationId,
-      userId,
-      isStreaming: true,
-    };
-
-    const mockMessage = {
-      _id: messageId,
-      role: "assistant",
-      status: "streaming",
-      metadata: existingMetadata,
-    };
-
-    const mockQuery = {
-      withIndex: mock(function () {
-        return this;
-      }),
-      eq: mock(function () {
-        return this;
-      }),
-      order: mock(function () {
-        return this;
-      }),
-      take: mock(() => Promise.resolve([mockMessage])),
-    };
-
-    const ctx = makeConvexCtx({
-      auth: {
-        getUserIdentity: mock(() => Promise.resolve({ subject: userId })),
-      },
-      db: {
-        get: mock(() => Promise.resolve(mockConversation)),
-        query: mock(() => mockQuery),
-        patch: mock(() => Promise.resolve()),
-      },
-    });
-
-    await stopGenerationHandler(ctx as MutationCtx, { conversationId });
-
-    // Should preserve existing metadata and add finishReason
-    expect(ctx.db.patch).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: {
-        ...existingMetadata,
-        finishReason: "user_stopped",
-      },
-    });
+    // Should set stop signal but NOT schedule cancellation
+    expect(ctx.db.patch).toHaveBeenCalledTimes(1);
+    expect(schedulerRunAfter).not.toHaveBeenCalled();
   });
 });

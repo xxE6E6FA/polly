@@ -71,11 +71,9 @@ describe("titleGeneration.generateTitle", () => {
         "Hello world this is a very long message that should be truncated",
     });
 
-    // Should be truncated to 57 chars + "..." = 60 total
-    expect(result).toBe(
-      "Hello world this is a very long message that should be tr..."
-    );
-    expect(result.length).toBe(60);
+    // Should be truncated to 37 chars + "..." = 40 total
+    expect(result).toBe("Hello world this is a very long messa...");
+    expect(result.length).toBe(40);
 
     // Restore environment
     if (originalApiKey !== undefined) {

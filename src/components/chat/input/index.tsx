@@ -17,7 +17,7 @@ import {
   useChatInputSubmission,
   useSpeechInput,
 } from "@/hooks/chat-ui";
-import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { useOnline } from "@/hooks/use-online";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { cn } from "@/lib/utils";
@@ -114,7 +114,13 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
     const { hasReplicateApiKey } = useReplicateApiKey();
     const { isPrivateMode } = usePrivateMode();
     const online = useOnline();
-    const notificationDialog = useNotificationDialog();
+
+    // File upload hook with eager upload support
+    const { handleFileUpload } = useFileUpload({
+      currentModel: selectedModel ?? undefined,
+      privateMode: isPrivateMode,
+      conversationId: conversationId ?? undefined,
+    });
 
     const {
       selectedImageModel,
@@ -154,26 +160,7 @@ const ChatInputInner = forwardRef<ChatInputRef, ChatInputProps>(
         canSend: canSendMessage,
         isLoading,
         isStreaming,
-        onProcessFiles: async (files: FileList) => {
-          const { processFilesForAttachments } = await import(
-            "@/lib/process-files"
-          );
-          const newAttachments = await processFilesForAttachments(
-            files,
-            selectedModel,
-            args =>
-              notificationDialog.notify({
-                ...args,
-                description: args.description || "",
-              })
-          );
-          if (newAttachments.length > 0) {
-            const { appendAttachments } = await import(
-              "@/stores/actions/chat-input-actions"
-            );
-            appendAttachments(conversationId, newAttachments);
-          }
-        },
+        onProcessFiles: handleFileUpload,
       });
 
     useEffect(() => {

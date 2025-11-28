@@ -518,6 +518,16 @@ export const conversationSchema = v.object({
   isStreaming: v.optional(v.boolean()),
   isPinned: v.optional(v.boolean()),
   isArchived: v.optional(v.boolean()),
+  // Timestamp when user requested to stop generation. The streaming action checks this
+  // periodically and stops gracefully when set. This avoids OCC conflicts with message updates.
+  stopRequested: v.optional(v.number()),
+  // Active image generation tracking - avoids message queries for stop detection
+  activeImageGeneration: v.optional(
+    v.object({
+      replicateId: v.string(),
+      messageId: v.id("messages"),
+    })
+  ),
   // Client-generated ID for optimistic navigation (allows instant redirect before server confirms)
   clientId: v.optional(v.string()),
   // Rolling token estimate (heuristic) used to trigger summarization

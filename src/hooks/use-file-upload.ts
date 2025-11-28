@@ -8,7 +8,7 @@ import {
   readFileAsBase64,
   readFileAsText,
 } from "@/lib/file-utils";
-import { useToast } from "@/providers/toast-context";
+import { getUploadProgressStore } from "@/stores/upload-progress-store";
 import type { AIModel, Attachment, FileUploadProgress } from "@/types";
 
 interface UseFileUploadProps {
@@ -29,7 +29,6 @@ export function useFileUpload({
 
   const { uploadFile } = useConvexFileUpload();
   const notificationDialog = useNotificationDialog();
-  const managedToast = useToast();
 
   const handleFileUpload = useCallback(
     async (files: FileList | null) => {
@@ -100,35 +99,124 @@ export function useFileUpload({
             newAttachments.push(attachment);
           } else {
             // Handle binary files (images, PDFs)
-            let base64Content: string;
+            let processedFile = file;
             let mimeType = file.type;
+            let thumbnailBase64: string | undefined;
+            const isImage = fileSupport.category === "image";
 
-            if (fileSupport.category === "image") {
+            // Convert images to WebP for optimization
+            if (isImage) {
               try {
                 const converted = await convertImageToWebP(file);
-                base64Content = converted.base64;
+                // Store thumbnail for progress indicator
+                thumbnailBase64 = `data:${converted.mimeType};base64,${converted.base64}`;
+                // Create a new File from the converted data
+                const byteCharacters = atob(converted.base64);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                  byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                processedFile = new File([byteArray], file.name, {
+                  type: converted.mimeType,
+                });
                 mimeType = converted.mimeType;
               } catch (error) {
                 console.warn(
                   "Failed to convert image to WebP, using original:",
                   error
                 );
-                base64Content = await readFileAsBase64(file);
               }
-            } else {
-              base64Content = await readFileAsBase64(file);
             }
 
-            const attachment: Attachment = {
-              type: fileSupport.category as "image" | "pdf" | "text",
-              url: "",
-              name: file.name,
-              size: file.size,
-              content: base64Content,
-              mimeType,
-              storageId: undefined,
-            };
-            newAttachments.push(attachment);
+            // In private mode, store as base64 without uploading to storage
+            if (privateMode) {
+              const base64Content = await readFileAsBase64(processedFile);
+              const attachment: Attachment = {
+                type: fileSupport.category as "image" | "pdf" | "text",
+                url: "",
+                name: file.name,
+                size: processedFile.size,
+                content: base64Content,
+                mimeType,
+                storageId: undefined,
+              };
+              newAttachments.push(attachment);
+            } else {
+              // Eager upload: Add attachment immediately, upload in background
+              const progressStore = getUploadProgressStore().getState();
+
+              // Create attachment with base64 content for immediate display
+              const base64Content = await readFileAsBase64(processedFile);
+              const pendingAttachment: Attachment = {
+                type: isImage ? "image" : (fileSupport.category as "pdf"),
+                url: "",
+                name: file.name,
+                size: processedFile.size,
+                content: base64Content,
+                mimeType,
+                storageId: undefined,
+              };
+
+              // Add to store immediately so user sees the attachment
+              const { appendAttachments } = await import(
+                "@/stores/actions/chat-input-actions"
+              );
+              appendAttachments(conversationId ?? undefined, [
+                pendingAttachment,
+              ]);
+
+              // Track upload progress
+              progressStore.startUpload(fileKey, file.name, {
+                isImage,
+                thumbnail: thumbnailBase64,
+              });
+
+              setUploadProgress(
+                prev =>
+                  new Map(
+                    prev.set(fileKey, {
+                      file,
+                      progress: 0,
+                      status: "uploading",
+                    })
+                  )
+              );
+
+              // Upload in background and update attachment when done
+              uploadFile(processedFile, progress => {
+                progressStore.updateProgress(fileKey, progress.progress);
+                setUploadProgress(
+                  prev =>
+                    new Map(
+                      prev.set(fileKey, {
+                        ...progress,
+                        progress: progress.progress,
+                      })
+                    )
+                );
+              })
+                .then(() => {
+                  // Upload complete - attachment already has base64 content for display
+                  // The storageId would be used for server-side processing
+                  progressStore.completeUpload(fileKey);
+                  setUploadProgress(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(fileKey);
+                    return newMap;
+                  });
+                })
+                .catch(error => {
+                  console.error("Upload failed:", error);
+                  progressStore.completeUpload(fileKey);
+                  setUploadProgress(prev => {
+                    const newMap = new Map(prev);
+                    newMap.delete(fileKey);
+                    return newMap;
+                  });
+                  // Attachment stays with base64 content as fallback
+                });
+            }
           }
 
           setUploadProgress(prev => {
@@ -137,6 +225,12 @@ export function useFileUpload({
             return newMap;
           });
         } catch (error) {
+          const fileKey = file.name + file.size;
+
+          // Clear from global progress store on error
+          const progressStore = getUploadProgressStore().getState();
+          progressStore.completeUpload(fileKey);
+
           notificationDialog.notify({
             title: "File Upload Failed",
             description: `Failed to upload file ${file.name}: ${
@@ -145,7 +239,6 @@ export function useFileUpload({
             type: "error",
           });
 
-          const fileKey = file.name + file.size;
           setUploadProgress(prev => {
             const newMap = new Map(prev);
             newMap.delete(fileKey);
@@ -154,52 +247,15 @@ export function useFileUpload({
         }
       }
 
-      if (conversationId !== undefined) {
+      // Always append to global store - AttachmentDisplay reads from useChatAttachments
+      if (newAttachments.length > 0) {
         const { appendAttachments } = await import(
           "@/stores/actions/chat-input-actions"
         );
         appendAttachments(conversationId ?? undefined, newAttachments);
-      } else {
-        setAttachments(prev => [...prev, ...newAttachments]);
-      }
-
-      // Show success toast for added files
-      if (newAttachments.length > 0) {
-        const imageAttachments = newAttachments.filter(
-          att => att.type === "image"
-        );
-
-        managedToast.success(
-          `File${newAttachments.length > 1 ? "s" : ""} added successfully`,
-          {
-            description: (() => {
-              if (imageAttachments.length > 0) {
-                return `${newAttachments.length} file${
-                  newAttachments.length > 1 ? "s" : ""
-                } ready to use. ${imageAttachments.length} image${
-                  imageAttachments.length > 1 ? "s" : ""
-                } optimized to WebP format.`;
-              }
-              if (privateMode) {
-                return `${newAttachments.length} file${
-                  newAttachments.length > 1 ? "s" : ""
-                } ready to use in your private conversation.`;
-              }
-              return `${newAttachments.length} file${
-                newAttachments.length > 1 ? "s" : ""
-              } ready to use. Will be uploaded when message is sent.`;
-            })(),
-          }
-        );
       }
     },
-    [
-      notificationDialog,
-      currentModel,
-      privateMode,
-      managedToast,
-      conversationId,
-    ]
+    [notificationDialog, currentModel, privateMode, conversationId, uploadFile]
   );
 
   const removeAttachment = useCallback(

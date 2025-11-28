@@ -1,5 +1,5 @@
 import { PaperclipIcon } from "@phosphor-icons/react";
-import { useCallback, useRef } from "react";
+import { useRef } from "react";
 import { ChatInputIconButton } from "@/components/ui/chat-input-icon-button";
 import {
   Tooltip,
@@ -7,10 +7,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
-import { useNotificationDialog } from "@/hooks/use-dialog-management";
+import { useFileUpload } from "@/hooks/use-file-upload";
 import { useSelectedModel } from "@/hooks/use-selected-model";
-import { cn } from "@/lib/utils";
-import type { Attachment } from "@/types";
+import { usePrivateMode } from "@/providers/private-mode-context";
+import type { AIModel } from "@/types";
 
 interface FileUploadButtonProps {
   disabled?: boolean;
@@ -26,36 +26,29 @@ export function FileUploadButton({
   selectedModel: propsSelectedModel,
 }: FileUploadButtonProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const notificationDialog = useNotificationDialog();
   const [hookSelectedModel] = useSelectedModel();
-  const selectedModel = propsSelectedModel ?? hookSelectedModel;
+  const selectedModel = (propsSelectedModel ?? hookSelectedModel) as
+    | AIModel
+    | undefined;
+  const { isPrivateMode } = usePrivateMode();
   useChatScopedState(conversationId ?? undefined);
 
-  const handleFileSelect = useCallback(async () => {
+  // Use the file upload hook which handles eager upload to Convex storage
+  const { handleFileUpload } = useFileUpload({
+    currentModel: selectedModel,
+    privateMode: isPrivateMode,
+    conversationId,
+  });
+
+  const handleFileSelect = async () => {
     const input = fileInputRef.current;
     if (!input?.files || input.files.length === 0) {
       return;
     }
 
-    const { processFilesForAttachments } = await import("@/lib/process-files");
-    const newAttachments: Attachment[] = await processFilesForAttachments(
-      input.files,
-      selectedModel,
-      args =>
-        notificationDialog.notify({
-          ...args,
-          description: args.description || "",
-        })
-    );
-    if (newAttachments.length > 0) {
-      const { appendAttachments } = await import(
-        "@/stores/actions/chat-input-actions"
-      );
-      appendAttachments(conversationId ?? undefined, newAttachments);
-    }
-
+    await handleFileUpload(input.files);
     input.value = "";
-  }, [selectedModel, notificationDialog, conversationId]);
+  };
 
   const handleClick = () => {
     fileInputRef.current?.click();

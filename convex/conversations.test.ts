@@ -1128,18 +1128,16 @@ describe("conversations.stopGeneration", () => {
       conversationId,
     });
 
-    // Should patch the streaming message to done
-    expect(patchMock).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: {
-        finishReason: "user_stopped",
-      },
-    });
-
-    // Should patch the conversation to stop streaming
-    expect(patchMock).toHaveBeenCalledWith(conversationId, {
-      isStreaming: false,
-    });
+    // Should only patch the conversation with stop signal (not the message)
+    // The streaming action will finalize the message when it detects stopRequested
+    expect(patchMock).toHaveBeenCalledTimes(1);
+    const patchCall = patchMock.mock.calls[0] as [
+      Id<"conversations">,
+      { isStreaming: boolean; stopRequested: number },
+    ];
+    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[1].isStreaming).toBe(false);
+    expect(typeof patchCall[1].stopRequested).toBe("number");
   });
 
   test("handles case with no streaming message", async () => {
@@ -1197,11 +1195,15 @@ describe("conversations.stopGeneration", () => {
       conversationId,
     });
 
-    // Should only patch the conversation (no streaming message found)
+    // Should only patch the conversation with stop signal
     expect(patchMock).toHaveBeenCalledTimes(1);
-    expect(patchMock).toHaveBeenCalledWith(conversationId, {
-      isStreaming: false,
-    });
+    const patchCall = patchMock.mock.calls[0] as [
+      Id<"conversations">,
+      { isStreaming: boolean; stopRequested: number },
+    ];
+    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[1].isStreaming).toBe(false);
+    expect(typeof patchCall[1].stopRequested).toBe("number");
   });
 
   test("finds streaming message in thinking status", async () => {
@@ -1260,13 +1262,15 @@ describe("conversations.stopGeneration", () => {
       conversationId,
     });
 
-    // Should patch the thinking message to done
-    expect(patchMock).toHaveBeenCalledWith(messageId, {
-      status: "done",
-      metadata: {
-        finishReason: "user_stopped",
-      },
-    });
+    // Should only patch the conversation with stop signal (not the message)
+    expect(patchMock).toHaveBeenCalledTimes(1);
+    const patchCall = patchMock.mock.calls[0] as [
+      Id<"conversations">,
+      { isStreaming: boolean; stopRequested: number },
+    ];
+    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[1].isStreaming).toBe(false);
+    expect(typeof patchCall[1].stopRequested).toBe("number");
   });
 
   test("ignores user messages when looking for streaming message", async () => {
@@ -1323,11 +1327,15 @@ describe("conversations.stopGeneration", () => {
       conversationId,
     });
 
-    // Should only patch the conversation (user message ignored)
+    // Should only patch the conversation with stop signal (user message ignored)
     expect(patchMock).toHaveBeenCalledTimes(1);
-    expect(patchMock).toHaveBeenCalledWith(conversationId, {
-      isStreaming: false,
-    });
+    const patchCall = patchMock.mock.calls[0] as [
+      Id<"conversations">,
+      { isStreaming: boolean; stopRequested: number },
+    ];
+    expect(patchCall[0]).toBe(conversationId);
+    expect(patchCall[1].isStreaming).toBe(false);
+    expect(typeof patchCall[1].stopRequested).toBe("number");
   });
 });
 

@@ -1123,9 +1123,15 @@ export const internalAtomicUpdate = internalMutation({
 
     if (!(appendContent || appendReasoning)) {
       if (Object.keys(filteredUpdates).length === 0) {
-        return;
+        return { shouldStop: false };
       }
-      return await ctx.db.patch(id, filteredUpdates);
+      const message = await ctx.db.get(id);
+      if (!message) {
+        return { shouldStop: false };
+      }
+      await ctx.db.patch(id, filteredUpdates);
+      const conversation = await ctx.db.get(message.conversationId);
+      return { shouldStop: !!conversation?.stopRequested };
     }
 
     return await withRetry(
@@ -1144,7 +1150,11 @@ export const internalAtomicUpdate = internalMutation({
           appendUpdates.reasoning = (message.reasoning || "") + appendReasoning;
         }
 
-        return await ctx.db.patch(id, appendUpdates);
+        await ctx.db.patch(id, appendUpdates);
+
+        // Check if stop was requested - return signal to caller
+        const conversation = await ctx.db.get(message.conversationId);
+        return { shouldStop: !!conversation?.stopRequested };
       },
       5,
       25
@@ -1478,9 +1488,15 @@ export const updateAssistantContent = internalMutation({
 
     if (!(appendContent || appendReasoning)) {
       if (Object.keys(finalUpdates).length === 0) {
-        return;
+        return { shouldStop: false };
       }
-      return await ctx.db.patch(messageId, finalUpdates);
+      const message = await ctx.db.get(messageId);
+      if (!message) {
+        return { shouldStop: false };
+      }
+      await ctx.db.patch(messageId, finalUpdates);
+      const conversation = await ctx.db.get(message.conversationId);
+      return { shouldStop: !!conversation?.stopRequested };
     }
 
     return await withRetry(
@@ -1512,7 +1528,11 @@ export const updateAssistantContent = internalMutation({
             (message.reasoning || "") + appendReasoning;
         }
 
-        return await ctx.db.patch(messageId, finalAppendUpdates);
+        await ctx.db.patch(messageId, finalAppendUpdates);
+
+        // Check if stop was requested - return signal to caller
+        const conversation = await ctx.db.get(message.conversationId);
+        return { shouldStop: !!conversation?.stopRequested };
       },
       5,
       25
@@ -2186,6 +2206,7 @@ export const updateImageGeneration = internalMutation({
         try {
           await ctx.db.patch(message.conversationId, {
             isStreaming: false,
+            activeImageGeneration: undefined, // Clear tracking for OCC-free stop detection
           });
         } catch (error) {
           console.warn(

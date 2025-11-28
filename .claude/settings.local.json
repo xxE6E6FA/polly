@@ -59,7 +59,11 @@
       "Bash(git mv:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "WebFetch(domain:www.convex.dev)",
+      "WebFetch(domain:stack.convex.dev)",
+      "WebFetch(domain:discord-questions.convex.dev)",
+      "Bash(npx lint-staged)"
     ],
     "deny": []
   },

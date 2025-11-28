@@ -47,10 +47,10 @@ export async function streamLLMToMessage({
     status: "thinking",
   });
 
-  // Mark conversation as streaming
+  // Mark conversation as streaming and clear any previous stop request
   await ctx.runMutation(internal.conversations.internalPatch, {
     id: conversationId,
-    updates: { isStreaming: true },
+    updates: { isStreaming: true, stopRequested: undefined },
   });
 
   // Timing metrics
@@ -65,16 +65,25 @@ export async function streamLLMToMessage({
   let reasoningBuf = "";
   let chunkCounter = 0;
   let stopped = false;
+  let userStopped = false; // Track if stopped by user request
 
   const flushContent = async () => {
     if (!contentBuf || stopped) return;
     const toSend = contentBuf;
     contentBuf = "";
     try {
-      await ctx.runMutation(internal.messages.updateAssistantContent, {
-        messageId,
-        appendContent: toSend,
-      });
+      const result = await ctx.runMutation(
+        internal.messages.updateAssistantContent,
+        {
+          messageId,
+          appendContent: toSend,
+        }
+      );
+      // Check stop signal from mutation - interrupt at the source
+      if (result?.shouldStop) {
+        userStopped = true;
+        stopped = true;
+      }
     } catch (e) {
       console.error("Stream error: content flush failed", e);
     }
@@ -85,28 +94,37 @@ export async function streamLLMToMessage({
     const toSend = reasoningBuf;
     reasoningBuf = "";
     try {
-      await ctx.runMutation(internal.messages.internalAtomicUpdate, {
-        id: messageId,
-        appendReasoning: toSend,
-      });
+      const result = await ctx.runMutation(
+        internal.messages.internalAtomicUpdate,
+        {
+          id: messageId,
+          appendReasoning: toSend,
+        }
+      );
+      // Check stop signal from mutation - interrupt at the source
+      if (result?.shouldStop) {
+        userStopped = true;
+        stopped = true;
+      }
     } catch (e) {
       console.error("Stream error: reasoning flush failed", e);
     }
   };
 
+  // Periodic flush for batched content (stop check happens in the mutations themselves)
   const periodicFlush = setInterval(async () => {
     await flushContent();
     await flushReasoning();
   }, DEFAULT_STREAM_CONFIG.BATCH_TIMEOUT);
 
   const stopAll = async () => {
-    if (stopped) return;
+    if (stopped && !userStopped) return; // Already stopped for other reasons
     stopped = true;
     clearInterval(periodicFlush);
     try {
       await ctx.runMutation(internal.conversations.internalPatch, {
         id: conversationId,
-        updates: { isStreaming: false },
+        updates: { isStreaming: false, stopRequested: undefined },
       });
     } catch {}
   };
@@ -289,6 +307,45 @@ export async function streamLLMToMessage({
       error: errorMessage,
     });
   } finally {
+    // If user requested stop, finalize the message with current content
+    if (userStopped) {
+      try {
+        // Flush any remaining content
+        await flushReasoning();
+        await flushContent();
+
+        // Calculate timing metrics
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        const timeToFirstTokenMs = firstTokenTime
+          ? firstTokenTime - startTime
+          : undefined;
+        const thinkingDurationMs =
+          reasoningStartTime && reasoningEndTime
+            ? reasoningEndTime - reasoningStartTime
+            : reasoningStartTime
+              ? endTime - reasoningStartTime
+              : undefined;
+
+        // Finalize with user_stopped reason
+        await ctx.runMutation(internal.messages.internalUpdate, {
+          id: messageId,
+          metadata: {
+            finishReason: "user_stopped",
+            stopped: true,
+            timeToFirstTokenMs,
+            thinkingDurationMs,
+            duration,
+          },
+        });
+        await ctx.runMutation(internal.messages.updateMessageStatus, {
+          messageId,
+          status: "done",
+        });
+      } catch (e) {
+        console.error("Stream error: failed to finalize user-stopped message", e);
+      }
+    }
     await stopAll();
   }
 }
