@@ -45,6 +45,8 @@ export default defineSchema({
     .index("by_root_updated", ["rootConversationId", "updatedAt"])
     .index("by_parent", ["parentConversationId", "updatedAt"])
     .index("by_branch", ["branchId", "updatedAt"])
+    // Optimistic navigation - find conversation by client-generated ID
+    .index("by_client_id", ["clientId"])
     .searchIndex("search_title", {
       searchField: "title",
       filterFields: ["userId", "isArchived"],

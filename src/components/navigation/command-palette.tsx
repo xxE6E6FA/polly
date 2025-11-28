@@ -232,10 +232,8 @@ export function CommandPalette({
   const deleteConversation = useMutation(api.conversations.remove);
 
   const currentConversation = useQuery(
-    api.conversations.getWithAccessInfo,
-    currentConversationId
-      ? { id: currentConversationId as Id<"conversations"> }
-      : "skip"
+    api.conversations.getBySlug,
+    currentConversationId ? { slug: currentConversationId } : "skip"
   );
 
   const allModels: ModelType[] = useMemo(() => {
@@ -276,15 +274,16 @@ export function CommandPalette({
     [navigateToMenu]
   );
 
-  const actionConversationId =
+  const actionConversationSlug =
     navigation.selectedConversationId ?? currentConversationId ?? null;
 
   const actionConversation = useQuery(
-    api.conversations.getWithAccessInfo,
-    actionConversationId
-      ? { id: actionConversationId as Id<"conversations"> }
-      : "skip"
+    api.conversations.getBySlug,
+    actionConversationSlug ? { slug: actionConversationSlug } : "skip"
   );
+
+  // Get the resolved Convex ID for mutations
+  const actionConversationId = actionConversation?.resolvedId ?? null;
 
   const resolvedActionContext =
     navigation.selectedConversationId && actionConversation
@@ -1687,9 +1686,9 @@ export function CommandPalette({
       </div>
 
       {/* Share Dialog */}
-      {currentConversationId && (
+      {currentConversation?.resolvedId && (
         <ControlledShareConversationDialog
-          conversationId={currentConversationId as Id<"conversations">}
+          conversationId={currentConversation.resolvedId}
           open={isShareDialogOpen}
           onOpenChange={setIsShareDialogOpen}
         />

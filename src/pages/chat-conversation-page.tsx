@@ -1,12 +1,12 @@
 import { api } from "@convex/_generated/api";
-import type { Doc, Id } from "@convex/_generated/dataModel";
-import { useAction, useConvex, useMutation, useQuery } from "convex/react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useLoaderData, useNavigate, useParams } from "react-router-dom";
+import type { Id } from "@convex/_generated/dataModel";
+import { useAction, useConvex, useQuery } from "convex/react";
+import { useCallback, useEffect, useRef } from "react";
+import { useLoaderData, useLocation, useNavigate } from "react-router-dom";
 import { UnifiedChatView } from "@/components/chat";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
-import { mapServerMessageToChatMessage, useChat } from "@/hooks/use-chat";
+import { useChat } from "@/hooks/use-chat";
 import { useConversationModelOverride } from "@/hooks/use-conversation-model-override";
 import { useOnline } from "@/hooks/use-online";
 import { retryImageGeneration } from "@/lib/ai/image-generation-handlers";
@@ -19,138 +19,182 @@ import { useChatInputStore } from "@/stores/chat-input-store";
 import type {
   Attachment,
   ChatMessage,
+  ChatStatus,
   ConversationId,
   ReasoningConfig,
 } from "@/types";
 
-type ConversationAccessInfo = {
-  hasAccess: boolean;
-  conversation?: {
-    title?: string | null;
-    personaId?: Id<"personas"> | null;
-    isArchived?: boolean | null;
-  } | null;
-  isDeleted?: boolean;
-} | null;
+// Type for initial message passed from home page navigation
+type InitialMessageState = {
+  content: string;
+  attachments?: Attachment[];
+  personaId?: Id<"personas"> | null;
+  reasoningConfig?: ReasoningConfig;
+  temperature?: number;
+  model?: string;
+  provider?: string;
+};
 
-type LastUsedModel = {
-  modelId: string;
-  provider: string;
-} | null;
-
-function normalizeConversationAccess(raw: unknown): ConversationAccessInfo {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-  const data = raw as {
-    hasAccess?: boolean;
-    conversation?: {
-      title?: string | null;
-      personaId?: Id<"personas"> | null;
-      isArchived?: boolean | null;
-    } | null;
-    isDeleted?: boolean;
-  };
-
-  if (typeof data.hasAccess !== "boolean") {
-    return null;
-  }
-
-  return {
-    hasAccess: data.hasAccess,
-    conversation: data.conversation ?? null,
-    isDeleted: data.isDeleted,
-  };
-}
-
-function normalizeMessagesResult(raw: unknown): ChatMessage[] {
-  if (!raw) {
-    return [];
-  }
-
-  let docs: Doc<"messages">[] = [];
-
-  if (Array.isArray(raw)) {
-    docs = raw as Doc<"messages">[];
-  } else if (
-    typeof raw === "object" &&
-    raw !== null &&
-    Array.isArray((raw as { page?: Doc<"messages">[] }).page)
-  ) {
-    docs = ((raw as { page?: Doc<"messages">[] }).page ??
-      []) as Doc<"messages">[];
-  }
-
-  return docs.map(doc => mapServerMessageToChatMessage(doc));
-}
-
-function normalizeLastUsedModel(raw: unknown): LastUsedModel {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-  const data = raw as { modelId?: string; provider?: string };
-  if (!(data.modelId && data.provider)) {
-    return null;
-  }
-  return {
-    modelId: data.modelId,
-    provider: data.provider,
-  };
-}
-
-function normalizeStreamingStatus(raw: unknown): boolean {
-  if (typeof raw === "boolean") {
-    return raw;
-  }
-  if (raw && typeof raw === "object" && "isStreaming" in raw) {
-    return Boolean((raw as { isStreaming?: boolean }).isStreaming);
-  }
-  return false;
+/**
+ * Creates optimistic messages for display while waiting for real data.
+ * Includes stable displayKey values that are reused when real messages arrive
+ * to prevent React from remounting components and resetting animations.
+ */
+function createOptimisticMessages(
+  initialMessage: InitialMessageState,
+  slug: string
+): ChatMessage[] {
+  return [
+    {
+      id: `optimistic-user-${slug}`,
+      displayKey: `user-${slug}`,
+      role: "user" as const,
+      content: initialMessage.content,
+      attachments: initialMessage.attachments,
+      createdAt: Date.now(),
+      isMainBranch: true,
+    },
+    {
+      id: `optimistic-assistant-${slug}`,
+      displayKey: `assistant-${slug}`,
+      role: "assistant" as const,
+      content: "",
+      status: "streaming" as const,
+      createdAt: Date.now(),
+      isMainBranch: true,
+    },
+  ];
 }
 
 export default function ConversationRoute() {
-  const loaderData = useLoaderData() as ConversationLoaderResult;
-
-  return (
-    <ConversationRouteContent
-      initialConversationAccessInfo={normalizeConversationAccess(
-        loaderData.conversationAccessInfo
-      )}
-      initialMessages={normalizeMessagesResult(loaderData.messages)}
-      initialLastUsedModel={normalizeLastUsedModel(loaderData.lastUsedModel)}
-      initialStreaming={normalizeStreamingStatus(loaderData.streamingStatus)}
-    />
-  );
-}
-
-type ConversationRouteContentProps = {
-  initialConversationAccessInfo: ConversationAccessInfo;
-  initialMessages: ChatMessage[];
-  initialLastUsedModel: LastUsedModel;
-  initialStreaming: boolean;
-};
-
-function ConversationRouteContent({
-  initialConversationAccessInfo,
-  initialMessages,
-  initialLastUsedModel,
-  initialStreaming,
-}: ConversationRouteContentProps) {
-  const { conversationId } = useParams();
+  const { slug } = useLoaderData() as ConversationLoaderResult;
   const { setPrivateMode } = usePrivateMode();
   const navigate = useNavigate();
+  const location = useLocation();
   const convex = useConvex();
   const managedToast = useToast();
   const online = useOnline();
-  const _setStreaming = useMutation(api.conversations.setStreaming);
 
-  const createBranchingConversationAction = useAction(
-    api.conversations.createBranchingConversation
+  // Get initial message from navigation state (for optimistic UI)
+  const initialMessage = (
+    location.state as { initialMessage?: InitialMessageState } | null
+  )?.initialMessage;
+
+  // Store in ref so we keep showing optimistic UI until real data arrives
+  const initialMessageRef = useRef<InitialMessageState | null>(
+    initialMessage ?? null
   );
+
+  // Clear navigation state to prevent re-display on back/forward
+  useEffect(() => {
+    if (initialMessage) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [initialMessage]);
 
   useEffect(() => {
     setPrivateMode(false);
   }, [setPrivateMode]);
+
+  // Query for conversation by slug
+  const slugQuery = useQuery(api.conversations.getBySlug, { slug });
+  const resolvedId = slugQuery?.resolvedId ?? null;
+
+  // Get chat messages and actions
+  const {
+    messages: realMessages,
+    isLoading: chatIsLoading,
+    isStreaming: messageIsStreaming,
+    sendMessage,
+    editMessage,
+    retryFromMessage,
+    deleteMessage,
+    stopGeneration,
+  } = useChat({
+    conversationId: resolvedId as ConversationId | undefined,
+  });
+
+  // Model override for this conversation
+  useConversationModelOverride(
+    resolvedId ? (resolvedId as ConversationId) : undefined,
+    null
+  );
+
+  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
+
+  // Determine display state
+  const hasRealMessages = realMessages.length > 0;
+  const isOptimistic = !!initialMessageRef.current && !hasRealMessages;
+
+  // Track whether we've transitioned from optimistic to real messages
+  // to preserve displayKey stability during streaming.
+  // IMPORTANT: Must be set synchronously during render, not in an effect,
+  // otherwise the first render with real messages won't have displayKey applied.
+  const hasTransitionedRef = useRef(false);
+
+  // Set transition flag synchronously when real messages arrive while we have an initial message
+  // This ensures displayKey is applied on the SAME render where real messages first appear
+  if (hasRealMessages && initialMessageRef.current) {
+    hasTransitionedRef.current = true;
+    initialMessageRef.current = null;
+  }
+
+  // Clear transition flag once streaming is complete
+  if (hasTransitionedRef.current && !messageIsStreaming) {
+    hasTransitionedRef.current = false;
+  }
+
+  // Messages to display with stable displayKey for React reconciliation
+  const messages = (() => {
+    if (isOptimistic && initialMessageRef.current) {
+      return createOptimisticMessages(initialMessageRef.current, slug);
+    }
+
+    // When transitioning from optimistic to real, preserve displayKey
+    // for the initial messages to prevent component remounting
+    if (hasTransitionedRef.current && realMessages.length >= 2) {
+      const firstUserIdx = realMessages.findIndex(m => m.role === "user");
+      const firstAssistantIdx = realMessages.findIndex(
+        m => m.role === "assistant"
+      );
+
+      // Only apply stable keys if we have the expected user + assistant pair
+      if (firstUserIdx !== -1 && firstAssistantIdx !== -1) {
+        return realMessages.map((msg, idx) => {
+          if (idx === firstUserIdx && !msg.displayKey) {
+            return { ...msg, displayKey: `user-${slug}` };
+          }
+          if (idx === firstAssistantIdx && !msg.displayKey) {
+            return { ...msg, displayKey: `assistant-${slug}` };
+          }
+          return msg;
+        });
+      }
+    }
+
+    return realMessages;
+  })();
+
+  // Compute unified chat status
+  const status: ChatStatus = (() => {
+    if (isOptimistic || messageIsStreaming) {
+      return "streaming";
+    }
+    if (chatIsLoading || hasApiKeys === undefined) {
+      return "loading";
+    }
+    return "idle";
+  })();
+
+  // Conversation metadata
+  const conversation = slugQuery?.conversation;
+  const conversationTitle = conversation?.title ?? null;
+  const pageTitle = conversationTitle?.trim() || "Polly";
+
+  // Branching conversation action
+  const createBranchingConversationAction = useAction(
+    api.conversations.createBranchingConversation
+  );
 
   const handleSendAsNewConversation = useCallback(
     async (
@@ -185,84 +229,38 @@ function ConversationRouteContent({
           if (shouldNavigate) {
             navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
           }
-
-          // Server-side streaming is now handled automatically by the Convex action
-
           return result.conversationId;
         }
       } catch {
-        // Handle error silently for branching conversation creation
+        // Handle error silently
       }
       return undefined;
     },
     [createBranchingConversationAction, navigate]
   );
 
-  if (!conversationId) {
-    throw new Error("Conversation ID is required");
-  }
-
-  useConversationModelOverride(
-    conversationId as ConversationId,
-    initialLastUsedModel
-  );
-
-  const conversationAccessInfoQuery = useQuery(
-    api.conversations.getWithAccessInfo,
-    {
-      id: conversationId as Id<"conversations">,
-    }
-  );
-
-  const hasApiKeys = useQuery(api.apiKeys.hasAnyApiKey, {});
-
-  const conversationAccessInfo =
-    conversationAccessInfoQuery ?? initialConversationAccessInfo ?? null;
-  const isAccessResolved = conversationAccessInfoQuery !== undefined;
-
-  const conversationTitle = conversationAccessInfo?.conversation?.title ?? null;
-
-  const pageTitle = useMemo(() => {
-    if (conversationTitle && conversationTitle.trim().length > 0) {
-      return conversationTitle;
-    }
-    return "Polly";
-  }, [conversationTitle]);
-
-  const {
-    messages,
-    isLoading,
-    isStreaming: messageIsStreaming,
-    sendMessage,
-    editMessage,
-    retryFromMessage,
-    deleteMessage,
-    stopGeneration,
-  } = useChat({
-    conversationId: conversationId as ConversationId,
-    initialMessages,
-  });
-
+  // Auto-retry logic for incomplete conversations
   const latestMessagesRef = useRef(messages);
   useEffect(() => {
     latestMessagesRef.current = messages;
   }, [messages]);
 
   const initialLoadHandledRef = useRef<string | null>(null);
-
   const lastAutoTriggeredRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (isLoading || messageIsStreaming) {
+    // Don't auto-retry while busy (loading or streaming)
+    if (status !== "idle") {
       return;
     }
     if (!messages || messages.length === 0) {
       return;
     }
-    if (initialLoadHandledRef.current === conversationId) {
+    if (initialLoadHandledRef.current === resolvedId) {
       return;
     }
 
-    initialLoadHandledRef.current = conversationId || null;
+    initialLoadHandledRef.current = resolvedId || null;
 
     const current = latestMessagesRef.current;
     const last = current[current.length - 1];
@@ -272,12 +270,7 @@ function ConversationRouteContent({
     if (lastAutoTriggeredRef.current === last.id) {
       return;
     }
-    if (conversationAccessInfo?.conversation?.isArchived) {
-      return;
-    }
-
-    const hasAssistantAfter = false;
-    if (hasAssistantAfter) {
+    if (conversation?.isArchived) {
       return;
     }
 
@@ -301,14 +294,14 @@ function ConversationRouteContent({
       }
     })();
   }, [
-    isLoading,
-    messageIsStreaming,
+    status,
     messages,
-    conversationId,
-    conversationAccessInfo?.conversation?.isArchived,
+    resolvedId,
+    conversation?.isArchived,
     retryFromMessage,
   ]);
 
+  // Image generation retry handler
   const handleRetryImageGeneration = useCallback(
     async (messageId: string) => {
       try {
@@ -349,7 +342,7 @@ function ConversationRouteContent({
 
         await retryImageGeneration(
           convex,
-          conversationId as Id<"conversations">,
+          resolvedId as Id<"conversations">,
           messageId as Id<"messages">,
           {
             prompt: userMessage.content,
@@ -373,12 +366,12 @@ function ConversationRouteContent({
         });
       }
     },
-    [messages, convex, conversationId, managedToast.error]
+    [messages, convex, resolvedId, managedToast.error]
   );
 
-  // Keep generation mode and image params in sync with the latest message context
+  // Sync generation mode with conversation context
   useEffect(() => {
-    if (!conversationId) {
+    if (!resolvedId) {
       return;
     }
 
@@ -520,72 +513,34 @@ function ConversationRouteContent({
     } else if (negativePromptEnabled) {
       setNegativePromptEnabled(false);
     }
-  }, [conversationId, messages]);
+  }, [resolvedId, messages]);
 
-  useEffect(() => {
-    if (
-      online &&
-      conversationAccessInfoQuery === undefined &&
-      !initialConversationAccessInfo
-    ) {
-      (async () => {
-        try {
-          await convex.query(api.conversations.getWithAccessInfo, {
-            id: conversationId as Id<"conversations">,
-          });
-          await convex.query(api.messages.list, {
-            conversationId: conversationId as Id<"conversations">,
-          });
-        } catch (_e) {
-          // Silent; useQuery updates once connection restores
-        }
-      })();
-    }
-  }, [
-    online,
-    conversationAccessInfoQuery,
-    convex,
-    conversationId,
-    initialConversationAccessInfo,
-  ]);
+  // Error state: no optimistic message AND query definitively says not found/deleted
+  const queryComplete = slugQuery !== undefined;
+  const notFound =
+    queryComplete && !slugQuery.resolvedId && !slugQuery.hasAccess;
+  const isDeleted = queryComplete && slugQuery.isDeleted;
 
-  const isConversationLoading =
-    conversationAccessInfoQuery === undefined && !initialConversationAccessInfo;
-  const shouldShowOfflineOverlay =
-    !online &&
-    conversationAccessInfoQuery === undefined &&
-    !initialConversationAccessInfo;
-
-  if (isAccessResolved && conversationAccessInfo?.isDeleted) {
+  if (!isOptimistic && isDeleted) {
     navigate(ROUTES.HOME);
     return null;
   }
 
-  if (
-    isAccessResolved &&
-    conversationAccessInfo &&
-    !conversationAccessInfo.hasAccess
-  ) {
+  if (!isOptimistic && notFound) {
     return <NotFoundPage />;
   }
 
-  const conversation = conversationAccessInfo?.conversation;
-
-  const effectiveStreaming =
-    messageIsStreaming || (isConversationLoading && initialStreaming);
+  // Offline state
+  const shouldShowOfflineOverlay = !(online || queryComplete || isOptimistic);
 
   return (
     <>
       <title>{pageTitle}</title>
       <div className="relative flex h-full min-h-0 w-full">
         <UnifiedChatView
-          conversationId={conversationId as ConversationId}
+          conversationId={resolvedId as ConversationId}
           messages={messages}
-          isLoading={
-            isLoading || hasApiKeys === undefined || isConversationLoading
-          }
-          isLoadingMessages={isLoading || isConversationLoading}
-          isStreaming={effectiveStreaming}
+          status={status}
           currentPersonaId={conversation?.personaId ?? null}
           canSavePrivateChat={false}
           hasApiKeys={hasApiKeys === true}

@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { ChatZeroState } from "@/components/chat";
-import { SharedChatLayout } from "@/components/layouts/shared-chat-layout";
 import { usePrivateMode } from "@/providers/private-mode-context";
 
 export default function HomePage() {
@@ -13,9 +12,7 @@ export default function HomePage() {
   return (
     <>
       <title>Polly</title>
-      <SharedChatLayout>
-        <ChatZeroState />
-      </SharedChatLayout>
+      <ChatZeroState />
     </>
   );
 }

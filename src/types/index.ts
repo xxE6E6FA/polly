@@ -174,10 +174,24 @@ export type GeneratedImageAttachment = Attachment & {
 // CHAT & MESSAGING TYPES
 // ============================================================================
 
+/**
+ * Chat view status - represents the current state of the chat.
+ * - `idle`: No active operation
+ * - `loading`: Fetching messages or waiting for AI to start
+ * - `streaming`: Actively receiving streamed AI response
+ */
+export type ChatStatus = "idle" | "loading" | "streaming";
+
 export type MessageRole = "user" | "assistant" | "system" | "context";
 
 export type ChatMessage = {
   id: string;
+  /**
+   * Optional stable key for React reconciliation during optimistic → real message transitions.
+   * When provided, this is used as the React key instead of `id` to prevent component remounting
+   * and animation resets when transitioning from optimistic to server-persisted messages.
+   */
+  displayKey?: string;
   role: MessageRole;
   content: string;
   status?:

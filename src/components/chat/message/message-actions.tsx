@@ -1153,13 +1153,20 @@ export const MessageActions = memo(
         messageId &&
         !messageId.startsWith("private-") &&
         !messageId.startsWith("user-") &&
-        !messageId.startsWith("assistant-")
+        !messageId.startsWith("assistant-") &&
+        !messageId.startsWith("temp-") &&
+        !messageId.startsWith("optimistic-")
         ? ({ messageId: messageId as Id<"messages"> } as const)
         : ("skip" as const)
     );
 
     const handleToggleFavorite = useCallback(async () => {
-      if (!messageId || isPrivateMode || messageId.startsWith("private-")) {
+      if (
+        !messageId ||
+        isPrivateMode ||
+        messageId.startsWith("private-") ||
+        messageId.startsWith("optimistic-")
+      ) {
         return;
       }
       try {
@@ -1181,7 +1188,7 @@ export const MessageActions = memo(
     ]);
 
     const handleTTS = useCallback(async () => {
-      if (!messageId) {
+      if (!messageId || messageId.startsWith("optimistic-")) {
         return;
       }
 

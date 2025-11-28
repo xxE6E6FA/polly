@@ -1,122 +1,76 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 
-export type AssistantPhase =
-  | "awaiting" // bubble created, no signals yet
-  | "precontent" // show a single status chip/skeleton
-  | "streaming" // text is streaming and visible
-  | "complete" // finished or stopped
-  | "error";
+export type AssistantPhase = "loading" | "streaming" | "complete" | "error";
 
 type Params = {
-  isStreamingProp: boolean;
   messageStatus?: string;
-  contentLength: number;
+  hasContent: boolean;
   hasReasoning: boolean;
 };
 
-const MIN_CHARS_FOR_CONTENT = 24; // gate content reveal to reduce first-token flicker
-const PRECONTENT_DEBOUNCE_MS = 300; // wait before showing any loader to avoid flashes
+const ACTIVE_STATUSES = ["streaming", "thinking", "searching", "reading_pdf"];
 
+/**
+ * Derives the display phase for an assistant message.
+ *
+ * This hook is purely derived from props with no internal state,
+ * eliminating timer-based transitions that can cause animation resets.
+ *
+ * Phases:
+ * - loading: Message created but no content yet (show skeleton/spinner)
+ * - streaming: Content is actively streaming (show content)
+ * - complete: Message is done (show content + actions)
+ * - error: Message has an error
+ */
 export function useAssistantDisplayPhase({
-  isStreamingProp,
   messageStatus,
-  contentLength,
+  hasContent,
   hasReasoning,
 }: Params) {
-  const [phase, setPhase] = useState<AssistantPhase>("awaiting");
-  const [showPrecontent, setShowPrecontent] = useState(false);
-  const streamStartRef = useRef<number | null>(null);
+  const isActive = ACTIVE_STATUSES.includes(messageStatus ?? "");
 
-  // Determine if we should reveal content (either enough chars or a short time has elapsed)
-  const revealContent = useMemo(() => {
-    if (!isStreamingProp) {
-      return contentLength > 0; // after streaming, just show whatever exists
-    }
-    if (contentLength >= MIN_CHARS_FOR_CONTENT) {
-      return true;
-    }
-    const now =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const startedAt = streamStartRef.current ?? now;
-    return now - startedAt >= PRECONTENT_DEBOUNCE_MS; // fallback time gate
-  }, [isStreamingProp, contentLength]);
-
-  // Track the start time of streaming
-  useEffect(() => {
-    if (isStreamingProp && streamStartRef.current === null) {
-      streamStartRef.current =
-        typeof performance !== "undefined" ? performance.now() : Date.now();
-    }
-    if (!isStreamingProp) {
-      streamStartRef.current = null;
-    }
-  }, [isStreamingProp]);
-
-  // Debounce showing any pre-content loader to avoid brief flashes
-  useEffect(() => {
-    if (!isStreamingProp) {
-      setShowPrecontent(false);
-      return;
-    }
-    if (contentLength > 0) {
-      setShowPrecontent(false);
-      return;
-    }
-    const t = setTimeout(() => setShowPrecontent(true), PRECONTENT_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [isStreamingProp, contentLength]);
-
-  // Map to a stable phase with minimal transitions to reduce layout shifts
-  useEffect(() => {
+  const phase = useMemo((): AssistantPhase => {
+    // Error state takes precedence
     if (messageStatus === "error") {
-      setPhase("error");
-      return;
+      return "error";
     }
 
-    // Complete when status explicitly done or stopped
+    // Complete: not active AND explicitly done/stopped
     if (
-      !isStreamingProp &&
+      !isActive &&
       (messageStatus === "done" || messageStatus === "stopped")
     ) {
-      setPhase("complete");
-      return;
+      return "complete";
     }
 
-    // If we have content or time gate, move to streaming
-    if (revealContent) {
-      setPhase(isStreamingProp ? "streaming" : "complete");
-      return;
+    // Complete: not active but has content (loaded from DB)
+    if (!isActive && hasContent) {
+      return "complete";
     }
 
-    // Otherwise, show a stable pre-content state (if debounced on)
-    if (showPrecontent || hasReasoning) {
-      setPhase("precontent");
-      return;
+    // Streaming: active AND has content
+    if (isActive && hasContent) {
+      return "streaming";
     }
 
-    setPhase("awaiting");
-  }, [
-    isStreamingProp,
-    messageStatus,
-    revealContent,
-    showPrecontent,
-    hasReasoning,
-  ]);
+    // Loading: everything else (active but no content yet)
+    return "loading";
+  }, [isActive, messageStatus, hasContent]);
 
-  // A single prioritized status label for the pre-content phase
+  // Status label for the loading indicator
   const statusLabel = useMemo(() => {
-    // Unified copy: "Searching…" or "Thinking…"
     if (messageStatus === "searching") {
       return "Searching…";
     }
-    if (isStreamingProp && contentLength === 0) {
-      return "Thinking…";
+    if (messageStatus === "reading_pdf") {
+      return "Reading…";
     }
-    if (messageStatus === "reading_pdf" || messageStatus === "thinking") {
+    // Show "Thinking…" for thinking status or generic loading
+    if (messageStatus === "thinking" || (phase === "loading" && isActive)) {
       return "Thinking…";
     }
     return undefined;
-  }, [messageStatus, isStreamingProp, contentLength]);
+  }, [messageStatus, phase, isActive]);
 
-  return { phase, statusLabel } as const;
+  return { phase, statusLabel, isActive } as const;
 }

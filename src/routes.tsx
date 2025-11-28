@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, type RouteObject } from "react-router-dom";
 import { ProtectedSuspense } from "./components/auth/protected-route";
 import ChatLayout from "./components/layouts/chat-layout";
-import PersistentChatLayout from "./components/layouts/persistent-chat-layout";
+import MainChatLayout from "./components/layouts/main-chat-layout";
 import RootLayout from "./components/layouts/root-layout";
 import { Spinner } from "./components/ui/spinner";
 
@@ -99,7 +99,37 @@ export const routes: RouteObject[] = [
       </Suspense>
     ),
     children: [
-      { index: true, element: <HomePage /> },
+      // Main chat routes - share the same SharedChatLayout to prevent re-mounting
+      {
+        element: <MainChatLayout />,
+        errorElement: (
+          <Suspense fallback={<PageLoader size="full" />}>
+            <RouteErrorBoundary />
+          </Suspense>
+        ),
+        children: [
+          { index: true, element: <HomePage /> },
+          {
+            path: "chat/:conversationId",
+            loader: conversationLoader,
+            element: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <ChatConversationPage />
+              </Suspense>
+            ),
+          },
+          {
+            path: "chat/favorites",
+            element: (
+              <Suspense fallback={<PageLoader size="full" />}>
+                <ProtectedSuspense fallback={<PageLoader size="full" />}>
+                  <FavoritesPage />
+                </ProtectedSuspense>
+              </Suspense>
+            ),
+          },
+        ],
+      },
       {
         path: "signout",
         element: (
@@ -126,36 +156,6 @@ export const routes: RouteObject[] = [
               <ProtectedSuspense fallback={<PageLoader size="full" />}>
                 <PrivateChatPage />
               </ProtectedSuspense>
-            ),
-          },
-        ],
-      },
-      {
-        path: "chat",
-        element: <PersistentChatLayout />,
-        errorElement: (
-          <Suspense fallback={<PageLoader size="full" />}>
-            <RouteErrorBoundary />
-          </Suspense>
-        ),
-        children: [
-          {
-            path: ":conversationId",
-            loader: conversationLoader,
-            element: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <ChatConversationPage />
-              </Suspense>
-            ),
-          },
-          {
-            path: "favorites",
-            element: (
-              <Suspense fallback={<PageLoader size="full" />}>
-                <ProtectedSuspense fallback={<PageLoader size="full" />}>
-                  <FavoritesPage />
-                </ProtectedSuspense>
-              </Suspense>
             ),
           },
         ],

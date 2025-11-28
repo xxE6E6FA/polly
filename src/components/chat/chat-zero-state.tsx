@@ -8,7 +8,7 @@ import {
   SidebarSimpleIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { useAction, useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -138,15 +138,13 @@ const ChatSection = () => {
   const [selectedModel] = useSelectedModel();
   const isLoading = !user;
   const chatInputRef = useRef<ChatInputRef>(null);
-  const createConversationAction = useAction(
-    api.conversations.createConversationAction
-  );
-  const setStreaming = useMutation(api.conversations.setStreaming);
+  // Use unified action for conversation creation + first message
+  const startConversation = useAction(api.conversations.startConversation);
   const navigate = useNavigate();
   const { isPrivateMode } = usePrivateMode();
 
   const handleSendMessage = useCallback(
-    async (
+    (
       content: string,
       attachments?: Attachment[],
       personaId?: Id<"personas"> | null,
@@ -166,47 +164,48 @@ const ChatSection = () => {
         return;
       }
 
-      const result = await createConversationAction({
-        firstMessage: content,
-        // Omit title to allow server-side title generation from first message
-        attachments,
-        personaId: personaId ?? undefined,
-        reasoningConfig: reasoningConfig
-          ? {
-              enabled: reasoningConfig.enabled,
-              effort: reasoningConfig.effort || "medium",
-              maxTokens: reasoningConfig.maxTokens,
-            }
-          : undefined,
-        model: selectedModel?.modelId,
-        provider: selectedModel?.provider,
-        temperature,
+      // Generate client-side UUID for instant navigation
+      const clientId = crypto.randomUUID();
+
+      // Navigate IMMEDIATELY to the conversation URL (before action completes)
+      // The conversation page shows optimistic UI until real messages arrive
+      navigate(ROUTES.CHAT_CONVERSATION(clientId), {
+        state: {
+          initialMessage: {
+            content,
+            attachments,
+            personaId,
+            reasoningConfig,
+            temperature,
+            model: selectedModel?.modelId,
+            provider: selectedModel?.provider,
+          },
+        },
       });
 
-      if (result?.conversationId) {
-        // Navigate first to avoid any chance of stream startup blocking redirect
-        navigate(ROUTES.CHAT_CONVERSATION(result.conversationId));
-
-        // Optimistically mark as streaming so the sidebar updates immediately
-        try {
-          await setStreaming({
-            conversationId: result.conversationId,
-            isStreaming: true,
-          });
-        } catch {
-          // best-effort only
-        }
-
-        // Server-side streaming is now handled automatically by the Convex action
-      }
+      // Start conversation: creates conversation + sends first message atomically
+      startConversation({
+        clientId,
+        content,
+        personaId: personaId ?? undefined,
+        attachments,
+        model: selectedModel?.modelId,
+        provider: selectedModel?.provider,
+        reasoningConfig:
+          reasoningConfig?.enabled && reasoningConfig.effort
+            ? {
+                enabled: reasoningConfig.enabled,
+                effort: reasoningConfig.effort,
+                maxTokens: reasoningConfig.maxTokens,
+              }
+            : undefined,
+        temperature,
+      }).catch(err => {
+        // If action fails, the conversation page will show an error
+        console.error("Failed to start conversation:", err);
+      });
     },
-    [
-      navigate,
-      isPrivateMode,
-      createConversationAction,
-      selectedModel,
-      setStreaming,
-    ]
+    [navigate, isPrivateMode, startConversation, selectedModel]
   );
 
   const handleQuickPrompt = useCallback(
@@ -227,7 +226,7 @@ const ChatSection = () => {
 
   const chatInputProps = {
     hasExistingMessages: false,
-    isLoading: false,
+    isLoading: false, // No loading state needed - navigation is instant
     isStreaming: false,
     onStop: () => undefined,
     onSendMessage: handleSendMessage,

@@ -1,18 +1,15 @@
 import { api } from "@convex/_generated/api";
-import type { Id } from "@convex/_generated/dataModel";
 import { useQuery } from "convex/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CitationProvider } from "@/components/ui/citation-context";
-import { SkeletonText } from "@/components/ui/skeleton-text";
-import { Spinner } from "@/components/ui/spinner";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
 import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { CitationsGallery } from "../citations-gallery";
-import { Reasoning } from "../reasoning";
+import { AssistantLoadingState } from "./assistant-loading-state";
 import { AttachmentStrip } from "./attachment-strip";
 import { ImageGenerationBubble } from "./image-generation-bubble";
 import { MessageActions } from "./message-actions";
@@ -99,18 +96,16 @@ const TextMessageBubble = ({
   onDeleteMessage,
   onPreviewFile,
 }: Omit<AssistantBubbleProps, "onRetryImageGeneration">) => {
-  const [showReasoning, setShowReasoning] = useState(false);
   const [citationsExpanded, setCitationsExpanded] = useState(false);
 
   const conversationTitle = useQuery(
-    api.conversations.getWithAccessInfo,
-    conversationId ? { id: conversationId as Id<"conversations"> } : "skip"
+    api.conversations.getBySlug,
+    conversationId ? { slug: conversationId } : "skip"
   )?.conversation?.title;
   const openZenOverlay = useZenModeStore(s => s.open);
 
   // Use DB content directly
   const displayContent = message.content;
-  const reasoning = message.reasoning;
   const displayCitations = message.citations?.map(c => ({
     type: "url_citation" as const,
     url: c.url,
@@ -120,7 +115,9 @@ const TextMessageBubble = ({
   const hasTextContent = Boolean(
     displayContent && displayContent.trim().length > 0
   );
-  const hasReasoningText = Boolean(reasoning && reasoning.trim().length > 0);
+  const hasReasoningText = Boolean(
+    message.reasoning && message.reasoning.trim().length > 0
+  );
   const isZenModeAvailable = hasTextContent;
   const conversationKey = conversationId ?? null;
 
@@ -148,36 +145,16 @@ const TextMessageBubble = ({
     onMouseLeave,
   } = useHoverLinger({ delay: 700 });
 
-  const { phase, statusLabel } = useAssistantDisplayPhase({
-    isStreamingProp: isStreaming || message.status === "streaming",
+  // Simplified hook - only uses message.status as source of truth
+  const { phase, statusLabel, isActive } = useAssistantDisplayPhase({
     messageStatus: message.status,
-    contentLength: displayContent?.length || 0,
+    hasContent: hasTextContent,
     hasReasoning: hasReasoningText,
   });
 
-  const isMessageStreaming = isStreaming || message.status === "streaming";
-
-  // Helper booleans for rendering
-  const showPreContentStrip = phase === "precontent" && !!statusLabel;
-  const showSkeleton = phase === "precontent" && !hasReasoningText;
-  const showStreamingContent = phase === "streaming" || phase === "complete";
-
-  // Auto-behavior for reasoning visibility:
-  // - expand during precontent when reasoning arrives
-  // - collapse shortly after actual content begins streaming to avoid layout shift
-  useEffect(() => {
-    if (hasReasoningText && phase === "precontent") {
-      setShowReasoning(true);
-    }
-  }, [hasReasoningText, phase]);
-
-  useEffect(() => {
-    if (phase === "streaming" && showReasoning) {
-      const t = setTimeout(() => setShowReasoning(false), 120);
-      return () => clearTimeout(t);
-    }
-    return;
-  }, [phase, showReasoning]);
+  // Visibility booleans
+  const isLoading = phase === "loading";
+  const showContent = phase === "streaming" || phase === "complete";
 
   return (
     <div className="w-full">
@@ -186,61 +163,40 @@ const TextMessageBubble = ({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
       >
-        {/* Pre-content: single status strip + optional skeleton, no stacking loaders */}
-        {showPreContentStrip && (
-          <div className="mb-2.5">
-            {/* Minimal, consistent status pill */}
-            <div className="text-sm text-foreground/80">
-              <div className="inline-flex items-center gap-2">
-                <Spinner className="h-3 w-3" />
-                <span className="opacity-80">{statusLabel}</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Extracted loading state: status indicator, reasoning, skeleton */}
+        <AssistantLoadingState
+          messageId={message.id}
+          phase={phase}
+          isActive={isActive}
+          statusLabel={statusLabel}
+          reasoning={message.reasoning}
+          thinkingDurationMs={message.metadata?.thinkingDurationMs}
+        />
 
-        {/* Reasoning panel: Grok-like card with header; no extra external toggle */}
-        {hasReasoningText && (
-          <div className="mb-2.5">
-            <Reasoning
-              isLoading={isStreaming}
-              reasoning={reasoning || ""}
-              expanded={showReasoning}
-              onExpandedChange={setShowReasoning}
-              // Show header toggle during answer streaming; hide only during precontent
-              hideHeader={phase === "precontent"}
-              finalDurationMs={message.metadata?.thinkingDurationMs}
-            />
-          </div>
-        )}
-
-        {/* Regular text message content with skeleton → content crossfade */}
+        {/* Content area */}
         <div className="relative">
-          {/* Skeleton block to reserve space before first chunk */}
-          {showSkeleton && <SkeletonText lines={3} className="max-w-[74ch]" />}
-
-          {/* Crossfade to content when streaming starts or completes */}
-          {showStreamingContent && (
-            <div
-              className={cn(
-                "transition-opacity duration-150",
-                showSkeleton ? "opacity-0" : "opacity-100"
-              )}
+          {/* Content - visibility controlled via CSS */}
+          <div
+            className={cn(
+              "transition-opacity duration-150",
+              showContent
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none absolute inset-0"
+            )}
+          >
+            <CitationProvider
+              citations={displayCitations || []}
+              messageId={message.id}
             >
-              <CitationProvider
-                citations={displayCitations || []}
+              <StreamingMarkdown
+                isStreaming={isActive}
                 messageId={message.id}
+                className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
               >
-                <StreamingMarkdown
-                  isStreaming={isMessageStreaming}
-                  messageId={message.id}
-                  className="text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] max-w-[74ch]"
-                >
-                  {displayContent}
-                </StreamingMarkdown>
-              </CitationProvider>
-            </div>
-          )}
+                {displayContent}
+              </StreamingMarkdown>
+            </CitationProvider>
+          </div>
 
           {message.status === "error" && message.error && (
             <MessageError
@@ -253,24 +209,22 @@ const TextMessageBubble = ({
 
         {(message.metadata?.stopped ||
           message.metadata?.finishReason === "user_stopped") &&
-          !isStreaming && (
+          !isActive && (
             <Alert variant="danger" className="my-2">
               <AlertDescription>Stopped by user</AlertDescription>
             </Alert>
           )}
 
         {/* Defer citations until content has begun to reduce early reflow */}
-        {displayCitations &&
-          displayCitations.length > 0 &&
-          (phase === "streaming" || phase === "complete") && (
-            <CitationsGallery
-              key={`citations-${message.id}-${phase}`}
-              citations={displayCitations}
-              messageId={message.id}
-              content={displayContent}
-              isExpanded={citationsExpanded}
-            />
-          )}
+        {displayCitations && displayCitations.length > 0 && showContent && (
+          <CitationsGallery
+            key={`citations-${message.id}-${phase}`}
+            citations={displayCitations}
+            messageId={message.id}
+            content={displayContent}
+            isExpanded={citationsExpanded}
+          />
+        )}
 
         <AttachmentStrip
           attachments={message.attachments?.filter(
@@ -285,7 +239,7 @@ const TextMessageBubble = ({
           <div
             className={cn(
               "transition-opacity duration-150",
-              phase === "precontent" ? "opacity-0" : "opacity-100"
+              isLoading ? "opacity-0" : "opacity-100"
             )}
           >
             <MessageActions
@@ -295,7 +249,7 @@ const TextMessageBubble = ({
               isCopied={isCopied}
               isDeleting={isDeleting}
               isRetrying={isRetrying}
-              isStreaming={isStreaming}
+              isStreaming={isActive}
               isUser={false}
               model={message.model}
               provider={message.provider}

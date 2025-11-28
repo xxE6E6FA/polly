@@ -13,6 +13,7 @@ import { useUserDataContext } from "@/providers/user-data-context";
 import type {
   Attachment,
   ChatMessage,
+  ChatStatus,
   ConversationId,
   ReasoningConfig,
 } from "@/types";
@@ -248,10 +249,15 @@ export default function PrivateChatPage() {
     }));
   }, [privateChat.messages, user?._id]);
 
-  const isStreaming = useMemo(() => {
-    return (
-      privateChat.status === "streaming" || privateChat.status === "submitted"
-    );
+  // Compute unified chat status
+  const status: ChatStatus = useMemo(() => {
+    if (
+      privateChat.status === "streaming" ||
+      privateChat.status === "submitted"
+    ) {
+      return "streaming";
+    }
+    return "idle";
   }, [privateChat.status]);
 
   const handleSendMessage = useCallback(
@@ -422,9 +428,7 @@ export default function PrivateChatPage() {
   return (
     <UnifiedChatView
       messages={chatMessages}
-      isLoading={isStreaming}
-      isLoadingMessages={false}
-      isStreaming={isStreaming}
+      status={status}
       currentPersonaId={currentPersonaId}
       canSavePrivateChat={!!canSave}
       hasApiKeys={hasApiKeys ?? false}

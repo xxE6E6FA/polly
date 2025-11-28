@@ -11,6 +11,7 @@ import { usePrivateMode } from "@/providers/private-mode-context";
 import type {
   Attachment,
   ChatMessage,
+  ChatStatus,
   ConversationId,
   ReasoningConfig,
 } from "@/types";
@@ -65,9 +66,7 @@ function checkIfLikelyImageConversation(messages: ChatMessage[]): boolean {
 type UnifiedChatViewProps = {
   conversationId?: ConversationId;
   messages: ChatMessage[];
-  isLoading: boolean;
-  isLoadingMessages?: boolean;
-  isStreaming: boolean;
+  status: ChatStatus;
   currentPersonaId: Id<"personas"> | null;
   canSavePrivateChat: boolean;
   hasApiKeys: boolean;
@@ -118,9 +117,7 @@ export const UnifiedChatView = memo(
   ({
     conversationId,
     messages,
-    isLoading,
-    isLoadingMessages,
-    isStreaming,
+    status,
     currentPersonaId,
     canSavePrivateChat,
     hasApiKeys,
@@ -138,6 +135,10 @@ export const UnifiedChatView = memo(
   }: UnifiedChatViewProps) => {
     const { isPrivateMode } = usePrivateMode();
     const { temperature } = useChatScopedState(conversationId);
+
+    // Derive boolean states from status
+    const isLoading = status === "loading";
+    const isStreaming = status === "streaming";
 
     // Conversation-level attachment gallery state
     const [previewAttachment, setPreviewAttachment] =
@@ -345,7 +346,8 @@ export const UnifiedChatView = memo(
     }, [evaluateScrollProximity, virtualizedMessagesRef]);
 
     const renderMessageArea = () => {
-      if (isLoadingMessages) {
+      // Show empty placeholder while loading initial messages
+      if (isLoading && isEmpty) {
         const insetStyle = {
           paddingTop: headerInset,
           paddingBottom: footerInset,

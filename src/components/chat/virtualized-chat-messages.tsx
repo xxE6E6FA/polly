@@ -619,7 +619,7 @@ export const VirtualizedChatMessages = memo(
 
               return (
                 <MessageItem
-                  key={message.id}
+                  key={message.displayKey ?? message.id}
                   messageId={message.id}
                   isStreaming={!!isMessageStreaming}
                   conversationId={conversationId}

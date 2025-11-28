@@ -520,6 +520,8 @@ export const conversationSchema = v.object({
   isStreaming: v.optional(v.boolean()),
   isPinned: v.optional(v.boolean()),
   isArchived: v.optional(v.boolean()),
+  // Client-generated ID for optimistic navigation (allows instant redirect before server confirms)
+  clientId: v.optional(v.string()),
   // Rolling token estimate (heuristic) used to trigger summarization
   tokenEstimate: v.optional(v.number()),
   // Legacy branching fields (for backward compatibility)

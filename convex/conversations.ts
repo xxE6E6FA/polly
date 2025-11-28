@@ -998,6 +998,70 @@ export const getWithAccessInfo = query({
   handler: getWithAccessInfoHandler,
 });
 
+/**
+ * Get conversation by slug (clientId) with access info.
+ * Supports both new UUID-based URLs and legacy Convex ID URLs.
+ * First tries to find by clientId, then falls back to treating slug as Convex ID.
+ */
+export const getBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    // First, try to find by clientId (UUID)
+    const byClientId = await ctx.db
+      .query("conversations")
+      .withIndex("by_client_id", q => q.eq("clientId", args.slug))
+      .first();
+
+    if (byClientId) {
+      const { hasAccess, conversation } = await hasConversationAccess(
+        ctx,
+        byClientId._id,
+        true
+      );
+      return {
+        hasAccess,
+        conversation,
+        isDeleted: false,
+        resolvedId: byClientId._id,
+      };
+    }
+
+    // Fallback: treat slug as a Convex ID (for legacy URLs)
+    try {
+      const conversationId = args.slug as Id<"conversations">;
+      const { hasAccess, conversation } = await hasConversationAccess(
+        ctx,
+        conversationId,
+        true
+      );
+      // Only return resolvedId if conversation was actually found
+      // This prevents returning the slug as resolvedId when it's not a valid ID
+      if (!conversation) {
+        return {
+          hasAccess: false,
+          conversation: null,
+          isDeleted: false,
+          resolvedId: null,
+        };
+      }
+      return {
+        hasAccess,
+        conversation,
+        isDeleted: false,
+        resolvedId: conversationId,
+      };
+    } catch {
+      // Invalid ID format
+      return {
+        hasAccess: false,
+        conversation: null,
+        isDeleted: true,
+        resolvedId: null,
+      };
+    }
+  },
+});
+
 export async function getForExportHandler(
   ctx: QueryCtx,
   args: {
@@ -1270,9 +1334,10 @@ export const createWithUserId = internalMutation({
 
 export const createEmptyInternal = internalMutation({
   args: {
-    title: v.string(),
+    title: v.optional(v.string()),
     userId: v.id("users"),
     personaId: v.optional(v.id("personas")),
+    clientId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
@@ -1282,9 +1347,10 @@ export const createEmptyInternal = internalMutation({
 
     // Create empty conversation
     const conversationId = await ctx.db.insert("conversations", {
-      title: args.title,
+      title: args.title ?? "New Conversation",
       userId: args.userId,
       personaId: args.personaId,
+      clientId: args.clientId,
       isStreaming: false,
       isArchived: false,
       isPinned: false,
@@ -1316,6 +1382,221 @@ export const createEmptyInternal = internalMutation({
     );
 
     return conversationId;
+  },
+});
+
+/**
+ * Create an empty conversation (fast mutation for immediate navigation).
+ * Used by the home page to create a conversation before sending the first message.
+ * Accepts a clientId for optimistic navigation - the client can navigate immediately
+ * and poll for the conversation by clientId.
+ */
+export const createEmpty = mutation({
+  args: {
+    clientId: v.string(),
+    personaId: v.optional(v.id("personas")),
+  },
+  returns: v.id("conversations"),
+  handler: async (ctx, args) => {
+    // Get authenticated user ID (getAuthUserId returns Id<"users"> directly)
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get user data for conversation count update
+    const user = await ctx.db.get(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Create empty conversation with clientId for optimistic lookup
+    const conversationId = await ctx.db.insert("conversations", {
+      title: "New Conversation",
+      userId,
+      personaId: args.personaId,
+      clientId: args.clientId,
+      isStreaming: false,
+      isArchived: false,
+      isPinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Set rootConversationId to self
+    await ctx.db.patch(conversationId, {
+      rootConversationId: conversationId,
+    });
+
+    // Update user conversation count
+    await ctx.db.patch(userId, {
+      conversationCount: Math.max(0, (user.conversationCount || 0) + 1),
+    });
+
+    return conversationId;
+  },
+});
+
+/**
+ * Start a new conversation with the first message (unified action).
+ * Atomically creates the conversation and sends the first message.
+ * Used by the home page for instant navigation with optimistic UI.
+ */
+export const startConversation = action({
+  args: {
+    clientId: v.string(),
+    content: v.string(),
+    personaId: v.optional(v.id("personas")),
+    attachments: v.optional(v.array(attachmentSchema)),
+    model: v.optional(v.string()),
+    provider: v.optional(v.string()),
+    reasoningConfig: v.optional(reasoningConfigSchema),
+    temperature: v.optional(v.number()),
+  },
+  returns: v.object({
+    conversationId: v.id("conversations"),
+    userMessageId: v.id("messages"),
+    assistantMessageId: v.id("messages"),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<{
+    conversationId: Id<"conversations">;
+    userMessageId: Id<"messages">;
+    assistantMessageId: Id<"messages">;
+  }> => {
+    // Validate content
+    validateUserMessageLength(args.content);
+
+    // Get authenticated user
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Not authenticated");
+    }
+
+    // 1. Create conversation with clientId using existing internal mutation
+    const conversationId = await ctx.runMutation(
+      internal.conversations.createEmptyInternal,
+      {
+        userId,
+        personaId: args.personaId,
+        clientId: args.clientId,
+      }
+    );
+
+    // 2. Get model info for the message
+    const fullModel = await getUserEffectiveModelWithCapabilities(
+      ctx,
+      args.model,
+      args.provider
+    );
+
+    // 3. Create user message
+    const userMessageId = await ctx.runMutation(api.messages.create, {
+      conversationId,
+      role: "user",
+      content: args.content,
+      attachments: args.attachments,
+      reasoningConfig: args.reasoningConfig,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      metadata:
+        args.temperature !== undefined
+          ? { temperature: args.temperature }
+          : undefined,
+    });
+
+    // Create file entries for attachments if any
+    if (args.attachments && args.attachments.length > 0) {
+      await ctx.runMutation(internal.fileStorage.createUserFileEntries, {
+        userId,
+        messageId: userMessageId,
+        conversationId,
+        attachments: args.attachments,
+      });
+    }
+
+    // 4. Create assistant placeholder and mark as streaming
+    const [assistantMessageId] = await Promise.all([
+      ctx.runMutation(api.messages.create, {
+        conversationId,
+        role: "assistant",
+        content: "",
+        status: "thinking",
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+      }),
+      ctx.runMutation(internal.conversations.internalPatch, {
+        id: conversationId,
+        updates: { isStreaming: true },
+        setUpdatedAt: true,
+      }),
+    ]);
+
+    // 5. Build context messages
+    const { contextMessages } = await buildContextMessages(ctx, {
+      conversationId,
+      personaId: args.personaId,
+      modelCapabilities: {
+        supportsImages: fullModel.supportsImages ?? false,
+        supportsFiles: fullModel.supportsFiles ?? false,
+      },
+      provider: fullModel.provider,
+      modelId: fullModel.modelId,
+    });
+
+    // 6. Schedule server-side streaming (runs in background)
+    await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+      messageId: assistantMessageId,
+      conversationId,
+      model: fullModel.modelId,
+      provider: fullModel.provider,
+      messages: contextMessages,
+      personaId: args.personaId,
+      reasoningConfig: args.reasoningConfig,
+    });
+
+    // 7. Schedule title generation
+    await scheduleRunAfter(ctx, 100, api.titleGeneration.generateTitle, {
+      conversationId,
+      message: args.content,
+    });
+
+    return {
+      conversationId,
+      userMessageId,
+      assistantMessageId,
+    };
+  },
+});
+
+/**
+ * Find a conversation by its client-generated ID.
+ * Used for optimistic navigation - client navigates immediately and polls for the conversation.
+ */
+export const getByClientId = query({
+  args: {
+    clientId: v.string(),
+  },
+  returns: v.union(v.id("conversations"), v.null()),
+  handler: async (ctx, args) => {
+    const conversation = await ctx.db
+      .query("conversations")
+      .withIndex("by_client_id", q => q.eq("clientId", args.clientId))
+      .first();
+
+    if (!conversation) {
+      return null;
+    }
+
+    // Verify user has access
+    const userId = await getAuthUserId(ctx);
+    if (conversation.userId !== userId) {
+      return null;
+    }
+
+    return conversation._id;
   },
 });
 
