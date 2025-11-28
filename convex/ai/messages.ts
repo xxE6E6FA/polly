@@ -1,3 +1,13 @@
+/**
+ * @deprecated This module is deprecated. Use `convex/ai/message_converter.ts` instead.
+ *
+ * Migration guide:
+ * - convertStorageToData → Use ctx.storage.get() directly
+ * - convertAttachment → Use convertAttachmentToAISDK() from message_converter.ts
+ * - convertMessagePart → Use convertLegacyPartToAISDK() from message_converter.ts
+ * - convertMessages → Use convertStoredMessagesToAISDK() from message_converter.ts
+ */
+
 import type { ActionCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { api } from "../_generated/api";
@@ -46,6 +56,10 @@ const fetchStorageWithRetry = async (
   throw lastError ?? new Error("File not found in storage");
 };
 
+/**
+ * @deprecated Use ctx.storage.get() directly instead.
+ * See message_converter.ts for examples.
+ */
 export const convertStorageToData = async (
   ctx: ActionCtx,
   storageId: Id<"_storage">,
@@ -68,6 +82,9 @@ export const convertStorageToData = async (
   return { blob, arrayBuffer, base64, mimeType };
 };
 
+/**
+ * @deprecated Use convertAttachmentToAISDK() from message_converter.ts instead.
+ */
 export const convertAttachment = async (
   ctx: ActionCtx,
   attachment: { storageId: Id<"_storage">; type: string; name?: string },
@@ -158,6 +175,9 @@ const extractPdfTextIfNeeded = async (
   return null;
 };
 
+/**
+ * @deprecated Use convertLegacyPartToAISDK() from message_converter.ts instead.
+ */
 export const convertMessagePart = async (
   ctx: ActionCtx,
   part: any,
@@ -313,6 +333,9 @@ export const convertMessagePart = async (
   return { type: "text" as const, text: "" };
 };
 
+/**
+ * @deprecated Use convertStoredMessagesToAISDK() from message_converter.ts instead.
+ */
 export const convertMessages = async (
   ctx: ActionCtx,
   messages: Array<{ role: string; content: string | any[] }>,

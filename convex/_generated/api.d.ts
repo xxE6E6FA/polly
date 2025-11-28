@@ -13,6 +13,7 @@ import type * as ai_elevenlabs from "../ai/elevenlabs.js";
 import type * as ai_encryption from "../ai/encryption.js";
 import type * as ai_error_handlers from "../ai/error_handlers.js";
 import type * as ai_exa from "../ai/exa.js";
+import type * as ai_message_converter from "../ai/message_converter.js";
 import type * as ai_messages from "../ai/messages.js";
 import type * as ai_openrouter_capabilities from "../ai/openrouter_capabilities.js";
 import type * as ai_pdf from "../ai/pdf.js";
@@ -87,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   "ai/encryption": typeof ai_encryption;
   "ai/error_handlers": typeof ai_error_handlers;
   "ai/exa": typeof ai_exa;
+  "ai/message_converter": typeof ai_message_converter;
   "ai/messages": typeof ai_messages;
   "ai/openrouter_capabilities": typeof ai_openrouter_capabilities;
   "ai/pdf": typeof ai_pdf;

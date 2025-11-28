@@ -10,32 +10,17 @@ export type { Doc, Id } from "./_generated/dataModel";
 // MESSAGE & STREAMING TYPES
 // ============================================================================
 
-export type StreamMessage = {
-  role: "user" | "assistant" | "system";
-  content:
-    | string
-    | Array<{
-        type: "text" | "image_url" | "file";
-        text?: string;
-        image_url?: { url: string };
-        file?: {
-          filename: string;
-          file_data: string;
-        };
-        attachment?: {
-          storageId: Id<"_storage">;
-          type: string;
-          name: string;
-          extractedText?: string;
-          textFileId?: Id<"_storage">;
-        };
-      }>;
-};
-
+/**
+ * Message part for streaming messages.
+ * Supports both legacy format (image_url, file) and unified format (image, pdf, text with attachment).
+ */
 export type MessagePart = {
-  type: "text" | "image_url" | "file";
+  /** @deprecated Use "image" | "pdf" | "text" with attachment instead */
+  type: "text" | "image" | "pdf" | "image_url" | "file";
   text?: string;
+  /** @deprecated Use attachment instead */
   image_url?: { url: string };
+  /** @deprecated Use attachment instead */
   file?: { filename: string; file_data: string };
   attachment?: {
     storageId: Id<"_storage">;
@@ -44,6 +29,11 @@ export type MessagePart = {
     extractedText?: string;
     textFileId?: Id<"_storage">;
   };
+};
+
+export type StreamMessage = {
+  role: "user" | "assistant" | "system";
+  content: string | MessagePart[];
 };
 
 // ============================================================================

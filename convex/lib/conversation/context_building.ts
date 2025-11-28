@@ -345,24 +345,13 @@ export const buildContextMessages = async (
             parts.push({ type: "text", text: msg.content });
           }
 
-          // Add attachment parts
+          // Add attachment parts using unified format
+          // The message_converter will handle conversion to AI SDK format
           for (const attachment of processedAttachments || []) {
-            if (attachment.type === "image") {
-              parts.push({
-                type: "image_url",
-                image_url: { url: attachment.url },
-                attachment,
-              });
-            } else if (
-              attachment.type === "pdf" ||
-              attachment.type === "text"
-            ) {
-              parts.push({
-                type: "file",
-                file: { filename: attachment.name },
-                attachment,
-              });
-            }
+            parts.push({
+              type: attachment.type, // "image" | "pdf" | "text"
+              attachment,
+            });
           }
 
           return {

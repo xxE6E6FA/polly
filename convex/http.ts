@@ -14,7 +14,6 @@ import { streamTTS } from "./ai/elevenlabs.js";
 import { getApiKey } from "./ai/encryption.js";
 import { getUserFriendlyErrorMessage } from "./ai/error_handlers.js";
 import { performWebSearch } from "./ai/exa.js";
-import { convertMessages } from "./ai/messages.js";
 import { shouldExtractPdfText } from "./ai/pdf.js";
 import {
   generateSearchNeedAssessment,

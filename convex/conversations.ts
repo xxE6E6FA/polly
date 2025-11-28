@@ -20,6 +20,10 @@ import {
 import { getApiKey } from "./ai/encryption";
 import { withRetry } from "./ai/error_handlers";
 import {
+  convertLegacyPartToAISDK,
+  type LegacyMessagePart,
+} from "./ai/message_converter";
+import {
   createLanguageModel,
   getProviderStreamOptions,
 } from "./ai/server_streaming";
@@ -630,13 +634,68 @@ export const streamMessage = internalAction({
         reasoningConfig
       );
 
-      // 4. Stream using consolidated streaming_core
+      // 4. Convert messages with attachments to AI SDK format
+      const fullModel = await getUserEffectiveModelWithCapabilities(
+        ctx,
+        undefined, // No userId needed, we just need model capabilities
+        modelId
+      );
+      const supportsFiles = fullModel?.supportsFiles ?? false;
+
+      const convertedMessages = await Promise.all(
+        args.messages.map(async msg => {
+          // String content - no conversion needed
+          if (typeof msg.content === "string") {
+            return msg;
+          }
+
+          // Array content - convert each part
+          if (Array.isArray(msg.content)) {
+            const convertedParts = await Promise.all(
+              msg.content.map((part: LegacyMessagePart) => {
+                // Plain text parts - pass through
+                if (
+                  part.type === "text" &&
+                  "text" in part &&
+                  !("attachment" in part)
+                ) {
+                  return part;
+                }
+
+                // Parts with attachments - use unified converter
+                if (
+                  "attachment" in part ||
+                  part.type === "image_url" ||
+                  part.type === "file"
+                ) {
+                  return convertLegacyPartToAISDK(ctx, part, {
+                    provider,
+                    modelId,
+                    supportsFiles,
+                  });
+                }
+
+                return part;
+              })
+            );
+
+            return {
+              ...msg,
+              content: convertedParts,
+            };
+          }
+
+          return msg;
+        })
+      );
+
+      // 5. Stream using consolidated streaming_core
       await streamLLMToMessage({
         ctx,
         conversationId,
         messageId,
         model: languageModel,
-        messages: args.messages as Parameters<
+        messages: convertedMessages as Parameters<
           typeof streamLLMToMessage
         >[0]["messages"],
         extraOptions: streamOptions,

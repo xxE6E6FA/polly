@@ -23,6 +23,11 @@ import type { Id } from "./_generated/dataModel";
 import type { ActionCtx } from "./_generated/server";
 import { httpAction } from "./_generated/server";
 import { CONFIG } from "./ai/config";
+import {
+  convertLegacyPartToAISDK,
+  type LegacyMessagePart,
+  type StoredAttachment,
+} from "./ai/message_converter";
 import { modelSupportsPdfNatively, shouldExtractPdfText } from "./ai/pdf";
 import { createLanguageModel } from "./ai/server_streaming";
 import { getBaselineInstructions } from "./constants";
@@ -175,6 +180,24 @@ const coerceUiMessageContent = async (
           type: "reasoning",
           text: (part as ReasoningUIPart).text,
         };
+      }
+
+      // Handle attachment parts using unified converter
+      // Supports both legacy image_url/file format AND new unified format
+      const anyPart = part as Record<string, unknown>;
+      if (
+        anyPart.type === "image_url" ||
+        anyPart.type === "file" ||
+        ((anyPart.type === "image" ||
+          anyPart.type === "pdf" ||
+          anyPart.type === "text") &&
+          anyPart.attachment)
+      ) {
+        return convertLegacyPartToAISDK(ctx, anyPart as LegacyMessagePart, {
+          provider,
+          modelId,
+          supportsFiles: modelSupportsFiles,
+        });
       }
 
       if (isFileUIPart(part)) {

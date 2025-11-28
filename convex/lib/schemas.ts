@@ -299,36 +299,44 @@ export const messageCreationSchema = v.object({
   createdAt: v.optional(v.number()),
 });
 
+/**
+ * Message part schema for AI interactions.
+ * Supports both legacy format (image_url, file) and unified format (image, pdf with attachment).
+ */
+export const messagePartSchema = v.object({
+  // Supports both legacy (image_url, file) and new (image, pdf) types
+  type: v.union(
+    v.literal("text"),
+    v.literal("image"),
+    v.literal("pdf"),
+    // Legacy formats - kept for backward compatibility
+    v.literal("image_url"),
+    v.literal("file"),
+  ),
+  text: v.optional(v.string()),
+  // Legacy format - kept for backward compatibility
+  image_url: v.optional(v.object({ url: v.string() })),
+  // Legacy format - kept for backward compatibility
+  file: v.optional(
+    v.object({
+      filename: v.string(),
+      file_data: v.string(),
+    }),
+  ),
+  // Unified attachment format
+  attachment: v.optional(
+    v.object({
+      storageId: v.id("_storage"),
+      type: v.string(),
+      name: v.string(),
+    }),
+  ),
+});
+
 // Context message schema for AI interactions
 export const contextMessageSchema = v.object({
   role: v.union(v.literal("user"), v.literal("assistant"), v.literal("system")),
-  content: v.union(
-    v.string(),
-    v.array(
-      v.object({
-        type: v.union(
-          v.literal("text"),
-          v.literal("image_url"),
-          v.literal("file"),
-        ),
-        text: v.optional(v.string()),
-        image_url: v.optional(v.object({ url: v.string() })),
-        file: v.optional(
-          v.object({
-            filename: v.string(),
-            file_data: v.string(),
-          }),
-        ),
-        attachment: v.optional(
-          v.object({
-            storageId: v.id("_storage"),
-            type: v.string(),
-            name: v.string(),
-          }),
-        ),
-      }),
-    ),
-  ),
+  content: v.union(v.string(), v.array(messagePartSchema)),
 });
 
 // Reasoning configuration for AI interactions - matches reasoningConfigSchema
