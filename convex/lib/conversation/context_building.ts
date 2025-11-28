@@ -382,11 +382,30 @@ export const buildContextMessages = async (
       conversationMessagesPromises,
     );
 
+    // Filter out messages with empty content to avoid API errors
+    // Anthropic requires non-empty text content blocks
+    const validMessages = conversationMessages.filter((msg) => {
+      if (typeof msg.content === "string") {
+        return msg.content.trim() !== "";
+      }
+      if (Array.isArray(msg.content)) {
+        // Filter out empty text blocks and check if any valid content remains
+        const validParts = msg.content.filter((part: any) => {
+          if (part.type === "text") {
+            return part.text && part.text.trim() !== "";
+          }
+          return true; // Keep non-text parts (images, files)
+        });
+        return validParts.length > 0;
+      }
+      return false;
+    });
+
     // Combine all messages: system + context + conversation
     const contextMessages = [
       ...systemMessages,
       ...contextSystemMessages,
-      ...conversationMessages,
+      ...validMessages,
     ];
 
     return { contextMessages };

@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 
-export type AssistantPhase = "loading" | "streaming" | "complete" | "error";
+export type AssistantPhase =
+  | "loading"
+  | "reasoning"
+  | "streaming"
+  | "complete"
+  | "error";
 
 type Params = {
   messageStatus?: string;
@@ -18,6 +23,7 @@ const ACTIVE_STATUSES = ["streaming", "thinking", "searching", "reading_pdf"];
  *
  * Phases:
  * - loading: Message created but no content yet (show skeleton/spinner)
+ * - reasoning: Has reasoning text but no content yet (show reasoning panel)
  * - streaming: Content is actively streaming (show content)
  * - complete: Message is done (show content + actions)
  * - error: Message has an error
@@ -48,6 +54,11 @@ export function useAssistantDisplayPhase({
       return "complete";
     }
 
+    // Reasoning: active, has reasoning but no content yet
+    if (isActive && hasReasoning && !hasContent) {
+      return "reasoning";
+    }
+
     // Streaming: active AND has content
     if (isActive && hasContent) {
       return "streaming";
@@ -55,7 +66,7 @@ export function useAssistantDisplayPhase({
 
     // Loading: everything else (active but no content yet)
     return "loading";
-  }, [isActive, messageStatus, hasContent]);
+  }, [isActive, messageStatus, hasContent, hasReasoning]);
 
   // Status label for the loading indicator
   const statusLabel = useMemo(() => {
@@ -65,8 +76,12 @@ export function useAssistantDisplayPhase({
     if (messageStatus === "reading_pdf") {
       return "Reading…";
     }
-    // Show "Thinking…" for thinking status or generic loading
-    if (messageStatus === "thinking" || (phase === "loading" && isActive)) {
+    // Show "Thinking…" for thinking status, reasoning phase, or generic loading
+    if (
+      messageStatus === "thinking" ||
+      phase === "reasoning" ||
+      (phase === "loading" && isActive)
+    ) {
       return "Thinking…";
     }
     return undefined;

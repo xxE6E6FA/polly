@@ -37,6 +37,8 @@ export function AssistantLoadingState({
 
   // Visibility booleans derived from phase
   const isLoading = phase === "loading";
+  // Only show status indicator during loading (before reasoning arrives)
+  // During reasoning phase, the Reasoning component header shows "Thinking for Xs"
   const showStatusIndicator = isLoading && !!statusLabel;
   const showSkeleton = isLoading && !hasReasoningText;
 
@@ -114,14 +116,14 @@ export function AssistantLoadingState({
   // === END DEBUG LOGGING ===
 
   // Auto-behavior for reasoning visibility:
-  // - expand during loading when reasoning arrives
-  // - collapse shortly after actual content begins streaming
+  // - expand during loading or reasoning phase when reasoning arrives
+  // - collapse after content begins streaming (with 800ms delay for smoother transition)
   useEffect(() => {
-    if (hasReasoningText && phase === "loading") {
+    if (hasReasoningText && (phase === "loading" || phase === "reasoning")) {
       if (DEBUG_RENDERS) {
         // biome-ignore lint/suspicious/noConsole: Intentional debug logging
         console.log(
-          "[AssistantLoadingState] Effect: expanding reasoning (hasReasoning && loading)"
+          "[AssistantLoadingState] Effect: expanding reasoning (hasReasoning && loading/reasoning phase)"
         );
       }
       setShowReasoning(true);
@@ -136,13 +138,14 @@ export function AssistantLoadingState({
           "[AssistantLoadingState] Effect: scheduling reasoning collapse (streaming phase)"
         );
       }
+      // 800ms delay for smoother transition when content starts streaming
       const t = setTimeout(() => {
         if (DEBUG_RENDERS) {
           // biome-ignore lint/suspicious/noConsole: Intentional debug logging
           console.log("[AssistantLoadingState] Effect: collapsing reasoning");
         }
         setShowReasoning(false);
-      }, 120);
+      }, 800);
       return () => clearTimeout(t);
     }
     return;

@@ -10,7 +10,6 @@ export function isMessageMetadata(x: unknown): x is {
   finishReason?: string;
   stopped?: boolean;
   tokenCount?: number;
-  reasoningTokenCount?: number;
   duration?: number;
   searchQuery?: string;
   searchFeature?: string;

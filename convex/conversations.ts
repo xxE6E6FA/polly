@@ -17,7 +17,13 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import { getApiKey } from "./ai/encryption";
 import { withRetry } from "./ai/error_handlers";
+import {
+  createLanguageModel,
+  getProviderStreamOptions,
+} from "./ai/server_streaming";
+import { streamLLMToMessage } from "./ai/streaming_core";
 import {
   processBulkDelete,
   scheduleBackgroundBulkDelete,
@@ -30,7 +36,6 @@ import {
   executeStreamingActionForRetry,
   incrementUserMessageStats,
   processAttachmentsForStorage,
-  streamAndSaveMessage,
 } from "./lib/conversation_utils";
 import { getUserEffectiveModelWithCapabilities } from "./lib/model_resolution";
 import {
@@ -591,13 +596,50 @@ export const streamMessage = internalAction({
     reasoningConfig: v.optional(reasoningConfigSchema),
   },
   handler: async (ctx, args) => {
+    const { messageId, conversationId, model: modelId, provider } = args;
+
     try {
-      await streamAndSaveMessage(ctx, {
-        ...args,
-        messages: args.messages as Array<{
-          role: "system" | "user" | "assistant";
-          content: string | unknown[];
-        }>,
+      // 1. Get API key for the provider
+      const apiKey = await getApiKey(
+        ctx,
+        provider as Parameters<typeof getApiKey>[1],
+        modelId,
+        conversationId
+      );
+
+      // 2. Create language model
+      const languageModel = await createLanguageModel(
+        ctx,
+        provider as Parameters<typeof createLanguageModel>[1],
+        modelId,
+        apiKey
+      );
+
+      // 3. Get reasoning stream options if enabled
+      const reasoningConfig = args.reasoningConfig?.enabled
+        ? {
+            effort: args.reasoningConfig.effort,
+            maxTokens: args.reasoningConfig.maxTokens,
+          }
+        : undefined;
+
+      const streamOptions = await getProviderStreamOptions(
+        ctx,
+        provider as Parameters<typeof getProviderStreamOptions>[1],
+        modelId,
+        reasoningConfig
+      );
+
+      // 4. Stream using consolidated streaming_core
+      await streamLLMToMessage({
+        ctx,
+        conversationId,
+        messageId,
+        model: languageModel,
+        messages: args.messages as Parameters<
+          typeof streamLLMToMessage
+        >[0]["messages"],
+        extraOptions: streamOptions,
       });
     } finally {
       await ctx.runMutation(internal.conversations.internalPatch, {
@@ -631,7 +673,6 @@ export async function savePrivateConversationHandler(
       citations?: Citation[];
       metadata?: {
         tokenCount?: number;
-        reasoningTokenCount?: number;
         finishReason?: string;
         duration?: number;
         stopped?: boolean;
@@ -703,7 +744,6 @@ export async function savePrivateConversationHandler(
     citations?: Citation[];
     metadata?: {
       tokenCount?: number;
-      reasoningTokenCount?: number;
       finishReason?: string;
       duration?: number;
       stopped?: boolean;

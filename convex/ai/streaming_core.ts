@@ -53,6 +53,13 @@ export async function streamLLMToMessage({
     updates: { isStreaming: true },
   });
 
+  // Timing metrics
+  const startTime = Date.now();
+  let firstTokenTime: number | undefined;
+  let reasoningStartTime: number | undefined;
+  let reasoningEndTime: number | undefined;
+  let hasReceivedContent = false;
+
   // Lightweight batching buffers
   let contentBuf = "";
   let reasoningBuf = "";
@@ -132,6 +139,15 @@ export async function streamLLMToMessage({
       onChunk: async ({ chunk }) => {
         if (stopped) return;
 
+        // Track first token time for any meaningful chunk
+        if (
+          !firstTokenTime &&
+          (isReasoningDelta(chunk) ||
+            (chunk.type === "text-delta" && chunk.text))
+        ) {
+          firstTokenTime = Date.now();
+        }
+
         if (!setStreaming) {
           setStreaming = true;
           await ctx.runMutation(internal.messages.updateMessageStatus, {
@@ -142,6 +158,10 @@ export async function streamLLMToMessage({
 
         // Reasoning chunks (v5 uses "reasoning-delta" type)
         if (isReasoningDelta(chunk)) {
+          // Track when reasoning starts
+          if (!reasoningStartTime) {
+            reasoningStartTime = Date.now();
+          }
           reasoningBuf += humanizeReasoningText(chunk.text);
           if (reasoningBuf.length >= DEFAULT_STREAM_CONFIG.BATCH_SIZE) {
             await flushReasoning();
@@ -151,6 +171,12 @@ export async function streamLLMToMessage({
 
         // Text deltas (v5 uses "text" property instead of "textDelta")
         if (chunk.type === "text-delta" && chunk.text) {
+          // Track when content starts (marks end of reasoning phase)
+          if (!hasReceivedContent && reasoningStartTime && !reasoningEndTime) {
+            reasoningEndTime = Date.now();
+          }
+          hasReceivedContent = true;
+
           contentBuf += chunk.text;
           chunkCounter++;
           if (
@@ -172,6 +198,24 @@ export async function streamLLMToMessage({
         if (stopped) return;
         await flushReasoning();
         await flushContent();
+
+        // Calculate timing metrics
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        const timeToFirstTokenMs = firstTokenTime
+          ? firstTokenTime - startTime
+          : undefined;
+        const totalTokens = usage?.totalTokens ?? 0;
+        const tokensPerSecond =
+          duration > 0 ? totalTokens / (duration / 1000) : 0;
+
+        // Calculate thinking duration (reasoning phase)
+        const thinkingDurationMs =
+          reasoningStartTime && reasoningEndTime
+            ? reasoningEndTime - reasoningStartTime
+            : reasoningStartTime
+              ? endTime - reasoningStartTime // If no content, reasoning lasted until the end
+              : undefined;
 
         // Use AI SDK v5's rich metadata for comprehensive final state
         await ctx.runMutation(internal.messages.internalUpdate, {
@@ -207,6 +251,11 @@ export async function streamLLMToMessage({
               }
               return String(w);
             }),
+            // Timing metrics
+            timeToFirstTokenMs,
+            tokensPerSecond,
+            thinkingDurationMs,
+            duration,
           },
         });
         await ctx.runMutation(internal.messages.updateMessageStatus, {

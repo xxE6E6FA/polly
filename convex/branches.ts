@@ -78,7 +78,6 @@ export async function internalCloneMessagesHandler(
       }>;
       metadata?: {
         tokenCount?: number;
-        reasoningTokenCount?: number;
         finishReason?: string;
         duration?: number;
         stopped?: boolean;

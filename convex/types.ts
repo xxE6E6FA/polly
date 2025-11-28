@@ -392,7 +392,6 @@ export type MessageDoc = {
   citations?: Citation[];
   metadata?: {
     tokenCount?: number;
-    reasoningTokenCount?: number;
     finishReason?: string;
     duration?: number;
     stopped?: boolean;

@@ -98,13 +98,19 @@ export const Reasoning = ({
   }, [isLoading, reasoningLength]);
 
   const displayLabel = useMemo(() => {
-    const ms =
-      finalDurationMs && finalDurationMs > 0 ? finalDurationMs : elapsedMs;
-    const secs = Math.max(0, Math.round(ms / 1000));
-    if (secs <= 0) {
-      return undefined;
+    // Priority: server-provided duration > client-side elapsed time
+    // Server duration is authoritative once available
+    if (finalDurationMs && finalDurationMs > 0) {
+      return `${Math.round(finalDurationMs / 1000)}s`;
     }
-    return `${secs}s`;
+
+    // While loading or after loading stops, use client elapsed time
+    // The timer freezes when loading stops, keeping the last value
+    if (elapsedMs > 0) {
+      return `${Math.round(elapsedMs / 1000)}s`;
+    }
+
+    return undefined;
   }, [elapsedMs, finalDurationMs]);
 
   // Don't show a secondary "thinking" state; only render when there is content

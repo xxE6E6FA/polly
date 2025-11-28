@@ -184,7 +184,6 @@ export const webCitationSchema = v.object({
 // Message metadata schema
 export const messageMetadataSchema = v.object({
   tokenCount: v.optional(v.number()),
-  reasoningTokenCount: v.optional(v.number()),
   finishReason: v.optional(v.string()),
   duration: v.optional(v.number()),
   thinkingDurationMs: v.optional(v.number()),
@@ -200,7 +199,6 @@ export const messageMetadataSchema = v.object({
 // Extended message metadata schema with status field
 export const extendedMessageMetadataSchema = v.object({
   tokenCount: v.optional(v.number()),
-  reasoningTokenCount: v.optional(v.number()),
   finishReason: v.optional(v.string()),
   duration: v.optional(v.number()),
   thinkingDurationMs: v.optional(v.number()),

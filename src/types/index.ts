@@ -214,7 +214,6 @@ export type ChatMessage = {
   error?: string; // Error message for failed text-to-text requests
   metadata?: {
     tokenCount?: number;
-    reasoningTokenCount?: number;
     finishReason?: string;
     duration?: number;
     thinkingDurationMs?: number;
@@ -339,11 +338,19 @@ export type StreamOptions = {
   reasoningConfig?: ReasoningConfig;
 };
 
+export type StreamTokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  reasoningTokens?: number;
+  cachedInputTokens?: number;
+};
+
 export type StreamCallbacks = {
   onContent: (content: string) => void;
   onReasoning?: (reasoning: string) => void;
   onCitations?: (citations: WebSearchCitation[]) => void;
-  onFinish: (finishReason: string) => void;
+  onFinish: (finishReason: string, tokenUsage?: StreamTokenUsage) => void;
   onError: (error: Error) => void;
 };
 

@@ -12,7 +12,7 @@ import {
   normalizeStreamingOptions,
 } from "@shared/streaming-utils";
 import { type ModelMessage, streamText } from "ai";
-import type { APIKeys, ChatStreamRequest } from "@/types";
+import type { APIKeys, ChatStreamRequest, StreamTokenUsage } from "@/types";
 
 export async function streamChat(
   request: ChatStreamRequest,
@@ -62,6 +62,10 @@ export async function streamChat(
         ?.repetitionPenalty,
     });
 
+    // Track token usage from onFinish handler
+    let capturedTokenUsage: StreamTokenUsage | undefined;
+    let capturedFinishReason = "stop";
+
     const result = streamText({
       model: languageModel,
       messages: convertedMessages,
@@ -70,6 +74,18 @@ export async function streamChat(
       abortSignal: abortController.signal,
       experimental_transform: createSmoothStreamTransform(),
       onChunk: createReasoningChunkHandler(callbacks.onReasoning),
+      onFinish: ({ usage, finishReason }) => {
+        capturedFinishReason = finishReason || "stop";
+        if (usage) {
+          capturedTokenUsage = {
+            inputTokens: usage.inputTokens ?? 0,
+            outputTokens: usage.outputTokens ?? 0,
+            totalTokens: usage.totalTokens ?? 0,
+            reasoningTokens: usage.reasoningTokens,
+            cachedInputTokens: usage.cachedInputTokens,
+          };
+        }
+      },
     });
 
     let wasAborted = false;
@@ -81,7 +97,10 @@ export async function streamChat(
       callbacks.onContent(chunk);
     }
 
-    callbacks.onFinish(wasAborted ? "stop" : "stop");
+    callbacks.onFinish(
+      wasAborted ? "stop" : capturedFinishReason,
+      capturedTokenUsage
+    );
   } catch (error) {
     // Use shared abort error check
     if (isAbortError(error)) {
