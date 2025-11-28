@@ -18,6 +18,7 @@ import { CONFIG } from "./ai/config";
 import { getApiKey } from "./ai/encryption";
 import { withRetry } from "./ai/error_handlers";
 import { createLanguageModel } from "./ai/server_streaming";
+import { createUserFileEntriesHandler } from "./fileStorage";
 import {
   checkConversationAccess,
   getPersonaPrompt,
@@ -1954,6 +1955,9 @@ export const addAttachments = internalMutation({
           .map(a => a.url)
       );
 
+      // Track which attachments are actually new (for creating userFiles entries)
+      const newAttachments: typeof attachments = [];
+
       const merged: typeof existingAttachments = [...existingAttachments];
       for (const att of attachments) {
         // If this is a generated image and we already have an image with the same URL, skip it
@@ -1973,6 +1977,7 @@ export const addAttachments = internalMutation({
           existingGeneratedUrls.add(att.url);
         }
         merged.push(att);
+        newAttachments.push(att);
       }
 
       const updatedAttachments = merged;
@@ -1980,6 +1985,20 @@ export const addAttachments = internalMutation({
       await ctx.db.patch(messageId, {
         attachments: updatedAttachments,
       });
+
+      // Create userFiles entries for new attachments (enables file library features)
+      // This is especially important for generated images which bypass the normal upload flow
+      if (newAttachments.length > 0) {
+        const conversation = await ctx.db.get(message.conversationId);
+        if (conversation) {
+          await createUserFileEntriesHandler(ctx, {
+            userId: conversation.userId,
+            messageId,
+            conversationId: message.conversationId,
+            attachments: newAttachments,
+          });
+        }
+      }
     } catch (error) {
       console.error("[addAttachments] Error:", error);
       throw new ConvexError(
@@ -2057,6 +2076,11 @@ export const removeAttachment = mutation({
         throw new Error("Access denied");
       }
 
+      // Find the attachment being removed to get its storageId
+      const attachmentToRemove = (message.attachments || []).find(
+        attachment => attachment.name === attachmentName
+      );
+
       // Filter out the specific attachment by name
       const updatedAttachments = (message.attachments || []).filter(
         attachment => attachment.name !== attachmentName
@@ -2066,6 +2090,20 @@ export const removeAttachment = mutation({
       await ctx.db.patch(messageId, {
         attachments: updatedAttachments,
       });
+
+      // Also delete the corresponding userFiles entry to keep tables in sync
+      // This prevents broken image links in the file library
+      if (attachmentToRemove?.storageId) {
+        const userFileEntry = await ctx.db
+          .query("userFiles")
+          .withIndex("by_message", q => q.eq("messageId", messageId))
+          .filter(q => q.eq(q.field("storageId"), attachmentToRemove.storageId))
+          .unique();
+
+        if (userFileEntry) {
+          await ctx.db.delete(userFileEntry._id);
+        }
+      }
     } catch (error) {
       console.error("[removeAttachment] Error:", error);
       throw new ConvexError(

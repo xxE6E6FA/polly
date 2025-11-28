@@ -357,6 +357,12 @@ export async function getUserFilesHandler(
         const fileMetadata = await ctx.db.system.get(file.storageId);
         const fileUrl = await ctx.storage.getUrl(file.storageId);
 
+        // Skip files where storage file no longer exists (was deleted)
+        // This prevents broken image links in the file library
+        if (!fileUrl) {
+          return null;
+        }
+
         // Get the attachment data from the message for full details
         const message = await ctx.db.get(file.messageId);
         const attachment = message?.attachments?.find(
@@ -369,7 +375,7 @@ export async function getUserFilesHandler(
             type: file.type,
             name: file.name,
             size: file.size,
-            url: fileUrl ?? "",
+            url: fileUrl,
             storageId: file.storageId,
             mimeType: file.mimeType,
             generatedImage: file.isGenerated
@@ -395,8 +401,19 @@ export async function getUserFilesHandler(
 
   const files = filesWithMetadata.filter(isNonNull);
 
+  // Deduplicate by storageId - files can appear multiple times when conversations are cloned
+  // Keep the first occurrence (most recent due to sorting) for each unique storageId
+  const seenStorageIds = new Set<Id<"_storage">>();
+  const deduplicatedFiles = files.filter(file => {
+    if (seenStorageIds.has(file.storageId)) {
+      return false;
+    }
+    seenStorageIds.add(file.storageId);
+    return true;
+  });
+
   return {
-    page: files,
+    page: deduplicatedFiles,
     isDone: paginatedResult.isDone,
     continueCursor: paginatedResult.continueCursor,
   };
