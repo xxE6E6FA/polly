@@ -54,12 +54,13 @@ const getButtonContent = ({
     return (
       <>
         <div className="absolute inset-0 flex items-center justify-center">
-          <Spinner
-            variant="white"
-            className="h-full w-full [&_svg]:h-full [&_svg]:w-full"
-          />
+          <Spinner className="h-full w-full [&_svg]:h-full [&_svg]:w-full" />
         </div>
-        <SquareIcon className="w-3 h-3" weight="fill" aria-hidden="true" />
+        <SquareIcon
+          className="w-3 h-3 text-primary"
+          weight="fill"
+          aria-hidden="true"
+        />
       </>
     );
   }
