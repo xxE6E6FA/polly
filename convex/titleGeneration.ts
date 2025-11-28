@@ -30,13 +30,22 @@ async function generateTitleHelper(message: string): Promise<string> {
               {
                 parts: [
                   {
-                    text: `Generate a concise, descriptive title (max 60 characters) for a conversation that starts with this message. Only return the title, no quotes or extra text:\n\n"${message}"`,
+                    text: `Generate a short title (2-5 words, max 40 characters) for this chat message. Be direct and specific. Avoid phrases like "Discussion about", "Help with", or "Question regarding".
+
+Examples of good titles:
+- "React Router Migration"
+- "Fix Login Bug"
+- "Database Schema Design"
+
+Message: "${message}"
+
+Title:`,
                   },
                 ],
               },
             ],
             generationConfig: {
-              maxOutputTokens: 20,
+              maxOutputTokens: 10,
               temperature: 0.3,
             },
           }),
@@ -60,16 +69,16 @@ async function generateTitleHelper(message: string): Promise<string> {
       // Fallback to simple title generation
       const clean = message.replace(/[#*`]/g, "").trim();
       generatedTitle =
-        clean.length > 60
-          ? `${clean.substring(0, 57)}...`
+        clean.length > 40
+          ? `${clean.substring(0, 37)}...`
           : clean || "New conversation";
     }
   } else {
     // Fallback to simple title generation if no API key
     const clean = message.replace(/[#*`]/g, "").trim();
     generatedTitle =
-      clean.length > 60
-        ? `${clean.substring(0, 57)}...`
+      clean.length > 40
+        ? `${clean.substring(0, 37)}...`
         : clean || "New conversation";
   }
 
@@ -143,7 +152,7 @@ export const generateTitleBackground = action({
         );
       } else {
         // Final fallback - set a simple title
-        const fallbackTitle = args.message.slice(0, 60) || "New conversation";
+        const fallbackTitle = args.message.slice(0, 40) || "New conversation";
         await ctx.runMutation(internal.conversations.internalPatch, {
           id: args.conversationId,
           updates: { title: fallbackTitle },
