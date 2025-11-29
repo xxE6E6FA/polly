@@ -258,3 +258,24 @@ export function getFileLanguage(fileName: string): string {
   const extension = fileName.split(".").pop()?.toLowerCase() || "";
   return FILE_EXTENSION_TO_LANGUAGE[extension] || "text";
 }
+
+/**
+ * Truncates a filename in the middle, preserving the extension.
+ * Example: "very-long-filename.tsx" -> "very-l....tsx"
+ */
+export function truncateMiddle(filename: string, maxLength = 20): string {
+  if (filename.length <= maxLength) {
+    return filename;
+  }
+
+  const lastDotIndex = filename.lastIndexOf(".");
+  const extension = lastDotIndex > -1 ? filename.slice(lastDotIndex) : "";
+  const nameWithoutExt =
+    lastDotIndex > -1 ? filename.slice(0, lastDotIndex) : filename;
+
+  // Calculate how many characters we can show from the start
+  const availableSpace = maxLength - extension.length - 3; // 3 for "..."
+  const startChars = Math.max(availableSpace, 5); // Show at least 5 chars from start
+
+  return `${nameWithoutExt.slice(0, startChars)}...${extension}`;
+}

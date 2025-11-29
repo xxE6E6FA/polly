@@ -471,24 +471,23 @@ export default function AttachmentsPage() {
         mobileTitleRender={file => (
           <div className="flex items-center gap-2">
             <div className="flex-shrink-0">
-              {file.attachment.type === "image" ? (
-                <ImageThumbnail
-                  attachment={file.attachment}
-                  className="h-10 w-10 rounded border bg-muted/20 object-cover"
-                  onClick={() => setPreviewFile(file)}
-                />
-              ) : (
-                <button
-                  onClick={e => {
-                    e.stopPropagation();
-                    setPreviewFile(file);
-                  }}
-                  className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
-                  type="button"
-                >
-                  {getFileAttachmentIcon(file.attachment)}
-                </button>
-              )}
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  setPreviewFile(file);
+                }}
+                className="h-10 w-10 rounded border bg-muted/20 flex items-center justify-center hover:bg-muted/30 transition-colors"
+                type="button"
+              >
+                {file.attachment.type === "image" ? (
+                  <ImageThumbnail
+                    attachment={file.attachment}
+                    className="h-full w-full rounded object-cover"
+                  />
+                ) : (
+                  getFileAttachmentIcon(file.attachment)
+                )}
+              </button>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 min-w-0">
@@ -575,11 +574,19 @@ export default function AttachmentsPage() {
                   <div className="flex-shrink-0">
                     <div className="h-8 w-8 rounded border bg-muted/20 flex items-center justify-center">
                       {file.attachment.type === "image" ? (
-                        <ImageThumbnail
-                          attachment={file.attachment}
-                          className="h-full w-full rounded object-cover"
-                          onClick={() => setPreviewFile(file)}
-                        />
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPreviewFile(file);
+                          }}
+                          className="flex h-full w-full items-center justify-center hover:bg-muted/30 transition-colors rounded"
+                          type="button"
+                        >
+                          <ImageThumbnail
+                            attachment={file.attachment}
+                            className="h-full w-full rounded object-cover"
+                          />
+                        </button>
                       ) : (
                         <button
                           onClick={e => {

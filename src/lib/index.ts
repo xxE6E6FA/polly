@@ -50,6 +50,7 @@ export {
   getFileLanguage,
   readFileAsBase64,
   readFileAsText,
+  truncateMiddle,
 } from "./file-utils";
 
 // =============================================================================

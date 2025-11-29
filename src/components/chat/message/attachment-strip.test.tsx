@@ -13,7 +13,6 @@ type FileDisplayProps = {
 type ImageThumbnailProps = {
   attachment: Attachment;
   className?: string;
-  onClick?: () => void;
 };
 
 // Mock the child components
@@ -28,13 +27,11 @@ mock.module("@/components/files/file-display", () => ({
       File: {attachment.name}
     </div>
   ),
-  ImageThumbnail: ({ attachment, className, onClick }: ImageThumbnailProps) => (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Test mock component
+  ImageThumbnail: ({ attachment, className }: ImageThumbnailProps) => (
     <div
       data-testid="image-thumbnail"
       data-attachment-name={attachment.name}
       className={className}
-      onClick={onClick}
     >
       Thumbnail: {attachment.name}
     </div>
@@ -207,10 +204,11 @@ describe("AttachmentStrip", () => {
     const buttons = screen.getAllByRole("button");
     const firstButton = buttons[0];
     const secondButton = buttons[1];
-    expect(firstButton?.className).toContain("ring-emerald-200/30");
-    expect(firstButton?.className).toContain("bg-emerald-50/50");
-    expect(secondButton?.className).toContain("ring-slate-200/30");
-    expect(secondButton?.className).toContain("bg-slate-50/50");
+    // Image attachments have no padding
+    expect(firstButton?.className).toContain("p-0");
+    // File attachments have muted background and padding
+    expect(secondButton?.className).toContain("bg-muted/50");
+    expect(secondButton?.className).toContain("pl-2");
   });
 
   test("applies custom className", () => {

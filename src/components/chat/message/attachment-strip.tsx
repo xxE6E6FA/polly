@@ -1,37 +1,27 @@
+import { XIcon } from "@phosphor-icons/react";
 import { memo, useCallback } from "react";
 import { FileDisplay, ImageThumbnail } from "@/components/files/file-display";
+import { truncateMiddle } from "@/lib";
 import { cn } from "@/lib/utils";
 import type { Attachment } from "@/types";
-
-const truncateMiddle = (filename: string, maxLength = 20) => {
-  if (filename.length <= maxLength) {
-    return filename;
-  }
-
-  const lastDotIndex = filename.lastIndexOf(".");
-  const extension = lastDotIndex > -1 ? filename.slice(lastDotIndex) : "";
-  const nameWithoutExt =
-    lastDotIndex > -1 ? filename.slice(0, lastDotIndex) : filename;
-
-  // Calculate how many characters we can show from the start
-  const availableSpace = maxLength - extension.length - 3; // 3 for "..."
-  const startChars = Math.max(availableSpace, 5); // Show at least 5 chars from start
-
-  return `${nameWithoutExt.slice(0, startChars)}...${extension}`;
-};
 
 type AttachmentStripProps = {
   attachments?: Attachment[];
   variant?: "user" | "assistant";
   onPreviewFile?: (attachment: Attachment) => void;
+  onRemove?: (index: number) => void;
   className?: string;
+  /** Optional render prop for custom overlay (e.g., upload progress) */
+  renderOverlay?: (attachment: Attachment, index: number) => React.ReactNode;
 };
 
 const AttachmentStripComponent = ({
   attachments,
   variant = "user",
   onPreviewFile,
+  onRemove,
   className,
+  renderOverlay,
 }: AttachmentStripProps) => {
   const handleFileClick = useCallback(
     (attachment: Attachment) => {
@@ -60,50 +50,108 @@ const AttachmentStripComponent = ({
     );
   }
 
-  // Assistant attachments - enhanced style with image thumbnails
+  // Assistant attachments - compact style with thumbnails
   return (
-    <div className={`mt-2 flex flex-wrap gap-2 ${className || ""}`}>
-      {attachments.map((attachment, index) => (
-        <button
-          key={attachment.name || attachment.url || `attachment-${index}`}
-          className={cn(
-            "group relative flex items-center gap-2 rounded-lg shadow-sm transition-all duration-200 cursor-pointer hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            attachment.type === "image"
-              ? "p-1.5 ring-1 ring-emerald-200/30 bg-emerald-50/50 hover:bg-emerald-100/50 dark:ring-emerald-800/30 dark:bg-emerald-950/20 dark:hover:bg-emerald-900/30"
-              : "px-2.5 py-1 text-xs ring-1 ring-slate-200/30 bg-slate-50/50 hover:bg-slate-100/50 dark:ring-slate-800/30 dark:bg-slate-950/20 dark:hover:bg-slate-900/30"
-          )}
-          onClick={() => handleFileClick(attachment)}
-          type="button"
-        >
+    <div className={cn("mt-2 flex flex-wrap gap-2", className)}>
+      {attachments.map((attachment, index) => {
+        const isImage = attachment.type === "image";
+        return (
           <div
-            className={cn(
-              "flex items-center flex-1 min-w-0",
-              attachment.type === "image" ? "gap-2" : "gap-1.5"
-            )}
+            key={attachment.name || attachment.url || `attachment-${index}`}
+            className="group relative flex h-14 items-center"
           >
-            <ImageThumbnail
-              attachment={attachment}
-              className={attachment.type === "image" ? "h-12 w-12" : "h-4 w-4"}
+            <button
+              className={cn(
+                "flex h-full items-center overflow-hidden rounded-md transition-colors cursor-pointer",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                isImage ? "p-0" : "gap-2 pl-2 pr-1 bg-muted/50 hover:bg-muted"
+              )}
               onClick={() => handleFileClick(attachment)}
-            />
-            {/* Only show name for non-image attachments with middle truncation */}
-            {attachment.type !== "image" && (
-              <span
-                className="text-xs font-medium text-foreground"
-                title={attachment.name}
+              type="button"
+            >
+              <div className="relative">
+                <ImageThumbnail
+                  attachment={attachment}
+                  className={cn(
+                    isImage ? "h-14 w-14" : "h-5 w-5",
+                    renderOverlay?.(attachment, index) && "opacity-60"
+                  )}
+                />
+                {renderOverlay?.(attachment, index)}
+              </div>
+              {/* Only show name for non-image attachments */}
+              {!isImage && (
+                <>
+                  <span
+                    className="text-xs text-foreground/80"
+                    title={attachment.name}
+                  >
+                    {truncateMiddle(attachment.name, 16)}
+                  </span>
+                  {onRemove && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded-full",
+                        "text-muted-foreground hover:bg-black/70 hover:text-white",
+                        "sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+                      )}
+                      onClick={e => {
+                        e.stopPropagation();
+                        onRemove(index);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onRemove(index);
+                        }
+                      }}
+                      aria-label={`Remove ${attachment.name}`}
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </span>
+                  )}
+                </>
+              )}
+            </button>
+            {/* Overlay close button for images only */}
+            {isImage && onRemove && (
+              <button
+                type="button"
+                className={cn(
+                  "absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full",
+                  "bg-black/70 text-white hover:bg-destructive",
+                  "sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+                )}
+                onClick={e => {
+                  e.stopPropagation();
+                  onRemove(index);
+                }}
+                aria-label={`Remove ${attachment.name}`}
               >
-                {truncateMiddle(attachment.name, 16)}
-              </span>
+                <XIcon className="h-3 w-3" />
+              </button>
             )}
           </div>
-        </button>
-      ))}
+        );
+      })}
     </div>
   );
 };
 
 export const AttachmentStrip = memo(AttachmentStripComponent, (prev, next) => {
   if (prev.variant !== next.variant || prev.className !== next.className) {
+    return false;
+  }
+  if (prev.onPreviewFile !== next.onPreviewFile) {
+    return false;
+  }
+  if (prev.onRemove !== next.onRemove) {
+    return false;
+  }
+  if (prev.renderOverlay !== next.renderOverlay) {
     return false;
   }
   const a = prev.attachments || [];
@@ -116,5 +164,5 @@ export const AttachmentStrip = memo(AttachmentStripComponent, (prev, next) => {
       return false;
     }
   }
-  return prev.onPreviewFile === next.onPreviewFile;
+  return true;
 });

@@ -136,13 +136,11 @@ export const FileDisplay = ({
 type ImageThumbnailProps = {
   attachment: Attachment;
   className?: string;
-  onClick?: () => void;
 };
 
 export const ImageThumbnail = ({
   attachment,
   className = "",
-  onClick,
 }: ImageThumbnailProps) => {
   // If we have a storageId, get the URL from Convex
   const convexFileUrl = useQuery(
@@ -184,14 +182,9 @@ export const ImageThumbnail = ({
 
   if (attachment.type === "image" && thumbnailUrl) {
     return (
-      <button
-        className={`relative flex-shrink-0 cursor-pointer overflow-hidden rounded bg-card shadow-sm ring-1 ring-border ${className}`}
+      <div
+        className={`relative flex-shrink-0 overflow-hidden rounded-md ${className}`}
         title={attachment.name}
-        onClick={e => {
-          e.stopPropagation();
-          onClick?.();
-        }}
-        type="button"
       >
         <img
           alt={attachment.name}
@@ -199,7 +192,7 @@ export const ImageThumbnail = ({
           loading="lazy"
           src={thumbnailUrl}
         />
-      </button>
+      </div>
     );
   }
 

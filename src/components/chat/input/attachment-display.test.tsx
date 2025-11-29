@@ -231,24 +231,6 @@ describe("AttachmentDisplay", () => {
     expect(screen.queryByTestId("attachment-gallery")).toBeNull();
   });
 
-  test("applies different styles for image vs file attachments", () => {
-    const { container } = render(
-      <AttachmentDisplay
-        attachments={[imageAttachment, pdfAttachment]}
-        onRemoveAttachment={mockOnRemoveAttachment}
-      />
-    );
-    const items = container.querySelectorAll(".group");
-    const firstItem = items[0];
-    const secondItem = items[1];
-    expect(firstItem).toBeDefined();
-    expect(secondItem).toBeDefined();
-    if (firstItem && secondItem) {
-      expect(firstItem.className).toContain("emerald");
-      expect(secondItem.className).toContain("slate");
-    }
-  });
-
   test("memoization prevents unnecessary re-renders", () => {
     const { rerender } = render(
       <AttachmentDisplay
