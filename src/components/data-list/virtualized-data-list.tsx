@@ -1,17 +1,8 @@
-import { usePaginatedQuery } from "convex/react";
 import type { FunctionReference } from "convex/server";
 import type React from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import {
-  Virtualizer,
-  type VirtualizerHandle,
-  WindowVirtualizer,
-  type WindowVirtualizerHandle,
-} from "virtua";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import type { SortDirection } from "@/hooks/use-list-sort";
-import { useScrollContainer } from "@/providers/scroll-container-context";
+import { useVirtualizedPaginatedQuery } from "@/hooks/use-virtualized-paginated-query";
 import type { MobileDrawerConfig } from "./data-list-mobile-drawer";
 import { DataListMobileRow } from "./data-list-mobile-row";
 import { generateGridTemplate } from "./grid-utils";
@@ -23,6 +14,7 @@ import { ListRow } from "./list-row";
 import { SelectAllCheckbox } from "./select-all-checkbox";
 import { SelectionCheckbox } from "./selection-checkbox";
 import { SortableHeader } from "./sortable-header";
+import { VirtualizedContainer } from "./virtualized-container";
 
 export interface VirtualizedDataListColumn<
   TItem,
@@ -126,147 +118,24 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
   className,
   scrollContainerRef,
 }: VirtualizedDataListProps<TItem, TField>) {
-  const windowVirtualizerRef = useRef<WindowVirtualizerHandle>(null);
-  const containerVirtualizerRef = useRef<VirtualizerHandle>(null);
-  const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const listContainerRef = useRef<HTMLDivElement>(null);
-  const [measuredStartMargin, setMeasuredStartMargin] = useState(0);
-
-  // Use explicit scrollContainerRef prop or fall back to context (for mobile carousel slides)
-  const scrollContainerContext = useScrollContainer();
-
-  // Determine if we should use container-based virtualization
-  // Check based on prop or context presence, not ref.current value (which may not be set yet)
-  const useContainerScroll =
-    !!scrollContainerRef || scrollContainerContext?.isInScrollContainerContext;
-
-  // Get the effective scroll ref for the Virtualizer
-  const effectiveScrollContainerRef =
-    scrollContainerRef ?? scrollContainerContext?.ref;
-
-  // Auto-measure startMargin for container-based scroll when not explicitly provided
-  useLayoutEffect(() => {
-    // Skip if startMargin is explicitly provided or not using container scroll
-    if (startMarginProp !== undefined || !useContainerScroll) {
-      return;
-    }
-
-    const listContainer = listContainerRef.current;
-    if (!listContainer) {
-      return;
-    }
-
-    const measureOffset = () => {
-      const scrollContainer = effectiveScrollContainerRef?.current;
-      if (!scrollContainer) {
-        return;
-      }
-
-      // Measure offset from scroll container top to list container top
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const listRect = listContainer.getBoundingClientRect();
-      const offset =
-        listRect.top - containerRect.top + scrollContainer.scrollTop;
-      setMeasuredStartMargin(Math.max(0, Math.round(offset)));
-    };
-
-    // Measure immediately
-    measureOffset();
-
-    // Re-measure on resize
-    const resizeObserver = new ResizeObserver(() => {
-      measureOffset();
-    });
-
-    resizeObserver.observe(listContainer);
-
-    const scrollContainer = effectiveScrollContainerRef?.current;
-    if (scrollContainer) {
-      resizeObserver.observe(scrollContainer);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [startMarginProp, useContainerScroll, effectiveScrollContainerRef]);
-
-  // Use explicit prop if provided, otherwise use measured value
-  const startMargin = startMarginProp ?? measuredStartMargin;
-
-  // biome-ignore lint/suspicious/noExplicitAny: Required to bypass Convex's strict PaginatedQueryReference type
-  const paginatedResult = usePaginatedQuery(query as any, queryArgs, {
+  // Use the base hook for pagination and scroll handling
+  const {
+    results,
+    isLoading,
+    isLoadingMore,
+    useContainerScroll,
+    effectiveScrollContainerRef,
+    startMargin,
+    listContainerRef,
+  } = useVirtualizedPaginatedQuery<TItem>({
+    query,
+    queryArgs,
     initialNumItems,
+    loadMoreCount,
+    loadMoreThreshold,
+    scrollContainerRef,
+    startMargin: startMarginProp,
   });
-
-  const results = paginatedResult.results as TItem[];
-  const isLoading = paginatedResult.status === "LoadingFirstPage";
-  const isLoadingMore = paginatedResult.status === "LoadingMore";
-  const canLoadMore = paginatedResult.status === "CanLoadMore";
-
-  // Use refs for values needed in scroll handler to avoid effect re-runs
-  const canLoadMoreRef = useRef(canLoadMore);
-  const loadMoreRef = useRef(paginatedResult.loadMore);
-
-  // Keep refs in sync
-  canLoadMoreRef.current = canLoadMore;
-  loadMoreRef.current = paginatedResult.loadMore;
-
-  // Handle scroll to detect when near bottom (supports both window and container scroll)
-  useEffect(() => {
-    const scrollContainer = effectiveScrollContainerRef?.current;
-
-    const handleScroll = () => {
-      // Only load more if we can and aren't already loading
-      if (!canLoadMoreRef.current) {
-        return;
-      }
-
-      // Prevent duplicate calls with throttle
-      if (throttleTimerRef.current) {
-        return;
-      }
-
-      let distanceFromBottom: number;
-
-      if (scrollContainer) {
-        // Container scroll mode
-        const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-        distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      } else {
-        // Window scroll mode
-        const scrollTop = window.scrollY;
-        const windowHeight = window.innerHeight;
-        const documentHeight = document.documentElement.scrollHeight;
-        distanceFromBottom = documentHeight - scrollTop - windowHeight;
-      }
-
-      if (distanceFromBottom < loadMoreThreshold) {
-        loadMoreRef.current(loadMoreCount);
-
-        throttleTimerRef.current = setTimeout(() => {
-          throttleTimerRef.current = null;
-        }, 300);
-      }
-    };
-
-    const target = scrollContainer ?? window;
-    target.addEventListener("scroll", handleScroll, { passive: true });
-    // Check immediately in case we're already near the bottom
-    handleScroll();
-
-    return () => {
-      target.removeEventListener("scroll", handleScroll);
-    };
-  }, [loadMoreThreshold, loadMoreCount, effectiveScrollContainerRef]);
-
-  // Cleanup throttle timer on unmount
-  useEffect(() => {
-    return () => {
-      if (throttleTimerRef.current) {
-        clearTimeout(throttleTimerRef.current);
-      }
-    };
-  }, []);
 
   const hasSelection = !!selection;
 
@@ -336,69 +205,59 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
       );
     }
 
-    // Render items for virtualization
-    const renderItems = () =>
-      results.map((item: TItem) => {
-        const key = getItemKey(item);
-        const isSelected = selection?.isSelected(item) ?? false;
+    // Render item for virtualization
+    const renderItem = (item: TItem) => {
+      const key = getItemKey(item);
+      const isSelected = selection?.isSelected(item) ?? false;
 
-        return (
-          <ListRow
-            key={key}
-            selected={isSelected}
-            onClick={onRowClick ? () => onRowClick(item) : undefined}
-            gridTemplate={gridTemplate}
-          >
-            {/* Desktop Table Layout */}
-            <div className="hidden lg:contents">
-              {hasSelection && (
-                <SelectionCheckbox
-                  checked={isSelected}
-                  onToggle={() => selection.toggleItem(item)}
-                  label={`Select ${key}`}
-                />
-              )}
-              {columns.map(column => (
-                <ListCell key={column.key} className={column.className}>
-                  {column.render(item)}
-                </ListCell>
-              ))}
-            </div>
+      return (
+        <ListRow
+          selected={isSelected}
+          onClick={onRowClick ? () => onRowClick(item) : undefined}
+          gridTemplate={gridTemplate}
+        >
+          {/* Desktop Table Layout */}
+          <div className="hidden lg:contents">
+            {hasSelection && (
+              <SelectionCheckbox
+                checked={isSelected}
+                onToggle={() => selection.toggleItem(item)}
+                label={`Select ${key}`}
+              />
+            )}
+            {columns.map(column => (
+              <ListCell key={column.key} className={column.className}>
+                {column.render(item)}
+              </ListCell>
+            ))}
+          </div>
 
-            {/* Mobile Card Layout */}
-            <DataListMobileRow
-              item={item}
-              columns={columns}
-              mobileTitleRender={mobileTitleRender}
-              mobileMetadataRender={mobileMetadataRender}
-              mobileDrawerConfig={mobileDrawerConfig}
-              onRowClick={onRowClick}
-            />
-          </ListRow>
-        );
-      });
+          {/* Mobile Card Layout */}
+          <DataListMobileRow
+            item={item}
+            columns={columns}
+            mobileTitleRender={mobileTitleRender}
+            mobileMetadataRender={mobileMetadataRender}
+            mobileDrawerConfig={mobileDrawerConfig}
+            onRowClick={onRowClick}
+          />
+        </ListRow>
+      );
+    };
 
-    // Results with virtualization - use container-based or window-based virtualizer
+    // Results with virtualization
     return (
-      <>
-        {useContainerScroll ? (
-          <Virtualizer
-            ref={containerVirtualizerRef}
-            overscan={overscan}
-            scrollRef={effectiveScrollContainerRef}
-            startMargin={startMargin}
-          >
-            {renderItems()}
-          </Virtualizer>
-        ) : (
-          <WindowVirtualizer ref={windowVirtualizerRef} overscan={overscan}>
-            {renderItems()}
-          </WindowVirtualizer>
-        )}
-
-        {/* Skeleton rows while loading more */}
-        {isLoadingMore && renderSkeletonRows(3)}
-      </>
+      <VirtualizedContainer
+        items={results}
+        getItemKey={getItemKey}
+        renderItem={renderItem}
+        useContainerScroll={useContainerScroll}
+        scrollContainerRef={effectiveScrollContainerRef}
+        startMargin={startMargin}
+        overscan={overscan}
+        isLoadingMore={isLoadingMore}
+        loadingMoreContent={renderSkeletonRows(3)}
+      />
     );
   };
 

@@ -195,8 +195,8 @@
   --z-command-palette: 90;
   --z-popover: 100;
   --z-context-menu: 100;
-  --z-select: 105;
   --z-modal: 110;
+  --z-select: 115;
   --z-tooltip: 150;
 
   /* Colors - Light Mode Defaults (Are.na-inspired) */

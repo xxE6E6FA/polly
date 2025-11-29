@@ -91,6 +91,7 @@ export { useListSort } from "./use-list-sort";
 export { useMediaQuery } from "./use-media-query";
 export { useOnline } from "./use-online";
 export { useTextSelection } from "./use-text-selection";
+export { useVirtualizedPaginatedQuery } from "./use-virtualized-paginated-query";
 
 // =============================================================================
 // Settings Hooks

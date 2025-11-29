@@ -373,7 +373,23 @@ export default function AttachmentsPage() {
             onValueChange={(value: FileType) => setFileType(value)}
           >
             <SelectTrigger className="w-[180px]">
-              <SelectValue />
+              <SelectValue>
+                {() => {
+                  const selected = FILE_TYPE_OPTIONS.find(
+                    opt => opt.value === fileType
+                  );
+                  if (!selected) {
+                    return null;
+                  }
+                  const Icon = selected.icon;
+                  return (
+                    <span className="flex items-center gap-2">
+                      <Icon className="h-4 w-4" />
+                      {selected.label}
+                    </span>
+                  );
+                }}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {FILE_TYPE_OPTIONS.map(option => {
