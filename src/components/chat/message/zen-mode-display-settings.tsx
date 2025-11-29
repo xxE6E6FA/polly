@@ -7,12 +7,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { FONT_OPTIONS, type ZenDisplaySettingsControls } from "@/hooks";
 import { cn } from "@/lib/utils";
-
-import {
-  FONT_OPTIONS,
-  type ZenDisplaySettingsControls,
-} from "./use-zen-display-settings";
 
 type ZenModeDisplaySettingsProps = {
   controls: ZenDisplaySettingsControls;

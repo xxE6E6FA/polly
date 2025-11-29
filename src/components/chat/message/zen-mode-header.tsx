@@ -2,8 +2,8 @@ import { ArrowLeftIcon, ArrowRightIcon } from "@phosphor-icons/react";
 import { forwardRef } from "react";
 
 import { Button } from "@/components/ui/button";
+import type { ZenDisplaySettingsControls } from "@/hooks";
 import { cn } from "@/lib/utils";
-import type { ZenDisplaySettingsControls } from "./use-zen-display-settings";
 import { ZenModeDisplaySettings } from "./zen-mode-display-settings";
 
 type NavigationHandler = (direction: "prev" | "next") => boolean;

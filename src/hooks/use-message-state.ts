@@ -2,12 +2,12 @@
  * Shared message state management utilities
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { ChatMessage, ConversationId } from "@/types";
 import {
   convertServerMessages,
   findStreamingMessage,
   isMessageStreaming,
-} from "./message-utils";
+} from "@/lib/chat/message-utils";
+import type { ChatMessage, ConversationId } from "@/types";
 
 export function useMessageState(
   conversationId?: ConversationId,

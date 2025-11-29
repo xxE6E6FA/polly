@@ -28,11 +28,11 @@ import { SkeletonText } from "@/components/ui/skeleton-text";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useWordBasedUndo } from "@/hooks";
 import { isApiKeysArray } from "@/lib/type-guards";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { VoicePicker } from "./models-tab/voice-picker";
-import { useWordBasedUndo } from "./use-word-based-undo";
 
 export type PersonaFormData = {
   name: string;

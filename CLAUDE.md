@@ -75,6 +75,31 @@ Trust the compiler for optimization. Keep `useMemo`/`useCallback` only for:
 
 Avoid memoization for: simple booleans, strings, filters, zero-dep callbacks.
 
+## Hooks
+
+**All custom hooks MUST live in `src/hooks/`** - no exceptions.
+
+- Never create `use-*.ts` files in component directories
+- Never create `hooks/` subdirectories inside components
+- Export all hooks from `src/hooks/index.ts` barrel file
+- Context consumer hooks (e.g., `useSpeechInputContext`) belong in `src/hooks/`, not with their provider
+
+## Utilities
+
+**All utility functions MUST live in `src/lib/`** - no exceptions.
+
+- Never create `*-utils.ts` or helper files in component directories
+- Parsers, formatters, validators, and general helpers belong in `src/lib/`
+- Export from `src/lib/index.ts` barrel file
+
+## Providers
+
+**All React context providers MUST live in `src/providers/`** - no exceptions.
+
+- Never create `*-context.tsx` files in component directories
+- Context providers that are used across components belong in `src/providers/`
+- The only exception is truly component-internal state (rare)
+
 ## Styling
 
 - Use `stack-*` spacing (not `space-y-*`): `stack-xs`, `stack-sm`, `stack-md`, `stack-lg`

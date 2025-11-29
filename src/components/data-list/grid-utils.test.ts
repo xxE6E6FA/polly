@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { generateGridTemplate } from "./grid-utils";
+import { generateGridTemplate } from "@/lib/grid-utils";
 
 describe("gridUtils: generateGridTemplate", () => {
   describe("basic column generation", () => {

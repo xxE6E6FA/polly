@@ -195,7 +195,7 @@ export { StreamingMarkdown, useMessageId } from "./streaming-markdown";
 // Citations
 // =============================================================================
 
-export { CitationProvider, useCitations } from "./citation-context";
+export { CitationProvider, useCitations } from "@/providers/citation-context";
 export type { CitationGroupProps } from "./citation-group";
 export { CitationGroup } from "./citation-group";
 export { CitationLink } from "./citation-link";

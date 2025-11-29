@@ -10,14 +10,13 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { CodeBlockWrapperLLM } from "./code-block-wrapper";
-import { MarkdownBlock } from "./markdown-block";
 import {
   findCompleteNestedCodeBlock,
   findPartialNestedCodeBlock,
   nestedCodeBlockLookBack,
-} from "./nested-code-block-parser";
+} from "@/lib/nested-code-block-parser";
+import { CodeBlockWrapperLLM } from "./code-block-wrapper";
+import { MarkdownBlock } from "./markdown-block";
 
 // Context for passing messageId to child components
 const MessageContext = createContext<string | undefined>(undefined);

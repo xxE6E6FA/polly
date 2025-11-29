@@ -1,7 +1,7 @@
 import { PreviewCard } from "@base-ui-components/react/preview-card";
 import React, { useMemo } from "react";
+import { useCitations } from "@/providers/citation-context";
 import type { WebSearchCitation } from "@/types";
-import { useCitations } from "./citation-context";
 import { CitationPill } from "./citation-pill";
 import type { Citation } from "./citation-popover";
 import { CitationPreviewPopup } from "./citation-popover";

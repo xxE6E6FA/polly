@@ -22,6 +22,7 @@ import { useOnline } from "@/hooks/use-online";
 import { useReplicateApiKey } from "@/hooks/use-replicate-api-key";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
+import { SpeechInputProvider } from "@/providers/speech-input-context";
 import { useUserDataContext } from "@/providers/user-data-context";
 import { useChatHistory } from "@/stores/chat-ui-store";
 import type {
@@ -31,7 +32,6 @@ import type {
   ReasoningConfig,
 } from "@/types";
 import { ChatInputBottomBar } from "./chat-input-bottom-bar";
-import { SpeechInputProvider } from "./speech-input-context";
 import { TextInputSection } from "./text-input-section";
 
 interface ChatInputProps {

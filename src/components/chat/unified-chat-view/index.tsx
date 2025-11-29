@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AttachmentGalleryDialog } from "@/components/ui/attachment-gallery-dialog";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { QuoteButton } from "@/components/ui/quote-button";
+import { useChatViewState } from "@/hooks";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useOnline } from "@/hooks/use-online";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,6 @@ import { ChatInput } from "../input";
 import { WarningBanners } from "../input/warning-banners";
 import { VirtualizedChatMessages } from "../virtualized-chat-messages";
 import { ArchivedBanner } from "./archived-banner";
-import { useChatViewState } from "./hooks/use-chat-view-state";
 
 const ConversationZeroState = () => {
   return (

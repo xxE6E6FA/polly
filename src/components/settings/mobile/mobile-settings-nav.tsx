@@ -11,6 +11,7 @@ import {
 import useEmblaCarousel from "embla-carousel-react";
 import { lazy, Suspense, useCallback } from "react";
 import { Spinner } from "@/components/ui/spinner";
+import { useSettingsCarouselSync } from "@/hooks";
 import { ROUTES } from "@/lib/routes";
 import {
   ScrollContainerProvider,
@@ -20,7 +21,6 @@ import {
   MobileSettingsTabs,
   type SettingsTabItem,
 } from "./mobile-settings-tabs";
-import { useSettingsCarouselSync } from "./use-settings-carousel-sync";
 
 // Lazy load all settings pages
 const GeneralPage = lazy(() => import("@/pages/settings/general-page"));

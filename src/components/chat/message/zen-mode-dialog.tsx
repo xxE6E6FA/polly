@@ -13,10 +13,10 @@ import {
   DialogPortal,
 } from "@/components/ui/dialog";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
+import { useZenDisplaySettings } from "@/hooks";
 import { cn } from "@/lib/utils";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { Citations } from "../citations";
-import { useZenDisplaySettings } from "./use-zen-display-settings";
 import { ZenModeHeader } from "./zen-mode-header";
 
 const ZEN_HEADER_CONDENSE_OFFSET = 48;

@@ -2,6 +2,8 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
+import type { ChatInputRef } from "@/components/chat/input";
+import type { VirtualizedChatMessagesRef } from "@/components/chat/virtualized-chat-messages";
 import { useConfirmationDialog } from "@/hooks/use-dialog-management";
 import { useTextSelection } from "@/hooks/use-text-selection";
 import { useToast } from "@/providers/toast-context";
@@ -11,8 +13,6 @@ import type {
   ConversationId,
   ReasoningConfig,
 } from "@/types";
-import type { ChatInputRef } from "../../input";
-import type { VirtualizedChatMessagesRef } from "../../virtualized-chat-messages";
 
 interface UseChatViewStateOptions {
   conversationId?: ConversationId;

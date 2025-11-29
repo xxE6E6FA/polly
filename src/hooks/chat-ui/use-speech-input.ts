@@ -1,7 +1,7 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { experimental_transcribe as transcribe } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useApiKeys } from "@/lib/chat/use-api-keys";
+import { useApiKeys } from "@/hooks";
 import { useToast } from "@/providers/toast-context";
 
 const WAVEFORM_SEGMENTS = 48;

@@ -2,7 +2,7 @@ import type { LLMOutputComponent } from "@llm-ui/react";
 import { lazy, Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { extractFirstCodeBlock } from "./nested-code-block-parser";
+import { extractFirstCodeBlock } from "@/lib/nested-code-block-parser";
 
 const CodeBlock = lazy(() =>
   import("./code-block").then(m => ({ default: m.CodeBlock }))

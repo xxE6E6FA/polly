@@ -37,6 +37,9 @@ export {
 export { useChatInputSubmission } from "./chat-ui/use-chat-input-submission";
 export { useKeyboardNavigation } from "./chat-ui/use-keyboard-navigation";
 export { useSpeechInput } from "./chat-ui/use-speech-input";
+export { useApiKeys } from "./use-api-keys";
+export type { AssistantPhase } from "./use-assistant-display-phase";
+export { useAssistantDisplayPhase } from "./use-assistant-display-phase";
 export { mapServerMessageToChatMessage, useChat } from "./use-chat";
 export { useChatAttachments } from "./use-chat-attachments";
 export { useChatFullscreen } from "./use-chat-fullscreen";
@@ -44,10 +47,13 @@ export { useChatInputPreservation } from "./use-chat-input-preservation";
 export { useChatMessages } from "./use-chat-messages";
 export { useChatScopedState } from "./use-chat-scoped-state";
 export { useChatStateMachine } from "./use-chat-state-machine";
+export { useChatViewState } from "./use-chat-view-state";
 export { useClearOnConversationChange } from "./use-clear-on-conversation-change";
 export { useGenerationMode, useImageParams } from "./use-generation";
+export { useMessageState } from "./use-message-state";
 export { usePrivateChat } from "./use-private-chat";
 export { selectReasoningConfig, useReasoningConfig } from "./use-reasoning";
+export { useSpeechInputContext } from "./use-speech-input-context";
 
 // =============================================================================
 // Model Hooks
@@ -92,13 +98,27 @@ export { useMediaQuery } from "./use-media-query";
 export { useOnline } from "./use-online";
 export { useTextSelection } from "./use-text-selection";
 export { useVirtualizedPaginatedQuery } from "./use-virtualized-paginated-query";
+export type {
+  DisplaySettings,
+  ZenDisplaySettingsControls,
+} from "./use-zen-display-settings";
+export {
+  DEFAULT_DISPLAY_SETTINGS,
+  FONT_OPTIONS,
+  FONT_SIZE_STEPS,
+  LINE_HEIGHT_STEPS,
+  useZenDisplaySettings,
+  WIDTH_CLASSES,
+} from "./use-zen-display-settings";
 
 // =============================================================================
 // Settings Hooks
 // =============================================================================
 
+export { useSettingsCarouselSync } from "./use-settings-carousel-sync";
 export { useTheme } from "./use-theme";
 export { useUserSettings } from "./use-user-settings";
+export { useWordBasedUndo } from "./use-word-based-undo";
 
 // =============================================================================
 // Data Hooks

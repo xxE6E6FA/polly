@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { SkeletonText } from "@/components/ui/skeleton-text";
+import type { AssistantPhase } from "@/hooks";
 import { Reasoning } from "../reasoning";
 import { StatusIndicator } from "./status-indicator";
-import type { AssistantPhase } from "./use-assistant-display-phase";
 
 type AssistantLoadingStateProps = {
   messageId: string;

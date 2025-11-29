@@ -1,5 +1,6 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { useCallback, useMemo } from "react";
+import { useSpeechInputContext } from "@/hooks";
 import { useVisibleControls } from "@/hooks/chat-ui/use-visible-controls";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
 import { useGenerationMode, useImageParams } from "@/hooks/use-generation";
@@ -22,7 +23,6 @@ import { ModelPicker } from "./pickers/model-picker";
 import { ReasoningPicker } from "./pickers/reasoning-picker";
 import { TemperaturePicker } from "./pickers/temperature-picker";
 import { SendButtonGroup } from "./send-button-group";
-import { useSpeechInputContext } from "./speech-input-context";
 
 interface ChatInputBottomBarProps {
   canSend: boolean;

@@ -2,10 +2,11 @@ import { api } from "@convex/_generated/api";
 import { useQuery } from "convex/react";
 import { useCallback, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CitationProvider } from "@/components/ui/citation-context";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
+import { useAssistantDisplayPhase } from "@/hooks";
 import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
+import { CitationProvider } from "@/providers/citation-context";
 import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { CitationsGallery } from "../citations-gallery";
@@ -14,7 +15,6 @@ import { AttachmentStrip } from "./attachment-strip";
 import { ImageGenerationBubble } from "./image-generation-bubble";
 import { MessageActions } from "./message-actions";
 import { MessageError } from "./message-error";
-import { useAssistantDisplayPhase } from "./use-assistant-display-phase";
 
 type AssistantBubbleProps = {
   conversationId?: string;

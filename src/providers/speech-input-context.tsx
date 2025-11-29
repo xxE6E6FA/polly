@@ -1,6 +1,6 @@
-import { createContext, useContext } from "react";
+import { createContext } from "react";
 
-type SpeechInputContextValue = {
+export type SpeechInputContextValue = {
   isSupported: boolean;
   isRecording: boolean;
   isTranscribing: boolean;
@@ -10,9 +10,9 @@ type SpeechInputContextValue = {
   acceptRecording: () => Promise<void>;
 };
 
-const SpeechInputContext = createContext<SpeechInputContextValue | undefined>(
-  undefined
-);
+export const SpeechInputContext = createContext<
+  SpeechInputContextValue | undefined
+>(undefined);
 
 type SpeechInputProviderProps = {
   value: SpeechInputContextValue;
@@ -28,14 +28,4 @@ export function SpeechInputProvider({
       {children}
     </SpeechInputContext.Provider>
   );
-}
-
-export function useSpeechInputContext(): SpeechInputContextValue {
-  const context = useContext(SpeechInputContext);
-  if (context === undefined) {
-    throw new Error(
-      "useSpeechInputContext must be used within a SpeechInputProvider"
-    );
-  }
-  return context;
 }
