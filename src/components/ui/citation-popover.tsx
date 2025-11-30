@@ -267,12 +267,6 @@ export const CitationPreviewPopup: React.FC<CitationPreviewPopupProps> = ({
               </div>
             </div>
           </div>
-
-          {current.description && (
-            <p className="text-xs text-muted-foreground/80 line-clamp-2 leading-relaxed">
-              {current.description}
-            </p>
-          )}
         </div>
       </a>
 
@@ -282,68 +276,3 @@ export const CitationPreviewPopup: React.FC<CitationPreviewPopupProps> = ({
 };
 
 CitationPreviewPopup.displayName = "CitationPreviewPopup";
-
-/* -------------------------------------------------------------------------- */
-/* Backwards compatibility layer                                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Legacy props kept to avoid immediate refactors in calling code.
- * This wrapper now ONLY renders popup content (no <PreviewCard.Root />).
- *
- * Deprecation path:
- *  - Replace imports of CitationPopoverContent with CitationPreviewPopup.
- *  - Move scheduling / open state logic to PreviewCard.Trigger.
- */
-export interface CitationPopoverContentLegacyProps {
-  citations: Citation[];
-  onMouseEnter: () => void;
-  onMouseLeave: () => void;
-  onOpenChange: (open: boolean) => void;
-  open?: boolean;
-}
-
-export const CitationPopoverContent: React.FC<
-  CitationPopoverContentLegacyProps
-> = ({
-  citations,
-  // Legacy handlers now optional in pure popup scenario.
-  onMouseEnter,
-  onMouseLeave,
-  onOpenChange,
-}) => {
-  return (
-    <div
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      data-legacy-wrapper="true"
-    >
-      <CitationPreviewPopup
-        citations={citations}
-        onRequestClose={() => onOpenChange(false)}
-      />
-    </div>
-  );
-};
-
-CitationPopoverContent.displayName = "CitationPopoverContent";
-
-/**
- * Styling Guidance:
- *
- * Place CitationPreviewPopup inside:
- *
- * <PreviewCard.Root>
- *   <PreviewCard.Trigger href="...">...</PreviewCard.Trigger>
- *   <PreviewCard.Portal>
- *     <PreviewCard.Positioner side="top" align="start" sideOffset={8}>
- *       <PreviewCard.Popup className="citation-preview">
- *         <CitationPreviewPopup citations={...} />
- *       </PreviewCard.Popup>
- *     </PreviewCard.Positioner>
- *   </PreviewCard.Portal>
- * </PreviewCard.Root>
- *
- * Leverage data attributes from PreviewCard for transitions:
- *   [data-starting-style], [data-ending-style], [data-open], [data-side], [data-align]
- */

@@ -106,11 +106,6 @@ const TextMessageBubble = ({
 
   // Use DB content directly
   const displayContent = message.content;
-  const displayCitations = message.citations?.map(c => ({
-    type: "url_citation" as const,
-    url: c.url,
-    title: c.title || "",
-  }));
 
   const hasTextContent = Boolean(
     displayContent && displayContent.trim().length > 0
@@ -185,7 +180,7 @@ const TextMessageBubble = ({
             )}
           >
             <CitationProvider
-              citations={displayCitations || []}
+              citations={message.citations || []}
               messageId={message.id}
             >
               <StreamingMarkdown
@@ -216,10 +211,10 @@ const TextMessageBubble = ({
           )}
 
         {/* Defer citations until content has begun to reduce early reflow */}
-        {displayCitations && displayCitations.length > 0 && showContent && (
+        {message.citations && message.citations.length > 0 && showContent && (
           <CitationsGallery
             key={`citations-${message.id}-${phase}`}
-            citations={displayCitations}
+            citations={message.citations}
             messageId={message.id}
             content={displayContent}
             isExpanded={citationsExpanded}

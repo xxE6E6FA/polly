@@ -269,9 +269,9 @@ export const CitationsGallery = ({
                     }}
                   />
                 ) : (
-                  <div className="h-5 w-5 mt-0.5 flex-shrink-0 rounded-sm bg-muted flex items-center justify-center text-muted-foreground/50">
-                    <span className="text-[10px] font-bold">
-                      {citationNumber}
+                  <div className="h-5 w-5 mt-0.5 flex-shrink-0 rounded-sm bg-muted flex items-center justify-center text-muted-foreground">
+                    <span className="text-[10px] font-bold uppercase">
+                      {getDomain(citation.url).slice(0, 2)}
                     </span>
                   </div>
                 )}

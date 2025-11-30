@@ -297,9 +297,20 @@ export const Citations = ({
                       "bg-primary/5 ring-1 ring-primary/20"
                   )}
                 >
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1 text-[10px] font-medium text-muted-foreground bg-muted rounded-full flex-shrink-0 mt-0.5">
-                    {citationNumber}
-                  </span>
+                  {citation.favicon ? (
+                    <img
+                      src={citation.favicon}
+                      alt=""
+                      className="h-5 w-5 mt-0.5 flex-shrink-0 rounded-sm object-cover"
+                      onError={e => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <span className="inline-flex items-center justify-center h-5 w-5 text-[10px] font-bold uppercase text-muted-foreground bg-muted rounded-sm flex-shrink-0 mt-0.5">
+                      {getDomain(citation.url).slice(0, 2)}
+                    </span>
+                  )}
                   <div className="flex-1 min-w-0">
                     <a
                       href={citation.url}
