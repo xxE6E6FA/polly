@@ -25,6 +25,9 @@ type PrivateChatMessage = {
   status?: "thinking" | "streaming" | "done" | "error";
   model?: string;
   provider?: string;
+  metadata?: {
+    finishReason?: string;
+  };
 };
 
 function isReasoningDelta(chunk: {
@@ -242,6 +245,19 @@ export function usePrivateChat(options?: {
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
+          // Finalize the message as user-stopped
+          setMessages(prev =>
+            prev.map(msg =>
+              msg.id === assistantMessageId
+                ? {
+                    ...msg,
+                    reasoning: reasoningRef.current || undefined,
+                    status: "done",
+                    metadata: { ...msg.metadata, finishReason: "user_stopped" },
+                  }
+                : msg
+            )
+          );
           setStatus("idle");
           return;
         }

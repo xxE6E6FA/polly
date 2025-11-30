@@ -69,6 +69,9 @@ export const executeStreamingActionForRetry = async (
     contextMessages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
     useWebSearch: boolean;
     reasoningConfig?: any;
+    // Model capabilities - passed from caller who has access to model info
+    supportsTools?: boolean;
+    supportsFiles?: boolean;
   }
 ): Promise<StreamingActionResult> => {
   const userId = await getAuthUserId(ctx);
@@ -100,7 +103,6 @@ export const executeStreamingActionForRetry = async (
   await incrementUserMessageStats(ctx, userId, model, provider);
 
   // Schedule server-side streaming
-  // Note: No model capabilities available in this retry path
   await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
     messageId: assistantMessageId,
     conversationId: args.conversationId,
@@ -108,8 +110,8 @@ export const executeStreamingActionForRetry = async (
     provider,
     messages: args.contextMessages,
     reasoningConfig: args.reasoningConfig,
-    supportsTools: false,
-    supportsFiles: false,
+    supportsTools: args.supportsTools ?? false,
+    supportsFiles: args.supportsFiles ?? false,
   });
 
   return {

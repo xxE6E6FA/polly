@@ -18,7 +18,7 @@ import {
   query,
 } from "./_generated/server";
 import { getApiKey } from "./ai/encryption";
-import { withRetry } from "./ai/error_handlers";
+import { getUserFriendlyErrorMessage, withRetry } from "./ai/error_handlers";
 import {
   convertLegacyPartToAISDK,
   type LegacyMessagePart,
@@ -713,6 +713,15 @@ export const streamMessage = internalAction({
         supportsTools: supportsTools ?? false,
         extraOptions: streamOptions,
       });
+    } catch (error) {
+      // Update message to error state on any failure (including setup errors before streaming)
+      // This prevents messages from being stuck in "thinking" status indefinitely
+      console.error("Stream setup error:", error);
+      const errorMessage = getUserFriendlyErrorMessage(error);
+      await ctx.runMutation(internal.messages.updateMessageError, {
+        messageId,
+        error: errorMessage,
+      });
     } finally {
       await ctx.runMutation(internal.conversations.internalPatch, {
         id: args.conversationId,
@@ -1273,6 +1282,9 @@ export const internalPatch = internalMutation({
     id: v.id("conversations"),
     updates: v.any(),
     setUpdatedAt: v.optional(v.boolean()),
+    // Fields to explicitly delete. Required because Convex strips `undefined` from
+    // function arguments, so passing { field: undefined } in `updates` won't work.
+    clearFields: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // Check if conversation exists before patching (defensive)
@@ -1282,6 +1294,14 @@ export const internalPatch = internalMutation({
     }
 
     const patch: Record<string, unknown> = { ...args.updates };
+
+    // Apply explicit field deletions (undefined inside handler = actual deletion)
+    if (args.clearFields) {
+      for (const field of args.clearFields) {
+        patch[field] = undefined;
+      }
+    }
+
     if (args.setUpdatedAt) {
       // Ensure strictly monotonic updatedAt to satisfy tests that expect a bump
       const now = Date.now();
@@ -2176,6 +2196,14 @@ export const retryFromMessage = action({
       // Assistant retry: delete messages AFTER this assistant message (preserve context),
       // then clear this assistant message and stream into the SAME messageId
 
+      // Clear stop request FIRST to prevent race conditions with previous streaming actions
+      // Any previous action checking stopRequested in its finally block will see it's cleared
+      await ctx.runMutation(internal.conversations.internalPatch, {
+        id: args.conversationId,
+        updates: { isStreaming: false },
+        clearFields: ["stopRequested"],
+      });
+
       // Delete messages after the assistant message (preserve context)
       const messagesToDelete = messages.slice(messageIndex + 1);
       for (const msg of messagesToDelete) {
@@ -2184,12 +2212,6 @@ export const retryFromMessage = action({
         }
         await ctx.runMutation(api.messages.remove, { id: msg._id });
       }
-
-      // Stop any current streaming first
-      await ctx.runMutation(internal.conversations.internalPatch, {
-        id: args.conversationId,
-        updates: { isStreaming: false },
-      });
 
       // Clear the assistant message content and reset ALL streaming-related state
       // Also update model/provider so UI reflects the new selection immediately
@@ -2207,7 +2229,7 @@ export const retryFromMessage = action({
           | "openrouter"
           | "replicate"
           | "elevenlabs",
-        metadata: { finishReason: undefined }, // Clear finish reason to allow new streaming
+        clearMetadataFields: ["finishReason", "stopped"], // Clear stopped state to allow new streaming
       });
 
       // Set status to thinking
@@ -2216,10 +2238,11 @@ export const retryFromMessage = action({
         status: "thinking",
       });
 
-      // Mark conversation as streaming
+      // Mark conversation as streaming and clear any previous stop request
       await ctx.runMutation(internal.conversations.internalPatch, {
         id: args.conversationId,
         updates: { isStreaming: true },
+        clearFields: ["stopRequested"],
       });
 
       // Build context up to the previous user message
@@ -2229,8 +2252,8 @@ export const retryFromMessage = action({
         throw new Error("Cannot find previous user message to retry from");
       }
 
-      // Build context messages for streaming (not used directly but required for consistency)
-      await buildContextMessages(ctx, {
+      // Build context messages for streaming
+      const { contextMessages } = await buildContextMessages(ctx, {
         conversationId: args.conversationId,
         personaId: effectivePersonaId,
         includeUpToIndex: previousUserMessageIndex,
@@ -2240,6 +2263,19 @@ export const retryFromMessage = action({
         },
         provider: fullModel.provider,
         modelId: fullModel.modelId,
+      });
+
+      // Schedule the streaming action to regenerate the assistant response
+      await ctx.scheduler.runAfter(0, internal.conversations.streamMessage, {
+        messageId: targetMessage._id,
+        conversationId: args.conversationId,
+        model: fullModel.modelId,
+        provider: fullModel.provider,
+        messages: contextMessages,
+        personaId: effectivePersonaId,
+        reasoningConfig: args.reasoningConfig,
+        supportsTools: fullModel.supportsTools ?? false,
+        supportsFiles: fullModel.supportsFiles ?? false,
       });
 
       return { assistantMessageId: targetMessage._id };
@@ -2392,6 +2428,8 @@ export const retryFromMessage = action({
       contextMessages,
       useWebSearch: true, // Retry operations are always from authenticated users
       reasoningConfig: args.reasoningConfig,
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
     });
 
     return {
@@ -2811,12 +2849,15 @@ export const setStreaming = mutation({
   },
   handler: async (ctx, args) => {
     // When starting streaming (i.e., a new user message), bump updatedAt
+    // and clear any previous stop request to ensure fresh streaming state
     // Use retry logic to handle concurrent updates to the conversation (e.g., tokenEstimate updates)
     await withRetry(
       async () => {
         await ctx.db.patch(args.conversationId, {
           isStreaming: args.isStreaming,
-          ...(args.isStreaming ? { updatedAt: Date.now() } : {}),
+          ...(args.isStreaming
+            ? { updatedAt: Date.now(), stopRequested: undefined }
+            : {}),
         });
       },
       5,

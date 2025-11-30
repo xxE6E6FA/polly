@@ -479,9 +479,13 @@ export const internalUpdate = internalMutation({
     // Allow simple appends for streaming-like updates
     appendContent: v.optional(v.string()),
     appendReasoning: v.optional(v.string()),
+    // Fields to explicitly delete from metadata. Required because Convex strips `undefined`
+    // from function arguments, so passing { metadata: { field: undefined } } won't work.
+    clearMetadataFields: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const { id, appendContent, appendReasoning, ...rest } = args;
+    const { id, appendContent, appendReasoning, clearMetadataFields, ...rest } =
+      args;
 
     let retries = 0;
     const maxRetries = 3;
@@ -517,6 +521,23 @@ export const internalUpdate = internalMutation({
         }
         if (appendReasoning) {
           updates.reasoning = (message.reasoning || "") + appendReasoning;
+        }
+
+        // Handle explicit metadata field deletions by merging with existing metadata
+        // and setting fields to undefined (which Convex will delete from the document)
+        if (clearMetadataFields && clearMetadataFields.length > 0) {
+          const existingMetadata = (message.metadata || {}) as Record<
+            string,
+            unknown
+          >;
+          const newMetadata: Record<string, unknown> = {
+            ...existingMetadata,
+            ...(rest.metadata || {}),
+          };
+          for (const field of clearMetadataFields) {
+            newMetadata[field] = undefined;
+          }
+          updates.metadata = newMetadata as typeof message.metadata;
         }
 
         return await ctx.db.patch(id, updates);

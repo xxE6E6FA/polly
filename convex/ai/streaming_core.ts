@@ -54,7 +54,8 @@ export async function streamLLMToMessage({
   // Mark conversation as streaming and clear any previous stop request
   await ctx.runMutation(internal.conversations.internalPatch, {
     id: conversationId,
-    updates: { isStreaming: true, stopRequested: undefined },
+    updates: { isStreaming: true },
+    clearFields: ["stopRequested"],
   });
 
   // Check for Exa API key (supportsTools is passed from mutation context where auth is available)
@@ -135,7 +136,8 @@ export async function streamLLMToMessage({
     try {
       await ctx.runMutation(internal.conversations.internalPatch, {
         id: conversationId,
-        updates: { isStreaming: false, stopRequested: undefined },
+        updates: { isStreaming: false },
+        clearFields: ["stopRequested"],
       });
     } catch {}
   };
@@ -366,38 +368,49 @@ export async function streamLLMToMessage({
     // If user requested stop, finalize the message with current content
     if (userStopped) {
       try {
-        // Flush any remaining content
-        await flushReasoning();
-        await flushContent();
+        // Check if a retry has been initiated - if so, skip finalization
+        // The retry resets the message to "thinking" status with empty content
+        const currentMessage = await ctx.runQuery(
+          internal.messages.internalGetByIdQuery,
+          { id: messageId }
+        );
+        const hasBeenReset =
+          currentMessage?.status === "thinking" && currentMessage?.content === "";
 
-        // Calculate timing metrics
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        const timeToFirstTokenMs = firstTokenTime
-          ? firstTokenTime - startTime
-          : undefined;
-        const thinkingDurationMs =
-          reasoningStartTime && reasoningEndTime
-            ? reasoningEndTime - reasoningStartTime
-            : reasoningStartTime
-              ? endTime - reasoningStartTime
-              : undefined;
+        if (!hasBeenReset) {
+          // Flush any remaining content
+          await flushReasoning();
+          await flushContent();
 
-        // Finalize with user_stopped reason
-        await ctx.runMutation(internal.messages.internalUpdate, {
-          id: messageId,
-          metadata: {
-            finishReason: "user_stopped",
-            stopped: true,
-            timeToFirstTokenMs,
-            thinkingDurationMs,
-            duration,
-          },
-        });
-        await ctx.runMutation(internal.messages.updateMessageStatus, {
-          messageId,
-          status: "done",
-        });
+          // Calculate timing metrics
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          const timeToFirstTokenMs = firstTokenTime
+            ? firstTokenTime - startTime
+            : undefined;
+          const thinkingDurationMs =
+            reasoningStartTime && reasoningEndTime
+              ? reasoningEndTime - reasoningStartTime
+              : reasoningStartTime
+                ? endTime - reasoningStartTime
+                : undefined;
+
+          // Finalize with user_stopped reason
+          await ctx.runMutation(internal.messages.internalUpdate, {
+            id: messageId,
+            metadata: {
+              finishReason: "user_stopped",
+              stopped: true,
+              timeToFirstTokenMs,
+              thinkingDurationMs,
+              duration,
+            },
+          });
+          await ctx.runMutation(internal.messages.updateMessageStatus, {
+            messageId,
+            status: "done",
+          });
+        }
       } catch (e) {
         console.error("Stream error: failed to finalize user-stopped message", e);
       }

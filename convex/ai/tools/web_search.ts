@@ -76,15 +76,25 @@ Do NOT use this tool for:
 - Code help or debugging
 - Casual conversation
 
-Choose searchMode based on the query:
-- 'fast': Default for most queries, best latency (~350ms)
-- 'deep': For comprehensive research, academic topics (~3.5s)
-- 'auto': Let the system decide
+Parameters:
+- searchType: The type of search operation
+  - 'search': General web search (default)
+  - 'answer': Direct factual questions (who is CEO of X, what is the price of Y)
+  - 'similar': Find pages similar to a given URL
+- searchMode: Search speed/depth tradeoff
+  - 'fast': Default for most queries (~350ms)
+  - 'deep': For comprehensive research (~3.5s)
+  - 'auto': Let the system decide
+- category: Optional filter to narrow results by type
+  - 'news': For current events, breaking news, recent articles
+  - 'company': For business/corporate information
+  - 'research paper': For academic content
+  - 'github': For code repositories
+  - 'tweet': For social media posts
+  - 'pdf': For PDF documents
+  - 'financial report': For financial data
 
-Choose searchType based on the need:
-- 'search': General web search (default)
-- 'answer': Direct factual questions (who is CEO of X, what is the price of Y)
-- 'similar': Find pages similar to a given URL`,
+Example: For "latest AI news", use searchType='search' with category='news'.`,
     inputSchema: webSearchToolSchema,
     execute: async ({ query, searchMode, searchType, category }): Promise<WebSearchToolResult> => {
       try {
