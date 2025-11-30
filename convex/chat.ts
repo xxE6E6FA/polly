@@ -703,19 +703,16 @@ export const chatStream = httpAction(
         // Start streaming with appropriate configuration
         const result =
           modelSupportsTools && exaApiKey
-            ? // Primary approach: Use tool calling for models that support it
-              streamText({
+            ? streamText({
                 ...streamOptionsBase,
                 messages: finalMessages,
                 tools: {
                   webSearch: createWebSearchTool(exaApiKey),
                 },
-                // Allow up to 3 steps for tool calls (default is 1)
+                toolChoice: "auto",
                 stopWhen: stepCountIs(3),
-                experimental_transform: createSmoothStreamTransform(),
               })
-            : // Fallback: No tool calling
-              streamText({
+            : streamText({
                 ...streamOptionsBase,
                 messages: finalMessages,
                 experimental_transform: createSmoothStreamTransform(),

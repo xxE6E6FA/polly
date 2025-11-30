@@ -265,6 +265,9 @@ export async function createConversationHandler(
       messages: streamingMessages,
       personaId: args.personaId,
       reasoningConfig: args.reasoningConfig,
+      // Pass model capabilities from mutation context where auth is available
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
     });
   }
   return {
@@ -583,6 +586,9 @@ export const sendMessage = action({
       messages: contextMessages,
       personaId: effectivePersonaId,
       reasoningConfig: args.reasoningConfig,
+      // Pass model capabilities from mutation context where auth is available
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
     });
 
     return { userMessageId, assistantMessageId };
@@ -598,9 +604,19 @@ export const streamMessage = internalAction({
     messages: v.array(v.object({ role: v.string(), content: v.any() })),
     personaId: v.optional(v.id("personas")),
     reasoningConfig: v.optional(reasoningConfigSchema),
+    // Model capabilities passed from mutation context (where auth is available)
+    supportsTools: v.optional(v.boolean()),
+    supportsFiles: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const { messageId, conversationId, model: modelId, provider } = args;
+    const {
+      messageId,
+      conversationId,
+      model: modelId,
+      provider,
+      supportsTools,
+      supportsFiles,
+    } = args;
 
     try {
       // 1. Get API key for the provider
@@ -635,12 +651,7 @@ export const streamMessage = internalAction({
       );
 
       // 4. Convert messages with attachments to AI SDK format
-      const fullModel = await getUserEffectiveModelWithCapabilities(
-        ctx,
-        undefined, // No userId needed, we just need model capabilities
-        modelId
-      );
-      const supportsFiles = fullModel?.supportsFiles ?? false;
+      // Use capabilities passed from mutation context (where auth is available)
 
       const convertedMessages = await Promise.all(
         args.messages.map(async msg => {
@@ -671,7 +682,7 @@ export const streamMessage = internalAction({
                   return convertLegacyPartToAISDK(ctx, part, {
                     provider,
                     modelId,
-                    supportsFiles,
+                    supportsFiles: supportsFiles ?? false,
                   });
                 }
 
@@ -698,6 +709,8 @@ export const streamMessage = internalAction({
         messages: convertedMessages as Parameters<
           typeof streamLLMToMessage
         >[0]["messages"],
+        // Pass capabilities directly instead of re-looking them up (action context lacks auth)
+        supportsTools: supportsTools ?? false,
         extraOptions: streamOptions,
       });
     } finally {
@@ -1411,6 +1424,7 @@ export const createWithUserId = internalMutation({
       ];
 
       // Schedule server-side streaming
+      // Note: No model capabilities available in this internal mutation path
       await scheduleRunAfter(ctx, 0, internal.conversations.streamMessage, {
         messageId: assistantMessageId,
         conversationId,
@@ -1419,6 +1433,8 @@ export const createWithUserId = internalMutation({
         messages: contextMessages,
         personaId: args.personaId,
         reasoningConfig: args.reasoningConfig,
+        supportsTools: false,
+        supportsFiles: false,
       });
     }
 
@@ -1654,6 +1670,9 @@ export const startConversation = action({
       messages: contextMessages,
       personaId: args.personaId,
       reasoningConfig: args.reasoningConfig,
+      // Pass model capabilities from mutation context where auth is available
+      supportsTools: fullModel.supportsTools ?? false,
+      supportsFiles: fullModel.supportsFiles ?? false,
     });
 
     // 7. Schedule title generation

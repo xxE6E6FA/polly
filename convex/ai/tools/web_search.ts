@@ -96,20 +96,16 @@ Choose searchType based on the need:
           maxResults: 8,
         });
 
-        // Build a context summary for the model
-        const contextSummary = buildContextSummary(result);
-
         return {
           success: true,
           citations: result.citations,
-          context: contextSummary,
+          context: buildContextSummary(result),
           searchQuery: query,
           searchMode: searchMode || "fast",
           searchType: searchType || "search",
           category,
         };
       } catch (error) {
-        console.error("Web search tool error:", error);
         return {
           success: false,
           citations: [],
