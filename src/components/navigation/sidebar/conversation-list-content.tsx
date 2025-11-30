@@ -1,9 +1,61 @@
 import type { Doc } from "@convex/_generated/dataModel";
 import { ChatCircleIcon } from "@phosphor-icons/react";
 import { useMemo } from "react";
+import { useUserSettings } from "@/hooks";
 import type { ConversationId } from "@/types";
 import { ConversationGroup } from "./conversation-group";
 import { ConversationItem } from "./conversation-item";
+
+// Date group keys for categorizing conversations
+type DateGroupKey =
+  | "pinned"
+  | "today"
+  | "yesterday"
+  | "last7Days"
+  | "last14Days"
+  | "last30Days"
+  | "last60Days"
+  | "last90Days"
+  | "older";
+
+type DateGroups = Record<DateGroupKey, Doc<"conversations">[]>;
+
+// Labels for each group
+const GROUP_LABELS: Record<DateGroupKey, string> = {
+  pinned: "Pinned",
+  today: "Today",
+  yesterday: "Yesterday",
+  last7Days: "Last 7 days",
+  last14Days: "Last 14 days",
+  last30Days: "Last 30 days",
+  last60Days: "Last 60 days",
+  last90Days: "Last 90 days",
+  older: "Older",
+};
+
+// Get which groups to show based on auto-archive setting
+const getActiveGroups = (autoArchiveDays: number): DateGroupKey[] => {
+  const base: DateGroupKey[] = ["pinned", "today", "yesterday"];
+  const dynamicGroups: DateGroupKey[] = [];
+
+  if (autoArchiveDays >= 7) {
+    dynamicGroups.push("last7Days");
+  }
+  if (autoArchiveDays >= 14) {
+    dynamicGroups.push("last14Days");
+  }
+  if (autoArchiveDays >= 30) {
+    dynamicGroups.push("last30Days");
+  }
+  if (autoArchiveDays >= 60) {
+    dynamicGroups.push("last60Days");
+  }
+  if (autoArchiveDays >= 90) {
+    dynamicGroups.push("last90Days");
+  }
+
+  return [...base, ...dynamicGroups, "older"];
+};
 
 type ConversationListContentProps = {
   conversations: Doc<"conversations">[] | undefined;
@@ -22,35 +74,42 @@ export const ConversationListContent = ({
   isMobile,
   onCloseSidebar,
 }: ConversationListContentProps) => {
-  const groupedConversations = useMemo(() => {
+  const userSettings = useUserSettings();
+  const autoArchiveDays = userSettings?.autoArchiveDays ?? 30;
+
+  const groupedConversations = useMemo((): DateGroups => {
+    const emptyGroups: DateGroups = {
+      pinned: [],
+      today: [],
+      yesterday: [],
+      last7Days: [],
+      last14Days: [],
+      last30Days: [],
+      last60Days: [],
+      last90Days: [],
+      older: [],
+    };
+
     if (!conversations) {
-      return {
-        pinned: [],
-        today: [],
-        yesterday: [],
-        lastWeek: [],
-        lastMonth: [],
-        older: [],
-      };
+      return emptyGroups;
     }
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
-    const lastMonth = new Date(today);
-    lastMonth.setMonth(lastMonth.getMonth() - 1);
 
-    const groups = {
-      pinned: [] as typeof conversations,
-      today: [] as typeof conversations,
-      yesterday: [] as typeof conversations,
-      lastWeek: [] as typeof conversations,
-      lastMonth: [] as typeof conversations,
-      older: [] as typeof conversations,
+    // Calculate date boundaries for each period
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const boundaries = {
+      last7Days: new Date(today.getTime() - 7 * msPerDay),
+      last14Days: new Date(today.getTime() - 14 * msPerDay),
+      last30Days: new Date(today.getTime() - 30 * msPerDay),
+      last60Days: new Date(today.getTime() - 60 * msPerDay),
+      last90Days: new Date(today.getTime() - 90 * msPerDay),
     };
+
+    const groups: DateGroups = { ...emptyGroups };
 
     // Separate pinned and unpinned conversations
     const pinnedConversations = conversations.filter(c => c.isPinned);
@@ -80,10 +139,16 @@ export const ConversationListContent = ({
         groups.today.push(conversation);
       } else if (conversationDay.getTime() === yesterday.getTime()) {
         groups.yesterday.push(conversation);
-      } else if (conversationDate.getTime() > lastWeek.getTime()) {
-        groups.lastWeek.push(conversation);
-      } else if (conversationDate.getTime() > lastMonth.getTime()) {
-        groups.lastMonth.push(conversation);
+      } else if (conversationDate.getTime() > boundaries.last7Days.getTime()) {
+        groups.last7Days.push(conversation);
+      } else if (conversationDate.getTime() > boundaries.last14Days.getTime()) {
+        groups.last14Days.push(conversation);
+      } else if (conversationDate.getTime() > boundaries.last30Days.getTime()) {
+        groups.last30Days.push(conversation);
+      } else if (conversationDate.getTime() > boundaries.last60Days.getTime()) {
+        groups.last60Days.push(conversation);
+      } else if (conversationDate.getTime() > boundaries.last90Days.getTime()) {
+        groups.last90Days.push(conversation);
       } else {
         groups.older.push(conversation);
       }
@@ -92,17 +157,20 @@ export const ConversationListContent = ({
     return groups;
   }, [conversations]);
 
+  // Get which groups to display based on auto-archive setting
+  const activeGroups = useMemo(
+    () => getActiveGroups(autoArchiveDays),
+    [autoArchiveDays]
+  );
+
   // Create ordered list of all visible conversation IDs for range selection
   const allVisibleIds = useMemo(() => {
     const ids: ConversationId[] = [];
-    ids.push(...groupedConversations.pinned.map(c => c._id));
-    ids.push(...groupedConversations.today.map(c => c._id));
-    ids.push(...groupedConversations.yesterday.map(c => c._id));
-    ids.push(...groupedConversations.lastWeek.map(c => c._id));
-    ids.push(...groupedConversations.lastMonth.map(c => c._id));
-    ids.push(...groupedConversations.older.map(c => c._id));
+    for (const groupKey of activeGroups) {
+      ids.push(...groupedConversations[groupKey].map(c => c._id));
+    }
     return ids;
-  }, [groupedConversations]);
+  }, [groupedConversations, activeGroups]);
 
   // Show skeleton when loading
   if (isLoading) {
@@ -134,95 +202,32 @@ export const ConversationListContent = ({
 
   return (
     <div className="pb-3 pt-3">
-      {groupedConversations.pinned.length > 0 && (
-        <ConversationGroup title="Pinned">
-          {groupedConversations.pinned.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
+      {activeGroups.map(groupKey => {
+        const groupConversations = groupedConversations[groupKey];
+        if (groupConversations.length === 0) {
+          return null;
+        }
 
-      {groupedConversations.today.length > 0 && (
-        <ConversationGroup title="Today">
-          {groupedConversations.today.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
-
-      {groupedConversations.yesterday.length > 0 && (
-        <ConversationGroup title="Yesterday">
-          {groupedConversations.yesterday.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
-
-      {groupedConversations.lastWeek.length > 0 && (
-        <ConversationGroup title="Last 7 days">
-          {groupedConversations.lastWeek.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
-
-      {groupedConversations.lastMonth.length > 0 && (
-        <ConversationGroup title="Last 30 days">
-          {groupedConversations.lastMonth.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
-
-      {groupedConversations.older.length > 0 && (
-        <ConversationGroup title="Older">
-          {groupedConversations.older.map(conversation => (
-            <ConversationItem
-              key={conversation._id}
-              conversation={conversation}
-              currentConversationId={currentConversationId}
-              allVisibleIds={allVisibleIds}
-              isMobile={isMobile}
-              onCloseSidebar={onCloseSidebar}
-            />
-          ))}
-        </ConversationGroup>
-      )}
+        return (
+          <ConversationGroup
+            key={groupKey}
+            title={GROUP_LABELS[groupKey]}
+            count={groupConversations.length}
+            collapsible={groupKey !== "pinned"}
+          >
+            {groupConversations.map(conversation => (
+              <ConversationItem
+                key={conversation._id}
+                conversation={conversation}
+                currentConversationId={currentConversationId}
+                allVisibleIds={allVisibleIds}
+                isMobile={isMobile}
+                onCloseSidebar={onCloseSidebar}
+              />
+            ))}
+          </ConversationGroup>
+        );
+      })}
     </div>
   );
 };
