@@ -346,6 +346,10 @@ export const chatStream = httpAction(
         // Default to false if we can't get model info
       }
 
+      // Check for Exa API key availability (needed for system prompt and tool config)
+      const exaApiKey = process.env.EXA_API_KEY;
+      const webSearchEnabled = modelSupportsTools && !!exaApiKey;
+
       // Process messages with PDF extraction if needed
       const messagesWithContent = await Promise.all(
         uiMessages.map(msg =>
@@ -543,7 +547,9 @@ export const chatStream = httpAction(
       }
 
       // Merge baseline instructions with persona prompt
-      const baselineInstructions = getBaselineInstructions(modelId);
+      const baselineInstructions = getBaselineInstructions(modelId, "UTC", {
+        webSearchEnabled,
+      });
       const mergedSystemPrompt = mergeSystemPrompts(
         baselineInstructions,
         personaPrompt
@@ -610,9 +616,6 @@ export const chatStream = httpAction(
           resolvedMaxTokens && resolvedMaxTokens > 0
             ? { ...baseOptions, maxOutputTokens: resolvedMaxTokens }
             : baseOptions;
-
-        // Check for Exa API key availability
-        const exaApiKey = process.env.EXA_API_KEY;
 
         // Determine if we need to use pre-check fallback for models without tool support
         let finalMessages = processedMessages;

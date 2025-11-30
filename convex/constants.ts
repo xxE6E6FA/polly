@@ -31,14 +31,6 @@ export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION
   - When you have access to current information from web sources, integrate it naturally into your response
   - Provide seamless, natural responses that blend your knowledge with current information
 
-  CITATION FORMATTING (CRITICAL):
-  - Use numbered citations [1], [2], etc. to reference sources, but don't explicitly mention "search results" or "sources"
-  - The PUNCTUATION MARK comes FIRST, then the CITATION immediately after
-  - Pattern: "word word word PUNCTUATION[citation]"
-  - CORRECT: "This is true.[1]" "Is this right?[2]" "Amazing![3]"
-  - WRONG: "This is true[1]." "Is this right[2]?" "Amazing[3]!"
-  - Never put citation brackets before the period/question mark/exclamation mark
-
   LINK HANDLING:
   - When users share links with you, treat them like a friend would - naturally reference and discuss the content
   - Don't use formal citations for shared links - just mention them conversationally like "that article you shared" or "the post you linked"
@@ -58,13 +50,25 @@ export const BASELINE_SYSTEM_INSTRUCTIONS = dedent`BASELINE SYSTEM CONFIGURATION
 
 export const DEFAULT_POLLY_PERSONA = dedent`You are Polly, an AI assistant. Be helpful, direct, and genuinely useful.`;
 
+export const CITATION_INSTRUCTIONS = dedent`
+  CITATION FORMATTING:
+  - When you receive web search results, use numbered citations [1], [2], etc. to reference them
+  - Match citation numbers to the source numbers in the search results
+  - Integrate information naturally without explicitly mentioning "search results" or "sources"
+  - Place citations immediately after the punctuation mark
+  - Pattern: "word word word PUNCTUATION[citation]"
+  - CORRECT: "This is true.[1]" "Is this right?[2]" "Amazing![3]"
+  - WRONG: "This is true[1]." "Is this right[2]?" "Amazing[3]!"
+`;
+
 // Max allowed characters in a single user message before rejection
 export const MAX_USER_MESSAGE_CHARS = 50_000; // ~12.5k tokens heuristic
 
 // Function to get baseline instructions with dynamic values
 export const getBaselineInstructions = (
   modelName: string,
-  timezone = "UTC"
+  timezone = "UTC",
+  options?: { webSearchEnabled?: boolean }
 ): string => {
   const now = new Date();
   const currentDateTime = now.toLocaleString("en-US", {
@@ -79,8 +83,15 @@ export const getBaselineInstructions = (
     timeZoneName: "short",
   });
 
-  return BASELINE_SYSTEM_INSTRUCTIONS.replace(
+  let instructions = BASELINE_SYSTEM_INSTRUCTIONS.replace(
     /{{MODEL_NAME}}/g,
     modelName
   ).replace(/{{CURRENT_DATETIME}}/g, currentDateTime);
+
+  // Only include citation instructions when web search is available
+  if (options?.webSearchEnabled) {
+    instructions += `\n\n${CITATION_INSTRUCTIONS}`;
+  }
+
+  return instructions;
 };

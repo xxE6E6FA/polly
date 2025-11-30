@@ -163,9 +163,10 @@ export async function streamAndSaveMessage(
 
     // Get Exa API key for web search tool
     const exaApiKey = process.env.EXA_API_KEY;
+    const webSearchEnabled = supportsTools && !!exaApiKey;
 
     // 2. Prepare system prompt and messages
-    const baseline = getBaselineInstructions(modelId);
+    const baseline = getBaselineInstructions(modelId, "UTC", { webSearchEnabled });
     const personaPrompt = await getPersonaPrompt(ctx, personaId);
     const system = mergeSystemPrompts(baseline, personaPrompt);
 

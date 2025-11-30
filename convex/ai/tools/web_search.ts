@@ -4,6 +4,34 @@ import { performWebSearch, type WebSearchResult } from "../exa";
 import type { Citation } from "../../types";
 
 /**
+ * Clean snippet text by removing common boilerplate patterns.
+ * Strips navigation, social share links, and other cruft from web scrapes.
+ */
+function cleanSnippet(text: string): string {
+  if (!text) return "";
+
+  return text
+    // Remove markdown-style links but keep the text: [text](url) -> text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    // Remove standalone URLs
+    .replace(/https?:\/\/[^\s]+/g, "")
+    // Remove common nav patterns
+    .replace(/^(Menu|Navigation|Skip to [Cc]ontent|Home|News|Sport|Business|Culture|Arts|Travel)[\s\n]*/gm, "")
+    // Remove social share text
+    .replace(/(Share|Tweet|Email|Facebook|Twitter|LinkedIn|Reddit|Whatsapp|Bluesky)[\s\n]*/gi, "")
+    // Remove "IE 11 is not supported" type messages
+    .replace(/IE \d+ is not supported[^.]*\./gi, "")
+    // Remove "For an optimal experience" messages
+    .replace(/For an optimal experience[^.]*\./gi, "")
+    // Collapse multiple newlines
+    .replace(/\n{3,}/g, "\n\n")
+    // Collapse multiple spaces
+    .replace(/  +/g, " ")
+    // Trim
+    .trim();
+}
+
+/**
  * Web search tool schema for AI SDK tool calling.
  * Models with tool support can use this to search the web when they need
  * current information, real-time data, or factual verification.
@@ -134,6 +162,7 @@ Example: For "latest AI news", use searchType='search' with category='news'.`,
 /**
  * Build a structured context summary from search results.
  * This gives the model a clean view of the search results.
+ * Optimized for token efficiency - removes boilerplate and limits snippet length.
  */
 function buildContextSummary(result: WebSearchResult): string {
   if (!result.citations.length) {
@@ -141,7 +170,7 @@ function buildContextSummary(result: WebSearchResult): string {
   }
 
   const summaryParts: string[] = [
-    `Found ${result.citations.length} relevant sources:\n`,
+    `Found ${result.citations.length} sources:\n`,
   ];
 
   result.citations.forEach((citation, index) => {
@@ -152,27 +181,28 @@ function buildContextSummary(result: WebSearchResult): string {
     }
 
     if (citation.publishedDate) {
-      parts.push(`   Published: ${citation.publishedDate}`);
+      // Format date more concisely
+      const date = new Date(citation.publishedDate);
+      const formatted = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      parts.push(`   Date: ${formatted}`);
     }
 
     if (citation.snippet) {
-      // Truncate long snippets
-      const snippet =
-        citation.snippet.length > 500
-          ? `${citation.snippet.substring(0, 500)}...`
-          : citation.snippet;
-      parts.push(`   Content: ${snippet}`);
+      // Clean and truncate snippets for token efficiency
+      const cleaned = cleanSnippet(citation.snippet);
+      const snippet = cleaned.length > 300
+        ? `${cleaned.substring(0, 300)}...`
+        : cleaned;
+      if (snippet) {
+        parts.push(`   Content: ${snippet}`);
+      }
     }
 
-    parts.push(`   URL: ${citation.url}`);
     summaryParts.push(parts.join("\n"));
   });
 
-  // Add the full context if available
-  if (result.context && result.context !== "No relevant content found.") {
-    summaryParts.push("\n--- Detailed Context ---\n");
-    summaryParts.push(result.context);
-  }
+  // Citation reminder for the LLM
+  summaryParts.push("\n---\nCite sources using [1], [2], etc. Place citations after punctuation: \"fact.[1]\"");
 
   return summaryParts.join("\n\n");
 }
