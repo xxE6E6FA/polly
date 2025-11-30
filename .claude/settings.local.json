@@ -63,7 +63,8 @@
       "WebFetch(domain:www.convex.dev)",
       "WebFetch(domain:stack.convex.dev)",
       "WebFetch(domain:discord-questions.convex.dev)",
-      "Bash(npx lint-staged)"
+      "Bash(npx lint-staged)",
+      "WebFetch(domain:ai-sdk.dev)"
     ],
     "deny": []
   },

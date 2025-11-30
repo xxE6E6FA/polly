@@ -1,4 +1,4 @@
-import { streamText, type ModelMessage } from "ai";
+import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createSmoothStreamTransform } from "../../shared/streaming-utils";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
@@ -8,8 +8,9 @@ import {
   humanizeReasoningText,
   isReasoningDelta,
 } from "../lib/shared/stream_utils";
-import { CONFIG } from "./config";
+import type { Citation } from "../types";
 import { getUserFriendlyErrorMessage } from "./error_handlers";
+import { createWebSearchTool } from "./tools";
 
 type StreamingParams = {
   ctx: ActionCtx;
@@ -17,6 +18,8 @@ type StreamingParams = {
   messageId: Id<"messages">;
   model: any; // AI SDK LanguageModel
   messages: ModelMessage[];
+  // Model capability for tool calling (passed from mutation context where auth is available)
+  supportsTools?: boolean;
   // Optional generation params
   temperature?: number;
   maxOutputTokens?: number;
@@ -33,6 +36,7 @@ export async function streamLLMToMessage({
   messageId,
   model,
   messages,
+  supportsTools = false,
   temperature,
   maxOutputTokens,
   topP,
@@ -52,6 +56,13 @@ export async function streamLLMToMessage({
     id: conversationId,
     updates: { isStreaming: true, stopRequested: undefined },
   });
+
+  // Check for Exa API key (supportsTools is passed from mutation context where auth is available)
+  const exaApiKey = process.env.EXA_API_KEY;
+
+  // Track citations from tool results
+  let citationsFromTools: Citation[] = [];
+  let isSearching = false;
 
   // Timing metrics
   const startTime = Date.now();
@@ -132,14 +143,32 @@ export async function streamLLMToMessage({
   // Promote to streaming once first chunk arrives
   let setStreaming = false;
 
+  // Determine if tools will be used (affects experimental_transform)
+  const useTools = supportsTools && !!exaApiKey;
+
   try {
     const genOpts: any = {
       model,
       messages,
-      // biome-ignore lint/style/useNamingConvention: AI SDK option
-      experimental_transform: createSmoothStreamTransform(),
+      // Only apply smooth stream transform when NOT using tools
+      // (may interfere with tool-related chunks)
+      ...(useTools
+        ? {}
+        : {
+            // biome-ignore lint/style/useNamingConvention: AI SDK option
+            experimental_transform: createSmoothStreamTransform(),
+          }),
       ...extraOptions,
     };
+
+    // Add tool calling if supported
+    if (useTools) {
+      genOpts.tools = {
+        webSearch: createWebSearchTool(exaApiKey),
+      };
+      genOpts.toolChoice = "auto";
+      genOpts.stopWhen = stepCountIs(3);
+    }
 
     if (abortController) genOpts.abortSignal = abortController.signal;
     if (temperature !== undefined) genOpts.temperature = temperature;
@@ -168,6 +197,30 @@ export async function streamLLMToMessage({
 
         if (!setStreaming) {
           setStreaming = true;
+          await ctx.runMutation(internal.messages.updateMessageStatus, {
+            messageId,
+            status: "streaming",
+          });
+        }
+
+        // Handle tool call - set status to searching
+        if (chunk.type === "tool-call" && !isSearching) {
+          isSearching = true;
+          await ctx.runMutation(internal.messages.updateMessageStatus, {
+            messageId,
+            status: "searching",
+          });
+        }
+
+        // Handle tool result - extract citations
+        if (chunk.type === "tool-result") {
+          const toolResult = chunk as {
+            output?: { success?: boolean; citations?: Citation[] };
+          };
+          if (toolResult.output?.success && toolResult.output?.citations) {
+            citationsFromTools = toolResult.output.citations;
+          }
+          isSearching = false;
           await ctx.runMutation(internal.messages.updateMessageStatus, {
             messageId,
             status: "streaming",
@@ -238,6 +291,8 @@ export async function streamLLMToMessage({
         // Use AI SDK v5's rich metadata for comprehensive final state
         await ctx.runMutation(internal.messages.internalUpdate, {
           id: messageId,
+          // Include citations from tool calls if any
+          ...(citationsFromTools.length > 0 ? { citations: citationsFromTools } : {}),
           metadata: {
             finishReason: finishReason || "stop",
             tokenUsage:
@@ -295,8 +350,9 @@ export async function streamLLMToMessage({
       } catch {}
     }
 
-    // Drain the text stream to trigger onChunk/onFinish
-    for await (const _ of result.textStream) {
+    // Drain the full stream to trigger onChunk/onFinish
+    // Using fullStream instead of textStream to properly handle multi-step tool calls
+    for await (const _ of result.fullStream) {
       if (stopped) break;
     }
   } catch (error) {
