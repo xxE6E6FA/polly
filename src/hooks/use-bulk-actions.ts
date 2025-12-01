@@ -48,7 +48,12 @@ const BACKGROUND_THRESHOLD = 10;
 
 export function useBulkActions() {
   const batch = useBatchSelection();
-  const { getSelectedIds, clearSelection } = batch;
+  const {
+    getSelectedIds,
+    clearSelection,
+    markForDeletion,
+    clearPendingDeletion,
+  } = batch;
   const confirmationDialog = useConfirmationDialog();
   const managedToast = useToast();
 
@@ -214,6 +219,9 @@ export function useBulkActions() {
         }
 
         case "delete": {
+          // Mark items as pending deletion for visual feedback
+          markForDeletion(ids);
+
           // Use the same logic as settings page: background for large, direct for small
           if (ids.length > BACKGROUND_THRESHOLD) {
             await backgroundJobs.startBulkDelete(ids);
@@ -222,6 +230,7 @@ export function useBulkActions() {
               `Started deleting ${ids.length} conversations in background. You'll be notified when complete.`,
               { id: `bulk-delete-background-${Date.now()}` }
             );
+            // Note: pending deletion state clears automatically when conversations are removed from DB
           } else {
             await bulkRemove({ ids });
 
@@ -231,6 +240,8 @@ export function useBulkActions() {
             });
             // Invalidate conversations cache to reflect deleted conversations
             del(CACHE_KEYS.conversations);
+            // Clear pending deletion state for direct deletes
+            clearPendingDeletion();
           }
           break;
         }
@@ -252,7 +263,14 @@ export function useBulkActions() {
           throw new Error(`Unsupported action: ${actionKey}`);
       }
     },
-    [patchConversation, bulkRemove, backgroundJobs, managedToast]
+    [
+      patchConversation,
+      bulkRemove,
+      backgroundJobs,
+      managedToast,
+      markForDeletion,
+      clearPendingDeletion,
+    ]
   );
 
   const performBulkAction = useCallback(

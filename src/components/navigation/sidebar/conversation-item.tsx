@@ -59,6 +59,7 @@ const ConversationItemComponent = ({
     hasSelection,
     selectRange,
     isShiftPressed,
+    isPendingDeletion,
   } = useBatchSelection();
   const navigate = useNavigate();
   const confirmationDialog = useConfirmationDialog();
@@ -68,6 +69,7 @@ const ConversationItemComponent = ({
   const isCurrentConversation = currentConversationId === conversation._id;
   const isItemSelected = isSelected(conversation._id);
   const isBulkMode = isSelectionMode || hasSelection;
+  const isBeingDeleted = isPendingDeletion(conversation._id);
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
@@ -346,7 +348,8 @@ const ConversationItemComponent = ({
               "group relative flex items-center rounded-lg transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
                 ? "bg-muted text-sidebar-foreground"
-                : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover"
+                : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover",
+              isBeingDeleted && "opacity-50 pointer-events-none"
             )}
             onMouseEnter={() => {
               if (!isMobile) {
@@ -432,9 +435,13 @@ const ConversationItemComponent = ({
 
             {/* Right side: spinner or actions - flex sibling, not overlapping Link */}
             <div className="flex-shrink-0 flex items-center pr-2">
-              {conversation.isStreaming ? (
+              {isBeingDeleted && (
+                <Spinner className="text-destructive/70" size="sm" />
+              )}
+              {!isBeingDeleted && conversation.isStreaming && (
                 <Spinner className="text-sidebar-muted" size="sm" />
-              ) : (
+              )}
+              {!(isBeingDeleted || conversation.isStreaming) && (
                 <ConversationActions
                   conversation={conversation}
                   isEditing={isEditing}

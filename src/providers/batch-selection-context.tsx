@@ -20,6 +20,10 @@ type BatchSelectionContextValue = {
   getSelectedIds: () => ConversationId[];
   lastSelectedId: ConversationId | null;
   resetHoverStates: () => void;
+  // Pending deletion state for visual feedback during bulk delete
+  isPendingDeletion: (conversationId: ConversationId) => boolean;
+  markForDeletion: (conversationIds: ConversationId[]) => void;
+  clearPendingDeletion: () => void;
 };
 
 type BatchSelectionProviderProps = {
@@ -53,6 +57,13 @@ const BatchSelectionContext = React.createContext<BatchSelectionContextValue>({
   getSelectedIds: () => [],
   lastSelectedId: null,
   resetHoverStates: () => {
+    // Default no-op
+  },
+  isPendingDeletion: () => false,
+  markForDeletion: () => {
+    // Default no-op
+  },
+  clearPendingDeletion: () => {
     // Default no-op
   },
 });
@@ -98,6 +109,9 @@ export const BatchSelectionProvider = ({
   const [lastSelectedId, setLastSelectedId] = useState<ConversationId | null>(
     null
   );
+  const [pendingDeletionIds, setPendingDeletionIds] = useState<
+    Set<ConversationId>
+  >(new Set());
 
   // Shift key detection
   useEffect(() => {
@@ -247,6 +261,22 @@ export const BatchSelectionProvider = ({
     setHoveringOverSidebar(false);
   }, []);
 
+  // Pending deletion state management
+  const isPendingDeletion = useCallback(
+    (conversationId: ConversationId) => {
+      return pendingDeletionIds.has(conversationId);
+    },
+    [pendingDeletionIds]
+  );
+
+  const markForDeletion = useCallback((conversationIds: ConversationId[]) => {
+    setPendingDeletionIds(new Set(conversationIds));
+  }, []);
+
+  const clearPendingDeletion = useCallback(() => {
+    setPendingDeletionIds(new Set());
+  }, []);
+
   // Throttle hover state updates to avoid sidebar-wide re-renders when moving the mouse
   const hoverThrottleRef = React.useRef<number | null>(null);
   const pendingHoverRef = React.useRef<boolean | null>(null);
@@ -286,6 +316,9 @@ export const BatchSelectionProvider = ({
       getSelectedIds,
       lastSelectedId,
       resetHoverStates,
+      isPendingDeletion,
+      markForDeletion,
+      clearPendingDeletion,
     }),
     [
       isSelectionMode,
@@ -302,6 +335,9 @@ export const BatchSelectionProvider = ({
       getSelectedIds,
       lastSelectedId,
       resetHoverStates,
+      isPendingDeletion,
+      markForDeletion,
+      clearPendingDeletion,
     ]
   );
 
