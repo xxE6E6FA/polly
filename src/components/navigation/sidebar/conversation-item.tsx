@@ -68,11 +68,6 @@ const ConversationItemComponent = ({
   const isCurrentConversation = currentConversationId === conversation._id;
   const isItemSelected = isSelected(conversation._id);
   const isBulkMode = isSelectionMode || hasSelection;
-  const isActionsHovered = isHovered || isDesktopPopoverOpen;
-
-  // Never show actions padding while editing to avoid layout shift
-  const shouldShowActions =
-    !(isMobile || isBulkMode || isEditing) && isActionsHovered;
 
   // Mutations
   const patchConversation = useMutation(api.conversations.patch);
@@ -348,7 +343,7 @@ const ConversationItemComponent = ({
         <ContextMenu.Trigger>
           <div
             className={cn(
-              "group relative rounded-lg transition-all duration-200 ease-in-out my-0",
+              "group relative flex items-center rounded-lg transition-all duration-200 ease-in-out my-0",
               isCurrentConversation || isEditing
                 ? "bg-muted text-sidebar-foreground"
                 : "text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover"
@@ -397,17 +392,14 @@ const ConversationItemComponent = ({
               </div>
             </div>
 
-            {/* Main content area - make the whole area clickable with Link */}
+            {/* Main content area - Link only covers content, not actions */}
             <Link
               to={ROUTES.CHAT_CONVERSATION(conversation._id)}
               prefetch="intent"
               className={cn(
-                "flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out relative",
+                "flex-1 flex items-center min-w-0 no-underline text-inherit rounded-lg transition-all duration-200 ease-in-out",
                 isMobile ? "py-2.5" : "py-2",
-                // Adjust padding dynamically based on checkbox visibility
-                isBulkMode ? "px-2.5 pl-8" : "px-2.5",
-                // Add padding on the right for actions
-                shouldShowActions ? "pr-16" : "pr-10"
+                isBulkMode ? "pl-8 pr-2.5" : "px-2.5"
               )}
               onClick={
                 isEditing ? e => e.preventDefault() : handleConversationClick
@@ -438,34 +430,31 @@ const ConversationItemComponent = ({
               </div>
             </Link>
 
-            {/* Show spinner when streaming - positioned absolutely to align with actions */}
-            {conversation.isStreaming && (
-              <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
+            {/* Right side: spinner or actions - flex sibling, not overlapping Link */}
+            <div className="flex-shrink-0 flex items-center pr-2">
+              {conversation.isStreaming ? (
                 <Spinner className="text-sidebar-muted" size="sm" />
-              </div>
-            )}
-
-            {/* Position actions absolutely - now sibling to Link instead of nested */}
-            <div className="absolute right-2 top-0 h-full flex items-center pointer-events-none z-10">
-              <ConversationActions
-                conversation={conversation}
-                isEditing={isEditing}
-                isHovered={isHovered}
-                isMobile={isMobile}
-                isMobilePopoverOpen={isMobilePopoverOpen}
-                isDesktopPopoverOpen={isDesktopPopoverOpen}
-                exportingFormat={exportingFormat}
-                isDeleteJobInProgress={isDeleteJobInProgress}
-                isBulkMode={isBulkMode}
-                onMobilePopoverChange={setIsMobilePopoverOpen}
-                onDesktopPopoverChange={setIsDesktopPopoverOpen}
-                onStartEdit={handleStartEdit}
-                onArchive={handleArchiveClick}
-                onDelete={handleDeleteClick}
-                onPinToggle={handlePinToggle}
-                onExport={handleExport}
-                onShare={handleShareClick}
-              />
+              ) : (
+                <ConversationActions
+                  conversation={conversation}
+                  isEditing={isEditing}
+                  isHovered={isHovered}
+                  isMobile={isMobile}
+                  isMobilePopoverOpen={isMobilePopoverOpen}
+                  isDesktopPopoverOpen={isDesktopPopoverOpen}
+                  exportingFormat={exportingFormat}
+                  isDeleteJobInProgress={isDeleteJobInProgress}
+                  isBulkMode={isBulkMode}
+                  onMobilePopoverChange={setIsMobilePopoverOpen}
+                  onDesktopPopoverChange={setIsDesktopPopoverOpen}
+                  onStartEdit={handleStartEdit}
+                  onArchive={handleArchiveClick}
+                  onDelete={handleDeleteClick}
+                  onPinToggle={handlePinToggle}
+                  onExport={handleExport}
+                  onShare={handleShareClick}
+                />
+              )}
             </div>
           </div>
         </ContextMenu.Trigger>

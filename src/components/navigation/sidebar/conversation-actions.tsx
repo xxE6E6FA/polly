@@ -84,7 +84,7 @@ export const ConversationActions = memo(
     return (
       <>
         {isMobile ? (
-          <div className="flex-shrink-0 pointer-events-auto">
+          <div className="flex-shrink-0">
             <Drawer
               open={isMobilePopoverOpen}
               onOpenChange={onMobilePopoverChange}
@@ -159,7 +159,7 @@ export const ConversationActions = memo(
               "flex flex-shrink-0 items-center gap-0.5 transition-all duration-200 ease-in-out",
               isHovered || isDesktopPopoverOpen
                 ? "opacity-100 translate-x-0"
-                : "opacity-0 translate-x-2 pointer-events-none"
+                : "opacity-0 translate-x-2"
             )}
           >
             <Tooltip>
@@ -185,7 +185,7 @@ export const ConversationActions = memo(
               open={isDesktopPopoverOpen}
               onOpenChange={onDesktopPopoverChange}
             >
-              <DropdownMenuTrigger className="pointer-events-auto h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer">
+              <DropdownMenuTrigger className="h-7 w-7 text-foreground/70 transition-opacity hover:text-foreground rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer">
                 <DotsThreeVerticalIcon className="h-3.5 w-3.5" weight="bold" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={5} className="w-40">
