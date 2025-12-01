@@ -1881,6 +1881,75 @@ export const bulkRemove = mutation({
   },
 });
 
+/**
+ * Internal bulk remove mutation for background job processing.
+ * This bypasses auth checks because the calling action has already validated ownership.
+ * The userId is passed explicitly rather than derived from auth context.
+ */
+export const internalBulkRemove = internalMutation({
+  args: {
+    ids: v.array(v.id("conversations")),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const results = [];
+    for (const id of args.ids) {
+      // Verify the conversation exists and belongs to the specified user
+      const conversation = await ctx.db.get(id);
+      if (!conversation) {
+        results.push({ id, status: "not_found" });
+        continue;
+      }
+      if (conversation.userId !== args.userId) {
+        results.push({ id, status: "access_denied" });
+        continue;
+      }
+
+      // First, ensure streaming is stopped for this conversation
+      try {
+        await setConversationStreaming(ctx, id, false);
+      } catch (error) {
+        console.warn(
+          `Failed to clear streaming state for conversation ${id}:`,
+          error
+        );
+      }
+
+      // Get all messages in the conversation
+      const messages = await ctx.db
+        .query("messages")
+        .withIndex("by_conversation", q => q.eq("conversationId", id))
+        .collect();
+
+      // Use the internal messages.removeMultiple mutation which handles attachments and streaming
+      if (messages.length > 0) {
+        const messageIds = messages.map(m => m._id);
+        // We'll delete messages in batches to avoid potential timeouts
+        for (let i = 0; i < messageIds.length; i += MESSAGE_BATCH_SIZE) {
+          const batch = messageIds.slice(i, i + MESSAGE_BATCH_SIZE);
+          await ctx.runMutation(internal.messages.internalRemoveMultiple, {
+            ids: batch,
+          });
+        }
+      }
+
+      // Delete the conversation
+      await ctx.db.delete(id);
+
+      // Use atomic decrement for conversation count
+      // Note: Message count is already decremented in messages.removeMultiple
+      const user = await ctx.db.get(args.userId);
+      if (user && "conversationCount" in user) {
+        await ctx.db.patch(user._id, {
+          conversationCount: Math.max(0, (user.conversationCount || 0) - 1),
+        });
+      }
+      results.push({ id, status: "deleted" });
+    }
+    return results;
+  },
+});
+
 export const editAndResendMessage = action({
   args: {
     messageId: v.id("messages"),

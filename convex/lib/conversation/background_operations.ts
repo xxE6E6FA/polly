@@ -1,6 +1,6 @@
 import { action } from "../../_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { api } from "../../_generated/api";
+import { api, internal } from "../../_generated/api";
 import { v } from "convex/values";
 import { scheduleRunAfter } from "../scheduler";
 
@@ -135,9 +135,10 @@ export const processBulkDelete = action({
 
         try {
           const batchResult = await ctx.runMutation(
-            api.conversations.bulkRemove,
+            internal.conversations.internalBulkRemove,
             {
               ids: batch,
+              userId: args.userId,
             }
           );
 
@@ -169,18 +170,28 @@ export const processBulkDelete = action({
         }
       }
 
-      // Save final result
-      await ctx.runMutation(api.backgroundJobs.saveImportResult, {
+      // Determine final status based on deletion results
+      const allFailed = totalDeleted === 0 && args.conversationIds.length > 0;
+      const partialSuccess =
+        totalDeleted > 0 && totalDeleted < args.conversationIds.length;
+
+      // Save final result (use internal mutation to include error message)
+      await ctx.runMutation(internal.backgroundJobs.internalSaveImportResult, {
         jobId: args.jobId,
         result: {
           totalImported: totalDeleted,
           totalProcessed: args.conversationIds.length,
           errors,
         },
-        status: "completed",
+        status: allFailed ? "failed" : "completed",
+        error: allFailed
+          ? "No conversations were deleted. Please try again."
+          : partialSuccess
+            ? `Only ${totalDeleted} of ${args.conversationIds.length} conversations were deleted`
+            : undefined,
       });
 
-      return { success: true, totalDeleted };
+      return { success: !allFailed, totalDeleted };
     } catch (error) {
       await ctx.runMutation(api.backgroundJobs.updateStatus, {
         jobId: args.jobId,
