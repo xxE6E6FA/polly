@@ -165,6 +165,8 @@ export const graduateAnonymousUser = mutation({
       }
 
       // Update the new user with anonymous user's message counts
+      const updatedMessagesSent =
+        (newUser.messagesSent || 0) + (anonymousUser.messagesSent || 0);
       const updatedMonthlyMessagesSent =
         (newUser.monthlyMessagesSent || 0) +
         (anonymousUser.monthlyMessagesSent || 0);
@@ -178,6 +180,7 @@ export const graduateAnonymousUser = mutation({
       );
 
       await ctx.db.patch(newUserId, {
+        messagesSent: Math.max(0, updatedMessagesSent),
         monthlyMessagesSent: Math.max(0, updatedMonthlyMessagesSent),
         totalMessageCount: Math.max(0, updatedTotalMessageCount),
         conversationCount: updatedConversationCount,

@@ -485,14 +485,14 @@ export const userSchema = v.object({
   emailVerificationTime: v.optional(v.number()),
   image: v.optional(v.string()),
   isAnonymous: v.optional(v.boolean()),
-  messagesSent: v.optional(v.number()), // Total messages sent across all models
+  messagesSent: v.optional(v.number()), // Lifetime counter of all messages ever sent (never decremented)
   createdAt: v.optional(v.number()),
-  monthlyMessagesSent: v.optional(v.number()), // Monthly messages sent using built-in models
+  monthlyMessagesSent: v.optional(v.number()), // Monthly messages for limit tracking (reset monthly, only counts built-in models)
   monthlyLimit: v.optional(v.number()), // Monthly limit for built-in models
   lastMonthlyReset: v.optional(v.number()),
   hasUnlimitedCalls: v.optional(v.boolean()),
   conversationCount: v.optional(v.number()),
-  totalMessageCount: v.optional(v.number()),
+  totalMessageCount: v.optional(v.number()), // Current count of messages in database (decremented when messages are deleted)
 });
 
 // Account schema

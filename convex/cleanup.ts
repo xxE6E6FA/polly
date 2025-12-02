@@ -1,6 +1,6 @@
 import { SHARED_CONVERSATION_EXPIRY_DAYS } from "@shared/constants";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalMutation } from "./_generated/server";
 
@@ -216,21 +216,32 @@ export const archiveConversationsForAllUsers = internalMutation({
 export const resetMonthlyUserStats = internalMutation({
   args: {
     batchSize: v.optional(v.number()),
+    cursor: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
     const batchSize = args.batchSize || 100;
     const now = Date.now();
 
-    // Get users who need monthly reset
+    // Get users who need monthly reset, paginating by _id for consistency
+    const cursor = args.cursor;
+
     const users = await ctx.db
       .query("users")
-      .filter(q =>
-        q.and(
+      .filter(q => {
+        const baseFilters = q.and(
           q.neq(q.field("isAnonymous"), true),
           q.neq(q.field("hasUnlimitedCalls"), true)
-        )
-      )
-      .take(batchSize);
+        );
+        // If we have a cursor, start after that user
+        if (cursor) {
+          return q.and(baseFilters, q.gt(q.field("_id"), cursor));
+        }
+        return baseFilters;
+      })
+      .take(batchSize + 1); // Take one extra to check if there are more
+
+    const hasMore = users.length > batchSize;
+    const usersToProcess = hasMore ? users.slice(0, batchSize) : users;
 
     let resetCount = 0;
     const results: Array<{
@@ -239,7 +250,7 @@ export const resetMonthlyUserStats = internalMutation({
       reason?: string;
     }> = [];
 
-    for (const user of users) {
+    for (const user of usersToProcess) {
       if (!user.createdAt) {
         results.push({
           userId: user._id,
@@ -302,10 +313,19 @@ export const resetMonthlyUserStats = internalMutation({
       }
     }
 
+    // Schedule continuation if there are more users to process
+    const lastUser = usersToProcess[usersToProcess.length - 1];
+    if (hasMore && lastUser) {
+      await ctx.scheduler.runAfter(0, internal.cleanup.resetMonthlyUserStats, {
+        batchSize: args.batchSize,
+        cursor: lastUser._id,
+      });
+    }
+
     return {
       resetCount,
-      usersProcessed: users.length,
-      hasMore: users.length === batchSize,
+      usersProcessed: usersToProcess.length,
+      hasMore,
       results,
     };
   },
