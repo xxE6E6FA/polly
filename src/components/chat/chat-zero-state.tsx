@@ -250,13 +250,14 @@ const ChatSection = () => {
 
 export const ChatZeroState = () => {
   const { isSidebarVisible, setSidebarVisible } = useUI();
+  const { isPrivateMode } = usePrivateMode();
 
   return (
     <div className="flex h-full w-full max-w-full flex-col overflow-hidden">
       {/* Header with sidebar toggle */}
       <div className="px-3 sm:px-6">
         <div className="relative flex w-full items-center justify-between gap-1.5 py-4 sm:gap-2 z-sidebar">
-          {!isSidebarVisible && (
+          {!(isSidebarVisible || isPrivateMode) && (
             <Button
               size="icon-sm"
               title="Expand sidebar"

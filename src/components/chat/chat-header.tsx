@@ -405,7 +405,7 @@ const ChatHeaderComponent = ({
           "z-sticky"
         )}
       >
-        {!isSidebarVisible && (
+        {!(isSidebarVisible || isPrivateMode) && (
           <Button
             size="icon-sm"
             title="Expand sidebar"

@@ -26,6 +26,7 @@ import {
   useBatchSelection,
   useSidebarHoverSetter,
 } from "@/providers/batch-selection-context";
+import { usePrivateMode } from "@/providers/private-mode-context";
 import { useSidebarWidth } from "@/providers/sidebar-width-context";
 import { useUI } from "@/providers/ui-provider";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -57,6 +58,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   const { user } = useUserDataContext();
   const { isSelectionMode, hasSelection } = useBatchSelection();
   const location = useLocation();
+  const { isPrivateMode } = usePrivateMode();
 
   // Framer Motion for gestures
   const dragControls = useDragControls();
@@ -165,6 +167,13 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
     }
   }, [currentConversationId, isMobile, setSidebarVisible]);
 
+  // Collapse sidebar when private mode is enabled
+  useEffect(() => {
+    if (isPrivateMode) {
+      setSidebarVisible(false);
+    }
+  }, [isPrivateMode, setSidebarVisible]);
+
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) {
@@ -189,9 +198,12 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Disable sidebar toggle shortcut in private mode
       if ((e.metaKey || e.ctrlKey) && e.key === "b") {
         e.preventDefault();
-        toggleSidebarWithCheck();
+        if (!isPrivateMode) {
+          toggleSidebarWithCheck();
+        }
         return;
       }
       if (e.key === "Escape" && isMobile && isSidebarVisible) {
@@ -202,7 +214,13 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebarWithCheck, isMobile, isSidebarVisible, setSidebarVisible]);
+  }, [
+    toggleSidebarWithCheck,
+    isMobile,
+    isSidebarVisible,
+    setSidebarVisible,
+    isPrivateMode,
+  ]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -298,7 +316,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
   return (
     <>
       {/* Touch target for gestures - only when mobile and closed */}
-      {isMobile && !isSidebarVisible && !forceHidden && (
+      {isMobile && !isSidebarVisible && !forceHidden && !isPrivateMode && (
         <div
           className="fixed bottom-40 left-0 top-14 z-[15] w-12 touch-pan-y"
           onPointerDown={e => {
@@ -319,7 +337,7 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
         />
       )}
 
-      {!(isMobile || isSidebarVisible || forceHidden) && (
+      {!(isMobile || isSidebarVisible || forceHidden || isPrivateMode) && (
         <button
           type="button"
           aria-label="Expand sidebar"
@@ -452,15 +470,17 @@ export const Sidebar = ({ forceHidden = false }: { forceHidden?: boolean }) => {
                       <NotePencilIcon className="h-4.5 w-4.5" />
                     </Button>
                   </Link>
-                  <Button
-                    size="icon-sm"
-                    title="Collapse sidebar"
-                    variant="ghost"
-                    className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
-                    onClick={() => setSidebarVisible(false)}
-                  >
-                    <SidebarSimpleIcon className="h-4.5 w-4.5" />
-                  </Button>
+                  {!isPrivateMode && (
+                    <Button
+                      size="icon-sm"
+                      title="Collapse sidebar"
+                      variant="ghost"
+                      className="text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-hover h-8 w-8"
+                      onClick={() => setSidebarVisible(false)}
+                    >
+                      <SidebarSimpleIcon className="h-4.5 w-4.5" />
+                    </Button>
+                  )}
                 </div>
               </div>
 
