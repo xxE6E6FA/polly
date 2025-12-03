@@ -1,16 +1,19 @@
-import React from "react";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
 
-interface CitationPillProps {
+type CitationPillProps = {
   sourceName: string;
   groupCount?: number;
   className?: string;
-}
+  ref?: React.Ref<HTMLSpanElement>;
+};
 
-export const CitationPill = React.forwardRef<
-  HTMLSpanElement,
-  CitationPillProps
->(({ sourceName, groupCount, className }, ref) => {
+export function CitationPill({
+  sourceName,
+  groupCount,
+  className,
+  ref,
+}: CitationPillProps) {
   return (
     <span
       ref={ref}
@@ -27,6 +30,4 @@ export const CitationPill = React.forwardRef<
       {groupCount && groupCount > 1 && ` +${groupCount - 1}`}
     </span>
   );
-});
-
-CitationPill.displayName = "CitationPill";
+}

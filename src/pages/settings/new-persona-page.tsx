@@ -1,6 +1,6 @@
 import { api } from "convex/_generated/api";
 import { useMutation } from "convex/react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   PersonaForm,
@@ -14,7 +14,7 @@ import { useToast } from "@/providers/toast-context";
 export default function NewPersonaPage() {
   const navigate = useNavigate();
   const managedToast = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
 
   const [formData, setFormData] = useState<PersonaFormData>({
@@ -28,33 +28,32 @@ export default function NewPersonaPage() {
 
   const createPersonaMutation = useMutation(api.personas.create);
 
-  const handleCreatePersona = async () => {
+  const handleCreatePersona = () => {
     if (!(formData.name.trim() && formData.prompt.trim())) {
       return;
     }
 
-    setIsLoading(true);
-    try {
-      await createPersonaMutation({
-        name: formData.name,
-        description: formData.description,
-        prompt: formData.prompt,
-        icon: formData.icon,
-        ttsVoiceId: formData.ttsVoiceId || undefined,
-        temperature: formData.temperature,
-        topP: formData.topP,
-        topK: formData.topK,
-        frequencyPenalty: formData.frequencyPenalty,
-        presencePenalty: formData.presencePenalty,
-        repetitionPenalty: formData.repetitionPenalty,
-        advancedSamplingEnabled: formData.advancedSamplingEnabled,
-      });
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (_error) {
-      managedToast.error("Failed to create persona");
-    } finally {
-      setIsLoading(false);
-    }
+    startTransition(async () => {
+      try {
+        await createPersonaMutation({
+          name: formData.name,
+          description: formData.description,
+          prompt: formData.prompt,
+          icon: formData.icon,
+          ttsVoiceId: formData.ttsVoiceId || undefined,
+          temperature: formData.temperature,
+          topP: formData.topP,
+          topK: formData.topK,
+          frequencyPenalty: formData.frequencyPenalty,
+          presencePenalty: formData.presencePenalty,
+          repetitionPenalty: formData.repetitionPenalty,
+          advancedSamplingEnabled: formData.advancedSamplingEnabled,
+        });
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      } catch (_error) {
+        managedToast.error("Failed to create persona");
+      }
+    });
   };
 
   const handleEmojiClick = (emoji: string) => {
@@ -96,12 +95,12 @@ export default function NewPersonaPage() {
           Cancel
         </Link>
         <Button
-          disabled={!isFormValid || isLoading}
+          disabled={!isFormValid || isPending}
           size="default"
           variant="default"
           onClick={handleCreatePersona}
         >
-          {isLoading ? "Creating..." : "Create Persona"}
+          {isPending ? "Creating..." : "Create Persona"}
         </Button>
       </div>
     </SettingsPageLayout>

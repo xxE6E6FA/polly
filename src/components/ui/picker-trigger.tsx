@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const pickerTriggerVariants = cva(
@@ -60,55 +60,49 @@ const pickerTriggerVariants = cva(
   }
 );
 
-export interface PickerTriggerProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof pickerTriggerVariants> {
-  /** Show an indicator dot for active/modified state */
-  showIndicator?: boolean;
-  /** Custom indicator color class */
-  indicatorClassName?: string;
+export type PickerTriggerProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
+  VariantProps<typeof pickerTriggerVariants> & {
+    /** Show an indicator dot for active/modified state */
+    showIndicator?: boolean;
+    /** Custom indicator color class */
+    indicatorClassName?: string;
+    ref?: React.Ref<HTMLButtonElement>;
+  };
+
+function PickerTrigger({
+  className,
+  variant,
+  size,
+  showIndicator = false,
+  indicatorClassName,
+  children,
+  ref,
+  ...props
+}: PickerTriggerProps) {
+  return (
+    <button
+      type="button"
+      ref={ref}
+      className={cn(
+        pickerTriggerVariants({ variant, size }),
+        showIndicator && "relative",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showIndicator && (
+        <span
+          className={cn(
+            "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary",
+            "ring-2 ring-background",
+            indicatorClassName
+          )}
+          aria-hidden="true"
+        />
+      )}
+    </button>
+  );
 }
-
-const PickerTrigger = React.forwardRef<HTMLButtonElement, PickerTriggerProps>(
-  (
-    {
-      className,
-      variant,
-      size,
-      showIndicator = false,
-      indicatorClassName,
-      children,
-      ...props
-    },
-    ref
-  ) => {
-    return (
-      <button
-        type="button"
-        ref={ref}
-        className={cn(
-          pickerTriggerVariants({ variant, size }),
-          showIndicator && "relative",
-          className
-        )}
-        {...props}
-      >
-        {children}
-        {showIndicator && (
-          <span
-            className={cn(
-              "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary",
-              "ring-2 ring-background",
-              indicatorClassName
-            )}
-            aria-hidden="true"
-          />
-        )}
-      </button>
-    );
-  }
-);
-
-PickerTrigger.displayName = "PickerTrigger";
 
 export { PickerTrigger, pickerTriggerVariants };

@@ -66,10 +66,35 @@ Run `bun run fix` before committing. Key rules:
 - **Control**: No nested ternaries, use `===`, always use `{}`
 - **Backend**: Use `console.error`/`console.warn` in Convex (no custom logger)
 
+## React 19 Patterns
+
+**Refs as props**: Components receive `ref` as a regular prop - no `forwardRef` needed:
+```tsx
+type InputProps = React.ComponentProps<"input"> & {
+  ref?: React.Ref<HTMLInputElement>;
+};
+
+function Input({ className, ref, ...props }: InputProps) {
+  return <input ref={ref} className={className} {...props} />;
+}
+```
+
+**useTransition for mutations**: Use `useTransition` for async operations instead of manual loading state:
+```tsx
+const [isPending, startTransition] = useTransition();
+
+const handleSubmit = () => {
+  startTransition(async () => {
+    await mutation();
+    navigate("/success");
+  });
+};
+```
+
 ## React Compiler
 
 Trust the compiler for optimization. Keep `useMemo`/`useCallback` only for:
-- useEvent implementations, public hook APIs, virtualized components
+- Public hook APIs, virtualized components
 - Provider contexts, expensive computations (>10ms profiler-verified)
 - Set/Map creation for O(1) lookups
 

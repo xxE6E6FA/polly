@@ -1,12 +1,14 @@
-import * as React from "react";
+import type * as React from "react";
 import { Button, type ButtonAsButtonProps } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ChatInputIconButtonSize = "sm" | "default";
 type ChatInputIconButtonVariant = "default" | "ghost";
 
-export interface ChatInputIconButtonProps
-  extends Omit<ButtonAsButtonProps, "size" | "variant" | "as"> {
+export type ChatInputIconButtonProps = Omit<
+  ButtonAsButtonProps,
+  "size" | "variant" | "as"
+> & {
   /**
    * Size variant for the button
    * - "default": h-8 w-8 (standard chat input size)
@@ -19,12 +21,15 @@ export interface ChatInputIconButtonProps
    * - "ghost": Transparent background with hover effects
    */
   variant?: ChatInputIconButtonVariant;
-}
+};
 
-export const ChatInputIconButton = React.forwardRef<
-  HTMLButtonElement,
-  ChatInputIconButtonProps
->(({ size = "default", variant = "default", className, ...props }, ref) => {
+export function ChatInputIconButton({
+  size = "default",
+  variant = "default",
+  className,
+  ref,
+  ...props
+}: ChatInputIconButtonProps) {
   const sizeClasses = {
     default:
       "h-[var(--chat-input-button-size-default)] w-[var(--chat-input-button-size-default)]",
@@ -42,6 +47,4 @@ export const ChatInputIconButton = React.forwardRef<
       {...props}
     />
   );
-});
-
-ChatInputIconButton.displayName = "ChatInputIconButton";
+}

@@ -1,7 +1,7 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   PersonaForm,
@@ -22,8 +22,8 @@ export default function EditPersonaPage() {
   const managedToast = useToast();
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [formData, setFormData] = useState<PersonaFormData | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdating, startUpdateTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const updatePersonaMutation = useMutation(api.personas.update);
   const deletePersonaMutation = useMutation(api.personas.remove);
@@ -67,37 +67,36 @@ export default function EditPersonaPage() {
     return <NotFoundPage />;
   }
 
-  const handleUpdatePersona = async () => {
+  const handleUpdatePersona = () => {
     if (!(formData?.name.trim() && formData?.prompt.trim() && personaId)) {
       return;
     }
 
-    setIsUpdating(true);
-    try {
-      await updatePersonaMutation({
-        id: personaId as Id<"personas">,
-        name: formData.name,
-        description: formData.description,
-        prompt: formData.prompt,
-        icon: formData.icon,
-        ttsVoiceId: formData.ttsVoiceId || undefined,
-        temperature: formData.temperature,
-        topP: formData.topP,
-        topK: formData.topK,
-        frequencyPenalty: formData.frequencyPenalty,
-        presencePenalty: formData.presencePenalty,
-        repetitionPenalty: formData.repetitionPenalty,
-        advancedSamplingEnabled: formData.advancedSamplingEnabled,
-      });
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (_error) {
-      managedToast.error("Failed to update persona");
-    } finally {
-      setIsUpdating(false);
-    }
+    startUpdateTransition(async () => {
+      try {
+        await updatePersonaMutation({
+          id: personaId as Id<"personas">,
+          name: formData.name,
+          description: formData.description,
+          prompt: formData.prompt,
+          icon: formData.icon,
+          ttsVoiceId: formData.ttsVoiceId || undefined,
+          temperature: formData.temperature,
+          topP: formData.topP,
+          topK: formData.topK,
+          frequencyPenalty: formData.frequencyPenalty,
+          presencePenalty: formData.presencePenalty,
+          repetitionPenalty: formData.repetitionPenalty,
+          advancedSamplingEnabled: formData.advancedSamplingEnabled,
+        });
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      } catch (_error) {
+        managedToast.error("Failed to update persona");
+      }
+    });
   };
 
-  const handleDeletePersona = async () => {
+  const handleDeletePersona = () => {
     if (!personaId) {
       return;
     }
@@ -110,15 +109,14 @@ export default function EditPersonaPage() {
       return;
     }
 
-    setIsDeleting(true);
-    try {
-      await deletePersonaMutation({ id: personaId as Id<"personas"> });
-      navigate(ROUTES.SETTINGS.PERSONAS);
-    } catch (_error) {
-      managedToast.error("Failed to delete persona");
-    } finally {
-      setIsDeleting(false);
-    }
+    startDeleteTransition(async () => {
+      try {
+        await deletePersonaMutation({ id: personaId as Id<"personas"> });
+        navigate(ROUTES.SETTINGS.PERSONAS);
+      } catch (_error) {
+        managedToast.error("Failed to delete persona");
+      }
+    });
   };
 
   const handleEmojiClick = (emoji: string) => {

@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import * as React from "react";
+import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -74,55 +74,30 @@ type ButtonBaseProps = VariantOptions & {
 export type ButtonAsButtonProps = ButtonBaseProps &
   Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonBaseProps> & {
     as?: "button";
+    ref?: React.Ref<HTMLButtonElement>;
   };
 
 // Anchor-specific props
 export type ButtonAsAnchorProps = ButtonBaseProps &
   Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, keyof ButtonBaseProps> & {
     as: "a";
+    ref?: React.Ref<HTMLAnchorElement>;
   };
 
 // Union type for external use
 export type ButtonProps = ButtonAsButtonProps | ButtonAsAnchorProps;
 
-// Overloaded component signatures for proper type inference
-interface ButtonComponent {
-  (
-    props: ButtonAsAnchorProps & React.RefAttributes<HTMLAnchorElement>
-  ): React.ReactElement;
-  (
-    props: ButtonAsButtonProps & React.RefAttributes<HTMLButtonElement>
-  ): React.ReactElement;
-  displayName?: string;
-}
-
-const Button = React.forwardRef<
-  HTMLButtonElement | HTMLAnchorElement,
-  ButtonProps
->((props, ref) => {
+function Button(props: ButtonProps) {
   const { className, variant, size, rounded, ...rest } = props;
   const classes = cn(buttonVariants({ variant, size, rounded, className }));
 
   if (rest.as === "a") {
-    const { as: _as, ...anchorProps } = rest;
-    return (
-      <a
-        ref={ref as React.Ref<HTMLAnchorElement>}
-        className={classes}
-        {...anchorProps}
-      />
-    );
+    const { as: _as, ref, ...anchorProps } = rest as ButtonAsAnchorProps;
+    return <a ref={ref} className={classes} {...anchorProps} />;
   }
 
-  const { as: _as, ...buttonProps } = rest;
-  return (
-    <button
-      ref={ref as React.Ref<HTMLButtonElement>}
-      className={classes}
-      {...buttonProps}
-    />
-  );
-}) as ButtonComponent;
-Button.displayName = "Button";
+  const { as: _as, ref, ...buttonProps } = rest as ButtonAsButtonProps;
+  return <button ref={ref} className={classes} {...buttonProps} />;
+}
 
 export { Button, buttonVariants };

@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { useEvent } from "@/hooks/chat-ui/use-event";
 import { useChatAttachments } from "@/hooks/use-chat-attachments";
 import { useImageParams } from "@/hooks/use-generation";
 import { useChatHistory } from "@/stores/chat-ui-store";
@@ -71,30 +70,30 @@ export function TextInputSection({
       selectedImageModel?.supportsNegativePrompt
   );
 
-  const handleInputChangeWithHistory = useEvent((next: string) => {
+  const handleInputChangeWithHistory = (next: string) => {
     onValueChange(next);
-  });
+  };
 
-  const stableHistoryNavigation = useEvent(() => {
+  const stableHistoryNavigation = () => {
     const prev = history.prev();
     if (prev != null) {
       onValueChange(prev);
       return true;
     }
     return false;
-  });
-  const stableHistoryNavigationDown = useEvent(() => {
+  };
+  const stableHistoryNavigationDown = () => {
     const next = history.next();
     if (next != null) {
       onValueChange(next);
       return true;
     }
     return false;
-  });
+  };
 
-  const handleNegativePromptValueChange = useEvent((value: string) => {
+  const handleNegativePromptValueChange = (value: string) => {
     setImageParams(prev => ({ ...prev, negativePrompt: value }));
-  });
+  };
 
   return (
     <>

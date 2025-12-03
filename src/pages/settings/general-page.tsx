@@ -7,7 +7,7 @@ import {
   TrashIcon,
 } from "@phosphor-icons/react";
 import { useConvex, useMutation } from "convex/react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useNavigate } from "react-router-dom";
 import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layout";
 import { UserIdCard } from "@/components/settings/user-id-card";
@@ -61,9 +61,9 @@ export default function GeneralPage() {
   const { signOut } = useAuthActions();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isExportingData, setIsExportingData] = useState(false);
+  const [isExportingData, startExportTransition] = useTransition();
   const [exportQueued, setExportQueued] = useState(false);
-  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isDeletingAccount, startDeleteTransition] = useTransition();
   const autoArchiveEnabled = userSettings?.autoArchiveEnabled ?? false;
   const autoArchiveDaysValue = String(userSettings?.autoArchiveDays ?? 30);
 
@@ -126,53 +126,51 @@ export default function GeneralPage() {
     return Array.from(new Set(allConversationIds));
   }, [convex]);
 
-  const handleExportAllData = useCallback(async () => {
-    setIsExportingData(true);
-    try {
-      const conversationIds = await fetchAllConversationIds();
-      if (conversationIds.length === 0) {
-        managedToast.error("No conversations found to export");
-        return;
+  const handleExportAllData = useCallback(() => {
+    startExportTransition(async () => {
+      try {
+        const conversationIds = await fetchAllConversationIds();
+        if (conversationIds.length === 0) {
+          managedToast.error("No conversations found to export");
+          return;
+        }
+
+        await backgroundJobs.startExport(conversationIds, {
+          includeAttachmentContent: true,
+        });
+
+        setExportQueued(true);
+      } catch (error) {
+        managedToast.error("Failed to start export", {
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
       }
-
-      await backgroundJobs.startExport(conversationIds, {
-        includeAttachmentContent: true,
-      });
-
-      setExportQueued(true);
-    } catch (error) {
-      managedToast.error("Failed to start export", {
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setIsExportingData(false);
-    }
+    });
   }, [backgroundJobs, fetchAllConversationIds, managedToast.error]);
 
-  const handleDeleteAccount = useCallback(async () => {
-    setIsDeletingAccount(true);
-    try {
-      await deleteAccountMutation({});
-      clearUserData();
-
+  const handleDeleteAccount = useCallback(() => {
+    startDeleteTransition(async () => {
       try {
-        await signOut();
-      } catch (signOutError) {
-        console.warn("Sign out after account deletion failed", signOutError);
-      }
+        await deleteAccountMutation({});
+        clearUserData();
 
-      managedToast.success("Account deleted");
-      setShowDeleteDialog(false);
-      navigate("/", { replace: true });
-    } catch (error) {
-      managedToast.error("Failed to delete account", {
-        description:
-          error instanceof Error ? error.message : "Unknown error occurred",
-      });
-    } finally {
-      setIsDeletingAccount(false);
-    }
+        try {
+          await signOut();
+        } catch (signOutError) {
+          console.warn("Sign out after account deletion failed", signOutError);
+        }
+
+        managedToast.success("Account deleted");
+        setShowDeleteDialog(false);
+        navigate("/", { replace: true });
+      } catch (error) {
+        managedToast.error("Failed to delete account", {
+          description:
+            error instanceof Error ? error.message : "Unknown error occurred",
+        });
+      }
+    });
   }, [
     deleteAccountMutation,
     signOut,
