@@ -72,7 +72,7 @@ export const exaResultsToCitations = (
     text?: string;
     highlights?: string[];
     publishedDate?: string;
-    author?: string;
+    author?: string | null;
     // Additional fields that Exa provides
     image?: string;
     favicon?: string;
@@ -90,7 +90,7 @@ export const exaResultsToCitations = (
       favicon: result.favicon,
       image: result.image,
       publishedDate: result.publishedDate,
-      author: result.author,
+      author: result.author ?? undefined,
       siteName: extractSiteName(result.url),
     };
   });
