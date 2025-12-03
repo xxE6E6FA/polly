@@ -75,6 +75,18 @@ import { usePrivateMode } from "@/providers/private-mode-context";
 import { useToast } from "@/providers/toast-context";
 import type { WebSearchCitation } from "@/types";
 import { CitationAvatarStack } from "../citation-avatar-stack";
+import {
+  ActionButton,
+  ActionButtons,
+  ActionIcon,
+  actionButtonStyles,
+  DRAWER_ICON_SIZE,
+  DrawerItem,
+} from "./action-button";
+import {
+  type ImageRetryParams,
+  ImageRetryPopover,
+} from "./image-retry-popover";
 
 // Union type for models from getAvailableModels
 type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
@@ -703,18 +715,17 @@ const RetryDropdown = memo(
             <Tooltip>
               <TooltipTrigger>
                 <DropdownMenuTrigger>
-                  <Button
+                  <button
+                    type="button"
                     className={cn(
-                      "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                      "motion-safe:hover:scale-105",
-                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                      actionButtonStyles.defaultButton,
+                      (isEditing || isRetrying || isStreaming) &&
+                        "pointer-events-none opacity-50"
                     )}
                     disabled={isEditing || isRetrying || isStreaming}
-                    size="sm"
                     title={
                       isUser ? "Retry from this message" : "Retry this response"
                     }
-                    variant="ghost"
                     aria-label={
                       isUser
                         ? "Retry conversation from this message"
@@ -729,7 +740,7 @@ const RetryDropdown = memo(
                       )}
                       aria-hidden="true"
                     />
-                  </Button>
+                  </button>
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
@@ -850,18 +861,17 @@ const RetryDropdown = memo(
             <Tooltip>
               <TooltipTrigger>
                 <DrawerTrigger>
-                  <Button
+                  <button
+                    type="button"
                     className={cn(
-                      "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                      "motion-safe:hover:scale-105",
-                      "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                      actionButtonStyles.defaultButton,
+                      (isEditing || isRetrying || isStreaming) &&
+                        "pointer-events-none opacity-50"
                     )}
                     disabled={isEditing || isRetrying || isStreaming}
-                    size="sm"
                     title={
                       isUser ? "Retry from this message" : "Retry this response"
                     }
-                    variant="ghost"
                     aria-label={
                       isUser
                         ? "Retry conversation from this message"
@@ -876,7 +886,7 @@ const RetryDropdown = memo(
                       )}
                       aria-hidden="true"
                     />
-                  </Button>
+                  </button>
                 </DrawerTrigger>
               </TooltipTrigger>
               <TooltipContent>
@@ -899,43 +909,45 @@ const RetryDropdown = memo(
                       <div className="text-xs font-medium text-muted-foreground px-2 py-2">
                         Refine response
                       </div>
-                      <button
+                      <DrawerItem
+                        icon={<NotePencilIcon className={DRAWER_ICON_SIZE} />}
                         onClick={() => {
                           setIsMobileSheetOpen(false);
                           setRefineText("");
                           setIsRefineDialogOpen(true);
                         }}
-                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
                       >
-                        <NotePencilIcon className="h-4 w-4" />
                         Edit instruction…
-                      </button>
-                      <button
+                      </DrawerItem>
+                      <DrawerItem
+                        icon={
+                          <ArrowsOutSimpleIcon className={DRAWER_ICON_SIZE} />
+                        }
                         onClick={() => handleRefine("add_details")}
-                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
                       >
-                        <ArrowsOutSimpleIcon className="h-4 w-4" />
                         Add more detail
-                      </button>
-                      <button
+                      </DrawerItem>
+                      <DrawerItem
+                        icon={
+                          <ArrowsInSimpleIcon className={DRAWER_ICON_SIZE} />
+                        }
                         onClick={() => handleRefine("more_concise")}
-                        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
                       >
-                        <ArrowsInSimpleIcon className="h-4 w-4" />
                         Make more concise
-                      </button>
+                      </DrawerItem>
                     </>
                   )}
                   <div className="text-xs font-medium text-muted-foreground px-2 py-2">
                     Retry
                   </div>
-                  <button
+                  <DrawerItem
+                    icon={
+                      <ArrowCounterClockwiseIcon className={DRAWER_ICON_SIZE} />
+                    }
                     onClick={handleRetrySame}
-                    className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
                   >
-                    <ArrowCounterClockwiseIcon className="h-4 w-4" />
                     Retry with current model
-                  </button>
+                  </DrawerItem>
                 </div>
                 {renderModelListMobile()}
               </DrawerBody>
@@ -988,56 +1000,6 @@ const RetryDropdown = memo(
 
 RetryDropdown.displayName = "RetryDropdown";
 
-type ActionButtonProps = {
-  icon: React.ReactNode;
-  tooltip: string;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-  className?: string;
-  ariaLabel?: string;
-};
-
-const ActionButton = memo(
-  ({
-    icon,
-    tooltip,
-    onClick,
-    disabled,
-    title,
-    className,
-    ariaLabel,
-  }: ActionButtonProps) => {
-    return (
-      <Tooltip>
-        <TooltipTrigger>
-          <Button
-            className={cn(
-              "btn-action h-7 w-7 transition-all duration-200 ease-out",
-              "motion-safe:hover:scale-105",
-              "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }",
-              className
-            )}
-            disabled={disabled}
-            size="sm"
-            title={title}
-            variant="ghost"
-            aria-label={ariaLabel || tooltip}
-            onClick={onClick}
-          >
-            {icon}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{tooltip}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-);
-
-ActionButton.displayName = "ActionButton";
-
 type TtsState = "idle" | "loading" | "playing";
 
 function getTTSTooltip(ttsState: TtsState): string {
@@ -1050,14 +1012,19 @@ function getTTSTooltip(ttsState: TtsState): string {
   return "Listen";
 }
 
-function getTTSIconForDropdown(ttsState: TtsState): React.ReactNode {
+function getTTSIconForDrawer(ttsState: TtsState): React.ReactNode {
   if (ttsState === "loading") {
-    return <Spinner size="sm" className="h-4 w-4 mr-2" />;
+    return <Spinner size="sm" className={DRAWER_ICON_SIZE} />;
   }
   if (ttsState === "playing") {
-    return <SquareIcon className="h-4 w-4 mr-2 text-red-500" weight="fill" />;
+    return (
+      <SquareIcon
+        className={cn(DRAWER_ICON_SIZE, "text-red-500")}
+        weight="fill"
+      />
+    );
   }
-  return <SpeakerHighIcon className="h-4 w-4 mr-2" />;
+  return <SpeakerHighIcon className={DRAWER_ICON_SIZE} />;
 }
 
 function getTTSIconForButton(ttsState: TtsState): React.ReactNode {
@@ -1098,6 +1065,13 @@ type MessageActionsProps = {
   citations?: WebSearchCitation[];
   citationsExpanded?: boolean;
   onToggleCitations?: () => void;
+  // Image generation retry support
+  isImageGenerationMessage?: boolean;
+  imageGenerationParams?: {
+    model?: string;
+    aspectRatio?: string;
+  };
+  onRetryImageGeneration?: (params: ImageRetryParams) => void;
 };
 
 export const MessageActions = memo(
@@ -1124,6 +1098,9 @@ export const MessageActions = memo(
     citationsExpanded = false,
     onToggleCitations,
     metadata,
+    isImageGenerationMessage,
+    imageGenerationParams,
+    onRetryImageGeneration,
   }: MessageActionsProps & {
     metadata?: Doc<"messages">["metadata"];
   }) => {
@@ -1323,16 +1300,15 @@ export const MessageActions = memo(
     const renderOverflowDrawerItems = () => (
       <>
         {onEditMessage && (
-          <button
+          <DrawerItem
+            icon={<NotePencilIcon className={DRAWER_ICON_SIZE} />}
             onClick={() => {
               setIsOverflowDrawerOpen(false);
               onEditMessage();
             }}
-            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <NotePencilIcon className="h-4 w-4" />
             Edit message
-          </button>
+          </DrawerItem>
         )}
 
         {!isPrivateMode && messageId && conversationId && (
@@ -1347,45 +1323,47 @@ export const MessageActions = memo(
         )}
 
         {!isPrivateMode && messageId && !messageId.startsWith("private-") && (
-          <button
+          <DrawerItem
+            icon={
+              <HeartIcon
+                className={cn(
+                  DRAWER_ICON_SIZE,
+                  isFavorited && "text-destructive"
+                )}
+                weight={isFavorited ? "fill" : "regular"}
+              />
+            }
             onClick={() => {
               setIsOverflowDrawerOpen(false);
               handleToggleFavorite();
             }}
-            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <HeartIcon
-              className={cn("h-4 w-4", isFavorited && "text-destructive")}
-              weight={isFavorited ? "fill" : "regular"}
-            />
             {isFavorited ? "Unfavorite" : "Favorite"}
-          </button>
+          </DrawerItem>
         )}
 
         {!isUser && messageId && (
-          <button
+          <DrawerItem
+            icon={getTTSIconForDrawer(ttsState)}
             onClick={() => {
               setIsOverflowDrawerOpen(false);
               handleTTS();
             }}
-            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
           >
-            {getTTSIconForDropdown(ttsState)}
             {getTTSTooltip(ttsState)}
-          </button>
+          </DrawerItem>
         )}
 
         {!isUser && onOpenZenMode && (
-          <button
+          <DrawerItem
+            icon={<TextAaIcon className={DRAWER_ICON_SIZE} />}
             onClick={() => {
               setIsOverflowDrawerOpen(false);
               onOpenZenMode();
             }}
-            className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
           >
-            <TextAaIcon className="h-4 w-4" />
             Zen mode
-          </button>
+          </DrawerItem>
         )}
       </>
     );
@@ -1403,22 +1381,20 @@ export const MessageActions = memo(
                 <Tooltip>
                   <TooltipTrigger>
                     <DrawerTrigger>
-                      <Button
+                      <button
+                        type="button"
                         className={cn(
-                          "btn-action h-7 w-7 transition-all duration-200 ease-out",
-                          "motion-safe:hover:scale-105",
-                          "@media (prefers-reduced-motion: reduce) { transition-duration: 0ms }"
+                          actionButtonStyles.defaultButton,
+                          isEditing && "pointer-events-none opacity-50"
                         )}
                         disabled={isEditing}
-                        size="sm"
-                        variant="ghost"
                         aria-label="More actions"
                       >
                         <DotsThreeIcon
                           className="h-3.5 w-3.5"
                           aria-hidden="true"
                         />
-                      </Button>
+                      </button>
                     </DrawerTrigger>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1443,13 +1419,10 @@ export const MessageActions = memo(
           {/* Desktop: Individual action buttons */}
           <div className="hidden sm:flex sm:items-center sm:gap-1">
             {onEditMessage && (
-              <ActionButton
+              <ActionButtons.Edit
                 disabled={isEditing}
                 tooltip="Edit message"
                 ariaLabel="Edit this message"
-                icon={
-                  <NotePencilIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                }
                 onClick={onEditMessage}
               />
             )}
@@ -1468,21 +1441,11 @@ export const MessageActions = memo(
             {!isPrivateMode &&
               messageId &&
               !messageId.startsWith("private-") && (
-                <ActionButton
+                <ActionButtons.Favorite
                   disabled={isEditing}
-                  tooltip={isFavorited ? "Unfavorite" : "Favorite"}
+                  favorited={isFavorited}
                   ariaLabel={
                     isFavorited ? "Remove from favorites" : "Add to favorites"
-                  }
-                  icon={
-                    <HeartIcon
-                      className={cn(
-                        "h-3.5 w-3.5",
-                        isFavorited && "text-destructive"
-                      )}
-                      weight={isFavorited ? "fill" : "regular"}
-                      aria-hidden="true"
-                    />
                   }
                   onClick={handleToggleFavorite}
                 />
@@ -1499,36 +1462,38 @@ export const MessageActions = memo(
             )}
 
             {!isUser && onOpenZenMode && (
-              <ActionButton
+              <ActionButtons.ZenMode
                 disabled={isEditing}
-                tooltip="Zen mode"
                 ariaLabel="Open Zen mode"
-                icon={<TextAaIcon className="h-3.5 w-3.5" aria-hidden="true" />}
                 onClick={onOpenZenMode}
               />
             )}
           </div>
 
           {/* Primary actions: Copy, Retry, Delete */}
-          <ActionButton
+          <ActionButtons.Copy
             disabled={isEditing}
+            copied={isCopied}
             tooltip="Copy message"
             ariaLabel={
               isCopied
                 ? "Message copied to clipboard"
                 : "Copy message to clipboard"
             }
-            icon={
-              isCopied ? (
-                <CheckIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <CopyIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              )
-            }
             onClick={copyToClipboard}
           />
 
-          {onRetryMessage && (
+          {/* Image generation messages use dedicated popover */}
+          {isImageGenerationMessage && onRetryImageGeneration && (
+            <ImageRetryPopover
+              currentModel={imageGenerationParams?.model}
+              currentAspectRatio={imageGenerationParams?.aspectRatio}
+              onRetry={onRetryImageGeneration}
+            />
+          )}
+
+          {/* Text messages use the regular retry dropdown */}
+          {!isImageGenerationMessage && onRetryMessage && (
             <RetryDropdown
               isUser={isUser}
               isRetrying={isRetrying}
@@ -1544,12 +1509,9 @@ export const MessageActions = memo(
           )}
 
           {onDeleteMessage && (
-            <ActionButton
-              className="btn-action-destructive"
+            <ActionButtons.Delete
               disabled={isEditing || isDeleting || isStreaming}
-              icon={<TrashIcon className="h-3.5 w-3.5" aria-hidden="true" />}
               title="Delete message"
-              tooltip="Delete message"
               ariaLabel="Delete this message permanently"
               onClick={onDeleteMessage}
             />
@@ -1718,11 +1680,9 @@ function BranchActionButton({
 
   return (
     <>
-      <ActionButton
+      <ActionButtons.Branch
         disabled={isEditing}
-        tooltip="Branch from here"
         ariaLabel="Create a new conversation branch from this point"
-        icon={<GitBranchIcon className="h-3.5 w-3.5" aria-hidden="true" />}
         onClick={() => setOpen(true)}
       />
       <Dialog open={open} onOpenChange={setOpen}>
@@ -1793,13 +1753,12 @@ function BranchActionDrawerItem({
 
   return (
     <>
-      <button
+      <DrawerItem
+        icon={<GitBranchIcon className={DRAWER_ICON_SIZE} />}
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 w-full px-3 py-2.5 border-b border-border/30 hover:bg-muted/50 transition-colors text-left"
       >
-        <GitBranchIcon className="h-4 w-4" />
         Branch from here
-      </button>
+      </DrawerItem>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>

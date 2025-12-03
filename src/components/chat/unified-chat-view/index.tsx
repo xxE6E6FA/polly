@@ -21,6 +21,7 @@ import { ChatOutline } from "../chat-outline";
 import { ChatZeroState } from "../chat-zero-state";
 import { ChatInput } from "../input";
 import { WarningBanners } from "../input/warning-banners";
+import type { ImageRetryParams } from "../message/image-actions";
 import { VirtualizedChatMessages } from "../virtualized-chat-messages";
 import { ArchivedBanner } from "./archived-banner";
 
@@ -110,7 +111,10 @@ type UnifiedChatViewProps = {
     type: "custom" | "add_details" | "more_concise",
     instruction?: string
   ) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
 };
 
 export const UnifiedChatView = memo(

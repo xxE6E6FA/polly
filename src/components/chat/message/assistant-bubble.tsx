@@ -12,6 +12,7 @@ import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { CitationsGallery } from "../citations-gallery";
 import { AssistantLoadingState } from "./assistant-loading-state";
 import { AttachmentStrip } from "./attachment-strip";
+import type { ImageRetryParams } from "./image-actions";
 import { ImageGenerationBubble } from "./image-generation-bubble";
 import { MessageActions } from "./message-actions";
 import { MessageError } from "./message-error";
@@ -32,7 +33,10 @@ type AssistantBubbleProps = {
   ) => void;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
 };
 
 export const AssistantBubble = ({

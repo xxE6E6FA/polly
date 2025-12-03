@@ -5,6 +5,7 @@ import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AttachmentStrip } from "./attachment-strip";
+import type { ImageRetryParams } from "./image-retry-popover";
 import { MessageActions } from "./message-actions";
 
 type UserBubbleProps = {
@@ -24,6 +25,13 @@ type UserBubbleProps = {
     type: "custom" | "add_details" | "more_concise",
     instruction?: string
   ) => void;
+  // Image generation retry support
+  isImageGenerationMessage?: boolean;
+  imageGenerationParams?: {
+    model?: string;
+    aspectRatio?: string;
+  };
+  onRetryImageGeneration?: (params: ImageRetryParams) => void;
 };
 
 export const UserBubble = memo(
@@ -39,6 +47,9 @@ export const UserBubble = memo(
     onRetryMessage,
     onDeleteMessage,
     onPreviewFile,
+    isImageGenerationMessage,
+    imageGenerationParams,
+    onRetryImageGeneration,
   }: UserBubbleProps) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(message.content);
@@ -205,6 +216,9 @@ export const UserBubble = memo(
             onEditMessage={onEditMessage ? handleEditStart : undefined}
             onRetryMessage={onRetryMessage}
             onRefineMessage={undefined}
+            isImageGenerationMessage={isImageGenerationMessage}
+            imageGenerationParams={imageGenerationParams}
+            onRetryImageGeneration={onRetryImageGeneration}
           />
         </div>
       </div>
@@ -243,7 +257,14 @@ export const UserBubble = memo(
       prevProps.onEditMessage === nextProps.onEditMessage &&
       prevProps.onRetryMessage === nextProps.onRetryMessage &&
       prevProps.onDeleteMessage === nextProps.onDeleteMessage &&
-      prevProps.onPreviewFile === nextProps.onPreviewFile
+      prevProps.onPreviewFile === nextProps.onPreviewFile &&
+      prevProps.isImageGenerationMessage ===
+        nextProps.isImageGenerationMessage &&
+      prevProps.imageGenerationParams?.model ===
+        nextProps.imageGenerationParams?.model &&
+      prevProps.imageGenerationParams?.aspectRatio ===
+        nextProps.imageGenerationParams?.aspectRatio &&
+      prevProps.onRetryImageGeneration === nextProps.onRetryImageGeneration
     );
   }
 );

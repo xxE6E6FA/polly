@@ -1,6 +1,4 @@
-import { LinkIcon } from "@phosphor-icons/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -8,6 +6,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { WebSearchCitation } from "@/types";
+import { actionButtonStyles } from "./message/action-button";
 
 type CitationAvatarStackProps = {
   citations: WebSearchCitation[];
@@ -45,12 +44,13 @@ export function CitationAvatarStack({
   return (
     <Tooltip>
       <TooltipTrigger>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
+          type="button"
           onClick={onToggle}
           className={cn(
-            "btn-action h-7 px-1 gap-1.5",
+            actionButtonStyles.base,
+            actionButtonStyles.default,
+            "w-auto h-7 px-1 gap-1.5",
             isExpanded && "bg-muted",
             className
           )}
@@ -77,7 +77,7 @@ export function CitationAvatarStack({
           <span className="text-xs font-medium text-muted-foreground">
             {citations.length} source{citations.length === 1 ? "" : "s"}
           </span>
-        </Button>
+        </button>
       </TooltipTrigger>
       <TooltipContent>
         <p>

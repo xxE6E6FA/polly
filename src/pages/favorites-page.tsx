@@ -4,6 +4,7 @@ import { ArrowSquareOutIcon, CopyIcon, HeartIcon } from "@phosphor-icons/react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { actionButtonStyles } from "@/components/chat/message/action-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SearchInput } from "@/components/ui/search-input";
@@ -14,6 +15,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib";
 import { ROUTES } from "@/lib/routes";
 import { useToast } from "@/providers/toast-context";
 import { useUserDataContext } from "@/providers/user-data-context";
@@ -204,45 +206,45 @@ export default function FavoritesPage() {
                     <div className="flex items-center gap-1 ml-2">
                       <Tooltip>
                         <TooltipTrigger>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
+                          <button
+                            type="button"
                             onClick={() =>
                               navigate(
                                 ROUTES.CHAT_CONVERSATION(item.conversation._id)
                               )
                             }
-                            className="btn-action h-7 w-7 p-0"
+                            className={actionButtonStyles.defaultButton}
                           >
                             <ArrowSquareOutIcon className="h-3.5 w-3.5" />
-                          </Button>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent>Open conversation</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
+                          <button
+                            type="button"
                             onClick={() => handleCopy(item.message.content)}
-                            className="btn-action h-7 w-7 p-0"
+                            className={actionButtonStyles.defaultButton}
                           >
                             <CopyIcon className="h-3.5 w-3.5" />
-                          </Button>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent>Copy message</TooltipContent>
                       </Tooltip>
                       <Tooltip>
                         <TooltipTrigger>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
+                          <button
+                            type="button"
                             onClick={() => handleUnfavorite(item.message._id)}
-                            className="btn-action h-7 w-7 p-0 text-red-500"
+                            className={cn(
+                              actionButtonStyles.destructiveButton,
+                              "text-red-500"
+                            )}
                             title="Remove favorite"
                           >
                             <HeartIcon className="h-3.5 w-3.5" weight="fill" />
-                          </Button>
+                          </button>
                         </TooltipTrigger>
                         <TooltipContent>Remove favorite</TooltipContent>
                       </Tooltip>

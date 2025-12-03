@@ -4,6 +4,7 @@ import { useAction, useConvex, useQuery } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { useLoaderData, useLocation, useNavigate } from "react-router-dom";
 import { UnifiedChatView } from "@/components/chat";
+import type { ImageRetryParams } from "@/components/chat/message/image-actions";
 import { NotFoundPage } from "@/components/ui/not-found-page";
 import { OfflinePlaceholder } from "@/components/ui/offline-placeholder";
 import { useChat } from "@/hooks/use-chat";
@@ -303,7 +304,7 @@ export default function ConversationRoute() {
 
   // Image generation retry handler
   const handleRetryImageGeneration = useCallback(
-    async (messageId: string) => {
+    async (messageId: string, overrideParams: ImageRetryParams) => {
       try {
         const message = messages.find(m => m.id === messageId);
         if (!message?.imageGeneration) {
@@ -329,14 +330,14 @@ export default function ConversationRoute() {
 
         const metadata = message.imageGeneration.metadata;
 
-        if (!metadata?.model) {
+        // Use override params if provided, otherwise fall back to original metadata
+        const modelToUse = overrideParams.model || metadata?.model;
+        const aspectRatioToUse =
+          overrideParams.aspectRatio || metadata?.params?.aspectRatio;
+
+        if (!modelToUse) {
           throw new Error(
             "Missing model information. Please try generating a new image instead of retrying."
-          );
-        }
-        if (!metadata?.params) {
-          throw new Error(
-            "Missing generation parameters. Please try generating a new image instead of retrying."
           );
         }
 
@@ -346,10 +347,10 @@ export default function ConversationRoute() {
           messageId as Id<"messages">,
           {
             prompt: userMessage.content,
-            model: metadata.model,
+            model: modelToUse,
             params: {
-              ...metadata.params,
-              aspectRatio: metadata.params?.aspectRatio as
+              ...metadata?.params,
+              aspectRatio: aspectRatioToUse as
                 | "1:1"
                 | "16:9"
                 | "9:16"

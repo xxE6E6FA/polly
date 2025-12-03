@@ -2,6 +2,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { cn, stripCitations } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
 import { AssistantBubble } from "./message/assistant-bubble";
+import type { ImageRetryParams } from "./message/image-actions";
 import { UserBubble } from "./message/user-bubble";
 
 type ChatMessageProps = {
@@ -20,7 +21,10 @@ type ChatMessageProps = {
     instruction?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
   onPreviewAttachment?: (attachment: Attachment) => void;
 };
 
@@ -71,12 +75,6 @@ const ChatMessageComponent = ({
       }
     }
   }, [onDeleteMessage, message.id, isDeleting]);
-
-  const handleRetryImageGeneration = useCallback(() => {
-    if (onRetryImageGeneration) {
-      onRetryImageGeneration(message.id);
-    }
-  }, [onRetryImageGeneration, message.id]);
 
   // Simple prop forwarding - React Compiler will optimize if needed
   const handlePreviewFile = (attachment: Attachment) => {
@@ -136,9 +134,7 @@ const ChatMessageComponent = ({
           onRefineMessage={onRefineMessage}
           onDeleteMessage={onDeleteMessage ? handleDelete : undefined}
           onPreviewFile={handlePreviewFile}
-          onRetryImageGeneration={
-            onRetryImageGeneration ? handleRetryImageGeneration : undefined
-          }
+          onRetryImageGeneration={onRetryImageGeneration}
         />
       )}
     </div>

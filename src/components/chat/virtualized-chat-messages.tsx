@@ -12,6 +12,7 @@ import { useZenModeStore } from "@/stores/zen-mode-store";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { ChatMessage } from "./chat-message";
 import { ContextMessage } from "./context-message";
+import type { ImageRetryParams } from "./message/image-actions";
 import { ZenModeDialog } from "./message/zen-mode-dialog";
 
 type VirtualizedChatMessagesProps = {
@@ -37,7 +38,10 @@ type VirtualizedChatMessagesProps = {
     instruction?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
   scrollElement?: Element | null;
   shouldScrollToBottom?: boolean;
   topInset?: number;
@@ -72,7 +76,10 @@ interface MessageItemProps {
     instruction?: string
   ) => void;
   onDeleteMessage?: (messageId: string) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
   // Message selector for efficient re-renders
   messageSelector: (messageId: string) => ChatMessageType | undefined;
 }

@@ -1,16 +1,27 @@
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
 import type { ChatMessage } from "@/types";
+import {
+  type AspectRatioValue,
+  type ImageRetryParams,
+  ImageRetryPopover,
+} from "./image-retry-popover";
+
+export type { AspectRatioValue, ImageRetryParams };
 
 type MessageErrorProps = {
   message: ChatMessage;
   messageId: string;
+  /** Callback for retrying text message errors */
   onRetry?: (messageId: string) => void;
+  /** Callback for retrying image generation errors */
+  onRetryImage?: (messageId: string, params: ImageRetryParams) => void;
 };
 
 export function MessageError({
   message,
   messageId,
   onRetry,
+  onRetryImage,
 }: MessageErrorProps) {
   const hasImageError =
     message.imageGeneration?.status === "failed" ||
@@ -34,6 +45,36 @@ export function MessageError({
     return null;
   }
 
+  const showRetry = hasImageError ? onRetryImage : onRetry;
+
+  const renderRetryButton = () => {
+    if (hasImageError && onRetryImage) {
+      return (
+        <ImageRetryPopover
+          currentModel={message.imageGeneration?.metadata?.model}
+          currentAspectRatio={
+            message.imageGeneration?.metadata?.params?.aspectRatio
+          }
+          onRetry={params => onRetryImage(messageId, params)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/20"
+        />
+      );
+    }
+    if (onRetry) {
+      return (
+        <button
+          type="button"
+          onClick={() => onRetry(messageId)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/20"
+        >
+          <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
+          Retry message
+        </button>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="mt-4 rounded-lg border border-danger-border bg-danger-bg p-4">
       <div className="flex items-start gap-3">
@@ -54,17 +95,7 @@ export function MessageError({
         <div className="flex-1">
           <h4 className="text-sm font-medium text-danger">{errorTitle}</h4>
           <p className="mt-1 text-sm text-danger">{errorMessage}</p>
-          {onRetry && (
-            <div className="mt-3">
-              <button
-                onClick={() => onRetry(messageId)}
-                className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/20"
-              >
-                <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
-                {hasImageError ? "Retry generation" : "Retry message"}
-              </button>
-            </div>
-          )}
+          {showRetry && <div className="mt-3">{renderRetryButton()}</div>}
         </div>
       </div>
     </div>

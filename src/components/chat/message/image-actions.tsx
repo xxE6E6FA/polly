@@ -1,11 +1,5 @@
-import {
-  ArrowCounterClockwiseIcon,
-  CaretDownIcon,
-  CopyIcon,
-  DownloadIcon,
-} from "@phosphor-icons/react";
+import { CaretDownIcon, CopyIcon, DownloadIcon } from "@phosphor-icons/react";
 import { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,12 +14,25 @@ import {
 import { downloadFromUrl } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/toast-context";
+import { actionButtonStyles } from "./action-button";
+import {
+  type AspectRatioValue,
+  type ImageRetryParams,
+  ImageRetryPopover,
+} from "./image-retry-popover";
+
+export type { AspectRatioValue, ImageRetryParams };
 
 interface ImageActionsProps {
   imageUrl: string;
   prompt?: string;
   seed?: number;
-  onRetry?: () => void;
+  /** Current model used for this generation */
+  currentModel?: string;
+  /** Current aspect ratio used for this generation */
+  currentAspectRatio?: string;
+  /** Called when retry is triggered with new params */
+  onRetry?: (params: ImageRetryParams) => void;
   className?: string;
   /** When true, only shows retry + copy prompt buttons (for canceled/failed states) */
   minimal?: boolean;
@@ -35,6 +42,8 @@ export const ImageActions = ({
   imageUrl,
   prompt,
   seed,
+  currentModel,
+  currentAspectRatio,
   onRetry,
   className = "",
   minimal = false,
@@ -135,15 +144,17 @@ export const ImageActions = ({
       <div className={cn("flex items-center gap-1", className)}>
         <Tooltip>
           <TooltipTrigger>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
               onClick={handleCopyPrompt}
               disabled={isCopying || !prompt}
-              className="btn-action h-7 w-7 p-0"
+              className={cn(
+                actionButtonStyles.defaultButton,
+                (isCopying || !prompt) && "pointer-events-none opacity-50"
+              )}
             >
               <CopyIcon className="h-3.5 w-3.5" />
-            </Button>
+            </button>
           </TooltipTrigger>
           <TooltipContent>
             {prompt ? "Copy prompt to clipboard" : "No prompt available"}
@@ -151,21 +162,11 @@ export const ImageActions = ({
         </Tooltip>
 
         {onRetry && (
-          <Tooltip>
-            <TooltipTrigger>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRetry}
-                className="btn-action h-7 w-7 p-0"
-              >
-                <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              Retry generation with same parameters
-            </TooltipContent>
-          </Tooltip>
+          <ImageRetryPopover
+            currentModel={currentModel}
+            currentAspectRatio={currentAspectRatio}
+            onRetry={onRetry}
+          />
         )}
       </div>
     );
@@ -179,15 +180,20 @@ export const ImageActions = ({
           <Tooltip>
             <TooltipTrigger>
               <DropdownMenuTrigger>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   disabled={isCopying || (!prompt && seed === undefined)}
-                  className="btn-action h-7 px-1.5 gap-0.5"
+                  className={cn(
+                    actionButtonStyles.base,
+                    actionButtonStyles.default,
+                    "w-auto h-7 px-1.5 gap-0.5",
+                    (isCopying || (!prompt && seed === undefined)) &&
+                      "pointer-events-none opacity-50"
+                  )}
                 >
                   <CopyIcon className="h-3.5 w-3.5" />
                   <CaretDownIcon className="h-3 w-3" />
-                </Button>
+                </button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
             <TooltipContent>Copy generation details</TooltipContent>
@@ -214,15 +220,17 @@ export const ImageActions = ({
       ) : (
         <Tooltip>
           <TooltipTrigger>
-            <Button
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
               onClick={handleCopyPrompt}
               disabled={isCopying || !prompt}
-              className="btn-action h-7 w-7 p-0"
+              className={cn(
+                actionButtonStyles.defaultButton,
+                (isCopying || !prompt) && "pointer-events-none opacity-50"
+              )}
             >
               <CopyIcon className="h-3.5 w-3.5" />
-            </Button>
+            </button>
           </TooltipTrigger>
           <TooltipContent>
             {prompt ? "Copy prompt to clipboard" : "No prompt available"}
@@ -232,33 +240,27 @@ export const ImageActions = ({
 
       <Tooltip>
         <TooltipTrigger>
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={handleDownloadImage}
             disabled={isDownloading}
-            className="btn-action h-7 w-7 p-0"
+            className={cn(
+              actionButtonStyles.defaultButton,
+              isDownloading && "pointer-events-none opacity-50"
+            )}
           >
             <DownloadIcon className="h-3.5 w-3.5" />
-          </Button>
+          </button>
         </TooltipTrigger>
         <TooltipContent>Download image</TooltipContent>
       </Tooltip>
 
       {onRetry && (
-        <Tooltip>
-          <TooltipTrigger>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onRetry}
-              className="btn-action h-7 w-7 p-0"
-            >
-              <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Retry generation with same parameters</TooltipContent>
-        </Tooltip>
+        <ImageRetryPopover
+          currentModel={currentModel}
+          currentAspectRatio={currentAspectRatio}
+          onRetry={onRetry}
+        />
       )}
     </div>
   );

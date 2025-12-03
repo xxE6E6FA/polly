@@ -4,7 +4,6 @@ import { TrashIcon } from "@phosphor-icons/react";
 import { useQuery } from "convex/react";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +12,8 @@ import {
 import { useHoverLinger } from "@/hooks/use-hover-linger";
 import { cn } from "@/lib/utils";
 import type { Attachment, ChatMessage as ChatMessageType } from "@/types";
-import { ImageActions } from "./image-actions";
+import { actionButtonStyles } from "./action-button";
+import { ImageActions, type ImageRetryParams } from "./image-actions";
 import { ImageCardStack } from "./image-card-stack";
 import { ImageGenerationSkeleton } from "./image-generation-skeleton";
 import { ImageLoadingSkeleton } from "./image-loading-skeleton";
@@ -27,7 +27,10 @@ type ImageGenerationBubbleProps = {
   isDeleting: boolean;
   onDeleteMessage?: () => void;
   onPreviewFile?: (attachment: Attachment) => void;
-  onRetryImageGeneration?: (messageId: string) => void;
+  onRetryImageGeneration?: (
+    messageId: string,
+    params: ImageRetryParams
+  ) => void;
 };
 
 // Popular model names for better display
@@ -472,7 +475,7 @@ export const ImageGenerationBubble = ({
         <MessageError
           message={message}
           messageId={message.id}
-          onRetry={onRetryImageGeneration}
+          onRetryImage={onRetryImageGeneration}
         />
       );
     }
@@ -536,9 +539,13 @@ export const ImageGenerationBubble = ({
             <ImageActions
               imageUrl=""
               prompt={imageGeneration?.metadata?.prompt}
+              currentModel={imageGeneration?.metadata?.model}
+              currentAspectRatio={
+                imageGeneration?.metadata?.params?.aspectRatio
+              }
               onRetry={
                 onRetryImageGeneration
-                  ? () => onRetryImageGeneration(message.id)
+                  ? params => onRetryImageGeneration(message.id, params)
                   : undefined
               }
               minimal
@@ -548,15 +555,17 @@ export const ImageGenerationBubble = ({
             {onDeleteMessage && (
               <Tooltip>
                 <TooltipTrigger>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={onDeleteMessage}
                     disabled={isDeleting}
-                    className="btn-action-destructive h-7 w-7 p-0"
+                    className={cn(
+                      actionButtonStyles.destructiveButton,
+                      isDeleting && "pointer-events-none opacity-50"
+                    )}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>Delete message</TooltipContent>
               </Tooltip>
@@ -582,9 +591,13 @@ export const ImageGenerationBubble = ({
               imageUrl={imageGeneration?.output?.[0] || ""}
               prompt={imageGeneration?.metadata?.prompt}
               seed={imageGeneration?.metadata?.params?.seed}
+              currentModel={imageGeneration?.metadata?.model}
+              currentAspectRatio={
+                imageGeneration?.metadata?.params?.aspectRatio
+              }
               onRetry={
                 onRetryImageGeneration
-                  ? () => onRetryImageGeneration(message.id)
+                  ? params => onRetryImageGeneration(message.id, params)
                   : undefined
               }
               className="gap-0"
@@ -593,15 +606,17 @@ export const ImageGenerationBubble = ({
             {onDeleteMessage && (
               <Tooltip>
                 <TooltipTrigger>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={onDeleteMessage}
                     disabled={isDeleting}
-                    className="btn-action-destructive h-7 w-7 p-0"
+                    className={cn(
+                      actionButtonStyles.destructiveButton,
+                      isDeleting && "pointer-events-none opacity-50"
+                    )}
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
-                  </Button>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>Delete message</TooltipContent>
               </Tooltip>
