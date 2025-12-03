@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -9,28 +8,21 @@ import {
   internalMutation,
   type MutationCtx,
 } from "./_generated/server";
+import {
+  generateTextWithProvider,
+  isTextGenerationAvailable,
+} from "./ai/text_generation";
 import { scheduleRunAfter } from "./lib/scheduler";
 
 // Helper function to generate title without updating conversation
 async function generateTitleHelper(message: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  let generatedTitle: string;
+  if (!isTextGenerationAvailable()) {
+    // Fallback to simple title generation if no API key
+    return createFallbackTitle(message);
+  }
 
-  if (apiKey) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: `Generate a short title (2-5 words, max 40 characters) for this chat message. Be direct and specific. Avoid phrases like "Discussion about", "Help with", or "Question regarding".
+  try {
+    const prompt = `Generate a short title (2-5 words, max 40 characters) for this chat message. Be direct and specific. Avoid phrases like "Discussion about", "Help with", or "Question regarding".
 
 Examples of good titles:
 - "React Router Migration"
@@ -39,50 +31,31 @@ Examples of good titles:
 
 Message: "${message}"
 
-Title:`,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              maxOutputTokens: 10,
-              temperature: 0.3,
-            },
-          }),
-        }
-      );
+Title:`;
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
+    const title = await generateTextWithProvider({
+      prompt,
+      maxTokens: 10,
+      temperature: 0.3,
+    });
 
-      const data = await response.json();
-      const title = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-      if (!title) {
-        throw new Error("No title generated");
-      }
-
-      generatedTitle = title;
-    } catch (error) {
-      console.error("Error generating title with Gemini:", error);
-      // Fallback to simple title generation
-      const clean = message.replace(/[#*`]/g, "").trim();
-      generatedTitle =
-        clean.length > 40
-          ? `${clean.substring(0, 37)}...`
-          : clean || "New conversation";
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      throw new Error("No title generated");
     }
-  } else {
-    // Fallback to simple title generation if no API key
-    const clean = message.replace(/[#*`]/g, "").trim();
-    generatedTitle =
-      clean.length > 40
-        ? `${clean.substring(0, 37)}...`
-        : clean || "New conversation";
-  }
 
-  return generatedTitle;
+    return trimmedTitle;
+  } catch (error) {
+    console.error("Error generating title:", error);
+    return createFallbackTitle(message);
+  }
+}
+
+function createFallbackTitle(message: string): string {
+  const clean = message.replace(/[#*`]/g, "").trim();
+  return clean.length > 40
+    ? `${clean.substring(0, 37)}...`
+    : clean || "New conversation";
 }
 
 export async function generateTitleHandler(
@@ -188,11 +161,11 @@ export async function batchUpdateTitlesHandler(
     console.error(
       `Batch title update had ${failures.length} failures out of ${args.updates.length} total updates:`
     );
-    failures.forEach(({ result, index }) => {
+    for (const { result, index } of failures) {
       const update = args.updates[index];
       if (!update) {
         console.error("Failed to determine update payload for failure", result);
-        return;
+        continue;
       }
       const reason =
         result.status === "rejected" ? result.reason : "Unknown error";
@@ -200,7 +173,7 @@ export async function batchUpdateTitlesHandler(
         `Failed to update conversation ${update.conversationId}:`,
         reason
       );
-    });
+    }
   }
 }
 

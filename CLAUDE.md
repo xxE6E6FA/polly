@@ -64,7 +64,7 @@ Run `bun run fix` before committing. Key rules:
 - **Types**: No `any`, use `import type`, prefer `?.` over `&&`
 - **React**: Exhaustive deps, no array index keys, use children composition
 - **Control**: No nested ternaries, use `===`, always use `{}`
-- **Backend**: Use `log.*` from `convex/lib/logger` (no console)
+- **Backend**: Use `console.error`/`console.warn` in Convex (no custom logger)
 
 ## React Compiler
 
@@ -99,6 +99,11 @@ Avoid memoization for: simple booleans, strings, filters, zero-dep callbacks.
 - Never create `*-context.tsx` files in component directories
 - Context providers that are used across components belong in `src/providers/`
 - The only exception is truly component-internal state (rare)
+
+## UI Components
+
+- **Tooltips**: Base UI `TooltipTrigger` does NOT support `asChild` - wrap children directly
+- **Model types**: Use `Doc<"userModels"> | Doc<"builtInModels">` for selected models (not `Model`)
 
 ## Styling
 

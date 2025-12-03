@@ -1,6 +1,11 @@
 import { GhostIcon, X } from "@phosphor-icons/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { usePrivateMode } from "@/providers/private-mode-context";
 
@@ -16,6 +21,12 @@ export const PrivateModeHeader = () => {
     togglePrivateMode();
   };
 
+  // Detect OS for shortcut display
+  const isMac =
+    typeof navigator !== "undefined" &&
+    navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+  const shortcutHint = isMac ? "⌘⇧P" : "Ctrl+Shift+P";
+
   return (
     <div
       className={cn(
@@ -27,15 +38,22 @@ export const PrivateModeHeader = () => {
         <GhostIcon weight="fill" className="h-5 w-5" />
         <span className="text-sm font-medium">Private Mode</span>
       </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={handleClose}
-        className="h-8 w-8 text-background/80 hover:text-background hover:bg-background/20"
-        title="Exit Private Mode"
-      >
-        <X className="h-4 w-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleClose}
+            className="h-8 w-8 text-background/80 hover:text-background hover:bg-background/20"
+            aria-label={`Exit private mode (${shortcutHint})`}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom">
+          <span className="text-xs">Exit private mode ({shortcutHint})</span>
+        </TooltipContent>
+      </Tooltip>
     </div>
   );
 };

@@ -26,6 +26,7 @@ import type * as ai_server_citations from "../ai/server_citations.js";
 import type * as ai_server_streaming from "../ai/server_streaming.js";
 import type * as ai_server_utils from "../ai/server_utils.js";
 import type * as ai_streaming_core from "../ai/streaming_core.js";
+import type * as ai_text_generation from "../ai/text_generation.js";
 import type * as ai_tools_index from "../ai/tools/index.js";
 import type * as ai_tools_web_search from "../ai/tools/web_search.js";
 import type * as ai_url_processing from "../ai/url_processing.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "ai/server_streaming": typeof ai_server_streaming;
   "ai/server_utils": typeof ai_server_utils;
   "ai/streaming_core": typeof ai_streaming_core;
+  "ai/text_generation": typeof ai_text_generation;
   "ai/tools/index": typeof ai_tools_index;
   "ai/tools/web_search": typeof ai_tools_web_search;
   "ai/url_processing": typeof ai_url_processing;

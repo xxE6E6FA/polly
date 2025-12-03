@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { DEFAULT_BUILTIN_MODEL_ID } from "../shared/constants";
 
 import { api, internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -13,6 +12,10 @@ import {
   type QueryCtx,
   query,
 } from "./_generated/server";
+import {
+  generateTextWithProvider,
+  isTextGenerationAvailable,
+} from "./ai/text_generation";
 
 // Shared handler function for getting conversation summaries
 async function handleGetConversationSummaries(
@@ -115,8 +118,7 @@ export const generateConversationSummary = action({
     maxTokens: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<string> => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    if (!isTextGenerationAvailable()) {
       return "Previous conversation (context not available)";
     }
 
@@ -144,59 +146,24 @@ export const generateConversationSummary = action({
         return "Previous conversation (no content found)";
       }
 
-      const promptText = `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
+      const prompt = `Please provide a concise summary of the following conversation between a user and an AI assistant. Focus on the key topics discussed, questions asked, and main points covered. Keep the summary under ${args.maxTokens || 150} words and make it suitable as context for continuing the conversation in a new thread.
 
 Conversation:
 ${conversationText}
 
 Summary:`;
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  {
-                    text: promptText,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              maxOutputTokens: 1000,
-              temperature: 0.7,
-            },
-          }),
-        }
-      );
+      const summary = await generateTextWithProvider({
+        prompt,
+        maxTokens: 1000,
+        temperature: 0.7,
+      });
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const data = (await response.json()) as {
-        candidates?: Array<{
-          content?: {
-            parts?: Array<{
-              text?: string;
-            }>;
-          };
-        }>;
-      };
-      const summary: string | undefined =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-      if (!summary) {
+      if (!summary.trim()) {
         throw new Error("No summary generated");
       }
 
-      return summary;
+      return summary.trim();
     } catch (error) {
       console.error("Error generating conversation summary:", error);
       return "Previous conversation (summary not available)";
@@ -351,16 +318,27 @@ export const generateMissingSummaries = internalAction({
 });
 
 async function generateChunkSummary(chunk: Doc<"messages">[]): Promise<string> {
-  try {
-    const conversationText = chunk
-      .filter(msg => msg.role !== "system")
-      .map(msg => {
-        const role = msg.role === "user" ? "User" : "Assistant";
-        return `${role}: ${msg.content}`;
-      })
-      .join("\n\n");
+  const conversationText = chunk
+    .filter(msg => msg.role !== "system")
+    .map(msg => {
+      const role = msg.role === "user" ? "User" : "Assistant";
+      return `${role}: ${msg.content}`;
+    })
+    .join("\n\n");
 
-    const summaryPrompt = `You are an expert at summarizing conversations between users and AI assistants. Your task is to create a rich, comprehensive summary that preserves the most important information for conversation continuity.
+  const createFallbackSummary = () =>
+    `${chunk
+      .filter(msg => msg.role !== "system")
+      .map(msg => `${msg.role}: ${msg.content}`)
+      .join("\n\n")
+      .substring(0, 300)}...`;
+
+  if (!isTextGenerationAvailable()) {
+    return createFallbackSummary();
+  }
+
+  try {
+    const prompt = `You are an expert at summarizing conversations between users and AI assistants. Your task is to create a rich, comprehensive summary that preserves the most important information for conversation continuity.
 
 Please analyze the following conversation excerpt and create a summary that captures:
 
@@ -384,68 +362,20 @@ ${conversationText}
 
 Rich Summary:`;
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("No Gemini API key available");
-    }
+    const summary = await generateTextWithProvider({
+      prompt,
+      maxTokens: 500,
+      temperature: 0.2,
+      topP: 0.9,
+    });
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_BUILTIN_MODEL_ID}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: summaryPrompt,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            maxOutputTokens: 500,
-            temperature: 0.2,
-            topP: 0.9,
-            topK: 40,
-          },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        `Gemini API error: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{
-            text?: string;
-          }>;
-        };
-      }>;
-    };
-
-    const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-    if (!summary) {
+    if (!summary.trim()) {
       throw new Error("No summary generated");
     }
 
-    return summary;
+    return summary.trim();
   } catch (error) {
     console.error("Error generating chunk summary:", error);
-    // Fallback to simple summary
-    return `${chunk
-      .filter(msg => msg.role !== "system")
-      .map(msg => `${msg.role}: ${msg.content}`)
-      .join("\n\n")
-      .substring(0, 300)}...`;
+    return createFallbackSummary();
   }
 }

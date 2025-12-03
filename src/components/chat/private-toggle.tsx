@@ -22,6 +22,7 @@ export const PrivateToggle = () => {
   };
 
   // Only show on home page when private mode is OFF
+  // (can't make existing Convex conversations private)
   if (isPrivateMode || location.pathname !== "/") {
     return null;
   }

@@ -1,7 +1,10 @@
-import { ConvexError } from "convex/values";
 import type { ActionCtx } from "../../_generated/server";
 import type { ApiMessageDoc, ProcessedChunk } from "./types";
 import { api } from "../../_generated/api";
+import {
+	generateTextWithProvider,
+	isTextGenerationAvailable,
+} from "../../ai/text_generation";
 
 // Hierarchical summarization configuration
 export const CONTEXT_CONFIG = {
@@ -216,43 +219,23 @@ Structured Summary:`;
 
 // Extract LLM summary generation into separate function
 async function generateLLMSummary(prompt: string, maxLength: number): Promise<string> {
+  if (!isTextGenerationAvailable()) {
+    throw new Error("No API key available for text generation");
+  }
+
   try {
-    // This would call your LLM API - for now using a placeholder
-    // In real implementation, you'd call your chosen LLM API here
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY || "",
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-sonnet-20240229",
-        max_tokens: Math.min(CONTEXT_CONFIG.MAX_API_TOKENS, maxLength * 2),
-        temperature: CONTEXT_CONFIG.TEMPERATURE,
-        top_p: CONTEXT_CONFIG.TOP_P,
-        top_k: CONTEXT_CONFIG.TOP_K,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    let summary = await generateTextWithProvider({
+      prompt,
+      maxTokens: Math.min(CONTEXT_CONFIG.MAX_API_TOKENS, maxLength * 2),
+      temperature: CONTEXT_CONFIG.TEMPERATURE,
+      topP: CONTEXT_CONFIG.TOP_P,
     });
 
-    if (!response.ok) {
-      throw new ConvexError(`LLM API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    let summary = data.content?.[0]?.text || "";
-    
     // Ensure summary doesn't exceed max length
     if (summary.length > maxLength) {
       summary = intelligentTruncateSummary(summary, maxLength);
     }
-    
+
     return summary;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

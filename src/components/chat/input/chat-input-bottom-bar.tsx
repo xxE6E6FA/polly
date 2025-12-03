@@ -1,5 +1,5 @@
 import type { Id } from "@convex/_generated/dataModel";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useSpeechInputContext } from "@/hooks";
 import { useVisibleControls } from "@/hooks/chat-ui/use-visible-controls";
 import { useChatScopedState } from "@/hooks/use-chat-scoped-state";
@@ -10,9 +10,11 @@ import { useReasoningConfig } from "@/hooks/use-reasoning";
 import { useSelectedModel } from "@/hooks/use-selected-model";
 import { useUserSettings } from "@/hooks/use-user-settings";
 import { isUserModel } from "@/lib/type-guards";
-import { useUserDataContext } from "@/providers/user-data-context";
+import {
+  useUserDataContext,
+  useUserUsage,
+} from "@/providers/user-data-context";
 import { useChatFullscreenUI } from "@/stores/chat-ui-store";
-// Fullscreen overlay toggle is handled inside the input section now
 import type { ConversationId, ReasoningConfig } from "@/types";
 import { FileLibraryButton } from "./file-library-button";
 import { FileUploadButton } from "./file-upload-button";
@@ -22,6 +24,7 @@ import { ImageGenerationSettings } from "./pickers/image-generation-settings";
 import { ModelPicker } from "./pickers/model-picker";
 import { ReasoningPicker } from "./pickers/reasoning-picker";
 import { TemperaturePicker } from "./pickers/temperature-picker";
+import { QuotaIndicator } from "./quota-indicator";
 import { SendButtonGroup } from "./send-button-group";
 
 interface ChatInputBottomBarProps {
@@ -68,6 +71,7 @@ export function ChatInputBottomBar({
 }: ChatInputBottomBarProps) {
   const [selectedModel] = useSelectedModel();
   const { user } = useUserDataContext();
+  const { monthlyUsage, hasUnlimitedCalls } = useUserUsage();
   const userSettings = useUserSettings();
   const online = useOnline();
   const speech = useSpeechInputContext();
@@ -80,6 +84,12 @@ export function ChatInputBottomBar({
   const [generationMode] = useGenerationMode();
   const { params: imageParams, setParams: setImageParams } = useImageParams();
   const { clearOnSend } = useChatFullscreenUI();
+
+  // Compute if quota is exhausted (for built-in models only)
+  const isQuotaExhausted =
+    !hasUnlimitedCalls &&
+    monthlyUsage?.remainingMessages !== undefined &&
+    monthlyUsage.remainingMessages <= 0;
   // Simple object creation - React Compiler will optimize if needed
   const normalizedSelectedImageModel = selectedImageModel
     ? {
@@ -233,6 +243,7 @@ export function ChatInputBottomBar({
               />
             </>
           )}
+          <QuotaIndicator selectedModel={selectedModel} />
           <SendButtonGroup
             canSend={canSend}
             isStreaming={Boolean(isStreaming)}
@@ -261,6 +272,8 @@ export function ChatInputBottomBar({
             onStartTranscribe={speech.startRecording}
             onCancelTranscribe={speech.cancelRecording}
             onAcceptTranscribe={speech.acceptRecording}
+            isQuotaExhausted={isQuotaExhausted}
+            selectedModel={selectedModel}
           />
         </div>
       </div>

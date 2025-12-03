@@ -1,8 +1,12 @@
-import type { Id } from "@convex/_generated/dataModel";
+import type { Doc, Id } from "@convex/_generated/dataModel";
 import { useCallback, useEffect, useState } from "react";
 import { useReasoningConfig } from "@/hooks/use-reasoning";
+import { isUserModel } from "@/lib/type-guards";
 import { cn } from "@/lib/utils";
 import type { ConversationId, ReasoningConfig } from "@/types";
+
+type AvailableModel = Doc<"userModels"> | Doc<"builtInModels">;
+
 import { RecordingControls } from "./recording-controls";
 import { SendButton } from "./send-button";
 import { SendButtonContainer } from "./send-button-container";
@@ -36,6 +40,10 @@ type SendButtonGroupProps = {
   onCancelTranscribe?: () => Promise<void>;
   onAcceptTranscribe?: () => Promise<void>;
   size?: ChatInputButtonSize;
+  /** Whether the user's quota is exhausted for built-in models */
+  isQuotaExhausted?: boolean;
+  /** The currently selected model (to determine if BYOK) */
+  selectedModel?: AvailableModel | null;
 };
 
 export const SendButtonGroup = ({
@@ -60,6 +68,8 @@ export const SendButtonGroup = ({
   onCancelTranscribe,
   onAcceptTranscribe,
   size = "default",
+  isQuotaExhausted = false,
+  selectedModel,
 }: SendButtonGroupProps) => {
   const [reasoningConfig] = useReasoningConfig();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -97,6 +107,10 @@ export const SendButtonGroup = ({
     }
   }, [canSend, shouldShowDropdown, isExpanded, hasBeenEnabled]);
 
+  // Check if quota is exhausted and using a built-in (non-BYOK) model
+  const isBlockedByQuota =
+    isQuotaExhausted && !(selectedModel && isUserModel(selectedModel));
+
   const isButtonDisabled = (() => {
     if (isStreaming) {
       return !onStop;
@@ -105,6 +119,10 @@ export const SendButtonGroup = ({
       return false;
     }
     if (!hasInputText && (isTranscribing || !isSupported)) {
+      return true;
+    }
+    // Block if quota exhausted and using built-in model
+    if (isBlockedByQuota) {
       return true;
     }
     return !canSend || isLoading || isSummarizing;
@@ -192,6 +210,7 @@ export const SendButtonGroup = ({
           canSend={canSend}
           hasApiKeys={hasApiKeys}
           hasEnabledModels={hasEnabledModels}
+          isQuotaExhausted={isBlockedByQuota}
           onClick={handleButtonClick}
         />
       </div>

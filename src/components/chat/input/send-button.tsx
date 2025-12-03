@@ -29,6 +29,7 @@ type SendButtonProps = {
   canSend: boolean;
   hasApiKeys?: boolean;
   hasEnabledModels?: boolean | null;
+  isQuotaExhausted?: boolean;
   onClick: () => void;
 };
 
@@ -98,6 +99,7 @@ const getButtonTitle = ({
   hasApiKeys,
   hasEnabledModels,
   canSend,
+  isQuotaExhausted,
 }: Pick<
   SendButtonProps,
   | "isStreaming"
@@ -108,6 +110,7 @@ const getButtonTitle = ({
   | "hasApiKeys"
   | "hasEnabledModels"
   | "canSend"
+  | "isQuotaExhausted"
 >) => {
   if (isStreaming) {
     return "Stop generation";
@@ -120,6 +123,9 @@ const getButtonTitle = ({
   }
   if (!hasInputText && isSupported) {
     return "Start voice input";
+  }
+  if (isQuotaExhausted) {
+    return "Monthly limit reached - add API keys for unlimited messages";
   }
   if (hasApiKeys === false) {
     return "Configure API keys to start chatting";
@@ -150,6 +156,7 @@ export const SendButton = ({
   canSend,
   hasApiKeys,
   hasEnabledModels,
+  isQuotaExhausted,
   onClick,
 }: SendButtonProps) => {
   const buttonContent = getButtonContent({
@@ -171,6 +178,7 @@ export const SendButton = ({
     hasApiKeys,
     hasEnabledModels,
     canSend,
+    isQuotaExhausted,
   });
 
   return (
