@@ -108,8 +108,8 @@ export function ImageRetryPopover({
       tooltip="Retry with different settings"
       open={open}
       onOpenChange={handleOpenChange}
-      pickerVariant="default"
-      size="icon"
+      pickerVariant="raw"
+      size="none"
       contentClassName={isDesktop ? "w-80 p-0" : "stack-lg"}
       align="start"
       ariaLabel="Retry image generation"

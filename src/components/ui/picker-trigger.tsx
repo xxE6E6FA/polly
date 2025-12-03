@@ -12,8 +12,6 @@ const pickerTriggerVariants = cva(
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
     // Disabled state
     "disabled:pointer-events-none disabled:opacity-50",
-    // Active press effect
-    "active:scale-[0.97]",
     // SVG styling
     "[&_svg]:pointer-events-none [&_svg]:shrink-0",
   ],
@@ -25,24 +23,30 @@ const pickerTriggerVariants = cva(
           "border border-border/60 bg-muted/80 text-foreground/90",
           "hover:bg-muted hover:border-border hover:text-foreground",
           "shadow-sm hover:shadow",
+          "active:scale-[0.97]",
         ],
         // Active: Primary accent for currently selected/active states
         active: [
           "border border-primary/40 bg-primary/10 text-primary",
           "hover:bg-primary/15 hover:border-primary/50",
           "shadow-sm shadow-primary/10 hover:shadow-primary/20",
+          "active:scale-[0.97]",
         ],
         // Ghost: Minimal styling, blends in more
         ghost: [
           "border border-transparent bg-transparent text-muted-foreground",
           "hover:bg-muted/60 hover:text-foreground hover:border-border/40",
+          "active:scale-[0.97]",
         ],
         // Accent: For highlighting important pickers (model picker)
         accent: [
           "border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 text-foreground/90",
           "hover:from-primary/15 hover:to-primary/10 hover:border-primary/40",
           "shadow-sm hover:shadow",
+          "active:scale-[0.97]",
         ],
+        // Raw: No visual styling, allows external styles to fully control appearance
+        raw: [],
       },
       size: {
         // Pill: Standard picker size (desktop)
@@ -51,6 +55,8 @@ const pickerTriggerVariants = cva(
         icon: "h-8 w-8 rounded-full p-0 [&_svg]:h-4 [&_svg]:w-4",
         // Small pill for compact contexts
         sm: "h-7 px-2 text-xs rounded-full [&_svg]:h-3 [&_svg]:w-3",
+        // None: No size constraints, allows external styles to control
+        none: "",
       },
     },
     defaultVariants: {

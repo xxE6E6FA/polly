@@ -42,8 +42,8 @@ interface ResponsivePickerProps {
   pickerVariant?: PickerTriggerProps["variant"];
   /** Show indicator dot for active/modified state */
   showIndicator?: boolean;
-  /** Button size for trigger - "pill" for desktop with text, "icon" for mobile/icon-only */
-  size?: "pill" | "icon" | "sm";
+  /** Button size for trigger - "pill" for desktop with text, "icon" for mobile/icon-only, "none" for custom sizing */
+  size?: "pill" | "icon" | "sm" | "none";
   /** Popover alignment (desktop only) */
   align?: "start" | "center" | "end";
   /** Popover side (desktop only) */
@@ -97,7 +97,14 @@ export function ResponsivePicker({
   };
 
   // Determine the size based on desktop/mobile and explicit size prop
-  const triggerSize = isDesktop ? size : "icon";
+  // When size is "none", keep it to allow external styles to control
+  const getTriggerSize = () => {
+    if (size === "none") {
+      return "none";
+    }
+    return isDesktop ? size : "icon";
+  };
+  const triggerSize = getTriggerSize();
 
   const triggerButton = (
     <PickerTrigger

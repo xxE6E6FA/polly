@@ -549,7 +549,6 @@ export const ImageGenerationBubble = ({
                   : undefined
               }
               minimal
-              className="gap-0"
             />
 
             {onDeleteMessage && (
@@ -600,7 +599,6 @@ export const ImageGenerationBubble = ({
                   ? params => onRetryImageGeneration(message.id, params)
                   : undefined
               }
-              className="gap-0"
             />
 
             {onDeleteMessage && (
