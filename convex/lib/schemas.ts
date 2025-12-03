@@ -1,12 +1,11 @@
 import { v } from "convex/values";
 import type { Infer } from "convex/values";
 
-export const userModelSchema = v.object({
-  userId: v.id("users"),
+// Base model capabilities shared across all model types
+const baseModelCapabilities = {
   modelId: v.string(),
   name: v.string(),
   provider: v.string(),
-
   contextLength: v.number(),
   maxOutputTokens: v.optional(v.number()),
   supportsImages: v.boolean(),
@@ -14,30 +13,25 @@ export const userModelSchema = v.object({
   supportsReasoning: v.boolean(),
   supportsFiles: v.optional(v.boolean()),
   inputModalities: v.optional(v.array(v.string())),
+  createdAt: v.number(),
+};
+
+// Base schema for model capabilities (used for .pick()/.extend())
+const baseModelSchema = v.object(baseModelCapabilities);
+
+export const userModelSchema = baseModelSchema.extend({
+  userId: v.id("users"),
   selected: v.optional(v.boolean()),
   free: v.optional(v.boolean()),
   isAvailable: v.optional(v.boolean()),
   availabilityCheckedAt: v.optional(v.number()),
-  createdAt: v.number(),
 });
 
 // Built-in models schema (global, not per-user)
-export const builtInModelSchema = v.object({
-  modelId: v.string(),
-  name: v.string(),
-  provider: v.string(),
+export const builtInModelSchema = baseModelSchema.extend({
   displayProvider: v.optional(v.string()),
-
-  contextLength: v.number(),
-  maxOutputTokens: v.optional(v.number()),
-  supportsImages: v.boolean(),
-  supportsTools: v.boolean(),
-  supportsReasoning: v.boolean(),
-  supportsFiles: v.optional(v.boolean()),
-  inputModalities: v.optional(v.array(v.string())),
   free: v.boolean(),
   isActive: v.optional(v.boolean()), // Allow disabling built-in models
-  createdAt: v.number(),
 });
 
 // Image models schema for Replicate image generation models
@@ -95,24 +89,21 @@ export const imageModelDefinitionSchema = v.object({
 });
 
 // Model schema for internal actions (handles both user models and built-in models)
-export const modelForInternalActionsSchema = v.object({
-  modelId: v.string(),
-  name: v.string(),
-  provider: v.string(),
-  supportsReasoning: v.boolean(),
-  supportsImages: v.optional(v.boolean()),
-  supportsTools: v.optional(v.boolean()),
-  supportsFiles: v.optional(v.boolean()),
-  contextLength: v.optional(v.number()),
-  // Fields that may exist on built-in models
-  free: v.optional(v.boolean()),
-  isActive: v.optional(v.boolean()),
-  // Fields that may exist on user models
-  selected: v.optional(v.boolean()),
-
-  maxOutputTokens: v.optional(v.number()),
-  inputModalities: v.optional(v.array(v.string())),
-});
+// Uses .pick() to select required fields, then makes some optional for flexibility
+export const modelForInternalActionsSchema = baseModelSchema
+  .pick("modelId", "name", "provider", "supportsReasoning", "maxOutputTokens", "inputModalities")
+  .extend({
+    // Make capabilities optional since internal actions may not always have them
+    supportsImages: v.optional(v.boolean()),
+    supportsTools: v.optional(v.boolean()),
+    supportsFiles: v.optional(v.boolean()),
+    contextLength: v.optional(v.number()),
+    // Fields that may exist on built-in models
+    free: v.optional(v.boolean()),
+    isActive: v.optional(v.boolean()),
+    // Fields that may exist on user models
+    selected: v.optional(v.boolean()),
+  });
 
 // Common attachment schema used across messages and conversations
 export const attachmentSchema = v.object({
@@ -196,19 +187,9 @@ export const messageMetadataSchema = v.object({
   ),
 });
 
-// Extended message metadata schema with status field
-export const extendedMessageMetadataSchema = v.object({
-  tokenCount: v.optional(v.number()),
-  finishReason: v.optional(v.string()),
-  duration: v.optional(v.number()),
-  thinkingDurationMs: v.optional(v.number()),
-  stopped: v.optional(v.boolean()),
-  searchQuery: v.optional(v.string()),
-  searchFeature: v.optional(v.string()),
-  searchCategory: v.optional(v.string()),
-  searchMode: v.optional(
-    v.union(v.literal("fast"), v.literal("auto"), v.literal("deep")),
-  ),
+// Extended message metadata schema with additional fields
+// Uses .extend() to add fields to the base messageMetadataSchema
+export const extendedMessageMetadataSchema = messageMetadataSchema.extend({
   status: v.optional(v.union(v.literal("pending"), v.literal("error"))),
   webSearchCost: v.optional(v.number()),
   temperature: v.optional(v.number()),
@@ -643,25 +624,13 @@ export const userSettingsSchema = v.object({
   updatedAt: v.number(),
 });
 
-// User settings update schema (without required fields)
-export const userSettingsUpdateSchema = v.object({
-  personasEnabled: v.optional(v.boolean()),
-  defaultModelSelected: v.optional(v.boolean()),
-  openRouterSorting: v.optional(openRouterSortingSchema),
-  anonymizeForDemo: v.optional(v.boolean()),
-  autoArchiveEnabled: v.optional(v.boolean()),
-  autoArchiveDays: v.optional(v.number()),
-  // TTS (ElevenLabs) settings
-  ttsVoiceId: v.optional(v.string()),
-  ttsModelId: v.optional(v.string()),
-  ttsUseAudioTags: v.optional(v.boolean()),
-  // removed voice hint
-  ttsStabilityMode: v.optional(
-    v.union(v.literal("creative"), v.literal("natural"), v.literal("robust")),
-  ),
-  showMessageMetadata: v.optional(v.boolean()),
-  showTemperaturePicker: v.optional(v.boolean()),
-});
+// User settings update schema (without userId/timestamps)
+// Uses .omit() to remove fields that shouldn't be updated directly
+export const userSettingsUpdateSchema = userSettingsSchema.omit(
+  "userId",
+  "createdAt",
+  "updatedAt",
+);
 
 // Message status for production-grade AI chat
 export const messageStatusSchema = v.union(
