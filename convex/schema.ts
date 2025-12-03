@@ -78,6 +78,8 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .index("by_user", ["userId"])
     .index("by_user_created", ["userId", "createdAt"])
+    // Index for efficient image generation webhook lookups (avoids full table scan)
+    .index("by_replicate_id", ["imageGeneration.replicateId"])
     .searchIndex("search_content", {
       searchField: "content",
       filterFields: ["conversationId", "isMainBranch"],

@@ -1,12 +1,11 @@
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ArrowSquareOutIcon, CopyIcon, HeartIcon } from "@phosphor-icons/react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StreamingMarkdown } from "@/components/ui/streaming-markdown";
@@ -37,26 +36,22 @@ type FavoriteItem = {
 
 export default function FavoritesPage() {
   const { user } = useUserDataContext();
-  const [cursor, setCursor] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
   const managedToast = useToast();
 
-  const data = useQuery(
-    api.messages.listFavorites,
-    user && !user.isAnonymous
-      ? {
-          cursor: cursor ?? undefined,
-          limit: 50,
-        }
-      : "skip"
+  // Use Convex's native pagination for efficient data loading
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.messages.listFavoritesPaginated,
+    user && !user.isAnonymous ? {} : "skip",
+    { initialNumItems: 50 }
   );
 
   const toggleFavorite = useMutation(api.messages.toggleFavorite);
 
   const items = useMemo(() => {
-    const raw = data?.items as unknown as FavoriteItem[] | undefined;
+    const raw = results as unknown as FavoriteItem[] | undefined;
     if (!raw) {
       return [];
     }
@@ -70,7 +65,7 @@ export default function FavoritesPage() {
         it.message.content.toLowerCase().includes(q)
       );
     });
-  }, [data?.items, search]);
+  }, [results, search]);
 
   const handleCopy = useCallback(
     async (text: string) => {
@@ -108,7 +103,7 @@ export default function FavoritesPage() {
     );
   }
 
-  if (data === undefined) {
+  if (status === "LoadingFirstPage") {
     return (
       <div className="h-full overflow-y-auto">
         <div className="p-6 stack-lg max-w-4xl mx-auto">
@@ -259,14 +254,21 @@ export default function FavoritesPage() {
           </div>
         )}
 
-        {data?.hasMore && (
+        {status === "CanLoadMore" && (
           <div className="flex justify-center mt-4">
             <Button
               variant="ghost"
-              onClick={() => setCursor(data.nextCursor)}
+              onClick={() => loadMore(50)}
               className="text-sm"
             >
               Load more
+            </Button>
+          </div>
+        )}
+        {status === "LoadingMore" && (
+          <div className="flex justify-center mt-4">
+            <Button variant="ghost" disabled className="text-sm">
+              Loading...
             </Button>
           </div>
         )}

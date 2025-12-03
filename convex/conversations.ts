@@ -180,26 +180,6 @@ export async function createConversationHandler(
     });
   }
 
-  // Increment rolling token estimate for the first user message
-  try {
-    const delta = Math.max(1, Math.ceil((args.firstMessage || "").length / 4));
-    await withRetry(
-      async () => {
-        const fresh = await ctx.db.get(conversationId);
-        if (!fresh) {
-          return;
-        }
-        await ctx.db.patch(conversationId, {
-          tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
-        });
-      },
-      5,
-      25
-    );
-  } catch {
-    // best-effort; ignore failures
-  }
-
   // Create assistant message directly (avoid extra mutation call)
   // Set initial status to "thinking" to ensure UI treats it as live before HTTP stream flips to "streaming"
   const assistantMessageId = await ctx.db.insert(
@@ -212,6 +192,27 @@ export async function createConversationHandler(
       status: "thinking",
     })
   );
+
+  // Increment rolling token estimate and messageCount for the first user + assistant messages
+  try {
+    const delta = Math.max(1, Math.ceil((args.firstMessage || "").length / 4));
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(conversationId);
+        if (!fresh) {
+          return;
+        }
+        await ctx.db.patch(conversationId, {
+          tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+          messageCount: 2, // Both user and assistant messages created
+        });
+      },
+      5,
+      25
+    );
+  } catch {
+    // best-effort; ignore failures
+  }
 
   // Increment stats if needed (serialize to avoid user doc conflicts)
   if (args.firstMessage && args.firstMessage.trim().length > 0) {
@@ -1413,6 +1414,9 @@ export const createWithUserId = internalMutation({
       isMainBranch: true,
       createdAt: Date.now(),
     });
+
+    // Update messageCount for the conversation (2 messages: user + assistant)
+    await ctx.db.patch(conversationId, { messageCount: 2 });
 
     // Schedule title generation and streaming in the background
     if (args.firstMessage && args.firstMessage.trim().length > 0) {

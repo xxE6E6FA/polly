@@ -546,27 +546,32 @@ export const deleteJob = mutation({
 });
 
 // Internal mutation to clean up old jobs for all users (called by cron)
+// Uses index + batching to avoid full table scans at scale
 export const cleanupOldJobsForAllUsers = internalMutation({
   args: {
     olderThanDays: v.optional(v.number()),
+    batchSize: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const daysOld = args.olderThanDays || 30;
     const cutoffTime = Date.now() - daysOld * 24 * 60 * 60 * 1000;
+    const batchSize = args.batchSize || 100;
 
-    // Find old completed/failed jobs for all users
-    const oldJobs = await ctx.db
+    // Query completed jobs using index (more efficient than filter)
+    const completedJobs = await ctx.db
       .query("backgroundJobs")
-      .filter(q =>
-        q.and(
-          q.or(
-            q.eq(q.field("status"), "completed"),
-            q.eq(q.field("status"), "failed")
-          ),
-          q.lt(q.field("updatedAt"), cutoffTime)
-        )
-      )
-      .collect();
+      .withIndex("by_status_and_created", q => q.eq("status", "completed"))
+      .filter(q => q.lt(q.field("updatedAt"), cutoffTime))
+      .take(batchSize);
+
+    // Query failed jobs using index
+    const failedJobs = await ctx.db
+      .query("backgroundJobs")
+      .withIndex("by_status_and_created", q => q.eq("status", "failed"))
+      .filter(q => q.lt(q.field("updatedAt"), cutoffTime))
+      .take(batchSize);
+
+    const oldJobs = [...completedJobs, ...failedJobs];
 
     // Delete old jobs and associated files
     let deletedCount = 0;
@@ -584,7 +589,8 @@ export const cleanupOldJobsForAllUsers = internalMutation({
       deletedCount++;
     }
 
-    return { deletedCount };
+    // Return whether more jobs may exist (for potential re-scheduling)
+    return { deletedCount, hasMore: oldJobs.length >= batchSize };
   },
 });
 

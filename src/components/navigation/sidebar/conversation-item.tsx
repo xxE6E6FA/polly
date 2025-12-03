@@ -52,6 +52,29 @@ const ConversationItemComponent = ({
     null
   );
 
+  // Optimistic state for immediate UI feedback
+  const [optimisticPinned, setOptimisticPinned] = useState<boolean | null>(
+    null
+  );
+
+  // Reset optimistic state when server data changes (mutation complete)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally reset when server value changes
+  useEffect(() => {
+    setOptimisticPinned(null);
+  }, [conversation.isPinned]);
+
+  // Use optimistic value if set, otherwise use server value
+  const isPinned = optimisticPinned ?? conversation.isPinned;
+
+  // Create optimistic conversation object for child components
+  const optimisticConversation = useMemo(
+    () =>
+      optimisticPinned !== null
+        ? { ...conversation, isPinned: optimisticPinned }
+        : conversation,
+    [conversation, optimisticPinned]
+  );
+
   const {
     isSelectionMode,
     isSelected,
@@ -282,12 +305,21 @@ const ConversationItemComponent = ({
       setIsMobilePopoverOpen(false);
       setIsDesktopPopoverOpen(false);
 
-      await patchConversation({
-        id: conversation._id,
-        updates: { isPinned: !conversation.isPinned },
-      });
+      // Optimistic update: toggle pin state immediately
+      const newPinnedState = !isPinned;
+      setOptimisticPinned(newPinnedState);
+
+      try {
+        await patchConversation({
+          id: conversation._id,
+          updates: { isPinned: newPinnedState },
+        });
+      } catch {
+        // Revert optimistic update on error
+        setOptimisticPinned(null);
+      }
     },
-    [conversation, patchConversation]
+    [conversation._id, isPinned, patchConversation]
   );
 
   const handleExport = useCallback(
@@ -443,7 +475,7 @@ const ConversationItemComponent = ({
               )}
               {!(isBeingDeleted || conversation.isStreaming) && (
                 <ConversationActions
-                  conversation={conversation}
+                  conversation={optimisticConversation}
                   isEditing={isEditing}
                   isHovered={isHovered}
                   isMobile={isMobile}
@@ -467,7 +499,7 @@ const ConversationItemComponent = ({
         </ContextMenu.Trigger>
 
         <ConversationContextMenu
-          conversation={conversation}
+          conversation={optimisticConversation}
           exportingFormat={exportingFormat}
           isDeleteJobInProgress={isDeleteJobInProgress}
           onPinToggle={handlePinToggle}

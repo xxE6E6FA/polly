@@ -18,7 +18,12 @@ function getOrCreateClient(): ConvexReactClient {
     if (!convexUrl) {
       throw new Error("VITE_CONVEX_URL environment variable is not set");
     }
-    clientInstance = new ConvexReactClient(convexUrl);
+    // Handle server disconnection errors for better network resilience (Convex v1.25+)
+    clientInstance = new ConvexReactClient(convexUrl, {
+      onServerDisconnectError: (message: string) => {
+        console.error("[Convex] Server disconnect:", message);
+      },
+    });
   }
 
   return clientInstance;

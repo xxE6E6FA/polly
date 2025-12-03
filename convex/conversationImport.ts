@@ -88,8 +88,10 @@ export const processBatch = internalMutation({
         }));
 
       // Insert all messages and count user messages
+      let messageCount = 0;
       for (const messageData of messagesToInsert) {
         const messageId = await ctx.db.insert("messages", messageData);
+        messageCount++;
 
         // Create userFiles entries if message has attachments
         if (messageData.attachments && messageData.attachments.length > 0) {
@@ -104,6 +106,11 @@ export const processBatch = internalMutation({
         if (messageData.role === "user") {
           totalUserMessages++;
         }
+      }
+
+      // Update conversation with message count
+      if (messageCount > 0) {
+        await ctx.db.patch(conversationId, { messageCount });
       }
 
       conversationIds.push(conversationId);

@@ -113,6 +113,7 @@ export async function internalCloneMessagesHandler(
   }
 
   const idMap = new Map<string, Id<"messages">>();
+  let messageCount = 0;
 
   for (const m of args.sourceMessages) {
     const newId = await ctx.db.insert("messages", {
@@ -143,6 +144,7 @@ export async function internalCloneMessagesHandler(
       completedAt: m.completedAt,
     });
     idMap.set(m._id as unknown as string, newId);
+    messageCount++;
 
     // Create userFiles entries if message has attachments
     if (m.attachments && m.attachments.length > 0) {
@@ -153,6 +155,13 @@ export async function internalCloneMessagesHandler(
         attachments: m.attachments,
       });
     }
+  }
+
+  // Update conversation's messageCount
+  if (messageCount > 0) {
+    await ctx.db.patch(args.targetConversationId, {
+      messageCount: (targetConversation.messageCount || 0) + messageCount,
+    });
   }
 }
 

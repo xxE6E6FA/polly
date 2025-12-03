@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { streamText } from "ai";
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, type Infer, v } from "convex/values";
 import dedent from "dedent";
 import { createSmoothStreamTransform } from "../shared/streaming-utils";
@@ -102,21 +103,30 @@ async function handleMessageDeletion(
   userId?: Id<"users">
 ) {
   if (message.conversationId) {
+    const conversationId = message.conversationId;
+
+    // Decrement messageCount and clear streaming state
     operations.push(
-      ctx.db
-        .patch(message.conversationId, {
-          isStreaming: false,
-        })
-        .catch(error => {
+      (async () => {
+        try {
+          const conversation = await ctx.db.get(conversationId);
+          if (conversation) {
+            await ctx.db.patch(conversationId, {
+              isStreaming: false,
+              messageCount: Math.max(0, (conversation.messageCount || 1) - 1),
+            });
+          }
+        } catch (error) {
           console.warn(
-            `Failed to clear streaming state for conversation ${message.conversationId}:`,
+            `Failed to update conversation state for ${conversationId}:`,
             error
           );
-        })
+        }
+      })()
     );
 
     if (message.role === "user") {
-      const conversation = await ctx.db.get(message.conversationId);
+      const conversation = await ctx.db.get(conversationId);
       if (conversation) {
         const user = await ctx.db.get(conversation.userId);
         if (user) {
@@ -248,12 +258,28 @@ export async function createHandler(
           }
           await ctx.db.patch(args.conversationId, {
             tokenEstimate: Math.max(0, (fresh.tokenEstimate || 0) + delta),
+            messageCount: (fresh.messageCount || 0) + 1,
           });
         },
         5,
         25
       );
     }
+  } else {
+    // For non-user messages, still update messageCount
+    await withRetry(
+      async () => {
+        const fresh = await ctx.db.get(args.conversationId);
+        if (!fresh) {
+          return;
+        }
+        await ctx.db.patch(args.conversationId, {
+          messageCount: (fresh.messageCount || 0) + 1,
+        });
+      },
+      5,
+      25
+    );
   }
 
   return messageId;
@@ -310,9 +336,9 @@ export const createUserMessageBatched = mutation({
     });
 
     // Check if this is a built-in model
-    if (args.model && args.provider) {
-      const conversation = await ctx.db.get(args.conversationId);
-      if (conversation) {
+    const conversation = await ctx.db.get(args.conversationId);
+    if (conversation) {
+      if (args.model && args.provider) {
         await incrementUserMessageStats(
           ctx,
           conversation.userId,
@@ -320,6 +346,21 @@ export const createUserMessageBatched = mutation({
           args.provider
         );
       }
+
+      // Update messageCount for the conversation
+      await withRetry(
+        async () => {
+          const fresh = await ctx.db.get(args.conversationId);
+          if (!fresh) {
+            return;
+          }
+          await ctx.db.patch(args.conversationId, {
+            messageCount: (fresh.messageCount || 0) + 1,
+          });
+        },
+        5,
+        25
+      );
     }
 
     return messageId;
@@ -788,7 +829,7 @@ export const removeMultiple = mutation({
       }
     }
 
-    const conversationIds = new Set<Id<"conversations">>();
+    const conversationMessageCounts = new Map<Id<"conversations">, number>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
     const userFileDeletionPromises: Promise<void>[] = [];
@@ -796,7 +837,14 @@ export const removeMultiple = mutation({
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
-          conversationIds.add(message.conversationId);
+          // Track message count per conversation for decrementing
+          const currentConvCount =
+            conversationMessageCounts.get(message.conversationId) || 0;
+          conversationMessageCounts.set(
+            message.conversationId,
+            currentConvCount + 1
+          );
+
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
             if (conversation) {
@@ -853,18 +901,28 @@ export const removeMultiple = mutation({
 
     const operations: Promise<void>[] = [];
 
-    for (const conversationId of conversationIds) {
+    // Decrement messageCount for each affected conversation
+    for (const [conversationId, deletedCount] of conversationMessageCounts) {
       operations.push(
-        ctx.db
-          .patch(conversationId, {
-            isStreaming: false,
-          })
-          .catch(error => {
+        (async () => {
+          try {
+            const conversation = await ctx.db.get(conversationId);
+            if (conversation) {
+              await ctx.db.patch(conversationId, {
+                isStreaming: false,
+                messageCount: Math.max(
+                  0,
+                  (conversation.messageCount || deletedCount) - deletedCount
+                ),
+              });
+            }
+          } catch (error) {
             console.warn(
-              `Failed to clear streaming state for conversation ${conversationId}:`,
+              `Failed to update conversation state for ${conversationId}:`,
               error
             );
-          })
+          }
+        })()
       );
     }
 
@@ -906,7 +964,7 @@ export const internalRemoveMultiple = internalMutation({
   handler: async (ctx, args) => {
     const messages = await Promise.all(args.ids.map(id => ctx.db.get(id)));
 
-    const conversationIds = new Set<Id<"conversations">>();
+    const conversationMessageCounts = new Map<Id<"conversations">, number>();
     const userMessageCounts = new Map<Id<"users">, number>();
     const storageDeletePromises: Promise<void>[] = [];
     const userFileDeletionPromises: Promise<void>[] = [];
@@ -914,7 +972,13 @@ export const internalRemoveMultiple = internalMutation({
     for (const message of messages) {
       if (message) {
         if (message.conversationId) {
-          conversationIds.add(message.conversationId);
+          // Track message count per conversation for decrementing
+          const currentConvCount =
+            conversationMessageCounts.get(message.conversationId) || 0;
+          conversationMessageCounts.set(
+            message.conversationId,
+            currentConvCount + 1
+          );
 
           if (message.role === "user") {
             const conversation = await ctx.db.get(message.conversationId);
@@ -974,18 +1038,28 @@ export const internalRemoveMultiple = internalMutation({
 
     const operations: Promise<void>[] = [];
 
-    for (const conversationId of conversationIds) {
+    // Decrement messageCount for each affected conversation
+    for (const [conversationId, deletedCount] of conversationMessageCounts) {
       operations.push(
-        ctx.db
-          .patch(conversationId, {
-            isStreaming: false,
-          })
-          .catch(error => {
+        (async () => {
+          try {
+            const conversation = await ctx.db.get(conversationId);
+            if (conversation) {
+              await ctx.db.patch(conversationId, {
+                isStreaming: false,
+                messageCount: Math.max(
+                  0,
+                  (conversation.messageCount || deletedCount) - deletedCount
+                ),
+              });
+            }
+          } catch (error) {
             console.warn(
-              `Failed to clear streaming state for conversation ${conversationId}:`,
+              `Failed to update conversation state for ${conversationId}:`,
               error
             );
-          })
+          }
+        })()
       );
     }
 
@@ -1232,6 +1306,13 @@ export const hasStreamingMessage = query({
 export const getMessageCount = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    // Use cached messageCount if available (O(1) instead of O(n))
+    const conversation = await ctx.db.get(args.conversationId);
+    if (conversation?.messageCount !== undefined) {
+      return conversation.messageCount;
+    }
+
+    // Fallback to counting for conversations without cached count
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", q =>
@@ -1253,13 +1334,20 @@ function estimateTokensFromText(text: string): number {
 }
 
 /**
- * Estimate total prompt tokens for a conversation by summing message contents.
- * - Excludes system/context messages (only user and assistant).
- * - Uses a heuristic (chars/4) to avoid tokenizer/vendor coupling.
+ * Estimate total prompt tokens for a conversation.
+ * Uses cached tokenEstimate field (O(1)) when available,
+ * falls back to scanning messages (O(n)) for backwards compatibility.
  */
 export const getConversationTokenEstimate = query({
   args: { conversationId: v.id("conversations") },
   handler: async (ctx, args) => {
+    // Use cached tokenEstimate if available (O(1) instead of O(n))
+    const conversation = await ctx.db.get(args.conversationId);
+    if (conversation?.tokenEstimate !== undefined) {
+      return conversation.tokenEstimate;
+    }
+
+    // Fallback to scanning for conversations without cached estimate
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", q =>
@@ -1399,6 +1487,54 @@ export const listFavorites = query({
       nextCursor: start + limit < all.length ? String(start + limit) : null,
       total: all.length,
     } as const;
+  },
+});
+
+/**
+ * Paginated query for favorites using Convex's native pagination.
+ * Use with usePaginatedQuery hook for efficient infinite scroll.
+ */
+export const listFavoritesPaginated = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      // Return empty pagination result for unauthenticated users
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: "",
+      };
+    }
+
+    const paginatedFavorites = await ctx.db
+      .query("messageFavorites")
+      .withIndex("by_user_created", q => q.eq("userId", userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    // Enrich paginated results with message and conversation data
+    const enrichedPage = await Promise.all(
+      paginatedFavorites.page.map(async fav => {
+        const message = await ctx.db.get(fav.messageId);
+        const conversation = message
+          ? await ctx.db.get(message.conversationId)
+          : null;
+        return {
+          favoriteId: fav._id,
+          createdAt: fav.createdAt,
+          message,
+          conversation,
+        };
+      })
+    );
+
+    return {
+      ...paginatedFavorites,
+      page: enrichedPage.filter(m => m.message && m.conversation),
+    };
   },
 });
 
@@ -2295,13 +2431,12 @@ export const getByReplicateId = internalQuery({
     replicateId: v.string(),
   },
   handler: async (ctx, args) => {
-    const messages = await ctx.db
+    // Use index for efficient lookup instead of full table scan
+    return await ctx.db
       .query("messages")
-      .filter(q =>
-        q.eq(q.field("imageGeneration.replicateId"), args.replicateId)
+      .withIndex("by_replicate_id", q =>
+        q.eq("imageGeneration.replicateId", args.replicateId)
       )
-      .collect();
-
-    return messages[0] || null;
+      .first();
   },
 });

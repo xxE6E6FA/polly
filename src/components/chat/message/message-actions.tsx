@@ -1147,7 +1147,7 @@ export const MessageActions = memo(
     const abortControllerRef = useRef<AbortController | null>(null);
     const isCancelledRef = useRef(false);
     const toggleFavorite = useMutation(api.messages.toggleFavorite);
-    const isFavorited = useQuery(
+    const isFavoritedFromServer = useQuery(
       api.messages.isFavorited,
       !isPrivateMode &&
         messageId &&
@@ -1160,6 +1160,20 @@ export const MessageActions = memo(
         : ("skip" as const)
     );
 
+    // Optimistic state for immediate UI feedback on favorite toggle
+    const [optimisticFavorited, setOptimisticFavorited] = useState<
+      boolean | null
+    >(null);
+
+    // Reset optimistic state when server data changes
+    // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally reset when server value changes
+    useEffect(() => {
+      setOptimisticFavorited(null);
+    }, [isFavoritedFromServer]);
+
+    // Use optimistic value if set, otherwise use server value
+    const isFavorited = optimisticFavorited ?? isFavoritedFromServer;
+
     const handleToggleFavorite = useCallback(async () => {
       if (
         !messageId ||
@@ -1169,6 +1183,11 @@ export const MessageActions = memo(
       ) {
         return;
       }
+
+      // Optimistic update: toggle favorite state immediately
+      const newFavoritedState = !isFavorited;
+      setOptimisticFavorited(newFavoritedState);
+
       try {
         const result = await toggleFavorite({
           messageId: messageId as Id<"messages">,
@@ -1177,11 +1196,14 @@ export const MessageActions = memo(
           result.favorited ? "Added to favorites" : "Removed from favorites"
         );
       } catch {
+        // Revert optimistic update on error
+        setOptimisticFavorited(null);
         managedToast.error("Failed to update favorite");
       }
     }, [
       messageId,
       isPrivateMode,
+      isFavorited,
       toggleFavorite,
       managedToast.success,
       managedToast.error,
