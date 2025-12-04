@@ -234,20 +234,20 @@ export const Reasoning = ({
                       component: "code",
                       props: {
                         className:
-                          "rounded bg-muted/40 px-1.5 py-0.5 text-[0.85em] font-medium",
+                          "rounded bg-muted/40 px-1.5 py-0.5 text-sm font-medium",
                       },
                     },
                     h1: {
                       component: "h1",
-                      props: { className: "mb-2 text-[1.05rem] font-semibold" },
+                      props: { className: "mb-2 text-base font-semibold" },
                     },
                     h2: {
                       component: "h2",
-                      props: { className: "mb-2 text-[1.02rem] font-semibold" },
+                      props: { className: "mb-2 text-base font-semibold" },
                     },
                     h3: {
                       component: "h3",
-                      props: { className: "mb-1.5 text-[1rem] font-medium" },
+                      props: { className: "mb-1.5 text-base font-medium" },
                     },
                   },
                 }}

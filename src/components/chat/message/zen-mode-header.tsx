@@ -63,8 +63,8 @@ export const ZenModeHeader = forwardRef<HTMLDivElement, ZenModeHeaderProps>(
           "fixed inset-x-0 z-modal flex items-center justify-between gap-3 border-b border-black/5 px-5 transition-[top,opacity,padding] duration-500 ease-smooth sm:px-10 dark:border-white/10",
           "transform-gpu backdrop-blur-md supports-[backdrop-filter]:backdrop-blur-xl",
           isHeaderCondensed
-            ? "bg-white/70 supports-[backdrop-filter]:bg-white/45 py-2.5 dark:bg-[#11111a]/70 dark:supports-[backdrop-filter]:bg-[#11111a]/45"
-            : "bg-white/55 supports-[backdrop-filter]:bg-white/35 py-5 sm:py-7 dark:bg-[#11111a]/60 dark:supports-[backdrop-filter]:bg-[#11111a]/40",
+            ? "bg-white/70 supports-[backdrop-filter]:bg-white/45 py-2.5 dark:bg-background/70 dark:supports-[backdrop-filter]:bg-background/45"
+            : "bg-white/55 supports-[backdrop-filter]:bg-white/35 py-5 sm:py-7 dark:bg-background/60 dark:supports-[backdrop-filter]:bg-background/40",
           isHeaderHidden && "pointer-events-none opacity-0 border-transparent"
         )}
         style={{ top: `${isHeaderHidden ? -baseHeaderHeight : 0}px` }}

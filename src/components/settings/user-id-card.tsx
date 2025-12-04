@@ -432,7 +432,7 @@ export const UserIdCard = () => {
                 getAriaValueText={(_, value) =>
                   `${value} out of ${monthlyUsage.monthlyLimit}`
                 }
-                className="space-y-3 bg-muted/40 p-4"
+                className="stack-md bg-muted/40 p-4"
               >
                 <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                   <Meter.Label>Monthly Usage</Meter.Label>

@@ -223,7 +223,7 @@ export function VirtualizedDataGrid<TItem>({
       {Array.from({ length: count }, (_, i) => `skeleton-${i}`).map(key => (
         <div key={key} className="flex items-center gap-3 p-3">
           <Skeleton className="h-10 w-10 rounded" />
-          <div className="flex-1 space-y-2">
+          <div className="flex-1 stack-sm">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
           </div>

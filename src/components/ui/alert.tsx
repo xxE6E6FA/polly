@@ -9,19 +9,46 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Alert variants using CVA (class-variance-authority).
+ *
+ * Use with AlertTitle, AlertDescription, and optionally AlertIcon for automatic icons.
+ *
+ * @variant default - Neutral alert, default foreground colors
+ * @variant success - Green, for success messages
+ * @variant warning - Yellow, for warning/caution messages
+ * @variant info - Blue, for informational messages
+ * @variant danger - Red, for error messages
+ * @variant destructive - Legacy alias for danger (prefer danger)
+ *
+ * @example
+ * ```tsx
+ * <Alert variant="success">
+ *   <AlertIcon variant="success" />
+ *   <AlertTitle>Success!</AlertTitle>
+ *   <AlertDescription>Your changes have been saved.</AlertDescription>
+ * </Alert>
+ * ```
+ */
 const alertVariants = cva(
   "relative w-full rounded-lg border p-4 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7",
   {
     variants: {
       variant: {
+        /** Neutral alert, default foreground colors */
         default: "bg-background text-foreground",
+        /** Green, for success messages */
         success:
           "border-success-border bg-success-bg text-success [&>svg]:text-success",
+        /** Yellow, for warning/caution messages */
         warning:
           "border-warning-border bg-warning-bg text-warning-foreground [&>svg]:text-warning-foreground",
+        /** Blue, for informational messages */
         info: "border-info-border bg-info-bg text-info [&>svg]:text-info",
+        /** Red, for error messages */
         danger:
           "border-danger-border bg-danger-bg text-danger [&>svg]:text-danger",
+        /** Legacy alias for danger (prefer danger) */
         destructive:
           "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
       },

@@ -553,7 +553,7 @@ export const UnifiedChatView = memo(
                   right: overlayScrollbarOffset,
                 }}
               >
-                <div className="mx-auto w-full max-w-3xl space-y-3">
+                <div className="mx-auto w-full max-w-3xl stack-md">
                   <ArchivedBanner
                     isArchived={isArchived}
                     hasApiKeys={hasApiKeys}

@@ -191,7 +191,7 @@ const SharedConversationLoading = () => {
 
       <div className="flex flex-1 items-center justify-center px-6">
         <div
-          className="w-full max-w-3xl space-y-4"
+          className="w-full max-w-3xl stack-lg"
           data-testid="shared-conversation-loading"
         >
           <Skeleton className="h-6 w-48" />

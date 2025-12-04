@@ -234,7 +234,7 @@ const TextMessageBubble = ({
         />
 
         {/* Message actions for text messages; keep a reserved row to avoid shifts */}
-        <div className="mt-2" style={{ minHeight: 28 }}>
+        <div className="mt-2 min-h-7">
           <div
             className={cn(
               "transition-opacity duration-150",

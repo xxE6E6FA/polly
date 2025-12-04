@@ -634,8 +634,7 @@ const ChatHeaderComponent = ({
                       {!isPrivateMode && conversation && (
                         <>
                           <Button
-                            className="h-10 justify-start gap-2 px-3 text-sm"
-                            size="sm"
+                            size="menu"
                             variant="ghost"
                             onClick={handlePinToggle}
                             disabled={!online}
@@ -649,8 +648,7 @@ const ChatHeaderComponent = ({
                             {conversation.isPinned ? "Unpin" : "Pin"}
                           </Button>
                           <Button
-                            className="h-10 justify-start gap-2 px-3 text-sm"
-                            size="sm"
+                            size="menu"
                             variant="ghost"
                             onClick={handleEditTitle}
                             disabled={!online}
@@ -663,8 +661,7 @@ const ChatHeaderComponent = ({
 
                       {isPrivateMode && (
                         <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm"
-                          size="sm"
+                          size="menu"
                           variant="ghost"
                           onClick={onSavePrivateChat}
                           disabled={!(online && canSavePrivateChat)}
@@ -676,8 +673,7 @@ const ChatHeaderComponent = ({
 
                       {!isPrivateMode && conversationId && (
                         <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm"
-                          size="sm"
+                          size="menu"
                           variant="ghost"
                           onClick={() => setIsShareDialogOpen(true)}
                           disabled={!online}
@@ -688,8 +684,7 @@ const ChatHeaderComponent = ({
                       )}
 
                       <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm"
-                        size="sm"
+                        size="menu"
                         variant="ghost"
                         onClick={() => handleExport("json")}
                         disabled={!online || exportingFormat !== null}
@@ -698,8 +693,7 @@ const ChatHeaderComponent = ({
                         Export as JSON
                       </Button>
                       <Button
-                        className="h-10 justify-start gap-2 px-3 text-sm"
-                        size="sm"
+                        size="menu"
                         variant="ghost"
                         onClick={() => handleExport("md")}
                         disabled={!online || exportingFormat !== null}
@@ -710,8 +704,7 @@ const ChatHeaderComponent = ({
 
                       {!isPrivateMode && conversation && !isArchived && (
                         <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm"
-                          size="sm"
+                          size="menu"
                           variant="ghost"
                           onClick={() => setIsArchiveDialogOpen(true)}
                           disabled={!online}
@@ -723,8 +716,8 @@ const ChatHeaderComponent = ({
 
                       {!isPrivateMode && conversation && (
                         <Button
-                          className="h-10 justify-start gap-2 px-3 text-sm text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
-                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive dark:hover:bg-destructive/20"
+                          size="menu"
                           variant="ghost"
                           onClick={() => setIsDeleteDialogOpen(true)}
                           disabled={!online}

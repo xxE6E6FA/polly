@@ -3,11 +3,60 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Base styles for menu items used in ContextMenu, DropdownMenu, and similar components.
+ * Combine with data-attribute states for highlighted/disabled styling.
+ *
+ * @example
+ * ```tsx
+ * <ContextMenu.Item className={cn(menuItemBaseStyles, "data-[highlighted]:bg-muted")}>
+ *   Item
+ * </ContextMenu.Item>
+ * ```
+ */
+export const menuItemBaseStyles =
+  "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none";
+
+/**
+ * Default data-attribute states for menu items (highlighted and disabled).
+ */
+export const menuItemStateStyles =
+  "data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+
+/**
+ * Button variants using CVA (class-variance-authority).
+ *
+ * @variant default - Primary action button with solid background
+ * @variant destructive - For dangerous/irreversible actions (alias: danger)
+ * @variant outline - Secondary button with border, transparent background
+ * @variant secondary - Low-emphasis button with subtle background
+ * @variant ghost - Minimal button, visible only on hover
+ * @variant action - Custom action button styles (uses .btn-action class)
+ * @variant link - Text-only button styled as a link
+ * @variant tropical - Gradient button for special CTAs
+ * @variant primary - Alias for default
+ * @variant success - Positive action (save, confirm, complete)
+ * @variant warning - Cautionary action
+ * @variant info - Informational action
+ * @variant danger - Destructive action (delete, remove)
+ *
+ * @size default - Standard size (h-9)
+ * @size sm - Compact size (h-8)
+ * @size lg - Large size (h-10)
+ * @size icon - Square icon button (h-9 w-9)
+ * @size icon-sm - Compact icon button (h-8 w-8)
+ * @size icon-pill - Circular icon button
+ * @size pill - Rounded pill shape
+ * @size menu - For drawer/menu action lists (h-10, left-aligned)
+ * @size full - Full width
+ * @size full-lg - Full width, large
+ */
 const buttonVariants = cva(
   "flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium cursor-pointer transition-colors transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[.98] active:shadow-sm",
   {
     variants: {
       variant: {
+        /** Primary action button with solid background */
         default:
           "bg-primary text-primary-foreground shadow hover:bg-primary-hover focus-visible:bg-primary-hover",
         destructive:
@@ -32,6 +81,9 @@ const buttonVariants = cva(
         info: "bg-info text-info-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-info-hover hover:shadow-lg focus-visible:bg-info-hover focus-visible:shadow-lg",
         danger:
           "bg-danger text-danger-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-danger-hover hover:shadow-lg focus-visible:bg-danger-hover focus-visible:shadow-lg",
+        /** Subtle danger variant for retry/error actions */
+        "danger-subtle":
+          "bg-danger/10 text-danger hover:bg-danger/20 focus-visible:bg-danger/20",
         purple:
           "bg-accent-purple text-primary-foreground shadow-md transition-all duration-200 ease-in-out hover:bg-accent-purple/90 hover:shadow-lg focus-visible:bg-accent-purple/90 focus-visible:shadow-lg",
         "chat-input":
@@ -49,6 +101,8 @@ const buttonVariants = cva(
         pill: "h-8 w-auto gap-2 px-2.5 text-xs rounded-full",
         full: "h-9 w-full px-4 py-2 rounded-md",
         "full-lg": "h-10 w-full px-5 rounded-md",
+        /** For menu/drawer action lists - taller, left-aligned */
+        menu: "h-10 justify-start gap-2 px-3 rounded-md",
       },
       rounded: {
         true: "rounded-full",

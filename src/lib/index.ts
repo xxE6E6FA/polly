@@ -149,10 +149,6 @@ export {
 // =============================================================================
 
 export { formatContextLength } from "./format-context";
-export {
-  getDefaultReasoningConfig,
-  useLastMessageReasoningConfig,
-} from "./message-reasoning-utils";
 
 // =============================================================================
 // Type Guards

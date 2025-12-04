@@ -32,7 +32,12 @@ export type {
   ButtonAsButtonProps,
   ButtonProps,
 } from "./button";
-export { Button, buttonVariants } from "./button";
+export {
+  Button,
+  buttonVariants,
+  menuItemBaseStyles,
+  menuItemStateStyles,
+} from "./button";
 export type { ChatInputIconButtonProps } from "./chat-input-icon-button";
 export { ChatInputIconButton } from "./chat-input-icon-button";
 export { EnhancedSlider } from "./enhanced-slider";

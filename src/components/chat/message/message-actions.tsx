@@ -1544,7 +1544,7 @@ export const MessageActions = memo(
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-3" align="start" side="top">
-                <div className="space-y-3">
+                <div className="stack-md">
                   <div className="flex items-center justify-between border-b pb-2">
                     <span className="text-xs font-semibold">
                       Generation Stats

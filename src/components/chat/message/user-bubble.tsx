@@ -133,7 +133,7 @@ export const UserBubble = memo(
                 <textarea
                   ref={textareaRef}
                   rows={1}
-                  className="w-full resize-none border-0 bg-transparent text-[15px] leading-[1.75] sm:text-[16px] sm:leading-[1.8] text-foreground outline-none ring-0 placeholder:text-muted-foreground/60 focus:ring-0 selectable-auto"
+                  className="w-full resize-none border-0 bg-transparent text-sm leading-relaxed sm:text-base sm:leading-comfortable text-foreground outline-none ring-0 placeholder:text-muted-foreground/60 focus:ring-0 selectable-auto"
                   placeholder="Edit your message..."
                   value={editContent}
                   style={{

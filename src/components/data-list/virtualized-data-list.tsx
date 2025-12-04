@@ -163,7 +163,7 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
             {columns.map((col, colIndex) => (
               <div key={col.key}>
                 {colIndex === 0 ? (
-                  <div className="space-y-2">
+                  <div className="stack-sm">
                     <Skeleton className="h-4 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
                   </div>
@@ -174,7 +174,7 @@ export function VirtualizedDataList<TItem, TField extends string = string>({
             ))}
           </div>
           {/* Mobile skeleton */}
-          <div className="lg:hidden space-y-2">
+          <div className="lg:hidden stack-sm">
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="h-3 w-1/3" />
           </div>

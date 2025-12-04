@@ -24,6 +24,7 @@ import { SettingsPageLayout } from "@/components/settings/ui/settings-page-layou
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { Switch } from "@/components/ui/switch";
 import { useBackgroundJobs } from "@/hooks/use-background-jobs";
 import type { SortDirection } from "@/hooks/use-list-sort";
 import {
@@ -518,12 +519,10 @@ export default function ChatHistoryPage() {
           <div className="flex flex-wrap items-center gap-2">
             {someSelected ? (
               <>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Switch
                     checked={includeAttachments}
-                    onChange={e => setIncludeAttachments(e.target.checked)}
-                    className="rounded border-border"
+                    onCheckedChange={setIncludeAttachments}
                   />
                   <span className="text-muted-foreground">
                     Include attachment content in export

@@ -252,6 +252,9 @@
   --color-accent-emerald: hsl(160.1 84.1% 39.4%);
   --color-accent-pink: hsl(328 85% 53%);
 
+  /* Provider Brand Colors */
+  --color-groq: hsl(11 91% 59%);
+
   /* Destructive Colors */
   --color-destructive: hsl(0 84.2% 60.2%);
   --color-destructive-foreground: hsl(0 0% 100%);

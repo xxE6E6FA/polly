@@ -89,9 +89,8 @@ const AttachmentStripComponent = ({
                     {truncateMiddle(attachment.name, 16)}
                   </span>
                   {onRemove && (
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
                       className={cn(
                         "flex h-5 w-5 items-center justify-center rounded-full",
                         "text-muted-foreground hover:bg-black/70 hover:text-white",
@@ -101,17 +100,10 @@ const AttachmentStripComponent = ({
                         e.stopPropagation();
                         onRemove(index);
                       }}
-                      onKeyDown={e => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onRemove(index);
-                        }
-                      }}
                       aria-label={`Remove ${attachment.name}`}
                     >
                       <XIcon className="h-3 w-3" />
-                    </span>
+                    </button>
                   )}
                 </>
               )}

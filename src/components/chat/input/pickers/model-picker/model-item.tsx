@@ -146,26 +146,17 @@ const ModelItemComponent = ({
             <div className="flex gap-1 items-center flex-wrap mt-1">
               {/* Status Badges */}
               {model.free && !isPollyDisabled && (
-                <Badge
-                  className="h-5 shrink-0 border-green-200 bg-green-100 px-1.5 py-0 text-[10px] text-green-700 dark:border-green-800 dark:bg-green-950 dark:text-green-300"
-                  variant="secondary"
-                >
+                <Badge variant="status-free" size="xs">
                   Free
                 </Badge>
               )}
               {isPollyDisabled && (
-                <Badge
-                  className="h-5 shrink-0 border-orange-200 bg-orange-50 px-1.5 py-0 text-[10px] text-orange-600 dark:border-orange-900 dark:bg-orange-950/50 dark:text-orange-400"
-                  variant="secondary"
-                >
+                <Badge variant="status-limit" size="xs">
                   Limit Reached
                 </Badge>
               )}
               {isUnavailable && (
-                <Badge
-                  className="h-5 shrink-0 border-red-200 bg-red-100 px-1.5 py-0 text-[10px] text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
-                  variant="secondary"
-                >
+                <Badge variant="status-unavailable" size="xs">
                   Unavailable
                 </Badge>
               )}

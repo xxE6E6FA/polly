@@ -1,4 +1,5 @@
 import { ArrowCounterClockwiseIcon } from "@phosphor-icons/react";
+import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/types";
 import {
   type AspectRatioValue,
@@ -62,14 +63,14 @@ export function MessageError({
     }
     if (onRetry) {
       return (
-        <button
-          type="button"
+        <Button
+          variant="danger-subtle"
+          size="sm"
           onClick={() => onRetry(messageId)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-danger/10 px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger/20"
         >
           <ArrowCounterClockwiseIcon className="h-3.5 w-3.5" />
           Retry message
-        </button>
+        </Button>
       );
     }
     return null;

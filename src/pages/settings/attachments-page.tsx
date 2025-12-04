@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useListSelection } from "@/hooks/use-list-selection";
 import type { SortDirection } from "@/hooks/use-list-sort";
@@ -407,12 +408,10 @@ export default function AttachmentsPage() {
           </Select>
 
           {fileType === "image" && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Switch
                 checked={includeGenerated}
-                onChange={e => setIncludeGenerated(e.target.checked)}
-                className="rounded"
+                onCheckedChange={setIncludeGenerated}
               />
               Include generated images
             </label>

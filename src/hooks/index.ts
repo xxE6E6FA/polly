@@ -42,7 +42,6 @@ export type { AssistantPhase } from "./use-assistant-display-phase";
 export { useAssistantDisplayPhase } from "./use-assistant-display-phase";
 export { mapServerMessageToChatMessage, useChat } from "./use-chat";
 export { useChatAttachments } from "./use-chat-attachments";
-export { useChatFullscreen } from "./use-chat-fullscreen";
 export { useChatInputPreservation } from "./use-chat-input-preservation";
 export { useChatMessages } from "./use-chat-messages";
 export { useChatScopedState } from "./use-chat-scoped-state";
@@ -50,7 +49,6 @@ export { useChatStateMachine } from "./use-chat-state-machine";
 export { useChatViewState } from "./use-chat-view-state";
 export { useClearOnConversationChange } from "./use-clear-on-conversation-change";
 export { useGenerationMode, useImageParams } from "./use-generation";
-export { useMessageState } from "./use-message-state";
 export { usePrivateChat } from "./use-private-chat";
 export { selectReasoningConfig, useReasoningConfig } from "./use-reasoning";
 export { useSpeechInputContext } from "./use-speech-input-context";
@@ -72,7 +70,6 @@ export { useSelectedModel } from "./use-selected-model";
 // Conversation Hooks
 // =============================================================================
 
-export { useConversationSelection } from "./use-conversation-selection";
 export { usePaginatedConversations } from "./use-paginated-conversations";
 
 // =============================================================================

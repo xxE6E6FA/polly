@@ -225,7 +225,7 @@ export const CitationPreviewPopup: React.FC<CitationPreviewPopupProps> = ({
           "hover:bg-secondary/50 transition-colors"
         )}
       >
-        <div className="p-4 space-y-3">
+        <div className="p-4 stack-md">
           <div className="flex items-start gap-3">
             {current.favicon ? (
               <img
@@ -253,7 +253,7 @@ export const CitationPreviewPopup: React.FC<CitationPreviewPopupProps> = ({
                 </svg>
               </div>
             )}
-            <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex-1 min-w-0 stack-xs">
               <div
                 className={cn(
                   "font-semibold text-sm leading-tight line-clamp-2",

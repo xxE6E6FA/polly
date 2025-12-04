@@ -120,7 +120,6 @@ const MessageItem = memo(
         <div
           id={message.id}
           className="mx-auto w-full max-w-3xl pb-3 sm:pb-4 overflow-visible motion-safe:animate-message-in"
-          style={{ maxWidth: "48rem" }}
         >
           {message.role === "context" ? (
             <ContextMessage message={message} />

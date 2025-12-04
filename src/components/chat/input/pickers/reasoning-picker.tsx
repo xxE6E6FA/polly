@@ -73,9 +73,9 @@ function getProviderTheme(provider?: string) {
     case "groq":
       return {
         icon: SparkleIcon,
-        color: "text-[#F54F35]",
-        bgColor: "bg-[#F54F35]/10",
-        hoverBgColor: "hover:bg-[#F54F35]/20",
+        color: "text-groq",
+        bgColor: "bg-groq/10",
+        hoverBgColor: "hover:bg-groq/20",
       };
     case "openai":
       return {
